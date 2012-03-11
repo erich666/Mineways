@@ -1,0 +1,98 @@
+minutor (1.2.3) unstable; urgency=low
+
+  * Added 1.9 blocks, reversed giant mushroom blocks
+
+ -- Sean Kasun <sean@seancode.com>  Wed, 28 Sep 2011 11:47:05 -0700
+
+minutor (1.2.2) unstable; urgency=low
+
+  * Fixed a bug that prevented newer blocks from showing up
+
+ -- Sean Kasun <sean@seancode.com>  Sun, 18 Sep 2011 11:42:32 -0700
+
+minutor (1.2.1) unstable; urgency=low
+
+  * Added 1.8 blocks
+
+ -- Sean Kasun <sean@seancode.com>  Sat, 17 Sep 2011 11:45:53 -0700
+
+minutor (1.2) unstable; urgency=low
+
+  * Added new blocks
+  * Fixed windows GDI leak
+
+ -- Sean Kasun <sean@seancode.com>  Thu, 16 Jun 2011 12:51:11 -0700
+
+minutor (1.1) unstable; urgency=low
+
+  * Using new cache
+  * Fixed a few block IDs
+  * Added windows-friendly opts
+  
+ -- Sean Kasun <sean@seancode.com>  Sat, 2 Apr 2011 19:10:33 -0700
+
+minutor (1.0) unstable; urgency=low
+
+  * Added all of Ryan's changes
+
+ -- Sean Kasun <sean@seancode.com>  Thu, 24 Feb 2011 19:53:51 -0700
+
+minutor (0.9.3) unstable; urgency=low
+
+  * Color scheme uses GKeyFile instead of GSettings for compatibility
+
+ -- Sean Kasun <sean@seancode.com>  Wed, 3 Nov 2010 14:22:44 -0700
+
+minutor (0.9) unstable; urgency=low
+
+  * Color scheme editor
+  * Hell mode
+  * New blocks from hell
+  * Lighting
+  * Cave modes
+  * Depth shading
+  * Obscured toggle
+
+ -- Sean Kasun <sean@seancode.com>  Sun, 31 Oct 2010 02:18:33 -0700
+
+minutor (0.3.1) unstable; urgency=low
+
+  * Floating point fix
+  * Increased zoom to 10x
+  
+ -- Sean Kasun <sean@seancode.com>  Sat, 16 Oct 2010 13:37:15 -0700
+
+minutor (0.3) unstable; urgency=low
+
+  * Single window
+  * Jump to spawn/player
+  * status bar with block id and position
+  * WASD and QE key controls
+  * Diagonal movement
+  * Map alignment fix
+
+ -- Sean Kasun <sean@seancode.com>  Fri, 15 Oct 2010 20:00:01 -0700
+
+minutor (0.2.5) unstable; urgency=low
+
+  * Patches from Ryan including:
+  *  water is transparent
+  *  caching for rendered blocks
+  *  north orientation
+  *  IDBlock fixes
+
+ -- Sean Kasun <sean@seancode.com>  Mon, 4 Oct 2010 20:02:03 -0700
+
+minutor (0.2) unstable; urgency=low
+
+  * Window resizing
+  * Keyboard controls
+  * Fixed up signals
+
+ -- Sean Kasun <sean@seancode.com>  Mon, 27 Sep 2010 15:32:10 -0700
+
+minutor (0.1) unstable; urgency=low
+
+  * Initial release
+
+ -- Sean Kasun <sean@seancode.com>  Fri, 24 Sep 2010 23:55:20 -0600
