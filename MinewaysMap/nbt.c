@@ -87,23 +87,23 @@ static unsigned int readDword(bfFile bf)
     bfread(bf,buf,4);
     return (buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];
 }
-static unsigned long long readLong(bfFile bf)
-{
-    int i;
-    union {
-        double f;
-        unsigned long long l;
-    } fl;
-    unsigned char buf[8];
-    bfread(bf,buf,8);
-    fl.l=0;
-    for (i=0;i<8;i++)
-    {
-        fl.l<<=8;
-        fl.l|=buf[i];
-    }
-    return fl.l;
-}
+//static unsigned long long readLong(bfFile bf)
+//{
+//    int i;
+//    union {
+//        double f;
+//        unsigned long long l;
+//    } fl;
+//    unsigned char buf[8];
+//    bfread(bf,buf,8);
+//    fl.l=0;
+//    for (i=0;i<8;i++)
+//    {
+//        fl.l<<=8;
+//        fl.l|=buf[i];
+//    }
+//    return fl.l;
+//}
 static double readDouble(bfFile bf)
 {
     int i;
@@ -160,6 +160,10 @@ static void skipType(bfFile bf,int type)
         case 10: //compound
             skipCompound(bf);
             break;
+		case 11: //int array
+			len=readDword(bf);
+			bfseek(bf,len*4,SEEK_CUR);
+			break;
     }
 }
 static void skipList(bfFile bf)
@@ -212,6 +216,13 @@ static void skipList(bfFile bf)
             for (i=0;i<len;i++)
                 skipCompound(bf);
             break;
+		case 11: //int array
+			for (i=0;i<len;i++)
+			{
+				int slen=readDword(bf);
+				bfseek(bf,slen*4,SEEK_CUR);
+			}
+			break;
     }
 }
 static void skipCompound(bfFile bf)
@@ -266,7 +277,8 @@ static int nbtFindElement(bfFile bf,char *name)
 
 int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight)
 {
-    int len,found;
+	int len,nsections;
+	//int found;
 
 #ifndef C99
     char *thisName;
@@ -279,52 +291,76 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     if (nbtFindElement(bf,"Level")!=10)
         return 0;
 
-    found=0;
-    // found is the number of elements to find in chunk. Increase if you
-    // add more elements below.
-    while (found!=3)
-    {
-        int ret=0;
-        unsigned char type=0;
-        bfread(bf,&type,1);
-        if (type==0) 
-            return 0;
-        len=readWord(bf);
+	if (nbtFindElement(bf,"Sections")!= 9)
+		return 0;
+
+	{
+	  unsigned char type=0;
+	  bfread(bf,&type,1);
+	  if (type != 10)
+	    return 0;
+	}
+
+	memset(buff, 0, 16*16*256);
+	memset(data, 0, 16*16*128);
+	memset(blockLight, 0, 16*16*128);
+
+	nsections=readDword(bf);
+
+	while (nsections--)
+	{	
+	    unsigned char y;
+	    int save = *bf.offset;
+	    if (nbtFindElement(bf,"Y")!=1) //which section is this?
+		return 0;
+	    bfread(bf,&y,1);
+	    bfseek(bf,save,SEEK_SET); //rewind to start of section
+
+	    //found=0;
+	    for (;;)
+	    {
+		int ret=0;
+		unsigned char type=0;
+		bfread(bf,&type,1);
+		if (type==0) 
+		    break;
+		len=readWord(bf);
 #ifdef C99
         char thisName[len+1];
 #else
-        thisName=(char *)malloc(len+1);
+		thisName=(char *)malloc(len+1);
 #endif
-        bfread(bf,thisName,len);
-        thisName[len]=0;
-        if (strcmp(thisName,"BlockLight")==0)
-        {
-            found++;
-            ret=1;
-            len=readDword(bf); //array length
-            bfread(bf,blockLight,len);
-        }
-        else if (strcmp(thisName,"Blocks")==0)
-        {
-            found++;
-            ret=1;
-            len=readDword(bf); //array length
-            bfread(bf,buff,len);
-        }
+		bfread(bf,thisName,len);
+		thisName[len]=0;
+		if (strcmp(thisName,"BlockLight")==0)
+		{
+			//found++;
+			ret=1;
+			len=readDword(bf); //array length
+			bfread(bf,blockLight+16*16*8*y,len);
+		}
+		if (strcmp(thisName,"Blocks")==0)
+		{
+			//found++;
+			ret=1;
+			len=readDword(bf); //array length
+			bfread(bf,buff+16*16*16*y,len);
+		}
         else if (strcmp(thisName,"Data")==0)
         {
-            found++;
+            //found++;
             ret=1;
             len=readDword(bf); //array length
-            bfread(bf,data,len);
+            bfread(bf,data+16*16*8*y,len);
         }
 #ifndef C99
-        free(thisName);
+		free(thisName);
 #endif
-        if (!ret)
-            skipType(bf,type);
-    }
-    return 1;
+		if (!ret)
+			skipType(bf,type);
+	    }
+	}
+	return 1;
 }
 void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
 {
@@ -343,18 +379,30 @@ void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
     *z=readDword(bf);
 }
 
-void nbtGetRandomSeed(bfFile bf,long long *seed)
+void nbtGetFileVersion(bfFile bf, int *version)
 {
     int len;
-    *seed=0;
-    //Data/RandomSeed
+    //Data/version
     bfseek(bf,1,SEEK_CUR); //skip type
     len=readWord(bf); //name length
     bfseek(bf,len,SEEK_CUR); //skip name ()
     if (nbtFindElement(bf,"Data")!=10) return;
-    if (nbtFindElement(bf,"RandomSeed")!=4) return;
-    *seed=readLong(bf);
+    if (nbtFindElement(bf,"version")!=3) return;
+    *version=readDword(bf);
 }
+
+//void nbtGetRandomSeed(bfFile bf,long long *seed)
+//{
+//    int len;
+//    *seed=0;
+//    //Data/RandomSeed
+//    bfseek(bf,1,SEEK_CUR); //skip type
+//    len=readWord(bf); //name length
+//    bfseek(bf,len,SEEK_CUR); //skip name ()
+//    if (nbtFindElement(bf,"Data")!=10) return;
+//    if (nbtFindElement(bf,"RandomSeed")!=4) return;
+//    *seed=readLong(bf);
+//}
 void nbtGetPlayer(bfFile bf,int *px,int *py,int *pz)
 {
     int len;

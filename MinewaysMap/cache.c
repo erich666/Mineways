@@ -41,7 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // arbitrary, let users tune this?
 // 6000 entries translates to Mineways using ~300MB of RAM (on x64)
 
-static int gHashMaxEntries=15000;   // was 6000, Sean said to increase it
+static int gHashMaxEntries=12000;   // was 6000, Sean said to increase it
 
 typedef struct block_entry {
     int x, z;

@@ -28,8 +28,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <dirent.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-#include "MinewaysMap/MinewaysMap.h"
-#include "Mineways.xpm"
+#include "MinutorMap/MinutorMap.h"
+#include "minutor.xpm"
 #include "colorschemes.h"
 
 #define MINZOOM 1.0
@@ -38,17 +38,17 @@ THE POSSIBILITY OF SUCH DAMAGE.
 static GtkWidget *win;
 static GtkWidget *slider,*da,*status,*progressbar;
 static GtkWidget *jumpplayer,*jumpspawn;
-static GtkWidget *lighting, *cavemode, *hideobscured, *depthshading, *hell;
+static GtkWidget *lighting, *cavemode, *hideobscured, *depthshading, *hell, *ender;
 static GtkWidget *standard;
 static double curX,curZ;
-static int curDepth=127;
+static int curDepth=255;
 static double curScale=1.0;
 static char *world=NULL;
 static unsigned char *bits;
 static int curWidth,curHeight;
 static int spawnX,spawnY,spawnZ;
 static int playerX,playerY,playerZ;
-
+static long long randomSeed;
 static gboolean mouseUp(GtkWidget *widget,GdkEventButton *event);
 
 static void destroy()
@@ -83,6 +83,7 @@ static gboolean drawMap(GtkWidget *widget)
     opts|=gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(depthshading))?DEPTHSHADING:0;
 	opts|=gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(lighting))?LIGHTING:0;
 	opts|=gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(hell))?HELL:0;
+	opts|=gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(ender))?ENDER:0;
 
 	DrawMap(world,curX,curZ,curDepth,curWidth,curHeight,curScale,bits,opts,updateProgress);
 
@@ -99,12 +100,11 @@ static gboolean drawMap(GtkWidget *widget)
 
 static gchar *getSliderText(GtkScale *scale,gdouble value)
 {
-	return g_strdup_printf("%d",
-		127-(int)value);
+	return g_strdup_printf("%d",255-(int)value);
 }
 static void adjustMap(GtkRange *range,gpointer user_data)
 {
-	curDepth=127-(int)gtk_range_get_value(range);
+	curDepth=255-(int)gtk_range_get_value(range);
 	gdk_window_invalidate_rect(GTK_WIDGET(user_data)->window,NULL,FALSE);
 }
 static gboolean tracking=FALSE;
@@ -126,8 +126,8 @@ static gboolean mouseMove(GtkWidget *widget,GdkEventMotion *event)
 {
 	if (tracking)
 	{
-		curX+=(oldY-event->y)/curScale;
-		curZ-=(oldX-event->x)/curScale;
+		curX+=(oldX-event->x)/curScale;
+		curZ+=(oldY-event->y)/curScale;
 		oldX=event->x;
 		oldY=event->y;
 		gdk_window_invalidate_rect(widget->window,NULL,FALSE);
@@ -197,13 +197,13 @@ static gboolean keyDown(GtkWidget *widget,GdkEventKey *event)
 	if (moving!=0)
 	{
 		if (moving&1) //up
-			curX-=10.0/curScale;
-		if (moving&2) //down
-			curX+=10.0/curScale;
-		if (moving&4) //left
-			curZ+=10.0/curScale;
-		if (moving&8) //right
 			curZ-=10.0/curScale;
+		if (moving&2) //down
+			curZ+=10.0/curScale;
+		if (moving&4) //left
+			curX-=10.0/curScale;
+		if (moving&8) //right
+			curX+=10.0/curScale;
 		changed=TRUE;
 	}
 	if (changed)
@@ -246,7 +246,7 @@ static void loadMap(const gchar *path)
 	world=g_strdup(path);
 	GFile *file=g_file_new_for_path(path);
 	char *title=g_file_get_basename(file);
-	char *titlestr=g_strdup_printf("Mineways - %s",title);
+	char *titlestr=g_strdup_printf("Minutor - %s",title);
 	gtk_window_set_title(GTK_WINDOW(win),titlestr);
 	g_free(titlestr);
 	g_free(title);
@@ -256,6 +256,7 @@ static void loadMap(const gchar *path)
 	GetPlayer(path,&playerX,&playerY,&playerZ);
 	curX=spawnX;
 	curZ=spawnZ;
+	GetRandomSeed(path, &randomSeed);
 
 	gtk_widget_set_sensitive(jumpspawn,TRUE);
 	gtk_widget_set_sensitive(jumpplayer,TRUE);
@@ -334,12 +335,21 @@ static void toggleHell(GtkMenuItem *menuItem,gpointer user_data)
 	{
 		curX/=8.0;
 		curZ/=8.0;
+		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(ender),FALSE);
 	}
 	else
 	{
 		curX*=8.0;
 		curZ*=8.0;
 	}
+	CloseAll();
+	gdk_window_invalidate_rect(da->window,NULL,FALSE);
+}
+
+static void toggleEnd(GtkMenuItem *menuItem,gpointer user_data)
+{
+	if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(ender)))
+		gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(hell),FALSE);
 	CloseAll();
 	gdk_window_invalidate_rect(da->window,NULL,FALSE);
 }
@@ -355,7 +365,7 @@ void createMapViewer()
 {
 	//map window
 	win=gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title(GTK_WINDOW(win),"Mineways");
+	gtk_window_set_title(GTK_WINDOW(win),"Minutor");
 	gtk_window_set_icon(GTK_WINDOW(win),gdk_pixbuf_new_from_xpm_data(icon));
 	g_signal_connect(G_OBJECT(win),"destroy",
 		G_CALLBACK(destroy),NULL);
@@ -382,9 +392,9 @@ void createMapViewer()
     gchar *save_dir = getSavePath();
     DIR* save_dirp = opendir(save_dir);
 
+    int n = 0;
     if (save_dirp) 
     {
-        int n = 0;
         gchar *level_dat;
         struct dirent *world_dir;
         while ((world_dir = readdir(save_dirp)) != NULL) {
@@ -451,14 +461,20 @@ void createMapViewer()
 	
 	GtkWidget *sep2=gtk_separator_menu_item_new();
 	gtk_menu_shell_append(GTK_MENU_SHELL(viewitems),sep2);
-	
-	hell=gtk_check_menu_item_new_with_label("Hell");
+
+	hell=gtk_check_menu_item_new_with_label("Nether");
 	gtk_widget_add_accelerator(hell,"activate",menuGroup,
 		GDK_F5,0,GTK_ACCEL_VISIBLE);
 	gtk_menu_shell_append(GTK_MENU_SHELL(viewitems),hell);
 	g_signal_connect(G_OBJECT(hell),"activate",
 		G_CALLBACK(toggleHell),NULL);
 
+	ender=gtk_check_menu_item_new_with_label("End");
+	gtk_widget_add_accelerator(ender,"activate",menuGroup,
+		GDK_F6,0,GTK_ACCEL_VISIBLE);
+	gtk_menu_shell_append(GTK_MENU_SHELL(viewitems),ender);
+	g_signal_connect(G_OBJECT(ender),"activate",
+		G_CALLBACK(toggleEnd),NULL);
 	GtkWidget *sep3=gtk_separator_menu_item_new();
 	gtk_menu_shell_append(GTK_MENU_SHELL(viewitems),sep3);
 
@@ -488,7 +504,7 @@ void createMapViewer()
 	gtk_box_pack_start(GTK_BOX(vbox),hbox,FALSE,TRUE,0);
 
 	//slider
-	slider=gtk_hscale_new_with_range(0.0,127.0,1.0);
+	slider=gtk_hscale_new_with_range(0.0,255.0,1.0);
 	gtk_widget_set_sensitive(slider,FALSE);
 	gtk_box_pack_start(GTK_BOX(hbox),slider,TRUE,TRUE,0);
 	g_signal_connect(G_OBJECT(slider),"format-value",

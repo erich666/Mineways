@@ -48,7 +48,7 @@ extern "C" {
 #define LIGHTING		0x08
 #define HELL			0x10
 #define ENDER			0x20
-#define SLIME			0x40
+//#define SLIME			0x40
 #define SHOWALL         0x80
 
 typedef void (*ProgressCallback)(float progress);
@@ -59,9 +59,10 @@ typedef void (*ProgressCallback)(float progress);
     __declspec(dllexport) const char * __cdecl IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type);
     __declspec(dllexport) void __cdecl CloseAll();
     __declspec(dllexport) WorldBlock * __cdecl LoadBlock(wchar_t *directory,int bx,int bz);
-    __declspec(dllexport) int __cdecl GetSpawn(const wchar_t *world,int *x,int *y,int *z);
+	__declspec(dllexport) int __cdecl GetSpawn(const wchar_t *world,int *x,int *y,int *z);
+    __declspec(dllexport) int __cdecl GetFileVersion(const wchar_t *world,int *version);
     __declspec(dllexport) void __cdecl GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
-    __declspec(dllexport) void __cdecl GetRandomSeed(const wchar_t *world,long long* pseed);
+    //__declspec(dllexport) void __cdecl GetRandomSeed(const wchar_t *world,long long* pseed);
     
     // palette should be in RGBA format, num colors in the palette
     __declspec(dllexport) void __cdecl SetMapPalette(unsigned int *palette,int num);

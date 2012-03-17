@@ -77,8 +77,8 @@ void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy
     if ( minz > maxz ) swapint(minz,maxz);
 
     // clean up by clamping
-    miny = clamp(miny,0,127);
-    maxy = clamp(maxy,0,127);
+    miny = clamp(miny,0,MAP_MAX_HEIGHT);
+    maxy = clamp(maxy,0,MAP_MAX_HEIGHT);
 
     // has highlight state changed?
     if ( gBoxHighlightUsed != on ||
@@ -116,37 +116,37 @@ void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy
 }
 
 
-static long long randomSeed;
-static void javaRandomSetSeed(long long seed){
-  randomSeed = (seed ^ 0x5DEECE66DL) & ((1LL << 48) - 1);
-}
+//static long long randomSeed;
+//static void javaRandomSetSeed(long long seed){
+//  randomSeed = (seed ^ 0x5DEECE66DL) & ((1LL << 48) - 1);
+//}
 
-static long long javaRandomNext(int bits) {
-  long long r = randomSeed;
-  r = (r * 0x5DEECE66DL + 0xBL) & ((1LL << 48) - 1);
-  return (long long)(r >> (48 - bits));
-}
-static int javaRandomNextInt(int n) {
-    long long bits,val;
-   if ((n & -n) == n)  // i.e., n is a power of 2
-       return (int)((n * (long long)javaRandomNext(31)) >> 31);
-   do {
-       bits = javaRandomNext(31);
-       val = bits % n;
-   } while(bits - val + (n-1) < 0);
-   return (int)val;
-}
+//static long long javaRandomNext(int bits) {
+//  long long r = randomSeed;
+//  r = (r * 0x5DEECE66DL + 0xBL) & ((1LL << 48) - 1);
+//  return (long long)(r >> (48 - bits));
+//}
+//static int javaRandomNextInt(int n) {
+//    long long bits,val;
+//   if ((n & -n) == n)  // i.e., n is a power of 2
+//       return (int)((n * (long long)javaRandomNext(31)) >> 31);
+//   do {
+//       bits = javaRandomNext(31);
+//       val = bits % n;
+//   } while(bits - val + (n-1) < 0);
+//   return (int)val;
+//}
 
-static long long getChunkSeed(int xPosition, int zPosition){
-    return (gMapSeed + (long long) (xPosition * xPosition * 0x4c1906) + (long long) (xPosition * 0x5ac0db) +
-             (long long) (zPosition * zPosition) * 0x4307a7L + (long long) (zPosition * 0x5f24f)) ^ 0x3ad8025f;
-}
+//static long long getChunkSeed(int xPosition, int zPosition){
+//    return (gMapSeed + (long long) (xPosition * xPosition * 0x4c1906) + (long long) (xPosition * 0x5ac0db) +
+//             (long long) (zPosition * zPosition) * 0x4307a7L + (long long) (zPosition * 0x5f24f)) ^ 0x3ad8025f;
+//}
 
-static int isSlimeChunk(int x, int z){
-    long long nextSeed = getChunkSeed(x, z);
-    javaRandomSetSeed(nextSeed);
-    return javaRandomNextInt(10)==0;
-}
+//static int isSlimeChunk(int x, int z){
+//    long long nextSeed = getChunkSeed(x, z);
+//    javaRandomSetSeed(nextSeed);
+//    return javaRandomNextInt(10)==0;
+//}
 
 void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz )
 {
@@ -201,23 +201,23 @@ void DrawMap(const wchar_t *world,double cx,double cz,int y,int w,int h,double z
 
 
     // cx/cz is the center, so find the upper left corner from that
-    double startx=cx-(double)h/(2*zoom);
-    double startz=cz+(double)w/(2*zoom);
+	double startx=cx-(double)w/(2*zoom);
+	double startz=cz-(double)h/(2*zoom);
     // TODO: I suspect these want to be floors, not ints; int
     // rounds towards 0, floor takes -4.5 and goes to -5.
     int startxblock=(int)(startx/16);
     int startzblock=(int)(startz/16);
-    int shiftx=(int)(blockScale-(startz-startzblock*16)*zoom);
-    int shifty=(int)((startx-startxblock*16)*zoom);
+	int shiftx=(int)((startx-startxblock*16)*zoom);
+	int shifty=(int)((startz-startzblock*16)*zoom);
 
     if (shiftx<0)
     {
-        startzblock++;
+		startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-        startxblock--;
+		startzblock--;
         shifty+=blockScale;
     }
 
@@ -225,12 +225,12 @@ void DrawMap(const wchar_t *world,double cx,double cz,int y,int w,int h,double z
         initColors();
 
     // x increases south, decreases north
-    for (x=0,py=-shifty;x<=vBlocks;x++,py+=blockScale)
+    for (z=0,py=-shifty;z<=vBlocks;z++,py+=blockScale)
     {
         // z increases west, decreases east
-        for (z=0,px=-shiftx;z<=hBlocks;z++,px+=blockScale)
+        for (x=0,px=-shiftx;x<=hBlocks;x++,px+=blockScale)
         {
-            blockbits = draw(world,startxblock+x,startzblock-z,y,opts,callback,(float)(x*hBlocks+z)/(float)(vBlocks*hBlocks),hitsFound);
+            blockbits = draw(world,startxblock+x,startzblock+z,y,opts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
             blit(blockbits,bits,px,py,zoom,w,h);
         }
     }
@@ -271,25 +271,25 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     int blockScale=(int)(16*zoom);
     
     // cx/cz is the center, so find the upper left corner from that
-    double startx=cx-(double)h/(2*zoom);
-    double startz=cz+(double)w/(2*zoom);
+	double startx=cx-(double)w/(2*zoom);
+	double startz=cz-(double)h/(2*zoom);
     // TODO: I suspect these want to be floors, not ints; int
     // rounds towards 0, floor takes -4.5 and goes to -5.
     int startxblock=(int)(startx/16);
     int startzblock=(int)(startz/16);
-    int shiftx=(int)(blockScale-(startz-startzblock*16)*zoom);
-    int shifty=(int)((startx-startxblock*16)*zoom);
+	int shiftx=(int)((startx-startxblock*16)*zoom);
+	int shifty=(int)((startz-startzblock*16)*zoom);
     assert(cz < 10000);
     assert(cz > -10000);
 
     if (shiftx<0)
     {
-        startzblock++;
+		startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-        startxblock--;
+		startzblock--;
         shifty+=blockScale;
     }
 
@@ -297,18 +297,18 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     // Sean's fix, but makes the screen go empty if I scroll off top of window
     if (by<0) return "";
 
-    x=(by+shifty)/blockScale;
-    py=x*blockScale-shifty;
-    z=(bx+shiftx)/blockScale;
-    px=z*blockScale-shiftx;
+	x=(bx+shiftx)/blockScale;
+	px=x*blockScale-shiftx;
+	z=(by+shifty)/blockScale;
+	py=z*blockScale-shifty;
 
-    zoff=((int)((px - bx)/zoom) + 15) % 16;
-    xoff=(int)((by - py)/zoom);
+	xoff=(int)((bx-px)/zoom);
+	zoff=(int)((by-py)/zoom);
 
     *ox=(startxblock+x)*16+xoff;
-    *oz=(startzblock-z)*16+zoff;
+	*oz=(startzblock+z)*16+zoff;
 
-    block=(WorldBlock *)Cache_Find(startxblock+x, startzblock-z);
+    block=(WorldBlock *)Cache_Find(startxblock+x, startzblock+z);
 
     if (block==NULL)
     {
@@ -332,11 +332,11 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     // there's a bug in the original code, sometimes xoff is negative.
     // For now, assert when I see it, and return empty - better than crashing.
     //assert( y+(zoff+xoff*16)*128 >= 0 );
-    if ( y+(zoff+xoff*16)*128 < 0 || y+(zoff+xoff*16)*128 >= 32768) {
+    if ( y*256+zoff*16+xoff < 0 || y*256+zoff*16+xoff >= 65536) {
         return "(off map)";
     }
 
-    *type = block->grid[y+(zoff+xoff*16)*128];
+    *type = block->grid[xoff+zoff*16+y*256];
     return gBlockDefinitions[*type].name;
 }
 
@@ -386,8 +386,8 @@ void CloseAll()
 static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Options opts,ProgressCallback callback,float percent,int *hitsFound)
 {
     WorldBlock *block, *prevblock;
-    int ofs=0,xOfs=0,prevy,zOfs,bofs,prevSely,blockSolid;
-    int hasSlime = 0;
+    int ofs=0,prevy,bofs,prevSely,blockSolid;
+    //int hasSlime = 0;
     int x,z,i;
     unsigned int color, viewFilterFlags;
     unsigned char voxel, r, g, b, seenempty;
@@ -396,8 +396,8 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     char cavemode, showobscured, depthshading, lighting;
     unsigned char *bits;
 
-    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
-            hasSlime = isSlimeChunk(bx, bz);
+//    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
+//            hasSlime = isSlimeChunk(bx, bz);
 
     cavemode=!!(opts.worldType&CAVEMODE);
     showobscured=!(opts.worldType&HIDEOBSCURED);
@@ -473,7 +473,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     bits = block->rendercache;
 
     // find the block to the west, so we can use its heightmap for shading
-    prevblock=(WorldBlock *)Cache_Find(bx, bz + 1);
+    prevblock=(WorldBlock *)Cache_Find(bx-1, bz);
 
     if (prevblock==NULL)
         block->rendermissing=1; //note no loaded block to west
@@ -482,21 +482,19 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         prevblock = NULL; //block was rendered at a different y level, ignore
     }
     // x increases south, decreases north
-    for (x=0;x<16;x++,xOfs+=128*16)
+	for (z=0;z<16;z++)
     {
         if (prevblock!=NULL)
-            prevy = prevblock->heightmap[x];
+			prevy = prevblock->heightmap[15+z*16];
         else
             prevy=-1;
 
-        zOfs=xOfs+128*15;
-
         // z increases (old) west, decreases (old) east
-        for (z=15;z>=0;z--,zOfs-=128)
+		for (x=0;x<16;x++)
         {
             prevSely = -1;
 
-            bofs=zOfs+maxHeight;
+            bofs=((maxHeight*16+z)*16+x);
             color=0;
             r=g=b=0;
             // if we start at the top of the world, seenempty is set to 1 (there's air above), else 0
@@ -504,10 +502,10 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
             // the next solid block is then shown. If it's solid all the way down, the block will be
             // drawn as "empty"
-            seenempty=(maxHeight==127?1:0);
+            seenempty=(maxHeight==MAP_MAX_HEIGHT?1:0);
             alpha=0.0;
             // go from top down through all voxels, looking for the first one visible.
-            for (i=maxHeight;i>=0;i--,bofs--)
+			for (i=maxHeight;i>=0;i--,bofs-=16*16)
             {
                 voxel=block->grid[bofs];
                 // if block is air or something very small, note it's empty and continue to next voxel
@@ -537,10 +535,10 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     int light=12;
                     if (lighting)
                     {
-                        if (i < 127)
+						if (i < MAP_MAX_HEIGHT)
                         {
-                            light=block->light[(bofs+1)/2];
-                            if (!(bofs&1)) light>>=4;
+							light=block->light[bofs/2];
+							if (bofs&1) light>>=4;
                             light&=0xf;
                         } else
                         {
@@ -580,25 +578,25 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 
             if (depthshading) // darken deeper blocks
             {
-                int num=prevy+50-(128-maxHeight)/5;
-                int denom=maxHeight+50-(128-maxHeight)/5;
+				int num=prevy+50-(256-maxHeight)/5;
+				int denom=maxHeight+50-(256-maxHeight)/5;
 
                 r=(unsigned char)(r*num/denom);
                 g=(unsigned char)(g*num/denom);
                 b=(unsigned char)(b*num/denom);
             }
 
-            if(hasSlime > 0){
-                // before 1.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
-                //if(maxHeight<=16){
-                if(maxHeight<=40){
-                    g=clamp(g+20,0,255);
-                }else{
-                    if(x%15==0 || z%15==0){
-                        g=clamp(g+20,0,255);
-                    }
-                }
-            }
+            //if(hasSlime > 0){
+            //    // before 1.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
+            //    //if(maxHeight<=16){
+            //    if(maxHeight<=40){
+            //        g=clamp(g+20,0,MAP_MAX_HEIGHT);
+            //    }else{
+            //        if(x%15==0 || z%15==0){
+            //            g=clamp(g+20,0,MAP_MAX_HEIGHT);
+            //        }
+            //    }
+            //}
 
             if (cavemode)
             {
@@ -606,11 +604,11 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                 voxel=block->grid[bofs];
 
                 if (voxel==BLOCK_LEAVES || voxel==BLOCK_LOG) //special case surface trees
-                    for (; i>=1; i--,voxel=block->grid[--bofs])
+					for (; i>=1; i--,bofs-=16*16,voxel=block->grid[bofs])
                         if (!(voxel==BLOCK_LOG||voxel==BLOCK_LEAVES||voxel==BLOCK_AIR))
                             break; // skip leaves, wood, air
 
-                for (;i>=1;i--,bofs--)
+				for (;i>=1;i--,bofs-=16*16)
                 {
                     voxel=block->grid[bofs];
                     if (voxel==BLOCK_AIR)
@@ -737,28 +735,40 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 {
-    bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcsncat_s(filename,256,L"/level.dat",10);
-    bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return 1;
-    nbtGetSpawn(bf,x,y,z);
-    nbtClose(bf);
-    return 0;
+	bfFile bf;
+	wchar_t filename[256];
+	wcsncpy_s(filename,256,world,255);
+	wcsncat_s(filename,256,L"/level.dat",10);
+	bf=newNBT(filename);
+	if ( bf.gz == 0x0 ) return 1;
+	nbtGetSpawn(bf,x,y,z);
+	nbtClose(bf);
+	return 0;
 }
-void GetRandomSeed(const wchar_t *world,long long *seed)
+int GetFileVersion(const wchar_t *world,int *version)
 {
-    bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcsncat_s(filename,256,L"/level.dat",10);
-    bf=newNBT(filename);
-    nbtGetRandomSeed(bf,seed);
-    gMapSeed = *seed;
-    nbtClose(bf);
-
+	bfFile bf;
+	wchar_t filename[256];
+	wcsncpy_s(filename,256,world,255);
+	wcsncat_s(filename,256,L"/level.dat",10);
+	bf=newNBT(filename);
+	if ( bf.gz == 0x0 ) return 1;
+	nbtGetFileVersion(bf,version);
+	nbtClose(bf);
+	return 0;
 }
+//void GetRandomSeed(const wchar_t *world,long long *seed)
+//{
+//    bfFile bf;
+//    wchar_t filename[256];
+//    wcsncpy_s(filename,256,world,255);
+//    wcsncat_s(filename,256,L"/level.dat",10);
+//    bf=newNBT(filename);
+//    nbtGetRandomSeed(bf,seed);
+//    gMapSeed = *seed;
+//    nbtClose(bf);
+//
+//}
 void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
 {
     bfFile bf;

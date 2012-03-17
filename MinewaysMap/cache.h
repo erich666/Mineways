@@ -31,9 +31,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __CACHE_H__
 
 typedef struct WorldBlock {
-    unsigned char grid[16*16*128];  // blockid array [y+(z+x*16)*128]
-    unsigned char data[16*16*64];  // additional data about each block (wool color, etc.)
-    unsigned char light[16*16*64];
+	unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
+	// someday we'll need the top four bits field when > 256 blocks
+	// unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
+    unsigned char data[16*16*128];  // half-byte additional data about each block (wool color, etc.)
+	unsigned char light[16*16*128]; // half-byte lighting data
 
     unsigned char rendercache[16*16*4]; // bitmap of last render
     unsigned char heightmap[16*16]; // height of rendered block [x+z*16]

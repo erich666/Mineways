@@ -35,6 +35,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 typedef unsigned int    UINT;
 
 
+#define MAP_MAX_HEIGHT 255
+#define MAP_MAX_HEIGHT_STRING L"255"
+
 // sea level (it was 63 before 1.0 release)
 #define SEA_LEVEL 62
 
@@ -306,15 +309,15 @@ typedef struct Options {
 } Options;
 
 
-// number of official Minecraft blocks - 123
-#define NUM_BLOCKS_STANDARD 0x7b
+// number of official Minecraft blocks - 125
+#define NUM_BLOCKS_STANDARD 0x7d
 // number of blocks + 16 for the 16 colored wool - 139
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
 // number of texture swatches
 #define NUM_SWATCHES (NUM_BLOCKS+256)
 
-// absolute max the 2x2 * 16x16 space of swatches could have (without borders
+// absolute max the 2x2 * 16x16 space of swatches could have (without borders)
 #define NUM_MAX_SWATCHES (4*16*16)
 
 // row & column to swatch location
@@ -510,7 +513,9 @@ static struct {
     {"End Portal Frame",       0x3e6c60, 1.000f, 0x3e6c60, 14, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //78 15,9 side, 15,10 bottom
     {"End Stone",              0xdadca6, 1.000f, 0xdadca6, 15,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //79
     {"Dragon Egg",             0x1b1729, 1.000f, 0x1b1729,  7,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},    //7A - TODO: not really whole
-    // for simplicity, wool gets converted to its colors when read in, and made separate blocks
+    {"Redstone Lamp (off)",    0x9F6D4D, 1.000f, 0x9F6D4D,  3,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //7b
+    {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //7c
+// for simplicity, wool gets converted to its colors when read in, and made separate blocks
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},
     {"Magenta Wool",           0xBF49CA, 1.000f, 0xBF49CA,  2,12, BLF_WHOLE|BLF_IMAGE_TEXTURE},

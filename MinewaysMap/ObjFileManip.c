@@ -48,11 +48,11 @@ static PORTAFILE gPngFile;  // for terrain.png input (not texture output)
 #define BOUNDARY_AIR_GROUP 1
 
 typedef struct BoxCell {
+	int group;	// for 3D printing, what connected group a block is part of
     unsigned char type;
     unsigned char origType;
     unsigned char flatFlags;	// top face's type, for "merged" snow, redstone, etc. in cell above
     unsigned char data;     // extra data for block (wool color, etc.)
-    int group;	// for 3D printing, what connected group a block is part of
 } BoxCell;
 
 typedef struct BoxGroup 
@@ -274,7 +274,8 @@ static int gDebugTransparentType = -999;
 static long gMySeed = 12345;
 
 // set to true if we are using a newer terrain.png that includes jungle leaves
-static int gJungleExists=0;
+// Commented out with 1.2, since 1.2 always has jungle
+//static int gJungleExists=0;
 
 
 // these should not be relied on for much of anything during processing,
@@ -347,9 +348,12 @@ static int gFaceDirectionVector[6][3] =
 #define BOX_INDEX(x,y,z)	((x)*gBoxSizeYZ + (z)*gBoxSize[Y] + (y))
 
 // feed chunk number and location to get index inside chunk's data
-#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
-                                             (((z)-(bz)*16)+ \
-                                             ((x)-(bx)*16)*16)*128)
+//#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
+//											(((z)-(bz)*16)+ \
+//											((x)-(bx)*16)*16)*128)
+#define CHUNK_INDEX(bx,bz,x,y,z) (  (y*256)+ \
+                                             (((z)-(bz)*16)*16) + \
+                                             ((x)-(bx)*16)  )
 
 #define UPDATE_PROGRESS(p)		if (*gpCallback){ (*gpCallback)(p);}
 
@@ -379,9 +383,9 @@ static int gFaceDirectionVector[6][3] =
 
 
 typedef struct TouchCell {
-    int obscurity;
-    int count;
-    int connections;
+	unsigned short connections;	// bit field showing connections to edges
+	unsigned char count;		// number of connections (up to 12)
+    unsigned char obscurity;	// how many directions have something blocking it from visibility (up to 6). More hidden air cells get filled first
 } TouchCell;
 
 TouchCell *gTouchGrid;
@@ -390,9 +394,9 @@ static int gTouchSize;
 
 typedef struct TouchRecord {
     int boxIndex;
-    int obscurity;
-    int count;
     float distance;   // really, distance squared
+	unsigned char count;
+	unsigned char obscurity;
 } TouchRecord;
 
 // read these as: given my location, and I'm an air block, TOUCH_MX_MY means
@@ -450,7 +454,7 @@ static void checkFaceListSize();
 
 static void findGroups();
 static void addVolumeToGroup( int groupID, int minx, int miny, int minz, int maxx, int maxy, int maxz );
-static void propagateSeed(IPoint point, BoxGroup *groupInfo, IPoint *seedStack, int *seedCount);
+static void propagateSeed(IPoint point, BoxGroup *groupInfo, IPoint **seedStack, int *seedSize, int *seedCount);
 static int getNeighbor( int faceDirection, IPoint newPoint );
 static void getNeighborUnsafe( int faceDirection, IPoint newPoint );
 
@@ -480,7 +484,7 @@ static int determineScaleAndHollowAndMelt();
 static void scaleByCost();
 static void hollowBottomOfModel();
 static void meltSnow();
-static void hollowSeed( int x, int y, int z, IPoint *seedList, int *seedCount );
+static void hollowSeed( int x, int y, int z, IPoint **seedList, int *seedSize, int *seedCount );
 
 static void generateBlockDataAndStatistics();
 static int faceIdCompare( void *context, const void *str1, const void *str2);
@@ -527,7 +531,7 @@ static int createBaseMaterialTexture();
 
 static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info *src, int src_x_min, int src_y_min);
 static int tileIsSemitransparent(progimage_info *src, int col, int row);
-static int tileIsCutout(progimage_info *src, int col, int row);
+// for jungle determination - no longer needed: static int tileIsCutout(progimage_info *src, int col, int row);
 static int tileIsOpaque(progimage_info *src, int col, int row);
 static void setColorPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info *dst, int swatchIndex, float startStretch);
@@ -989,9 +993,21 @@ static void initializeModelData()
     // box cells, which is why this array is one smaller).
     // For convenience, we make it the same size anyway. So, index 0 is
     // the -x/-y/-z corner of box 0, which will never be used.
+
+	// Who knows how many is a good starting number? We don't want to realloc
+	// all the time, but too large and the program dies.
+	int startNumVerts = 6*gBoxSize[X]*gBoxSize[Z];
+	// let's not start with more than a million vertices
+	if ( startNumVerts > 1000000 )
+	{
+		startNumVerts = 1000000;
+	}
+	// There is an index location for each grid cell. It gets filled in as vertices are found to exist.
+	// Each location is set with the vertex index in the list of vertices output. Not memory efficient...
     gModel.vertexIndices = (int*)malloc(gBoxSizeXYZ*sizeof(int));   // this one never needs realloc
-    gModel.vertexListSize = gBoxSizeXYZ;
-    gModel.vertices = (Point*)malloc(gBoxSizeXYZ*sizeof(Point));
+	// These may be reallocated as we go.
+    gModel.vertexListSize = startNumVerts;
+    gModel.vertices = (Point*)malloc(startNumVerts*sizeof(Point));
 
     VecScalar( gModel.billboardBounds.min, =,  999999);
     VecScalar( gModel.billboardBounds.max, =, -999999);
@@ -1196,7 +1212,10 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                     dataVal &= 0xf;
                 gBoxData[boxIndex].data = dataVal;
                 blockID = gBoxData[boxIndex].origType = 
-                    gBoxData[boxIndex].type = block->grid[chunkIndex++];
+                    gBoxData[boxIndex].type = block->grid[chunkIndex];
+
+				// For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
+				chunkIndex += 256;
                 // get bounds on y searches:
                 // search for air, and if not found then
                 // add to vertical bounds.
@@ -1570,8 +1589,9 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_LEVER ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON ||
+			// repeaters attach only at their ends, so test the direction they're at
+			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
+			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_ON ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF
@@ -1585,8 +1605,8 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_LEVER ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON ||
+            (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
+            (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_ON ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF
@@ -1602,8 +1622,8 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_LEVER ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON ||
+			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
+			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL
             )
         {
@@ -1614,8 +1634,8 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_LEVER ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON ||
+			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
+			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL
             )
         {
@@ -1626,7 +1646,7 @@ static int computeFlatFlags( int boxIndex )
 
     case BLOCK_LADDER:
     case BLOCK_WALL_SIGN:
-        switch ( gBoxData[boxIndex].data )
+        switch ( gBoxData[boxIndex].data)
         {
         case 2: // new north, -Z
             gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
@@ -1936,11 +1956,11 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
             break;
         case 3:
         case 4:
-            // jungle (? - icon not shown properly at http://www.minecraftwiki.net/wiki/Block_ids#Beta_1.5_and_after)
-            if ( gJungleExists )
-            {
+            // jungle
+            //if ( gJungleExists )
+            //{
                 swatchLoc = SWATCH_INDEX(14,1);
-            }
+            //}
             break;
         }
         break;
@@ -2328,7 +2348,8 @@ static void findGroups()
     int boxIndex;
     IPoint loc;
     IPoint seedLoc;
-    IPoint *seedStack = (IPoint *)malloc(gBoxSizeXYZ*sizeof(IPoint));
+	int seedSize = 1000;
+    IPoint *seedStack = (IPoint *)malloc(seedSize*sizeof(IPoint));
     int seedCount = 0;
     BoxGroup *pGroup;
 
@@ -2388,7 +2409,7 @@ static void findGroups()
                     else
                         gAirGroups++;
                     // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
-                    propagateSeed(loc,pGroup,seedStack,&seedCount);
+                    propagateSeed(loc,pGroup,&seedStack,&seedSize,&seedCount);
 
                     // When this is done, seedStack has a list of seeds that had no ID before and now have one.
                     // Each of these seeds' neighbors needs to be tested .
@@ -2399,7 +2420,7 @@ static void findGroups()
                         // copy test point over, so we don't trample it when seedStack gets increased
                         seedCount--;
                         Vec2Op( seedLoc, =, seedStack[seedCount]);
-                        propagateSeed(seedLoc,pGroup,seedStack,&seedCount);
+                        propagateSeed(seedLoc,pGroup,&seedStack,&seedSize,&seedCount);
                     }
                 }
             }
@@ -2449,12 +2470,27 @@ static void addVolumeToGroup( int groupID, int minx, int miny, int minz, int max
 }
 
 
-static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint *seedStack, int *seedCount)
+static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint **pSeedStack, int *seedSize, int *seedCount)
 {
     int faceDirection;
     int boxIndex,newBoxIndex;
     IPoint newPt;
     int sindex;
+	IPoint *seedStack;
+
+	// check that there's not enough room for seedStack to grow by 6 points
+	if ( *seedSize <= *seedCount + 6 )
+	{
+		IPoint *seeds;
+		*seedSize += 6;
+		*seedSize *= 2;
+		seeds = (IPoint*)malloc(*seedSize*sizeof(IPoint));
+		memcpy( seeds, (*pSeedStack), *seedCount*sizeof(IPoint));
+		free( (*pSeedStack) );
+		(*pSeedStack) = seeds;
+	}
+
+	seedStack = *pSeedStack;
 
     // special test: if the seed is air, and the original type of this block was solid, not air (was: was an entrance), then
     // don't propagate the seed. This is useful for structures, where you don't necessarily want to see
@@ -3029,6 +3065,7 @@ static int fixTouchingEdges()
     TouchRecord *touchList;
     int maxVal;
 
+	// big allocation, not much to be done about it.
     gTouchGrid = (TouchCell*)malloc(gBoxSizeXYZ*sizeof(TouchCell));
     memset(gTouchGrid,0,gBoxSizeXYZ*sizeof(TouchCell));
 
@@ -3527,24 +3564,24 @@ static void decrementNeighbors( int boxIndex )
     {
         nc++;
         offset = boxIndex - gBoxSizeYZ - 1;
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PX_PY;
     }
     if ( connections & TOUCH_MX_MZ )
     {
         nc++;
         offset = boxIndex - gBoxSizeYZ - gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PX_PZ;
     }
     if ( connections & TOUCH_MY_MZ )
     {
         nc++;
         offset = boxIndex - 1 - gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PY_PZ;
     }
 
@@ -3552,24 +3589,24 @@ static void decrementNeighbors( int boxIndex )
     {
         nc++;
         offset = boxIndex - gBoxSizeYZ + 1;
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PX_MY;
     }
     if ( connections & TOUCH_MX_PZ )
     {
         nc++;
         offset = boxIndex - gBoxSizeYZ + gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PX_MZ;
     }
     if ( connections & TOUCH_MY_PZ )
     {
         nc++;
         offset = boxIndex - 1 + gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_PY_MZ;
     }
 
@@ -3577,24 +3614,24 @@ static void decrementNeighbors( int boxIndex )
     {
         nc++;
         offset = boxIndex + gBoxSizeYZ - 1;
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MX_PY;
     }
     if ( connections & TOUCH_PX_MZ )
     {
         nc++;
         offset = boxIndex + gBoxSizeYZ - gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MX_PZ;
     }
     if ( connections & TOUCH_PY_MZ )
     {
         nc++;
         offset = boxIndex + 1 - gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MY_PZ;
     }
 
@@ -3602,24 +3639,24 @@ static void decrementNeighbors( int boxIndex )
     {
         nc++;
         offset = boxIndex + gBoxSizeYZ + 1;
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MX_MY;
     }
     if ( connections & TOUCH_PX_PZ )
     {
         nc++;
         offset = boxIndex + gBoxSizeYZ + gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MX_MZ;
     }
     if ( connections & TOUCH_PY_PZ )
     {
         nc++;
         offset = boxIndex + 1 + gBoxSize[Y];
+		assert(gTouchGrid[offset].count>0);
         gTouchGrid[offset].count--;
-        assert(gTouchGrid[offset].count>=0);
         gTouchGrid[offset].connections &= ~TOUCH_MY_MZ;
     }
     // we should have cleared as many as we had in the cell
@@ -3919,9 +3956,6 @@ static void hollowBottomOfModel()
     // we could actually allocate less, but don't want to risk allocing 0 (or less than 0!)
     int *listToChange=(int *)malloc((gSolidBox.max[X]-gSolidBox.min[X]+1)*(gSolidBox.max[Z]-gSolidBox.min[Z]+1)*sizeof(int));
 
-    IPoint *seedStack;
-    int seedCount;
-
     int hollowListSize = gBoxSize[X]*gBoxSize[Z]*sizeof(unsigned char);
     unsigned char *hollowDone = (unsigned char *)malloc(hollowListSize);
         memset(hollowDone,0,hollowListSize);
@@ -4064,8 +4098,10 @@ static void hollowBottomOfModel()
         // We use the hollowDone "heightmap" to generate seeds: if the height of an XZ position is lower or equal to the height
         // of its four neighboring hollowDones then the elements at its height to the maximum of the other 4 heights - 1 should be checked
         // as possible seeds.
-        seedStack = (IPoint *)malloc(gBoxSizeXYZ*sizeof(IPoint));
-        seedCount = 0;
+		int seedSize = 1000;
+        IPoint *seedStack = (IPoint *)malloc(seedSize*sizeof(IPoint));
+        int seedCount = 0;
+
         gStats.blocksSuperHollowed = 0;
         for ( x = gSolidBox.min[X]+gHollowBlockThickness; x <= gSolidBox.max[X]-gHollowBlockThickness; x++ )
         {
@@ -4091,7 +4127,7 @@ static void hollowBottomOfModel()
                     for ( y = hollowHeight; y < maxNeighborHeight; y++ )
                     {
                         // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
-                        hollowSeed( x, y, z, seedStack,&seedCount);
+                        hollowSeed( x, y, z, &seedStack,&seedSize,&seedCount);
 
                         // When this is done, seedStack has a list of seeds that had no ID before and now have one.
                         // Each of these seeds' neighbors needs to be tested.
@@ -4101,7 +4137,7 @@ static void hollowBottomOfModel()
                         {
                             // copy test point over, so we don't trample it when seedStack gets increased
                             seedCount--;
-                            hollowSeed(seedStack[seedCount][X],seedStack[seedCount][Y],seedStack[seedCount][Z],seedStack,&seedCount);
+                            hollowSeed(seedStack[seedCount][X],seedStack[seedCount][Y],seedStack[seedCount][Z],&seedStack,&seedSize,&seedCount);
                         }
                     }
                 }
@@ -4113,12 +4149,12 @@ static void hollowBottomOfModel()
     free(hollowDone);
 }
 
-static void hollowSeed( int x, int y, int z, IPoint *seedList, int *seedCount )
+static void hollowSeed( int x, int y, int z, IPoint **pSeedList, int *seedSize, int *seedCount )
 {
     IPoint loc;
     // recursively check this seed location and all neighbors for whether this location can be hollowed out
     int boxIndex = BOX_INDEX(x,y,z);
-    
+
     // first, is it already empty? or marked as part of hollow (as the posts are)?
     if ( gBoxData[boxIndex].type != BLOCK_AIR && gBoxData[boxIndex].group != HOLLOW_AIR_GROUP )
     {
@@ -4177,7 +4213,23 @@ static void hollowSeed( int x, int y, int z, IPoint *seedList, int *seedCount )
 
         if ( ok )
         {
-            // survived! Turn it hollow, and check the six seeds. Recursion, here we come.
+			// survived! Turn it hollow, and check the six seeds. Recursion, here we come.
+			IPoint *seedList;
+
+			// check that there's not enough room for seedStack to grow by 6 points
+			if ( *seedSize <= *seedCount + 6 )
+			{
+				IPoint *seeds;
+				*seedSize += 6;
+				*seedSize *= 2;
+				seeds = (IPoint*)malloc(*seedSize*sizeof(IPoint));
+				memcpy( seeds, (*pSeedList), *seedCount*sizeof(IPoint));
+				free( (*pSeedList) );
+				(*pSeedList) = seeds;
+			}
+
+			seedList = *pSeedList;
+
             gBoxData[boxIndex].type = BLOCK_AIR;
             gBoxData[boxIndex].group = HOLLOW_AIR_GROUP;
             gStats.blocksSuperHollowed++;
@@ -4848,14 +4900,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 SWATCH_SWITCH_SIDE( faceDirection, 5,7 );
                 break;
             case 3: // jungle
-                if ( gJungleExists )
-                {
+                //if ( gJungleExists )
+                //{
                     SWATCH_SWITCH_SIDE( faceDirection, 9,9 );
-                }
-                else
-                {
-                    SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
-                }
+                //}
+                //else
+                //{
+                //    SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
+                //}
                 break;
             default: // normal log
                 SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
@@ -4877,14 +4929,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( col, 3 );
                 break;
             case 3: // jungle - switch depending on whether jungle exists!
-                if ( gJungleExists )
-                {
+                //if ( gJungleExists )
+                //{
                     swatchLoc = SWATCH_INDEX( col, 12 );
-                }
-                else
-                {
-                    swatchLoc = SWATCH_INDEX( col, 3 );
-                }
+                //}
+                //else
+                //{
+                //    swatchLoc = SWATCH_INDEX( col, 3 );
+                //}
                 break;
            }
             break;
@@ -6764,8 +6816,8 @@ static int createBaseMaterialTexture()
         }
 
         // test if jungle leaves exist (which used to be oak leaves): if not, then use oak leaves instead
-        gJungleExists = tileIsCutout( &gModel.inputTerrainImage, 4, 12 ) &&
-            tileIsOpaque( &gModel.inputTerrainImage, 5, 12 );
+        //gJungleExists = tileIsCutout( &gModel.inputTerrainImage, 4, 12 ) &&
+        //    tileIsOpaque( &gModel.inputTerrainImage, 5, 12 );
 
         // insane corrective: truly tile between chest shared edges, grabbing samples from *adjacent* swatch
         for ( i = 0; i < 2; i++ )
@@ -7944,38 +7996,38 @@ static int tileIsSemitransparent(progimage_info *src, int col, int row)
     return 1;
 }
 
-static int tileIsCutout(progimage_info *src, int col, int row)
-{
-    int r,c;
-    int clearFound=0;
-    int solidFound=0;
-
-    for ( r = 0; r < gModel.tileSize; r++ )
-    {
-        unsigned char *src_offset = src->image_data + ((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3;
-        for ( c = 0; c < gModel.tileSize; c++ )
-        {
-            // we could also test if the tile is semitransparent and reject if it is;
-            // this seems extreme, I can imagine alternate texture packs going semitransparent
-            //if ( *src_offset > 0 || *src_offset < 255 )
-            //{
-            //    return 0;
-            //}
-            //else
-            // look for if pixels found that are fully transparent or fully solid
-            if ( *src_offset == 0 )
-            {
-                clearFound=1;
-            }
-            else if ( *src_offset == 255 )
-            {
-                solidFound=1;
-            }
-            src_offset += 4;
-        }
-    }
-    return (clearFound && solidFound);
-}
+//static int tileIsCutout(progimage_info *src, int col, int row)
+//{
+//    int r,c;
+//    int clearFound=0;
+//    int solidFound=0;
+//
+//    for ( r = 0; r < gModel.tileSize; r++ )
+//    {
+//        unsigned char *src_offset = src->image_data + ((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3;
+//        for ( c = 0; c < gModel.tileSize; c++ )
+//        {
+//            // we could also test if the tile is semitransparent and reject if it is;
+//            // this seems extreme, I can imagine alternate texture packs going semitransparent
+//            //if ( *src_offset > 0 || *src_offset < 255 )
+//            //{
+//            //    return 0;
+//            //}
+//            //else
+//            // look for if pixels found that are fully transparent or fully solid
+//            if ( *src_offset == 0 )
+//            {
+//                clearFound=1;
+//            }
+//            else if ( *src_offset == 255 )
+//            {
+//                solidFound=1;
+//            }
+//            src_offset += 4;
+//        }
+//    }
+//    return (clearFound && solidFound);
+//}
 
 static int tileIsOpaque(progimage_info *src, int col, int row)
 {

@@ -70,7 +70,7 @@ static double gCurX,gCurZ;								//current X and Z
 static int gLockMouseX=0;                               // if true, don't allow this coordinate to change with mouse, 
 static int gLockMouseZ=0;
 static double gCurScale=MINZOOM;					    //current scale
-static int gCurDepth=127;								//current depth
+static int gCurDepth=MAP_MAX_HEIGHT;					//current depth
 static int gStartHiX,gStartHiZ;						    //starting highlight X and Z
 
 static BOOL gHighlightOn=FALSE;
@@ -129,7 +129,7 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
 static void worldPath(TCHAR *path);
 static void validateItems(HMENU menu);
-static void loadWorldList(HMENU menu);
+static int loadWorldList(HMENU menu);
 static void draw();
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hwndStatus);
 static void populateColorSchemes(HMENU menu);
@@ -301,7 +301,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
 
         validateItems(GetMenu(hWnd));
-        loadWorldList(GetMenu(hWnd));
+        if ( loadWorldList(GetMenu(hWnd)) )
+		{
+			MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+				_T("Warning"), MB_OK|MB_ICONWARNING);
+		}
         populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
 
@@ -316,7 +320,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
             10,0,rect.right-rect.left-50,30,
             hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
-        SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,127));
+        SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
         SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
         EnableWindow(hwndSlider,FALSE);
         
@@ -325,7 +329,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | ES_RIGHT,
             rect.right-40,5,30,20,
             hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
-        SetWindowText(hwndLabel,L"127");
+        SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
         EnableWindow(hwndLabel,FALSE);
 
         hwndStatus=CreateWindowEx(
@@ -514,7 +518,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
             bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
         holdlParam=lParam;
-        if ( my >= 0 && my <= 127 )
+        if ( my >= 0 && my <= MAP_MAX_HEIGHT )
         {
             // special test: if type is a flattop, then select the location one lower for export
             if ( (gBlockDefinitions[type].flags&BLF_FLATTOP) && (my>0) )
@@ -522,7 +526,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 my--;
             }
             gTargetDepth = my;
-            gTargetDepth = clamp(gTargetDepth,0,127);   // should never happen that a flattop is at 0, but just in case
+            gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);   // should never happen that a flattop is at 0, but just in case
             // also set highlight state to new depths
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
@@ -552,7 +556,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
                 bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
             holdlParam=lParam;
-            if ( my >= 0 && my <= 127 )
+            if ( my >= 0 && my <= MAP_MAX_HEIGHT )
             {
                 // special test: if type is a flattop, then select the location one lower for export
                 if ( (gBlockDefinitions[type].flags&BLF_FLATTOP) && (my>0) )
@@ -657,8 +661,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 int mouseY = HIWORD(lParam);
                 if ( mouseY > 0x7fff )
                     mouseY -= 0x10000;
-                gCurZ+=(mouseX-oldX)/gCurScale;
-                gCurX-=(mouseY-oldY)/gCurScale;
+                gCurZ-=(mouseY-oldY)/gCurScale;
+                gCurX-=(mouseX-oldX)/gCurScale;
                 oldX=mouseX;
                 oldY=mouseY;
                 draw();
@@ -760,7 +764,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // increment target depth by one
                 case VK_OEM_4:    // [
                     gTargetDepth++;
-                    gTargetDepth = clamp(gTargetDepth,0,127);
+                    gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
@@ -773,7 +777,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // decrement target depth by one
                 case VK_OEM_6:    // ]
                     gTargetDepth--;
-                    gTargetDepth = clamp(gTargetDepth,0,127);
+                    gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
@@ -795,7 +799,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 case VK_OEM_COMMA:
                 case ',':
                 case '<':
-                    if (gCurDepth<127)
+                    if (gCurDepth<MAP_MAX_HEIGHT)
                     {
                         gCurDepth++;
                         setSlider( hWnd, hwndSlider, hwndLabel );
@@ -838,7 +842,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     setSlider( hWnd, hwndSlider, hwndLabel );
                     break;
                 case '9':
-                    gCurDepth=127;
+                    gCurDepth=MAP_MAX_HEIGHT;
                     setSlider( hWnd, hwndSlider, hwndLabel );
                     break;
                 case VK_HOME:
@@ -857,13 +861,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (moving!=0)
                 {
                     if (moving&1) //up
-                        gCurX-=10.0/gCurScale;
-                    if (moving&2) //down
-                        gCurX+=10.0/gCurScale;
-                    if (moving&4) //left
-                        gCurZ+=10.0/gCurScale;
-                    if (moving&8) //right
                         gCurZ-=10.0/gCurScale;
+                    if (moving&2) //down
+                        gCurZ+=10.0/gCurScale;
+                    if (moving&4) //left
+                        gCurX-=10.0/gCurScale;
+                    if (moving&8) //right
+                        gCurX+=10.0/gCurScale;
                     changed=TRUE;
                 }
                 if (changed)
@@ -897,9 +901,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_HSCROLL:
         pos=SendMessage(hwndSlider,TBM_GETPOS,0,0);
-        _itow_s(127-pos,text,10);
+        _itow_s(MAP_MAX_HEIGHT-pos,text,10);
         SetWindowText(hwndLabel,text);
-        gCurDepth=127-pos;
+        gCurDepth=MAP_MAX_HEIGHT-pos;
         syncCurrentHighlightDepth();
         draw();
         InvalidateRect(hWnd,NULL,FALSE);
@@ -922,15 +926,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             useCustomColor(wmId,hWnd);
         if (wmId>IDM_WORLD && wmId<IDM_WORLD+1000)
         {
+			int loadErr;
             //convert path to utf8
             //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorld,MAX_PATH,NULL,NULL);
             gSameWorld = (wcscmp(gWorld,worlds[wmId-IDM_WORLD])==0);
             wcscpy_s(gWorld,MAX_PATH,worlds[wmId-IDM_WORLD]);
-            if ( loadWorld() )
+			loadErr = loadWorld();
+            if ( loadErr )
             {
                 // world not loaded properly
-                MessageBox( NULL, _T("Error: cannot read world."),
-                    _T("Read error"), MB_OK|MB_ICONERROR);
+				if ( loadErr == 2 )
+				{
+					MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+						_T("Read error"), MB_OK|MB_ICONERROR);
+				}
+				else
+				{
+					MessageBox( NULL, _T("Error: cannot read world."),
+						_T("Read error"), MB_OK|MB_ICONERROR);
+				}
 
                 return 0;
             }
@@ -1153,13 +1167,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             InvalidateRect(hWnd,NULL,TRUE);
             UpdateWindow(hWnd);
             break;
-        case IDM_SLIME:
-            gOptions.worldType^=SLIME;
-            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SLIME)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
-            break;
         case IDM_RELOAD_WORLD:
             // reload world, if loaded
             if ( gLoaded )
@@ -1188,8 +1195,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 gCurX/=8.0;
                 gCurZ/=8.0;
-                // it's useless to view Nether from 127
-                if ( gCurDepth == 127 )
+                // it's useless to view Nether from MAP_MAX_HEIGHT
+                if ( gCurDepth == MAP_MAX_HEIGHT )
                 {
                     gCurDepth = 126;
                     setSlider( hWnd, hwndSlider, hwndLabel );
@@ -1208,7 +1215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 gCurZ*=8.0;
                 if ( gCurDepth == 126 )
                 {
-                    gCurDepth = 127;
+                    gCurDepth = MAP_MAX_HEIGHT;
                     setSlider( hWnd, hwndSlider, hwndLabel );
                 }
                 // turn off obscured, then restore overworld's obscured status
@@ -1447,11 +1454,20 @@ static void draw()
 // return 1 if world could not be loaded
 static int loadWorld()
 {
+	int version;
     CloseAll();
     // Don't clear selection! It's a feature: you can export, then go modify your Minecraft
     // world, then reload and carry on. TODO: document!
     //gHighlightOn=FALSE;
     //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+	if ( GetFileVersion(gWorld,&version) != 0 ) {
+		return 1;
+	}
+	if ( version < 19133 )
+	{
+		// world is old
+		return 2;
+	}
     if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
         return 1;
     }
@@ -1477,8 +1493,9 @@ static void worldPath(TCHAR *path)
     PathAppend(path,L"saves");
 }
 
-static void loadWorldList(HMENU menu)
+static int loadWorldList(HMENU menu)
 {
+	int oldVersionDetected = 0;
     MENUITEMINFO info;
     info.cbSize=sizeof(MENUITEMINFO);
     info.fMask=MIIM_FTYPE|MIIM_ID|MIIM_STRING|MIIM_DATA;
@@ -1498,10 +1515,34 @@ static void loadWorldList(HMENU menu)
         {
             if (ffd.cFileName[0]!='.')
             {
+				// test if world is in Anvil format
+				int version;
+				TCHAR testAnvil[MAX_PATH];
+				worldPath(testAnvil);
+				PathAppend(testAnvil,ffd.cFileName);
+				if ( GetFileVersion(testAnvil,&version) != 0 )
+				{
+					// unreadable world, for some reason - couldn't even read version
+					continue;
+				}
+
                 info.wID=IDM_WORLD+numWorlds;
                 info.cch=wcslen(ffd.cFileName);
                 info.dwTypeData=ffd.cFileName;
                 info.dwItemData=numWorlds;
+				// if version is pre-Anvil, show world but gray it out
+				if (version < 19133)
+				{
+					oldVersionDetected = 1;
+					// gray it out
+					info.fMask |= MIIM_STATE;
+					info.fState = MFS_DISABLED;
+				}
+				else
+				{
+					//info.fMask |= MIIM_STATE;
+					info.fState = 0x0; // MFS_CHECKED;
+				}
                 InsertMenuItem(menu,IDM_WORLD,FALSE,&info);
                 worlds[numWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
                 worldPath(worlds[numWorlds]);
@@ -1510,6 +1551,7 @@ static void loadWorldList(HMENU menu)
             }
         }
     } while (FindNextFile(hFind,&ffd)!=0);
+	return oldVersionDetected;
 }
 
 // validate menu items
@@ -1539,7 +1581,7 @@ static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel )
     syncCurrentHighlightDepth();
 
     wchar_t text[4];
-    SendMessage(hwndSlider,TBM_SETPOS,1,127-gCurDepth);
+    SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-gCurDepth);
     _itow_s(gCurDepth,text,10);
     SetWindowText(hwndLabel,text);
     draw();

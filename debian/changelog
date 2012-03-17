@@ -1,3 +1,24 @@
+minutor (1.6.0) unstable; urgency=low
+
+  * Anvil support by Bradley Bell
+  * Removed slime UI since slime code is out of date
+  * Increased caches, cached unzip buffers
+
+ -- Sean Kasun <sean@seancode.com>  Tue, 6 Mar 2012 16:53:03 -0700
+
+minutor (1.5.0) unstable; urgency=low
+
+  * Blocks for MC1.0
+  * Various windows fixes
+
+ -- Sean Kasun <sean@seancode.com>  Fri, 18 Nov 2011 15:23:29 -0700
+
+minutor (1.2.4) unstable; urgency=low
+
+  * More 1.9 blocks, can view the End
+
+ -- Sean Kasun <sean@seancode.com>  Sat, 15 Oct 2011 18:17:53 -0700
+ 
 minutor (1.2.3) unstable; urgency=low
 
   * Added 1.9 blocks, reversed giant mushroom blocks

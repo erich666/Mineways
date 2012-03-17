@@ -11,4 +11,4 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Minecraft mapping tool
  Minutor lets you view and inspect your Minecraft worlds.
- It is designed for Minecraft Beta.
+ It is designed for Minecraft 1.2 and later.
