@@ -5,6 +5,10 @@ http://vokselia.com
 
 See index.html at http://mineways.com for documentation links, credits, etc.
 
+You need to pick the right version of Mineways, depending on your version of Minecraft:
+Version 2.* works on Minecraft 1.2 worlds and after (Anvil format).
+Version 1.* works on Minecraft 1.1 worlds and earlier (McRegion format).
+
 From minutor, http://seancode.com/minutor/, where much of the original code came from:
 
 All 3 platform source files are here.
