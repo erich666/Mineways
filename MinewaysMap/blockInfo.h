@@ -311,7 +311,7 @@ typedef struct Options {
 
 // number of official Minecraft blocks - 125
 #define NUM_BLOCKS_STANDARD 0x7d
-// number of blocks + 16 for the 16 colored wool - 139
+// number of blocks + 16 for the 16 colored wool - 141
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
 // number of texture swatches

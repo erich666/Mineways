@@ -394,7 +394,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // these track whether a selection height volume has blocks in it,
             // low, medium, high, and minimum low-height found
             gHitsFound[0] = gHitsFound[1] = gHitsFound[2] = 0;
-            gHitsFound[3] = 128;
+            gHitsFound[3] = MAP_MAX_HEIGHT+1;
 
             // now to check the corners: is this location near any of them?
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
@@ -1350,7 +1350,7 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hw
 {
     wchar_t buf[100];
     // if mx, my or mz are crazy, print dashes
-    if ( my < -1 || my >= 128 )
+    if ( my < -1 || my >= MAP_MAX_HEIGHT+1 )
     {
         wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
     }

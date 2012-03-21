@@ -952,8 +952,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax )
 {
     // clean up a bit: make sure max>=min, and limit Y
-    ymin = clamp(ymin,0,127);
-    ymax = clamp(ymax,0,127);
+    ymin = clamp(ymin,0,MAP_MAX_HEIGHT);
+    ymax = clamp(ymax,0,MAP_MAX_HEIGHT);
 
     // we don't really require one to be min or max, we take the range
     if ( xmin > xmax ) swapint(xmin,xmax);

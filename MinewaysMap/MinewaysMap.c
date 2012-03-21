@@ -712,7 +712,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         //{
             int i;
             pBlockID = block->grid;
-            for ( i = 0; i < 16*16*128; i++, pBlockID++ )
+            for ( i = 0; i < 16*16*256; i++, pBlockID++ )
             {
                 if ( *pBlockID == BLOCK_WOOL)
                 {
