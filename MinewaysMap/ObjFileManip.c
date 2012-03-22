@@ -1942,20 +1942,19 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     case BLOCK_SAPLING:
         switch ( dataVal & 0x3 )
         {
-        case 0:
-        default:
+        case 0: // OAK
             // set OK already
             break;
         case 1:
-            swatchLoc = SWATCH_INDEX(15,4);
-            // spruce
+			// spruce
+            swatchLoc = SWATCH_INDEX(15,3);
             break;
         case 2:
             // birch
-            swatchLoc = SWATCH_INDEX(15,3);
+            swatchLoc = SWATCH_INDEX(15,4);
             break;
+		default:
         case 3:
-        case 4:
             // jungle
             //if ( gJungleExists )
             //{
@@ -4856,7 +4855,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_DOUBLE_SLAB:
         case BLOCK_STONE_SLAB:
-            switch ( dataVal )
+			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+			// Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
+			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+            switch ( dataVal & 0x7 )
             {
             default:
                 assert(0);
@@ -4889,30 +4891,50 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-        case BLOCK_LOG:
-            // use data to figure out which side
-            switch ( dataVal )
-            {
-            case 1: // spruce
-                SWATCH_SWITCH_SIDE( faceDirection, 4,7 );
-                break;
-            case 2: // birch
-                SWATCH_SWITCH_SIDE( faceDirection, 5,7 );
-                break;
-            case 3: // jungle
-                //if ( gJungleExists )
-                //{
-                    SWATCH_SWITCH_SIDE( faceDirection, 9,9 );
-                //}
-                //else
-                //{
-                //    SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
-                //}
-                break;
-            default: // normal log
-                SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
-            }
-            break;
+		case BLOCK_LOG:
+			// use data to figure out which side
+			switch ( dataVal )
+			{
+			case 1: // spruce (dark)
+				SWATCH_SWITCH_SIDE( faceDirection, 4,7 );
+				break;
+			case 2: // birch
+				SWATCH_SWITCH_SIDE( faceDirection, 5,7 );
+				break;
+			case 3: // jungle
+				//if ( gJungleExists )
+				//{
+				SWATCH_SWITCH_SIDE( faceDirection, 9,9 );
+				//}
+				//else
+				//{
+				//    SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
+				//}
+				break;
+			default: // normal log
+				SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
+			}
+			break;
+		case BLOCK_WOODEN_PLANKS:
+			// use data to figure out which type of wood
+			switch ( dataVal )
+			{
+			default: // normal log
+				assert(0);
+			case 0:
+				// no change, default plank is fine
+				break;
+			case 1: // spruce (dark)
+				swatchLoc = SWATCH_INDEX( 6,12 );
+				break;
+			case 2: // birch
+				swatchLoc = SWATCH_INDEX( 6,13 );
+				break;
+			case 3: // jungle
+				swatchLoc = SWATCH_INDEX( 7,12 );
+				break;
+			}
+			break;
         case BLOCK_LEAVES:
             // if we're using print export, go with the non-fancy leaves (not transparent)
             col = ( gOptions->exportFlags & EXPT_3DPRINT ) ? 5 : 4;
@@ -5027,7 +5049,27 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_SANDSTONE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+			// top is always sandy, just leave it be
+			if ( faceDirection != DIRECTION_BLOCK_TOP )
+			{
+				// something must be done
+				// use data to figure out which type of sandstone
+				switch ( dataVal )
+				{
+				default: // normal sandstone, which has a bottom that's also the same as the side
+					assert(0);
+				case 0:
+					// bottom does get changed
+					SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+					break;
+				case 1: // creeper - bottom unchanged
+					SWATCH_SWITCH_SIDE( faceDirection, 5,14 );
+					break;
+				case 2: // smooth - bottom unchanged
+					SWATCH_SWITCH_SIDE( faceDirection, 6,14 );
+					break;
+				}
+			}
             break;
         case BLOCK_NOTEBLOCK:
             SWATCH_SWITCH_SIDE( faceDirection, 10,4 );
@@ -5547,6 +5589,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 2:
                 // cracked
                 swatchLoc = SWATCH_INDEX( 5, 6 );
+                break;
+			case 3:
+				// circle - added in 1.2.4
+				swatchLoc = SWATCH_INDEX( 5, 13 );
                 break;
             }
             break;
