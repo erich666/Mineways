@@ -1642,6 +1642,9 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex].data |= FLAT_FACE_LO_Z;
         }
 
+		// NOTE: even after all this the wiring won't perfectly match Minecraft's. For example:
+		// http://i.imgur.com/Al7JI.png - upside-down steps don't block wires.
+
         break;
 
     case BLOCK_LADDER:

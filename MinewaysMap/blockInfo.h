@@ -40,6 +40,7 @@ typedef unsigned int    UINT;
 
 // sea level (it was 63 before 1.0 release)
 #define SEA_LEVEL 62
+#define SEA_LEVEL_STRING L"62"
 
 //// http://www.shapeways.com/materials/material-options
 #define PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE 0

@@ -49,6 +49,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MAX_LOADSTRING 100
 
+// window margins - there should be a lot more defines here...
+#define MAIN_WINDOW_TOP (30+30)
+#define SLIDER_LEFT	84
+
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -100,6 +104,8 @@ static int gFullLow=1;
 static int gAdjustingSelection=0;
 static int gShowPrintStats=1;
 
+static int gBottomControlEnabled = FALSE;
+
 // Error codes
 static struct {
     TCHAR *text;
@@ -128,6 +134,7 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
 static void worldPath(TCHAR *path);
+static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
 static void draw();
@@ -135,7 +142,7 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hw
 static void populateColorSchemes(HMENU menu);
 static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
-static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel );
+static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
 static void syncCurrentHighlightDepth();
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName );
 static const wchar_t *removePath( const wchar_t *src );
@@ -236,7 +243,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance; // Store instance handle in our global variable
 
    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, 500, 450, NULL, NULL, hInstance, NULL);
+      CW_USEDEFAULT, 0, 480, 582, NULL, NULL, hInstance, NULL);
 
    if (!hWnd)
    {
@@ -269,7 +276,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     int wmId; // set but not used, wmEvent;
     PAINTSTRUCT ps;
     HDC hdc;
-    static HWND hwndSlider,hwndLabel,hwndStatus;
+    static HWND hwndSlider,hwndBottomSlider,hwndLabel,hwndBottomLabel,hwndInfoLabel,hwndInfoBottomLabel,hwndStatus;
     static BITMAPINFO bmi;
     static HBITMAP bitmap=NULL;
     static HDC hdcMem=NULL;
@@ -315,22 +322,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ice.dwICC=ICC_BAR_CLASSES;
         InitCommonControlsEx(&ice);
         GetClientRect(hWnd,&rect);
-        hwndSlider=CreateWindowEx(
-            0,TRACKBAR_CLASS,L"Trackbar Control",
-            WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-            10,0,rect.right-rect.left-50,30,
-            hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
-        SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
-        SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
-        EnableWindow(hwndSlider,FALSE);
-        
-        hwndLabel=CreateWindowEx(
-            0,L"STATIC",NULL,
-            WS_CHILD | WS_VISIBLE | ES_RIGHT,
-            rect.right-40,5,30,20,
-            hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
-        SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
-        EnableWindow(hwndLabel,FALSE);
+		hwndSlider=CreateWindowEx(
+			0,TRACKBAR_CLASS,L"Trackbar Control",
+			WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+			SLIDER_LEFT,0,rect.right-rect.left-40-SLIDER_LEFT,30,
+			hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
+		SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
+		SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
+		EnableWindow(hwndSlider,FALSE);
+
+		hwndLabel=CreateWindowEx(
+			0,L"STATIC",NULL,
+			WS_CHILD | WS_VISIBLE | ES_RIGHT,
+			rect.right-40,5,30,20,
+			hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
+		SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
+		EnableWindow(hwndLabel,FALSE);
+
+		hwndBottomSlider=CreateWindowEx(
+			0,TRACKBAR_CLASS,L"Trackbar Control",
+			WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+			SLIDER_LEFT,30,rect.right-rect.left-40-SLIDER_LEFT,30,
+			hWnd,(HMENU)ID_LAYERBOTTOMSLIDER,NULL,NULL);
+		SendMessage(hwndBottomSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
+		SendMessage(hwndBottomSlider,TBM_SETPAGESIZE,0,10);
+		EnableWindow(hwndBottomSlider,FALSE);
+
+		hwndBottomLabel=CreateWindowEx(
+			0,L"STATIC",NULL,
+			WS_CHILD | WS_VISIBLE | ES_RIGHT,
+			rect.right-40,35,30,20,
+			hWnd,(HMENU)ID_LAYERBOTTOMLABEL,NULL,NULL);
+		SetWindowText(hwndBottomLabel,SEA_LEVEL_STRING);
+		EnableWindow(hwndBottomLabel,FALSE);
+
+		setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+
+		// label to left
+		hwndInfoLabel=CreateWindowEx(
+			0,L"STATIC",NULL,
+			WS_CHILD | WS_VISIBLE | ES_LEFT,
+			5,5,SLIDER_LEFT,20,
+			hWnd,(HMENU)ID_LAYERINFOLABEL,NULL,NULL);
+		SetWindowText(hwndInfoLabel,L"Max height");
+		EnableWindow(hwndInfoLabel,FALSE);
+
+		hwndInfoBottomLabel=CreateWindowEx(
+			0,L"STATIC",NULL,
+			WS_CHILD | WS_VISIBLE | ES_LEFT,
+			5,35,SLIDER_LEFT,20,
+			hWnd,(HMENU)ID_LAYERINFOBOTTOMLABEL,NULL,NULL);
+		SetWindowText(hwndInfoBottomLabel,L"Lower depth");
+		EnableWindow(hwndInfoBottomLabel,FALSE);
 
         hwndStatus=CreateWindowEx(
             0,STATUSCLASSNAME,NULL,
@@ -352,7 +395,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SendMessage(progressBar,PBM_SETPOS,0,0);
         }
 
-        rect.top+=30;
+        rect.top+=MAIN_WINDOW_TOP;	// add in two sliders, 30 each
         bitWidth=rect.right-rect.left;
         bitHeight=rect.bottom-rect.top;
         ZeroMemory(&bmi.bmiHeader,sizeof(BITMAPINFOHEADER));
@@ -383,7 +426,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SetCapture(hWnd);
             
             // get mouse position in world space
-            (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
+            (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                 bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
             holdlParam=lParam;
 
@@ -486,6 +529,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
 
             SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
+			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             validateItems(GetMenu(hWnd));
             draw();
             InvalidateRect(hWnd,NULL,FALSE);
@@ -515,7 +559,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         dragging=FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
         int mx,mz;
-        blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
+        blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
             bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
         holdlParam=lParam;
         if ( my >= 0 && my <= MAP_MAX_HEIGHT )
@@ -528,8 +572,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gTargetDepth = my;
             gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);   // should never happen that a flattop is at 0, but just in case
             // also set highlight state to new depths
+			setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+			enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
             updateStatus(mx,mz,my,blockLabel,hwndStatus);
 
@@ -551,9 +597,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // if mouse up in same place as mouse down, turn selection off - who exports one cube column?
             gHighlightOn=FALSE;
             SetHighlightState(gHighlightOn,0,0,0,0,0,0);
+			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
             int mx,mz;
-            blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
+            blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                 bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
             holdlParam=lParam;
             if ( my >= 0 && my <= MAP_MAX_HEIGHT )
@@ -602,9 +649,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         MessageBox( NULL, msgString,
                             _T("Informational"), MB_OK|MB_ICONINFORMATION);
                         gTargetDepth = gHitsFound[3];
+						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                         // update target depth
                         SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+						enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                         draw();
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
@@ -638,9 +687,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if ( retval == IDYES )
                     {
                         gTargetDepth = gHitsFound[3];
+						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                         // update target depth
                         SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+						enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                         draw();
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
@@ -672,7 +723,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // for given mouse position and world center, determine
             // mx, mz, the world coordinates that the mouse is over,
             // and return the name of the block type it's over
-            blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-30,gCurX,gCurZ,
+            blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                     bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
             holdlParam=lParam;
             if (hdragging && gLoaded)
@@ -691,6 +742,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 // update highlight end to this position
                 SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
+				enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                 draw();
                 InvalidateRect(hWnd,NULL,FALSE);
                 UpdateWindow(hWnd);
@@ -749,11 +801,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     gTargetDepth = gCurDepth;
                     {
                         // also set highlight state to new depths
+						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                         SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+						enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
                         // holdlParam is just the last mouse position, so status bar is good.
-                        blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
+                        blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                             bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
                         updateStatus(mx,mz,my,blockLabel,hwndStatus);
                         draw();
@@ -765,9 +819,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 case VK_OEM_4:    // [
                     gTargetDepth++;
                     gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
+					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
+					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
                     updateStatus(mx,mz,my,blockLabel,hwndStatus);
                     draw();
@@ -778,9 +834,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 case VK_OEM_6:    // ]
                     gTargetDepth--;
                     gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
+					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
+					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
                     updateStatus(mx,mz,my,blockLabel,hwndStatus);
                     draw();
@@ -793,7 +851,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gCurDepth>0)
                     {
                         gCurDepth--;
-                        setSlider( hWnd, hwndSlider, hwndLabel );
+                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     }
                     break;
                 case VK_OEM_COMMA:
@@ -802,48 +860,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gCurDepth<MAP_MAX_HEIGHT)
                     {
                         gCurDepth++;
-                        setSlider( hWnd, hwndSlider, hwndLabel );
+                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     }
                     break;
                 case '0':
                     gCurDepth=0;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '1':
                     gCurDepth=10;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '2':
                     gCurDepth=20;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '3':
                     gCurDepth=30;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '4':
                     gCurDepth=40;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '5':
                     gCurDepth=51;	// bottom dirt layer of deep lakes
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '6':
                     gCurDepth=SEA_LEVEL;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '7':
                     gCurDepth=85;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '8':
                     gCurDepth=106;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case '9':
                     gCurDepth=MAP_MAX_HEIGHT;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                     break;
                 case VK_HOME:
                     gCurScale=MAXZOOM;
@@ -900,11 +958,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_HSCROLL:
-        pos=SendMessage(hwndSlider,TBM_GETPOS,0,0);
-        _itow_s(MAP_MAX_HEIGHT-pos,text,10);
-        SetWindowText(hwndLabel,text);
-        gCurDepth=MAP_MAX_HEIGHT-pos;
+		pos=SendMessage(hwndSlider,TBM_GETPOS,0,0);
+		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
+		SetWindowText(hwndLabel,text);
+		gCurDepth=MAP_MAX_HEIGHT-pos;
+
+		pos=SendMessage(hwndBottomSlider,TBM_GETPOS,0,0);
+		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
+		SetWindowText(hwndBottomLabel,text);
+		gTargetDepth=MAP_MAX_HEIGHT-pos;
+
         syncCurrentHighlightDepth();
+
+		GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+		SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+		enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+		blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+		updateStatus(mx,mz,my,blockLabel,hwndStatus);
+
         draw();
         InvalidateRect(hWnd,NULL,FALSE);
         SetFocus(hWnd);
@@ -948,8 +1020,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 return 0;
             }
-            EnableWindow(hwndSlider,TRUE);
-            EnableWindow(hwndLabel,TRUE);
+			EnableWindow(hwndSlider,TRUE);
+			EnableWindow(hwndLabel,TRUE);
+			EnableWindow(hwndInfoLabel,TRUE);
+			EnableWindow(hwndBottomSlider,TRUE);
+			EnableWindow(hwndBottomLabel,TRUE);
             InvalidateRect(hWnd,NULL,TRUE);
             UpdateWindow(hWnd);
             validateItems(GetMenu(hWnd));
@@ -1017,8 +1092,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     return 0;
                 }
-                EnableWindow(hwndSlider,TRUE);
-                EnableWindow(hwndLabel,TRUE);
+				EnableWindow(hwndSlider,TRUE);
+				EnableWindow(hwndLabel,TRUE);
+				EnableWindow(hwndInfoLabel,TRUE);
+				EnableWindow(hwndBottomSlider,TRUE);
+				EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
                 UpdateWindow(hWnd);
             }
@@ -1080,15 +1158,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     saveObjFile(hWnd,path,printModel,ofn.nFilterIndex-1,gSelectTerrain);
 
                     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
+					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                     // put target depth to new depth set, if any
                     if ( gTargetDepth != gpEFD->maxyVal )
                     {
                         gTargetDepth = gpEFD->minyVal;
                     }
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
+                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
                     updateStatus(mx,mz,my,blockLabel,hwndStatus);
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 }
             }
             break;
@@ -1179,8 +1259,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     return 0;
                 }
-                EnableWindow(hwndSlider,TRUE);
-                EnableWindow(hwndLabel,TRUE);
+				EnableWindow(hwndSlider,TRUE);
+				EnableWindow(hwndLabel,TRUE);
+				EnableWindow(hwndInfoLabel,TRUE);
+				EnableWindow(hwndBottomSlider,TRUE);
+				EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
                 UpdateWindow(hWnd);
             }
@@ -1190,6 +1273,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // clear selection when you switch worlds
             gHighlightOn=FALSE;
             SetHighlightState(gHighlightOn,0,0,0,0,0,0);
+			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             // change scale as needed
             if (gOptions.worldType&HELL)
             {
@@ -1199,7 +1283,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if ( gCurDepth == MAP_MAX_HEIGHT )
                 {
                     gCurDepth = 126;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                 }
                 gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
                 gOptions.worldType |= HIDEOBSCURED;
@@ -1216,7 +1300,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if ( gCurDepth == 126 )
                 {
                     gCurDepth = MAP_MAX_HEIGHT;
-                    setSlider( hWnd, hwndSlider, hwndLabel );
+					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                 }
                 // turn off obscured, then restore overworld's obscured status
                 gOptions.worldType &= ~HIDEOBSCURED;
@@ -1235,7 +1319,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 gOptions.worldType&=~ENDER;
             }
             CloseAll();
-            blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-30,gCurX,gCurZ,
+            blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                 bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
             updateStatus(mx,mz,my,blockLabel,hwndStatus);
             draw();
@@ -1279,7 +1363,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             hdc=(HDC)wParam;
             GetClipBox(hdc,&rect);
-            rect.bottom=30;
+            rect.bottom=MAIN_WINDOW_TOP;
             HBRUSH hb=CreateSolidBrush(GetSysColor(COLOR_WINDOW));
             FillRect(hdc,&rect,hb);
             DeleteObject(hb);
@@ -1288,21 +1372,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_PAINT:
         hdc = BeginPaint(hWnd, &ps);
         GetClientRect(hWnd,&rect);
-        rect.top+=30;
+        rect.top+=MAIN_WINDOW_TOP;
         if (hdcMem==NULL)
         {
             hdcMem=CreateCompatibleDC(hdc);
             SelectObject(hdcMem,bitmap);
         }
-        BitBlt(hdc,0,30,bitWidth,bitHeight,hdcMem,0,0,SRCCOPY);
+        BitBlt(hdc,0,MAIN_WINDOW_TOP,bitWidth,bitHeight,hdcMem,0,0,SRCCOPY);
         EndPaint(hWnd, &ps);
         break;
     case WM_SIZING: //window resizing
         GetClientRect(hWnd,&rect);
-        SetWindowPos(hwndSlider,NULL,0,0,
-            rect.right-rect.left-50,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
-        SetWindowPos(hwndLabel,NULL,rect.right-40,5,
-            30,20,SWP_NOACTIVATE);
+		SetWindowPos(hwndSlider,NULL,0,0,
+			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwndBottomSlider,NULL,0,30,
+			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwndLabel,NULL,rect.right-40,5,
+			30,20,SWP_NOACTIVATE);
+		SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
+			30,20,SWP_NOACTIVATE);
 
         break;
     case WM_SIZE: //resize window
@@ -1311,11 +1399,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         MoveWindow(progressBar,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,TRUE);
 
         GetClientRect(hWnd,&rect);
-        SetWindowPos(hwndSlider,NULL,0,0,
-            rect.right-rect.left-50,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwndSlider,NULL,0,0,
+			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+		SetWindowPos(hwndBottomSlider,NULL,0,30,
+			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
         SetWindowPos(hwndLabel,NULL,rect.right-40,5,
             30,20,SWP_NOACTIVATE);
-        rect.top+=30;
+		SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
+			30,20,SWP_NOACTIVATE);
+        rect.top+=MAIN_WINDOW_TOP;
         rect.bottom-=23;
         bitWidth=rect.right-rect.left;
         bitHeight=rect.bottom-rect.top;
@@ -1352,15 +1444,18 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hw
     // if mx, my or mz are crazy, print dashes
     if ( my < -1 || my >= MAP_MAX_HEIGHT+1 )
     {
-        wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
+		//wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
+		wsprintf(buf,L"%S",blockLabel);
     }
     else
     {
         // In Nether, show corresponding overworld coordinates
         if ( gOptions.worldType&HELL)
-            wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
+            //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
+			wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S",mx,mz,my,mx*8,mz*8,blockLabel);
         else
-            wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
+			//wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
+			wsprintf(buf,L"%d,%d; y=%d %S",mx,mz,my,blockLabel);
     }
     SendMessage(hwndStatus,SB_SETTEXT,0,(LPARAM)buf);
 }
@@ -1554,6 +1649,23 @@ static int loadWorldList(HMENU menu)
 	return oldVersionDetected;
 }
 
+static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel )
+{
+	if ( state != gBottomControlEnabled )
+	{
+		gBottomControlEnabled = state;
+		// Currently only the label "Lower depth" is affected by selection;
+		// in this way the depth can be modified even if selection is not on. The problem with an inactive
+		// slider is that the map window underneath is then active instead, and you'll drag the map.
+		//EnableWindow(hwndBottomSlider,state);
+		//EnableWindow(hwndBottomLabel,state);
+		hwndBottomSlider;
+		hwndBottomLabel;
+		EnableWindow(hwndInfoBottomLabel,state);
+	}
+}
+
+
 // validate menu items
 static void validateItems(HMENU menu)
 {
@@ -1576,17 +1688,17 @@ static void validateItems(HMENU menu)
     }
 }
 
-static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel )
+static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth )
 {
-    syncCurrentHighlightDepth();
+	syncCurrentHighlightDepth();
 
-    wchar_t text[4];
-    SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-gCurDepth);
-    _itow_s(gCurDepth,text,10);
-    SetWindowText(hwndLabel,text);
-    draw();
-    InvalidateRect(hWnd,NULL,FALSE);
-    UpdateWindow(hWnd);
+	wchar_t text[4];
+	SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-depth);
+	_itow_s(depth,text,10);
+	SetWindowText(hwndLabel,text);
+	draw();
+	InvalidateRect(hWnd,NULL,FALSE);
+	UpdateWindow(hWnd);
 }
 
 static void syncCurrentHighlightDepth()
