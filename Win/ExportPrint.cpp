@@ -100,7 +100,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SetDlgItemTextA(hDlg,IDC_WORLD_MAX_Y,epd.maxyString);
             SetDlgItemTextA(hDlg,IDC_WORLD_MAX_Z,epd.maxzString);
 
-            CheckDlgButton(hDlg,IDC_CREATE_ZIP,epd.chkCreateZip);
+			CheckDlgButton(hDlg,IDC_CREATE_ZIP,epd.chkCreateZip[epd.fileType]);
+			CheckDlgButton(hDlg,IDC_CREATE_FILES,epd.chkCreateModelFiles[epd.fileType]);
 
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS,epd.radioExportNoMaterials[epd.fileType]);
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_MTL_COLORS_ONLY,epd.radioExportMtlColors[epd.fileType]);
@@ -351,22 +352,43 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 }
             }
             break;
-        case IDC_SHOW_WELDS:
-            {
-                UINT isInactive = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
-                    || (epd.fileType == FILE_TYPE_ASCII_STL);
-                if ( isInactive )
-                {
-                    CheckDlgButton(hDlg,IDC_SHOW_WELDS,BST_INDETERMINATE);
-                }
-                else
-                {
-                    UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_SHOW_WELDS) == BST_INDETERMINATE );
-                    if ( isIndeterminate )
-                        CheckDlgButton(hDlg,IDC_SHOW_WELDS,BST_UNCHECKED);
-                }
-            }
-            break;
+		case IDC_SHOW_WELDS:
+			{
+				UINT isInactive = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
+					|| (epd.fileType == FILE_TYPE_ASCII_STL);
+				if ( isInactive )
+				{
+					CheckDlgButton(hDlg,IDC_SHOW_WELDS,BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_SHOW_WELDS) == BST_INDETERMINATE );
+					if ( isIndeterminate )
+						CheckDlgButton(hDlg,IDC_SHOW_WELDS,BST_UNCHECKED);
+				}
+			}
+			break;
+
+		case IDC_CREATE_ZIP:
+			{
+				// if zip off, model file export must be set to on
+				if ( !IsDlgButtonChecked(hDlg,IDC_CREATE_ZIP) )
+				{
+					CheckDlgButton(hDlg,IDC_CREATE_FILES,BST_CHECKED);
+				}
+			}
+			break;
+
+		case IDC_CREATE_FILES:
+			{
+				// if model off, model file export must be set to on
+				if ( !IsDlgButtonChecked(hDlg,IDC_CREATE_FILES) )
+				{
+					CheckDlgButton(hDlg,IDC_CREATE_ZIP,BST_CHECKED);
+				}
+			}
+			break;
+
 
         case IDOK:
             {
@@ -382,7 +404,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 GetDlgItemTextA(hDlg,IDC_WORLD_MAX_Y,lepd.maxyString,EP_FIELD_LENGTH);
                 GetDlgItemTextA(hDlg,IDC_WORLD_MAX_Z,lepd.maxzString,EP_FIELD_LENGTH);
 
-                lepd.chkCreateZip = IsDlgButtonChecked(hDlg,IDC_CREATE_ZIP);
+				lepd.chkCreateZip[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_CREATE_ZIP);
+				lepd.chkCreateModelFiles[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_CREATE_FILES);
 
                 lepd.radioExportNoMaterials[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS);
                 lepd.radioExportMtlColors[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_MTL_COLORS_ONLY);

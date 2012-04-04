@@ -51,7 +51,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // window margins - there should be a lot more defines here...
 #define MAIN_WINDOW_TOP (30+30)
-#define SLIDER_LEFT	84
+#define SLIDER_LEFT	90
 
 
 // Global Variables:
@@ -638,7 +638,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         if ( gFullLow )
                         {
                             gFullLow = 0;
-                            swprintf_s(msgString,1024,L"All blocks in your selection are below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the '[' and ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
+                            swprintf_s(msgString,1024,L"All blocks in your selection are below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
                                 gHitsFound[3] );
                         }
                         else
@@ -674,7 +674,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if ( gFullLow )
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the '[' and ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?",
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?",
                             gHitsFound[3] );
                     }
                     else
@@ -1026,6 +1026,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			EnableWindow(hwndBottomSlider,TRUE);
 			EnableWindow(hwndBottomLabel,TRUE);
             InvalidateRect(hWnd,NULL,TRUE);
+			setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+			setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
             UpdateWindow(hWnd);
             validateItems(GetMenu(hWnd));
         }
@@ -1098,6 +1100,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				EnableWindow(hwndBottomSlider,TRUE);
 				EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
+				setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+				setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 UpdateWindow(hWnd);
             }
             break;
@@ -1265,6 +1269,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				EnableWindow(hwndBottomSlider,TRUE);
 				EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
+				setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+				setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 UpdateWindow(hWnd);
             }
             break;
@@ -1575,6 +1581,11 @@ static int loadWorld()
         gSameWorld=1;   // so if we reload
         // zoom out when loading a new world, since location's reset.
         gCurScale=MINZOOM;
+
+		gCurDepth = MAP_MAX_HEIGHT;
+		gTargetDepth = MIN_OVERWORLD_DEPTH;
+		gHighlightOn=FALSE;
+		SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
     }
     gLoaded=TRUE;
     draw();
@@ -1904,7 +1915,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 
         // zip it up - test that there's something to zip, in case of errors. Note that the first
         // file saved in ObjManip.c is the one used as the zip file's name.
-        if ( gpEFD->chkCreateZip && (outputFileList.count > 0) )
+        if ( gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0) )
         {
             wchar_t wcZip[MAX_PATH];
             // we add .zip not (just) out of laziness, but this helps differentiate obj from wrl from stl.
@@ -1920,6 +1931,12 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
                 { (*updateProgress)(0.75f + 0.25f*(float)i/(float)outputFileList.count);}
 
                 ZipAdd(hz,nameOnly, outputFileList.name[i]);
+
+				// delete model files if not needed
+				if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
+				{
+					DeleteFile(outputFileList.name[i]);
+				}
             }
             CloseZip(hz);
         }
@@ -2018,7 +2035,8 @@ static void initializeExportDialogData()
     // turn stuff on
     gExportPrintData.fileType = FILE_TYPE_VRML2;
 
-    gExportPrintData.chkCreateZip = 1;
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         0, 0, 0, 0, 0, 1);
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 0);
 
     // Only VRML2 imports into Shapeways with color
     // order: OBJ, BSTL, ASTL, VRML
@@ -2082,7 +2100,8 @@ static void initializeExportDialogData()
     gExportViewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 
     // don't really need to create a zip for rendering output
-    gExportViewData.chkCreateZip = 0;
+	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateZip,         0, 0, 0, 0, 0, 0);
+	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1);
 
     INIT_ALL_FILE_TYPES( gExportViewData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0);  
     INIT_ALL_FILE_TYPES( gExportViewData.radioExportMtlColors,    0, 0, 1, 1, 0, 0);  

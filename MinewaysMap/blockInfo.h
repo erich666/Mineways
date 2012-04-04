@@ -261,7 +261,9 @@ typedef struct
     float blockSizeVal[FILE_TYPE_TOTAL];
     float costVal;
 
-    UINT chkCreateZip;
+	UINT chkCreateZip[FILE_TYPE_TOTAL];
+	UINT chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
+
     UINT chkCenterModel;
 
     UINT chkFillBubbles;
