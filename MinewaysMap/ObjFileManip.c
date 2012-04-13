@@ -241,6 +241,7 @@ static int gExportBillboards=0;
 #define BB_TORCH        3
 #define BB_RAILS        4
 #define BB_FIRE         5
+#define BB_SIDE			6
 
 
 #define SWATCH_INDEX( col, row ) (NUM_BLOCKS + (col) + (row)*16)
@@ -1916,6 +1917,9 @@ static int saveBillboard( int boxIndex, int type )
     case BLOCK_FIRE:
         return saveBillboardFaces( boxIndex, type, BB_FIRE );
         break;
+	case BLOCK_VINES:
+		return saveBillboardFaces( boxIndex, type, BB_SIDE );
+		break;
     }
 
     return 0;
@@ -2037,6 +2041,14 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
             return(0);
         }
         break;
+	case BLOCK_VINES:
+		if ( dataVal == 0 )
+			// it's sitting on the top of a block, so flat
+			return(0);
+		break;
+	default:
+		// perfectly fine to hit here, the billboard is generic
+		break;
     }
 
     // given billboardType, set up number of faces, normals for each, coordinate offsets for each;
@@ -2215,6 +2227,76 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
             }
         }
         break;
+
+	case BB_SIDE:
+		{
+			// vines
+
+			// simply billboard all the vines and be done with it.
+			int sideCount = 0;
+			int inZdirection = 0;
+			int billCount = 0;
+			float texelDist = 0.0f;
+
+			while ( dataVal )
+			{
+				if ( dataVal & 0x1 )
+				{
+					// side has a vine, so put out billboard
+					switch ( sideCount )
+					{
+					case 0:
+						// south face +Z
+						inZdirection = 1;
+						texelDist = 15.0f/16.0f;
+						break;
+					case 1:
+						// west face -X
+						inZdirection = 0;
+						texelDist = 1.0f/16.0f;
+						break;
+					case 2:
+						// north face -Z
+						inZdirection = 1;
+						texelDist = 1.0f/16.0f;
+						break;
+					case 3:
+						// east face +X
+						inZdirection = 0;
+						texelDist = 15.0f/16.0f;
+						break;
+					default:
+						assert(0);
+					}
+					faceDir[faceCount] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
+					faceDir[faceCount+1] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
+
+					faceCount += 2;
+
+					if ( inZdirection )
+					{
+						// z face
+						Vec3Scalar( vertexOffsets[billCount][0], =, 1,0,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][1], =, 0,0,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][2], =, 0,1,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][3], =, 1,1,texelDist );
+					}
+					else
+					{
+						// x face
+						Vec3Scalar( vertexOffsets[billCount][0], =, texelDist,0,0 );
+						Vec3Scalar( vertexOffsets[billCount][1], =, texelDist,0,1 );
+						Vec3Scalar( vertexOffsets[billCount][2], =, texelDist,1,1 );
+						Vec3Scalar( vertexOffsets[billCount][3], =, texelDist,1,0 );
+					}
+					billCount++;
+				}
+
+				sideCount++;
+				dataVal = dataVal>>1;
+			}
+		}
+		break;
     default:
         assert(0);
         return 0;

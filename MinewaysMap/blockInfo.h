@@ -499,7 +499,7 @@ static struct {
     {"Melon",                  0xaead27, 1.000f, 0xaead27,  9, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //67 (8,8) side
     {"Pumpkin Stem",           0xaa9715, 1.000f, 0xaa9715, 15, 6, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},   //68 15,7 dead
     {"Melon Stem",             0xa89514, 1.000f, 0xa89514, 15, 6, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},   //69 15,7 dead
-    {"Vines",                  0x39ab27, 1.000f, 0x39ab27, 15, 8, BLF_FLATSIDE|BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_LEAF_PART},   //6a
+    {"Vines",                  0x39ab27, 1.000f, 0x39ab27, 15, 8, BLF_BILLBOARD|BLF_FLATSIDE|BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_LEAF_PART},   //6a
     {"Fence Gate",             0xa88754, 1.000f, 0xa88754, /* bogus */ 4, 0, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE},   //6b
     {"Brick Stairs",           0xa0807b, 1.000f, 0xa0807b,  7, 0, BLF_STAIRS|BLF_IMAGE_TEXTURE},   //6c
     {"Stone Brick Stairs",     0x797979, 1.000f, 0x797979,  6, 3, BLF_STAIRS|BLF_IMAGE_TEXTURE},   //6d
