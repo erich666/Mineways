@@ -1877,16 +1877,17 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
     }
     else if ( fileType == FILE_TYPE_VRML2 )
     {
-        if ( !(gOptions.exportFlags & EXPT_OUTPUT_TEXTURE) )
+		// are we outputting color textures?
+        if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
         {
-            //MessageBox( NULL, _T("Note: for VRML we always export at least a solid color texture"),
-            //    _T("Informational"), MB_OK|MB_ICONINFORMATION);
-            gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_SWATCHES;
+			// if so, we don't need to group by material, as it's one huge pile of data
+			gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
         }
-
-        // we never have to group by material for our particular VRML exporter, as we don't output meshes by material
-        // but rather always export one giant mesh
-        gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+		else
+		{
+			// Currently we always export at least color for VRML2.
+			// TODO: allow a solid color for VRML2
+		}
     }
 
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent

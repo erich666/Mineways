@@ -7445,29 +7445,37 @@ DWORD br;
         "  [\n"
     };
 
-#define SHAPESTART_COUNT 5
+#define SHAPESTART_COUNT 2
     char *shapeStart[SHAPESTART_COUNT] = {
         "    Shape\n",
-        "    {\n",
+        "    {\n"
+	};
+
+#define IFSSTART_COUNT 3
+	char *ifsStart[IFSSTART_COUNT] = {
         "      geometry IndexedFaceSet\n",
         "      {\n",
         "        creaseAngle .5\n"
     };
 
-#define SHAPECONTINUE_COUNT 4
-    char *shapeContinue[SHAPECONTINUE_COUNT] = {
-        //"        solid FALSE\n",   // TODO - could probably set this true?
-        "        coord Coordinate\n",
+#define IFSCONTINUE_COUNT 4
+	// "DEF coord_Craft" is needed for multiple materials, so we can reference the same list of vertices
+    char *ifsContinue[IFSCONTINUE_COUNT] = {
+        "        coord DEF coord_Craft Coordinate\n",
         "        {\n",
         "          point\n",
         "          [\n"
     };
 
 
-#define WRL_MATERIAL_TEXT_COUNT 11
-    char *materialText[WRL_MATERIAL_TEXT_COUNT] = {
-        "        ]\n",
-        "      }\n",
+#define IFSEND_COUNT 2
+	char *ifsEnd[IFSEND_COUNT] = {
+		"        ]\n",
+		"      }\n",
+	};
+
+#define WRL_MATERIAL_TEXT_COUNT 9
+		char *materialText[WRL_MATERIAL_TEXT_COUNT] = {
         "      appearance Appearance\n",
         "      {\n",
         "        material Material\n",
@@ -7501,122 +7509,141 @@ DWORD br;
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
 
-    retCode |= writeLines( gModelFile, shapeStart, SHAPESTART_COUNT );
-    if ( retCode >= MW_BEGIN_ERRORS )
-        goto Exit;
+	// output textures, solid color, or single color?
+	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+	{
+		retCode |= writeLines( gModelFile, shapeStart, SHAPESTART_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
 
-    // definitely solid if 3d printing.
-    sprintf_s(outputString,256,"        solid %s\n", ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE" );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		retCode |= writeLines( gModelFile, ifsStart, IFSSTART_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
 
-    retCode |= writeLines( gModelFile, shapeContinue, SHAPECONTINUE_COUNT );
-    if ( retCode >= MW_BEGIN_ERRORS )
-        goto Exit;
+		// definitely solid if 3d printing.
+		sprintf_s(outputString,256,"        solid %s\n", ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE" );
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    // Note that we just dump everything to a single indexed face set. This format is here purely to
-    // allow colored sandstone models to be created.
-    for ( i = 0; i < gModel.vertexCount; i++ )
-    {
-        if ( i % 1000 == 0 )
-            UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.vertexCount));
+		retCode |= writeLines( gModelFile, ifsContinue, IFSCONTINUE_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
 
-        if ( i == gModel.vertexCount-1)
-        {
-            // no comma at end
-            sprintf_s(outputString,256,"            %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
-        }
-        else
-        {
-            sprintf_s(outputString,256,"            %g %g %g,\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
-        }
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-    }
-
-    // note we don't need to output the normals, since the crease angle will compute them properly! Could output them for speed.
-    //// write out normals, texture coordinates, vertices, and then faces grouped by material
-    //for ( i = 0; i < 6; i++ )
-    //{
-    //    sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
-    //    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    //}
-
-    strcpy_s(outputString,256,"          ]\n        }\n\n        texCoord TextureCoordinate\n        {\n          point\n          [\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-    for ( i = 0; i < gModel.textureUsedCount; i++ )
-    {
-        retCode |=  writeVRMLTextureUVs(gModel.uvIndexToSwatch[i] );
-        if ( retCode >= MW_BEGIN_ERRORS )
-            goto Exit;
-    }
-
-    strcpy_s(outputString,256,"          ]\n        }\n        texCoordIndex\n          [\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-    // output texture coordinate loops
-    for ( i = 0; i < gModel.faceCount; i++ )
-    {
-        if ( i % 1000 == 0 )
-            UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT) +  0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
-
-        // output the face loop
-        pFace = gModel.faceList[i];
-
-        sprintf_s(outputString,256,"          %d %d %d %d -1\n",
-            pFace->uvIndex[0],
-            pFace->uvIndex[1],
-			pFace->uvIndex[2],
-			pFace->uvIndex[3]);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-    }
-
-    strcpy_s(outputString,256,"          ]\n        coordIndex\n          [\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-    // output vertex coordinate loops
-    for ( i = 0; i < gModel.faceCount; i++ )
-    {
-        if ( i % 1000 == 0 )
-            UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
-
-        // output the face loop
-        pFace = gModel.faceList[i];
-
-        // comma test
-        if ( i == gModel.faceCount-1 )
-        {
-            sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
-                pFace->vertexIndex[0],
-				pFace->vertexIndex[1],
-				pFace->vertexIndex[2],
-                pFace->vertexIndex[3]);
-        }
-		else
+		// Note that we just dump everything to a single indexed face set. This format is here purely to
+		// allow colored sandstone models to be created.
+		for ( i = 0; i < gModel.vertexCount; i++ )
 		{
-			sprintf_s(outputString,256,"          %d,%d,%d,%d,-1,\n",
-				pFace->vertexIndex[0],
-				pFace->vertexIndex[1],
-				pFace->vertexIndex[2],
-				pFace->vertexIndex[3]);
+			if ( i % 1000 == 0 )
+				UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.vertexCount));
+
+			if ( i == gModel.vertexCount-1)
+			{
+				// no comma at end
+				sprintf_s(outputString,256,"            %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
+			}
+			else
+			{
+				sprintf_s(outputString,256,"            %g %g %g,\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
+			}
+			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 		}
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-    }
 
-    // generic material
-    retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
-    if ( retCode >= MW_BEGIN_ERRORS )
-        goto Exit;
+		// note we don't need to output the normals, since the crease angle will compute them properly! Could output them for speed.
+		//// write out normals, texture coordinates, vertices, and then faces grouped by material
+		//for ( i = 0; i < 6; i++ )
+		//{
+		//    sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
+		//    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+		//}
 
-    // output texture file name
-    // get texture name to export, if needed
-    sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
-    sprintf_s(outputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		strcpy_s(outputString,256,"          ]\n        }\n\n        texCoord TextureCoordinate\n        {\n          point\n          [\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    // close her up
-    strcpy_s(outputString,256,"      }\n    }\n  ]\n}\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		for ( i = 0; i < gModel.textureUsedCount; i++ )
+		{
+			retCode |=  writeVRMLTextureUVs(gModel.uvIndexToSwatch[i] );
+			if ( retCode >= MW_BEGIN_ERRORS )
+				goto Exit;
+		}
 
+		strcpy_s(outputString,256,"          ]\n        }\n        texCoordIndex\n          [\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+		// output texture coordinate loops
+		for ( i = 0; i < gModel.faceCount; i++ )
+		{
+			if ( i % 1000 == 0 )
+				UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT) +  0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
+
+			// output the face loop
+			pFace = gModel.faceList[i];
+
+			sprintf_s(outputString,256,"          %d %d %d %d -1\n",
+				pFace->uvIndex[0],
+				pFace->uvIndex[1],
+				pFace->uvIndex[2],
+				pFace->uvIndex[3]);
+			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		}
+
+		strcpy_s(outputString,256,"          ]\n        coordIndex\n          [\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+		// output vertex coordinate loops
+		for ( i = 0; i < gModel.faceCount; i++ )
+		{
+			if ( i % 1000 == 0 )
+				UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
+
+			// output the face loop
+			pFace = gModel.faceList[i];
+
+			// comma test
+			if ( i == gModel.faceCount-1 )
+			{
+				sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
+					pFace->vertexIndex[0],
+					pFace->vertexIndex[1],
+					pFace->vertexIndex[2],
+					pFace->vertexIndex[3]);
+			}
+			else
+			{
+				sprintf_s(outputString,256,"          %d,%d,%d,%d,-1,\n",
+					pFace->vertexIndex[0],
+					pFace->vertexIndex[1],
+					pFace->vertexIndex[2],
+					pFace->vertexIndex[3]);
+			}
+			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		}
+
+		retCode |= writeLines( gModelFile, ifsEnd, IFSEND_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
+
+		// generic material
+		retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
+
+		// output texture file name
+		// get texture name to export, if needed
+		sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
+		sprintf_s(outputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+		// close her up
+		strcpy_s(outputString,256,"      }\n    }\n  ]\n}\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+	}
+	else if ( gOptions->exportFlags & EXPT_OUTPUT_MATERIALS )
+	{
+		// by material
+	}
+	else
+	{
+		// simple single solid color
+	}
 
     Exit:
     PortaClose(gModelFile);
