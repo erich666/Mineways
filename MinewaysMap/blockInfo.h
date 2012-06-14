@@ -312,9 +312,9 @@ typedef struct Options {
 } Options;
 
 
-// number of official Minecraft blocks - 125
-#define NUM_BLOCKS_STANDARD 0x7d
-// number of blocks + 16 for the 16 colored wool - 141
+// number of official Minecraft blocks - 134 (block IDs + 1)
+#define NUM_BLOCKS_STANDARD 0x86
+// number of blocks + 16 for the 16 colored wool - 150
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
 // number of texture swatches
@@ -518,6 +518,16 @@ static struct {
     {"Dragon Egg",             0x1b1729, 1.000f, 0x1b1729,  7,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},    //7A - TODO: not really whole
     {"Redstone Lamp (off)",    0x9F6D4D, 1.000f, 0x9F6D4D,  3,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //7b
     {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //7c
+    {"Wooden Double Slab",     0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //7d
+    {"Wooden Slab",            0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_HALF|BLF_IMAGE_TEXTURE},    //7e
+    {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
+    {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //80
+    {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //81
+	{"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //82 - don't really have tiles for this one
+	{"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE},    //83 - decal
+	{"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
+	//{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
+	{"Block of Emerald",       0x53D778, 1.000f, 0x53D778,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //85
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},
@@ -641,6 +651,11 @@ enum block_types {
     BLOCK_BREWING_STAND = 0x75,
     BLOCK_CAULDRON = 0x76,
     BLOCK_END_PORTAL_FRAME = 0x78,
+	BLOCK_WOODEN_DOUBLE_SLAB = 0x7d,
+	BLOCK_WOODEN_SLAB = 0x7e,
+	BLOCK_SANDSTONE_STAIRS = 0x80,
+	BLOCK_TRIPWIRE_HOOK = 0x83,
+	BLOCK_TRIPWIRE = 0x84,
 
     BLOCK_BLACK_WOOL = (NUM_BLOCKS-1)
 };

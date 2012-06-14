@@ -1514,6 +1514,7 @@ static int computeFlatFlags( int boxIndex )
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_LILY_PAD:
+	//case BLOCK_TRIPWIRE:
         gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
@@ -1695,25 +1696,48 @@ static int computeFlatFlags( int boxIndex )
         }
         break;
     case BLOCK_STONE_BUTTON:
-        switch ( gBoxData[boxIndex].data & 0x7 )
-        {
-        case 4: // new north, -Z
-            gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
-            break;
-        case 3: // new south, +Z
-            gBoxData[boxIndex-gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
-            break;
-        case 2: // new west, -X
-            gBoxData[boxIndex+gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
-            break;
-        case 1: // new east, +X
-            gBoxData[boxIndex-gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
-            break;
-        default:
-            assert(0);
-            return 0;
-        }
-        break;
+		switch ( gBoxData[boxIndex].data & 0x7 )
+		{
+		case 4: // new north, -Z
+			gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+			break;
+		case 3: // new south, +Z
+			gBoxData[boxIndex-gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+			break;
+		case 2: // new west, -X
+			gBoxData[boxIndex+gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+			break;
+		case 1: // new east, +X
+			gBoxData[boxIndex-gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+			break;
+		default:
+			assert(0);
+			return 0;
+		}
+		break;
+
+	case BLOCK_TRIPWIRE_HOOK:
+		// 0x4 means "tripwire connected"
+		// 0x8 means "tripwire tripped"
+		switch ( gBoxData[boxIndex].data & 0x3 )
+		{
+		case 0: // new south, +Z
+			gBoxData[boxIndex-gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+			break;
+		case 1: // new west, -X
+			gBoxData[boxIndex+gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+			break;
+		case 2: // new north, -Z
+			gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+			break;
+		case 3: // new east, +X
+			gBoxData[boxIndex-gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+			break;
+		default:
+			assert(0);
+			return 0;
+		}
+		break;
 
     case BLOCK_TRAPDOOR:
         if ( gBoxData[boxIndex].data & 0x4 )
@@ -1990,6 +2014,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     case BLOCK_TORCH:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
+	//case BLOCK_TRIPWIRE:
         // is torch not standing up?
         if ( dataVal != 0x5 )
         {
@@ -4050,7 +4075,8 @@ static void hollowBottomOfModel()
     // an arbitrary guess: if the box is long in one dimension or the other, add posts for support
     addPost = ( gSolidBox.max[X] > gSolidBox.min[X] + 8 + 2*gHollowBlockThickness ) || ( gSolidBox.max[Z] > gSolidBox.min[Z] + 8 + 2*gHollowBlockThickness );
 
-    for ( y = gSolidBox.min[Y]; (y < gSolidBox.max[Y]) && listFound; y++ )
+	// note that we test to the maximum, as we want the upper limit to be hit and so set the hollowDone for every location.
+    for ( y = gSolidBox.min[Y]; (y <= gSolidBox.max[Y]) && listFound; y++ )
     {
         listCount = 0;
         // we know the walls have to be at least gHollowBlockThickness thick, so don't bother checking those.
@@ -4072,6 +4098,7 @@ static void hollowBottomOfModel()
                     if ( !addPost || ( (x > gSolidBox.min[X]+gHollowBlockThickness) && (x < gSolidBox.max[X]-gHollowBlockThickness) )
                         || ( (z > gSolidBox.min[Z]+gHollowBlockThickness) && (z < gSolidBox.max[Z]-gHollowBlockThickness) ) )
                     {
+						survived = 0;
                         // brute force the 3x3 above and 3x3 in the middle layer: all solid?
                         if ( gBoxData[boxIndex-1].type == BLOCK_AIR &&    // if block below is air
                             gBoxData[boxIndex].type != BLOCK_AIR &&    // if block is solid
@@ -4093,11 +4120,11 @@ static void hollowBottomOfModel()
                             gBoxData[boxIndex-gBoxSizeYZ+gBoxSize[Y]+1].type != BLOCK_AIR &&  // -X+Z+Y
                             gBoxData[boxIndex+gBoxSizeYZ+gBoxSize[Y]+1].type != BLOCK_AIR )  // +X+Z+Y
                         {
+							survived = 1;
                             // OK, this one can be deleted. Now check extra width, if any
                             if ( gHollowBlockThickness > 1 )
                             {
                                 // check neighbors in the 5 directions to see if all solid
-                                survived = 1;
                                 for ( dir = 0; survived && (dir < 6); dir++ )
                                 {
                                     if ( dir != DIRECTION_BLOCK_BOTTOM)
@@ -4119,17 +4146,12 @@ static void hollowBottomOfModel()
                                         }
                                     }
                                 }
-                                if ( survived )
-                                {
-                                    // area all around is thick enough, so we can delete it
-                                    listToChange[listCount++] = boxIndex;
-                                }
-                            }
-                            else
-                            {
-                                // simple 1-block-thick wall case - we can delete it
-                                listToChange[listCount++] = boxIndex;
-                            }
+							}
+						}
+                        if ( survived )
+                        {
+                            // area all around is thick enough, so we can delete it
+                            listToChange[listCount++] = boxIndex;
                         }
                         else
                         {
@@ -4194,6 +4216,8 @@ static void hollowBottomOfModel()
                 // we know we can't extend upwards beyond this height, at least not directly, so see if we can expand sideways.
                 int hollowHeight = hollowDone[x*gBoxSize[Z]+z];
 
+				// find if any neighboring column is higher than this column's max height;
+				// if so, then items in this column above this hollow height level could be things to hollow out
                 int maxNeighborHeight = hollowDone[(x-1)*gBoxSize[Z]+z];
                 int nextNeighborHeight = hollowDone[(x+1)*gBoxSize[Z]+z];
                 if ( nextNeighborHeight > maxNeighborHeight )
@@ -4205,24 +4229,29 @@ static void hollowBottomOfModel()
                 if ( nextNeighborHeight > maxNeighborHeight )
                     maxNeighborHeight = nextNeighborHeight;
 
-                if ( maxNeighborHeight > hollowHeight )
+                // Examine all from hollowHeight+gHollowBlockThickness to max height - 1, if any. The idea
+				// here is that we've found that this column goes to a certain height, but its neighbors may
+				// have higher hollow heights. In other words, those neighbors' hollowed areas could cause
+				// voxels in this column to be hollowed out by percolation (super-hollowing). We start testing
+				// from hollowHeight itself (which could not be hollowed - we just tested above) plus the
+				// block thickness (moving us above any set of blocks that could not be hollowed, to the first
+				// one that actually can be hollowed).
+				// Note that hollowHeight+gHollowBlockThickness can definitely be >= max neighbor height, so
+				// this loop may not run at all (and in fact normally won't).
+                for ( y = hollowHeight+gHollowBlockThickness; y < maxNeighborHeight; y++ )
                 {
-                    // cliff-face found, so see all from hollowHeight to max height - 1
-                    for ( y = hollowHeight; y < maxNeighborHeight; y++ )
+                    // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
+                    hollowSeed( x, y, z, &seedStack,&seedSize,&seedCount);
+
+                    // When this is done, seedStack has a list of seeds that had no ID before and now have one.
+                    // Each of these seeds' neighbors needs to be tested.
+
+                    // while seedCount > 0, propagate
+                    while ( seedCount > 0 )
                     {
-                        // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
-                        hollowSeed( x, y, z, &seedStack,&seedSize,&seedCount);
-
-                        // When this is done, seedStack has a list of seeds that had no ID before and now have one.
-                        // Each of these seeds' neighbors needs to be tested.
-
-                        // while seedCount > 0, propagate
-                        while ( seedCount > 0 )
-                        {
-                            // copy test point over, so we don't trample it when seedStack gets increased
-                            seedCount--;
-                            hollowSeed(seedStack[seedCount][X],seedStack[seedCount][Y],seedStack[seedCount][Z],&seedStack,&seedSize,&seedCount);
-                        }
+                        // copy test point over, so we don't trample it when seedStack gets increased
+                        seedCount--;
+                        hollowSeed(seedStack[seedCount][X],seedStack[seedCount][Y],seedStack[seedCount][Z],&seedStack,&seedSize,&seedCount);
                     }
                 }
             }
@@ -4272,7 +4301,7 @@ static void hollowSeed( int x, int y, int z, IPoint **pSeedList, int *seedSize, 
         // a quick and dirty version. We could instead have the loop above go from -gHollowBlockThickness
         // to +gHollowBlockThickness. This quick and dirty is a little more aggressive, though, cleaning
         // out as much as it can.
-        if ( gHollowBlockThickness > 1 )
+        if ( ok && gHollowBlockThickness > 1 )
         {
             for ( dir = 0; ok && (dir < 6); dir++ )
             {
@@ -4938,44 +4967,48 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 }
             }
             break;
-        case BLOCK_DOUBLE_SLAB:
-        case BLOCK_STONE_SLAB:
+		case BLOCK_DOUBLE_SLAB:
+		case BLOCK_STONE_SLAB:
 			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
 			// Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
 			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
-            switch ( dataVal & 0x7 )
-            {
-            default:
-                assert(0);
-            case 6:
-                // true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
-            case 0:
-                // no change, default stone "cement" BLOCK_STONE_SLAB
-                // might want to use stone side pattern
-                SWATCH_SWITCH_SIDE( faceDirection, 5,0 );
-                break;
-            case 1:
-                // sandstone
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
-                break;
-            case 2:
-                // wooden
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
-                break;
-            case 3:
-                // cobblestone
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
-                break;
-            case 4:
-                // brick
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
-                break;
-            case 5:
-                // stone brick
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
-                break;
-            }
-            break;
+			switch ( dataVal & 0x7 )
+			{
+			default:
+				assert(0);
+			case 6:
+				// true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
+			case 0:
+				// no change, default stone "cement" BLOCK_STONE_SLAB
+				// might want to use stone side pattern
+				SWATCH_SWITCH_SIDE( faceDirection, 5,0 );
+				break;
+			case 1:
+				// sandstone
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+				SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+				break;
+			case 2:
+				// wooden
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
+				break;
+			case 3:
+				// cobblestone
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
+				break;
+			case 4:
+				// brick
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
+				break;
+			case 5:
+				// stone brick
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
+				break;
+			}
+			break;
+		case BLOCK_SANDSTONE_STAIRS:
+			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+			break;
 		case BLOCK_LOG:
 			// use data to figure out which side
 			switch ( dataVal )
@@ -5001,8 +5034,13 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
 			break;
 		case BLOCK_WOODEN_PLANKS:
-			// use data to figure out which type of wood
-			switch ( dataVal )
+		case BLOCK_WOODEN_DOUBLE_SLAB:
+		case BLOCK_WOODEN_SLAB:
+			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+			// Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
+			// This bit is unused for WOODEN_PLANKS, so masking doesn't hurt - we can share code here.
+			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+			switch ( dataVal & 0x7 )
 			{
 			default: // normal log
 				assert(0);
@@ -5391,14 +5429,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
-        case BLOCK_LEVER:
-            angle = (dataVal & 0x8 ) ? 180 : 0;
-            if ( (dataVal & 0x7) == 5 )
-                angle += 180;
-            else if ( (dataVal & 0x7) == 6 )
-                angle += 90;
-            swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, angle );
-            break;
+		case BLOCK_LEVER:
+			angle = (dataVal & 0x8 ) ? 180 : 0;
+			if ( (dataVal & 0x7) == 5 )
+				angle += 180;
+			else if ( (dataVal & 0x7) == 6 )
+				angle += 90;
+			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, angle );
+			break;
+		case BLOCK_TRIPWIRE_HOOK:
+			// currently we don't adjust the tripwire hook
+			angle = 0;
+			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, angle );
+			break;
         case BLOCK_CHEST:
         case BLOCK_LOCKED_CHEST:
             SWATCH_SWITCH_SIDE( faceDirection, 10,1 );
@@ -5567,22 +5610,6 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_REDSTONE_REPEATER_OFF:
         case BLOCK_REDSTONE_REPEATER_ON:
-            switch ( dataVal & 0x3 )
-            {
-            case 0: // south
-                rotateIndices( localIndices, 0 );
-                break;
-            case 1: // west
-                rotateIndices( localIndices, 90 );
-                break;
-            case 2: // north
-                rotateIndices( localIndices, 180 );
-                break;
-            case 3: // east
-                rotateIndices( localIndices, 270 );
-                break;
-            }
-            break;
         case BLOCK_REDSTONE_WIRE:
             angle = 0;
             if ( faceDirection == DIRECTION_BLOCK_TOP )

@@ -958,12 +958,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_HSCROLL:
-		pos=SendMessage(hwndSlider,TBM_GETPOS,0,0);
+		pos=(DWORD)SendMessage(hwndSlider,TBM_GETPOS,0,0);
 		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
 		SetWindowText(hwndLabel,text);
 		gCurDepth=MAP_MAX_HEIGHT-pos;
 
-		pos=SendMessage(hwndBottomSlider,TBM_GETPOS,0,0);
+		pos=(DWORD)SendMessage(hwndBottomSlider,TBM_GETPOS,0,0);
 		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
 		SetWindowText(hwndBottomLabel,text);
 		gTargetDepth=MAP_MAX_HEIGHT-pos;
@@ -1483,7 +1483,7 @@ static void populateColorSchemes(HMENU menu)
     while (id)
     {
         info.wID=IDM_CUSTOMCOLOR+numCustom;
-        info.cch=wcslen(cs.name);
+        info.cch=(UINT)wcslen(cs.name);
         info.dwTypeData=cs.name;
         info.dwItemData=cs.id;
         InsertMenuItem(menu,IDM_CUSTOMCOLOR,FALSE,&info);
@@ -1504,7 +1504,7 @@ static void useCustomColor(int wmId,HWND hWnd)
         info.cbSize=sizeof(MENUITEMINFO);
         info.fMask=MIIM_DATA;
         GetMenuItemInfo(GetMenu(hWnd),wmId,FALSE,&info);
-        cs.id=info.dwItemData;
+        cs.id=(int)info.dwItemData;
         cm.load(&cs);
     }
     else
@@ -1633,7 +1633,7 @@ static int loadWorldList(HMENU menu)
 				}
 
                 info.wID=IDM_WORLD+numWorlds;
-                info.cch=wcslen(ffd.cFileName);
+                info.cch=(UINT)wcslen(ffd.cFileName);
                 info.dwTypeData=ffd.cFileName;
                 info.dwItemData=numWorlds;
 				// if version is pre-Anvil, show world but gray it out

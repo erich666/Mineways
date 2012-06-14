@@ -74,7 +74,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define PortaCreate(fn) CreateFileW(fn,GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,CREATE_ALWAYS,0,NULL)
 #define PortaSeek(h,ofs) SetFilePointer(h,ofs,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER
 #define PortaRead(h,buf,len) !ReadFile(h,buf,len,&br,NULL)
-#define PortaWrite(h,buf,len) !WriteFile(h,buf,len,&br,NULL)
+#define PortaWrite(h,buf,len) !WriteFile(h,buf,(DWORD)len,&br,NULL)
 #define PortaClose(h) CloseHandle(h)
 #endif
 

@@ -147,7 +147,7 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
             int id=cm.next(0,&cs);
             while (id)
             {
-                int pos=SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+                int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
                 SendMessage(list,LB_SETITEMDATA,pos,cs.id);
                 id=cm.next(id,&cs);
             }
@@ -191,7 +191,7 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
                 swprintf_s(cs.name,255,L"Color Scheme %d",gLocalCountForNames);
                 cm.create(&cs);
                 list=GetDlgItem(hDlg,IDC_SCHEMELIST);
-                int pos=SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+                int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
                 SendMessage(list,LB_SETITEMDATA,pos,cs.id);
                 validateButtons(hDlg);
             }
