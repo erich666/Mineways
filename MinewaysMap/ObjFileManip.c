@@ -7423,7 +7423,7 @@ DWORD br;
 
     char outputString[256];
 
-    int i,j;
+    int i;
 
     int retCode = MW_NO_ERROR;
 
@@ -7562,14 +7562,12 @@ DWORD br;
         // output the face loop
         pFace = gModel.faceList[i];
 
-        for ( j = 0; j < 2; j++ )
-        {
-            sprintf_s(outputString,256,"          %d %d %d -1\n",
-                pFace->uvIndex[0],
-                pFace->uvIndex[j+1],
-                pFace->uvIndex[j+2]);
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-        }
+        sprintf_s(outputString,256,"          %d %d %d %d -1\n",
+            pFace->uvIndex[0],
+            pFace->uvIndex[1],
+			pFace->uvIndex[2],
+			pFace->uvIndex[3]);
+        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
 
     strcpy_s(outputString,256,"          ]\n        coordIndex\n          [\n");
@@ -7584,25 +7582,24 @@ DWORD br;
         // output the face loop
         pFace = gModel.faceList[i];
 
-        for ( j = 0; j < 2; j++ )
+        // comma test
+        if ( i == gModel.faceCount-1 )
         {
-            // comma test
-            if ( i == gModel.faceCount-1 && j == 2 )
-            {
-                sprintf_s(outputString,256,"          %d,%d,%d,-1\n",
-                    pFace->vertexIndex[0],
-                    pFace->vertexIndex[j+1],
-                    pFace->vertexIndex[j+2]);
-            }
-            else
-            {
-                sprintf_s(outputString,256,"          %d,%d,%d,-1,\n",
-                    pFace->vertexIndex[0],
-                    pFace->vertexIndex[j+1],
-                    pFace->vertexIndex[j+2]);
-            }
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+            sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
+                pFace->vertexIndex[0],
+				pFace->vertexIndex[1],
+				pFace->vertexIndex[2],
+                pFace->vertexIndex[3]);
         }
+		else
+		{
+			sprintf_s(outputString,256,"          %d,%d,%d,%d,-1,\n",
+				pFace->vertexIndex[0],
+				pFace->vertexIndex[1],
+				pFace->vertexIndex[2],
+				pFace->vertexIndex[3]);
+		}
+        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
 
     // generic material
