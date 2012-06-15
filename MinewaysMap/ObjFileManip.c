@@ -514,6 +514,7 @@ static int writeOBJTextureUVs( int type );
 static int writeOBJMtlFile();
 
 static int writeVRML2Box( const wchar_t *world, IBox *box );
+static int writeVRMLAttributeShapeSplit( int type, int outputShape );
 static int writeVRMLTextureUVs( int type );
 
 static int writeLines( HANDLE file, char **textLines, int lines );
@@ -7426,7 +7427,7 @@ DWORD br;
 
     char outputString[256];
 
-    int i;
+    int i, exportSolidColors, prevType;
 
     int retCode = MW_NO_ERROR;
 
@@ -7559,7 +7560,7 @@ DWORD br;
 	//    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 	//}
 
-	// textures need texture coordinates output
+	// textures need texture coordinates output, only needed when texturing
 	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
 	{
 		strcpy_s(outputString,256,"          ]\n        }\n\n        texCoord TextureCoordinate\n        {\n          point\n          [\n");
@@ -7598,15 +7599,36 @@ DWORD br;
 	else
 	{
 		// close up coordinates, start coordIndex
-		strcpy_s(outputString,256,"          ]\n        }\n        coordIndex\n          [\n");
+		strcpy_s(outputString,256,"          ]\n        }\n        coordIndex\n        [\n");
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 	}
 
 	// output vertex coordinate loops
+	exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
+	prevType = -1;
 	for ( i = 0; i < gModel.faceCount; i++ )
 	{
 		if ( i % 1000 == 0 )
 			UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
+
+		if ( exportSolidColors )
+		{
+			//// should there be just one single material in this OBJ file?
+			//if ( !(gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL) )
+			//{
+			// did we reach a new material?
+			if ( prevType != gModel.faceList[i]->type )
+			{
+				// new ID encountered, so close coord list, output previous material, and start new shape
+				if ( prevType != -1 )
+				{
+					retCode |= writeVRMLAttributeShapeSplit( prevType, 1 );
+					if ( retCode >= MW_BEGIN_ERRORS )
+						goto Exit;
+				}
+				prevType = gModel.faceList[i]->type;
+			}
+		}
 
 		// output the face loop
 		pFace = gModel.faceList[i];
@@ -7631,26 +7653,39 @@ DWORD br;
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 	}
 
-	retCode |= writeLines( gModelFile, ifsEnd, IFSEND_COUNT );
-	if ( retCode >= MW_BEGIN_ERRORS )
-		goto Exit;
+	if ( exportSolidColors )
+	{
+		if ( prevType >= 0 )
+		{
+			retCode |= writeVRMLAttributeShapeSplit( prevType, 0 );
+			if ( retCode >= MW_BEGIN_ERRORS )
+				goto Exit;
+		}
+	}
+	else
+	{
+		retCode |= writeLines( gModelFile, ifsEnd, IFSEND_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
 
-	// generic material
-	retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
-	if ( retCode >= MW_BEGIN_ERRORS )
-		goto Exit;
+		// generic material
+		retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
+		if ( retCode >= MW_BEGIN_ERRORS )
+			goto Exit;
+	}
+
 
 	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
 	{
 		// output texture file name
 		// get texture name to export, if needed
 		sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
-		sprintf_s(outputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
+		sprintf_s(outputString,256,"        texture ImageTexture { url \"%s\" }\n      }\n    }\n", justTextureFileName );
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 	}
 
 	// close her up
-	strcpy_s(outputString,256,"      }\n    }\n  ]\n}\n");
+	strcpy_s(outputString,256,"  ]\n}\n");
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
     Exit:
@@ -7659,11 +7694,127 @@ DWORD br;
     return retCode;
 }
 
+static int writeVRMLAttributeShapeSplit( int type, int outputShape )
+{
+#ifdef WIN32
+	DWORD br;
+#endif
+
+	char outputString[1024];
+	char tfString[256];
+	char keString[256];
+
+	char attributeString[] = "        ]\n      }\n      appearance Appearance\n      {\n";
+
+	char shapeString[] = "    Shape\n    {\n      geometry IndexedFaceSet\n      {\n        creaseAngle .5\n        solid TRUE\n        coord USE coord_Craft\n        coordIndex\n        [\n";
+
+	char mtlName[MAX_PATH];
+	float fRed,fGreen,fBlue;
+	float ka, kd, ks, ke;
+	float alpha;
+
+	WERROR(PortaWrite(gModelFile, attributeString, strlen(attributeString) ));
+
+	strcpy_s(mtlName,256,gBlockDefinitions[type].name);
+	spacesToUnderlinesChar(mtlName);
+
+	fRed = (gBlockDefinitions[type].color >> 16)/255.0f;
+	fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff)/255.0f;
+	fBlue = (gBlockDefinitions[type].color & 0xff)/255.0f;
+
+	// good for blender:
+	ka = 0.2f;
+	kd = 0.9f;
+	ks = 0.1f;
+	ke = 0.0f;
+	// 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
+	// is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
+	// in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
+	// Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
+	// do not support textures (e.g. Blender).
+	//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)) ? 1.0f : gBlockDefinitions[type].alpha;
+	// Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
+	// alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
+	alpha = gBlockDefinitions[type].alpha;
+	if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+	{
+		// if showing groups, make the alpha of the largest group transparent
+		if ( gDebugTransparentType == type )
+		{
+			alpha = DEBUG_DISPLAY_ALPHA;
+		}
+		else
+		{
+			alpha = 1.0f;
+		}
+	}
+	else if ( gOptions->exportFlags & EXPT_3DPRINT )
+	{
+		// for 3d printing, alpha is always 1.0
+		alpha = 1.0f;
+	}
+	// if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
+	if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
+	{
+		alpha = 1.0f;
+	}
+
+	if ( alpha < 1.0f )
+	{
+		// semitransparent block, such as water
+		sprintf_s(tfString,256,"           transparency %g\n", alpha );
+	}
+	else
+	{
+		tfString[0] = '\0';
+	}
+
+	if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
+	{
+		// emitter
+		sprintf_s(keString,256,"          emissiveColor %g %g %g\n", fRed*ke, fGreen*ke, fBlue*ke );
+	}
+	else
+	{
+		keString[0] = '\0';
+	}
+
+    sprintf_s(outputString,1024,
+		"        material DEF %s Material\n"
+		"        {\n"
+		"          ambientIntensity %g\n"
+		"          diffuseColor %g %g %g\n"
+		"          specularColor %g %g %g\n"
+		"          shininess .5\n"
+		"%s"
+		"%s"
+		"        }\n"
+		"      }\n"
+		"    }\n", // closes previous shape
+		mtlName,
+		ka,
+		kd*fRed, kd*fGreen, kd*fBlue,
+		ks*fRed, ks*fGreen, ks*fBlue,
+		keString,
+		tfString
+	);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+	// start new shape, if mid-write
+	if ( outputShape )
+	{
+		WERROR(PortaWrite(gModelFile, shapeString, strlen(shapeString) ));
+	}
+
+	return MW_NO_ERROR;
+}
+
 static int writeVRMLTextureUVs( int type )
 {
 #ifdef WIN32
     DWORD br;
 #endif
+
     char outputString[1024];
     float umin, umax, vmin, vmax;
 
