@@ -802,58 +802,61 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 		int rc;
 		int i;
 
-		// fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
-		// For printing we also then composite over other backgrounds as the defaults.
-		int faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
-		for ( i = 0; i < faTableCount; i++ )
+		// do only if true textures used
+		if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
 		{
-			compositePNGSwatches( gModel.pPNGtexture,
-				faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-				gModel.swatchSize, gModel.swatchesPerRow, 0 );
-		}
+			// fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
+			// For printing we also then composite over other backgrounds as the defaults.
+			int faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+			for ( i = 0; i < faTableCount; i++ )
+			{
+				compositePNGSwatches( gModel.pPNGtexture,
+					faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
+					gModel.swatchSize, gModel.swatchesPerRow, 0 );
+			}
 
-        // final swatch cleanup if textures are used and we're doing 3D printing
-        if ( (gOptions->exportFlags & EXPT_3DPRINT) && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
-        {
-            int i;
+			// final swatch cleanup if textures are used and we're doing 3D printing
+			if ( gOptions->exportFlags & EXPT_3DPRINT )
+			{
 
 
 #define FA_FINAL_TABLE_SIZE 19
-            static FillAlpha faFinalTable[] =
-            {
-                { SWATCH_INDEX( 0, 8 ), SWATCH_INDEX( 1, 0 ) }, // rail over stone
-                { SWATCH_INDEX( 0, 7 ), SWATCH_INDEX( 1, 0 ) }, // curved rail over stone
-                { SWATCH_INDEX( 0, 5 ), SWATCH_INDEX( 1, 0 ) }, // torch over stone
-                { SWATCH_INDEX( 4, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-                { SWATCH_INDEX( 3, 5 ), SWATCH_INDEX( 1, 0 ) }, // ladder over stone
-                { SWATCH_INDEX( 3, 11 ), SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
-                { SWATCH_INDEX( 3, 10 ), SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
-                { SWATCH_INDEX( 3, 12 ), SWATCH_INDEX( 1, 0 ) }, // detector rail over stone
-                { SWATCH_INDEX( 3, 6 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
-                { SWATCH_INDEX( 3, 7 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
-                { SWATCH_INDEX( 12, 4 ), SWATCH_INDEX( 15, 13 ) }, // lily pad over water
-				{ SWATCH_INDEX( 4, 5 ), SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
-				{ SWATCH_INDEX( 15, 8 ), SWATCH_INDEX( 0, 0 ) }, // vines over grass
+				static FillAlpha faFinalTable[] =
+				{
+					{ SWATCH_INDEX( 0, 8 ), SWATCH_INDEX( 1, 0 ) }, // rail over stone
+					{ SWATCH_INDEX( 0, 7 ), SWATCH_INDEX( 1, 0 ) }, // curved rail over stone
+					{ SWATCH_INDEX( 0, 5 ), SWATCH_INDEX( 1, 0 ) }, // torch over stone
+					{ SWATCH_INDEX( 4, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+					{ SWATCH_INDEX( 3, 5 ), SWATCH_INDEX( 1, 0 ) }, // ladder over stone
+					{ SWATCH_INDEX( 3, 11 ), SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
+					{ SWATCH_INDEX( 3, 10 ), SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
+					{ SWATCH_INDEX( 3, 12 ), SWATCH_INDEX( 1, 0 ) }, // detector rail over stone
+					{ SWATCH_INDEX( 3, 6 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
+					{ SWATCH_INDEX( 3, 7 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
+					{ SWATCH_INDEX( 12, 4 ), SWATCH_INDEX( 15, 13 ) }, // lily pad over water
+					{ SWATCH_INDEX( 4, 5 ), SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
+					{ SWATCH_INDEX( 15, 8 ), SWATCH_INDEX( 0, 0 ) }, // vines over grass
 
-                // stuff we don't use, so don't need defaults for
-                { SWATCH_INDEX( 5, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-                { SWATCH_INDEX( 4, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-                { SWATCH_INDEX( 5, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+					// stuff we don't use, so don't need defaults for
+					{ SWATCH_INDEX( 5, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+					{ SWATCH_INDEX( 4, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+					{ SWATCH_INDEX( 5, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
 
-                { SWATCH_INDEX( 0, 15 ), SWATCH_INDEX( 1, 0 ) }, // torch top
-                { SWATCH_INDEX( 1, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on top
-                { SWATCH_INDEX( 2, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off top
-            };
+					{ SWATCH_INDEX( 0, 15 ), SWATCH_INDEX( 1, 0 ) }, // torch top
+					{ SWATCH_INDEX( 1, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on top
+					{ SWATCH_INDEX( 2, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off top
+				};
 
-            // now that we're totally done, fill in the main pieces which were left empty as templates;
-            // these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO >>>>>),
-            for ( i = 0; i < FA_FINAL_TABLE_SIZE; i++ )
-            {
-                compositePNGSwatches( gModel.pPNGtexture,
-                    faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
-                    gModel.swatchSize, gModel.swatchesPerRow, 0 );
-            }
-        }
+				// now that we're totally done, fill in the main pieces which were left empty as templates;
+				// these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO >>>>>),
+				for ( i = 0; i < FA_FINAL_TABLE_SIZE; i++ )
+				{
+					compositePNGSwatches( gModel.pPNGtexture,
+						faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
+						gModel.swatchSize, gModel.swatchesPerRow, 0 );
+				}
+			}
+		}
 
         // if we're debugging groups, make the largest group transparent and set it to red
         if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
@@ -7510,51 +7513,55 @@ DWORD br;
         goto Exit;
 
 	// output textures, solid color, or single color?
+	//if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+	// if ( gOptions->exportFlags & EXPT_OUTPUT_MATERIALS )
+
+	retCode |= writeLines( gModelFile, shapeStart, SHAPESTART_COUNT );
+	if ( retCode >= MW_BEGIN_ERRORS )
+		goto Exit;
+
+	retCode |= writeLines( gModelFile, ifsStart, IFSSTART_COUNT );
+	if ( retCode >= MW_BEGIN_ERRORS )
+		goto Exit;
+
+	// definitely solid if 3d printing.
+	sprintf_s(outputString,256,"        solid %s\n", ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE" );
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+	retCode |= writeLines( gModelFile, ifsContinue, IFSCONTINUE_COUNT );
+	if ( retCode >= MW_BEGIN_ERRORS )
+		goto Exit;
+
+	// Note that we just dump everything to a single indexed face set. This format is here purely to
+	// allow colored sandstone models to be created.
+	for ( i = 0; i < gModel.vertexCount; i++ )
+	{
+		if ( i % 1000 == 0 )
+			UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.vertexCount));
+
+		if ( i == gModel.vertexCount-1)
+		{
+			// no comma at end
+			sprintf_s(outputString,256,"            %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
+		}
+		else
+		{
+			sprintf_s(outputString,256,"            %g %g %g,\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
+		}
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+	}
+
+	// note we don't need to output the normals, since the crease angle will compute them properly! Could output them for speed.
+	//// write out normals, texture coordinates, vertices, and then faces grouped by material
+	//for ( i = 0; i < 6; i++ )
+	//{
+	//    sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
+	//    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	//}
+
+	// textures need texture coordinates output
 	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
 	{
-		retCode |= writeLines( gModelFile, shapeStart, SHAPESTART_COUNT );
-		if ( retCode >= MW_BEGIN_ERRORS )
-			goto Exit;
-
-		retCode |= writeLines( gModelFile, ifsStart, IFSSTART_COUNT );
-		if ( retCode >= MW_BEGIN_ERRORS )
-			goto Exit;
-
-		// definitely solid if 3d printing.
-		sprintf_s(outputString,256,"        solid %s\n", ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE" );
-		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-		retCode |= writeLines( gModelFile, ifsContinue, IFSCONTINUE_COUNT );
-		if ( retCode >= MW_BEGIN_ERRORS )
-			goto Exit;
-
-		// Note that we just dump everything to a single indexed face set. This format is here purely to
-		// allow colored sandstone models to be created.
-		for ( i = 0; i < gModel.vertexCount; i++ )
-		{
-			if ( i % 1000 == 0 )
-				UPDATE_PROGRESS( PG_OUTPUT + 0.4f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.vertexCount));
-
-			if ( i == gModel.vertexCount-1)
-			{
-				// no comma at end
-				sprintf_s(outputString,256,"            %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
-			}
-			else
-			{
-				sprintf_s(outputString,256,"            %g %g %g,\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
-			}
-			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-		}
-
-		// note we don't need to output the normals, since the crease angle will compute them properly! Could output them for speed.
-		//// write out normals, texture coordinates, vertices, and then faces grouped by material
-		//for ( i = 0; i < 6; i++ )
-		//{
-		//    sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
-		//    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-		//}
-
 		strcpy_s(outputString,256,"          ]\n        }\n\n        texCoord TextureCoordinate\n        {\n          point\n          [\n");
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
@@ -7584,66 +7591,67 @@ DWORD br;
 				pFace->uvIndex[3]);
 			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 		}
-
 		strcpy_s(outputString,256,"          ]\n        coordIndex\n          [\n");
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-		// output vertex coordinate loops
-		for ( i = 0; i < gModel.faceCount; i++ )
+	}
+	else
+	{
+		// close up coordinates, start coordIndex
+		strcpy_s(outputString,256,"          ]\n        }\n        coordIndex\n          [\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+	}
+
+	// output vertex coordinate loops
+	for ( i = 0; i < gModel.faceCount; i++ )
+	{
+		if ( i % 1000 == 0 )
+			UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
+
+		// output the face loop
+		pFace = gModel.faceList[i];
+
+		// comma test
+		if ( i == gModel.faceCount-1 )
 		{
-			if ( i % 1000 == 0 )
-				UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
-
-			// output the face loop
-			pFace = gModel.faceList[i];
-
-			// comma test
-			if ( i == gModel.faceCount-1 )
-			{
-				sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
-					pFace->vertexIndex[0],
-					pFace->vertexIndex[1],
-					pFace->vertexIndex[2],
-					pFace->vertexIndex[3]);
-			}
-			else
-			{
-				sprintf_s(outputString,256,"          %d,%d,%d,%d,-1,\n",
-					pFace->vertexIndex[0],
-					pFace->vertexIndex[1],
-					pFace->vertexIndex[2],
-					pFace->vertexIndex[3]);
-			}
-			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+			sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
+				pFace->vertexIndex[0],
+				pFace->vertexIndex[1],
+				pFace->vertexIndex[2],
+				pFace->vertexIndex[3]);
 		}
+		else
+		{
+			sprintf_s(outputString,256,"          %d,%d,%d,%d,-1,\n",
+				pFace->vertexIndex[0],
+				pFace->vertexIndex[1],
+				pFace->vertexIndex[2],
+				pFace->vertexIndex[3]);
+		}
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+	}
 
-		retCode |= writeLines( gModelFile, ifsEnd, IFSEND_COUNT );
-		if ( retCode >= MW_BEGIN_ERRORS )
-			goto Exit;
+	retCode |= writeLines( gModelFile, ifsEnd, IFSEND_COUNT );
+	if ( retCode >= MW_BEGIN_ERRORS )
+		goto Exit;
 
-		// generic material
-		retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
-		if ( retCode >= MW_BEGIN_ERRORS )
-			goto Exit;
+	// generic material
+	retCode |= writeLines( gModelFile, materialText, WRL_MATERIAL_TEXT_COUNT );
+	if ( retCode >= MW_BEGIN_ERRORS )
+		goto Exit;
 
+	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+	{
 		// output texture file name
 		// get texture name to export, if needed
 		sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
 		sprintf_s(outputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+	}
 
-		// close her up
-		strcpy_s(outputString,256,"      }\n    }\n  ]\n}\n");
-		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-	}
-	else if ( gOptions->exportFlags & EXPT_OUTPUT_MATERIALS )
-	{
-		// by material
-	}
-	else
-	{
-		// simple single solid color
-	}
+	// close her up
+	strcpy_s(outputString,256,"      }\n    }\n  ]\n}\n");
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
     Exit:
     PortaClose(gModelFile);
