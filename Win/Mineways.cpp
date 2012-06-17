@@ -1904,14 +1904,14 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 		// are we outputting color textures?
         if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
         {
-			// if so, we don't need to group by material, as it's one huge pile of data
-			gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+			if ( gOptions.exportFlags & EXPT_3DPRINT)
+			{
+				// if printing, we don't need to group by material, as it can be one huge pile of data
+				gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+			}
+			// else if we're outputting for rendering, VRML then outputs grouped by material, unless it's a single material output
+			// (in which case this flag isn't turned on anyway).
         }
-		else
-		{
-			// Currently we always export at least color for VRML2.
-			// TODO: allow a solid color for VRML2
-		}
     }
 
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent

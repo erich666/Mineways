@@ -7429,7 +7429,7 @@ DWORD br;
 
     char outputString[256];
 	char textureDefOutputString[256];
-	char textureUseOutputString[256];
+	//char textureUseOutputString[256];
 
     int i, j, firstShape, exportSingleMaterial, exportSolidColors, exportTextures;
 
@@ -7464,7 +7464,9 @@ DWORD br;
 
 	exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
 	exportTextures = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
-	exportSingleMaterial = !(exportSolidColors || exportTextures);
+
+	// if you want each separate textured object to be its own shape, do this line instead:
+	exportSingleMaterial = !(gOptions->exportFlags & EXPT_GROUP_BY_MATERIAL);
 
 	wcharToChar(world,worldChar);
     justWorldFileName = removePathChar(worldChar);
@@ -7496,8 +7498,9 @@ DWORD br;
 		// prepare output texture file name string
 		// get texture name to export, if needed
 		sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
-		sprintf_s(textureDefOutputString,256,"        texture DEF image_Craft ImageTexture { url \"%s\" }\n", justTextureFileName );
-		sprintf_s(textureUseOutputString,256,"        texture USE image_Craft\n", justTextureFileName );
+		// DEF/USE should be legal, http://castle-engine.sourceforge.net/vrml_engine_doc/output/xsl/html/section.def_use.html, but Shapeways doesn't like it for some reason.
+		//sprintf_s(textureUseOutputString,256,"        texture USE image_Craft\n", justTextureFileName );
+		sprintf_s(textureDefOutputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
 	}
 
 	firstShape = 1;
@@ -7634,7 +7637,8 @@ DWORD br;
 		// - if it's a single material, then the output name is "generic"
 		retCode |= writeVRMLAttributeShapeSplit( exportSolidColors ? currentType : GENERIC_MATERIAL, 
 			exportSingleMaterial ? GENERIC_MATERIAL : currentType,
-			exportTextures ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
+			// DEF/USE - Shapeways does not like: exportTextures ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
+		    exportTextures ? textureDefOutputString : NULL );
 
 		if ( retCode >= MW_BEGIN_ERRORS )
 			goto Exit;
