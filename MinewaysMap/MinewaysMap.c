@@ -726,6 +726,13 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
                         woolVal &= 0xf;
                     *pBlockID = (unsigned char)(NUM_BLOCKS_STANDARD + woolVal);
                 }
+				else if ( *pBlockID >= NUM_BLOCKS_STANDARD )
+				{
+					// some new version of Minecraft, block ID is unrecognized;
+					// turn this block into stone. dataVal will be ignored.
+					assert( *pBlockID < NUM_BLOCKS_STANDARD );	// note the program needs fixing
+					*pBlockID = BLOCK_STONE;
+				}
             }
         //}
         return block;

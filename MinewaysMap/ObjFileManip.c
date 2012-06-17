@@ -516,7 +516,7 @@ static int writeOBJTextureUVs( int type );
 static int writeOBJMtlFile();
 
 static int writeVRML2Box( const wchar_t *world, IBox *box );
-static int writeVRMLAttributeShapeSplit( int type, int typeName, char *textureOutputString );
+static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
 static int writeVRMLTextureUVs( int type );
 
 static int writeLines( HANDLE file, char **textLines, int lines );
@@ -7507,7 +7507,8 @@ DWORD br;
 	i = 0;
 	while ( i < gModel.faceCount )
 	{
-		char shapeString[] = "    Shape\n    {\n      geometry IndexedFaceSet\n      {\n        creaseAngle .5\n        solid %s\n        coord %s coord_Craft%s\n";
+		char mtlName[256];
+		char shapeString[] = "    Shape\n    {\n      geometry DEF %s_Obj IndexedFaceSet\n      {\n        creaseAngle .5\n        solid %s\n        coord %s coord_Craft%s\n";
 
 		int beginIndex, endIndex, currentType;
 
@@ -7515,7 +7516,18 @@ DWORD br;
 			UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
 
 		// start new shape
-		sprintf_s( outputString, 256, shapeString,  ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE", 
+		if ( exportSingleMaterial )
+		{
+			strcpy_s(mtlName,256,"Neutral_White");
+		}
+		else
+		{
+			strcpy_s(mtlName,256,gBlockDefinitions[gModel.faceList[i]->type].name);
+			spacesToUnderlinesChar(mtlName);
+		}
+		sprintf_s( outputString, 256, shapeString, 
+			mtlName,
+			( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE",
 			firstShape ? "DEF" : "USE",
 			firstShape ? " Coordinate" : "" );
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -7636,7 +7648,7 @@ DWORD br;
 		// (textured material gets multiplied by this white material)
 		// - if it's a single material, then the output name is "generic"
 		retCode |= writeVRMLAttributeShapeSplit( exportSolidColors ? currentType : GENERIC_MATERIAL, 
-			exportSingleMaterial ? GENERIC_MATERIAL : currentType,
+			mtlName,
 			// DEF/USE - Shapeways does not like: exportTextures ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
 		    exportTextures ? textureDefOutputString : NULL );
 
@@ -7661,7 +7673,7 @@ DWORD br;
 }
 
 // if type is GENERIC_MATERIAL, set the generic. If textureOutputString is set, output texture.
-static int writeVRMLAttributeShapeSplit( int type, int typeName, char *textureOutputString )
+static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString )
 {
 #ifdef WIN32
 	DWORD br;
@@ -7673,23 +7685,11 @@ static int writeVRMLAttributeShapeSplit( int type, int typeName, char *textureOu
 
 	char attributeString[] = "      appearance Appearance\n      {\n";
 
-	char mtlName[MAX_PATH];
 	float fRed,fGreen,fBlue;
 	float ka, kd, ks, ke;
 	float alpha;
 
 	WERROR(PortaWrite(gModelFile, attributeString, strlen(attributeString) ));
-
-
-	if ( typeName == GENERIC_MATERIAL )
-	{
-		strcpy_s(mtlName,256,"Neutral_White");
-	}
-	else
-	{
-		strcpy_s(mtlName,256,gBlockDefinitions[typeName].name);
-	}
-	spacesToUnderlinesChar(mtlName);
 
 	if ( type == GENERIC_MATERIAL )
 	{
