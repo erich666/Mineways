@@ -920,10 +920,10 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         }
         else
         {
-            // just the one (VRML). If we're printing, we can convert this one down to RGB
+            // just the one (VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
             wchar_t textureFileName[MAX_PATH];
             concatFileName3(textureFileName,gOutputFilePath,gOutputFileRootClean,L".png");
-            if ( gOptions->exportFlags & EXPT_3DPRINT )
+            if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
             {
                 rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureFileName);
             }
@@ -1339,7 +1339,7 @@ static int filterBox()
     gSolidGroups = gAirGroups = 0;
 
     // do we need groups and neighbors?
-    if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS) )
+    if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS|EXPT_DEBUG_SHOW_GROUPS) )
     {
         int foundTouching = 0;
         gGroupListSize = 200;
@@ -7694,6 +7694,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
 	if ( type == GENERIC_MATERIAL )
 	{
 		fRed = fGreen = fBlue = 1.0f;
+		// note that this "generic" type will never match the debug type
 		type = BLOCK_STONE;
 	}
 	else
