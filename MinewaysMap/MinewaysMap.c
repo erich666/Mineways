@@ -631,6 +631,12 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                 if ( bx*16 + x >= gBoxMinX && bx*16 + x <= gBoxMaxX &&
                      bz*16 + z >= gBoxMinZ && bz*16 + z <= gBoxMaxZ )
                 {
+					// test and save minimum height found
+					if ( prevSely >= 0 && prevSely < hitsFound[3] )
+					{
+						hitsFound[3] = prevSely;
+					}
+
                     // in bounds, is the height good?
                     if ( prevSely >= gBoxMinY && prevSely <= gBoxMaxY )
                     {
@@ -651,10 +657,6 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     else if ( prevSely < gBoxMinY )
                     {
                         hitsFound[0] = 1;
-                        if ( prevSely >= 0 && prevSely < hitsFound[3] )
-                        {
-                            hitsFound[3] = prevSely;
-                        }
                         // lower than selection box, so if exactly on border, dim
                         if ( bx*16 + x == gBoxMinX || bx*16 + x == gBoxMaxX ||
                             bz*16 + z == gBoxMinZ || bz*16 + z == gBoxMaxZ )

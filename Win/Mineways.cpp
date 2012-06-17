@@ -103,6 +103,7 @@ static int gHitsFound[4];
 static int gFullLow=1;
 static int gAdjustingSelection=0;
 static int gShowPrintStats=1;
+static int gAutocorrectDepth=1;
 
 static int gBottomControlEnabled = FALSE;
 
@@ -638,13 +639,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         if ( gFullLow )
                         {
                             gFullLow = 0;
-                            swprintf_s(msgString,1024,L"All blocks in your selection are below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
-                                gHitsFound[3] );
+                            swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
+                                gTargetDepth, gHitsFound[3] );
                         }
                         else
                         {
-                            swprintf_s(msgString,1024,L"All blocks in your selection are below the target 'Bottom' depth.\n\nThe depth will be reset to %d to include all visible blocks.",
-                                gHitsFound[3] );
+                            swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
+                                gTargetDepth, gHitsFound[3] );
                         }
                         MessageBox( NULL, msgString,
                             _T("Informational"), MB_OK|MB_ICONINFORMATION);
@@ -665,25 +666,44 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                 }
                 // else, test if there's something in both volumes and offer to adjust.
-                else if ( gHitsFound[0] && gHitsFound[1] && gHitsFound[3] < gTargetDepth )
+                else if ( gAutocorrectDepth &&
+					      ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
+					       ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
                 {
                     // send warning
                     int retval;
                     wchar_t msgString[1024];
                     // send warning, set to min height found, then redo!
-                    if ( gFullLow )
-                    {
-                        gFullLow = 0;
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the target 'Bottom' depth.\n\nWhen you select, you're selecting in three dimensions, and there\nis a 'Bottom' depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?",
-                            gHitsFound[3] );
-                    }
-                    else
-                    {
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the target 'Bottom' depth.\n\nDo you want to set the depth to %d to select all visible blocks?",
-                            gHitsFound[3] );
-                    }
+					if ( gHitsFound[3] < gTargetDepth )
+					{
+						if ( gFullLow )
+						{
+							gFullLow = 0;
+							swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?",
+								gTargetDepth, gHitsFound[3] );
+						}
+						else
+						{
+							swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?",
+								gTargetDepth, gHitsFound[3] );
+						}
+					}
+					else
+					{
+						if ( gFullLow )
+						{
+							gFullLow = 0;
+							swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+								gTargetDepth, gHitsFound[3] );
+						}
+						else
+						{
+							swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+								gTargetDepth, gHitsFound[3] );
+						}
+					}
                     retval = MessageBox( NULL, msgString,
-                        _T("Informational"), MB_YESNO|MB_ICONINFORMATION|MB_DEFBUTTON1);
+                        _T("Informational"), MB_YESNOCANCEL|MB_ICONINFORMATION|MB_DEFBUTTON1);
                     if ( retval == IDYES )
                     {
                         gTargetDepth = gHitsFound[3];
@@ -696,6 +716,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
                     }
+					else if ( retval == IDCANCEL )
+					{
+						gAutocorrectDepth = 0;
+					}
                 }
             }
         }
