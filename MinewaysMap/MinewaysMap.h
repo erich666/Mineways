@@ -59,6 +59,8 @@ typedef void (*ProgressCallback)(float progress);
     __declspec(dllexport) const char * __cdecl IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type);
     __declspec(dllexport) void __cdecl CloseAll();
     __declspec(dllexport) WorldBlock * __cdecl LoadBlock(wchar_t *directory,int bx,int bz);
+	__declspec(dllexport) void __cdecl ClearBlockReadCheck();
+	__declspec(dllexport) int __cdecl UnknownBlockRead();
 	__declspec(dllexport) int __cdecl GetSpawn(const wchar_t *world,int *x,int *y,int *z);
     __declspec(dllexport) int __cdecl GetFileVersion(const wchar_t *world,int *version);
     __declspec(dllexport) void __cdecl GetPlayer(const wchar_t *world,int *px,int *py,int *pz);

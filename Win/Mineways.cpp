@@ -114,17 +114,18 @@ static struct {
     unsigned int type;
 } gPopupInfo[]={
     {_T("No error"), _T("No error"), MB_OK},	//00
-    {_T("Thin walls possible.\nThe thickness of a single block is smaller\nthan the recommended wall thickness.\nPrint only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	//01
-    {_T("Sum of dimensions low.\nThe sum of the dimensions of the model is less than 65 mm.\nThis is officially too small for a Shapeways color sandstone\nmodel, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	//02
-    {_T("Too many polygons.\nThere are more than one million polygons in file.\nThis is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	//03
-    {_T("Multiple separate parts found after processing.\nThis may not be what you want to print. Increase the\nvalue for 'Delete floating parts' to delete these. Try\nthe 'Debug: show separate parts' export option to\nsee if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	//04
-    {_T("At least one dimension of the model is too long.\nCheck the dimensions for this printer's material:\nlook at the top of the model file."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	//04
-    {_T("No solid blocks found;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//05
-    {_T("All solid blocks were deleted;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
-    {_T("Error: no terrain.png file found.\nPlease put a terrain.png file in the same\ndirectory as mineways.exe. If this doesn't work,\nplease use the 'File|Select terrain.png for export'\nmenu item and pick the terrain.png file."), _T("Export error"), MB_OK|MB_ICONERROR},	//07
-    {_T("Error creating export file;\nno file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//08
-    {_T("Error writing to export file;\npartial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
-    {_T("Error: the incoming terrain.png file\nresolution must be a power of two\n(like 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//10
+    {_T("Thin walls possible.\nThe thickness of a single block is smaller\nthan the recommended wall thickness.\nPrint only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
+    {_T("Sum of dimensions low.\nThe sum of the dimensions of the model is less than 65 mm.\nThis is officially too small for a Shapeways color sandstone\nmodel, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
+    {_T("Too many polygons.\nThere are more than one million polygons in file.\nThis is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
+    {_T("Multiple separate parts found after processing.\nThis may not be what you want to print. Increase the\nvalue for 'Delete floating parts' to delete these. Try\nthe 'Debug: show separate parts' export option to\nsee if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
+	{_T("At least one dimension of the model is too long.\nCheck the dimensions for this printer's material:\nlook at the top of the model file."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
+    {_T("Warning: Mineways encountered an unknown block type.\nSuch blocks are converted to stone.\n\nDownload a new version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("No solid blocks found;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
+    {_T("All solid blocks were deleted;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
+    {_T("Error: no terrain.png file found.\nPlease put a terrain.png file in the same\ndirectory as mineways.exe. If this doesn't work,\nplease use the 'File|Select terrain.png for export'\nmenu item and pick the terrain.png file."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
+    {_T("Error creating export file;\nno file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
+    {_T("Error writing to export file;\npartial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
+    {_T("Error: the incoming terrain.png file\nresolution must be a power of two\n(like 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
 };
 
 
@@ -1967,6 +1968,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         }
         if (*updateProgress)
         { (*updateProgress)(1.0f);}
+
 
         // output stats, if printing and there *are* stats
         if ( gShowPrintStats && printModel && gOptions.cost > 0.0f && outputFileList.count > 0 )

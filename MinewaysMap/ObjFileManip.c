@@ -594,6 +594,10 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     int newRetCode;
     int needDifferentTextures = 0;
 
+	// we might someday reload when reading the data that will actually be exported;
+	// Right now, any bad data encountered will flag the problem.
+	//ClearBlockReadCheck();
+
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
     memset(&gModel,0,sizeof(Model));
@@ -952,6 +956,14 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     }
 
     UPDATE_PROGRESS(PG_END);
+
+	if ( UnknownBlockRead() )
+	{
+		retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
+		// flag this just the first time found; if new data is read later,
+		// it gets flagged again
+		ClearBlockReadCheck();
+	}
 
     return retCode;
 }

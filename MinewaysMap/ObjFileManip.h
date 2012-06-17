@@ -37,6 +37,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __cdecl
 #endif
 
+// If you change something here, you must also change gPopupInfo array in Mineways.cpp
 #define MW_NO_ERROR 0
 // informational
 #define MW_WALLS_MIGHT_BE_THIN                      1
@@ -44,17 +45,18 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_TOO_MANY_POLYGONS                        (1<<2)
 #define MW_MULTIPLE_GROUPS_FOUND                    (1<<3)
 #define MW_AT_LEAST_ONE_DIMENSION_TOO_HIGH          (1<<4)
+#define MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED           (1<<5)
 // errors
-#define MW_BEGIN_ERRORS                               (1<<5)
-#define MW_NO_BLOCKS_FOUND                          (1<<5)
-#define MW_ALL_BLOCKS_DELETED                       (1<<6)
-#define MW_CANNOT_READ_IMAGE_FILE                   (1<<7)
-#define MW_CANNOT_CREATE_FILE                       (1<<8)
-#define MW_CANNOT_WRITE_TO_FILE                     (1<<9)
-#define MW_IMAGE_WRONG_SIZE                         (1<<10)
-#define MW_ERRORS                                     (1<<10)
+#define MW_BEGIN_ERRORS                           (1<<6)
+#define MW_NO_BLOCKS_FOUND                          (1<<6)
+#define MW_ALL_BLOCKS_DELETED                       (1<<7)
+#define MW_CANNOT_READ_IMAGE_FILE                   (1<<8)
+#define MW_CANNOT_CREATE_FILE                       (1<<9)
+#define MW_CANNOT_WRITE_TO_FILE                     (1<<10)
+#define MW_IMAGE_WRONG_SIZE                         (1<<11)
+#define MW_ERRORS                                 (1<<11)
 
-#define MW_NUM_CODES                                11
+#define MW_NUM_CODES                                12
 
 #ifdef __cplusplus
 extern "C" {

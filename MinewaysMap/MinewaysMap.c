@@ -69,6 +69,9 @@ static int gHgreen = 50;
 static int gHblue = 255;
 static int gHighlightID=0;
 
+// was an unknown block read in?
+static int gUnknownBlock = 0;
+
 void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz )
 {
     // we don't really require one to be min or max, we take the range
@@ -732,6 +735,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 					// turn this block into stone. dataVal will be ignored.
 					assert( *pBlockID < NUM_BLOCKS_STANDARD );	// note the program needs fixing
 					*pBlockID = BLOCK_STONE;
+					gUnknownBlock = 1;
 				}
             }
         //}
@@ -740,6 +744,16 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 
     block_free(block);
     return NULL;
+}
+
+void ClearBlockReadCheck()
+{
+	gUnknownBlock = 0;
+}
+
+int UnknownBlockRead()
+{
+	return gUnknownBlock;
 }
 
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
