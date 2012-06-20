@@ -2063,7 +2063,12 @@ static void initializeExportDialogData()
     gExportPrintData.fileType = FILE_TYPE_VRML2;
 
 	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         0, 0, 0, 0, 0, 1);
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 0);
+	// I used to set the last value to 0, meaning only the zip would be created. The idea
+	// was that the naive user would then only have the zip, and so couldn't screw up
+	// when uploading the model file. But this setting is a pain if you want to preview
+	// the model file, you have to always remember to check the box so you can get the
+	// preview files. So, now it's off.
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1);
 
     // Only VRML2 imports into Shapeways with color
     // order: OBJ, BSTL, ASTL, VRML
