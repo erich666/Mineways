@@ -5758,10 +5758,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-        case BLOCK_BROWN_MUSHROOM:
-        case BLOCK_RED_MUSHROOM:
+        case BLOCK_HUGE_BROWN_MUSHROOM:
+        case BLOCK_HUGE_RED_MUSHROOM:
             inside = SWATCH_INDEX( 14, 8 );
-            outside = SWATCH_INDEX( (type == BLOCK_BROWN_MUSHROOM) ? 14 : 13, 7 );
+            outside = SWATCH_INDEX( (type == BLOCK_HUGE_BROWN_MUSHROOM) ? 14 : 13, 7 );
             stem = SWATCH_INDEX( 13, 8 );
             swatchLoc = inside;
             switch ( dataVal )
@@ -5779,7 +5779,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 2: //2	 Side piece	 Cap texture on top and North
                 if ( (faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) )
+                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) )
                 {
                     swatchLoc = outside;
                 }

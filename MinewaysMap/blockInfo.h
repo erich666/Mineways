@@ -313,7 +313,7 @@ typedef struct Options {
 
 
 // number of official Minecraft blocks - 134 (block IDs + 1)
-#define NUM_BLOCKS_STANDARD 0x86
+#define NUM_BLOCKS_STANDARD 0x89
 // number of blocks + 16 for the 16 colored wool - 150
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
@@ -492,8 +492,8 @@ static struct {
     {"Trapdoor",               0x886634, 1.000f, 0x886634,  4, 5, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS},   //60 - tricky case: could be a flattop, or a flatside. For now, render it
     {"Hidden Silverfish",      0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //61
     {"Stone Brick",            0x797979, 1.000f, 0x797979,  6, 3, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //62
-    {"Huge Brown Mushroom",    0x654b39, 1.000f, 0x654b39, 14, 7, BLF_MIDDLER|BLF_IMAGE_TEXTURE},   //63
-    {"Huge Red Mushroom",      0xa91b19, 1.000f, 0xa91b19, 13, 7, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},   //64 - TODO: not really whole
+    {"Huge Brown Mushroom",    0x654b39, 1.000f, 0x654b39, 14, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //63
+    {"Huge Red Mushroom",      0xa91b19, 1.000f, 0xa91b19, 13, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //64
     {"Iron Bars",              0xa3a4a4, 1.000f, 0xa3a4a4,  5, 5, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //65
     {"Glass Pane",             0xc0f6fe, 0.500f, 0x607b7f,  1, 3, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //66
     {"Melon",                  0xaead27, 1.000f, 0xaead27,  9, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //67 (8,8) side
@@ -523,11 +523,14 @@ static struct {
     {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //81
-	{"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //82 - don't really have tiles for this one
-	{"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE},    //83 - decal
-	{"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
-	//{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
-	{"Block of Emerald",       0x53D778, 1.000f, 0x53D778,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //85
+    {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //82 - don't really have tiles for this one
+    {"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE},    //83 - decal
+    {"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
+    //{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
+    {"Block of Emerald",       0x53D778, 1.000f, 0x53D778,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //85
+    {"Spruce Wood Stairs",     0x785836, 1.000f, 0x785836,  6,12, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //86
+    {"Birch Wood Stairs",      0xD7C185, 1.000f, 0xD7C185,  6,13, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //87
+    {"Jungle Wood Stairs",     0xB1805C, 1.000f, 0xB1805C,  7,12, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //88
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},
@@ -638,6 +641,8 @@ enum block_types {
     BLOCK_TRAPDOOR = 0x60,
     BLOCK_HIDDEN_SILVERFISH = 0x61,
     BLOCK_STONE_BRICKS = 0x62,
+	BLOCK_HUGE_BROWN_MUSHROOM = 0x63,
+	BLOCK_HUGE_RED_MUSHROOM = 0x64,
     BLOCK_IRON_BARS = 0x65,
     BLOCK_GLASS_PANE = 0x66,
     BLOCK_MELON = 0x67,
