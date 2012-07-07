@@ -449,6 +449,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
 
 static int filterBox();
 static int computeFlatFlags( int boxIndex );
+static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboard( int boxIndex, int type );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static void checkGroupListSize();
@@ -1925,6 +1926,17 @@ static int computeFlatFlags( int boxIndex )
     return 1;
 }
 
+// silly sleaze: if we're exporting individual blocks, set the first face index for a block being output to be negative.
+// Saves us from having to allocate a boolean just to keep track of this. Note that 0 is always treated as the "first face"
+// of a block anyway (so negative zero is not needed).
+static int firstFaceModifier( int isFirst, int faceIndex )
+{
+	if ( (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) && isFirst )
+		return -faceIndex;
+	else
+		return faceIndex;
+}
+
 static int saveBillboard( int boxIndex, int type )
 {
     switch ( type )
@@ -2366,7 +2378,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
 
             // if  we sort, we want to keep faces in the order generated, which is
             // generally cache-coherent (and also just easier to view in the file)
-            face->faceIndex = gModel.faceCount;
+            face->faceIndex = firstFaceModifier( i == 0, gModel.faceCount );
             face->type = type;
 
             // always the same normal, which directly corresponds to the normals[] array in gModel
@@ -4648,10 +4660,12 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 static int checkMakeFace( int type, int neighborType, int view3D )
 {
     int makeFace = 0;
-    if ( neighborType <= BLOCK_AIR )
+	// if neighboring face is air, or if individual (i.e., all) blocks are being output, then output the face
+    if ( neighborType <= BLOCK_AIR || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
     {
         makeFace = 1;
-    } else if ( view3D )
+    }
+	else if ( view3D )
     {
         // special cases for viewing
 
@@ -4754,7 +4768,7 @@ static void saveFaceLoop( int boxIndex, int faceDirection )
 
     // if  we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
-    face->faceIndex = gModel.faceCount;
+    face->faceIndex = firstFaceModifier( faceDirection == 0, gModel.faceCount );
 
     // always the same normal, which directly corresponds to the normals[6] array in gModel
     face->normalIndex = faceDirection;
@@ -6095,7 +6109,9 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     const char *justWorldFileName;
     char justMtlFileName[MAX_PATH];
 
-    int i, normalCount;
+    int i, normalCount, groupCount;
+
+	unsigned char outputMaterial[NUM_BLOCKS];
 
     int exportMaterials;
 
@@ -6183,6 +6199,11 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     //}
 
     prevType = -1;
+	groupCount = 0;
+	// outputMaterial notes when a material is used for the first time;
+	// should only be needed for when objects are not sorted by material (grouped by block).
+	memset(outputMaterial,0,sizeof(outputMaterial));
+
     for ( i = 0; i < gModel.faceCount; i++ )
     {
         if ( i % 1000 == 0 )
@@ -6198,24 +6219,43 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
                 {
                     prevType = gModel.faceList[i]->type;
                     // new ID encountered, so output it: material name, and group
-                    // group isn't really required, but can be useful
-                    strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
+                    // group isn't really required, but can be useful.
+					// Output group only if we're not already using it for individual blocks
+					strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar( mtlName );
                     // g materialName - useful?
                     // usemtl materialName
-                    sprintf_s(outputString,256,"\ng %s\nusemtl %s\n", mtlName, mtlName);
+					if ( gOptions->exportFlags & EXPT_GROUP_BY_BLOCK )
+					{
+						sprintf_s(outputString,256,"\nusemtl %s\n", mtlName);
+						// note which material is to be output, if not output already
+						if ( outputMaterial[prevType] == 0 )
+						{
+							gModel.mtlList[gModel.mtlCount++] = prevType;
+							outputMaterial[prevType] = 1;
+						}
+					}
+					else
+					{
+						sprintf_s(outputString,256,"\ng %s\nusemtl %s\n", mtlName, mtlName);
+						gModel.mtlList[gModel.mtlCount++] = prevType;
+					}
                     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-                    // note which material is to be output
-                    gModel.mtlList[gModel.mtlCount++] = prevType;
-                }
+                 }
             //}
         }
 
         // output the actual face
-        pFace = gModel.faceList[i];
+		pFace = gModel.faceList[i];
+
+		// if we're outputting each individual block, set a unique group name here.
+		if ( (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) && pFace->faceIndex <= 0 )
+		{
+			sprintf_s(outputString,256,"\ng block_%05d\n", ++groupCount);
+			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		}
 
         if ( absoluteIndices )
         {
@@ -8048,8 +8088,11 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     sprintf_s(outputString,256,"# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-    sprintf_s(outputString,256,"# Export all block types: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+	sprintf_s(outputString,256,"# Export all block types: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no" );
+	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
+	sprintf_s(outputString,256,"# Export individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no" );
+	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gOptions->pEFD->chkMergeFlattop ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));

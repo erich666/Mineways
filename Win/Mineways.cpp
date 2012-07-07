@@ -1915,6 +1915,14 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         }
     }
 
+	// if individual blocks are to be exported, we group by cube, not by material, so turn that off
+	if ( gpEFD->chkIndividualBlocks )
+	{
+		// this also allows us to use the faceIndex as a way of noting the start of a new group
+		gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+		gOptions.exportFlags |= EXPT_GROUP_BY_BLOCK;
+	}
+
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent
     // (and full textures would just be confusing for debug, anyway)
     if ( gOptions.exportFlags & EXPT_DEBUG_SHOW_GROUPS )
@@ -1924,6 +1932,8 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
             gOptions.exportFlags &= ~EXPT_OUTPUT_TEXTURE_IMAGES;
             gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_SWATCHES;
         }
+		// we don't want to group by block for debugging
+		gOptions.exportFlags &= ~EXPT_GROUP_BY_BLOCK;
     }
 
     // OK, all set, let's go!
@@ -2084,6 +2094,7 @@ static void initializeExportDialogData()
 	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
     INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 0, 0, 1, 1, 1, 0);  
     gExportPrintData.chkCenterModel = 1;
+	gExportPrintData.chkIndividualBlocks = 0;
 
     gExportPrintData.radioRotate0 = 1;
 

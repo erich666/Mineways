@@ -187,18 +187,21 @@ static struct {
 // Delete objects < 16 blocks or all tree that are not at the ground level
 #define EXPT_DELETE_FLOATING_OBJECTS	0x4000
 // Hollow out the bottom of the model (TODO: could add a base, with a hole in it)
-#define EXPT_HOLLOW_BOTTOM			    0x8000
+#define EXPT_HOLLOW_BOTTOM				0x8000
 // Aggressively hollow out an area, carving from the bottom around tunnels.
 // The danger is that holes can be created which may not get emptied.
-#define EXPT_SUPER_HOLLOW_BOTTOM       0x10000
+#define EXPT_SUPER_HOLLOW_BOTTOM		0x10000
 // Allow BLF_ENTRANCE blocks to act solid when forming air groups. This allows
 // insides of buildings to get sealed off and filled.
-#define EXPT_SEAL_ENTRANCES            0x20000
+#define EXPT_SEAL_ENTRANCES				0x20000
 // Tunnels on the sides and bottom of the solid box are considered bubbles and filled with glass
 // For now, make it the same thing as sealing entrances - I'm not sure it needs yet another checkbox
-#define EXPT_SEAL_SIDE_TUNNELS         0x40000
+#define EXPT_SEAL_SIDE_TUNNELS			0x40000
 // when exporting textures, output a uniform material: Ka and Kd set to white
-#define EXPT_OUTPUT_NEUTRAL_MATERIAL    0x80000
+#define EXPT_OUTPUT_NEUTRAL_MATERIAL	0x80000
+
+// do we want to export by block?
+#define EXPT_GROUP_BY_BLOCK				0x100000
 
 
 #define EP_FIELD_LENGTH 20
@@ -265,6 +268,7 @@ typedef struct
 	UINT chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
 
     UINT chkCenterModel;
+	UINT chkIndividualBlocks;
 
     UINT chkFillBubbles;
     UINT chkSealEntrances;

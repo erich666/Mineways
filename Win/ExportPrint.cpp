@@ -111,7 +111,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
             CheckDlgButton(hDlg,IDC_EXPORT_ALL,epd.chkExportAll);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
-            CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
+			CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
+			CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,epd.chkIndividualBlocks);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -415,7 +416,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
                 lepd.chkExportAll = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
-                lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
+				lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
+				lepd.chkIndividualBlocks = IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
 
                 lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);
                 lepd.radioRotate90 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_90);
