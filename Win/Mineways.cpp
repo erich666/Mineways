@@ -1021,7 +1021,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // Parse the menu selections:
         if (wmId>=IDM_CUSTOMCOLOR && wmId<IDM_CUSTOMCOLOR+1000)
             useCustomColor(wmId,hWnd);
-        if (wmId>IDM_WORLD && wmId<IDM_WORLD+1000)
+
+		// load world
+        if (wmId>IDM_WORLD && wmId<IDM_WORLD+999)
         {
 			int loadErr;
             //convert path to utf8
@@ -1090,7 +1092,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_CLOSE:
             DestroyWindow(hWnd);
             break;
-        case IDM_WORLD:
+		case IDM_TEST_WORLD:
+			gWorld[0] = 0;
+			gSameWorld = 0;
+			loadWorld();
+			goto InitEnable;
+		case IDM_WORLD:
         case IDM_OPEN:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
@@ -1119,6 +1126,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     return 0;
                 }
+			InitEnable:
 				EnableWindow(hwndSlider,TRUE);
 				EnableWindow(hwndLabel,TRUE);
 				EnableWindow(hwndInfoLabel,TRUE);
@@ -1582,22 +1590,32 @@ static int loadWorld()
 {
 	int version;
     CloseAll();
-    // Don't clear selection! It's a feature: you can export, then go modify your Minecraft
-    // world, then reload and carry on. TODO: document!
-    //gHighlightOn=FALSE;
-    //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
-	if ( GetFileVersion(gWorld,&version) != 0 ) {
-		return 1;
-	}
-	if ( version < 19133 )
+
+	if ( gWorld[0] == 0 )
 	{
-		// world is old
-		return 2;
+		// load test world
+		gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
 	}
-    if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
-        return 1;
-    }
-    GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
+	else
+	{
+		// Don't clear selection! It's a feature: you can export, then go modify your Minecraft
+		// world, then reload and carry on. TODO: document!
+		//gHighlightOn=FALSE;
+		//SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+		if ( GetFileVersion(gWorld,&version) != 0 ) {
+			return 1;
+		}
+		if ( version < 19133 )
+		{
+			// world is old
+			return 2;
+		}
+		if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
+			return 1;
+		}
+		GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
+	}
+
     // if this is the first world you loaded, or not the same world as before (reload), set location to spawn.
     if ( !gSameWorld )
     {
@@ -1674,7 +1692,7 @@ static int loadWorldList(HMENU menu)
 					//info.fMask |= MIIM_STATE;
 					info.fState = 0x0; // MFS_CHECKED;
 				}
-                InsertMenuItem(menu,IDM_WORLD,FALSE,&info);
+                InsertMenuItem(menu,IDM_TEST_WORLD,FALSE,&info);
                 worlds[numWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
                 worldPath(worlds[numWorlds]);
                 PathAppend(worlds[numWorlds],ffd.cFileName);

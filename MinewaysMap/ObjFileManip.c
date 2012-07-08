@@ -354,7 +354,7 @@ static int gFaceDirectionVector[6][3] =
 //#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
 //											(((z)-(bz)*16)+ \
 //											((x)-(bx)*16)*16)*128)
-#define CHUNK_INDEX(bx,bz,x,y,z) (  (y*256)+ \
+#define CHUNK_INDEX(bx,bz,x,y,z) (  ((y)*256)+ \
                                              (((z)-(bz)*16)*16) + \
                                              ((x)-(bx)*16)  )
 
@@ -1202,7 +1202,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
             wcsncat_s(directory,256,L"DIM1/",5);
         }
 
-        block=LoadBlock(directory,bx,bz);
+		block=LoadBlock(directory,bx,bz);
         if (block==NULL) //blank tile, nothing to do
             return;
 
@@ -1558,7 +1558,7 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
             break;
         default:
-            // don't do anything, this redstone is not touching a side
+            // don't do anything, this torch is not touching a side
             break;
         }
         break;
@@ -1810,7 +1810,8 @@ static int computeFlatFlags( int boxIndex )
 		}
 		// the rules: vines can cover up to four sides, or if no bits set, top of overhanging block.
 		// The overhanging block stops side faces from appearing, essentially.
-		if ( gBoxData[boxIndex].data == 0 )
+		// If billboarding is on, then we've already exported everything else of the vine, so remove it.
+		if ( gBoxData[boxIndex].data == 0 || gExportBillboards )
 		{
 			// top face, flatten to bottom of block above, if the neighbor exists. If it doesn't,
 			// something odd is going on (this shouldn't happen).
@@ -1829,6 +1830,11 @@ static int computeFlatFlags( int boxIndex )
 		// a vine block in the empty neighbor space. Might work...
 		else
 		{
+			// if a block is above a vine, there's always a below
+			if ( gBoxData[boxIndex+1].origType != BLOCK_AIR )
+			{
+				gBoxData[boxIndex+1].flatFlags |= FLAT_FACE_BELOW;
+			}
 			if ( gBoxData[boxIndex].data & 0x1 )
 			{
 				// south face (+Z)
@@ -2042,8 +2048,8 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
         }
         break;
     case BLOCK_TORCH:
-    case BLOCK_REDSTONE_REPEATER_OFF:
-    case BLOCK_REDSTONE_REPEATER_ON:
+    case BLOCK_REDSTONE_TORCH_OFF:
+    case BLOCK_REDSTONE_TORCH_ON:
 	//case BLOCK_TRIPWIRE:
         // is torch not standing up?
         if ( dataVal != 0x5 )
@@ -2098,7 +2104,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
         break;
 	case BLOCK_VINES:
 		if ( dataVal == 0 )
-			// it's sitting on the top of a block, so flat
+			// it's sitting underneath a block, so flat
 			return(0);
 		break;
 	default:
@@ -2439,6 +2445,13 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     addBounds( anchor, &gModel.billboardBounds );
     VecScalar( anchor, +=, 1 );
     addBounds( anchor, &gModel.billboardBounds );
+
+	// special case:
+	// for vines, return 0 (flatten to face) if there is a block above it
+	if ( (billboardType == BB_SIDE) && (gBlockDefinitions[gBoxData[boxIndex+1].type].flags & BLF_WHOLE) )
+	{
+		return 0;
+	}
 
     return 1;
 }
@@ -5118,7 +5131,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
            }
             break;
         case BLOCK_DISPENSER:
-        case BLOCK_FURNACE:
+		case BLOCK_FURNACE:
         case BLOCK_BURNING_FURNACE:
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13,2, 14,3 );
             if ( (faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM) )
@@ -5642,6 +5655,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_REDSTONE_REPEATER_OFF:
         case BLOCK_REDSTONE_REPEATER_ON:
+			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
+			rotateIndices( localIndices, 90*(dataVal&0x3));
+			break;
         case BLOCK_REDSTONE_WIRE:
             angle = 0;
             if ( faceDirection == DIRECTION_BLOCK_TOP )
@@ -6742,7 +6758,9 @@ static int createBaseMaterialTexture()
     swatchHoldTable[5*16+11] = swatchHoldTable[5*16+12] = swatchHoldTable[5*16+13] = swatchHoldTable[5*16+14] = swatchHoldTable[5*16+15] = SBIT_CLAMP_BOTTOM;
     swatchHoldTable[6*16+0] = swatchHoldTable[6*16+15] = SBIT_CLAMP_BOTTOM;
     swatchHoldTable[7*16+3] = swatchHoldTable[7*16+9] = swatchHoldTable[7*16+10] = swatchHoldTable[7*16+11] = swatchHoldTable[7*16+12] = swatchHoldTable[7*16+15] = SBIT_CLAMP_BOTTOM;
-    swatchHoldTable[8*16+12] = swatchHoldTable[8*16+15] = SBIT_CLAMP_BOTTOM;
+	swatchHoldTable[8*16+6] = SBIT_CLAMP_RIGHT;
+	swatchHoldTable[8*16+7] = SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT;
+	swatchHoldTable[8*16+12] = swatchHoldTable[8*16+15] = SBIT_CLAMP_BOTTOM;
     swatchHoldTable[9*16+13] = SBIT_CLAMP_BOTTOM;
     swatchHoldTable[14*16+2] = swatchHoldTable[14*16+3] = swatchHoldTable[14*16+4] = SBIT_CLAMP_BOTTOM;
 

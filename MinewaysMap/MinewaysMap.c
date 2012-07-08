@@ -425,7 +425,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             wcsncat_s(directory,256,L"DIM1/",5);
         }
 
-        block=LoadBlock(directory,bx,bz);
+		block=LoadBlock(directory,bx,bz);
         if (block==NULL) //blank tile
             return gBlankTile;
 
@@ -700,11 +700,567 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     return bits;
 }
 
+#define BLOCK_INDEX(x,y,z) (  ((y)*256)+ \
+	((z)*16) + \
+	(x)  )
+
+// generate test blocks for test world
+void testBlock( WorldBlock *block, int type, int y, int dataVal )
+{
+	int bi, hiBit, trimVal;
+
+	switch ( type )
+	{
+	default:
+		if ( dataVal == 0 )
+		{
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		break;
+	case BLOCK_WOODEN_PRESSURE_PLATE:
+	case BLOCK_STONE_PRESSURE_PLATE:
+		// uses 0-1
+		if ( dataVal < 2 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_TALL_GRASS:
+	case BLOCK_SANDSTONE:
+	case BLOCK_HIDDEN_SILVERFISH:
+		// uses 0-2
+		if ( dataVal < 3 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_LOG:
+	case BLOCK_WOODEN_PLANKS:
+	case BLOCK_LEAVES:
+	case BLOCK_SAPLING:
+	case BLOCK_NETHER_WART:
+	case BLOCK_PUMPKIN:
+	case BLOCK_JACK_O_LANTERN:
+	case BLOCK_WOODEN_DOUBLE_SLAB:
+	case BLOCK_STONE_BRICKS:
+		// uses 0-3
+		if ( dataVal < 4 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_DOUBLE_SLAB:
+	case BLOCK_CAKE:
+		// uses 0-5
+		if ( dataVal < 6 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_CROPS:
+	case BLOCK_PUMPKIN_STEM:
+	case BLOCK_MELON_STEM:
+	case BLOCK_OAK_WOOD_STAIRS:
+	case BLOCK_COBBLESTONE_STAIRS:
+	case BLOCK_BRICK_STAIRS:
+	case BLOCK_STONE_BRICK_STAIRS:
+	case BLOCK_NETHER_BRICK_STAIRS:
+	case BLOCK_SANDSTONE_STAIRS:
+	case BLOCK_SPRUCE_WOOD_STAIRS:
+	case BLOCK_BIRCH_WOOD_STAIRS:
+	case BLOCK_JUNGLE_WOOD_STAIRS:
+	case BLOCK_SNOW:
+	case BLOCK_FENCE_GATE:
+		// uses 0-7
+		if ( dataVal < 8 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_HUGE_BROWN_MUSHROOM:
+	case BLOCK_HUGE_RED_MUSHROOM:
+		// uses 0-10
+		if ( dataVal < 11 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_SIGN_POST:
+	case BLOCK_REDSTONE_REPEATER_OFF:
+	case BLOCK_REDSTONE_REPEATER_ON:
+		// uses all bits, 0-15
+		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+		block->grid[bi] = (unsigned char)type;
+		// shift up the data val by 4 if on the odd value location
+		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		break;
+	case BLOCK_FURNACE:
+	case BLOCK_BURNING_FURNACE:
+	case BLOCK_DISPENSER:
+		// uses 2-5
+		if ( dataVal >= 2 && dataVal <= 5 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_TORCH:
+	case BLOCK_REDSTONE_TORCH_OFF:
+	case BLOCK_REDSTONE_TORCH_ON:
+		if ( dataVal >= 1 && dataVal <= 5 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( dataVal )
+			{
+			case 1:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 4:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			default:
+				// do nothing - on ground
+				break;
+			}
+		}
+		break;
+	case BLOCK_LADDER:
+	case BLOCK_WALL_SIGN:
+		if ( dataVal >= 2 && dataVal <= 5 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( dataVal )
+			{
+			case 2:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 4:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 5:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			}
+		}
+		break;
+	case BLOCK_RAIL:
+		if ( dataVal >= 6 && dataVal <= 9 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			break;
+		}
+		else if ( dataVal > 9 )
+		{
+			break;
+		}
+		// falls through on 0 through 5, since these are handled below for all rails
+	case BLOCK_POWERED_RAIL:
+	case BLOCK_DETECTOR_RAIL:
+		hiBit = dataVal & 0x8;
+		trimVal = dataVal & 0x7;
+		if ( trimVal <= 5 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( trimVal )
+			{
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 4:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 5:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			default:
+				// do nothing - on ground
+				break;
+			}
+		}
+		break;
+	case BLOCK_LEVER:
+		hiBit = dataVal & 0x8;
+		trimVal = dataVal & 0x7;
+		if ( trimVal >=1 && trimVal <= 6 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( dataVal & 0x7 )
+			{
+			case 1:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 4:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			default:
+				// do nothing - on ground
+				break;
+			}
+		}
+		break;
+	case BLOCK_WOODEN_DOOR:
+	case BLOCK_IRON_DOOR:
+		// incomplete - we ignore all bits in Mineways currently anyway.
+		if ( dataVal == 0 )
+		{
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		break;
+	case BLOCK_BED:
+		if ( dataVal < 8 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( dataVal & 0x3 )
+			{
+			case 0:
+				// put head to south
+				bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+				block->grid[bi] = (unsigned char)type;
+				// shift up the data val by 4 if on the odd value location
+				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+				break;
+			case 1:
+				// put head to west
+				bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+				block->grid[bi] = (unsigned char)type;
+				// shift up the data val by 4 if on the odd value location
+				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+				break;
+			case 2:
+				// put head to north
+				bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+				block->grid[bi] = (unsigned char)type;
+				// shift up the data val by 4 if on the odd value location
+				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+				break;
+			case 3:
+				// put head to east
+				bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+				block->grid[bi] = (unsigned char)type;
+				// shift up the data val by 4 if on the odd value location
+				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+				break;
+			}
+		}
+		break;
+	case BLOCK_STONE_BUTTON:
+		hiBit = dataVal & 0x8;
+		trimVal = dataVal & 0x7;
+		if ( trimVal >= 1 && trimVal <= 4 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( trimVal )
+			{
+			case 1:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				break;
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				break;
+			case 3:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				break;
+			case 4:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				break;
+			}
+		}
+		break;
+	case BLOCK_STONE_SLAB:
+		trimVal = dataVal & 0x7;
+		if ( trimVal < 6 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_WOODEN_SLAB:
+		trimVal = dataVal & 0x7;
+		if ( trimVal < 4 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_TRAPDOOR:
+		if ( dataVal < 8 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+
+			hiBit = dataVal & 0x4;
+			trimVal = dataVal & 0x3;
+			switch ( trimVal )
+			{
+			case 3:
+				// put block to west
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 1:
+				// put block to north
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			case 0:
+				// put block to south
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+				break;
+			}
+		}
+		break;
+	case BLOCK_PISTON:
+	case BLOCK_STICKY_PISTON:
+		// TODO: piston head/extension
+		hiBit = dataVal & 0x8;
+		trimVal = dataVal & 0x7;
+		if ( trimVal < 6 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_VINES:
+		// uses all bits, 0-15
+		if ( dataVal > 0 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+		block->grid[bi] = (unsigned char)type;
+		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+
+		block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
+		break;
+	case BLOCK_REDSTONE_WIRE:
+		// this one is specialized: dataVal just says where to put neighbors, NSEW
+		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+		block->grid[bi] = (unsigned char)type;
+
+		if ( dataVal & 0x1 )
+		{
+			// put block to north
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,3+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		if ( dataVal & 0x2 )
+		{
+			// put block to east
+			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+			block->grid[BLOCK_INDEX(5+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		if ( dataVal & 0x4 )
+		{
+			// put block to south
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,5+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		if ( dataVal & 0x8 )
+		{
+			// put block to west, redstone atop it
+			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+			block->grid[BLOCK_INDEX(3+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		break;
+	case BLOCK_CHEST:
+		// uses 2-5, we add an extra chest on 0x8
+		trimVal = dataVal & 0x7;
+		if ( trimVal >= 2 && trimVal <= 5 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(trimVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+		}
+		// double-chest on 0x8
+		switch ( dataVal )
+		{
+		case 0x8|2:
+		case 0x8|3:
+			// north/south, so put one to west
+			bi = BLOCK_INDEX(3+(type%2)*8,y,4+(trimVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+			break;
+		case 0x8|4:
+		case 0x8|5:
+			// west/east, so put one to north
+			bi = BLOCK_INDEX(4+(type%2)*8,y,3+(trimVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+}
+
 WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 {
+	int x, z;
     unsigned char *pBlockID;
     WorldBlock *block=block_alloc();
     block->rendery = -1; // force redraw
+
+	if ( directory[0] == (wchar_t)'/' )
+	{
+		int grassHeight = 62;
+		int blockHeight = 63;
+
+		memset(block->grid, 0, 16*16*256);
+		memset(block->data, 0, 16*16*128);
+		memset(block->light, 0xff, 16*16*128);
+
+		if ( cx >= 0 && cx*2 < NUM_BLOCKS && cz >= 0 && cz < 8)
+		{
+			// grass base
+			for ( x = 0; x < 16; x++ )
+			{
+				for ( z = 0; z < 16; z++ )
+				{
+					block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
+				}
+			}
+
+			// blocks
+			testBlock(block,cx*2,blockHeight,cz*2);
+			testBlock(block,cx*2,blockHeight,cz*2+1);
+			if ( cx*2+1 < NUM_BLOCKS )
+			{
+				testBlock(block,cx*2+1,blockHeight,cz*2);
+				testBlock(block,cx*2+1,blockHeight,cz*2+1);
+			}
+			return block;
+		}
+		// tick marks
+		else if ( cx >= 0 && cx*2 < NUM_BLOCKS && (cz == -1 || cz == 8) )
+		{
+			int i, j;
+
+			// stone edge
+			for ( x = 0; x < 16; x++ )
+			{
+				for ( z = 0; z < 16; z++ )
+				{
+					block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? BLOCK_WOODEN_PLANKS : BLOCK_STONE;
+				}
+			}
+
+			// blocks
+			for ( i = 0; i < 2; i++ )
+			{
+				if ( ((cx*2+i) % 10) == 0 )
+				{
+					if ( cx*2+i < NUM_BLOCKS )
+					{
+						for ( j = 0; j <= (int)(cx/8); j++ )
+							block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((cx*2+i)%50) == 0) ? BLOCK_WATER : BLOCK_LAVA;
+					}
+				}
+			}
+			return block;
+		}
+		else
+		{
+			block_free(block);
+			return NULL;
+		}
+	}
 
     if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light)) {
         // got block successfully
