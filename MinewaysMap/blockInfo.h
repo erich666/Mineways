@@ -403,7 +403,7 @@ static struct {
     {"Dirt",                   0x8c6344, 1.000f, 0x8c6344,  2, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//03
     {"Cobblestone",            0x828282, 1.000f, 0x828282,  0, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//04
     {"Wooden Plank",           0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//05
-    {"Sapling",                0x7b9a29, 1.000f, 0x7b9a29, 15, 0, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//06
+    {"Sapling",                0x7b9a29, 1.000f, 0x7b9a29, 15, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//06
     {"Bedrock",                0x565656, 1.000f, 0x565656,  1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//07
     {"Water",                  0x295dfe, 0.535f, 0x163288, 15,12, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//08
     {"Stationary Water",       0x295dfe, 0.535f, 0x163288, 15,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//09
@@ -428,16 +428,16 @@ static struct {
     {"Detector Rail",          0x694d3a, 1.000f, 0x694d3a,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1c
     {"Sticky Piston",          0x719e60, 1.000f, 0x719e60, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//1d
     {"Cobweb",                 0xeeeeee, 1.000f, 0xeeeeee, 11, 0, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1e
-    {"Tall Grass",             0x68a33d, 1.000f, 0x68a33d,  7, 2, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//1f (31)
-    {"Dead Bush",              0x946428, 1.000f, 0x946428,  7, 3, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//20 (32)
+    {"Tall Grass",             0x68a33d, 1.000f, 0x68a33d,  7, 2, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//1f (31)
+    {"Dead Bush",              0x946428, 1.000f, 0x946428,  7, 3, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//20 (32)
     {"Piston",                 0x95774b, 1.000f, 0x95774b, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//21
     {"Piston Head",            0x95774b, 1.000f, 0x95774b, 11, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//22
     {"Wool",                   0xdcdcdc, 1.000f, 0xdcdcdc,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//23 - gets converted to colors at end
     {"Block Moved By Piston",  0x000000, 1.000f, 0x000000, 11, 6, BLF_NONE},	//24 (36) - really, nothing...
-    {"Dandelion",              0xfefe02, 1.000f, 0xfefe02, 13, 0, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//25
-    {"Rose",                   0xff0f0f, 1.000f, 0xff0f0f, 12, 0, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//26
-    {"Brown Mushroom",         0xc19171, 1.000f, 0xc19171, 13, 1, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//27
-    {"Red Mushroom",           0xfc5c5d, 1.000f, 0xfc5c5d, 12, 1, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},	//28
+    {"Dandelion",              0xD3DD05, 1.000f, 0xD3DD05, 13, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//25
+    {"Rose",                   0xD81F1F, 1.000f, 0xD81F1F, 12, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//26
+    {"Brown Mushroom",         0xc19171, 1.000f, 0xc19171, 13, 1, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//27
+    {"Red Mushroom",           0xfc5c5d, 1.000f, 0xfc5c5d, 12, 1, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},	//28
     {"Gold Block",             0xfef74e, 1.000f, 0xfef74e,  7, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//29
     {"Iron Block",             0xeeeeee, 1.000f, 0xeeeeee,  6, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//2a
     {"Double Slab",            0xa6a6a6, 1.000f, 0xa6a6a6,  6, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//2b - 43 5,0 side
@@ -501,8 +501,8 @@ static struct {
     {"Iron Bars",              0xa3a4a4, 1.000f, 0xa3a4a4,  5, 5, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //65
     {"Glass Pane",             0xc0f6fe, 0.500f, 0x607b7f,  1, 3, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //66
     {"Melon",                  0xaead27, 1.000f, 0xaead27,  9, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //67 (8,8) side
-    {"Pumpkin Stem",           0xaa9715, 1.000f, 0xaa9715, 15, 6, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},   //68 15,7 dead
-    {"Melon Stem",             0xa89514, 1.000f, 0xa89514, 15, 6, BLF_SMALL_BILLBOARD|BLF_CUTOUTS},   //69 15,7 dead
+    {"Pumpkin Stem",           0xaa9715, 1.000f, 0xaa9715, 15, 6, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},   //68 15,7 dead
+    {"Melon Stem",             0xa89514, 1.000f, 0xa89514, 15, 6, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE},   //69 15,7 dead
     {"Vines",                  0x39ab27, 1.000f, 0x39ab27, 15, 8, BLF_BILLBOARD|BLF_FLATSIDE|BLF_PANE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_LEAF_PART},   //6a
     {"Fence Gate",             0xa88754, 1.000f, 0xa88754, /* bogus */ 4, 0, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE},   //6b
     {"Brick Stairs",           0xa0807b, 1.000f, 0xa0807b,  7, 0, BLF_STAIRS|BLF_IMAGE_TEXTURE},   //6c
@@ -524,14 +524,14 @@ static struct {
     {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //7c
     {"Wooden Double Slab",     0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //7d
     {"Wooden Slab",            0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_HALF|BLF_IMAGE_TEXTURE},    //7e
-    {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
+    {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //81
     {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //82 - don't really have tiles for this one
     {"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE},    //83 - decal
     {"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
     //{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
-    {"Block of Emerald",       0x53D778, 1.000f, 0x53D778,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //85
+    {"Block of Emerald",       0x53D778, 1.000f, 0x53D778, 12,14, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //85 - should be at 9,1 TODO, but that wipes out the chest. This location given works with my special terrain.png file
     {"Spruce Wood Stairs",     0x785836, 1.000f, 0x785836,  6,12, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //86
     {"Birch Wood Stairs",      0xD7C185, 1.000f, 0xD7C185,  6,13, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //87
     {"Jungle Wood Stairs",     0xB1805C, 1.000f, 0xB1805C,  7,12, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //88

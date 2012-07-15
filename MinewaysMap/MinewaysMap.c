@@ -1187,6 +1187,13 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			break;
 		}
 		break;
+	case BLOCK_LILY_PAD:
+		if ( dataVal == 0 )
+		{
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_STATIONARY_WATER;
+		}
+		break;
 	}
 }
 

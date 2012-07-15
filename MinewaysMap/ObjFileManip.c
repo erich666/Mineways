@@ -1532,7 +1532,16 @@ static int computeFlatFlags( int boxIndex )
     case BLOCK_SNOW:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
-    case BLOCK_LILY_PAD:
+	case BLOCK_LILY_PAD:
+	case BLOCK_DANDELION:
+	case BLOCK_ROSE:
+	case BLOCK_BROWN_MUSHROOM:
+	case BLOCK_RED_MUSHROOM:
+	case BLOCK_SAPLING:
+	case BLOCK_TALL_GRASS:
+	case BLOCK_DEAD_BUSH:
+	case BLOCK_PUMPKIN_STEM:
+	case BLOCK_MELON_STEM:
 	//case BLOCK_TRIPWIRE:
         gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -4431,9 +4440,12 @@ static void meltSnow()
 
 static void generateBlockDataAndStatistics()
 {
-    int i, boxIndex, normalCount;
+    int i, boxIndex;
     IPoint loc;
     float pgFaceStart,pgFaceOffset;
+
+#ifdef OUTPUT_NORMALS
+	int normalCount;
 
     // Minecraft's great, just six normals does it (mostly)
     // Billboards have an additional 4 at this point, rails 8 (top and bottom)
@@ -4452,7 +4464,7 @@ static void generateBlockDataAndStatistics()
         { OSQRT2, OSQRT2,      0},  // DIRECTION_HI_X_HI_Y
         {      0, OSQRT2, OSQRT2}   // DIRECTION_HI_Z_HI_Y
         };
-
+#endif
 
     // Add the following to this, everyone does it
     if ( gOptions->pEFD->chkCenterModel )
@@ -4473,6 +4485,7 @@ static void generateBlockDataAndStatistics()
         Vec2Op(gModel.center, =, (float)gWorld2BoxOffset);
     }
 
+#ifdef OUTPUT_NORMALS
     // get the normals into their proper orientations
     normalCount = gExportBillboards ? 18 : 6;
     for ( i = 0; i < normalCount; i++ )
@@ -4480,6 +4493,7 @@ static void generateBlockDataAndStatistics()
         rotateLocation(normals[i]);
         Vec2Op(gModel.normals[i], =, normals[i]);
     }
+#endif
 
     pgFaceStart = PG_DB+0.01f;
     UPDATE_PROGRESS(pgFaceStart);
@@ -5759,8 +5773,58 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_TRAPDOOR:
         case BLOCK_LADDER:
         case BLOCK_LILY_PAD:
+		case BLOCK_DANDELION:
+		case BLOCK_ROSE:
+		case BLOCK_BROWN_MUSHROOM:
+		case BLOCK_RED_MUSHROOM:
+		case BLOCK_DEAD_BUSH:
+		case BLOCK_PUMPKIN_STEM:
+		case BLOCK_MELON_STEM:
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
+		case BLOCK_SAPLING:
+			switch ( dataVal & 0x3 )
+			{
+			case 0: // OAK
+				// set OK already
+				break;
+			case 1:
+				// spruce
+				swatchLoc = SWATCH_INDEX(15,3);
+				break;
+			case 2:
+				// birch
+				swatchLoc = SWATCH_INDEX(15,4);
+				break;
+			default:
+			case 3:
+				// jungle
+				//if ( gJungleExists )
+				//{
+				swatchLoc = SWATCH_INDEX(14,1);
+				//}
+				break;
+			}
+			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
+			break;
+		case BLOCK_TALL_GRASS:
+			switch ( dataVal )
+			{
+			case 0:
+				// dead bush appearance
+				swatchLoc = SWATCH_INDEX(7,3);
+				break;
+			case 1:
+			default:
+				// set OK already
+				break;
+			case 2:
+				// fern
+				swatchLoc = SWATCH_INDEX(8,3);
+				break;
+			}
+			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
+			break;
 		case BLOCK_VINES:
 			// special case (and I'm still not sure about this), if background is air, then
 			// just use the default vine, whatever it is
@@ -6125,7 +6189,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     const char *justWorldFileName;
     char justMtlFileName[MAX_PATH];
 
-    int i, normalCount, groupCount;
+    int i, groupCount;
 
 	unsigned char outputMaterial[NUM_BLOCKS];
 
@@ -6137,9 +6201,13 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     int prevType;
 
     FaceRecord *pFace;
-    int outputFaceDirection;
 
     char worldChar[MAX_PATH];
+
+#ifdef OUTPUT_NORMALS
+	int outputFaceDirection;
+	int normalCount;
+#endif
 
     exportMaterials = gOptions->exportFlags & EXPT_OUTPUT_MATERIALS;
 
@@ -6181,6 +6249,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
         worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
+#ifdef OUTPUT_NORMALS
     // write out normals, texture coordinates, vertices, and then faces grouped by material
     normalCount = gExportBillboards ? 18 : 6;
     for ( i = 0; i < normalCount; i++ )
@@ -6188,6 +6257,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
         sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
+#endif
 
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
     {
@@ -6273,6 +6343,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 		}
 
+#ifdef OUTPUT_NORMALS
         if ( absoluteIndices )
         {
             outputFaceDirection = pFace->normalIndex+1;
@@ -6281,49 +6352,93 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
         {
             outputFaceDirection = pFace->normalIndex-normalCount;
         }
+#endif
 
         // first, are there texture coordinates?
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
         {
-            if ( absoluteIndices )
-            {
-                sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                    pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1, outputFaceDirection,
-                    pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1, outputFaceDirection,
-                    pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1, outputFaceDirection,
-                    pFace->vertexIndex[3]+1, pFace->uvIndex[3]+1, outputFaceDirection
-                    );
-            }
-            else
-            {
-                sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                    pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.textureUsedCount, outputFaceDirection,
-                    pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.textureUsedCount, outputFaceDirection,
-                    pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.textureUsedCount, outputFaceDirection,
-                    pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-4*gModel.textureUsedCount, outputFaceDirection
-                    );
-            }
+#ifdef OUTPUT_NORMALS
+			// with normals - not really needed by most renderers
+			if ( absoluteIndices )
+			{
+				sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+					pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1, outputFaceDirection,
+					pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1, outputFaceDirection,
+					pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1, outputFaceDirection,
+					pFace->vertexIndex[3]+1, pFace->uvIndex[3]+1, outputFaceDirection
+					);
+			}
+			else
+			{
+				sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+					pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.textureUsedCount, outputFaceDirection,
+					pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.textureUsedCount, outputFaceDirection,
+					pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.textureUsedCount, outputFaceDirection,
+					pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-4*gModel.textureUsedCount, outputFaceDirection
+					);
+			}
+#else
+			if ( absoluteIndices )
+			{
+				sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d %d/%d\n",
+					pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1,
+					pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1,
+					pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1,
+					pFace->vertexIndex[3]+1, pFace->uvIndex[3]+1
+					);
+			}
+			else
+			{
+				sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d %d/%d\n",
+					pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.textureUsedCount,
+					pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.textureUsedCount,
+					pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.textureUsedCount,
+					pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-4*gModel.textureUsedCount
+					);
+			}
+#endif
         }
         else
         {
-            if ( absoluteIndices )
-            {
-                sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
-                    pFace->vertexIndex[0]+1, outputFaceDirection,
-                    pFace->vertexIndex[1]+1, outputFaceDirection,
-                    pFace->vertexIndex[2]+1, outputFaceDirection,
-                    pFace->vertexIndex[3]+1, outputFaceDirection
-                    );
-            }
-            else
-            {
-                sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
-                    pFace->vertexIndex[0]-gModel.vertexCount, outputFaceDirection,
-                    pFace->vertexIndex[1]-gModel.vertexCount, outputFaceDirection,
-                    pFace->vertexIndex[2]-gModel.vertexCount, outputFaceDirection,
-                    pFace->vertexIndex[3]-gModel.vertexCount, outputFaceDirection
-                    );
-            }
+#ifdef OUTPUT_NORMALS
+			if ( absoluteIndices )
+			{
+				sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
+					pFace->vertexIndex[0]+1, outputFaceDirection,
+					pFace->vertexIndex[1]+1, outputFaceDirection,
+					pFace->vertexIndex[2]+1, outputFaceDirection,
+					pFace->vertexIndex[3]+1, outputFaceDirection
+					);
+			}
+			else
+			{
+				sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
+					pFace->vertexIndex[0]-gModel.vertexCount, outputFaceDirection,
+					pFace->vertexIndex[1]-gModel.vertexCount, outputFaceDirection,
+					pFace->vertexIndex[2]-gModel.vertexCount, outputFaceDirection,
+					pFace->vertexIndex[3]-gModel.vertexCount, outputFaceDirection
+					);
+			}
+#else
+			if ( absoluteIndices )
+			{
+				sprintf_s(outputString,256,"f %d %d %d %d\n",
+					pFace->vertexIndex[0]+1,
+					pFace->vertexIndex[1]+1,
+					pFace->vertexIndex[2]+1,
+					pFace->vertexIndex[3]+1
+					);
+			}
+			else
+			{
+				sprintf_s(outputString,256,"f %d %d %d %d\n",
+					pFace->vertexIndex[0]-gModel.vertexCount,
+					pFace->vertexIndex[1]-gModel.vertexCount,
+					pFace->vertexIndex[2]-gModel.vertexCount,
+					pFace->vertexIndex[3]-gModel.vertexCount
+					);
+			}
+#endif
         }
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
@@ -6532,19 +6647,19 @@ static int writeOBJMtlFile()
         {
             sprintf_s(outputString,512,
                 "newmtl %s\n"
-                "Ns 0\n"	// specular highlight power
-                "Ka %g %g %g\n"
+				"# Ns 0\n"	// specular highlight power
+				"# Ka %g %g %g\n"
                 "Kd %g %g %g\n"
                 "Ks 0 0 0\n"
-                "%s"
-                "map_Ka %s\n"
+				"# %s" // emissive
+				"# map_Ka %s\n"
                 "map_Kd %s\n"
                 "%s" // map_d, if there's a cutout
                 // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-                "illum %d\n"
+				"# illum %d\n"
                 "# d %g\n"	// some use Tr here - Blender likes "d"
                 "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-                "%s\n"	//Tf, if needed
+				"# %s\n"	//Tf, if needed
                 ,
                 // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
                 mtlName,
@@ -6561,16 +6676,16 @@ static int writeOBJMtlFile()
         {
             sprintf_s(outputString,512,
                 "newmtl %s\n"
-                "Ns 0\n"	// specular highlight power
-                "Ka %g %g %g\n"
+				"# Ns 0\n"	// specular highlight power
+				"# Ka %g %g %g\n"
                 "Kd %g %g %g\n"
                 "Ks 0 0 0\n"
-                "%s"
+				"# %s" // emissive
                 // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-                "illum %d\n"
+				"# illum %d\n"
                 "# d %g\n"	// some use Tr here - Blender likes "d"
                 "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-                "%s\n"	//Tf, if needed
+				"# %s\n"	//Tf, if needed
                 ,
                 // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
                 mtlName,
