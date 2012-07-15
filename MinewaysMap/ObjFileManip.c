@@ -459,8 +459,10 @@ static int filterBox();
 static int computeFlatFlags( int boxIndex );
 static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
-static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv );
+static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace,
+	int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static void checkGroupListSize();
 static void checkVertexListSize();
@@ -1977,6 +1979,9 @@ static int firstFaceModifier( int isFirst, int faceIndex )
 
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
+	int dataVal, miny, maxy;
+	int topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
+
     switch ( type )
     {
     case BLOCK_SAPLING:
@@ -2016,12 +2021,104 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	// real-live output, baby
 	case BLOCK_FENCE:
 		// post, always output
-		saveBoxGeometry( boxIndex, type, 6,10, 0,16, 6,10);
+		saveBoxGeometry( boxIndex, type, 1, 6,10, 0,16, 6,10);
 		return 1;
 
 	case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_WOODEN_PRESSURE_PLATE:
-		saveBoxGeometry( boxIndex, type, 1,15, 0,1, 1,15);
+		saveBoxGeometry( boxIndex, type, 1, 1,15, 0,1, 1,15);
+		return 1;
+
+	case BLOCK_STONE_SLAB:
+		dataVal = gBoxData[boxIndex].data;
+		switch ( dataVal & 0x7 )
+		{
+		default:
+			assert(0);
+		case 6:
+			// true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
+		case 0:
+			// 
+			topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+			sideSwatchLoc = SWATCH_INDEX( 5,0 );
+			break;
+		case 1:
+			// sandstone
+			topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+			sideSwatchLoc = SWATCH_INDEX( 0,12 );
+			bottomSwatchLoc = SWATCH_INDEX( 0,13 );
+			break;
+		case 2:
+			// wooden
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
+			break;
+		case 3:
+			// cobblestone
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
+			break;
+		case 4:
+			// brick
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
+			break;
+		case 5:
+			// stone brick
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
+			break;
+		}
+		// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+		// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+		if ( dataVal & 0x8 )
+		{
+			// upper slab
+			miny = 8;
+			maxy = 16;
+		}
+		else
+		{
+			// lower slab
+			miny = 0;
+			maxy = 8;
+		}
+		saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0,16, miny,maxy, 0,16);
+		return 1;
+
+	case BLOCK_WOODEN_SLAB:
+		dataVal = gBoxData[boxIndex].data;
+
+		switch ( dataVal & 0x7 )
+		{
+		default: // normal log
+			assert(0);
+		case 0:
+			// no change, default plank is fine
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+			break;
+		case 1: // spruce (dark)
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,12 );
+			break;
+		case 2: // birch
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,13 );
+			break;
+		case 3: // jungle
+			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 7,12 );
+			break;
+		}
+
+		// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+		// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+		if ( dataVal & 0x8 )
+		{
+			// upper slab
+			miny = 8;
+			maxy = 16;
+		}
+		else
+		{
+			// lower slab
+			miny = 0;
+			maxy = 8;
+		}
+		saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0,16, miny,maxy, 0,16);
 		return 1;
 
 	// top, sides, and bottom, and don't stretch the sides if output here
@@ -2038,16 +2135,23 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     return 0;
 }
 
-static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+	int swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+
+	saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, markFirstFace, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+}
+
+
+static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
 	int i;
+	int swatchLoc;
 	int faceDirection;
 	IPoint anchor;
 	int vindex[4];
 	float minu, maxu, minv, maxv;
 	float fminx, fmaxx, fminy, fmaxy, fminz, fmaxz;
-
-	int swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
 	int startVertexIndex = gModel.vertexCount;
 
@@ -2086,6 +2190,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 		switch (faceDirection)
 		{
 		case DIRECTION_BLOCK_SIDE_LO_X:
+			swatchLoc = sideSwatchLoc;
 			vindex[0] = 0;			// ymin, zmin
 			vindex[1] = 0x1;		// ymin, zmax
 			vindex[2] = 0x2|0x1;	// ymax, zmax
@@ -2096,6 +2201,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			maxv = (float)maxPixY/16.0f;
 			break;
 		case DIRECTION_BLOCK_SIDE_HI_X:
+			swatchLoc = sideSwatchLoc;
 			vindex[0] = 0x4|0x1;		// ymin, zmax
 			vindex[1] = 0x4;			// ymin, zmin
 			vindex[2] = 0x4|0x2;		// ymax, zmin
@@ -2106,6 +2212,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			maxv = (float)maxPixY/16.0f;
 			break;
 		case DIRECTION_BLOCK_SIDE_LO_Z:
+			swatchLoc = sideSwatchLoc;
 			vindex[0] = 0x4;		// xmax, ymin
 			vindex[1] = 0;			// xmin, ymin 
 			vindex[2] = 0x2;		// xmin, ymax
@@ -2116,6 +2223,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			maxv = (float)maxPixY/16.0f;
 			break;
 		case DIRECTION_BLOCK_SIDE_HI_Z:
+			swatchLoc = sideSwatchLoc;
 			vindex[0] = 0x1;			// xmin, ymin 
 			vindex[1] = 0x1|0x4;		// xmax, ymin
 			vindex[2] = 0x1|0x4|0x2;	// xmax, ymax
@@ -2126,6 +2234,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			maxv = (float)maxPixY/16.0f;
 			break;
 		case DIRECTION_BLOCK_BOTTOM:
+			swatchLoc = bottomSwatchLoc;
 			vindex[0] = 0;			// xmin, zmin 
 			vindex[1] = 0x4;		// xmax, zmin
 			vindex[2] = 0x4|0x1;	// xmax, zmax
@@ -2136,6 +2245,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			maxv = (float)maxPixZ/16.0f;
 			break;
 		case DIRECTION_BLOCK_TOP:
+			swatchLoc = topSwatchLoc;
 			vindex[0] = 0x2|0x4;		// xmax, zmin
 			vindex[1] = 0x2;			// xmin, zmin 
 			vindex[2] = 0x2|0x1;		// xmin, zmax
@@ -2147,7 +2257,8 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 			break;
 		}
 
-		saveBoxFace( swatchLoc, type, faceDirection, startVertexIndex, vindex, minu, maxu, minv, maxv );
+		// mark the first face if calling routine wants it, and this is the first face of six
+		saveBoxFace( swatchLoc, type, faceDirection, (faceDirection == 0)&&markFirstFace, startVertexIndex, vindex, minu, maxu, minv, maxv );
 	}
 
 	// note the box's bounds (not the exact bounds, just that the voxel is occupied)
@@ -2157,8 +2268,7 @@ static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, i
 
 	gModel.billboardCount++;
 }
-
-static void saveBoxFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv )
+static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv )
 {
 	FaceRecord *face;
 	int j;
@@ -2173,7 +2283,7 @@ static void saveBoxFace( int swatchLoc, int type, int faceDirection, int startVe
 
 	// if we sort, we want to keep faces in the order generated, which is
 	// generally cache-coherent (and also just easier to view in the file)
-	face->faceIndex = firstFaceModifier( faceDirection == 0, gModel.faceCount );
+	face->faceIndex = firstFaceModifier( markFirstFace, gModel.faceCount );
 	face->type = type;
 
 	// always the same normal, which directly corresponds to the normals[] array in gModel

@@ -445,7 +445,7 @@ static struct {
     {"Gold Block",             0xfef74e, 1.000f, 0xfef74e,  7, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//29
     {"Iron Block",             0xeeeeee, 1.000f, 0xeeeeee,  6, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2a
     {"Double Slab",            0xa6a6a6, 1.000f, 0xa6a6a6,  6, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2b - 43 5,0 side
-    {"Slab",                   0xa5a5a5, 1.000f, 0xa5a5a5,  6, 0, BLF_HALF|BLF_IMAGE_TEXTURE},	//2c 5,0 side
+    {"Slab",                   0xa5a5a5, 1.000f, 0xa5a5a5,  6, 0, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY},	//2c - 44 5,0 side
     {"Brick",                  0xa0807b, 1.000f, 0xa0807b,  7, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2d 
     {"TNT",                    0xdb441a, 1.000f, 0xdb441a,  9, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//2e 7,0 side, 9,0 under
     {"Bookshelf",              0x795a39, 1.000f, 0x795a39,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2f 3,2
@@ -527,7 +527,7 @@ static struct {
     {"Redstone Lamp (off)",    0x9F6D4D, 1.000f, 0x9F6D4D,  3,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //7b
     {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7c
     {"Wooden Double Slab",     0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7d
-    {"Wooden Slab",            0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_HALF|BLF_IMAGE_TEXTURE},    //7e
+    {"Wooden Slab",            0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY},    //7e
     {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //81
