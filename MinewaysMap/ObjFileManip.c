@@ -128,13 +128,20 @@ typedef struct Model {
     // and textureUsedCount would be increased by 1 to 2.
     // The uvType list gives which materials are used, which is the list of what will generate uvs (done entirely by using the "type" value
     // and mapping it to the output texture) and showing which texture set maps to what values.
-    int uvIndexToSwatch[NUM_MAX_SWATCHES];
+    int *uvIndexToSwatch;	// tied to textureUsedCount
+	int uvIndexToSwatchSize;
     // the uvSet is accessed by swatch location, and returns the index into uvType of the set of UV coordinates to output
     // This is the swatch location (same as the block type)
     int uvSwatchToIndex[NUM_MAX_SWATCHES];
     int uvSwatchToType[NUM_MAX_SWATCHES];
     // how many texture swatches were used; also total UVs used, divided by 4.
     int textureUsedCount;
+
+	// extra UVs data
+	int *uvIndexToSpecialUVs;	// tied to textureUsedCount
+	float *specialUVs;
+	int specialUVsCount;
+	int specialUVsSize;
 
     int billboardCount;
     IBox billboardBounds;
@@ -154,6 +161,7 @@ typedef struct Model {
     int swatchSize;  // number of pixels in a swatch, e.g. 18
     int swatchesPerRow;  // a swatch is a tile with a +1 border (or SWATCH_BORDER) around it
     float textureUVPerSwatch; // how much a swatch spans in UV space
+	float textureUVPerTile; // how much the interior tile spans in UV space
     int swatchCount;        // total number of swatches generated
     int swatchListSize;         // the absolute maximum number of swatches available
     SwatchComposite *swatchCompositeList;   // additional swatches of combinations of two types
@@ -450,11 +458,15 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
 static int filterBox();
 static int computeFlatFlags( int boxIndex );
 static int firstFaceModifier( int isFirst, int faceIndex );
-static int saveBillboard( int boxIndex, int type );
+static int saveBillboardOrGeometry( int boxIndex, int type );
+static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static void checkGroupListSize();
 static void checkVertexListSize();
 static void checkFaceListSize();
+static void checkUvIndexToSwatchSize();
+static void checkSpecialUVsSize();
 
 static void findGroups();
 static void addVolumeToGroup( int groupID, int minx, int miny, int minz, int maxx, int maxy, int maxz );
@@ -506,19 +518,20 @@ static int createCompositeSwatch( int swatchLoc, int backgroundSwatchLoc, int an
 
 static void flipIndicesLeftRight( int localIndices[4] );
 static void rotateIndices( int localIndices[4], int angle );
-static void saveTextureUVs( int swatchLoc, int type );
+static int saveTextureUVs( int swatchLoc, int type );
+static int saveUniqueTextureUVs( int swatchLoc, float minx, float maxx, float miny, float maxy, int type );
 
 static void freeModel( Model *pModel );
 
 static int writeAsciiSTLBox( const wchar_t *world, IBox *box );
 static int writeBinarySTLBox( const wchar_t *world, IBox *box );
 static int writeOBJBox( const wchar_t *world, IBox *box );
-static int writeOBJTextureUVs( int type );
+static int writeOBJTextureUVs( int listLoc, int type );
 static int writeOBJMtlFile();
 
 static int writeVRML2Box( const wchar_t *world, IBox *box );
 static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
-static int writeVRMLTextureUVs( int type );
+static int writeVRMLTextureUVs( int listLoc, int type );
 
 static int writeLines( HANDLE file, char **textLines, int lines );
 
@@ -655,7 +668,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         gModel.swatchSize = 2 + gModel.tileSize;
         gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
         gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
-        gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution; // e.g. 18 / 256
+		gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution; // e.g. 18 / 256
+		gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution; // e.g. 16 / 256
         gModel.swatchListSize = gModel.swatchesPerRow*gModel.swatchesPerRow;
 
         retCode |= createBaseMaterialTexture();
@@ -1068,6 +1082,15 @@ static void initializeModelData()
             gModel.uvSwatchToIndex[i] = -1;
         }
     }
+
+	// UVs
+	gModel.uvIndexToSwatchSize = NUM_BLOCKS;
+	gModel.uvIndexToSwatch = (int*)malloc(gModel.uvIndexToSwatchSize*sizeof(int));
+	gModel.uvIndexToSpecialUVs = (int*)malloc(gModel.uvIndexToSwatchSize*sizeof(int));
+	memset(gModel.uvIndexToSpecialUVs,0,gModel.uvIndexToSwatchSize*sizeof(int));
+
+	gModel.specialUVsSize = NUM_BLOCKS;	// very rough estimate!
+	gModel.specialUVs = (float*)malloc(gModel.specialUVsSize*sizeof(float));
 }
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName )
@@ -1296,9 +1319,9 @@ static int filterBox()
                     else
                     {
                         // check: is it a billboard we can export? Clear it out if so.
-                        if ( gExportBillboards && (flags & (BLF_BILLBOARD|BLF_SMALL_BILLBOARD)) )
+                        if ( gExportBillboards && (flags & (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY)) )
                         {
-                            if ( saveBillboard( boxIndex, gBoxData[boxIndex].type ) )
+                            if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
                             {
                                 // this block is then cleared out, since it's been processed.
                                 gBoxData[boxIndex].type = BLOCK_AIR;
@@ -1952,7 +1975,7 @@ static int firstFaceModifier( int isFirst, int faceIndex )
 		return faceIndex;
 }
 
-static int saveBillboard( int boxIndex, int type )
+static int saveBillboardOrGeometry( int boxIndex, int type )
 {
     switch ( type )
     {
@@ -1968,7 +1991,7 @@ static int saveBillboard( int boxIndex, int type )
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
         return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
-        break;
+
     case BLOCK_CROPS:
     case BLOCK_NETHER_WART:
         return saveBillboardFaces( boxIndex, type, BB_GRID );
@@ -1982,16 +2005,190 @@ static int saveBillboard( int boxIndex, int type )
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
         return saveBillboardFaces( boxIndex, type, BB_RAILS );
-        break;
+
     case BLOCK_FIRE:
         return saveBillboardFaces( boxIndex, type, BB_FIRE );
-        break;
+
 	case BLOCK_VINES:
 		return saveBillboardFaces( boxIndex, type, BB_SIDE );
-		break;
+
+
+	// real-live output, baby
+	case BLOCK_FENCE:
+		// post, always output
+		saveBoxGeometry( boxIndex, type, 6,10, 0,16, 6,10);
+		return 1;
+
+	case BLOCK_STONE_PRESSURE_PLATE:
+	case BLOCK_WOODEN_PRESSURE_PLATE:
+		saveBoxGeometry( boxIndex, type, 1,15, 0,1, 1,15);
+		return 1;
+
+	// top, sides, and bottom, and don't stretch the sides if output here
+	//case BLOCK_CAKE:
+	//	// post, always output
+	//	saveBoxGeometry( boxIndex, type, 1,15, 0,8, 1,15);
+	//	return 1;
+
+	default:
+		// something tagged as billboard or geometry, but no case here!
+		assert(0);
     }
 
     return 0;
+}
+
+static void saveBoxGeometry( int boxIndex, int type, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+	int i;
+	int faceDirection;
+	IPoint anchor;
+	int vindex[4];
+	float minu, maxu, minv, maxv;
+	float fminx, fmaxx, fminy, fmaxy, fminz, fmaxz;
+
+	int swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+
+	int startVertexIndex = gModel.vertexCount;
+
+	boxIndexToLoc( anchor, boxIndex );
+
+
+	// create the eight corner locations: xmin, ymin, zmin; xmin, ymin, zmax; etc.
+	fminx = (float)minPixX / 16.0f;
+	fmaxx = (float)maxPixX / 16.0f;
+	fminy = (float)minPixY / 16.0f;
+	fmaxy = (float)maxPixY / 16.0f;
+	fminz = (float)minPixZ / 16.0f;
+	fmaxz = (float)maxPixZ / 16.0f;
+	for ( i = 0; i < 8; i++ )
+	{
+		float *pt;
+		Point cornerVertex;
+		Vec3Scalar( cornerVertex, =, (i&0x4)?fmaxx:fminx, (i&0x2)?fmaxy:fminy, (i&0x1)?fmaxz:fminz );
+
+		// get vertex and store
+		checkVertexListSize();
+
+		pt = (float *)gModel.vertices[gModel.vertexCount];
+
+		pt[X] = (float)(anchor[X] + cornerVertex[X]);
+		pt[Y] = (float)(anchor[Y] + cornerVertex[Y]);
+		pt[Z] = (float)(anchor[Z] + cornerVertex[Z]);
+
+		gModel.vertexCount++;
+		assert( gModel.vertexCount <= gModel.vertexListSize );
+	}
+
+	// index these eight corners for each face and make texture UVs on the fly, storing the UV locations.
+	for ( faceDirection = 0; faceDirection < 6; faceDirection++ )
+	{
+		switch (faceDirection)
+		{
+		case DIRECTION_BLOCK_SIDE_LO_X:
+			vindex[0] = 0;			// ymin, zmin
+			vindex[1] = 0x1;		// ymin, zmax
+			vindex[2] = 0x2|0x1;	// ymax, zmax
+			vindex[3] = 0x2;		// ymax, zmin
+			minu = (float)minPixZ/16.0f;
+			maxu = (float)maxPixZ/16.0f;
+			minv = (float)minPixY/16.0f;
+			maxv = (float)maxPixY/16.0f;
+			break;
+		case DIRECTION_BLOCK_SIDE_HI_X:
+			vindex[0] = 0x4|0x1;		// ymin, zmax
+			vindex[1] = 0x4;			// ymin, zmin
+			vindex[2] = 0x4|0x2;		// ymax, zmin
+			vindex[3] = 0x4|0x2|0x1;	// ymax, zmax
+			minu = (float)minPixZ/16.0f;
+			maxu = (float)maxPixZ/16.0f;
+			minv = (float)minPixY/16.0f;
+			maxv = (float)maxPixY/16.0f;
+			break;
+		case DIRECTION_BLOCK_SIDE_LO_Z:
+			vindex[0] = 0x4;		// xmax, ymin
+			vindex[1] = 0;			// xmin, ymin 
+			vindex[2] = 0x2;		// xmin, ymax
+			vindex[3] = 0x4|0x2;	// xmax, ymax
+			minu = (float)minPixX/16.0f;
+			maxu = (float)maxPixX/16.0f;
+			minv = (float)minPixY/16.0f;
+			maxv = (float)maxPixY/16.0f;
+			break;
+		case DIRECTION_BLOCK_SIDE_HI_Z:
+			vindex[0] = 0x1;			// xmin, ymin 
+			vindex[1] = 0x1|0x4;		// xmax, ymin
+			vindex[2] = 0x1|0x4|0x2;	// xmax, ymax
+			vindex[3] = 0x1|0x2;		// xmin, ymax
+			minu = (float)minPixX/16.0f;
+			maxu = (float)maxPixX/16.0f;
+			minv = (float)minPixY/16.0f;
+			maxv = (float)maxPixY/16.0f;
+			break;
+		case DIRECTION_BLOCK_BOTTOM:
+			vindex[0] = 0;			// xmin, zmin 
+			vindex[1] = 0x4;		// xmax, zmin
+			vindex[2] = 0x4|0x1;	// xmax, zmax
+			vindex[3] = 0x1;		// xmin, zmax
+			minu = (float)minPixX/16.0f;
+			maxu = (float)maxPixX/16.0f;
+			minv = (float)minPixZ/16.0f;
+			maxv = (float)maxPixZ/16.0f;
+			break;
+		case DIRECTION_BLOCK_TOP:
+			vindex[0] = 0x2|0x4;		// xmax, zmin
+			vindex[1] = 0x2;			// xmin, zmin 
+			vindex[2] = 0x2|0x1;		// xmin, zmax
+			vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
+			minu = (float)minPixX/16.0f;
+			maxu = (float)maxPixX/16.0f;
+			minv = (float)minPixZ/16.0f;
+			maxv = (float)maxPixZ/16.0f;
+			break;
+		}
+
+		saveBoxFace( swatchLoc, type, faceDirection, startVertexIndex, vindex, minu, maxu, minv, maxv );
+	}
+
+	// note the box's bounds (not the exact bounds, just that the voxel is occupied)
+	addBounds( anchor, &gModel.billboardBounds );
+	VecScalar( anchor, +=, 1 );
+	addBounds( anchor, &gModel.billboardBounds );
+
+	gModel.billboardCount++;
+}
+
+static void saveBoxFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv )
+{
+	FaceRecord *face;
+	int j;
+
+	// output each face
+	int startUvIndex = saveUniqueTextureUVs( swatchLoc, minu, maxu, minv, maxv, type );
+
+	// get the four UV texture vertices, based on type of block
+	assert(startUvIndex>=0);
+
+	face = (FaceRecord *)malloc(sizeof(FaceRecord));
+
+	// if we sort, we want to keep faces in the order generated, which is
+	// generally cache-coherent (and also just easier to view in the file)
+	face->faceIndex = firstFaceModifier( faceDirection == 0, gModel.faceCount );
+	face->type = type;
+
+	// always the same normal, which directly corresponds to the normals[] array in gModel
+	face->normalIndex = faceDirection;
+
+	// get four face indices for the four corners of the face, and always create each
+	for ( j = 0; j < 4; j++ )
+	{
+		face->vertexIndex[j] = startVertexIndex + vindex[j];
+		face->uvIndex[j] = startUvIndex + j;
+	}
+
+	// all set, so save it away
+	checkFaceListSize();
+	gModel.faceList[gModel.faceCount++] = face;
 }
 
 // What we need to do here:
@@ -2057,6 +2254,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
         }
         break;
     case BLOCK_TORCH:
+	// redstone torches stick out a bit, so need billboards
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
 	//case BLOCK_TRIPWIRE:
@@ -2378,10 +2576,9 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
 
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
-    saveTextureUVs( swatchLoc, type );
+	startUvIndex = saveTextureUVs( swatchLoc, type );
 
     // get the four UV texture vertices, based on type of block
-    startUvIndex = 4*gModel.uvSwatchToIndex[swatchLoc];
     assert(startUvIndex>=0);
 
     for ( i = 0; i < faceCount; i++ )
@@ -2469,7 +2666,8 @@ static void checkGroupListSize()
 {
     // there's some play with the group count, e.g. group 0 is not used, so
     // resize should happen a bit earlier. 3 for safety.
-    if (gGroupCount == gGroupListSize)
+	assert(gGroupCount <= gGroupListSize);
+	if (gGroupCount == gGroupListSize)
     {
         BoxGroup *groups;
         gGroupListSize *= 2;
@@ -2481,7 +2679,8 @@ static void checkGroupListSize()
 }
 static void checkVertexListSize()
 {
-    if (gModel.vertexCount == gModel.vertexListSize)
+	assert(gModel.vertexCount <= gModel.vertexListSize);
+	if (gModel.vertexCount == gModel.vertexListSize)
     {
         Point *vertices;
         gModel.vertexListSize *= 2;
@@ -2493,7 +2692,8 @@ static void checkVertexListSize()
 }
 static void checkFaceListSize()
 {
-    if (gModel.faceCount == gModel.faceSize)
+	assert(gModel.faceCount <= gModel.faceSize);
+	if (gModel.faceCount == gModel.faceSize)
     {
         FaceRecord **faceList;
         gModel.faceSize *= 2;
@@ -2502,6 +2702,44 @@ static void checkFaceListSize()
         free( gModel.faceList );
         gModel.faceList = faceList;
     }
+}
+static void checkUvIndexToSwatchSize()
+{
+	assert(gModel.textureUsedCount <= gModel.uvIndexToSwatchSize);
+	if (gModel.textureUsedCount == gModel.uvIndexToSwatchSize)
+	{
+		int *uvIndexToSwatch;
+		int *uvIndexToSpecialUVs;
+
+		gModel.uvIndexToSwatchSize *= 2;
+
+		uvIndexToSwatch = (int*)malloc(gModel.uvIndexToSwatchSize*sizeof(int));
+		memcpy( uvIndexToSwatch, gModel.uvIndexToSwatch, gModel.textureUsedCount*sizeof(int));
+		free( gModel.uvIndexToSwatch );
+		gModel.uvIndexToSwatch = uvIndexToSwatch;
+
+		uvIndexToSpecialUVs = (int*)malloc(gModel.uvIndexToSwatchSize*sizeof(int));
+		// Not all of this array is actually used.
+		// avoid copying memory that is not set by setting the new array to all zeros.
+		memset(gModel.uvIndexToSpecialUVs,0,gModel.uvIndexToSwatchSize*sizeof(int));
+		memcpy( uvIndexToSpecialUVs, gModel.uvIndexToSpecialUVs, gModel.textureUsedCount*sizeof(int));
+		free( gModel.uvIndexToSpecialUVs );
+		gModel.uvIndexToSpecialUVs = uvIndexToSpecialUVs;
+	}
+}
+static void checkSpecialUVsSize()
+{
+	assert( gModel.specialUVsCount <= gModel.specialUVsSize );
+	// ensure there are 4 more spots.
+	if (gModel.specialUVsCount > gModel.specialUVsSize-4)
+	{
+		float *specialUVs;
+		gModel.specialUVsSize *= 2;
+		specialUVs = (float*)malloc(gModel.specialUVsSize*sizeof(float));
+		memcpy( specialUVs, gModel.specialUVs, gModel.specialUVsSize*sizeof(float));
+		free( gModel.specialUVs );
+		gModel.specialUVs = specialUVs;
+	}
 }
 
 static void findGroups()
@@ -4601,7 +4839,7 @@ static int getDimensionsAndCount( Point dimensions )
 
     if ( gExportBillboards )
     {
-        // add in billboard object count and bounds
+        // add in billboard/geometry object count and bounds
         addBoundsToBounds( gModel.billboardBounds, &bounds );
     }
 
@@ -5958,10 +6196,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
-    saveTextureUVs( swatchLoc, type );
+    startUvIndex = saveTextureUVs( swatchLoc, type );
 
     // get four UV texture vertices, based on type of block
-    startUvIndex = 4*gModel.uvSwatchToIndex[swatchLoc];
     assert(startUvIndex>=0);
     
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
@@ -6119,19 +6356,79 @@ static void rotateIndices( int localIndices[4], int angle )
     }
 }
 
-static void saveTextureUVs( int swatchLoc, int type )
+// The way this madness works: in order to reuse texture coordinates, instead of outputting them again and again,
+// we save them just once, as a set of 4 coordinates
+static int saveTextureUVs( int swatchLoc, int type )
 {
-    // has this UV location been set before? That is, for this particular face.
+    // has this UV location been set before? That is, for this particular tile in the giant list of tiles?
     // Note that if we have to rotate or flip 
     if ( gModel.uvSwatchToIndex[swatchLoc] < 0 )
     {
-        // could count users, not sure if there's value there
+		// Note that the swatch has been used. This value * 4 gives the index of the first of the four texture coordinates of swatchLoc
+		// UNIQUE to the hard-wired UV sets
+		gModel.uvSwatchToIndex[swatchLoc] = gModel.textureUsedCount;
+
+		// for writing out the UV coordinates themselves, store the swatch location - this is then used to
+		// derive and write out the UVs.
+		checkUvIndexToSwatchSize();
         gModel.uvIndexToSwatch[gModel.textureUsedCount] = swatchLoc;
-        gModel.uvSwatchToIndex[swatchLoc] = gModel.textureUsedCount;
+		// given the swatch location, what is the type (for putting a comment as to what the four coordinates represent)
         gModel.uvSwatchToType[swatchLoc] = type;
+		// how many textures have been used - tells us how many 4*UVs to compute and write out, i.e. how many elements are in uvIndexToSwatch
         gModel.textureUsedCount++;
     }
+	return 4*gModel.uvSwatchToIndex[swatchLoc];
 }
+
+// returns first UV coordinate location of four
+// minx,
+static int saveUniqueTextureUVs( int swatchLoc, float minu, float maxu, float minv, float maxv, int type )
+{
+	int i, startUvIndex;
+
+	// search through previous stored sets and see if there's a matching one
+	for ( i = gModel.textureUsedCount-1; i >= 0; i-- )
+	{
+		// do we match a previous special location (i.e., negated)?
+		if ( gModel.uvIndexToSwatch[i] == -swatchLoc )
+		{
+			int uvIndex = gModel.uvIndexToSpecialUVs[i];
+			if ( gModel.specialUVs[uvIndex  ] == minu &&
+				 gModel.specialUVs[uvIndex+1] == maxu &&
+				 gModel.specialUVs[uvIndex+2] == minv &&
+				 gModel.specialUVs[uvIndex+3] == maxv )
+				 // match! return this as the index to use
+				return 4*i;
+		}
+	}
+
+	// first location of UVs to be saved
+	startUvIndex = 4*gModel.textureUsedCount;
+
+	// for writing out the UV coordinates themselves, store the swatch location - this is then used to
+	// derive and write out the UVs. Negative means "special min/max used".
+	// TODO!!!: may now need to resize uvIndexToSwatch!!! if textureUsedCount gets too high.
+	checkUvIndexToSwatchSize();
+	gModel.uvIndexToSwatch[gModel.textureUsedCount] = -swatchLoc;
+	// given the swatch location, what is the type (for putting a comment as to what the four coordinates represent).
+	gModel.uvSwatchToType[swatchLoc] = type;
+
+	// store the min/max bounds, which will later be used to compute the 4 UV values
+	// TODO: may need resizes for these, too.
+	checkSpecialUVsSize();
+	gModel.uvIndexToSpecialUVs[gModel.textureUsedCount] = gModel.specialUVsCount;
+	gModel.specialUVs[gModel.specialUVsCount++] = minu;
+	gModel.specialUVs[gModel.specialUVsCount++] = maxu;
+	gModel.specialUVs[gModel.specialUVsCount++] = minv;
+	gModel.specialUVs[gModel.specialUVsCount++] = maxv;
+
+	// how many textures have been used - tells us how many 4*UVs to compute and write out, i.e. how many elements are in uvIndexToSwatch
+	gModel.textureUsedCount++;
+
+	return startUvIndex;
+}
+
+
 
 static void freeModel(Model *pModel)
 {
@@ -6263,7 +6560,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     {
         for ( i = 0; i < gModel.textureUsedCount; i++ )
         {
-            retCode |= writeOBJTextureUVs(gModel.uvIndexToSwatch[i]);
+            retCode |= writeOBJTextureUVs(i,gModel.uvIndexToSwatch[i]);
             if (retCode >= MW_BEGIN_ERRORS)
                 goto Exit;
         }
@@ -6462,39 +6759,62 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
     return retCode;
 }
 
-static void getTextureBounds( int swatchLoc, float *umin, float *umax, float *vmin, float *vmax )
+static int getTextureBounds( int listLoc, int signedSwatchLoc, float *umin, float *umax, float *vmin, float *vmax )
 {
     int row,col;
 
-    // get the swatch location
-    SWATCH_TO_COL_ROW( swatchLoc, col, row );
+	if ( signedSwatchLoc >= 0 )
+	{
+		// get the swatch location
+		SWATCH_TO_COL_ROW( signedSwatchLoc, col, row );
 
-    *umin = (float)col * gModel.textureUVPerSwatch + gModel.invTextureResolution;
-    *umax = (float)(col+1) * gModel.textureUVPerSwatch - gModel.invTextureResolution;
-    *vmin = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.invTextureResolution);
-    *vmax = 1.0f - ((float)(row+1) * gModel.textureUVPerSwatch - gModel.invTextureResolution);
+		*umin = (float)col * gModel.textureUVPerSwatch + gModel.invTextureResolution;
+		*umax = (float)(col+1) * gModel.textureUVPerSwatch - gModel.invTextureResolution;
+		*vmin = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.invTextureResolution);
+		*vmax = 1.0f - ((float)(row+1) * gModel.textureUVPerSwatch - gModel.invTextureResolution);
+
+		return signedSwatchLoc;
+	}
+	else
+	{
+		// special UVs - get the min & max to compute the uv's
+		int extraUVs;
+
+		// get the swatch location
+		SWATCH_TO_COL_ROW( -signedSwatchLoc, col, row );
+
+		// store the min/max bounds, which will later be used to compute the 4 UV values
+		extraUVs = gModel.uvIndexToSpecialUVs[listLoc];
+		*umin = (float)col * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution;
+		*umax = (float)col * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution;
+		*vmin = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution);
+		*vmax = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution);
+
+		return -signedSwatchLoc;
+	}
 }
 
-static int writeOBJTextureUVs( int type )
+static int writeOBJTextureUVs( int listLoc, int signedSwatchLoc )
 {
 #ifdef WIN32
     DWORD br;
 #endif
     char outputString[1024];
     float umin, umax, vmin, vmax;
+	int swatchLoc;
 
-    assert( gModel.uvSwatchToIndex[type] >= 0 );
-    assert( type < NUM_MAX_SWATCHES );
-    assert( gModel.uvSwatchToType[type] < NUM_BLOCKS );
+    //assert( gModel.uvSwatchToIndex[signedSwatchLoc] >= 0 );
+    assert( signedSwatchLoc < NUM_MAX_SWATCHES );
+    //assert( gModel.uvSwatchToType[signedSwatchLoc] < NUM_BLOCKS );
  
     // sample the center of the swatch, so that there's no leakage.
     // Really, it's overkill that we're using 18x18 color swatches and
     // sampling the 16x16 center, but it makes it nice for people wanting to
     // edit the texture directly and clears the way for true texture output.
-    getTextureBounds( type, &umin, &umax, &vmin, &vmax );
+    swatchLoc = getTextureBounds( listLoc, signedSwatchLoc, &umin, &umax, &vmin, &vmax );
 
     sprintf_s(outputString,1024,"# texture swatch: %s\nvt %g %g\nvt %g %g\nvt %g %g\nvt %g %g\n",
-        gBlockDefinitions[gModel.uvSwatchToType[type]].name,
+        gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
         umin,vmax,
         umax,vmax,
         umax,vmin,
@@ -7749,7 +8069,7 @@ DWORD br;
 
 				for ( j = 0; j < gModel.textureUsedCount; j++ )
 				{
-					retCode |=  writeVRMLTextureUVs(gModel.uvIndexToSwatch[j] );
+					retCode |=  writeVRMLTextureUVs(j, gModel.uvIndexToSwatch[j] );
 					if ( retCode >= MW_BEGIN_ERRORS )
 						goto Exit;
 				}
@@ -7978,7 +8298,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
 	return MW_NO_ERROR;
 }
 
-static int writeVRMLTextureUVs( int type )
+static int writeVRMLTextureUVs( int listLoc, int signedSwatchLoc )
 {
 #ifdef WIN32
     DWORD br;
@@ -7986,19 +8306,20 @@ static int writeVRMLTextureUVs( int type )
 
     char outputString[1024];
     float umin, umax, vmin, vmax;
+	int swatchLoc;
 
-    assert( gModel.uvSwatchToIndex[type] >= 0 );
-    assert( type < NUM_MAX_SWATCHES );
-    assert( gModel.uvSwatchToType[type] < NUM_BLOCKS );
+    //assert( gModel.uvSwatchToIndex[signedSwatchLoc] >= 0 );
+    assert( signedSwatchLoc < NUM_MAX_SWATCHES );
+    //assert( gModel.uvSwatchToType[signedSwatchLoc] < NUM_BLOCKS );
 
     // sample the center of the swatch, so that there's no leakage.
     // Really, it's overkill that we're using 18x18 color swatches and
     // sampling the 16x16 center, but it makes it nice for people wanting to
     // edit the texture directly and clears the way for true texture output.
-    getTextureBounds( type, &umin, &umax, &vmin, &vmax );
+    swatchLoc = getTextureBounds( listLoc, signedSwatchLoc, &umin, &umax, &vmin, &vmax );
 
     sprintf_s(outputString,1024,"           # %s\n            %g %g\n            %g %g\n            %g %g\n            %g %g\n",
-        gBlockDefinitions[gModel.uvSwatchToType[type]].name,
+        gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
         umin,vmax,
         umax,vmax,
         umax,vmin,
