@@ -1,1 +1,1 @@
-"F:\Program Files\WinRAR\winrar" a MinewaysSource.rar @file.lst
+"C:\Program Files\WinRAR\winrar" a MinewaysSource.rar @file.lst

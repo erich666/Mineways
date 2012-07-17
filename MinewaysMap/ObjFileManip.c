@@ -459,10 +459,13 @@ static int filterBox();
 static int computeFlatFlags( int boxIndex );
 static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
-static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace,
-	int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv );
+static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
+	int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, 
+    int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], int reverseLoop,
+    int rotUVs, float minu, float maxu, float minv, float maxv );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static void checkGroupListSize();
 static void checkVertexListSize();
@@ -651,6 +654,13 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         gModel.tileSize = gModel.inputTerrainImage.width/16;
     }
 
+    // Billboards and true geometry to be output?
+    // True only if we're exporting full textures and for rendering only, and billboards are flagged as visible.
+    // Must be set now, as this influences whether we stretch textures.
+    gExportBillboards = (!(gOptions->exportFlags & EXPT_3DPRINT)) &&
+        (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+        gOptions->pEFD->chkExportAll;
+
     // write texture, if needed
     if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
     {
@@ -810,7 +820,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			{ SWATCH_INDEX( 15, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
 			{ SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // stem over farmland
-			{ SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // dead stem over farmland
+			{ SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
 			{ SWATCH_INDEX( 4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
 			{ SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
 			{ SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
@@ -1291,11 +1301,6 @@ static int filterBox()
 
     int retCode = MW_NO_ERROR;
     int foundBlock = 0;
-
-    // true only if we're exporting full textures and for rendering only, and billboards are flagged as visible
-    gExportBillboards = (!(gOptions->exportFlags & EXPT_3DPRINT)) &&
-        (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
-        gOptions->pEFD->chkExportAll;
 
     // Filter out all stuff that is not to be rendered. If billboards are in use, create these
     // as found
@@ -1966,6 +1971,128 @@ static int computeFlatFlags( int boxIndex )
     return 1;
 }
 
+static void identityMtx(float mtx[4][4])
+{
+    int i,j;
+    for ( i = 0; i < 4; i++ )
+        for ( j = 0; j < 4; j++ )
+            mtx[i][j] = (float)(i == j);
+}
+// multiply mtx1 by mtx2, put result in mtx1
+static void multiplyMtx(float mtx1[4][4],float mtx2[4][4])
+{
+    int i,j,k;
+    float mtx[4][4];
+    for ( i = 0; i < 4; i++ )
+    {
+        for ( j = 0; j < 4; j++ )
+        {
+            mtx[i][j] = 0.0f;
+            for (k=0; k<4; k++)
+                mtx[i][j] += mtx1[i][k] * mtx2[k][j];
+        }
+    }
+
+    // could really just use memcpy
+    for ( i = 0; i < 4; i++ )
+        for ( j = 0; j < 4; j++ )
+            mtx1[i][j] = mtx[i][j];
+}
+static void translateMtx(float mtx[4][4], float tx, float ty, float tz)
+{
+    float tmtx[4][4];
+    identityMtx( tmtx );
+    Vec3Scalar( tmtx[3], =, tx, ty, tz );
+    multiplyMtx( mtx, tmtx );
+}
+// translates center of block to origin
+static void translateToOriginMtx(float mtx[4][4], int boxIndex)
+{
+    IPoint anchor;
+    boxIndexToLoc( anchor, boxIndex );
+    translateMtx( mtx, VecList(-0.5f-(float)anchor) );
+}
+static void translateFromOriginMtx(float mtx[4][4], int boxIndex)
+{
+    IPoint anchor;
+    boxIndexToLoc( anchor, boxIndex );
+    translateMtx( mtx, VecList(0.5f+(float)anchor) );
+}
+static void scaleMtx(float mtx[4][4], float sx, float sy, float sz)
+{
+    float smtx[4][4];
+    identityMtx( smtx );
+    smtx[0][0] = sx;
+    smtx[1][1] = sy;
+    smtx[2][2] = sz;
+    multiplyMtx( mtx, smtx );
+}
+#define DEGREES_TO_RADIANS (3.14159265358979323846/180.0)
+static void rotateMtx(float mtx[4][4], float xAngle, float yAngle, float zAngle )
+{
+    Point angle;
+    int i;
+    float rmtx[4][4];
+
+    Vec3Scalar( angle, =, xAngle, yAngle, zAngle );
+    for ( i = 0; i < 3; i++ )
+    {
+        if ( angle[i] != 0.0f && angle[i] != 360.0f )
+        {
+            int u,v;
+            float cosAngle,sinAngle;
+
+            identityMtx(rmtx);
+            u = (i+1)%3;
+            v = (i+2)%3;
+
+            // check for perfect rotations (common!)
+            if ( angle[i] == 90.0f )
+            {
+                cosAngle = 0.0f;
+                sinAngle = 1.0f;
+            }
+            else if ( angle[i] == 180.0f )
+            {
+                cosAngle = -1.0f;
+                sinAngle = 0.0f;
+            }
+            else if ( angle[i] == 270.0f )
+            {
+                cosAngle = 0.0f;
+                sinAngle = -1.0f;
+            }
+            else
+            {
+                cosAngle = (float)cos((double)angle[i]*DEGREES_TO_RADIANS);
+                sinAngle = (float)sin((double)angle[i]*DEGREES_TO_RADIANS);
+            }
+            rmtx[u][u] = rmtx[v][v] = cosAngle;
+            rmtx[u][v] = -sinAngle;
+            rmtx[v][u] = sinAngle;
+
+            multiplyMtx(mtx,rmtx);
+        }
+    }
+}
+static void transformVertices(int count,float mtx[4][4])
+{
+    int i,j,vert;
+    for ( vert = gModel.vertexCount-count; vert < gModel.vertexCount; vert++ )
+    {
+        Point resVertex;
+        for ( i = 0; i < 3; i++ )
+        {
+            resVertex[i] = mtx[3][i];   // translation
+            for ( j = 0; j < 3; j++ )
+            {
+                resVertex[i] += gModel.vertices[vert][j] * mtx[j][i];
+            }
+        }
+        Vec2Op( gModel.vertices[vert], =, resVertex );
+    }
+}
+
 // silly sleaze: if we're exporting individual blocks, set the first face index for a block being output to be negative.
 // Saves us from having to allocate a boolean just to keep track of this. Note that 0 is always treated as the "first face"
 // of a block anyway (so negative zero is not needed).
@@ -1979,8 +2106,13 @@ static int firstFaceModifier( int isFirst, int faceIndex )
 
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
-	int dataVal, miny, maxy;
-	int topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
+	int dataVal, minx, maxx, miny, maxy, minz, maxz, markFirstFace, topBitSet, faceMask, bitAdd;
+	int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
+    int topDataVal, bottomDataVal;
+    float mtx[4][4], angle, hingeAngle, signMult;
+    int swatchLocSet[6];
+
+    dataVal = gBoxData[boxIndex].data;
 
     switch ( type )
     {
@@ -2019,90 +2151,212 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 
 	// real-live output, baby
-	case BLOCK_FENCE:
+    case BLOCK_FENCE:
+    case BLOCK_NETHER_BRICK_FENCE:
 		// post, always output
-		saveBoxGeometry( boxIndex, type, 1, 6,10, 0,16, 6,10);
+		saveBoxGeometry( boxIndex, type, 1, 0x0, 6,10, 0,16, 6,10);
+        // which posts are needed: NSEW. Brute-force it.
+
+        // since we erase "billboard" objects as we go, we need to test against origType.
+        // Note that if a render export chops through a fence, the fence will not join.
+        // TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
+        // this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
+        if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType].flags & BLF_FENCE_NEIGHBOR )
+        {
+            // this fence connects to the neighboring block, so output the fence pieces
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 6,9, 7,9 );
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 12,15, 7,9 );
+        }
+        if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType].flags & BLF_FENCE_NEIGHBOR )
+        {
+            // this fence connects to the neighboring block, so output the fence pieces
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 6,9, 7,9 );
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 12,15, 7,9 );
+        }
+        if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType].flags & BLF_FENCE_NEIGHBOR )
+        {
+            // this fence connects to the neighboring block, so output the fence pieces
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 0,6 );
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 0,6 );
+        }
+        if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType].flags & BLF_FENCE_NEIGHBOR )
+        {
+            // this fence connects to the neighboring block, so output the fence pieces
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 10,16 );
+            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 10,16 );
+        }
 		return 1;
 
 	case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_WOODEN_PRESSURE_PLATE:
-		saveBoxGeometry( boxIndex, type, 1, 1,15, 0,1, 1,15);
+		saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1, 1,15);
 		return 1;
 
+    case BLOCK_OAK_WOOD_STAIRS:
+    case BLOCK_COBBLESTONE_STAIRS:
+    case BLOCK_BRICK_STAIRS:
+    case BLOCK_STONE_BRICK_STAIRS:
+    case BLOCK_NETHER_BRICK_STAIRS:
+    case BLOCK_SANDSTONE_STAIRS:
+    case BLOCK_SPRUCE_WOOD_STAIRS:
+    case BLOCK_BIRCH_WOOD_STAIRS:
+    case BLOCK_JUNGLE_WOOD_STAIRS:
+        // first output the small block, which is determined by direction,
+        // then output the slab, which we can share with the slab output
+        switch ( type )
+        {
+        default:
+            assert(0);
+        case BLOCK_OAK_WOOD_STAIRS:
+        case BLOCK_COBBLESTONE_STAIRS:
+        case BLOCK_BRICK_STAIRS:
+        case BLOCK_STONE_BRICK_STAIRS:
+        case BLOCK_NETHER_BRICK_STAIRS:
+        case BLOCK_SPRUCE_WOOD_STAIRS:
+        case BLOCK_BIRCH_WOOD_STAIRS:
+        case BLOCK_JUNGLE_WOOD_STAIRS:
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+            break;
+        case BLOCK_SANDSTONE_STAIRS:
+            topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+            sideSwatchLoc = SWATCH_INDEX( 0,12 );
+            bottomSwatchLoc = SWATCH_INDEX( 0,13 );
+            break;
+        }
+
+        // The bottom 2 bits is direction of step.
+        switch (dataVal & 0x3)
+        {
+        default:    // make compiler happy
+        case 0: // ascending east
+            minx = 8;
+            maxx = 16;
+            minz = 0;
+            maxz = 16;
+            break;
+        case 1: // ascending west
+            minx = 0;
+            maxx = 8;
+            minz = 0;
+            maxz = 16;
+            break;
+        case 2: // ascending south
+            minx = 0;
+            maxx = 16;
+            minz = 8;
+            maxz = 16;
+            break;
+        case 3: // ascending north
+            minx = 0;
+            maxx = 16;
+            minz = 0;
+            maxz = 8;
+            break;
+        }
+        // The 0x4 bit is about whether the bottom of the stairs is in the top half or bottom half (used to always be bottom half).
+        // See http://www.minecraftwiki.net/wiki/Block_ids#Stairs
+        if ( dataVal & 0x4 )
+        {
+            // lower step
+            miny = 0;
+            maxy = 8;
+            faceMask = DIR_TOP_BIT;
+        }
+        else
+        {
+            // upper step
+            miny = 8;
+            maxy = 16;
+            faceMask = DIR_BOTTOM_BIT;
+        }
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+        
+        // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+        // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+        if ( dataVal & 0x4 )
+        {
+            // upper slab
+            miny = 8;
+            maxy = 16;
+        }
+        else
+        {
+            // lower slab
+            miny = 0;
+            maxy = 8;
+        }
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0, 0,16, miny,maxy, 0,16);
+        return 1;
+
+        // continue! no break;
 	case BLOCK_STONE_SLAB:
-		dataVal = gBoxData[boxIndex].data;
-		switch ( dataVal & 0x7 )
-		{
-		default:
-			assert(0);
-		case 6:
-			// true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
-		case 0:
-			// 
-			topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-			sideSwatchLoc = SWATCH_INDEX( 5,0 );
-			break;
-		case 1:
-			// sandstone
-			topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
-			sideSwatchLoc = SWATCH_INDEX( 0,12 );
-			bottomSwatchLoc = SWATCH_INDEX( 0,13 );
-			break;
-		case 2:
-			// wooden
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
-			break;
-		case 3:
-			// cobblestone
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
-			break;
-		case 4:
-			// brick
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
-			break;
-		case 5:
-			// stone brick
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
-			break;
-		}
-		// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
-		// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
-		if ( dataVal & 0x8 )
-		{
-			// upper slab
-			miny = 8;
-			maxy = 16;
-		}
-		else
-		{
-			// lower slab
-			miny = 0;
-			maxy = 8;
-		}
-		saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0,16, miny,maxy, 0,16);
-		return 1;
+    case BLOCK_WOODEN_SLAB:
+        switch ( type )
+        {
+        default:
+            assert(0);
+        case BLOCK_STONE_SLAB:
+            markFirstFace = 1;
+		    switch ( dataVal & 0x7 )
+		    {
+		    default:
+			    assert(0);
+		    case 6:
+			    // true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
+		    case 0:
+			    // 
+			    topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+			    sideSwatchLoc = SWATCH_INDEX( 5,0 );
+			    break;
+		    case 1:
+			    // sandstone
+			    topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+			    sideSwatchLoc = SWATCH_INDEX( 0,12 );
+			    bottomSwatchLoc = SWATCH_INDEX( 0,13 );
+			    break;
+		    case 2:
+			    // wooden
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
+			    break;
+		    case 3:
+			    // cobblestone
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
+			    break;
+		    case 4:
+			    // brick
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
+			    break;
+		    case 5:
+			    // stone brick
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
+			    break;
+		    }
+            break;
 
-	case BLOCK_WOODEN_SLAB:
-		dataVal = gBoxData[boxIndex].data;
+	    case BLOCK_WOODEN_SLAB:
+            markFirstFace = 1;
+            topBitSet = dataVal & 0x8;
 
-		switch ( dataVal & 0x7 )
-		{
-		default: // normal log
-			assert(0);
-		case 0:
-			// no change, default plank is fine
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-			break;
-		case 1: // spruce (dark)
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,12 );
-			break;
-		case 2: // birch
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,13 );
-			break;
-		case 3: // jungle
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 7,12 );
-			break;
-		}
+		    switch ( dataVal & 0x7 )
+		    {
+		    default: // normal log
+			    assert(0);
+		    case 0:
+			    // no change, default plank is fine
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+			    break;
+		    case 1: // spruce (dark)
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,12 );
+			    break;
+		    case 2: // birch
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,13 );
+			    break;
+		    case 3: // jungle
+			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 7,12 );
+			    break;
+		    }
+            break;
+        }
 
 		// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
 		// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
@@ -2118,14 +2372,330 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			miny = 0;
 			maxy = 8;
 		}
-		saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0,16, miny,maxy, 0,16);
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
 		return 1;
 
-	// top, sides, and bottom, and don't stretch the sides if output here
-	//case BLOCK_CAKE:
-	//	// post, always output
-	//	saveBoxGeometry( boxIndex, type, 1,15, 0,8, 1,15);
-	//	return 1;
+    case BLOCK_STONE_BUTTON:
+        // The bottom 3 bits is direction of button. Top bit is whether it's pressed.
+        bitAdd = (dataVal & 0x8) ? 1 : 0;
+        switch (dataVal & 0x7)
+        {
+        default:    // make compiler happy
+        case 1: // east
+            minx = 0;
+            maxx = 2 - bitAdd;
+            minz = 5;
+            maxz = 12;
+            break;
+        case 2: // west
+            minx = 14 + bitAdd;
+            maxx = 16;
+            minz = 5;
+            maxz = 12;
+            break;
+        case 3: // south
+            minx = 5;
+            maxx = 12;
+            minz = 0;
+            maxz = 2 - bitAdd;
+            break;
+        case 4: // north
+            minx = 5;
+            maxx = 12;
+            minz = 14 + bitAdd;
+            maxz = 16;
+            break;
+        }
+        // we *could* save one face of the stone button, the one facing the object, but don't:
+        // the thing holding the stone button could be missing, due to export limits.
+        saveBoxGeometry( boxIndex, type, 1, 0x0, minx,maxx, 6,10, minz,maxz );
+        return 1;
+
+    case BLOCK_WALL_SIGN:
+        switch (dataVal)
+        {
+        default:    // make compiler happy
+        case 2: // north
+            angle = 180.0f;
+            break;
+        case 3: // south
+            angle = 0.0f;
+            break;
+        case 4: // west
+            angle = 90.0f;
+            break;
+        case 5: // east
+            angle = 270.0f;
+            break;
+        }
+        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 0,2 );
+        // scale sign down, move slightly away from wall
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        // this moves block up so that bottom of sign is at Y=0
+        // also move a bit away from wall
+        translateMtx(mtx, 0.0f, 0.5f, 0.5/16.0f);
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+        scaleMtx(mtx, 1.0f, 8.0f/12.0f, 1.0f);
+        // undo translation
+        translateMtx(mtx, 0.0f, -0.5f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 0.0f, 4.5f/16.0f, 0.0f);
+        transformVertices(8,mtx);
+        return 1;
+
+    case BLOCK_TRAPDOOR:
+        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,3, 0,16);
+        // rotate as needed
+        if (dataVal & 0x4 )
+        {
+            switch (dataVal & 0x3)
+            {
+            default:    // make compiler happy
+            case 0: // south
+                angle = 180.0f;
+                break;
+            case 1: // north
+                angle = 0.0f;
+                break;
+            case 2: // east
+                angle = 90.0f;
+                break;
+            case 3: // west
+                angle = 270.0f;
+                break;
+            }
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx,0.0f, 0.5f-1.5f/16.0f, 6.5f/16.0f);
+            rotateMtx(mtx, 90.0f, 0.0f, 0.0f);
+            translateMtx(mtx, 0.0f, -0.5f+1.5f/16.0f, -6.5f/16.0f);
+            rotateMtx(mtx, 0.0f, angle, 0.0f);
+            // undo translation
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(8,mtx);
+        }
+        return 1;
+
+    case BLOCK_SIGN_POST:
+        // sign is two parts:
+        // bottom output first, which saves one translation
+        topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_LOG].txrX, gBlockDefinitions[BLOCK_LOG].txrY );
+        sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, DIR_TOP_BIT, 0, 7,9, 0,14, 7,9);
+        // scale sign down, move slightly away from wall
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+        rotateMtx(mtx, 0.0f, dataVal*22.5f, 0.0f);
+        scaleMtx(mtx, 1.0f, 16.0f/24.0f, 1.0f);
+        // undo translation
+        translateMtx(mtx, 0.0f, -0.5f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(8,mtx);
+
+        // top is 12 high, extends 2 blocks above. Scale down by 16/24 and move up by 14/24
+        saveBoxGeometry( boxIndex, type, 0, 0x0, 0,16, 0,12, 7,9 );
+        translateMtx(mtx, 0.0f, 14.0f/24.0f, 0.0f);
+        transformVertices(8,mtx);
+
+        return 1;
+
+    case BLOCK_WOODEN_DOOR:
+    case BLOCK_IRON_DOOR:
+        swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        if ( dataVal & 0x8 )
+        {
+            // get bottom dataVal - if bottom of door is cut off, this will be 0 and door will be wrong
+            // (who cares, it's half a door)
+            topDataVal = dataVal;
+            bottomDataVal = gBoxData[boxIndex-1].data;
+        }
+        else
+        {
+            // bottom of door
+            swatchLoc += 16;
+            topDataVal = gBoxData[boxIndex+1].data;
+            bottomDataVal = dataVal;
+        }
+
+        switch (bottomDataVal & 0x3)
+        {
+        default:    // make compiler happy
+        case 0: // west
+            angle = 180.0f;
+            break;
+        case 1: // north
+            angle = 270.0f;
+            break;
+        case 2: // east
+            angle = 0.0f;
+            break;
+        case 3: // south
+            angle = 90.0f;
+            break;
+        }
+#define HINGE_ANGLE 90.f
+        // hinge move
+        if ( topDataVal & 0x1 )
+        {
+            // reverse hinge
+            angle += (topDataVal & 0x1) ? 180.0f : 0.0f;
+            hingeAngle = (bottomDataVal & 0x4) ? HINGE_ANGLE : 0.0f;
+        }
+        else
+        {
+            hingeAngle = (bottomDataVal & 0x4) ? 360.0f - HINGE_ANGLE : 0.0f;
+        }
+
+        // the only use of rotUVs - rotate the UV coordinates by 2, i.e. 180 degrees, for the -X face
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 2, 13,16, 0,16, 0,16);
+
+        // scale sign down, move slightly away from wall
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        if ( topDataVal & 0x1 )
+        {
+            translateMtx(mtx, -13.0f/16.0f, 0.0f, 0.0f );
+            signMult = -1.0f;
+        }
+        else
+        {
+            signMult = 1.0f;
+        }
+        if ( hingeAngle > 0.0f )
+        {
+            translateMtx(mtx, -6.5f/16.0f*signMult, 0.0f, -6.5f/16.0f );
+            rotateMtx(mtx, 0.0f, hingeAngle, 0.0f);
+            translateMtx(mtx, 6.5f/16.0f*signMult, 0.0f, 6.5f/16.0f );
+        }
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+        // undo translation
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(8,mtx);
+        return 1;
+
+    case BLOCK_SNOW:
+        // change height as needed
+        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0, 2 * (1 + (dataVal&0x7)), 0,16);
+        return 1;
+
+    case BLOCK_END_PORTAL_FRAME:
+        topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        sideSwatchLoc = SWATCH_INDEX( 15,9 );
+        bottomSwatchLoc = SWATCH_INDEX( 15,10 );
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,13, 0,16);
+        return 1;
+
+    // top, sides, and bottom, and don't stretch the sides if output here
+	case BLOCK_CAKE:
+		// we don't yet do slices TODO
+        swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX( 12,7 );
+        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = dataVal ? SWATCH_INDEX( 11,7 ) : SWATCH_INDEX( 10,7 );
+        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = 
+        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = 
+        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 10,7 );
+        saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 1+(dataVal&0x7)*2,15, 0,8, 1,15);
+		return 1;
+
+    case BLOCK_FARMLAND:
+        // TODO: change color by wetness
+        topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        sideSwatchLoc = SWATCH_INDEX( 2,0 );
+        bottomSwatchLoc = SWATCH_INDEX( 2,0 );
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
+        return 1;
+
+    case BLOCK_FENCE_GATE:
+        // posts, always output
+        // Check if open
+        if ( dataVal & 0x4 )
+        {
+            // open
+            if ( dataVal & 0x1 )
+            {
+                // open west/east
+                saveBoxGeometry( boxIndex, type, 1, 0x0, 7,9, 5,16,  0, 2);
+                saveBoxGeometry( boxIndex, type, 0, 0x0, 7,9, 5,16, 14,16);
+                if ( dataVal & 0x2 )
+                {
+                    // side pieces
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16,  6, 9,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16, 12,15,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16,  6, 9, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16, 12,15, 14,16 );
+                    // gate center
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
+                }
+                else
+                {
+                    // side pieces
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7,  6, 9,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7, 12,15,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7,  6, 9, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7, 12,15, 14,16 );
+                    // gate center
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12, 14,16 );
+                }
+            }
+            else
+            {
+                // open north/south
+                saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7,9);
+                saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7,9);
+                if ( dataVal & 0x2 )
+                {
+                    // side pieces
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 0, 2,  6, 9,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 0, 2, 12,15,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 14,16,  6, 9, 0,7 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 14,16, 12,15, 0,7 );
+                    // gate center
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 0,2 );
+                }
+                else
+                {
+                    // side pieces
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT,  0, 2,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT,  0, 2, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT, 14,16,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT, 14,16, 12,15, 9,16 );
+                    // gate center
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
+                }
+            }
+        }
+        else
+        {
+            if ( dataVal & 0x1 )
+            {
+                // open west/east
+                saveBoxGeometry( boxIndex, type, 1, 0x0, 7,9, 5,16,  0, 2);
+                saveBoxGeometry( boxIndex, type, 0, 0x0, 7,9, 5,16, 14,16);
+                // side pieces
+                saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9,  6, 9, 2,14 );
+                saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 2,14 );
+                // gate center
+                saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 7,9, 9,12, 6,10 );
+            }
+            else
+            {
+                // open north/south
+                saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7,9);
+                saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7,9);
+                // side pieces
+                saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9, 7,9 );
+                saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15, 7,9 );
+                // gate center
+                saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12, 7,9);
+            }
+        }
+        return 1;
 
 	default:
 		// something tagged as billboard or geometry, but no case here!
@@ -2135,15 +2705,27 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     return 0;
 }
 
-static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
 	int swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
-	saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, markFirstFace, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+	saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
 }
 
 
-static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask, int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+    int swatchLocSet[6];
+    swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
+    swatchLocSet[DIRECTION_BLOCK_BOTTOM] = bottomSwatchLoc;
+    swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = sideSwatchLoc;
+    swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = sideSwatchLoc;
+    swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = sideSwatchLoc;
+    swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = sideSwatchLoc;
+    saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, rotUVs, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+}
+
+static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
 	int i;
 	int swatchLoc;
@@ -2176,9 +2758,9 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
 
 		pt = (float *)gModel.vertices[gModel.vertexCount];
 
-		pt[X] = (float)(anchor[X] + cornerVertex[X]);
-		pt[Y] = (float)(anchor[Y] + cornerVertex[Y]);
-		pt[Z] = (float)(anchor[Z] + cornerVertex[Z]);
+		pt[X] = (float)anchor[X] + cornerVertex[X];
+		pt[Y] = (float)anchor[Y] + cornerVertex[Y];
+		pt[Z] = (float)anchor[Z] + cornerVertex[Z];
 
 		gModel.vertexCount++;
 		assert( gModel.vertexCount <= gModel.vertexListSize );
@@ -2187,78 +2769,86 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
 	// index these eight corners for each face and make texture UVs on the fly, storing the UV locations.
 	for ( faceDirection = 0; faceDirection < 6; faceDirection++ )
 	{
-		switch (faceDirection)
-		{
-		case DIRECTION_BLOCK_SIDE_LO_X:
-			swatchLoc = sideSwatchLoc;
-			vindex[0] = 0;			// ymin, zmin
-			vindex[1] = 0x1;		// ymin, zmax
-			vindex[2] = 0x2|0x1;	// ymax, zmax
-			vindex[3] = 0x2;		// ymax, zmin
-			minu = (float)minPixZ/16.0f;
-			maxu = (float)maxPixZ/16.0f;
-			minv = (float)minPixY/16.0f;
-			maxv = (float)maxPixY/16.0f;
-			break;
-		case DIRECTION_BLOCK_SIDE_HI_X:
-			swatchLoc = sideSwatchLoc;
-			vindex[0] = 0x4|0x1;		// ymin, zmax
-			vindex[1] = 0x4;			// ymin, zmin
-			vindex[2] = 0x4|0x2;		// ymax, zmin
-			vindex[3] = 0x4|0x2|0x1;	// ymax, zmax
-			minu = (float)minPixZ/16.0f;
-			maxu = (float)maxPixZ/16.0f;
-			minv = (float)minPixY/16.0f;
-			maxv = (float)maxPixY/16.0f;
-			break;
-		case DIRECTION_BLOCK_SIDE_LO_Z:
-			swatchLoc = sideSwatchLoc;
-			vindex[0] = 0x4;		// xmax, ymin
-			vindex[1] = 0;			// xmin, ymin 
-			vindex[2] = 0x2;		// xmin, ymax
-			vindex[3] = 0x4|0x2;	// xmax, ymax
-			minu = (float)minPixX/16.0f;
-			maxu = (float)maxPixX/16.0f;
-			minv = (float)minPixY/16.0f;
-			maxv = (float)maxPixY/16.0f;
-			break;
-		case DIRECTION_BLOCK_SIDE_HI_Z:
-			swatchLoc = sideSwatchLoc;
-			vindex[0] = 0x1;			// xmin, ymin 
-			vindex[1] = 0x1|0x4;		// xmax, ymin
-			vindex[2] = 0x1|0x4|0x2;	// xmax, ymax
-			vindex[3] = 0x1|0x2;		// xmin, ymax
-			minu = (float)minPixX/16.0f;
-			maxu = (float)maxPixX/16.0f;
-			minv = (float)minPixY/16.0f;
-			maxv = (float)maxPixY/16.0f;
-			break;
-		case DIRECTION_BLOCK_BOTTOM:
-			swatchLoc = bottomSwatchLoc;
-			vindex[0] = 0;			// xmin, zmin 
-			vindex[1] = 0x4;		// xmax, zmin
-			vindex[2] = 0x4|0x1;	// xmax, zmax
-			vindex[3] = 0x1;		// xmin, zmax
-			minu = (float)minPixX/16.0f;
-			maxu = (float)maxPixX/16.0f;
-			minv = (float)minPixZ/16.0f;
-			maxv = (float)maxPixZ/16.0f;
-			break;
-		case DIRECTION_BLOCK_TOP:
-			swatchLoc = topSwatchLoc;
-			vindex[0] = 0x2|0x4;		// xmax, zmin
-			vindex[1] = 0x2;			// xmin, zmin 
-			vindex[2] = 0x2|0x1;		// xmin, zmax
-			vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
-			minu = (float)minPixX/16.0f;
-			maxu = (float)maxPixX/16.0f;
-			minv = (float)minPixZ/16.0f;
-			maxv = (float)maxPixZ/16.0f;
-			break;
-		}
+        // if bit is not set in mask, output face
+        if ( !((1<<faceDirection) & faceMask) )
+        {
+            int reverseLoop = 0;
+            int useRotUVs = 0;
+            swatchLoc = swatchLocSet[faceDirection];
+		    switch (faceDirection)
+		    {
+		    case DIRECTION_BLOCK_SIDE_LO_X:
+			    vindex[0] = 0;			// ymin, zmin
+			    vindex[1] = 0x1;		// ymin, zmax
+			    vindex[2] = 0x2|0x1;	// ymax, zmax
+			    vindex[3] = 0x2;		// ymax, zmin
+			    minu = (float)minPixZ/16.0f;
+			    maxu = (float)maxPixZ/16.0f;
+			    minv = (float)minPixY/16.0f;
+			    maxv = (float)maxPixY/16.0f;
+                useRotUVs = rotUVs;
+                // when rotUVs are used currently, also reverse the loop
+                if ( rotUVs )
+                    reverseLoop = 1;
+			    break;
+		    case DIRECTION_BLOCK_SIDE_HI_X:
+			    vindex[0] = 0x4|0x1;		// ymin, zmax
+			    vindex[1] = 0x4;			// ymin, zmin
+			    vindex[2] = 0x4|0x2;		// ymax, zmin
+			    vindex[3] = 0x4|0x2|0x1;	// ymax, zmax
+			    minu = (float)minPixZ/16.0f;
+			    maxu = (float)maxPixZ/16.0f;
+			    minv = (float)minPixY/16.0f;
+			    maxv = (float)maxPixY/16.0f;
+			    break;
+		    case DIRECTION_BLOCK_SIDE_LO_Z:
+			    vindex[0] = 0x4;		// xmax, ymin
+			    vindex[1] = 0;			// xmin, ymin 
+			    vindex[2] = 0x2;		// xmin, ymax
+			    vindex[3] = 0x4|0x2;	// xmax, ymax
+			    minu = (float)minPixX/16.0f;
+			    maxu = (float)maxPixX/16.0f;
+			    minv = (float)minPixY/16.0f;
+			    maxv = (float)maxPixY/16.0f;
+			    break;
+		    case DIRECTION_BLOCK_SIDE_HI_Z:
+			    vindex[0] = 0x1;			// xmin, ymin 
+			    vindex[1] = 0x1|0x4;		// xmax, ymin
+			    vindex[2] = 0x1|0x4|0x2;	// xmax, ymax
+			    vindex[3] = 0x1|0x2;		// xmin, ymax
+			    minu = (float)minPixX/16.0f;
+			    maxu = (float)maxPixX/16.0f;
+			    minv = (float)minPixY/16.0f;
+			    maxv = (float)maxPixY/16.0f;
+			    break;
+		    case DIRECTION_BLOCK_BOTTOM:
+			    vindex[0] = 0;			// xmin, zmin 
+			    vindex[1] = 0x4;		// xmax, zmin
+			    vindex[2] = 0x4|0x1;	// xmax, zmax
+			    vindex[3] = 0x1;		// xmin, zmax
+			    minu = (float)minPixX/16.0f;
+			    maxu = (float)maxPixX/16.0f;
+			    minv = (float)minPixZ/16.0f;
+			    maxv = (float)maxPixZ/16.0f;
+                reverseLoop = 1;
+			    break;
+		    case DIRECTION_BLOCK_TOP:
+                vindex[0] = 0x2|0x1;		// xmin, zmax
+                vindex[1] = 0x2|0x4|0x1;	// xmax, zmax
+			    vindex[2] = 0x2|0x4;		// xmax, zmin
+			    vindex[3] = 0x2;			// xmin, zmin 
+			    minu = (float)minPixX/16.0f;
+			    maxu = (float)maxPixX/16.0f;
+			    minv = (float)minPixZ/16.0f;
+			    maxv = (float)maxPixZ/16.0f;
+			    break;
+		    }
 
-		// mark the first face if calling routine wants it, and this is the first face of six
-		saveBoxFace( swatchLoc, type, faceDirection, (faceDirection == 0)&&markFirstFace, startVertexIndex, vindex, minu, maxu, minv, maxv );
+		    // mark the first face if calling routine wants it, and this is the first face of six
+		    saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+            // face output, so don't need to mark first face
+            markFirstFace = 0;
+        }
 	}
 
 	// note the box's bounds (not the exact bounds, just that the voxel is occupied)
@@ -2268,7 +2858,7 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
 
 	gModel.billboardCount++;
 }
-static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], float minu, float maxu, float minv, float maxv )
+static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
 {
 	FaceRecord *face;
 	int j;
@@ -2293,7 +2883,17 @@ static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDir
 	for ( j = 0; j < 4; j++ )
 	{
 		face->vertexIndex[j] = startVertexIndex + vindex[j];
-		face->uvIndex[j] = startUvIndex + j;
+        if ( reverseLoop )
+        {
+            // really, sort of unreversed, but it works out.
+            // rotUVs
+            face->uvIndex[j] = startUvIndex + (j+rotUVs)%4;
+        }
+        else
+        {
+            face->uvIndex[j] = startUvIndex + (7 - j - rotUVs)%4;
+        }
+
 	}
 
 	// all set, so save it away
@@ -2314,8 +2914,10 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     IPoint anchor;
     int faceCount = 0;
     int startVertexCount = 0;   // doesn't really need initialization, but makes compilers happy
+    int totalVertexCount;
     int doubleSided = 1;
     int dataVal = gBoxData[boxIndex].data;
+    float height = 0.0f;
 
     swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
@@ -2369,11 +2971,11 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     case BLOCK_REDSTONE_TORCH_ON:
 	//case BLOCK_TRIPWIRE:
         // is torch not standing up?
-        if ( dataVal != 0x5 )
-        {
-            // it'll get flattened instead
-            return 0;
-        }
+        //if ( dataVal != 5 )
+        //{
+        //    // it'll get flattened instead
+        //    return 0;
+        //}
         break;
     case BLOCK_CROPS:
         // adjust for growth
@@ -2391,7 +2993,14 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
         break;
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
-        // TODO: could offset about height of stem
+        // offset about height of stem - 1 extra down for farmland shift
+        height = ((float)(dataVal&0x7)*2.0f-15.0f)/16.0f;
+        // TODO: the tricky bit is rotating the stem to a reasonable pumpkin
+        //if ( dataVal&0x7 == 0x7 )
+        //{
+        //    // fully mature, use other stem if next to pumpkin or melon
+        //    //swatchLoc += 16;
+        //}
         break;
     case BLOCK_POWERED_RAIL:
         if ( !(dataVal & 0x8) )
@@ -2448,15 +3057,15 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
             faceDir[2] = DIRECTION_HI_X_HI_Z;
             faceDir[3] = DIRECTION_LO_X_LO_Z;
 
-            Vec3Scalar( vertexOffsets[0][0], =, texelLow,0,texelLow );
-            Vec3Scalar( vertexOffsets[0][1], =, texelHigh,0,texelHigh );
-            Vec3Scalar( vertexOffsets[0][2], =, texelHigh,1,texelHigh );
-            Vec3Scalar( vertexOffsets[0][3], =, texelLow,1,texelLow );
+            Vec3Scalar( vertexOffsets[0][0], =, texelLow,height,texelLow );
+            Vec3Scalar( vertexOffsets[0][1], =, texelHigh,height,texelHigh );
+            Vec3Scalar( vertexOffsets[0][2], =, texelHigh,1+height,texelHigh );
+            Vec3Scalar( vertexOffsets[0][3], =, texelLow,1+height,texelLow );
 
-            Vec3Scalar( vertexOffsets[1][0], =, texelLow,0,texelHigh );
-            Vec3Scalar( vertexOffsets[1][1], =, texelHigh,0,texelLow );
-            Vec3Scalar( vertexOffsets[1][2], =, texelHigh,1,texelLow );
-            Vec3Scalar( vertexOffsets[1][3], =, texelLow,1,texelHigh );
+            Vec3Scalar( vertexOffsets[1][0], =, texelLow,height,texelHigh );
+            Vec3Scalar( vertexOffsets[1][1], =, texelHigh,height,texelLow );
+            Vec3Scalar( vertexOffsets[1][2], =, texelHigh,1+height,texelLow );
+            Vec3Scalar( vertexOffsets[1][3], =, texelLow,1+height,texelHigh );
         }
         break;
     case BB_GRID:
@@ -2691,6 +3300,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     // get the four UV texture vertices, based on type of block
     assert(startUvIndex>=0);
 
+    totalVertexCount = gModel.vertexCount;
     for ( i = 0; i < faceCount; i++ )
     {
         // torches are 4 sides facing out: don't output 8 sides
@@ -2755,6 +3365,58 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
             gModel.faceList[gModel.faceCount++] = face;
         }
     }
+
+    // if torch, transform at end if needed
+    if ( billboardType == BB_TORCH )
+    {
+        if ( dataVal != 5 )
+        {
+            float mtx[4][4];
+            float yAngle;
+            switch (dataVal)
+            {
+            default:
+            case 1:
+                yAngle = 90.0f;
+                break;
+            case 2:
+                yAngle = 270.0f;
+                break;
+            case 3:
+                yAngle = 180.0f;
+                break;
+            case 4:
+                yAngle = 0.0f;
+                break;
+            }
+
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            // time to rotate to place. Minecraft shears the torch, we're just going to rotate it.
+            // scale sign down, move slightly away from wall
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            // this moves block up so that bottom of torch is at Y=0
+            // also move to wall
+            translateMtx(mtx, 0.0f, 0.5f, 0.0f );
+            rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
+            translateMtx(mtx, 0.0f, 0.0f, 8.0f/16.0f );
+            rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+            // undo translation, and kick it up the wall a bit
+            translateMtx(mtx, 0.0f, -0.5f + 3.8f/16.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount,mtx);
+        }
+    }
+    //identityMtx(mtx);
+    //translateToOriginMtx(mtx, boxIndex);
+    //// this moves block up so that bottom of sign is at Y=0
+    //// also move a bit away from wall
+    //translateMtx(mtx, 0.0f, -0.5f, 0.0f );
+    //rotateMtx(mtx, 30.0f, yAngle, 0.0f);
+    //// undo translation, and kick it up the wall a bit
+    //translateMtx(mtx, 0.0f, 0.5f+2.0f/16.0f, 0.0f);
+    //translateFromOriginMtx(mtx, boxIndex);
+    //transformVertices(totalVertexCount,mtx);
 
     gModel.billboardCount++;
 
@@ -2831,7 +3493,7 @@ static void checkUvIndexToSwatchSize()
 		uvIndexToSpecialUVs = (int*)malloc(gModel.uvIndexToSwatchSize*sizeof(int));
 		// Not all of this array is actually used.
 		// avoid copying memory that is not set by setting the new array to all zeros.
-		memset(gModel.uvIndexToSpecialUVs,0,gModel.uvIndexToSwatchSize*sizeof(int));
+		memset( uvIndexToSpecialUVs,0,gModel.uvIndexToSwatchSize*sizeof(int));
 		memcpy( uvIndexToSpecialUVs, gModel.uvIndexToSpecialUVs, gModel.textureUsedCount*sizeof(int));
 		free( gModel.uvIndexToSpecialUVs );
 		gModel.uvIndexToSpecialUVs = uvIndexToSpecialUVs;
@@ -2846,7 +3508,7 @@ static void checkSpecialUVsSize()
 		float *specialUVs;
 		gModel.specialUVsSize *= 2;
 		specialUVs = (float*)malloc(gModel.specialUVsSize*sizeof(float));
-		memcpy( specialUVs, gModel.specialUVs, gModel.specialUVsSize*sizeof(float));
+		memcpy( specialUVs, gModel.specialUVs, gModel.specialUVsCount*sizeof(float));
 		free( gModel.specialUVs );
 		gModel.specialUVs = specialUVs;
 	}
@@ -6015,6 +6677,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_CAKE:
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 10,7, 12,7 );
             break;
+        case BLOCK_FARMLAND:
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 2,0, 2,0 );
+            break;
         case BLOCK_REDSTONE_REPEATER_OFF:
         case BLOCK_REDSTONE_REPEATER_ON:
 			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
@@ -6897,8 +7562,8 @@ static int getTextureBounds( int listLoc, int signedSwatchLoc, float *umin, floa
 		extraUVs = gModel.uvIndexToSpecialUVs[listLoc];
 		*umin = (float)col * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution;
 		*umax = (float)col * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution;
-		*vmin = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution);
-		*vmax = 1.0f - ((float)row * gModel.textureUVPerSwatch + gModel.specialUVs[extraUVs++] * gModel.textureUVPerTile + gModel.invTextureResolution);
+		*vmin = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f-gModel.specialUVs[extraUVs++]) * gModel.textureUVPerTile + gModel.invTextureResolution);
+		*vmax = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f-gModel.specialUVs[extraUVs++]) * gModel.textureUVPerTile + gModel.invTextureResolution);
 
 		return -signedSwatchLoc;
 	}
@@ -6943,7 +7608,7 @@ static int writeOBJMtlFile()
     int type,i;
     wchar_t mtlFileName[MAX_PATH];
     char mtlName[MAX_PATH];
-    char outputString[512];
+    char outputString[1024];
     double fRed,fGreen,fBlue;
     double ka, kd, ke;
     double alpha;
@@ -6959,7 +7624,7 @@ static int writeOBJMtlFile()
     if (gMtlFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    sprintf_s(outputString,512,"Wavefront OBJ material file\n# Contains %d materials\n\n", gModel.mtlCount);
+    sprintf_s(outputString,1024,"Wavefront OBJ material file\n# Contains %d materials\n\n", gModel.mtlCount);
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
     if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
@@ -6978,7 +7643,25 @@ static int writeOBJMtlFile()
         char mapdString[256];
         char keString[256];
         char *typeTextureFileName;
+        char fullMtl[256];
+
         type = gModel.mtlList[i];
+
+        // TODO! Need a read flag here
+        if ( gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL )
+        {
+            // don't use full material, comment it out, just output the basics
+            strcpy_s(fullMtl,256,"# ");
+        }
+        else
+        {
+            // use full material description, including the object's color itself.
+            // Note, G3D doesn't like this so much, it would rather have full material
+            // + neutral material. We could add yet another checkbox for "output surface attributes"
+            // or, alternately, a separate dialog somewhere saying what options are desired
+            // for OBJ output.
+            strcpy_s(fullMtl,256,"");
+        }
 
         // print header: material name, and group
         // group isn't really required, but can be useful
@@ -7075,57 +7758,61 @@ static int writeOBJMtlFile()
 
         if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
         {
-            sprintf_s(outputString,512,
+            sprintf_s(outputString,1024,
                 "newmtl %s\n"
-				"# Ns 0\n"	// specular highlight power
-				"# Ka %g %g %g\n"
+				"%sNs 0\n"	// specular highlight power
+				"%sKa %g %g %g\n"
                 "Kd %g %g %g\n"
                 "Ks 0 0 0\n"
-				"# %s" // emissive
-				"# map_Ka %s\n"
+				"%s%s" // emissive
+				"%smap_Ka %s\n"
                 "map_Kd %s\n"
                 "%s" // map_d, if there's a cutout
                 // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-				"# illum %d\n"
+				"%sillum %d\n"
                 "# d %g\n"	// some use Tr here - Blender likes "d"
                 "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-				"# %s\n"	//Tf, if needed
+				"%s%s\n"	//Tf, if needed
                 ,
                 // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
                 mtlName,
-                (float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
+                fullMtl,
+                fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
                 (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                keString,
-                typeTextureFileName, typeTextureFileName, mapdString,
-                (alpha < 1.0f ? 4 : 2),
+                fullMtl,keString,
+                fullMtl,typeTextureFileName,
+                typeTextureFileName,
+                mapdString,
+                fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
                 (float)(alpha),
                 (float)(alpha),
-                tfString);
+                fullMtl,tfString);
         }
         else
         {
-            sprintf_s(outputString,512,
+            sprintf_s(outputString,1024,
                 "newmtl %s\n"
-				"# Ns 0\n"	// specular highlight power
-				"# Ka %g %g %g\n"
+                "%sNs 0\n"	// specular highlight power
+                "%sKa %g %g %g\n"
                 "Kd %g %g %g\n"
                 "Ks 0 0 0\n"
-				"# %s" // emissive
+                "%s%s" // emissive
                 // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-				"# illum %d\n"
-                "# d %g\n"	// some use Tr here - Blender likes "d"
-                "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-				"# %s\n"	//Tf, if needed
+                "%sillum %d\n"
+                "d %g\n"	// some use Tr here - Blender likes "d"
+                "Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+                "%s%s\n"	//Tf, if needed
                 ,
                 // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
                 mtlName,
-                (float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
+                fullMtl,
+                fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
                 (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                keString,
-                (alpha < 1.0f ? 4 : 2),
+                fullMtl,keString,
+                fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
                 (float)(alpha),
                 (float)(alpha),
-                tfString);
+                fullMtl,tfString);
         }
         WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
     }
@@ -7161,7 +7848,7 @@ static int createBaseMaterialTexture()
         { BLOCK_TALL_GRASS /* fern */, 8,3, {1.0f,1.0f,1.0f} },
         { BLOCK_LILY_PAD /* lily pad */, 12,4, {1.0f,1.0f,1.0f} },
         { BLOCK_PUMPKIN_STEM /* pumpkin stem */, 15,6, {1.0f,1.0f,1.0f} },
-        { BLOCK_PUMPKIN_STEM /* pumpkin stem, dead */, 15,7, {1.0f,1.0f,1.0f} }, /* probably need a different color */
+        { BLOCK_PUMPKIN_STEM /* pumpkin stem, matured */, 15,7, {1.0f,1.0f,1.0f} }, /* TODO: probably want a different color, a yellow? */
         { BLOCK_VINES /* vines */, 15,8, {1.0f,1.0f,1.0f} },
         { BLOCK_LEAVES /* pine leaves fancy */, 4,8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
         { BLOCK_LEAVES /* pine leaves fast */, 5,8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
@@ -7257,7 +7944,7 @@ static int createBaseMaterialTexture()
 //        { SWATCH_INDEX( 15, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 //        { SWATCH_INDEX( 0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
 //        { SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // stem over farmland
-//        { SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // dead stem over farmland
+//        { SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
 //        { SWATCH_INDEX( 4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
 //        { SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
 //        { SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
@@ -7712,12 +8399,16 @@ static int createBaseMaterialTexture()
         stretchSwatchToTop(mainprog, SWATCH_INDEX(7,9), (float)(gModel.swatchSize*(7.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
         stretchSwatchToTop(mainprog, SWATCH_INDEX(8,9), (float)(gModel.swatchSize*(7.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
 
-        // cake
-        stretchSwatchToTop(mainprog, SWATCH_INDEX(10,7), (float)(gModel.swatchSize*(8.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
-        stretchSwatchToTop(mainprog, SWATCH_INDEX(11,7), (float)(gModel.swatchSize*(8.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
+        // stretch only if we're not exporting it as a billboard:
+        if ( !gExportBillboards )
+        {
+            // cake
+            stretchSwatchToTop(mainprog, SWATCH_INDEX(10,7), (float)(gModel.swatchSize*(8.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
+            stretchSwatchToTop(mainprog, SWATCH_INDEX(11,7), (float)(gModel.swatchSize*(8.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
 
-        // ender portal
-        stretchSwatchToTop(mainprog, SWATCH_INDEX(15,9), (float)(gModel.swatchSize*(3.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
+            // ender portal
+            stretchSwatchToTop(mainprog, SWATCH_INDEX(15,9), (float)(gModel.swatchSize*(3.0/16.0)+(float)SWATCH_BORDER)/(float)gModel.swatchSize );
+        }
 
         // make the baseline composites - really, we should add these in-place >>>>> TODO
         for ( i = 0; i < COMPOSITE_TABLE_SIZE; i++ )
