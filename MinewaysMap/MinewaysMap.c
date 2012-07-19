@@ -783,6 +783,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_JUNGLE_WOOD_STAIRS:
 	case BLOCK_SNOW:
 	case BLOCK_FENCE_GATE:
+	case BLOCK_FARMLAND:
 		// uses 0-7
 		if ( dataVal < 8 )
 		{
@@ -868,20 +869,20 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			switch ( dataVal )
 			{
 			case 2:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
 				break;
 			case 3:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+                // put block to north
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
 				break;
 			case 4:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
 				break;
 			case 5:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                // put block to west
+                block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
 				break;
 			}
 		}
@@ -969,11 +970,21 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		break;
 	case BLOCK_WOODEN_DOOR:
 	case BLOCK_IRON_DOOR:
-		// incomplete - we ignore all bits in Mineways currently anyway.
-		if ( dataVal == 0 )
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+        block->data[(int)(bi/2)] = (unsigned char)((dataVal&0x7)<<((bi%2)*4));
+		if ( dataVal < 8 )
 		{
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+			bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			block->data[(int)(bi/2)] = (unsigned char)(8<<((bi%2)*4));
+		}
+		else
+		{
+			// other direction door (for double doors)
+			bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			block->data[(int)(bi/2)] = (unsigned char)(9<<((bi%2)*4));
 		}
 		break;
 	case BLOCK_BED:
@@ -1124,6 +1135,34 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 
 		block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
 		break;
+    case BLOCK_FENCE:
+    case BLOCK_IRON_BARS:
+    case BLOCK_GLASS_PANE:
+        // this one is specialized: dataVal just says where to put neighbors, NSEW
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+
+        if ( dataVal & 0x1 )
+        {
+            // put block to north
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x2 )
+        {
+            // put block to east
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x4 )
+        {
+            // put block to south
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x8 )
+        {
+            // put block to west
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        break;
 	case BLOCK_REDSTONE_WIRE:
 		// this one is specialized: dataVal just says where to put neighbors, NSEW
 		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
@@ -1197,6 +1236,169 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	}
 }
 
+void testNumeral( WorldBlock *block, int type, int y, int digitPlace )
+{
+    int i;
+    int shiftedNumeral = type;
+    int numeral;
+
+    i = digitPlace;
+    while ( i > 0 )
+    {
+        shiftedNumeral /= 10;
+        i--;
+    }
+    numeral = shiftedNumeral % 10;
+    if ( type < NUM_BLOCKS && shiftedNumeral > 0 )
+    {
+        int dots[50][2];
+        int doti = 0;
+        switch ( numeral )
+        {
+        default:
+        case 0:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 0; dots[doti++][1] = 2;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 0; dots[doti++][1] = 3;
+            dots[doti][0] = 3; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        case 1:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 3; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 1;
+            dots[doti][0] = 2; dots[doti++][1] = 2;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 1; dots[doti++][1] = 4;
+            dots[doti][0] = 2; dots[doti++][1] = 4;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        case 2:
+            dots[doti][0] = 0; dots[doti++][1] = 0;
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 3; dots[doti++][1] = 0;
+            dots[doti][0] = 1; dots[doti++][1] = 1;
+            dots[doti][0] = 2; dots[doti++][1] = 2;
+            dots[doti][0] = 3; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        case 3:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 0; dots[doti++][1] = 5;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        case 4:
+            dots[doti][0] = 3; dots[doti++][1] = 0;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 3; dots[doti++][1] = 3;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 3; dots[doti++][1] = 5;
+            dots[doti][0] = 0; dots[doti++][1] = 2;
+            dots[doti][0] = 1; dots[doti++][1] = 2;
+            dots[doti][0] = 2; dots[doti++][1] = 2;
+            dots[doti][0] = 4; dots[doti++][1] = 2;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 4;
+            break;
+        case 5:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 0; dots[doti++][1] = 3;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 0; dots[doti++][1] = 5;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            dots[doti][0] = 3; dots[doti++][1] = 5;
+            break;
+        case 6:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 0; dots[doti++][1] = 2;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 0; dots[doti++][1] = 3;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            dots[doti][0] = 3; dots[doti++][1] = 5;
+            break;
+        case 7:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 1; dots[doti++][1] = 1;
+            dots[doti][0] = 1; dots[doti++][1] = 2;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 0; dots[doti++][1] = 5;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            dots[doti][0] = 3; dots[doti++][1] = 5;
+            break;
+        case 8:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 0; dots[doti++][1] = 2;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        case 9:
+            dots[doti][0] = 1; dots[doti++][1] = 0;
+            dots[doti][0] = 2; dots[doti++][1] = 0;
+            dots[doti][0] = 0; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 1;
+            dots[doti][0] = 3; dots[doti++][1] = 2;
+            dots[doti][0] = 1; dots[doti++][1] = 3;
+            dots[doti][0] = 2; dots[doti++][1] = 3;
+            dots[doti][0] = 3; dots[doti++][1] = 3;
+            dots[doti][0] = 0; dots[doti++][1] = 4;
+            dots[doti][0] = 3; dots[doti++][1] = 4;
+            dots[doti][0] = 1; dots[doti++][1] = 5;
+            dots[doti][0] = 2; dots[doti++][1] = 5;
+            break;
+        }
+        for ( i = 0; i < doti; i++ )
+        {
+            block->grid[BLOCK_INDEX(2+dots[i][0]+(type%2)*8,y,6-dots[i][1]+((digitPlace+1)%2)*8)] = BLOCK_BLACK_WOOL;
+        }
+    }
+}
+
+
 WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 {
 	int x, z;
@@ -1234,34 +1436,55 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 			}
 			return block;
 		}
-		// tick marks
-		else if ( cx >= 0 && cx*2 < NUM_BLOCKS && (cz == -1 || cz == 8) )
-		{
-			int i, j;
+        // tick marks
+        else if ( cx >= 0 && cx*2 < NUM_BLOCKS && (cz == -1 || cz == 8) )
+        {
+            int i, j;
 
-			// stone edge
-			for ( x = 0; x < 16; x++ )
-			{
-				for ( z = 0; z < 16; z++ )
-				{
-					block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? BLOCK_WOODEN_PLANKS : BLOCK_STONE;
-				}
-			}
+            // stone edge
+            for ( x = 0; x < 16; x++ )
+            {
+                for ( z = 0; z < 16; z++ )
+                {
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? BLOCK_WOODEN_PLANKS : BLOCK_STONE;
+                }
+            }
 
-			// blocks
-			for ( i = 0; i < 2; i++ )
-			{
-				if ( ((cx*2+i) % 10) == 0 )
-				{
-					if ( cx*2+i < NUM_BLOCKS )
-					{
-						for ( j = 0; j <= (int)(cx/8); j++ )
-							block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((cx*2+i)%50) == 0) ? BLOCK_WATER : BLOCK_LAVA;
-					}
-				}
-			}
-			return block;
-		}
+            // blocks
+            for ( i = 0; i < 2; i++ )
+            {
+                if ( ((cx*2+i) % 10) == 0 )
+                {
+                    if ( cx*2+i < NUM_BLOCKS )
+                    {
+                        for ( j = 0; j <= (int)(cx/8); j++ )
+                            block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((cx*2+i)%50) == 0) ? BLOCK_WATER : BLOCK_LAVA;
+                    }
+                }
+            }
+            return block;
+        }
+        // numbers (yes, I'm insane)
+        else if ( cx >= 0 && cx*2 < NUM_BLOCKS && (cz <= -2 && cz >= -3) )
+        {
+            // white wool
+            for ( x = 0; x < 16; x++ )
+            {
+                for ( z = 0; z < 16; z++ )
+                {
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_WHITE_WOOL;
+                }
+            }
+            // blocks
+            testNumeral(block,cx*2,blockHeight,-cz*2-3);
+            testNumeral(block,cx*2,blockHeight,-cz*2-1-3);
+            if ( cx*2+1 < NUM_BLOCKS )
+            {
+                testNumeral(block,cx*2+1,blockHeight,-cz*2-3);
+                testNumeral(block,cx*2+1,blockHeight,-cz*2-1-3);
+            }
+            return block;
+        }
 		else
 		{
 			block_free(block);

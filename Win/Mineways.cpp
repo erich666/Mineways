@@ -107,6 +107,12 @@ static int gAutocorrectDepth=1;
 
 static int gBottomControlEnabled = FALSE;
 
+static BOOL gPrintModel = FALSE;
+static BOOL gExported=0;
+static int gFileType = 0;
+static TCHAR gExportPath[MAX_PATH];
+
+
 // Error codes
 static struct {
     TCHAR *text;
@@ -146,7 +152,7 @@ static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
 static void syncCurrentHighlightDepth();
-static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName );
+static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName, BOOL showDialog );
 static const wchar_t *removePath( const wchar_t *src );
 static void initializeExportDialogData();
 
@@ -294,9 +300,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     TCHAR path[MAX_PATH];
     OPENFILENAME ofn;
     int mx,my,mz,type;
-    BOOL printModel=FALSE;
     static LPARAM holdlParam;
     int on, minx, miny, minz, maxx, maxy, maxz;
+	BOOL saveOK;
 
     // Show message
 #ifdef _DEBUG
@@ -1158,28 +1164,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
         case IDM_FILE_PRINTOBJ:
-            printModel = TRUE;
-        case IDM_FILE_SAVEOBJ:
+		case IDM_FILE_SAVEOBJ:
+            gPrintModel = (wmId==IDM_FILE_PRINTOBJ);
             {
                 ZeroMemory(&ofn,sizeof(OPENFILENAME));
                 ofn.lStructSize=sizeof(OPENFILENAME);
                 ofn.hwndOwner=hWnd;
-                ofn.lpstrFile=path;
-                path[0]=0;
+                ofn.lpstrFile=gExportPath;
+                gExportPath[0]=0;
                 ofn.nMaxFile=MAX_PATH;
                 ofn.lpstrFilter=L"Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-                ofn.nFilterIndex=(printModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
+                ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
                 ofn.lpstrFileTitle=NULL;
                 ofn.nMaxFileTitle=0;
                 ofn.lpstrInitialDir=NULL;
-                ofn.lpstrTitle=printModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
+                ofn.lpstrTitle=gPrintModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
                 ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-                BOOL saveOK = GetSaveFileName(&ofn);
+                saveOK = GetSaveFileName(&ofn);
                 // save file type selected, no matter what (even on cancel); we
                 // always set it because even if someone cancels a save, he probably still
                 // wanted the file type chosen.
-                if ( printModel )
+                if ( gPrintModel )
                 {
                     gExportPrintData.fileType = ofn.nFilterIndex-1;
                 }
@@ -1189,10 +1195,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 if ( saveOK )
                 {
-                    //convert path to utf8
-                    //char objFile[MAX_PATH];
-                    //WideCharToMultiByte(CP_UTF8,0,path,-1,objFile,MAX_PATH,NULL,NULL);
-                    saveObjFile(hWnd,path,printModel,ofn.nFilterIndex-1,gSelectTerrain);
+					// if we got this far, then previous export is off, and we also want to ask for dialog.
+					gExported=0;
+					gFileType = ofn.nFilterIndex-1;
+
+		case IDM_FILE_REPEATPREVIOUSEXPORT:
+                    gExported = saveObjFile(hWnd,gExportPath,gPrintModel,gFileType,gSelectTerrain,!gExported);
 
                     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
 					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
@@ -1740,6 +1748,15 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
         EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_DISABLED);
     }
+	// has a save been done?
+	if (gExported)
+	{
+		EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_ENABLED);
+	}
+	else
+	{
+		EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_DISABLED);
+	}
 }
 
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth )
@@ -1772,8 +1789,8 @@ static void syncCurrentHighlightDepth()
     }
 }
 
-// returns message box code, in case that's ever useful.
-static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName )
+// returns number of files written on successful export, 0 files otherwise.
+static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName, BOOL showDialog )
 {
     int on;
     int retCode = 0;
@@ -1803,7 +1820,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 
     setExportPrintData(gpEFD);
 
-    if ( !doExportPrint(hInst,hWnd) )
+    if ( showDialog && !doExportPrint(hInst,hWnd) )
     {
         // canceled, so cancel output
         return 0;
@@ -1831,8 +1848,16 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
     // export all
     if ( gpEFD->chkExportAll )
     {
-        gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
-            BLF_FLATSIDE | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
+        if ( printModel )
+        {
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+                BLF_FLATSIDE | BLF_3D_BIT;
+        }
+        else
+        {
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+                BLF_FLATSIDE | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
+        }
     }
     else
     {
@@ -1967,6 +1992,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
             updateProgress, terrainFileName, &outputFileList );
 
+		// note how many files were output
+		retCode = outputFileList.count;
+
         // zip it up - test that there's something to zip, in case of errors. Note that the first
         // file saved in ObjManip.c is the one used as the zip file's name.
         if ( gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0) )
@@ -2044,7 +2072,6 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
                     //}
                 }
             }
-            retCode = 1;
         }
     }
 
@@ -2108,9 +2135,9 @@ static void initializeExportDialogData()
 
     gExportPrintData.chkMergeFlattop = 1;
     // Shapeways imports VRML files and displays them with Y up, that is, it
-    // rotates them itself. OBJ and STL are not rotated, so we rotate to have Z up.
+    // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
 	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
-    INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 0, 0, 1, 1, 1, 0);  
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 1, 1, 1, 1, 1, 0);  
     gExportPrintData.chkCenterModel = 1;
 	gExportPrintData.chkIndividualBlocks = 0;
 
@@ -2149,8 +2176,8 @@ static void initializeExportDialogData()
 
     // materials selected
     INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,1,1,1,1,0,1);
-    // for i.materialise, mm; for other STL, cm
-    INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER);
+    // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, m
+    INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_CENTIMETER,UNITS_CENTIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER);
  
 
     //////////////////////////////////////////////////////

@@ -657,7 +657,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // Billboards and true geometry to be output?
     // True only if we're exporting full textures and for rendering only, and billboards are flagged as visible.
     // Must be set now, as this influences whether we stretch textures.
-    gExportBillboards = (!(gOptions->exportFlags & EXPT_3DPRINT)) &&
+    gExportBillboards =
         (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
         gOptions->pEFD->chkExportAll;
 
@@ -1326,13 +1326,22 @@ static int filterBox()
                     else
                     {
                         // check: is it a billboard we can export? Clear it out if so.
-                        if ( gExportBillboards && (flags & (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY)) )
+                        if ( gExportBillboards )
                         {
-                            if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
+                            // If we're 3d printing, then export 3D printable bits, on the assumption
+                            // that the software can merge the data properly with the solid model.
+                            // TODO! Should any blocks that are bits get used to note connected objects,
+                            // so that floaters are not deleted? Probably...
+                            // If we're not 3D printing, export billboards and true geometry.
+                            if ( flags & ((gOptions->exportFlags & EXPT_3DPRINT) ?
+                                BLF_3D_BIT : (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY)) )
                             {
-                                // this block is then cleared out, since it's been processed.
-                                gBoxData[boxIndex].type = BLOCK_AIR;
-                                foundBlock = 1;
+                                if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
+                                {
+                                    // this block is then cleared out, since it's been processed.
+                                    gBoxData[boxIndex].type = BLOCK_AIR;
+                                    foundBlock = 1;
+                                }
                             }
                         }
 
@@ -2190,6 +2199,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_WOODEN_PRESSURE_PLATE:
 		saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1, 1,15);
+		if ( dataVal & 0x1 )
+		{
+			// pressed, kick it down half a pixel
+			identityMtx(mtx);
+			translateMtx(mtx, 0.0f, -0.5f/16.0f, 0.5/16.0f);
+			transformVertices(8,mtx);
+		}
 		return 1;
 
     case BLOCK_OAK_WOOD_STAIRS:
@@ -2433,8 +2449,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         // this moves block up so that bottom of sign is at Y=0
-        // also move a bit away from wall
-        translateMtx(mtx, 0.0f, 0.5f, 0.5/16.0f);
+        // also move a bit away from wall if we're not doing 3d printing
+        translateMtx(mtx, 0.0f, 0.5f, (gOptions->exportFlags & EXPT_3DPRINT) ? 0.0f : 0.5f/16.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         scaleMtx(mtx, 1.0f, 8.0f/12.0f, 1.0f);
         // undo translation
@@ -2576,6 +2592,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return 1;
 
     case BLOCK_SNOW:
+        // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
+        if ( (gOptions->exportFlags & EXPT_3DPRINT) &&
+              ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+        {
+              return 0;
+        }
         // change height as needed
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0, 2 * (1 + (dataVal&0x7)), 0,16);
         return 1;
@@ -2777,6 +2799,7 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
             swatchLoc = swatchLocSet[faceDirection];
 		    switch (faceDirection)
 		    {
+			default:
 		    case DIRECTION_BLOCK_SIDE_LO_X:
 			    vindex[0] = 0;			// ymin, zmin
 			    vindex[1] = 0x1;		// ymin, zmax
@@ -9302,7 +9325,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     // write out a summary, useful for various reasons
     if ( gExportBillboards )
     {
-        sprintf_s(outputString,256,"\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards\n", gModel.vertexCount, gModel.faceCount, 2*gModel.faceCount, gBlockCount, gModel.billboardCount);
+        sprintf_s(outputString,256,"\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2*gModel.faceCount, gBlockCount, gModel.billboardCount);
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
     else
