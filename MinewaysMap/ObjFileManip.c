@@ -462,7 +462,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type );
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
 	int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, 
+static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
@@ -2618,7 +2619,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = 
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = 
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 10,7 );
-        saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 1+(dataVal&0x7)*2,15, 0,8, 1,15);
+        saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1+(dataVal&0x7)*2,15, 0,8, 1,15);
 		return 1;
 
     case BLOCK_FARMLAND:
@@ -2721,27 +2722,27 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_COCOA_PLANT:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-		// TODO! stems
+		// TODO! stems, move in, rotate
 		switch ( dataVal >> 2 )
 		{
 		case 0:
 			swatchLoc += 2;
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 7,15, 3,12, 7,15);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 11,15, 7,12, 11,15);
 			// a little wasteful, we repeat the previous 8 location vertices
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,7, 9,16, 0,7);
+			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4, 12,16, 12,16);
 			break;
 		case 1:
 			swatchLoc++;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 9,15, 5,12, 9,15);
 			// a little wasteful, we repeat the previous 8 location vertices
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,6, 10,16, 0,6);
+			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6, 10,16, 10,16);
 			break;
 		case 2:
 		default:
 			// already right swatch
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 10,15, 7,12, 10,15);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 7,15, 3,12, 7,15);
 			// a little wasteful, we repeat the previous 8 location vertices
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,4, 12,16, 0,4);
+			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,7, 9,16, 9,16);
 			break;
 		}
 		return 1;
@@ -2771,10 +2772,22 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = sideSwatchLoc;
     swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = sideSwatchLoc;
     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = sideSwatchLoc;
-    saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, rotUVs, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+    saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, rotUVs, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
 }
 
-static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+	int swatchLocSet[6];
+	swatchLocSet[DIRECTION_BLOCK_TOP] =
+		swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
+	saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, faceMask, 0, 1, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+}
+
+static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
 	int i;
 	int swatchLoc;
@@ -2784,35 +2797,45 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 	float minu, maxu, minv, maxv;
 	float fminx, fmaxx, fminy, fmaxy, fminz, fmaxz;
 
-	int startVertexIndex = gModel.vertexCount;
-
-	boxIndexToLoc( anchor, boxIndex );
-
-
-	// create the eight corner locations: xmin, ymin, zmin; xmin, ymin, zmax; etc.
-	fminx = (float)minPixX / 16.0f;
-	fmaxx = (float)maxPixX / 16.0f;
-	fminy = (float)minPixY / 16.0f;
-	fmaxy = (float)maxPixY / 16.0f;
-	fminz = (float)minPixZ / 16.0f;
-	fmaxz = (float)maxPixZ / 16.0f;
-	for ( i = 0; i < 8; i++ )
+	int startVertexIndex;
+	if ( reuseVerts )
 	{
-		float *pt;
-		Point cornerVertex;
-		Vec3Scalar( cornerVertex, =, (i&0x4)?fmaxx:fminx, (i&0x2)?fmaxy:fminy, (i&0x1)?fmaxz:fminz );
+		// reuse the 8 vertices made previously
+		startVertexIndex = gModel.vertexCount-8;
+	}
+	else
+	{
+		// normal case: make vertices
+		startVertexIndex = gModel.vertexCount;
 
-		// get vertex and store
-		checkVertexListSize();
+		boxIndexToLoc( anchor, boxIndex );
 
-		pt = (float *)gModel.vertices[gModel.vertexCount];
 
-		pt[X] = (float)anchor[X] + cornerVertex[X];
-		pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-		pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+		// create the eight corner locations: xmin, ymin, zmin; xmin, ymin, zmax; etc.
+		fminx = (float)minPixX / 16.0f;
+		fmaxx = (float)maxPixX / 16.0f;
+		fminy = (float)minPixY / 16.0f;
+		fmaxy = (float)maxPixY / 16.0f;
+		fminz = (float)minPixZ / 16.0f;
+		fmaxz = (float)maxPixZ / 16.0f;
+		for ( i = 0; i < 8; i++ )
+		{
+			float *pt;
+			Point cornerVertex;
+			Vec3Scalar( cornerVertex, =, (i&0x4)?fmaxx:fminx, (i&0x2)?fmaxy:fminy, (i&0x1)?fmaxz:fminz );
 
-		gModel.vertexCount++;
-		assert( gModel.vertexCount <= gModel.vertexListSize );
+			// get vertex and store
+			checkVertexListSize();
+
+			pt = (float *)gModel.vertices[gModel.vertexCount];
+
+			pt[X] = (float)anchor[X] + cornerVertex[X];
+			pt[Y] = (float)anchor[Y] + cornerVertex[Y];
+			pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+
+			gModel.vertexCount++;
+			assert( gModel.vertexCount <= gModel.vertexListSize );
+		}
 	}
 
 	// index these eight corners for each face and make texture UVs on the fly, storing the UV locations.
@@ -2901,10 +2924,13 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
         }
 	}
 
-	// note the box's bounds (not the exact bounds, just that the voxel is occupied)
-	addBounds( anchor, &gModel.billboardBounds );
-	VecScalar( anchor, +=, 1 );
-	addBounds( anchor, &gModel.billboardBounds );
+	if ( !reuseVerts )
+	{
+		// note the box's bounds (not the exact bounds, just that the voxel is occupied)
+		addBounds( anchor, &gModel.billboardBounds );
+		VecScalar( anchor, +=, 1 );
+		addBounds( anchor, &gModel.billboardBounds );
+	}
 
 	gModel.billboardCount++;
 }
