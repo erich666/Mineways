@@ -2719,6 +2719,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         return 1;
 
+	case BLOCK_COCOA_PLANT:
+		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+		// TODO! stems
+		switch ( dataVal >> 2 )
+		{
+		case 0:
+			swatchLoc += 2;
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 7,15, 3,12, 7,15);
+			// a little wasteful, we repeat the previous 8 location vertices
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,7, 9,16, 0,7);
+			break;
+		case 1:
+			swatchLoc++;
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 9,15, 5,12, 9,15);
+			// a little wasteful, we repeat the previous 8 location vertices
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,6, 10,16, 0,6);
+			break;
+		case 2:
+		default:
+			// already right swatch
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 10,15, 7,12, 10,15);
+			// a little wasteful, we repeat the previous 8 location vertices
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 0,4, 12,16, 0,4);
+			break;
+		}
+		return 1;
+
 	default:
 		// something tagged as billboard or geometry, but no case here!
 		assert(0);

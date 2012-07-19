@@ -110,7 +110,7 @@ static int gBottomControlEnabled = FALSE;
 static BOOL gPrintModel = FALSE;
 static BOOL gExported=0;
 static int gFileType = 0;
-static TCHAR gExportPath[MAX_PATH];
+static TCHAR gExportPath[MAX_PATH] = _T("");
 
 
 // Error codes
@@ -1108,8 +1108,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
+			wcscpy_s(path,MAX_PATH,gWorld);
             ofn.lpstrFile=path;
-            path[0]=0;
+            //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
             ofn.lpstrFilter=L"Minecraft World (level.dat)\0level.dat\0";
             ofn.nFilterIndex=1;
@@ -1148,8 +1149,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
+			wcscpy_s(path,MAX_PATH,gSelectTerrain);
             ofn.lpstrFile=path;
-            path[0]=0;
+            //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
             ofn.lpstrFilter=L"Terrain file terrain.png\0*.png\0";
             ofn.nFilterIndex=1;
@@ -1171,7 +1173,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.lStructSize=sizeof(OPENFILENAME);
                 ofn.hwndOwner=hWnd;
                 ofn.lpstrFile=gExportPath;
-                gExportPath[0]=0;
+                //gExportPath[0]=0;
                 ofn.nMaxFile=MAX_PATH;
                 ofn.lpstrFilter=L"Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
                 ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);

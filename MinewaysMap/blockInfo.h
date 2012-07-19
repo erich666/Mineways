@@ -537,7 +537,7 @@ static struct {
     {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7c
     {"Wooden Double Slab",     0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7d
     {"Wooden Slab",            0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //7e
-    {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f - TODO! Really wrong right now
+    {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //7f
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //81
     {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE},    //82 - don't really have tiles for this one
@@ -685,6 +685,7 @@ enum block_types {
     BLOCK_END_PORTAL_FRAME = 0x78,
 	BLOCK_WOODEN_DOUBLE_SLAB = 0x7d,
 	BLOCK_WOODEN_SLAB = 0x7e,
+	BLOCK_COCOA_PLANT = 0x7f,
 	BLOCK_SANDSTONE_STAIRS = 0x80,
 	BLOCK_TRIPWIRE_HOOK = 0x83,
 	BLOCK_TRIPWIRE = 0x84,
