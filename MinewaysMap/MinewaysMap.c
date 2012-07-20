@@ -1233,6 +1233,61 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_STATIONARY_WATER;
 		}
 		break;
+	case BLOCK_COCOA_PLANT:
+		if ( dataVal < 12 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			switch ( dataVal & 0x3 )
+			{
+			case 0:
+				// put block to south
+				bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+				break;
+			case 1:
+				// put block to west
+				bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+				break;
+			case 2:
+				// put block to north
+				bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+				break;
+			case 3:
+				// put block to east
+				bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+				break;
+			}
+			block->grid[bi] = BLOCK_LOG;
+			block->data[(int)(bi/2)] |= 3<<((bi%2)*4);
+		}
+		break;
+	case BLOCK_TRIPWIRE_HOOK:
+		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+		block->grid[bi] = (unsigned char)type;
+		// shift up the data val by 4 if on the odd value location
+		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		switch ( dataVal & 0x3 )
+		{
+		case 0:
+			// put block to north
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+			break;
+		case 1:
+			// put block to east
+			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+			break;
+		case 2:
+			// put block to south
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+			break;
+		case 3:
+			// put block to west
+			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+			break;
+		}
+		break;
 	}
 }
 
@@ -1393,7 +1448,7 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace )
         }
         for ( i = 0; i < doti; i++ )
         {
-            block->grid[BLOCK_INDEX(2+dots[i][0]+(type%2)*8,y,6-dots[i][1]+((digitPlace+1)%2)*8)] = BLOCK_BLACK_WOOL;
+            block->grid[BLOCK_INDEX(2+dots[i][0]+(type%2)*8,y-1,6-dots[i][1]+((digitPlace+1)%2)*8)] = BLOCK_BLACK_WOOL;
         }
     }
 }

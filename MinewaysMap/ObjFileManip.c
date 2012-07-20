@@ -2118,7 +2118,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 {
 	int dataVal, minx, maxx, miny, maxy, minz, maxz, markFirstFace, topBitSet, faceMask, bitAdd;
 	int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
-    int topDataVal, bottomDataVal;
+    int topDataVal, bottomDataVal, shiftVal;
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
 
@@ -2723,27 +2723,83 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_COCOA_PLANT:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		// TODO! stems, move in, rotate
+		shiftVal = 0;
 		switch ( dataVal >> 2 )
 		{
 		case 0:
+			// small
 			swatchLoc += 2;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 11,15, 7,12, 11,15);
 			// a little wasteful, we repeat the previous 8 location vertices
 			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4, 12,16, 12,16);
+			shiftVal = 5;
 			break;
 		case 1:
+			// medium
 			swatchLoc++;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 9,15, 5,12, 9,15);
 			// a little wasteful, we repeat the previous 8 location vertices
 			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6, 10,16, 10,16);
+			shiftVal = 4;
 			break;
 		case 2:
 		default:
+			// large
 			// already right swatch
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 7,15, 3,12, 7,15);
 			// a little wasteful, we repeat the previous 8 location vertices
 			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,7, 9,16, 9,16);
+			shiftVal = 3;
 			break;
+		}
+		// -X (west) is the "base" position for the cocoa plant pod
+		identityMtx(mtx);
+		// push fruit against tree if printing
+		translateMtx(mtx, (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f/16.0f : 0.0f, 0.0f, -(float)shiftVal/16.0f);
+		transformVertices(8,mtx);
+
+		bitAdd = 8;
+
+		// add stem if not printing
+		if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
+		{
+			// tricky kludge here: bottom and top faces make a matching piece. Then need to rotate and translate it into position
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0,  DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 12,16, 8,8, 12,16);
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			translateMtx(mtx, 0.0f, 0.0f, -4.0f/16.0f);
+			rotateMtx(mtx, -90.0f, 0.0f, 0.0f);
+			// undo translation
+			translateMtx(mtx, 0.0f, 8.0f/16.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(8,mtx);
+			bitAdd = 16;
+		}
+
+		// rotate whole thing
+		switch ( dataVal & 0x3 )
+		{
+		default:
+		case 0:
+			angle = 90;
+			break;
+		case 1:
+			angle = 180;
+			break;
+		case 2:
+			angle = 270;
+			break;
+		case 3:
+			angle = 0;
+			break;
+		}
+		if ( angle != 0 )
+		{
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, (float)angle, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(bitAdd,mtx);
 		}
 		return 1;
 
