@@ -1175,7 +1175,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.lpstrFile=gExportPath;
                 //gExportPath[0]=0;
                 ofn.nMaxFile=MAX_PATH;
-                ofn.lpstrFilter=L"Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+				ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+											   L"Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
                 ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
                 ofn.lpstrFileTitle=NULL;
                 ofn.nMaxFileTitle=0;
@@ -2119,7 +2120,7 @@ static void initializeExportDialogData()
     // turn stuff on
     gExportPrintData.fileType = FILE_TYPE_VRML2;
 
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         0, 0, 0, 0, 0, 1);
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         1, 1, 0, 0, 0, 1);
 	// I used to set the last value to 0, meaning only the zip would be created. The idea
 	// was that the naive user would then only have the zip, and so couldn't screw up
 	// when uploading the model file. But this setting is a pain if you want to preview

@@ -93,6 +93,7 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 
 	if (buf==NULL)
 	{
+		// note that these will never get freed, but we just need this one.
 		buf=malloc(CHUNK_DEFLATE_MAX);
 		out=malloc(CHUNK_INFLATE_MAX);
 	}

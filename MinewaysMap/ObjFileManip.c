@@ -465,7 +465,7 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
 static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], int reverseLoop,
+static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static void checkGroupListSize();
@@ -835,11 +835,12 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 		};
 
 		int rc;
-		int i;
 
 		// do only if true textures used
 		if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
 		{
+			int i;
+			
 			// fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
 			// For printing we also then composite over other backgrounds as the defaults.
 			int faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
@@ -2116,11 +2117,12 @@ static int firstFaceModifier( int isFirst, int faceIndex )
 
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
-	int dataVal, minx, maxx, miny, maxy, minz, maxz, markFirstFace, topBitSet, faceMask, bitAdd;
+	int dataVal, minx, maxx, miny, maxy, minz, maxz, faceMask, bitAdd;
 	int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
     int topDataVal, bottomDataVal, shiftVal;
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
+	int printing = (gOptions->exportFlags & EXPT_3DPRINT);
 
     dataVal = gBoxData[boxIndex].data;
 
@@ -2174,26 +2176,26 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType].flags & BLF_FENCE_NEIGHBOR )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 6,9, 7,9 );
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 12,15, 7,9 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 6,9, 7,9 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6, 12,15, 7,9 );
         }
         if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType].flags & BLF_FENCE_NEIGHBOR )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 6,9, 7,9 );
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 12,15, 7,9 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 6,9, 7,9 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10,16, 12,15, 7,9 );
         }
         if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType].flags & BLF_FENCE_NEIGHBOR )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 0,6 );
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 0,6 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 0,6 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 0,6 );
         }
         if ( gBlockDefinitions[gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType].flags & BLF_FENCE_NEIGHBOR )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 10,16 );
-            saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 10,16 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 6,9, 10,16 );
+            saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 10,16 );
         }
 		return 1;
 
@@ -2313,7 +2315,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         default:
             assert(0);
         case BLOCK_STONE_SLAB:
-            markFirstFace = 1;
 		    switch ( dataVal & 0x7 )
 		    {
 		    default:
@@ -2351,9 +2352,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             break;
 
 	    case BLOCK_WOODEN_SLAB:
-            markFirstFace = 1;
-            topBitSet = dataVal & 0x8;
-
 		    switch ( dataVal & 0x7 )
 		    {
 		    default: // normal log
@@ -2451,7 +2449,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateToOriginMtx(mtx, boxIndex);
         // this moves block up so that bottom of sign is at Y=0
         // also move a bit away from wall if we're not doing 3d printing
-        translateMtx(mtx, 0.0f, 0.5f, (gOptions->exportFlags & EXPT_3DPRINT) ? 0.0f : 0.5f/16.0f);
+        translateMtx(mtx, 0.0f, 0.5f, printing ? 0.0f : 0.5f/16.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         scaleMtx(mtx, 1.0f, 8.0f/12.0f, 1.0f);
         // undo translation
@@ -2462,7 +2460,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return 1;
 
     case BLOCK_TRAPDOOR:
-		if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(dataVal & 0x4) )
+		if ( printing && !(dataVal & 0x4) )
 		{
 			// if printing, and door is down, check if there's air below.
 			// if so, don't print it! Too thin.
@@ -2601,7 +2599,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_SNOW:
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
-        if ( (gOptions->exportFlags & EXPT_3DPRINT) &&
+        if ( printing &&
               ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
         {
               return 0;
@@ -2638,7 +2636,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return 1;
 
     case BLOCK_FENCE_GATE:
-        // posts, always output
         // Check if open
         if ( dataVal & 0x4 )
         {
@@ -2651,24 +2648,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 if ( dataVal & 0x2 )
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16,  6, 9,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16, 12,15,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16,  6, 9, 14,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT, 9,16, 12,15, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16,  6, 9,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16, 12,15,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16,  6, 9, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16, 12,15, 14,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7,  6, 9,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7, 12,15,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7,  6, 9, 14,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_X_BIT, 0,7, 12,15, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7,  6, 9,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7, 12,15,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7,  6, 9, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7, 12,15, 14,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12,  0, 2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12,  0, 2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12, 14,16 );
                 }
             }
             else
@@ -2679,24 +2676,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 if ( dataVal & 0x2 )
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 0, 2,  6, 9,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 0, 2, 12,15,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 14,16,  6, 9, 0,7 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_HI_Z_BIT, 14,16, 12,15, 0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 0, 2,  6, 9,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 0, 2, 12,15,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 14,16,  6, 9, 0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 14,16, 12,15, 0,7 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 0,2 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 0,2 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT,  0, 2,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT,  0, 2, 12,15, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT, 14,16,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT, 14,16, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT,  0, 2,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT,  0, 2, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT, 14,16,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT, 14,16, 12,15, 9,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 14,16 );
-                    saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14,16 );
                 }
             }
         }
@@ -2708,10 +2705,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 1, 0x0, 7,9, 5,16,  0, 2);
                 saveBoxGeometry( boxIndex, type, 0, 0x0, 7,9, 5,16, 14,16);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9,  6, 9, 2,14 );
-                saveBoxGeometry( boxIndex, type, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 2,14 );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9,  6, 9, 2,14 );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7,9, 12,15, 2,14 );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 7,9, 9,12, 6,10 );
+                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 7,9, 9,12, 6,10 );
             }
             else
             {
@@ -2719,17 +2716,16 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7,9);
                 saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7,9);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9, 7,9 );
-                saveBoxGeometry( boxIndex, type, 1, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15, 7,9 );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9, 7,9 );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15, 7,9 );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12, 7,9);
+                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12, 7,9);
             }
         }
         return 1;
 
 	case BLOCK_COCOA_PLANT:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-		// TODO! stems, move in, rotate
 		shiftVal = 0;
 		switch ( dataVal >> 2 )
 		{
@@ -2762,13 +2758,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// -X (west) is the "base" position for the cocoa plant pod
 		identityMtx(mtx);
 		// push fruit against tree if printing
-		translateMtx(mtx, (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f/16.0f : 0.0f, 0.0f, -(float)shiftVal/16.0f);
+		translateMtx(mtx, printing ? 1.0f/16.0f : 0.0f, 0.0f, -(float)shiftVal/16.0f);
 		transformVertices(8,mtx);
 
 		bitAdd = 8;
 
 		// add stem if not printing
-		if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
+		if ( !printing )
 		{
 			// tricky kludge here: bottom and top faces make a matching piece. Then need to rotate and translate it into position
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0,  DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 12,16, 8,8, 12,16);
@@ -2997,7 +2993,7 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 
 	gModel.billboardCount++;
 }
-static void saveBoxFace( int swatchLoc, int type, int markFirstFace, int faceDirection, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
+static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
 {
 	FaceRecord *face;
 	int j;
@@ -5465,7 +5461,6 @@ static void hollowBottomOfModel()
 
 static void hollowSeed( int x, int y, int z, IPoint **pSeedList, int *seedSize, int *seedCount )
 {
-    IPoint loc;
     // recursively check this seed location and all neighbors for whether this location can be hollowed out
     int boxIndex = BOX_INDEX(x,y,z);
 
@@ -5474,6 +5469,7 @@ static void hollowSeed( int x, int y, int z, IPoint **pSeedList, int *seedSize, 
     {
         // OK, it can be tested and could spawn more seeds
         int neighborBoxIndex,dir;
+		IPoint loc;
 
         // first test to see if the 26 neighbors are all either solid, or have group 0 (hollow).
         // We do not want to tunnel through any walls and reach air that's not part of the hollow group.
@@ -6103,7 +6099,7 @@ static int getMaterialUsingGroup( int groupID )
 // note that, for flattops and sides, the dataVal passed in is indeed the data value of the neighboring flattop being merged
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] )
 {
-    int swatchLoc,startUvIndex,col,head,bottom,angle,inside,outside,stem;
+    int swatchLoc,startUvIndex,col,head,bottom,angle,inside,outside;
     int localIndices[4] = { 0, 1, 2, 3 };
     int xoff,xstart,dir,dirBit,frontLoc;
     // north is 0, east is 1, south is 2, west is 3
@@ -7008,7 +7004,6 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_HUGE_RED_MUSHROOM:
             inside = SWATCH_INDEX( 14, 8 );
             outside = SWATCH_INDEX( (type == BLOCK_HUGE_BROWN_MUSHROOM) ? 14 : 13, 7 );
-            stem = SWATCH_INDEX( 13, 8 );
             swatchLoc = inside;
             switch ( dataVal )
             {
@@ -7321,7 +7316,6 @@ static int saveUniqueTextureUVs( int swatchLoc, float minu, float maxu, float mi
 
 	// for writing out the UV coordinates themselves, store the swatch location - this is then used to
 	// derive and write out the UVs. Negative means "special min/max used".
-	// TODO!!!: may now need to resize uvIndexToSwatch!!! if textureUsedCount gets too high.
 	checkUvIndexToSwatchSize();
 	gModel.uvIndexToSwatch[gModel.textureUsedCount] = -swatchLoc;
 	// given the swatch location, what is the type (for putting a comment as to what the four coordinates represent).
@@ -7786,7 +7780,7 @@ static int writeOBJMtlFile()
 
         type = gModel.mtlList[i];
 
-        // TODO! Need a read flag here
+        // TODO! Need a read flag here for which material to use.
         if ( gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL )
         {
             // don't use full material, comment it out, just output the basics
@@ -9503,7 +9497,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         assert(gOptions->pEFD->radioRotate270);
     }
 
-    sprintf_s(outputString,256,"# Rotate model %d degrees\n", angle );
+    sprintf_s(outputString,256,"# Rotate model %f degrees\n", angle );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     if ( gOptions->pEFD->radioScaleByBlock )

@@ -707,7 +707,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 // generate test blocks for test world
 void testBlock( WorldBlock *block, int type, int y, int dataVal )
 {
-	int bi, hiBit, trimVal;
+	int bi, trimVal;
 
 	switch ( type )
 	{
@@ -903,7 +903,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		// falls through on 0 through 5, since these are handled below for all rails
 	case BLOCK_POWERED_RAIL:
 	case BLOCK_DETECTOR_RAIL:
-		hiBit = dataVal & 0x8;
 		trimVal = dataVal & 0x7;
 		if ( trimVal <= 5 )
 		{
@@ -936,7 +935,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_LEVER:
-		hiBit = dataVal & 0x8;
 		trimVal = dataVal & 0x7;
 		if ( trimVal >=1 && trimVal <= 6 )
 		{
@@ -1028,7 +1026,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_STONE_BUTTON:
-		hiBit = dataVal & 0x8;
 		trimVal = dataVal & 0x7;
 		if ( trimVal >= 1 && trimVal <= 4 )
 		{
@@ -1085,7 +1082,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			// shift up the data val by 4 if on the odd value location
 			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 
-			hiBit = dataVal & 0x4;
 			trimVal = dataVal & 0x3;
 			switch ( trimVal )
 			{
@@ -1111,7 +1107,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_PISTON:
 	case BLOCK_STICKY_PISTON:
 		// TODO: piston head/extension
-		hiBit = dataVal & 0x8;
 		trimVal = dataVal & 0x7;
 		if ( trimVal < 6 )
 		{
@@ -1135,7 +1130,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 
 		block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
 		break;
-    case BLOCK_FENCE:
+	case BLOCK_FENCE:
+	case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
@@ -1456,13 +1452,12 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace )
 
 WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 {
-	int x, z;
-    unsigned char *pBlockID;
     WorldBlock *block=block_alloc();
     block->rendery = -1; // force redraw
 
 	if ( directory[0] == (wchar_t)'/' )
 	{
+		int x, z;
 		int grassHeight = 62;
 		int blockHeight = 63;
 
@@ -1557,7 +1552,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         //if ( convertToColoredWool )
         //{
             int i;
-            pBlockID = block->grid;
+            unsigned char *pBlockID = block->grid;
             for ( i = 0; i < 16*16*256; i++, pBlockID++ )
             {
                 if ( *pBlockID == BLOCK_WOOL)
