@@ -481,21 +481,21 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 // to test as we go, but this sort of thing should be rare
                 if ( nc == 0 )
                 {
-                    msgboxID = MessageBox(NULL,
+                    MessageBox(NULL,
                         _T("Bad (non-numeric) value detected in options dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK|MB_ICONERROR);
                     return (INT_PTR)FALSE;
                 }
 
                 if ( lepd.radioScaleToHeight && lepd.modelHeightVal <= 0.0f )
                 {
-                    msgboxID = MessageBox(NULL,
+                    MessageBox(NULL,
                         _T("Model height must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);
                     return (INT_PTR)FALSE;
                 }
 
                 if ( lepd.radioScaleByBlock && lepd.blockSizeVal[lepd.fileType] <= 0.0f )
                 {
-                    msgboxID = MessageBox(NULL,
+                    MessageBox(NULL,
                         _T("Block size must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);
                     return (INT_PTR)FALSE;
                 }
@@ -509,7 +509,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                     // minimum, times $0.75/cm^3 gives $0.40.
                     if ( lepd.costVal <= (mtlCostTable[curPhysMaterial].costHandling+mtlCostTable[curPhysMaterial].costMinimum) )
                     {
-                        msgboxID = MessageBox(NULL,
+                        MessageBox(NULL,
                             _T("The cost must be > $1.55 for colorless, > $3.40 for color;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);
                         return (INT_PTR)FALSE;
                     }
@@ -517,14 +517,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
                 if ( lepd.chkDeleteFloaters && lepd.floaterCountVal < 0 )
                 {
-                    msgboxID = MessageBox(NULL,
+                    MessageBox(NULL,
                         _T("Floating objects deletion value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);
                     return (INT_PTR)FALSE;
                 }
 
                 if ( lepd.chkHollow && lepd.hollowThicknessVal[epd.fileType] < 0.0 )
                 {
-                    msgboxID = MessageBox(NULL,
+                    MessageBox(NULL,
                         _T("Hollow thickness value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);
                     return (INT_PTR)FALSE;
                 }

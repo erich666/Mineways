@@ -6195,12 +6195,8 @@ static int getMaterialUsingGroup( int groupID )
 // note that, for flattops and sides, the dataVal passed in is indeed the data value of the neighboring flattop being merged
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] )
 {
-    int swatchLoc,startUvIndex,col,head,bottom,angle,inside,outside;
-    int localIndices[4] = { 0, 1, 2, 3 };
-    int xoff,xstart,dir,dirBit,frontLoc;
-    // north is 0, east is 1, south is 2, west is 3
-    static int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
-
+	int swatchLoc,startUvIndex;
+	int localIndices[4] = { 0, 1, 2, 3 };
 
     // outputting swatches, or this block doesn't have a good official texture?
     if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) || 
@@ -6248,6 +6244,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     }
     else
     {
+		int col,head,bottom,angle,inside,outside;
+		int xoff,xstart,dir,dirBit,frontLoc;
+		// north is 0, east is 1, south is 2, west is 3
+		static int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
+
         // use the textures:
         // go past the NUM_BLOCKS solid colors, use the txrX and txrY to find which to go to.
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -7282,7 +7283,6 @@ static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirec
 // take the cutout at swatchLoc, with given type and subtype, and put it over the background at background index, for faceDirection
 static int createCompositeSwatch( int swatchLoc, int backgroundSwatchLoc, int angle )
 {
-    int scol,srow,dcol,drow;
     SwatchComposite *pSwatch = (SwatchComposite *)malloc(sizeof(SwatchComposite));
     pSwatch->swatchLoc = swatchLoc;
     pSwatch->angle = angle;
@@ -7294,6 +7294,7 @@ static int createCompositeSwatch( int swatchLoc, int backgroundSwatchLoc, int an
 
     if ( angle != 0 )
     {
+		int scol,srow,dcol,drow;
         // rotate swatch by angle, then apply to background.
         SWATCH_TO_COL_ROW( swatchLoc, scol, srow );
         // set to new, temporary location for the swatch, for compositing
@@ -9404,7 +9405,6 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
     char outputString[256];
     char timeString[256];
-    char warningString[256];
     errno_t errNum;
     struct tm newtime;
     __time32_t aclock;
@@ -9441,6 +9441,8 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
     if ( gOptions->exportFlags & EXPT_3DPRINT )
     {
+		char warningString[256];
+		
         // If we add materials, put the material chosen here.
         sprintf_s(outputString,256,"\n# Cost estimate for this model:\n");
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
@@ -10116,8 +10118,6 @@ static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatc
     unsigned int *si = (unsigned int *)(dst->image_data) + srow*gModel.swatchSize*dst->width + scol*gModel.swatchSize;
 
     int row,col;
-    unsigned char tr,tg,tb,ta;
-    unsigned char sr,sg,sb,sa;
     unsigned int *cti,*csi;
 
     for ( row = 0; row < gModel.swatchSize; row++ )
@@ -10128,10 +10128,13 @@ static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatc
 
         for ( col = 0; col < gModel.swatchSize; col++ )
         {
+			unsigned char tr,tg,tb,ta;
+			unsigned char sr,sg,sb,sa;
+			
             float oneMinusBlend = 1.0f - blend;
 
             GET_PNG_TEXEL( tr,tg,tb,ta, *cti );
-            GET_PNG_TEXEL( sr,sg,sb,sa, *csi );
+            GET_PNG_TEXEL( sr,sg,sb,sa, *csi );	// sa is unused
 
             tr = (unsigned char)(tr*oneMinusBlend + sr*blend);
             tg = (unsigned char)(tg*oneMinusBlend + sg*blend);
@@ -10262,7 +10265,7 @@ static void convertAlphaToGrayscale( progimage_info *dst )
             // get alpha of pixel, use as grayscale
             unsigned int value = *di;
             unsigned char dr,dg,db,da;
-            GET_PNG_TEXEL(dr,dg,db,da, value);
+            GET_PNG_TEXEL(dr,dg,db,da, value);	// dr, dg, db unused
             SET_PNG_TEXEL(*di, da, da, da, 255);
             di++;
         }
