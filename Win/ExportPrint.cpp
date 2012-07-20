@@ -477,7 +477,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 nc &= sscanf_s(lepd.floaterCountString,"%d",&lepd.floaterCountVal);
                 nc &= sscanf_s(lepd.hollowThicknessString,"%g",&lepd.hollowThicknessVal[epd.fileType]);
 
-                int msgboxID;
                 // this is a bit lazy checking all errors here, there's probably a better way
                 // to test as we go, but this sort of thing should be rare
                 if ( nc == 0 )

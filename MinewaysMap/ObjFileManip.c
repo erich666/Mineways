@@ -453,6 +453,7 @@ static void initializeModelData();
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
 static int populateBox(const wchar_t *world, IBox *box);
+static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox );
 static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
 
 static int filterBox();
@@ -1014,6 +1015,7 @@ static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, i
     gBoxSize[Z] = zmax - zmin + 3;
     // scale for X index value
     gBoxSizeYZ = gBoxSize[Y] * gBoxSize[Z];
+	// this will be the size of gBoxData
     gBoxSizeXYZ = gBoxSize[X] * gBoxSizeYZ;
 
     gFaceOffset[0] = -gBoxSizeYZ;	// -X
@@ -1164,10 +1166,6 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     int endxblock, endzblock;
     int blockX, blockZ;
 
-    gBoxData = (BoxCell*)malloc(gBoxSizeXYZ*sizeof(BoxCell));
-    // set all values to "air"
-    memset(gBoxData,0x0,gBoxSizeXYZ*sizeof(BoxCell));
-
     // grab the data block needed, with a border of "air", 0, around the set
     startxblock=(int)floor((float)worldBox->min[X]/16.0f);
     startzblock=(int)floor((float)worldBox->min[Z]/16.0f);
@@ -1178,7 +1176,32 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     VecScalar( gSolidWorldBox.min, =,  999999 );
     VecScalar( gSolidWorldBox.max, =, -999999 );
 
-    // x increases (old) south, decreases north
+	// we now extract twice: first time is just to get bounds of solid stuff
+	for ( blockX=startxblock; blockX<=endxblock; blockX++ )
+	{
+		//UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
+		// z increases west, decreases east
+		for ( blockZ=startzblock; blockZ<=endzblock; blockZ++ )
+		{
+			// this method sets gSolidWorldBox
+			findChunkBounds(world,blockX,blockZ,worldBox);
+		}
+	}
+	if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
+	{
+		// nothing to do: there is nothing in the box
+		return MW_NO_BLOCKS_FOUND;
+	}
+
+	// have to reinitialize to get right globals for gSolidWorldBox.
+	initializeWorldData( worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z] );
+
+	gBoxData = (BoxCell*)malloc(gBoxSizeXYZ*sizeof(BoxCell));
+	// set all values to "air"
+	memset(gBoxData,0x0,gBoxSizeXYZ*sizeof(BoxCell));
+
+	// Now actually copy the relevant data over to the newly-allocated box data grid.
+    // x increases (old) south (now east), decreases north (now west)
     for ( blockX=startxblock; blockX<=endxblock; blockX++ )
     {
         //UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
@@ -1189,11 +1212,11 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
             extractChunk(world,blockX,blockZ,worldBox);
         }
     }
-    if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
-    {
-        // nothing to do: there is nothing in the box
-        return MW_NO_BLOCKS_FOUND;
-    }
+    //if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
+    //{
+    //    // nothing to do: there is nothing in the box
+    //    return MW_NO_BLOCKS_FOUND;
+    //}
 
     // convert to solid relative box (0 through boxSize-1)
     Vec3Op( gSolidBox.min, =, gSolidWorldBox.min, +, gWorld2BoxOffset );
@@ -1205,6 +1228,78 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     assert( (gAirBox.min[Y] >= 0) && (gAirBox.max[Y] < gBoxSize[Y]) );
 
     return MW_NO_ERROR;
+}
+
+// test relevant part of a given chunk to find its size
+static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox )
+{
+	int chunkX, chunkZ;
+
+	int loopXmin, loopZmin;
+	int loopXmax, loopZmax;
+	int x,y,z;
+
+	int chunkIndex, boxIndex;
+	int blockID;
+
+	IPoint loc;
+	//unsigned char dataVal;
+
+	WorldBlock *block;
+	block=(WorldBlock *)Cache_Find(bx,bz);
+
+	if (block==NULL)
+	{
+		wchar_t directory[256];
+		wcsncpy_s(directory,256,world,255);
+		wcsncat_s(directory,256,L"/",1);
+		if (gOptions->worldType&HELL)
+		{
+			wcsncat_s(directory,256,L"DIM-1/",6);
+		}
+		if (gOptions->worldType&ENDER)
+		{
+			wcsncat_s(directory,256,L"DIM1/",5);
+		}
+
+		block=LoadBlock(directory,bx,bz);
+		if (block==NULL) //blank tile, nothing to do
+			return;
+
+		Cache_Add(bx,bz,block);
+	}
+
+	// loop through area of box that overlaps with this chunk
+	chunkX = bx * 16;
+	chunkZ = bz * 16;
+
+	loopXmin = max(worldBox->min[X],chunkX);
+	loopZmin = max(worldBox->min[Z],chunkZ);
+
+	loopXmax = min(worldBox->max[X],chunkX+15);
+	loopZmax = min(worldBox->max[Z],chunkZ+15);
+
+	for ( x = loopXmin; x <= loopXmax; x++ ) {
+		for ( z = loopZmin; z <= loopZmax; z++ ) {
+			boxIndex = WORLD_TO_BOX_INDEX(x,worldBox->min[Y],z);
+			chunkIndex = CHUNK_INDEX(bx,bz,x,worldBox->min[Y],z);
+			for ( y = worldBox->min[Y]; y <= worldBox->max[Y]; y++, boxIndex++ ) {
+				blockID = block->grid[chunkIndex];
+
+				// For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
+				chunkIndex += 256;
+
+				// get bounds on y searches:
+				// search for air, and if not found then
+				// add to vertical bounds.
+				if ( blockID > BLOCK_AIR )
+				{
+					Vec3Scalar( loc, =, x,y,z );
+					addBounds(loc,&gSolidWorldBox);
+				}
+			}
+		}
+	}
 }
 
 // copy relevant part of a given chunk to the box data grid
@@ -1219,7 +1314,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
     int chunkIndex, boxIndex;
     int blockID;
 
-    IPoint loc;
+    //IPoint loc;
     //unsigned char dataVal;
 
     WorldBlock *block;
@@ -1276,10 +1371,11 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                 // get bounds on y searches:
                 // search for air, and if not found then
                 // add to vertical bounds.
-                if ( blockID > BLOCK_AIR )
-                {
-                    Vec3Scalar( loc, =, x,y,z );
-                    addBounds(loc,&gSolidWorldBox);
+				// now done by findChunkBounds:
+                //if ( blockID > BLOCK_AIR )
+                //{
+                    //Vec3Scalar( loc, =, x,y,z );
+                    //addBounds(loc,&gSolidWorldBox);
 
                     // special: if it's a wire, clear the data value. We use this later for
                     // how the wires actually connect to each other.
@@ -1287,7 +1383,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                     {
                         gBoxData[boxIndex].data = 0x0;
                     }
-                }
+                //}
             }
         }
     }
