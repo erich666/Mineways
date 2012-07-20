@@ -2462,6 +2462,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return 1;
 
     case BLOCK_TRAPDOOR:
+		if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(dataVal & 0x4) )
+		{
+			// if printing, and door is down, check if there's air below.
+			// if so, don't print it! Too thin.
+			if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
+				return 0;
+		}
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,3, 0,16);
         // rotate as needed
         if (dataVal & 0x4 )
