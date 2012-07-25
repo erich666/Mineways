@@ -44,6 +44,8 @@ static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
 static PORTAFILE gPngFile;  // for terrain.png input (not texture output)
 
+#define MINECRAFT_SINGLE_MATERIAL "MC_material"
+
 #define NO_GROUP_SET 0
 #define BOUNDARY_AIR_GROUP 1
 
@@ -1379,6 +1381,8 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
 
                     // special: if it's a wire, clear the data value. We use this later for
                     // how the wires actually connect to each other.
+					// TODO! We could still save the value, then use the high 4 bits for the
+					// connection values.
                     if ( blockID == BLOCK_REDSTONE_WIRE )
                     {
                         gBoxData[boxIndex].data = 0x0;
@@ -2556,13 +2560,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return 1;
 
     case BLOCK_TRAPDOOR:
-		if ( printing && !(dataVal & 0x4) )
-		{
-			// if printing, and door is down, check if there's air below.
-			// if so, don't print it! Too thin.
-			if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
-				return 0;
-		}
+		// On second thought, in testing it worked fine.
+		//if ( printing && !(dataVal & 0x4) )
+		//{
+		//	// if printing, and door is down, check if there's air below.
+		//	// if so, don't print it! Too thin.
+		//	if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
+		//		return 0;
+		//}
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,3, 0,16);
         // rotate as needed
         if (dataVal & 0x4 )
@@ -4381,7 +4386,12 @@ static int connectCornerTips()
                             }
                             else
                             {
-                                // copy it over
+								// Here is where we actually add the block, by using the
+								// data of the boxIndex.
+                                // copy this over, unless true geometry has been created
+								// and the original block was already output as true connector geometry.
+								// Basically, we're crossing fingers that the original block can connect
+								// the blocks together. TODO!!!
                                 gBoxData[airBoxIndex].type = gBoxData[boxIndex].type;
                                 gBoxData[airBoxIndex].data = gBoxData[boxIndex].data;
                             }
@@ -4661,6 +4671,10 @@ static int fixTouchingEdges()
             }
             else
             {
+				// copy this over, unless true geometry has been created
+				// and the original block was already output as true connector geometry.
+				// Basically, we're crossing fingers that the original block can connect
+				// the blocks together. TODO!!!
                 gBoxData[boxIndex].type = gBoxData[boxMtlIndex].type;
                 gBoxData[boxIndex].data = gBoxData[boxMtlIndex].data;
             }
@@ -7479,7 +7493,7 @@ static void freeModel(Model *pModel)
 static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 {
     // set to 1 if you want absolute (positive) indices used in the faces
-    int absoluteIndices = (gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL) ? 1 : 0;
+    int absoluteIndices = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_REL_COORDINATES) ? 0 : 1;
 
 #ifdef WIN32
     DWORD br;
@@ -7592,6 +7606,17 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 	// should only be needed for when objects are not sorted by material (grouped by block).
 	memset(outputMaterial,0,sizeof(outputMaterial));
 
+	// test for a single material output. If so, do it now and reset materials in general
+	if ( exportMaterials )
+	{
+		// should there be just one single material in this OBJ file?
+		if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) )
+		{
+			sprintf_s(outputString,256,"\nusemtl %s\n", MINECRAFT_SINGLE_MATERIAL);
+			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+		}
+	}
+
     for ( i = 0; i < gModel.faceCount; i++ )
     {
         if ( i % 1000 == 0 )
@@ -7599,9 +7624,9 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 
         if ( exportMaterials )
         {
-            //// should there be just one single material in this OBJ file?
-            //if ( !(gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL) )
-            //{
+            // should there be more than one material or group output in this OBJ file?
+            if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE|EXPT_OUTPUT_OBJ_GROUPS) )
+            {
                 // did we reach a new material?
                 if ( prevType != gModel.faceList[i]->type )
                 {
@@ -7613,11 +7638,11 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar( mtlName );
-                    // g materialName - useful?
                     // usemtl materialName
 					if ( gOptions->exportFlags & EXPT_GROUP_BY_BLOCK )
 					{
 						sprintf_s(outputString,256,"\nusemtl %s\n", mtlName);
+						WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 						// note which material is to be output, if not output already
 						if ( outputMaterial[prevType] == 0 )
 						{
@@ -7627,12 +7652,24 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 					}
 					else
 					{
-						sprintf_s(outputString,256,"\ng %s\nusemtl %s\n", mtlName, mtlName);
-						gModel.mtlList[gModel.mtlCount++] = prevType;
+						strcpy_s(outputString,256,"\n");
+						WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+						if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_GROUPS )
+						{
+							sprintf_s(outputString,256,"g %s\n", mtlName);
+							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+						}
+						if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE )
+						{
+							sprintf_s(outputString,256,"usemtl %s\n", mtlName);
+							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+							gModel.mtlList[gModel.mtlCount++] = prevType;
+						}
+						// else don't output material
 					}
-                    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-                 }
-            //}
+				}
+            }
         }
 
         // output the actual face
@@ -7854,7 +7891,8 @@ static int writeOBJMtlFile()
     if (gMtlFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    sprintf_s(outputString,1024,"Wavefront OBJ material file\n# Contains %d materials\n\n", gModel.mtlCount);
+    sprintf_s(outputString,1024,"Wavefront OBJ material file\n# Contains %d materials\n",
+		(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) ? gModel.mtlCount : 1 );
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
     if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
@@ -7867,185 +7905,225 @@ static int writeOBJMtlFile()
         sprintf_s(textureAlpha,MAX_PATH,"%s%s.png",gOutputFileRootCleanChar,PNG_ALPHA_SUFFIXCHAR);
     }
 
-    for ( i = 0; i < gModel.mtlCount; i++ )
-    {
-        char tfString[256];
-        char mapdString[256];
-        char keString[256];
-        char *typeTextureFileName;
-        char fullMtl[256];
-
-        type = gModel.mtlList[i];
-
-        // TODO! Need a read flag here for which material to use.
-        if ( gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL )
-        {
-            // don't use full material, comment it out, just output the basics
-            strcpy_s(fullMtl,256,"# ");
-        }
-        else
-        {
-            // use full material description, including the object's color itself.
-            // Note, G3D doesn't like this so much, it would rather have full material
-            // + neutral material. We could add yet another checkbox for "output surface attributes"
-            // or, alternately, a separate dialog somewhere saying what options are desired
-            // for OBJ output.
-            strcpy_s(fullMtl,256,"");
-        }
-
-        // print header: material name, and group
-        // group isn't really required, but can be useful
-        strcpy_s(mtlName,256,gBlockDefinitions[type].name);
-        spacesToUnderlinesChar(mtlName);
-
-        // if we want a neutral material, set to white
-        if (gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL)
-        {
-            fRed = fGreen = fBlue = 1.0f;
-        }
-        else
-        {
-            // use color in file, which is nice for previewing. Blender and 3DS MAX like this, for example
-            fRed = (gBlockDefinitions[type].color >> 16)/255.0f;
-            fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff)/255.0f;
-            fBlue = (gBlockDefinitions[type].color & 0xff)/255.0f;
-        }
-
-        // good for blender:
-        ka = 0.2;
-        kd = 1.0;
-        // looks bad in G3D, but if you want to emit light from various emitters - torches, etc. - make it non-zero.
-        // If nothing else you can identify emitters when you see 'Ke 0 0 0' in the material.
-        ke = 0.0f;
-        // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
-        // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
-        // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
-        // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
-        // do not support textures (e.g. Blender).
-        //alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)) ? 1.0f : gBlockDefinitions[type].alpha;
-        // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-        // alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
-        alpha = gBlockDefinitions[type].alpha;
-        if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
-        {
-            // if showing groups, make the alpha of the largest group transparent
-            if ( gDebugTransparentType == type )
-            {
-                alpha = DEBUG_DISPLAY_ALPHA;
-            }
+	if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) )
+	{
+		// output a single material
+		if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+		{
+			if ( gOptions->exportFlags & EXPT_3DPRINT )
+			{
+				gModel.usesRGB = 1;
+			}
 			else
+			{
+				// cutouts or alpha
+				// we could be more clever here and go through all the materials to see which are needed,
+				// but we'd basically have to copy the code further below for who has what alpha, etc.
+				gModel.usesRGBA = 1;
+				gModel.usesAlpha = 1;
+			}
+
+			sprintf_s(outputString,1024,
+				"\nnewmtl %s\n"
+				"Kd 1 1 1\n"
+				"Ks 0 0 0\n"
+				"map_Kd %s\n"
+				"map_d %s\n"
+				,
+				MINECRAFT_SINGLE_MATERIAL,
+				textureRGBA,
+				textureAlpha );
+		}
+		else
+		{
+			sprintf_s(outputString,1024,
+				"\nnewmtl %s\n"
+				"Kd 1 1 1\n"
+				"Ks 0 0 0\n"
+				,
+				MINECRAFT_SINGLE_MATERIAL );
+		}
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+
+	}
+	else
+	{
+		// output materials
+		for ( i = 0; i < gModel.mtlCount; i++ )
+		{
+			char tfString[256];
+			char mapdString[256];
+			char keString[256];
+			char *typeTextureFileName;
+			char fullMtl[256];
+
+			type = gModel.mtlList[i];
+
+			if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
+			{
+				// use full material description, and include illumination model.
+				// Really currently tailored for G3D, and things like Tr are commented out always.
+				strcpy_s(fullMtl,256,"");
+			}
+			else
+			{
+				// don't use full material, comment it out, just output the basics
+				strcpy_s(fullMtl,256,"# ");
+			}
+
+			// print header: material name
+			strcpy_s(mtlName,256,gBlockDefinitions[type].name);
+			spacesToUnderlinesChar(mtlName);
+
+			// if we want a neutral material, set to white
+			if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
+			{
+				fRed = fGreen = fBlue = 1.0f;
+			}
+			else
+			{
+				// use color in file, which is nice for previewing. Blender and 3DS MAX like this, for example. G3D does not.
+				fRed = (gBlockDefinitions[type].color >> 16)/255.0f;
+				fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff)/255.0f;
+				fBlue = (gBlockDefinitions[type].color & 0xff)/255.0f;
+			}
+
+			// good for blender:
+			ka = 0.2;
+			kd = 1.0;
+			// looks bad in G3D, but if you want to emit light from various emitters - torches, etc. - make it non-zero.
+			// If nothing else you can identify emitters when you see 'Ke 0 0 0' in the material.
+			ke = 0.0f;
+			// 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
+			// is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
+			// in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
+			// Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
+			// do not support textures (e.g. Blender).
+			//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)) ? 1.0f : gBlockDefinitions[type].alpha;
+			// Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
+			// alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
+			alpha = gBlockDefinitions[type].alpha;
+			if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+			{
+				// if showing groups, make the alpha of the largest group transparent
+				if ( gDebugTransparentType == type )
+				{
+					alpha = DEBUG_DISPLAY_ALPHA;
+				}
+				else
+				{
+					alpha = 1.0f;
+				}
+			}
+			else if ( gOptions->exportFlags & EXPT_3DPRINT )
+			{
+				// for 3d printing, alpha is always 1.0
+				alpha = 1.0f;
+			}
+			// if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
+			if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
 			{
 				alpha = 1.0f;
 			}
-        }
-        else if ( gOptions->exportFlags & EXPT_3DPRINT )
-        {
-            // for 3d printing, alpha is always 1.0
-            alpha = 1.0f;
-        }
-        // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
-        if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
-        {
-            alpha = 1.0f;
-        }
 
-        if ( alpha < 1.0f )
-        {
-            // semitransparent block, such as water
-            gModel.usesRGBA = 1;
-            gModel.usesAlpha = 1;
-            sprintf_s(tfString,256,"Tf %g %g %g\n", 1.0f-(float)(fRed*alpha), 1.0f-(float)(fGreen*alpha), 1.0f-(float)(fBlue*alpha) );
-        }
-        else
-        {
-            tfString[0] = '\0';
-        }
+			if ( alpha < 1.0f )
+			{
+				// semitransparent block, such as water
+				gModel.usesRGBA = 1;
+				gModel.usesAlpha = 1;
+				sprintf_s(tfString,256,"%sTf %g %g %g\n", fullMtl, 1.0f-(float)(fRed*alpha), 1.0f-(float)(fGreen*alpha), 1.0f-(float)(fBlue*alpha) );
+			}
+			else
+			{
+				tfString[0] = '\0';
+			}
 
-        // export map_d only if CUTOUTS.
-        if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) )
-        {
-            // cutouts or alpha
-            gModel.usesRGBA = 1;
-            gModel.usesAlpha = 1;
-            typeTextureFileName = textureRGBA;
-            sprintf_s(mapdString,256,"map_d %s\n", textureAlpha );
-        }
-        else
-        {
-            gModel.usesRGB = 1;
-            typeTextureFileName = textureRGB;
-            mapdString[0] = '\0';
-        }
-        if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
-        {
-            // emitter
-            sprintf_s(keString,256,"Ke %g %g %g\n", (float)(fRed*ke), (float)(fGreen*ke), (float)(fBlue*ke) );
-        }
-        else
-        {
-            keString[0] = '\0';
-        }
+			// export map_d only if CUTOUTS.
+			if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) )
+			{
+				// cutouts or alpha
+				gModel.usesRGBA = 1;
+				gModel.usesAlpha = 1;
+				typeTextureFileName = textureRGBA;
+				sprintf_s(mapdString,256,"map_d %s\n", textureAlpha );
+			}
+			else
+			{
+				gModel.usesRGB = 1;
+				typeTextureFileName = textureRGB;
+				mapdString[0] = '\0';
+			}
+			if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
+			{
+				// emitter
+				sprintf_s(keString,256,"%sKe %g %g %g\n", fullMtl, (float)(fRed*ke), (float)(fGreen*ke), (float)(fBlue*ke) );
+			}
+			else
+			{
+				keString[0] = '\0';
+			}
 
-        if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
-        {
-            sprintf_s(outputString,1024,
-                "newmtl %s\n"
-				"%sNs 0\n"	// specular highlight power
-				"%sKa %g %g %g\n"
-                "Kd %g %g %g\n"
-                "Ks 0 0 0\n"
-				"%s%s" // emissive
-				"%smap_Ka %s\n"
-                "map_Kd %s\n"
-                "%s" // map_d, if there's a cutout
-                // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-				"%sillum %d\n"
-                "# d %g\n"	// some use Tr here - Blender likes "d"
-                "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-				"%s%s\n"	//Tf, if needed
-                ,
-                // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
-                mtlName,
-                fullMtl,
-                fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
-                (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                fullMtl,keString,
-                fullMtl,typeTextureFileName,
-                typeTextureFileName,
-                mapdString,
-                fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
-                (float)(alpha),
-                (float)(alpha),
-                fullMtl,tfString);
-        }
-        else
-        {
-            sprintf_s(outputString,1024,
-                "newmtl %s\n"
-                "%sNs 0\n"	// specular highlight power
-                "%sKa %g %g %g\n"
-                "Kd %g %g %g\n"
-                "Ks 0 0 0\n"
-                "%s%s" // emissive
-                // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-                "%sillum %d\n"
-                "d %g\n"	// some use Tr here - Blender likes "d"
-                "Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-                "%s%s\n"	//Tf, if needed
-                ,
-                // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
-                mtlName,
-                fullMtl,
-                fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
-                (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                fullMtl,keString,
-                fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
-                (float)(alpha),
-                (float)(alpha),
-                fullMtl,tfString);
-        }
-        WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
-    }
+			if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
+			{
+				sprintf_s(outputString,1024,
+					"\nnewmtl %s\n"
+					"%sNs 0\n"	// specular highlight power
+					"%sKa %g %g %g\n"
+					"Kd %g %g %g\n"
+					"Ks 0 0 0\n"
+					"%s" // emissive
+					"%smap_Ka %s\n"
+					"map_Kd %s\n"
+					"%s" // map_d, if there's a cutout
+					// "Ni 1.0\n" - Blender likes to output this - no idea what it is
+					"%sillum %d\n"
+					"# d %g\n"	// some use Tr here - Blender likes "d"
+					"# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+					"%s"	//Tf, if needed
+					,
+					// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
+					mtlName,
+					fullMtl,
+					fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
+					(float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
+					keString,
+					fullMtl,typeTextureFileName,
+					typeTextureFileName,
+					mapdString,
+					fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
+					(float)(alpha),
+					(float)(alpha),
+					tfString);
+			}
+			else
+			{
+				sprintf_s(outputString,1024,
+					"\nnewmtl %s\n"
+					"%sNs 0\n"	// specular highlight power
+					"%sKa %g %g %g\n"
+					"Kd %g %g %g\n"
+					"Ks 0 0 0\n"
+					"%s%s" // emissive
+					// "Ni 1.0\n" - Blender likes to output this - no idea what it is
+					"%sillum %d\n"
+					"d %g\n"	// some use Tr here - Blender likes "d"
+					"Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+					"%s%s\n"	//Tf, if needed
+					,
+					// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
+					mtlName,
+					fullMtl,
+					fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
+					(float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
+					fullMtl,keString,
+					fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
+					(float)(alpha),
+					(float)(alpha),
+					fullMtl,tfString);
+			}
+			WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
+		}
+	}
 
     PortaClose(gMtlFile);
 
@@ -9436,6 +9514,12 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
 
+	// put the selection box near the top, since I find I use these values most of all
+	sprintf_s(outputString,256,"\n# Selection location: %d, %d, %d to %d, %d, %d\n\n",
+		worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
+		worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
+	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
     sprintf_s(outputString,256,"# Created for %s\n", (gOptions->exportFlags & EXPT_3DPRINT) ? "3D printing" : "Viewing" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
@@ -9548,11 +9632,6 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     Vec2Op(gOptions->dimensions, =, (int)gFilledBoxSize);
 
     // Summarize all the options used for output
-    sprintf_s(outputString,256,"\n# Selection location: %d, %d, %d to %d, %d, %d\n\n",
-        worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
-        worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
     if ( gOptions->exportFlags & EXPT_OUTPUT_MATERIALS )
     {
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
@@ -9568,16 +9647,38 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     sprintf_s(outputString,256,"# File type: %s\n", outputTypeString[radio] );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-    sprintf_s(outputString,256,"# Make Z direction up: %s\n", gOptions->pEFD->chkMakeZUp ? "YES" : "no" );
+	if ( ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ) )
+	{
+		if ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+		{
+			strcpy_s(outputString,256,"# OBJ relative coordinates" );
+			WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+		}
+
+		sprintf_s(outputString,256,"# Export separate objects: %s\n", gOptions->pEFD->chkMultipleObjects ? "YES" : "no" );
+		WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+		if ( gOptions->pEFD->chkMultipleObjects )
+		{
+			sprintf_s(outputString,256,"#  Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no" );
+			WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+			if ( gOptions->pEFD->chkMaterialPerType )
+			{
+				sprintf_s(outputString,256,"#   G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no" );
+				WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+			}
+		}
+	}
+
+    sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-	sprintf_s(outputString,256,"# Export all block types: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no" );
+	sprintf_s(outputString,256,"# Export lesser blocks: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no" );
 	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-	sprintf_s(outputString,256,"# Export individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no" );
+	sprintf_s(outputString,256,"# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no" );
 	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gOptions->pEFD->chkMergeFlattop ? "YES" : "no" );

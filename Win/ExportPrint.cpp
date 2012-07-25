@@ -143,6 +143,20 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,epd.floaterCountString);
             SetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,epd.hollowThicknessString);
 
+			// OBJ options: gray out if OBJ not in use TODO!
+			if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+			{
+				CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,epd.chkMultipleObjects);
+				CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMultipleObjects?epd.chkMaterialPerType:BST_INDETERMINATE);
+				CheckDlgButton(hDlg,IDC_G3D_MATERIAL,(epd.chkMultipleObjects && epd.chkMaterialPerType)?epd.chkG3DMaterial:BST_INDETERMINATE);
+			}
+			else
+			{
+				CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_INDETERMINATE);
+				CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
+				CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
+			}
+
             BOOL debugAvailable = !epd.radioExportNoMaterials[epd.fileType] && (epd.fileType != FILE_TYPE_ASCII_STL);
 
             CheckDlgButton(hDlg,IDC_SHOW_PARTS,debugAvailable?epd.chkShowParts:BST_INDETERMINATE);
@@ -391,6 +405,60 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 			break;
 
 
+		case IDC_MULTIPLE_OBJECTS:
+			{
+				// if the topmost button has changed to indeterminant, change it to be 
+				if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE )
+				{
+					// go from the indeterminant tristate to unchecked - indeterminant is not selectable
+					CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_UNCHECKED);
+				}
+				if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) )
+				{
+					// checked, so the boxes below become active, possibly
+					CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMaterialPerType);
+					CheckDlgButton(hDlg,IDC_G3D_MATERIAL,epd.chkMaterialPerType?epd.chkG3DMaterial:BST_INDETERMINATE);
+				}
+				else
+				{
+					// unchecked, so shut the sub-buttons down, saving their state
+					epd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
+					CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
+					if ( epd.chkMaterialPerType )
+					{
+						epd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
+						CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
+					}
+				}
+			}
+			break;
+		case IDC_MATERIAL_PER_TYPE:
+			{
+				// it's implied that things are unlocked
+				if ( IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE) == BST_INDETERMINATE )
+				{
+					CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_UNCHECKED);
+				}
+				if ( IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE) )
+				{
+					// checked, so the box below becomes active
+					CheckDlgButton(hDlg,IDC_G3D_MATERIAL,epd.chkG3DMaterial);
+				}
+				else
+				{
+					// unchecked, so shut the sub-button down, storing its state for later restoration if turned back on
+					epd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
+					CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
+				}
+			}
+			break;
+		case IDC_G3D_MATERIAL:
+			if ( IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL) == BST_INDETERMINATE )
+			{
+				CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_UNCHECKED);
+			}
+			break;
+
         case IDOK:
             {
                 gOK = 1;
@@ -461,6 +529,22 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
                 lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);
 
+				// OBJ options
+				if ( lepd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || lepd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+				{
+					lepd.chkMultipleObjects = IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS);
+					// if filling bubbles is off, sealing entrances does nothing at all
+					if ( lepd.chkMultipleObjects )
+					{
+						// set value only if value above is "unlocked"
+						lepd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
+						if ( lepd.chkMaterialPerType )
+						{
+							// set value only if value above is "unlocked"
+							lepd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
+						}
+					}
+				}
 
                 int nc;
                 nc = sscanf_s(lepd.minxString,"%d",&lepd.minxVal);

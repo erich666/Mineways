@@ -1175,8 +1175,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.lpstrFile=gExportPath;
                 //gExportPath[0]=0;
                 ofn.nMaxFile=MAX_PATH;
-				ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-											   L"Wavefront OBJ, absolute and true spec (*.obj)\0*.obj\0Wavefront OBJ, relative and material preview (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+				ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+											   L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
                 ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
                 ofn.lpstrFileTitle=NULL;
                 ofn.nMaxFileTitle=0;
@@ -1899,17 +1899,37 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         ((gpEFD->chkHollow && gpEFD->chkSuperHollow) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0) |
 
         // materials are forced on if using debugging mode - just an internal override, doesn't need to happen in dialog.
-        (gpEFD->chkShowParts ? EXPT_DEBUG_SHOW_GROUPS|EXPT_OUTPUT_MATERIALS : 0x0) |
-        (gpEFD->chkShowWelds ? EXPT_DEBUG_SHOW_WELDS|EXPT_OUTPUT_MATERIALS : 0x0);
+        (gpEFD->chkShowParts ? EXPT_DEBUG_SHOW_GROUPS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE : 0x0) |
+        (gpEFD->chkShowWelds ? EXPT_DEBUG_SHOW_WELDS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE : 0x0);
 
-    // STL files never need grouping by material, and certainly don't export textures
-    if ( fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ )
+
+	// set OBJ group and material output state
+	if ( fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+	{
+		if ( gpEFD->chkMultipleObjects )
+		{
+			// note, can get overridden by EXPT_GROUP_BY_BLOCK being on.
+			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
+
+			if ( gpEFD->chkMaterialPerType )
+			{
+				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE;
+
+				if ( gpEFD->chkG3DMaterial )
+				{
+					// G3D
+					gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL|EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+				}
+			}
+		}
+		// if in debugging mode, force groups and material type
+	}
+	// check if we're exporting relative coordinates
+    if ( fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
     {
-        if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
-        {
-            gOptions.exportFlags |= EXPT_OUTPUT_NEUTRAL_MATERIAL;
-        }
+        gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
     }
+	// STL files never need grouping by material, and certainly don't export textures
     else if ( fileType == FILE_TYPE_ASCII_STL )
     {
         int unsupportedCodes = (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_GROUP_BY_MATERIAL|
@@ -2166,7 +2186,15 @@ static void initializeExportDialogData()
     gExportPrintData.chkConnectAllEdges = 0;
     gExportPrintData.chkDeleteFloaters = 1;
     gExportPrintData.chkHollow = 1;
-    gExportPrintData.chkSuperHollow = 1;
+	gExportPrintData.chkSuperHollow = 1;
+	gExportPrintData.chkMeltSnow = 0;
+
+	gExportPrintData.chkShowParts = 0;
+	gExportPrintData.chkShowWelds = 0;
+
+	gExportPrintData.chkMultipleObjects = 1;
+	gExportPrintData.chkMaterialPerType = 1;
+	gExportPrintData.chkG3DMaterial = 0;
 
     gExportPrintData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES( gExportPrintData.hollowThicknessVal,
