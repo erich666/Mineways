@@ -740,7 +740,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 		}
 		break;
-	case BLOCK_LOG:
 	case BLOCK_WOODEN_PLANKS:
 	case BLOCK_LEAVES:
 	case BLOCK_SAPLING:
@@ -804,6 +803,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 		}
 		break;
+	case BLOCK_LOG:	// really just 12, but we pay attention to directionless
 	case BLOCK_SIGN_POST:
 	case BLOCK_REDSTONE_REPEATER_OFF:
 	case BLOCK_REDSTONE_REPEATER_ON:

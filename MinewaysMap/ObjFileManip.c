@@ -1855,10 +1855,15 @@ static int computeFlatFlags( int boxIndex )
         case 4:
             gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
             break;
-        case 5:
-        case 6:
-            gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
-            break;
+		case 5:
+		case 6:
+			gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
+			break;
+		// added in 1.3:
+		case 7:	// pointing south
+		case 0:	// pointing east
+			gBoxData[boxIndex+1].flatFlags |= FLAT_FACE_BELOW;
+			break;
         default:
             assert(0);
             return 0;
@@ -6258,7 +6263,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     }
     else
     {
-		int col,head,bottom,angle,inside,outside;
+		int col,head,bottom,angle,inside,outside,newFaceDirection,flip;
 		int xoff,xstart,dir,dirBit,frontLoc;
 		// north is 0, east is 1, south is 2, west is 3
 		static int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
@@ -6325,28 +6330,88 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
 			break;
 		case BLOCK_LOG:
+			// bit tricksy: rotate by rotating face direction itself
+			newFaceDirection = faceDirection;
+			angle = 0;
+			flip = 0;
+			switch ( dataVal & 0xC )
+			{
+			default:
+			case 0x0:
+				// as above: newFaceDirection = faceDirection;
+				break;
+			case 0x4:
+				switch ( faceDirection )
+				{
+				default:
+				case DIRECTION_BLOCK_SIDE_LO_X:
+				case DIRECTION_BLOCK_SIDE_HI_X:
+					newFaceDirection = DIRECTION_BLOCK_TOP;
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:
+					angle = 270;
+					flip = 1;
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					angle = 90;
+					break;
+				case DIRECTION_BLOCK_BOTTOM:
+					angle = 270;
+					newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
+					break;
+				case DIRECTION_BLOCK_TOP:
+					angle = 90;
+					newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
+					break;
+				}
+
+				break;
+			case 0x8:
+				switch ( faceDirection )
+				{
+				default:
+				case DIRECTION_BLOCK_SIDE_LO_X:
+					angle = 90;
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_X:
+					angle = 270;
+					flip = 1;
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					newFaceDirection = DIRECTION_BLOCK_TOP;
+					break;
+				case DIRECTION_BLOCK_BOTTOM:
+				case DIRECTION_BLOCK_TOP:
+					newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
+					break;
+				}
+
+				break;
+			case 0xC:
+				// all faces are sides
+				newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
+				break;
+			}
 			// use data to figure out which side
-			switch ( dataVal )
+			switch ( dataVal & 0x3 )
 			{
 			case 1: // spruce (dark)
-				SWATCH_SWITCH_SIDE( faceDirection, 4,7 );
+				SWATCH_SWITCH_SIDE( newFaceDirection, 4,7 );
 				break;
 			case 2: // birch
-				SWATCH_SWITCH_SIDE( faceDirection, 5,7 );
+				SWATCH_SWITCH_SIDE( newFaceDirection, 5,7 );
 				break;
 			case 3: // jungle
-				//if ( gJungleExists )
-				//{
-				SWATCH_SWITCH_SIDE( faceDirection, 9,9 );
-				//}
-				//else
-				//{
-				//    SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
-				//}
+				SWATCH_SWITCH_SIDE( newFaceDirection, 9,9 );
 				break;
 			default: // normal log
-				SWATCH_SWITCH_SIDE( faceDirection, 4,1 );
+				SWATCH_SWITCH_SIDE( newFaceDirection, 4,1 );
 			}
+			if ( angle != 0 )
+				rotateIndices( localIndices, angle );
+			if ( flip )
+				flipIndicesLeftRight( localIndices );
 			break;
 		case BLOCK_WOODEN_PLANKS:
 		case BLOCK_WOODEN_DOUBLE_SLAB:
@@ -6746,9 +6811,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
 		case BLOCK_LEVER:
 			angle = (dataVal & 0x8 ) ? 180 : 0;
-			if ( (dataVal & 0x7) == 5 )
+			if ( ((dataVal & 0x7) == 5) || ((dataVal & 0x7) == 7) )
 				angle += 180;
-			else if ( (dataVal & 0x7) == 6 )
+			else if ( ((dataVal & 0x7) == 6) || ((dataVal & 0x7) == 0) )
 				angle += 90;
 			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, angle );
 			break;
