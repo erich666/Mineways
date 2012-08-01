@@ -291,7 +291,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     static int oldX=0,oldY=0;
     static const char *blockLabel="";
     static BOOL dragging=FALSE;
-    static BOOL hdragging=FALSE;
+    static BOOL hdragging=FALSE;	// highlight dragging, dragging on the edge of the selected area
     static int moving=0;
     INITCOMMONCONTROLSEX ice;
     DWORD pos;
@@ -594,13 +594,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_RBUTTONUP:
-        hdragging=FALSE;
         dragging=FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
         ReleaseCapture();
         
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-        if ( minx == maxx && minz == maxz )
+        if ( minx == maxx && minz == maxz && !hdragging )
         {
             // if mouse up in same place as mouse down, turn selection off - who exports one cube column?
             gHighlightOn=FALSE;
@@ -630,6 +629,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else
         {
+			hdragging=FALSE;
             // Area selected.
             // Check if this selection is not an adjustment
             if ( !gAdjustingSelection )

@@ -517,9 +517,15 @@ static int faceIdCompare( void *context, const void *str1, const void *str2);
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
 static void checkAndCreateFaces( int boxIndex, IPoint loc );
-static int checkMakeFace( int type, int neighborType, int view3D );
+static int checkMakeFace( int type, int neighborType, int view3D, int faceDirection, int boxIndex, int neighborBoxIndex );
+static int isFluidBlockFull( int type, int boxIndex );
+static int cornerHeights( int type, int boxIndex, float heights[4] );
+static float computeUpperCornerHeight( int type, int boxIndex, int x, int z );
+static float getFluidHeightPercent( int dataVal );
+static int sameFluid( int fluidType, int type );
+static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] );
 static void saveVertices( int boxIndex, int faceDirection, IPoint loc );
-static void saveFaceLoop( int boxIndex, int faceDirection );
+static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4] );
 static int getMaterialUsingGroup( int groupID );
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] );
 static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirection, int angle );
@@ -5919,6 +5925,10 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
     int neighborType;
     int type = gBoxData[boxIndex].type;
     int view3D;
+	int computeHeights = 1;
+	int isFullBlock = 0;	// to make compiler happy
+	float heights[4];
+	int heightIndices[4];
     view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
 
     // only solid blocks should be passed in here.
@@ -5926,31 +5936,60 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 
     for ( faceDirection = 0; faceDirection < 6; faceDirection++ )
     {
-        neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].type;
+		int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
+        neighborType = gBoxData[neighborBoxIndex].type;
         // if neighbor is air, or if we're outputting a model for viewing
         // (not printing) and it is transparent and our object is not transparent,
         // then output a face. This latter condition gives lakes bottoms.
         // TODO: do we care if two transparent objects are touching each other? (Ice & water?)
         // Right now water and ice touching will generate no faces, which I think is fine.
         // so, create a face?
-        if ( checkMakeFace( type, neighborType, view3D ) )
+        if ( checkMakeFace( type, neighborType, view3D, faceDirection, boxIndex, neighborBoxIndex ) )
         {
             // Air (or water, or portal) found next to solid block: time to write it out.
             // First write out any vertices that are needed (this may do nothing, if they're
             // already written out by previous faces doing output of the same vertices).
-            saveVertices( boxIndex, faceDirection, loc );
-            saveFaceLoop( boxIndex, faceDirection );
+
+			// check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block
+			if ( ( view3D || gOptions->pEFD->chkExportAll ) && 
+				(type>=BLOCK_WATER) && (type<=BLOCK_STATIONARY_LAVA) &&
+				(faceDirection != DIRECTION_BLOCK_BOTTOM ) )
+			{
+				if ( computeHeights )
+				{
+					computeHeights = 0;
+					isFullBlock = cornerHeights( type, boxIndex, heights );
+					heightIndices[0] = heightIndices[1] = heightIndices[2] = heightIndices[3] = NO_INDEX_SET;
+				}
+				// are all heights 1.0, so that this is a full block?
+				if ( isFullBlock )
+				{
+					// full block, so save vertices as-is
+					goto SaveFullBlock;
+				}
+				else
+				{
+					saveSpecialVertices( boxIndex, faceDirection, loc, heights, heightIndices );
+					saveFaceLoop( boxIndex, faceDirection, heights, heightIndices );
+				}
+			}
+			else
+			{
+				SaveFullBlock:
+				// normal face save: not fluid, etc.
+				saveVertices( boxIndex, faceDirection, loc );
+				saveFaceLoop( boxIndex, faceDirection, NULL, NULL );
+			}
         }
     }
 }
 
-static int checkMakeFace( int type, int neighborType, int view3D )
+static int checkMakeFace( int type, int neighborType, int view3D, int faceDirection, int boxIndex, int neighborBoxIndex )
 {
-    int makeFace = 0;
 	// if neighboring face is air, or if individual (i.e., all) blocks are being output, then output the face
     if ( neighborType <= BLOCK_AIR || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
     {
-        makeFace = 1;
+        return 1;
     }
 	else if ( view3D )
     {
@@ -5963,11 +6002,11 @@ static int checkMakeFace( int type, int neighborType, int view3D )
             // type - including ice on water, glass next to water, etc. - then output face
             if ( neighborType != type )
             {
-                makeFace = 1;
+                return 1;
             }
         }
-        // look for blocks with cutouts next to them
-        if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+        // look for blocks with cutouts next to them - only for rendering
+        if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
             (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
         {
             //(neighborType == BLOCK_LEAVES) ||
@@ -5989,13 +6028,239 @@ static int checkMakeFace( int type, int neighborType, int view3D )
                 // or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
                 // TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
                 // add as a composite, like ladder pretty much.
-                makeFace = 1;
+                return 1;
             }
         }
     }
 
-    return makeFace;
+	// final, crazy check for when the neighbor is lava or water, when outputting fluid levels.
+	if ( view3D || gOptions->pEFD->chkExportAll )
+	{
+		if ( neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA )
+		{
+			if ( !sameFluid(neighborType, type) && faceDirection != DIRECTION_BLOCK_TOP && !isFluidBlockFull( neighborType, neighborBoxIndex ))
+			{
+				// This block borders a lava or water block, so output face. Will be a waste for a few situations:
+				// lava block fully fills its volume (in which case no face should have been output)
+				// 3D printing and water block fully fills its volume (but we're exporting lesser blocks, so this should be safe).
+				// TODO:
+				// We *could* do a further check of heights in advance and if they're all 1.0 for this face, then don't output face.
+				// Tricksy, and more coding.
+				return 1;
+			}
+		}
+		if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
+		{
+			// if the top face of a fluid is being output, if the thing above the fluid is not the same fluid, then
+			// this fluid block is irregular (not full height) for sure and so should be output. This rule can be
+			// wrong in extremely rare circumstances, like the four corners still being 1.0
+			if ( (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType) && !isFluidBlockFull( type, boxIndex ) )
+			{
+				return 1;
+			}
+		}
+	}
+
+    return 0;
 }
+
+static int isFluidBlockFull( int type, int boxIndex )
+{
+	float heights[4];
+	return cornerHeights( type, boxIndex, heights );
+}
+
+// find heights at the four corners, x lo/z lo, x lo/z hi, etc.
+static int cornerHeights( int type, int boxIndex, float heights[4] )
+{
+	// if block above is same fluid, all heights are 1.0 - quick out.
+	if ( sameFluid(type,gBoxData[boxIndex+1].type) )
+	{
+		return 1;
+	}
+	else
+	{
+		// OK, compute heights.
+		int i;
+		int dataHeight = gBoxData[boxIndex].data;
+		if ( dataHeight >= 8 )
+		{
+			dataHeight = 0;
+		}
+		for ( i = 0; i < 4; i++ )
+		{
+			heights[i] = computeUpperCornerHeight(type, boxIndex, i>>1, i%2);
+		}
+
+		return ( ( heights[0] >= 1.0f ) && ( heights[1] >= 1.0f ) && ( heights[2] >= 1.0f ) && ( heights[3] >= 1.0f ) );
+	}
+}
+
+static float computeUpperCornerHeight( int type, int boxIndex, int x, int z )
+{
+	// if any location above this corner is same fluid, height is 1.0
+	int i;
+	int neighbor[4];
+	float heightSum = 0.0f;
+	int weight = 0;
+
+	for ( i = 0; i < 4; i++ )
+	{
+		int offx = x-1 + (i >> 1);
+		int offz = z-1 + (i%2);
+		neighbor[i] = boxIndex + gBoxSizeYZ*offx + gBoxSize[Y]*offz;
+		// walk through neighbor above this corner
+		if ( sameFluid(type, gBoxData[neighbor[i] + 1].type) )
+			return 1.0f;
+	}
+
+	// look at neighbors and blend them in.
+	for ( i = 0; i < 4; i++ )
+	{
+		// is neighbor same fluid?
+		int neighborType = gBoxData[neighbor[i]].type;
+		if ( sameFluid(type, neighborType) )
+		{	
+			// matches, so get neighbor's stored height
+			int neighborDataVal = gBoxData[neighbor[i]].data;
+
+			// if height is "full", add it times 10
+			if (neighborDataVal >= 8 || neighborDataVal == 0)
+			{
+				// full height: by adding it in 10 times, you get a more rounded look.
+				heightSum += getFluidHeightPercent(neighborDataVal) * 10.0f;
+				// i is normalizer. Basically, if you get here, this value is 10x more important in average
+				weight += 10;
+			}
+
+			// (par0 + 1) / 9F is fluid height percent formula.
+			// so 0 means 1/9, 7 means 8/9 - 0 is the highest level, 7 is the lowest!
+
+			// always just add it in, whatever height the water is
+			heightSum += getFluidHeightPercent(neighborDataVal);
+			weight++;
+		}
+		// if neighbor is not considered solid, add one more
+		else if ( (gBoxData[neighbor[i]].origType == BLOCK_AIR) || !(gBlockDefinitions[gBoxData[neighbor[i]].origType].flags & BLF_DNE_FLUID) )
+		{
+			heightSum += 1.0f;
+			weight++;
+		}
+	}
+
+	if ( weight == 0 )
+	{
+		// in theory should never reach here...
+		assert(weight);
+		return 1.0f;
+	}
+
+	// now get the weighted average of the height for this corner
+	return 1.0F - heightSum / (float)weight;
+}
+
+// name is misleading. More like "depth", as the value returned is essentially how far to move *down* from the corner.
+// 0 means full height water, 1/9th returned; 7 means shallow as possible, return 8/9ths
+static float getFluidHeightPercent( int dataVal )
+{
+	if (dataVal >= 8)
+	{
+		dataVal = 0;
+	}
+
+	return (float)(dataVal + 1) / 9.0f;
+}
+
+static int sameFluid( int fluidType, int type )
+{
+	if ( (fluidType == BLOCK_WATER) || (fluidType == BLOCK_STATIONARY_WATER) )
+	{
+		return (type == BLOCK_WATER) || (type == BLOCK_STATIONARY_WATER);
+	}
+	else
+	{
+		assert( (fluidType == BLOCK_LAVA) || (fluidType == BLOCK_STATIONARY_LAVA) );
+		return (type == BLOCK_LAVA) || (type == BLOCK_STATIONARY_LAVA);
+	}
+}
+
+// check if each face vertex has an index;
+// if it doesn't, give it one and save out the vertex location itself
+static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] )
+{
+	int vertexIndex;
+	int i;
+	IPoint offset;
+	float *pt;
+
+	// four vertices to output, check that they exist
+	for ( i = 0; i < 4; i++ )
+	{
+		Vec2Op( offset, =, gFaceToVertexOffset[faceDirection][i]);
+		// gFaceToVertexOffset[6][4][3] gives the X,Y,Z offsets to the
+		// vertex to be written for this box
+		vertexIndex = boxIndex +
+			offset[X] * gBoxSizeYZ +
+			offset[Y] +
+			offset[Z] * gBoxSize[Y];
+
+		// just to feel super-safe, check we're OK - should not be needed...
+		if ( vertexIndex < 0 || vertexIndex > gBoxSizeXYZ )
+		{
+			assert(0);
+			return;
+		}
+
+		if ( offset[Y] == 1 )
+		{
+			// an upper vertex
+			int heightLoc = 2*offset[X] + offset[Z];
+			if ( heights[heightLoc] >= 1.0f )
+			{
+				goto UseGridLoc;
+			}
+			else if ( heightIndices[heightLoc] == NO_INDEX_SET )
+			{
+				// save the vertex for this location.
+				// need to give an index and write out vertex location
+				checkVertexListSize();
+				heightIndices[heightLoc] = gModel.vertexCount;
+				pt = (float *)gModel.vertices[gModel.vertexCount];
+
+				pt[X] = (float)(loc[X] + offset[X]);
+				pt[Y] = (float)loc[Y] + heights[heightLoc];
+				pt[Z] = (float)(loc[Z] + offset[Z]);
+
+				gModel.vertexCount++;
+				assert( gModel.vertexCount <= gModel.vertexListSize );
+			}
+		}
+		else
+		{
+			UseGridLoc:
+			if ( gModel.vertexIndices[vertexIndex] == NO_INDEX_SET )
+			{
+				// need to give an index and write out vertex location
+				checkVertexListSize();
+				gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
+				pt = (float *)gModel.vertices[gModel.vertexCount];
+
+				// for now, we use exactly the same coordinates as Minecraft does.
+				//xOut = (float)(1-gWorld2BoxOffset[X] + xloc + xoff);
+				//yOut = (float)(1-gWorld2BoxOffset[Y] + yloc + yoff);
+				//zOut = (float)(1-gWorld2BoxOffset[Z] + zloc + zoff);
+				// centered on origin, good for Blender import. I put Y==0, X & Z centered
+				pt[X] = (float)(loc[X] + offset[X]);
+				pt[Y] = (float)(loc[Y] + offset[Y]);
+				pt[Z] = (float)(loc[Z] + offset[Z]);
+
+				gModel.vertexCount++;
+				assert( gModel.vertexCount <= gModel.vertexListSize );
+			}
+		}
+	}
+}
+
 // check if each face vertex has an index;
 // if it doesn't, give it one and save out the vertex location itself
 static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
@@ -6016,6 +6281,7 @@ static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
             offset[Y] +
             offset[Z] * gBoxSize[Y];
 
+		// just to feel super-safe, check we're OK - should not be needed...
         if ( vertexIndex < 0 || vertexIndex > gBoxSizeXYZ )
         {
             assert(0);
@@ -6044,7 +6310,7 @@ static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
     }
 }
 
-static void saveFaceLoop( int boxIndex, int faceDirection )
+static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndices[4] )
 {
     int i;
     FaceRecord *face;
@@ -6064,16 +6330,39 @@ static void saveFaceLoop( int boxIndex, int faceDirection )
     for ( i = 0; i < 4; i++ )
     {
         int vertexIndex;
-        IPoint loc;
+        IPoint offset;
 
-        Vec2Op( loc, =, gFaceToVertexOffset[faceDirection][i]);
+        Vec2Op( offset, =, gFaceToVertexOffset[faceDirection][i]);
 
-        vertexIndex = boxIndex +
-            loc[X] * gBoxSizeYZ +
-            loc[Y] +
-            loc[Z] * gBoxSize[Y];
+		// heights in use, and Y value is top of fluid
+		if ( heights && offset[Y] == 1 )
+		{
+			// if height is not equal to 1 at this point, use its index
+			int heightLoc = 2*offset[X] + offset[Z];
+			if ( heights[heightLoc] >= 1.0f )
+			{
+				goto UseGridLoc;
+			}
+			else
+			{
+				// use the vertex added in for this location
+				assert(heightIndices[heightLoc] != NO_INDEX_SET);
+				face->vertexIndex[i] = heightIndices[heightLoc];
 
-        face->vertexIndex[i] = gModel.vertexIndices[vertexIndex];
+				// Since we're saving a special location, we also need a special UV index
+				// to go along with it and use later. TODO!!!
+			}
+		}
+		else
+		{
+			UseGridLoc:
+			vertexIndex = boxIndex +
+				offset[X] * gBoxSizeYZ +
+				offset[Y] +
+				offset[Z] * gBoxSize[Y];
+
+			face->vertexIndex[i] = gModel.vertexIndices[vertexIndex];
+		}
     }
 
     if (gOptions->exportFlags & (EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_TEXTURE))
