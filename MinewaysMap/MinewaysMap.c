@@ -813,6 +813,30 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		// shift up the data val by 4 if on the odd value location
 		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 		break;
+	case BLOCK_WATER:
+	case BLOCK_STATIONARY_WATER:
+	case BLOCK_LAVA:
+	case BLOCK_STATIONARY_LAVA:
+		// uses 0-8, with 8 giving one above
+		if ( dataVal <= 8 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+
+			if ( dataVal == 8 )
+			{
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+			}
+			else if ( dataVal > 0 )
+			{
+				int x = type % 2;
+				int z = !x;
+				block->grid[BLOCK_INDEX(x+4+(type%2)*8,y,z+4+(dataVal%2)*8)] = (unsigned char)type;
+			}
+		}
+		break;
 	case BLOCK_FURNACE:
 	case BLOCK_BURNING_FURNACE:
 	case BLOCK_DISPENSER:
