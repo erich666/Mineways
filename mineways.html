@@ -95,7 +95,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <HR>
 <P><H2><A NAME="offsite">Links</a></H2>
 <UL>
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.11, updated 8/2/2012). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.12, updated 8/3/2012). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
@@ -990,9 +990,10 @@ This is my own wishlist; if you really want a feature, add it yourself! I'm busy
 You can export again instantly with the same options and filename by using Control-X (or the File menu item). This is useful when adjusting bounds, fixing the world, reloading ("R"), or changing the color scheme and then re-exporting. File path is now retained for normal file export, also making adjusting easier. Material output has been simplified for OBJ, to improve import into Blender (though water now looks more boring in G3D - sorry; and just uncomment "illum" in the .mtl file). Absolute and relative OBJ have changed position on the file type selector, and 3D print firm names added when exporting for 3D printing. Changed default terrain.png to support all new Minecraft 1.3 blocks (note Emerald Block is shifted). Numerous fixes to [Block Test World] and block IDs added. Memory use has been considerably reduced, half or less of previous typical use.
 <P>
 Here's the list of blocks which now have correct geometry: slabs, stairs, fences and gates, farmland, signs, doors (but not for 3D print - too thin), pressure plates, buttons, snow, trapdoors, end portal frames, cocoa plants, and cake.
-<LI>Version 2.10, 7/24/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fences, gates, doors, trapdoors, and sign posts are now exported for printing when the "lesser" option is used; see more details <a href="#lesser">here</a>
-</UL>. Options for tailoring OBJ export, and improved documentation on exporting to renderers.
-<LI>Version 2.11, 8/2/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV211.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added water and lava level export that matches Minecraft's; this always exports for rendering, and only when the <a href="#lesser">"lesser"</a> option is used for 3D print export. Support sideways logs and upside-down levers in 1.3.1. Bug fixes: flipped tiles on "lesser" objects so they properly matched left and right. Rewrite of the UV texture coordinate system in anticipation of major changes for full support of Minecraft 1.3.1 (modest reduction of number of UV coordinates saved). Mineways will mostly work with MC 1.3.1, but note that 1.3.1 texture packs used with Mineways will make chests disappear (thanks, Mojang). Major rework is needed to fix this mismatch; the default texture pack will work fine for everything but Emerald blocks.
+<LI>Version 2.10, 7/24/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fences, gates, doors, trapdoors, and sign posts are now exported for printing when the "lesser" option is used; see more details <a href="#lesser">here</a>. Options for tailoring OBJ export, and improved documentation on exporting to renderers.
+<LI>Version 2.11, 8/2/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV211.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added water and lava level export that matches Minecraft's; this always exports for rendering, and for 3D printing only when the <a href="#lesser">"lesser"</a> option is checked. Support sideways logs and upside-down levers in 1.3.1. Bug fixes: flipped tiles on "lesser" objects so they properly matched left and right. Rewrite of the UV texture coordinate system in anticipation of major changes for full support of Minecraft 1.3.1 (modest reduction of number of UV coordinates saved). Mineways will mostly work with MC 1.3.1, but note that 1.3.1 texture packs used with Mineways will make chests disappear (thanks, Mojang). Major rework is needed to fix this mismatch; the default texture pack will work fine for everything but Emerald blocks.
+<LI>Version 2.12, 8/3/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV212.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <b>critical bug fix</b> for VRML export, I introduced a bug in version 2.11, in which the first few faces would not be exported. Thanks to Jonah Shafer for reporting this bug.
+</UL>
 <p>
 That's it - have fun!
 <P>
@@ -1015,7 +1016,7 @@ That's it - have fun!
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 7/24/2012</i>
+Last updated 8/3/2012</i>
 </font>
 </div> <!-- /footer -->
 </div>

@@ -9407,7 +9407,7 @@ DWORD br;
 	char textureDefOutputString[256];
 	//char textureUseOutputString[256];
 
-    int i, j, firstShape, exportSingleMaterial, exportSolidColors, exportTextures;
+    int currentFace, j, firstShape, exportSingleMaterial, exportSolidColors, exportTextures;
 
     int retCode = MW_NO_ERROR;
 
@@ -9480,16 +9480,16 @@ DWORD br;
 	}
 
 	firstShape = 1;
-	i = 0;
-	while ( i < gModel.faceCount )
+	currentFace = 0;
+	while ( currentFace < gModel.faceCount )
 	{
 		char mtlName[256];
 		char shapeString[] = "    Shape\n    {\n      geometry DEF %s_Obj IndexedFaceSet\n      {\n        creaseAngle .5\n        solid %s\n        coord %s coord_Craft%s\n";
 
 		int beginIndex, endIndex, currentType;
 
-		if ( i % 1000 == 0 )
-			UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
+		if ( currentFace % 1000 == 0 )
+			UPDATE_PROGRESS( PG_OUTPUT + 0.7f*(PG_TEXTURE-PG_OUTPUT) + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)currentFace/(float)gModel.faceCount));
 
 		// start new shape
 		if ( exportSingleMaterial )
@@ -9498,7 +9498,7 @@ DWORD br;
 		}
 		else
 		{
-			strcpy_s(mtlName,256,gBlockDefinitions[gModel.faceList[i]->type].name);
+			strcpy_s(mtlName,256,gBlockDefinitions[gModel.faceList[currentFace]->type].name);
 			spacesToUnderlinesChar(mtlName);
 		}
 		sprintf_s( outputString, 256, shapeString, 
@@ -9536,13 +9536,14 @@ DWORD br;
 			if ( exportTextures )
 			{
 				int prevSwatch = -1;
+				int k;
 				strcpy_s(outputString,256,"          ]\n        }\n        texCoord DEF texCoord_Craft TextureCoordinate\n        {\n          point\n          [\n");
 				WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-				for ( i = 0; i < gModel.uvIndexCount; i++ )
+				for ( k = 0; k < gModel.uvIndexCount; k++ )
 				{
-					retCode |= writeVRMLTextureUV(gModel.uvIndexList[i].uc, gModel.uvIndexList[i].vc, prevSwatch!=gModel.uvIndexList[i].swatchLoc, gModel.uvIndexList[i].swatchLoc);
-					prevSwatch = gModel.uvIndexList[i].swatchLoc;
+					retCode |= writeVRMLTextureUV(gModel.uvIndexList[k].uc, gModel.uvIndexList[k].vc, prevSwatch!=gModel.uvIndexList[k].swatchLoc, gModel.uvIndexList[k].swatchLoc);
+					prevSwatch = gModel.uvIndexList[k].swatchLoc;
 					if (retCode >= MW_BEGIN_ERRORS)
 						goto Exit;
 				}
@@ -9560,20 +9561,20 @@ DWORD br;
 			}
 		}
 
-		beginIndex = i;
-		currentType = exportSingleMaterial ? BLOCK_STONE : gModel.faceList[i]->type;
+		beginIndex = currentFace;
+		currentType = exportSingleMaterial ? BLOCK_STONE : gModel.faceList[currentFace]->type;
 
 		strcpy_s(outputString,256,"        coordIndex\n        [\n");
 		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
 		// output face loops until next material is found, or all, if exporting no material
-		while ( (i < gModel.faceCount) &&
-			( (currentType == gModel.faceList[i]->type) || exportSingleMaterial ) )
+		while ( (currentFace < gModel.faceCount) &&
+			( (currentType == gModel.faceList[currentFace]->type) || exportSingleMaterial ) )
 		{
-			pFace = gModel.faceList[i];
+			pFace = gModel.faceList[currentFace];
 
 			// comma test
-			if ( i == gModel.faceCount-1 || (currentType != gModel.faceList[i+1]->type) )
+			if ( currentFace == gModel.faceCount-1 || (currentType != gModel.faceList[currentFace+1]->type) )
 			{
 				sprintf_s(outputString,256,"          %d,%d,%d,%d,-1\n",
 					pFace->vertexIndex[0],
@@ -9591,7 +9592,7 @@ DWORD br;
 			}
 			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-			i++;
+			currentFace++;
 		}
 
 		// output texture coordinates for face loops
@@ -9600,13 +9601,13 @@ DWORD br;
 			strcpy_s(outputString,256,"        ]\n        texCoordIndex\n        [\n");
 			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-			endIndex = i;
+			endIndex = currentFace;
 
 			// output texture coordinate loops
-			for ( i = beginIndex; i < endIndex; i++ )
+			for ( currentFace = beginIndex; currentFace < endIndex; currentFace++ )
 			{
 				// output the face loop
-				pFace = gModel.faceList[i];
+				pFace = gModel.faceList[currentFace];
 
 				sprintf_s(outputString,256,"          %d %d %d %d -1\n",
 					pFace->uvIndex[0],
