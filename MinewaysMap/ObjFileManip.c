@@ -573,6 +573,7 @@ static int tileIsOpaque(progimage_info *src, int col, int row);
 static void setColorPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info *dst, int swatchIndex, float startStretch);
 static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int tileSize, progimage_info *src, int src_x, int src_y);
+static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize );
 static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned int value);
 static void addNoisePNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a, float noise );
 static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a );
@@ -1116,6 +1117,8 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     int foundPower=0;
     int i;
     int tryDefault=1;
+    static int markTiles = 0;
+    int row, col;
 
     memset(pII,0,sizeof(progimage_info));
 
@@ -1155,6 +1158,17 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
 
     if ( !foundPower )
         return MW_IMAGE_WRONG_SIZE;
+
+    if ( markTiles )
+    {
+        for ( row = 0; row < 16; row++ )
+        {
+            for ( col = 0; col < 16; col++ )
+            {
+                drawPNGTileLetterR( pII, row, col, pII->width/16 );
+            }
+        }
+    }
 
     return MW_NO_ERROR;
 }
@@ -3013,10 +3027,10 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 		    {
 			default:
 		    case DIRECTION_BLOCK_SIDE_LO_X:
+				vindex[0] = 0x2|0x1;	// ymax, zmax
+				vindex[1] = 0x2;		// ymax, zmin
 			    vindex[2] = 0;			// ymin, zmin
 			    vindex[3] = 0x1;		// ymin, zmax
-			    vindex[0] = 0x2|0x1;	// ymax, zmax
-			    vindex[1] = 0x2;		// ymax, zmin
 			    minu = (float)minPixZ/16.0f;
 			    maxu = (float)maxPixZ/16.0f;
 			    minv = (float)minPixY/16.0f;
@@ -3027,40 +3041,40 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
                     reverseLoop = 1;
 			    break;
 		    case DIRECTION_BLOCK_SIDE_HI_X:
+				vindex[0] = 0x4|0x2;		// ymax, zmin
+				vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
 			    vindex[2] = 0x4|0x1;		// ymin, zmax
 			    vindex[3] = 0x4;			// ymin, zmin
-			    vindex[0] = 0x4|0x2;		// ymax, zmin
-			    vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
 			    minu = (float)minPixZ/16.0f;
 			    maxu = (float)maxPixZ/16.0f;
 			    minv = (float)minPixY/16.0f;
 			    maxv = (float)maxPixY/16.0f;
 			    break;
 		    case DIRECTION_BLOCK_SIDE_LO_Z:
+				vindex[0] = 0x2;		// xmin, ymax
+				vindex[1] = 0x4|0x2;	// xmax, ymax
 			    vindex[2] = 0x4;		// xmax, ymin
 			    vindex[3] = 0;			// xmin, ymin 
-			    vindex[0] = 0x2;		// xmin, ymax
-			    vindex[1] = 0x4|0x2;	// xmax, ymax
 			    minu = (float)minPixX/16.0f;
 			    maxu = (float)maxPixX/16.0f;
 			    minv = (float)minPixY/16.0f;
 			    maxv = (float)maxPixY/16.0f;
 			    break;
 		    case DIRECTION_BLOCK_SIDE_HI_Z:
+				vindex[0] = 0x1|0x4|0x2;	// xmax, ymax
+				vindex[1] = 0x1|0x2;		// xmin, ymax
 			    vindex[2] = 0x1;			// xmin, ymin 
 			    vindex[3] = 0x1|0x4;		// xmax, ymin
-			    vindex[0] = 0x1|0x4|0x2;	// xmax, ymax
-			    vindex[1] = 0x1|0x2;		// xmin, ymax
 			    minu = (float)minPixX/16.0f;
 			    maxu = (float)maxPixX/16.0f;
 			    minv = (float)minPixY/16.0f;
 			    maxv = (float)maxPixY/16.0f;
 			    break;
 		    case DIRECTION_BLOCK_BOTTOM:
+				vindex[0] = 0x4|0x1;	// xmax, zmax
+				vindex[1] = 0x1;		// xmin, zmax
 			    vindex[2] = 0;			// xmin, zmin 
 			    vindex[3] = 0x4;		// xmax, zmin
-			    vindex[0] = 0x4|0x1;	// xmax, zmax
-			    vindex[1] = 0x1;		// xmin, zmax
 			    minu = (float)minPixX/16.0f;
 			    maxu = (float)maxPixX/16.0f;
 			    minv = (float)minPixZ/16.0f;
@@ -3068,10 +3082,10 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
                 reverseLoop = 1;
 			    break;
 		    case DIRECTION_BLOCK_TOP:
+				vindex[0] = 0x2|0x4;		// xmax, zmin
+				vindex[1] = 0x2;			// xmin, zmin 
                 vindex[2] = 0x2|0x1;		// xmin, zmax
                 vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
-			    vindex[0] = 0x2|0x4;		// xmax, zmin
-			    vindex[1] = 0x2;			// xmin, zmin 
 			    minu = (float)minPixX/16.0f;
 			    maxu = (float)maxPixX/16.0f;
 			    minv = (float)minPixZ/16.0f;
@@ -3122,13 +3136,12 @@ static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFir
 		face->vertexIndex[j] = startVertexIndex + vindex[j];
         if ( reverseLoop )
         {
-            // really, sort of unreversed, but it works out.
-            // rotUVs
-            face->uvIndex[j] = uvIndices[(j+rotUVs)%4];
+			face->uvIndex[j] = uvIndices[(9 - j - rotUVs)%4];
         }
         else
         {
-            face->uvIndex[j] = uvIndices[(7 - j - rotUVs)%4];
+			// rotUVs
+			face->uvIndex[j] = uvIndices[(j+2+rotUVs)%4];
         }
 	}
 
@@ -6279,8 +6292,8 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
     // get four face indices for the four corners
     for ( i = 0; i < 4; i++ )
     {
-        int vertexIndex;
         IPoint offset;
+		int vertexIndex;
 
         Vec2Op( offset, =, gFaceToVertexOffset[faceDirection][i]);
 
@@ -6568,7 +6581,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 		int col,head,bottom,angle,inside,outside,newFaceDirection,flip;
 		int xoff,xstart,dir,dirBit,frontLoc;
 		// north is 0, east is 1, south is 2, west is 3
-		static int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
+		int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
 
         // use the textures:
         // go past the NUM_BLOCKS solid colors, use the txrX and txrY to find which to go to.
@@ -8220,13 +8233,8 @@ static int writeOBJMtlFile()
 #ifdef WIN32
     DWORD br;
 #endif
-    int type,i;
     wchar_t mtlFileName[MAX_PATH];
-    char mtlName[MAX_PATH];
     char outputString[1024];
-    double fRed,fGreen,fBlue;
-    double ka, kd, ke;
-    double alpha;
 
     char textureRGB[MAX_PATH];
     char textureRGBA[MAX_PATH];
@@ -8297,13 +8305,19 @@ static int writeOBJMtlFile()
 	else
 	{
 		// output materials
+		int i;
 		for ( i = 0; i < gModel.mtlCount; i++ )
 		{
+			int type;
 			char tfString[256];
 			char mapdString[256];
 			char keString[256];
+			char mtlName[MAX_PATH];
 			char *typeTextureFileName;
 			char fullMtl[256];
+			double alpha;
+			double fRed,fGreen,fBlue;
+			double ka, kd, ke;
 
 			type = gModel.mtlList[i];
 
@@ -10396,16 +10410,27 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int tileSize,
     copyPNGArea(dst, dst_x*tileSize, dst_y*tileSize, tileSize, tileSize, src, src_x*tileSize, src_y*tileSize );
 }
 
+static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize )
+{
+    int row[12] = {1,1,1,2,2,3,3,3,4,4,5,5};
+    int col[12] = {1,2,3,1,4,1,2,3,1,4,1,4};
+
+    int i;
+    for ( i = 0; i < 12; i++ )
+    {
+        unsigned int *di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + 8 + row[i]) * dst->width + x*tileSize + col[i]);
+        *di = 0xffff00ff;
+    }
+}
 static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned int value)
 {
     int row, col;
-    unsigned int *di;
 
     assert( x*tileSize+tileSize-1 < dst->width );
 
     for ( row = 0; row < tileSize; row++ )
     {
-        di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + row) * dst->width + x*tileSize);
+        unsigned int *di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + row) * dst->width + x*tileSize);
         for ( col = 0; col < tileSize; col++ )
         {
             *di++ = value;
