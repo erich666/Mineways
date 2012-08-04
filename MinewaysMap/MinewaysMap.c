@@ -1142,6 +1142,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		break;
 	case BLOCK_VINES:
 		// uses all bits, 0-15
+		// TODO: really should place vines on the sides and under stuff, but this is a pain
 		if ( dataVal > 0 )
 		{
 			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);

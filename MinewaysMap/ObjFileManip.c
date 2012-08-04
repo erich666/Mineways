@@ -1976,8 +1976,8 @@ static int computeFlatFlags( int boxIndex )
 		}
 		// the rules: vines can cover up to four sides, or if no bits set, top of overhanging block.
 		// The overhanging block stops side faces from appearing, essentially.
-		// If billboarding is on, then we've already exported everything else of the vine, so remove it.
-		if ( gBoxData[boxIndex].data == 0 || gExportBillboards )
+		// If billboarding is on and we're not printing, then we've already exported everything else of the vine, so remove it.
+		if ( gBoxData[boxIndex].data == 0 || ( gExportBillboards && !(gOptions->exportFlags & EXPT_3DPRINT)) )
 		{
 			// top face, flatten to bottom of block above, if the neighbor exists. If it doesn't,
 			// something odd is going on (this shouldn't happen).
