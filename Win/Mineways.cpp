@@ -1167,6 +1167,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case IDM_FILE_PRINTOBJ:
 		case IDM_FILE_SAVEOBJ:
+			if ( !gHighlightOn )
+			{
+				// we keep the export options ungrayed now so that they're selectable when the world is loaded
+				MessageBox( NULL, _T("Click and drag with your right mouse button to select an area to export."),
+					_T("Informational"), MB_OK|MB_ICONINFORMATION);
+				break;
+			}
             gPrintModel = (wmId==IDM_FILE_PRINTOBJ);
             {
                 ZeroMemory(&ofn,sizeof(OPENFILENAME));
@@ -1244,7 +1251,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             InvalidateRect(hWnd,NULL,TRUE);
             UpdateWindow(hWnd);
             break;
-        case IDM_VIEW_JUMPTOMODEL: // F4 - TODO document
+        case IDM_VIEW_JUMPTOMODEL: // F4
+			if ( !gHighlightOn )
+			{
+				// we keep the jump option ungrayed now so that it's selectable when the world is loaded
+				MessageBox( NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
+					_T("Informational"), MB_OK|MB_ICONINFORMATION);
+				break;
+			}
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             if ( on )
             {
@@ -1739,9 +1753,13 @@ static void validateItems(HMENU menu)
     {
         EnableMenuItem(menu,IDM_JUMPSPAWN,MF_ENABLED);
         EnableMenuItem(menu,IDM_JUMPPLAYER,MF_ENABLED);
-        EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-        EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,gHighlightOn?MF_ENABLED:MF_DISABLED);
+		// more correct is to gray if nothing is selected, but people don't know how to ungray
+		//EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,gHighlightOn?MF_ENABLED:MF_DISABLED);
+		//EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
+		//EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
+		EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
+		EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
+		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
     }
     else
     {
@@ -1802,11 +1820,13 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
     {
         gpEFD = &gExportPrintData;
         gOptions.exportFlags = EXPT_3DPRINT;
+		gpEFD->flags = EXPT_3DPRINT;
     }
     else
     {
         gpEFD = &gExportViewData;
         gOptions.exportFlags = 0x0;
+		gpEFD->flags = 0x0;
     }
     gOptions.pEFD = gpEFD;
 
@@ -2162,6 +2182,8 @@ static void initializeExportDialogData()
 	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
     INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 1, 1, 1, 1, 1, 0);  
     gExportPrintData.chkCenterModel = 1;
+	gExportPrintData.chkExportAll = 0; 
+	gExportPrintData.chkFatten = 0; 
 	gExportPrintData.chkIndividualBlocks = 0;
 
     gExportPrintData.radioRotate0 = 1;

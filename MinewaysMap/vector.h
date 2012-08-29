@@ -41,6 +41,9 @@
 #define Y 1
 #define Z 2
 
+typedef float	Vector2[2];
+typedef Vector2      Point2;              /* For readability. */
+
 typedef float	Vector[3];
 typedef Vector      Point;              /* For readability. */
 typedef struct Box3Struct {		/* 3d box */

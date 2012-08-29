@@ -108,8 +108,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES,epd.radioExportSolidTexture[epd.fileType]);
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES,epd.radioExportFullTexture[epd.fileType]);
 
-            CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
-            CheckDlgButton(hDlg,IDC_EXPORT_ALL,epd.chkExportAll);
+            //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
+			CheckDlgButton(hDlg,IDC_EXPORT_ALL,epd.chkExportAll);
+			CheckDlgButton(hDlg,IDC_FATTEN,epd.chkExportAll?epd.chkFatten:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
 			CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
 			CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,epd.chkIndividualBlocks);
@@ -143,7 +144,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,epd.floaterCountString);
             SetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,epd.hollowThicknessString);
 
-			// OBJ options: gray out if OBJ not in use TODO!
+			// OBJ options: gray out if OBJ not in use
 			if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
 			{
 				CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,epd.chkMultipleObjects);
@@ -283,6 +284,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             // set the combo box material to white (might already be that, which is fine)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
+			// - done because full blocks of the lesser objects usually looks dumb
             CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
             goto ChangeMaterial;
 
@@ -407,10 +409,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
 		case IDC_MULTIPLE_OBJECTS:
 			{
-				// if the topmost button has changed to indeterminant, change it to be 
+				// if the topmost button has changed to indeterminate, change it to be 
 				if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE )
 				{
-					// go from the indeterminant tristate to unchecked - indeterminant is not selectable
+					// go from the indeterminate tristate to unchecked - indeterminant is not selectable
 					CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_UNCHECKED);
 				}
 				if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) )
@@ -459,6 +461,41 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 			}
 			break;
 
+		case IDC_EXPORT_ALL:
+			// if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
+			if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_CHECKED && (epd.flags & EXPT_3DPRINT))
+			{
+				MessageBox( NULL, _T("Warning: this checkbox allows very small features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - are very likely to snap off during manufacture. Fattened versions of these objects are used by default, but even these can easily break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Basically: be careful!"),
+					_T("Informational"), MB_OK|MB_ICONINFORMATION);
+				CheckDlgButton(hDlg,IDC_FATTEN,BST_CHECKED);
+				CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_UNCHECKED);
+				CheckDlgButton(hDlg,IDC_CONNECT_PARTS,BST_UNCHECKED);
+				CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,BST_INDETERMINATE);
+				CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,BST_INDETERMINATE);
+			}
+			// if we're turning it off, set fatten to indeterminate state
+			{
+				UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
+				if ( !isLesserChecked )
+					CheckDlgButton(hDlg,IDC_FATTEN,BST_INDETERMINATE);
+			}
+			break;
+		case IDC_FATTEN:
+			{
+				UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
+				if ( !isLesserChecked )
+				{
+					CheckDlgButton(hDlg,IDC_FATTEN,BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isFattenIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_FATTEN) == BST_INDETERMINATE );
+					if ( isFattenIndeterminate )
+						CheckDlgButton(hDlg,IDC_FATTEN,BST_UNCHECKED);
+				}
+			}
+			break;
+
         case IDOK:
             {
                 gOK = 1;
@@ -481,8 +518,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES);
                 lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
 
-                lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
-                lepd.chkExportAll = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
+                //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
+				lepd.chkExportAll = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
+				lepd.chkFatten = lepd.chkExportAll?IsDlgButtonChecked(hDlg,IDC_FATTEN) : 0;
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
 				lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
 				lepd.chkIndividualBlocks = IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
@@ -503,19 +541,19 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
                 lepd.chkFillBubbles = IsDlgButtonChecked(hDlg,IDC_FILL_BUBBLES);
                 // if filling bubbles is off, sealing entrances does nothing at all
-                lepd.chkSealEntrances = lepd.chkFillBubbles ? IsDlgButtonChecked(hDlg,IDC_SEAL_ENTRANCES) : BST_UNCHECKED;
-                lepd.chkSealSideTunnels = lepd.chkFillBubbles ? IsDlgButtonChecked(hDlg,IDC_SEAL_SIDE_TUNNELS) : BST_UNCHECKED;
+                lepd.chkSealEntrances = lepd.chkFillBubbles ? IsDlgButtonChecked(hDlg,IDC_SEAL_ENTRANCES) : 0;
+                lepd.chkSealSideTunnels = lepd.chkFillBubbles ? IsDlgButtonChecked(hDlg,IDC_SEAL_SIDE_TUNNELS) : 0;
 
                 lepd.chkConnectParts = IsDlgButtonChecked(hDlg,IDC_CONNECT_PARTS);
                 // if connect parts is off, corner tips and edges is off
-                lepd.chkConnectCornerTips = lepd.chkConnectParts ? IsDlgButtonChecked(hDlg,IDC_CONNECT_CORNER_TIPS) : BST_UNCHECKED;
-                lepd.chkConnectAllEdges = lepd.chkConnectParts ? IsDlgButtonChecked(hDlg,IDC_CONNECT_ALL_EDGES) : BST_UNCHECKED;
+                lepd.chkConnectCornerTips = lepd.chkConnectParts ? IsDlgButtonChecked(hDlg,IDC_CONNECT_CORNER_TIPS) : 0;
+                lepd.chkConnectAllEdges = lepd.chkConnectParts ? IsDlgButtonChecked(hDlg,IDC_CONNECT_ALL_EDGES) : 0;
             
                 lepd.chkDeleteFloaters = IsDlgButtonChecked(hDlg,IDC_DELETE_FLOATERS);
             
                 lepd.chkHollow = IsDlgButtonChecked(hDlg,IDC_HOLLOW);
                 // if hollow is off, superhollow is off
-                lepd.chkSuperHollow = lepd.chkHollow ? IsDlgButtonChecked(hDlg,IDC_SUPER_HOLLOW) : BST_UNCHECKED;
+                lepd.chkSuperHollow = lepd.chkHollow ? IsDlgButtonChecked(hDlg,IDC_SUPER_HOLLOW) : 0;
 
                 lepd.chkMeltSnow = IsDlgButtonChecked(hDlg,IDC_MELT_SNOW);
 
@@ -523,8 +561,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 GetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,lepd.hollowThicknessString,EP_FIELD_LENGTH);
 
                 BOOL debugAvailable = !lepd.radioExportNoMaterials[lepd.fileType] && (lepd.fileType != FILE_TYPE_ASCII_STL);
-                lepd.chkShowParts = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) : BST_UNCHECKED;
-                lepd.chkShowWelds = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_WELDS) : BST_UNCHECKED;
+                lepd.chkShowParts = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) : 0;
+                lepd.chkShowWelds = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_WELDS) : 0;
 
                 lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
                 lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);

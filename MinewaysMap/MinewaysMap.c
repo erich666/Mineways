@@ -748,6 +748,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_JACK_O_LANTERN:
 	case BLOCK_WOODEN_DOUBLE_SLAB:
 	case BLOCK_STONE_BRICKS:
+	case BLOCK_CAULDRON:
 		// uses 0-3
 		if ( dataVal < 4 )
 		{
@@ -768,7 +769,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 		}
 		break;
-	case BLOCK_CROPS:
 	case BLOCK_PUMPKIN_STEM:
 	case BLOCK_MELON_STEM:
 	case BLOCK_OAK_WOOD_STAIRS:
@@ -792,10 +792,33 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 		}
 		break;
+	case BLOCK_CROPS:
+	case BLOCK_CARROTS:
+	case BLOCK_POTATOES:
+		// uses 0-7, put farmland beneath it
+		if ( dataVal < 8 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
+		}
+		break;
 	case BLOCK_HUGE_BROWN_MUSHROOM:
 	case BLOCK_HUGE_RED_MUSHROOM:
 		// uses 0-10
 		if ( dataVal < 11 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_FLOWER_POT:
+		// uses 0-11
+		if ( dataVal < 12 )
 		{
 			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
 			block->grid[bi] = (unsigned char)type;
@@ -1050,6 +1073,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_STONE_BUTTON:
+	case BLOCK_WOODEN_BUTTON:
 		trimVal = dataVal & 0x7;
 		if ( trimVal >= 1 && trimVal <= 4 )
 		{
@@ -1061,19 +1085,19 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			{
 			case 1:
 				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
 				break;
 			case 2:
 				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
 				break;
 			case 3:
 				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
 				break;
 			case 4:
 				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
 				break;
 			}
 		}
@@ -1159,6 +1183,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
+	case BLOCK_COBBLESTONE_WALL:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
@@ -1212,6 +1237,17 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			// put block to west, redstone atop it
 			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
 			block->grid[BLOCK_INDEX(3+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+		}
+		break;
+	case BLOCK_CACTUS:
+		// put on sand
+		if ( dataVal == 0 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_SAND;
 		}
 		break;
 	case BLOCK_CHEST:

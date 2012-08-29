@@ -260,8 +260,11 @@ typedef struct
     UINT radioExportSolidTexture[FILE_TYPE_TOTAL];
     UINT radioExportFullTexture[FILE_TYPE_TOTAL];
 
+	// I decided to make flattening always on; the only use I've seen to not flattening is to make the torches on the
+	// Eiffel tower become yellow blocks, when not exporting textures.
     UINT chkMergeFlattop;
     UINT chkExportAll;
+	UINT chkFatten;
     UINT chkMakeZUp[FILE_TYPE_TOTAL];
 
     UINT radioRotate0;
@@ -312,6 +315,8 @@ typedef struct
 	UINT chkMultipleObjects;
 	UINT chkMaterialPerType;
 	UINT chkG3DMaterial;
+
+	UINT flags;
 } ExportFileData;
 
 #define MAX_OUTPUT_FILES 5
@@ -337,9 +342,9 @@ typedef struct Options {
 } Options;
 
 
-// number of official Minecraft blocks - 134 (block IDs + 1)
-#define NUM_BLOCKS_STANDARD 0x89
-// number of blocks + 16 for the 16 colored wool - 150
+// number of official Minecraft blocks - 139 (block IDs + 1)
+#define NUM_BLOCKS_STANDARD 144
+// number of blocks + 16 for the 16 colored wool
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
 // number of texture swatches
@@ -396,7 +401,7 @@ typedef struct Options {
 #define BLF_EMITTER         0x20000
 // this object attaches to fences
 #define BLF_FENCE_NEIGHBOR	0x40000
-// this object outputs its true geometry (not just a block)
+// this object outputs its true geometry (not just a block) for rendering
 #define BLF_TRUE_GEOMETRY	0x80000
 // this object outputs its geometry for 3D printing, if the printer can glue together the bits
 #define BLF_3D_BIT          0x100000
@@ -455,9 +460,9 @@ static struct {
     {"Dispenser",              0x6f6f6f, 1.000f, 0x6f6f6f, 14, 3, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//17 14,2 front, 13,2 sides
     {"Sandstone",              0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//18 0,12 side, 0,13 bottom
     {"Note Block",             0x342017, 1.000f, 0x342017, 10, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//19 10,4 side
-    {"Bed",                    0xff3333, 1.000f, 0xff3333,  6, 8, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1a	TODO: not really whole
-    {"Powered Rail",           0x693838, 1.000f, 0x693838,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1b
-    {"Detector Rail",          0x694d3a, 1.000f, 0x694d3a,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1c
+    {"Bed",                    0xff3333, 1.000f, 0xff3333,  6, 8, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//1a
+    {"Powered Rail",           0x693838, 1.000f, 0x693838,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1b
+    {"Detector Rail",          0x694d3a, 1.000f, 0x694d3a,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1c
     {"Sticky Piston",          0x719e60, 1.000f, 0x719e60, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//1d
     {"Cobweb",                 0xeeeeee, 1.000f, 0xeeeeee, 11, 0, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1e
     {"Tall Grass",             0x68a33d, 1.000f, 0x68a33d,  7, 2, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//1f (31)
@@ -495,7 +500,7 @@ static struct {
     {"Sign Post",              0x9f814f, 1.000f, 0x9f814f, /* bogus */ 4, 0, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//3f (63)
     {"Wooden Door",            0x7e5d2d, 1.000f, 0x7e5d2d,  1, 5, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT}, // 40 1,6 bottom	//40 TODO: BLF_FLATSIDE?
     {"Ladder",                 0xaa8651, 1.000f, 0xaa8651,  3, 5, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_DNE_FLUID},	//41
-    {"Rail",                   0x686868, 1.000f, 0x686868,  0, 8, BLF_FLATTOP|BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//42 - TODO: doesn't do angled pieces, top to bottom edge
+    {"Rail",                   0x686868, 1.000f, 0x686868,  0, 8, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//42 - TODO: doesn't do angled pieces, top to bottom edge
     {"Cobblestone Stairs",     0x818181, 1.000f, 0x818181,  0, 1, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//43 (67)
     {"Wall Sign",              0xa68a46, 1.000f, 0xa68a46, /* bogus */ 4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//44
     {"Lever",                  0x8a6a3d, 1.000f, 0x8a6a3d,  0, 6, BLF_SMALL_MIDDLER|BLF_FLATTOP|BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//45
@@ -510,11 +515,11 @@ static struct {
     {"Snow",                   0xf0fafa, 1.000f, 0xf0fafa,  2, 4, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//4e
     {"Ice",                    0x7dacfe, 0.613f, 0x4d6a9c,  3, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//4f
     {"Snow Block",             0xf1fafa, 1.000f, 0xf1fafa,  2, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//50 4,4 side
-    {"Cactus",                 0x4D5736, 1.000f, 0x0f791d,  5, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//51 6,4 side
+    {"Cactus",                 0x0D6118, 1.000f, 0x0D6118,  5, 4, BLF_ALMOST_WHOLE|BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//51 6,4 side - note: the cutouts are not used when "lesser" is off for rendering, but so it goes.
     {"Clay",                   0xa2a7b4, 1.000f, 0xa2a7b4,  8, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//52
     {"Sugar Cane",             0x72944e, 1.000f, 0x72944e,  9, 4, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//53
     {"Jukebox",                0x8a5a40, 1.000f, 0x8a5a40, 11, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//54 11,3 side
-    {"Fence",                  0x9f814e, 1.000f, 0x9f814e,  4, 0, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_FENCE_NEIGHBOR|BLF_3D_BIT_GLUE},	//55
+    {"Fence",                  0x9f814e, 1.000f, 0x9f814e,  4, 0, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//55
     {"Pumpkin",                0xc07615, 1.000f, 0xc07615,  6, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//56 6,7 side, 7,7 face
     {"Netherrack",             0x723a38, 1.000f, 0x723a38,  7, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //57
     {"Soul Sand",              0x554134, 1.000f, 0x554134,  8, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //58
@@ -522,8 +527,8 @@ static struct {
     {"Portal",                 0x472272, 0.800f, 0x381b5b, /* bogus */ 14, 0, BLF_PANE|BLF_TRANSPARENT|BLF_EMITTER|BLF_DNE_FLUID},   //5a - 0xd67fff unpremultiplied
     {"Jack-O-Lantern",         0xe9b416, 1.000f, 0xe9b416,  6, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},   //5b 6,7 side, 8,7 lit face
     {"Cake",                   0xfffdfd, 1.000f, 0xfffdfd,  9, 7, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5c 10,7 side, 11,7 inside, 12,7 under - TODO: not really whole
-    {"Repeater (off)",         0x560000, 1.000f, 0x560000,  3, 8, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID},   //5d
-    {"Repeater (on)",          0xee5555, 1.000f, 0xee5555,  3, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID},   //5e
+    {"Repeater (off)",         0x560000, 1.000f, 0x560000,  3, 8, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5d
+    {"Repeater (on)",          0xee5555, 1.000f, 0xee5555,  3, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5e
     {"Locked Chest",           0xa06f23, 1.000f, 0xa06f23,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //5f (10,1) side; (11,1) front
     {"Trapdoor",               0x886634, 1.000f, 0x886634,  4, 5, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //60 - tricky case: could be a flattop, or a flatside. For now, render it
     {"Hidden Silverfish",      0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //61
@@ -542,16 +547,16 @@ static struct {
     {"Mycelium",               0x685d69, 1.000f, 0x685d69, 14, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //6e 13,4 side, 2,0 bottom
     {"Lily Pad",               0x0c5f14, 1.000f, 0x0c5f14, 12, 4, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},   //6f
     {"Nether Brick",           0x32171c, 1.000f, 0x32171c,  0,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //70
-    {"Nether Brick Fence",     0x241316, 1.000f, 0x241316,  0,14, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_FENCE_NEIGHBOR|BLF_3D_BIT_GLUE},   //71
+    {"Nether Brick Fence",     0x241316, 1.000f, 0x241316,  0,14, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //71
     {"Nether Brick Stairs",    0x32171c, 1.000f, 0x32171c,  0,14, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //72
     {"Nether Wart",            0x81080a, 1.000f, 0x81080a,  4,14, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //73
     {"Enchantment Table",      0xa6701a, 1.000f, 0xa6701a,  6,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},   //74 6,11 side, 7,11 under - TODO: not really whole TODO: NEED BETTER COLORS HERE ON DOWN (let Sean do it?)
     {"Brewing Stand",          0x77692e, 1.000f, 0x77692e, /* bogus */ 13, 9, BLF_MIDDLER|BLF_CUTOUTS},   //75 13,8 base
-    {"Cauldron",               0x3b3b3b, 1.000f, 0x3b3b3b, 11, 8, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},   //76 - 10,8 top (inside's better), 10,9 side, 11,9 feet TODO: not really whole
+    {"Cauldron",               0x3b3b3b, 1.000f, 0x3b3b3b, 10, 8, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //76 - 10,8 top (inside's better), 10,9 side, 11,9 feet TODO: not really whole
     {"End Portal",             0x0c0b0b, 0.7f, 0x0c0b0b, 14, 0, BLF_PANE|BLF_TRANSPARENT},   //77 - TODO: not really whole, no real texture, make it a portal
     {"End Portal Frame",       0x3e6c60, 1.000f, 0x3e6c60, 14, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //78 15,9 side, 15,10 bottom
     {"End Stone",              0xdadca6, 1.000f, 0xdadca6, 15,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //79
-    {"Dragon Egg",             0x1b1729, 1.000f, 0x1b1729,  7,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},    //7A - TODO: not really whole
+    {"Dragon Egg",             0x1b1729, 1.000f, 0x1b1729,  7,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //7A - not really whole
     {"Redstone Lamp (off)",    0x9F6D4D, 1.000f, 0x9F6D4D,  3,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //7b
     {"Redstone Lamp (on)",     0xf9d49c, 1.000f, 0xf9d49c,  4,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7c
     {"Wooden Double Slab",     0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //7d
@@ -563,10 +568,17 @@ static struct {
     {"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},    //83 - decal
     {"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
     //{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
-    {"Block of Emerald",       0x53D778, 1.000f, 0x53D778, 12,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //85 - should be at 9,1 TODO, but that wipes out the chest. This location given works with my special terrain.png file
+    {"Block of Emerald",       0x53D778, 1.000f, 0x53D778, 12,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //85 - should be at 9,1 for 1.3.X TODO!, but that wipes out the chest. This location given works with my special terrain.png file
     {"Spruce Wood Stairs",     0x785836, 1.000f, 0x785836,  6,12, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //86
     {"Birch Wood Stairs",      0xD7C185, 1.000f, 0xD7C185,  6,13, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //87
     {"Jungle Wood Stairs",     0xB1805C, 1.000f, 0xB1805C,  7,12, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //88
+    {"Command Block",          0xD6A17E, 1.000f, 0xD6A17E,  8,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//89 - TODO: is this really a fence neighbor?
+    {"Beacon Block",           0x87E5E1, 0.500f, 0x447370, 11,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//8A - TODO!: need to adjust to true position for 1.3.X: 9,2
+    {"Cobblestone Wall",       0x828282, 1.000f, 0x828282,  0, 1, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //8B
+    {"Flower Pot",             0x7C4536, 1.000f, 0x7C4536, 10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //8C
+    {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//3b
+    {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//3b
+    {"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//4d
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
@@ -619,6 +631,7 @@ enum block_types {
     BLOCK_STATIONARY_WATER = 0x09,
     BLOCK_LAVA = 0x0a,
     BLOCK_STATIONARY_LAVA = 0x0b,
+	BLOCK_SAND = 0x0c,
     BLOCK_LOG = 0x11,
     BLOCK_LEAVES = 0x12,
     BLOCK_GLASS = 0x14,
@@ -643,6 +656,8 @@ enum block_types {
     BLOCK_STONE_SLAB = 0x2c,
     BLOCK_BRICK = 0x2d,
     BLOCK_TNT = 0x2e,
+	BLOCK_MOSS_STONE = 0x30,
+	BLOCK_OBSIDIAN = 0x31,
     BLOCK_TORCH = 0x32,
     BLOCK_FIRE = 0x33,
     BLOCK_MONSTER_SPAWNER = 0x34,
@@ -702,6 +717,7 @@ enum block_types {
     BLOCK_BREWING_STAND = 0x75,
     BLOCK_CAULDRON = 0x76,
     BLOCK_END_PORTAL_FRAME = 0x78,
+    BLOCK_DRAGON_EGG = 0x7a,
 	BLOCK_WOODEN_DOUBLE_SLAB = 0x7d,
 	BLOCK_WOODEN_SLAB = 0x7e,
 	BLOCK_COCOA_PLANT = 0x7f,
@@ -711,6 +727,12 @@ enum block_types {
 	BLOCK_SPRUCE_WOOD_STAIRS = 0x86,
 	BLOCK_BIRCH_WOOD_STAIRS = 0x87,
 	BLOCK_JUNGLE_WOOD_STAIRS = 0x88,
+	BLOCK_BEACON = 0x8A,
+	BLOCK_COBBLESTONE_WALL = 0x8B,
+	BLOCK_FLOWER_POT = 0x8C,
+	BLOCK_CARROTS = 0x8D,
+	BLOCK_POTATOES = 0x8E,
+	BLOCK_WOODEN_BUTTON = 0x8F,
 
     BLOCK_WHITE_WOOL = (NUM_BLOCKS-16),
     BLOCK_BLACK_WOOL = (NUM_BLOCKS-1)
