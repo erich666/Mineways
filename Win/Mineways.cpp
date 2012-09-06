@@ -30,7 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Mineways.h"
 #include "ColorSchemes.h"
 #include "ExportPrint.h"
-#include "zip.h"
+#include "XZip.h"
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -2071,7 +2071,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
             swprintf_s(wcZip,MAX_PATH,L"%s.zip",outputFileList.name[0]);
 
             DeleteFile(wcZip);
-            HZIP hz = CreateZip(wcZip,0);
+            HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
             for ( int i = 0; i < outputFileList.count; i++ )
             {
                 const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
@@ -2079,7 +2079,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
                 if (*updateProgress)
                 { (*updateProgress)(0.75f + 0.25f*(float)i/(float)outputFileList.count);}
 
-                ZipAdd(hz,nameOnly, outputFileList.name[i]);
+                ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
 
 				// delete model files if not needed
 				if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
