@@ -40,6 +40,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <time.h>
 
+// To build the code the old way, which took up a lot more memory but maybe
+// solves some problems people with Macs have running Mineways under Wine
+#define OLD_BUILD
+
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
 static PORTAFILE gPngFile;  // for terrain.png input (not texture output)
@@ -461,7 +465,9 @@ static void initializeModelData();
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
 static int populateBox(const wchar_t *world, IBox *box);
+#ifndef OLD_BUILD
 static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox );
+#endif
 static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
 
 static int filterBox();
@@ -1215,6 +1221,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     VecScalar( gSolidWorldBox.min, =,  999999 );
     VecScalar( gSolidWorldBox.max, =, -999999 );
 
+#ifndef OLD_BUILD
 	// we now extract twice: first time is just to get bounds of solid stuff
 	for ( blockX=startxblock; blockX<=endxblock; blockX++ )
 	{
@@ -1234,6 +1241,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
 
 	// have to reinitialize to get right globals for gSolidWorldBox.
 	initializeWorldData( worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z] );
+#endif
 
 	gBoxData = (BoxCell*)malloc(gBoxSizeXYZ*sizeof(BoxCell));
 	// set all values to "air"
@@ -1247,15 +1255,18 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
         // z increases west, decreases east
         for ( blockZ=startzblock; blockZ<=endzblock; blockZ++ )
         {
-            // this method also sets gSolidWorldBox
+            // this method also sets gSolidWorldBox for OLD_BUILD
             extractChunk(world,blockX,blockZ,worldBox);
         }
     }
-    //if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
-    //{
-    //    // nothing to do: there is nothing in the box
-    //    return MW_NO_BLOCKS_FOUND;
-    //}
+
+#ifdef OLD_BUILD
+    if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
+    {
+        // nothing to do: there is nothing in the box
+        return MW_NO_BLOCKS_FOUND;
+    }
+#endif
 
     // convert to solid relative box (0 through boxSize-1)
     Vec3Op( gSolidBox.min, =, gSolidWorldBox.min, +, gWorld2BoxOffset );
@@ -1269,6 +1280,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     return MW_NO_ERROR;
 }
 
+#ifndef OLD_BUILD
 // test relevant part of a given chunk to find its size
 static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox )
 {
@@ -1340,6 +1352,7 @@ static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox
 		}
 	}
 }
+#endif
 
 // copy relevant part of a given chunk to the box data grid
 static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
@@ -1407,6 +1420,21 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
 
 				// For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
 				chunkIndex += 256;
+#ifdef OLD_BUILD
+				if ( blockID > BLOCK_AIR )
+				{
+					IPoint loc;
+					Vec3Scalar( loc, =, x,y,z );
+					addBounds(loc,&gSolidWorldBox);
+
+					// special: if it's a wire, clear the data value. We use this later for
+					// how the wires actually connect to each other.
+					if ( blockID == BLOCK_REDSTONE_WIRE )
+					{
+						gBoxData[boxIndex].data = 0x0;
+					}
+				}
+#else
                 // get bounds on y searches:
                 // search for air, and if not found then
                 // add to vertical bounds.
@@ -1425,6 +1453,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                         gBoxData[boxIndex].data = 0x0;
                     }
                 //}
+#endif
             }
         }
     }

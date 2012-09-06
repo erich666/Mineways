@@ -142,6 +142,7 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
 static void worldPath(TCHAR *path);
+static void worldPathMac(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
@@ -1662,9 +1663,17 @@ static int loadWorld()
 
 static void worldPath(TCHAR *path)
 {
-    SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
-    PathAppend(path,L".minecraft");
-    PathAppend(path,L"saves");
+	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
+	PathAppend(path,L".minecraft");
+	PathAppend(path,L"saves");
+}
+
+// I really have no idea what will work here, but let's give this a try. TODO
+static void worldPathMac(TCHAR *path)
+{
+	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
+	PathAppend(path,L"minecraft");
+	PathAppend(path,L"saves");
 }
 
 static int loadWorldList(HMENU menu)
@@ -1682,6 +1691,21 @@ static int loadWorldList(HMENU menu)
     worldPath(path);
     PathAppend(path,L"*");
     hFind=FindFirstFile(path,&ffd);
+
+	// did we find the directory at all?
+	if ( hFind == INVALID_HANDLE_VALUE )
+	{
+		worldPathMac(path);
+		PathAppend(path,L"*");
+		hFind=FindFirstFile(path,&ffd);
+
+		if ( hFind == INVALID_HANDLE_VALUE )
+		{
+			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your world. It's usually located at ~/Library/Application Support/minecraft/saves."),
+				_T("Informational"), MB_OK|MB_ICONINFORMATION);
+			return 0;
+		}
+	}
 
     do
     {
@@ -2216,7 +2240,8 @@ static void initializeExportDialogData()
 
 	gExportPrintData.chkMultipleObjects = 1;
 	gExportPrintData.chkMaterialPerType = 1;
-	gExportPrintData.chkG3DMaterial = 0;
+	// we want a neutral material for printing (the rest is not all that important), as the SAP Viewer needs this
+	gExportPrintData.chkG3DMaterial = 1;
 
     gExportPrintData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES( gExportPrintData.hollowThicknessVal,
@@ -2272,6 +2297,8 @@ static void initializeExportDialogData()
     gExportViewData.chkDeleteFloaters = 0;
     gExportViewData.chkHollow = 0;
     gExportViewData.chkSuperHollow = 0;
+	// G3D material off by default for rendering
+	gExportViewData.chkG3DMaterial = 0;
 
     gExportViewData.floaterCountVal = 16;
     // irrelevant for viewing
