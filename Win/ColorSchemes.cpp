@@ -32,6 +32,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "../MinewaysMap/blockInfo.h"
 #include "ColorSchemes.h"
 
+#define NO_COLOR_ENTRY 0x000100FF
+// magenta: tips off user that his color scheme is out of date
+#define MISSING_COLOR_ENTRY 0xFF00FFFF
+
 static wchar_t gLastItemSelected[255];
 
 static int gLocalCountForNames=1;
@@ -50,22 +54,18 @@ ColorManager::~ColorManager()
 
 void ColorManager::Init(ColorScheme *cs)
 {
-    for (int i=0;i<NUM_BLOCKS;i++)
+	int i;
+    for (i=0;i<NUM_BLOCKS;i++)
     {
-        unsigned int color=gBlockDefinitions[i].color;
-        unsigned char r,g,b,a;
-        r=(unsigned char)(color>>16);
-        g=(unsigned char)(color>>8);
-        b=(unsigned char)(color);
-        float alpha=gBlockDefinitions[i].alpha;
-        // we used to unmultiply. Now we store the unmultiplied color in gBlockDefinitions
-        //r=(unsigned char)(r/alpha);
-        //g=(unsigned char)(g/alpha);
-        //b=(unsigned char)(b/alpha);
-        a=(unsigned char)(alpha*255);
-        color=(r<<24)|(g<<16)|(b<<8)|a;
-        cs->colors[i]=color;
+        cs->colors[i]=blockColor(i);
     }
+	for (int i=NUM_BLOCKS; i < 256; i++)
+	{
+		// fill the rest with almost-black; if we detect this color on loading
+		// a color scheme in a place that should have been a normal color, then
+		// we know the old color scheme is out of date and should be fixed on load.
+		cs->colors[i]=NO_COLOR_ENTRY;
+	}
 }
 void ColorManager::create(ColorScheme *cs)
 {
@@ -109,12 +109,60 @@ void ColorManager::load(ColorScheme *cs)
     swprintf(keyname,50,L"scheme %d",cs->id);
     DWORD csLen=sizeof(ColorScheme);
     RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
+
+	// find out how many entries are invalid and fix these by shifting up
+	int woolLoc = NUM_BLOCKS-1;
+	// Find black wool entry (for backwards compatibility)
+	unsigned int color=blockColor(BLOCK_BLACK_WOOL);
+
+	// go back through list until wool is found. Don't go back past say snow
+	while ( woolLoc > 78 && cs->colors[woolLoc] != color )
+	{
+		woolLoc--;
+	}
+
+	// woolLoc is the location of black wool in the saved color scheme
+	if ( woolLoc < BLOCK_BLACK_WOOL && woolLoc > 78 )
+	{
+		// Mind the gap! Move the 16 wools up some slots, fill in these slots
+		// with missing entries
+		int gap = BLOCK_BLACK_WOOL - woolLoc;
+		int i;
+		for ( i = 0; i > -16; i-- )
+		{
+			// correct black wool set to where black wool is currently, on back
+			cs->colors[woolLoc+gap+i] = cs->colors[woolLoc+i];
+		}
+		for ( i = 0; i < gap; i++ )
+		{
+			// set where white wool was, on up, to missing color
+			cs->colors[woolLoc-15+i] = blockColor(woolLoc-15+i);
+		}
+		save(cs);
+	}
 }
 void ColorManager::remove(int id)
 {
     wchar_t keyname[50];
     swprintf(keyname,50,L"scheme %d",id);
     RegDeleteValue(key,keyname);
+}
+unsigned int ColorManager::blockColor(int type)
+{
+	unsigned int color=gBlockDefinitions[type].color;
+	unsigned char r,g,b,a;
+	r=(unsigned char)(color>>16);
+	g=(unsigned char)(color>>8);
+	b=(unsigned char)(color);
+	float alpha=gBlockDefinitions[type].alpha;
+	// we used to unmultiply. Now we store the unmultiplied color in gBlockDefinitions
+	//r=(unsigned char)(r/alpha);
+	//g=(unsigned char)(g/alpha);
+	//b=(unsigned char)(b/alpha);
+	a=(unsigned char)(alpha*255);
+	color=(r<<24)|(g<<16)|(b<<8)|a;
+
+	return color;
 }
 
 INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam);

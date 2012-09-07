@@ -576,9 +576,9 @@ static struct {
     {"Beacon Block",           0x87E5E1, 0.500f, 0x447370, 11,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//8A - TODO!: need to adjust to true position for 1.3.X: 9,2
     {"Cobblestone Wall",       0x828282, 1.000f, 0x828282,  0, 1, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //8B
     {"Flower Pot",             0x7C4536, 1.000f, 0x7C4536, 10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //8C
-    {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//3b
-    {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//3b
-    {"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//4d
+    {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8d
+    {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8e
+    {"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},

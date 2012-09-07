@@ -797,7 +797,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     UPDATE_PROGRESS(PG_TEXTURE);
     if ( gModel.pPNGtexture != NULL )
     {
-#define FA_TABLE_SIZE 64
+#define FA_TABLE_SIZE 65
 #define FA_TABLE__VIEW_SIZE 18
 // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
 #define FA_TABLE__RENDER_BLOCK_START 10
@@ -828,6 +828,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			{ SWATCH_INDEX( 15, 15 ), BLOCK_STATIONARY_LAVA }, // stationary lava, in case it's not present
 			{ SWATCH_INDEX( 10, 11 ), BLOCK_FLOWER_POT }, // flower pot
 
+			// count is FA_TABLE__VIEW_SIZE up to this point
 
 			// stuff filled in for 3D printing only
 			{ SWATCH_INDEX( 11, 0 ), SWATCH_INDEX( 6, 3 ) }, // spiderweb over stone block
@@ -843,6 +844,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			{ SWATCH_INDEX( 1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
 			{ SWATCH_INDEX( 9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
 			{ SWATCH_INDEX( 15, 4 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
+			{ SWATCH_INDEX( 14, 1 ), SWATCH_INDEX( 0, 0 ) }, // jungle sapling over grass
 			{ SWATCH_INDEX( 1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
 			{ SWATCH_INDEX( 2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
 			{ SWATCH_INDEX( 5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
@@ -8891,9 +8893,9 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 				else
 				{
 					sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.uvIndexCount, outputFaceDirection,
-						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.uvIndexCount, outputFaceDirection,
-						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.uvIndexCount, outputFaceDirection
+						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount, outputFaceDirection
 						);
 				}
 			}
@@ -8911,10 +8913,10 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 				else
 				{
 					sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.uvIndexCount, outputFaceDirection,
-						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.uvIndexCount, outputFaceDirection,
-						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.uvIndexCount, outputFaceDirection,
-						pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-4*gModel.uvIndexCount, outputFaceDirection
+						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-gModel.uvIndexCount, outputFaceDirection
 						);
 				}
 			}
@@ -8934,9 +8936,9 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 				else
 				{
 					sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d\n",
-						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.uvIndexCount,
-						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.uvIndexCount,
-						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.uvIndexCount
+						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount,
+						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount,
+						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount
 						);
 				}
 			}
@@ -8954,10 +8956,10 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox )
 				else
 				{
 					sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d %d/%d\n",
-						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-4*gModel.uvIndexCount,
-						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-4*gModel.uvIndexCount,
-						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-4*gModel.uvIndexCount,
-						pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-4*gModel.uvIndexCount
+						pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount,
+						pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount,
+						pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount,
+						pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-gModel.uvIndexCount
 						);
 				}
 			}
@@ -11577,13 +11579,16 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
             oma = 255 - oa;
 
             if ( forceSolid )
+			{
                 ua = 255;
+			}
 
             // finally have all data: composite o over u
             if ( oa == 0 )
             {
                 // copy the under pixel
-                *cdsti = *cunderi;
+				SET_PNG_TEXEL( *cdsti, ur,ug,ub,ua );
+                // essentially *cdsti = *cunderi;, but with ua possibly changed
             }
             else if ( oma == 0 )
             {

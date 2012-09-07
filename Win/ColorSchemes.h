@@ -44,6 +44,7 @@ public:
     void load(ColorScheme *cs); //loads a color scheme (id must be set)
     void save(ColorScheme *cs); //saves a color scheme
     void remove(int id); //remove a color scheme
+	static unsigned int blockColor(int type); // get color to store for a block
 private:
     HKEY key;
 };
