@@ -863,6 +863,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_FURNACE:
 	case BLOCK_BURNING_FURNACE:
 	case BLOCK_DISPENSER:
+	case BLOCK_ENDER_CHEST:
 		// uses 2-5
 		if ( dataVal >= 2 && dataVal <= 5 )
 		{

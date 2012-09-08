@@ -564,7 +564,7 @@ static struct {
     {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},    //7f
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //81
-    {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  7,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},    //82 - don't really have tiles for this one
+    {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  8,14, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //82 - don't really have tiles for this one, added to terrain.png
     {"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},    //83 - decal
     {"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
     //{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
@@ -722,6 +722,7 @@ enum block_types {
 	BLOCK_WOODEN_SLAB = 0x7e,
 	BLOCK_COCOA_PLANT = 0x7f,
 	BLOCK_SANDSTONE_STAIRS = 0x80,
+	BLOCK_ENDER_CHEST = 0x82,
 	BLOCK_TRIPWIRE_HOOK = 0x83,
 	BLOCK_TRIPWIRE = 0x84,
 	BLOCK_SPRUCE_WOOD_STAIRS = 0x86,

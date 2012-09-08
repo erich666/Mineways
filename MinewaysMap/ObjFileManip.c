@@ -2405,7 +2405,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				return(0);
 			}
 		}
-		return 1;
+		break;
 
 
     case BLOCK_FIRE:
@@ -2454,7 +2454,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 10+fatten,16 );
             saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 10+fatten,16 );
         }
-		return 1;
+		break;
 
 	case BLOCK_COBBLESTONE_WALL:
 		// which posts are needed: NSEW. Brute-force it.
@@ -2531,7 +2531,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 8+hasPost*4,16 );
 			firstFace = 0;
 		}
-		return 1;
+		break;
 
 	case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_WOODEN_PRESSURE_PLATE:
@@ -2544,7 +2544,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateMtx(mtx, 0.0f, -0.5f/16.0f, 0.5/16.0f);
 			transformVertices(8,mtx);
 		}
-		return 1;
+		break;
 
     case BLOCK_OAK_WOOD_STAIRS:
     case BLOCK_COBBLESTONE_STAIRS:
@@ -2640,7 +2640,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             maxy = 8;
         }
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0, 0,16, miny,maxy, 0,16);
-        return 1;
+        break;
 
         // continue! no break;
 	case BLOCK_STONE_SLAB:
@@ -2723,7 +2723,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			maxy = 8;
 		}
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
-		return 1;
+		break;
 
     case BLOCK_STONE_BUTTON:
 	case BLOCK_WOODEN_BUTTON:
@@ -2760,7 +2760,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // we *could* save one face of the stone button, the one facing the object, but don't:
         // the thing holding the stone button could be missing, due to export limits.
         saveBoxGeometry( boxIndex, type, 1, 0x0, minx,maxx, 6,10, minz,maxz );
-        return 1;
+        break;
 
     case BLOCK_WALL_SIGN:
         switch (dataVal)
@@ -2793,7 +2793,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, 4.5f/16.0f, 0.0f);
         transformVertices(8,mtx);
-        return 1;
+        break;
 
     case BLOCK_TRAPDOOR:
 		// On second thought, in testing it worked fine.
@@ -2834,7 +2834,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(8,mtx);
         }
-        return 1;
+        break;
 
     case BLOCK_SIGN_POST:
         // sign is two parts:
@@ -2858,7 +2858,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateMtx(mtx, 0.0f, 14.0f/24.0f, 0.0f);
         transformVertices(8,mtx);
 
-        return 1;
+        break;
 
     case BLOCK_WOODEN_DOOR:
     case BLOCK_IRON_DOOR:
@@ -2933,7 +2933,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // undo translation
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
-        return 1;
+        break;
 
     case BLOCK_SNOW:
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
@@ -2944,14 +2944,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         // change height as needed
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0, 2 * (1 + (dataVal&0x7)), 0,16);
-        return 1;
+        break;
 
     case BLOCK_END_PORTAL_FRAME:
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( 15,9 );
         bottomSwatchLoc = SWATCH_INDEX( 15,10 );
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,13, 0,16);
-        return 1;
+        break;
 
     // top, sides, and bottom, and don't stretch the sides if output here
 	case BLOCK_CAKE:
@@ -2962,7 +2962,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = 
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 10,7 );
         saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1+(dataVal&0x7)*2,15, 0,8, 1,15);
-		return 1;
+		break;
 
     case BLOCK_FARMLAND:
 		if ( printing )
@@ -2976,7 +2976,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         sideSwatchLoc = SWATCH_INDEX( 2,0 );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
-        return 1;
+        break;
 
     case BLOCK_FENCE_GATE:
         // Check if open
@@ -3066,7 +3066,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12, 7-fatten,9+fatten);
             }
         }
-        return 1;
+        break;
 
 	case BLOCK_COCOA_PLANT:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -3148,7 +3148,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(bitAdd,mtx);
 		}
-		return 1;
+		break;
 
 	case BLOCK_CAULDRON:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -3180,7 +3180,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				2, 14, 3, 6+dataVal*3, 2, 14 );
 		}
 
-		return 1;
+		break;
 
 	case BLOCK_DRAGON_EGG:
 		// top to bottom
@@ -3192,7 +3192,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		saveBoxGeometry( boxIndex, type, 0, 0x0, 1,15, 3,8, 1,15);
 		saveBoxGeometry( boxIndex, type, 0, DIR_TOP_BIT, 2,14, 1,3, 2,14);
 		saveBoxGeometry( boxIndex, type, 0, DIR_TOP_BIT, 5,11, 0,1, 5,11);
-		return 1;
+		break;
 
 	case BLOCK_FLOWER_POT:
 		// TODO! if rendering, add flower, etc. using data value. Note to not mark face as first below, if rendering.
@@ -3324,7 +3324,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// outside bottom - in theory never seen, so we make it dirt, since the flowerpot texture itself has a hole in it at these coordinates
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 5,11, 0,4, 5,11);
 
-		return 1;
+		break;
 
 	case BLOCK_BED:
 		// side of bed - head or foot?
@@ -3358,7 +3358,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
 			(printing? 0:3),9, 0,16);
-		return 1;
+		break;
 
 	case BLOCK_CACTUS:
 		// are top and bottom needed?
@@ -3386,7 +3386,43 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|faceMask, 0, 1,15, 0,16, 1,15 );
 			}
 		}
-		return 1;
+		break;
+
+	case BLOCK_ENDER_CHEST:
+		// fake TODO!
+		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+		swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
+		swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc+2;	// front
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
+		// TODO! Y data was centered instead of put at bottom, so note we have to shift it down
+		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1, 15, 1, 15, 1, 15 );
+		switch ( dataVal )
+		{
+		default:
+		case 2: // facing north
+			angle = 90;
+			break;
+		case 3: // facing south
+			angle = 270;
+			break;
+		case 4: // facing west
+			// no change
+			angle = 0;
+			break;
+		case 5: // facing east
+			angle = 180;
+			break;
+		}
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		translateMtx(mtx, 0.0f, -1.0f/16.0f, 0.0f );
+		rotateMtx(mtx, 0.0f, angle, 0.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(8,mtx);
+		break;
 
 	case BLOCK_REDSTONE_REPEATER_OFF:
 	case BLOCK_REDSTONE_REPEATER_ON:
@@ -3399,9 +3435,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		rotateMtx(mtx, 0.0f, angle, 0.0f);
 		translateFromOriginMtx(mtx, boxIndex);
 		transformVertices(8,mtx);
-		if ( printing )
-			return 1;
-		else
+		if ( !printing )
 		{
 			// TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
 			// matter, because no one ever sees the bottom of a repeater.
@@ -3428,14 +3462,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(totalVertexCount,mtx);
 		}
-		return 1;
+		break;
 
 	default:
 		// something tagged as billboard or geometry, but no case here!
 		assert(0);
+		return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide )
@@ -7421,6 +7456,62 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			break;
 		case BLOCK_SANDSTONE_STAIRS:
 			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+			break;
+		case BLOCK_ENDER_CHEST:
+			// fake TODO!
+			frontLoc = 1;
+			angle = 0;	// to make compiler happy
+			switch ( faceDirection )
+			{
+			default:
+			case DIRECTION_BLOCK_SIDE_LO_X:
+				angle = 0;
+				break;
+			case DIRECTION_BLOCK_SIDE_HI_X:
+				angle = 180;
+				break;
+			case DIRECTION_BLOCK_SIDE_LO_Z:
+				angle = 90;
+				break;
+			case DIRECTION_BLOCK_SIDE_HI_Z:
+				angle = 270;
+				break;
+			case DIRECTION_BLOCK_BOTTOM:
+				// fine as is
+				frontLoc = 0;
+				break;
+			case DIRECTION_BLOCK_TOP:
+				// fine as is
+				frontLoc = 0;
+				break;
+			}
+			if ( frontLoc )
+			{
+				switch ( dataVal )
+				{
+				default:
+				case 2: // facing north
+					angle += 270;
+					break;
+				case 3: // facing south
+					angle += 90;
+					break;
+				case 4: // facing west
+					// no change
+					break;
+				case 5: // facing east
+					angle += 180;
+					break;
+				}
+				if ( (angle % 360) == 0 )
+				{
+					swatchLoc = SWATCH_INDEX( 10, 14 );
+				}
+				else
+				{
+					swatchLoc = SWATCH_INDEX( 9, 14 );
+				}
+			}
 			break;
 		case BLOCK_LOG:
 			// bit tricksy: rotate by rotating face direction itself
