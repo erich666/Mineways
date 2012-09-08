@@ -3394,9 +3394,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
 		swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
 		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc+2;	// front
-		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc;
-		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc;
-		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc+1;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc+1;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc+1;
 		// TODO! Y data was centered instead of put at bottom, so note we have to shift it down
 		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1, 15, 1, 15, 1, 15 );
 		switch ( dataVal )
