@@ -42,7 +42,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // To build the code the old way, which took up a lot more memory but maybe
 // solves some problems people with Macs have running Mineways under Wine
-#define OLD_BUILD
+//#define OLD_BUILD
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
@@ -2295,7 +2295,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 {
 	int dataVal, minx, maxx, miny, maxy, minz, maxz, faceMask, bitAdd;
 	int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
-    int topDataVal, bottomDataVal, shiftVal, neighborType, xCount, zCount;
+    int topDataVal, bottomDataVal, shiftVal, neighborType;
 	int hasPost, firstFace, totalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom;
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
@@ -2463,43 +2463,56 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// Note that if a render export chops through a fence, the fence will not join.
 		// TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
 		// this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
-		xCount = 0;
-		zCount = 0;
-		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-		{
-			xCount++;
-		}
-		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-		{
-			xCount++;
-		}
-		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-		{
-			zCount++;
-		}
-		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-		{
-			zCount++;
-		}
-
 		swatchLoc = ( dataVal == 0x1 ) ? SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY ) :
 			SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
 
-		// for cobblestone walls, if the count is anything but 2, put the post
-		if ( (type == BLOCK_COBBLESTONE_WALL) && (xCount != 2) && (zCount != 2) )
+		hasPost = 0;
+		// if there's *anything* above the wall, put the post
+		if ( gBoxData[boxIndex+1].origType != 0 )
 		{
-			// cobblestone post
 			hasPost = 1;
+		}
+		else
+		{
+			// else, test if there are neighbors and not across from one another.
+			int xCount = 0;
+			int zCount = 0;
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				xCount++;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				xCount++;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				zCount++;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				zCount++;
+			}
+
+			// for cobblestone walls, if the count is anything but 2, put the post
+			if ( (xCount != 2) && (zCount != 2) )
+			{
+				// cobblestone post
+				hasPost = 1;
+			}
+		}
+
+		if ( hasPost )
+		{
 			saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, 0x0, 4,12, 0,16, 4,12 );
 			firstFace = 0;
 		}
 		else
 		{
-			hasPost = 0;
 			firstFace = 1;
 		}
 
