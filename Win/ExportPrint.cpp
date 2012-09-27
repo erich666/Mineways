@@ -473,6 +473,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 				CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,BST_INDETERMINATE);
 				CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,BST_INDETERMINATE);
 			}
+			else if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_UNCHECKED && (epd.flags & EXPT_3DPRINT))
+			{
+				// if lesser is toggled back off, turn on the defaults
+				CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_CHECKED);
+				CheckDlgButton(hDlg,IDC_CONNECT_PARTS,BST_CHECKED);
+				CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,BST_CHECKED);
+				CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,BST_UNCHECKED);
+			}
 			// if we're turning it off, set fatten to indeterminate state
 			{
 				UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);

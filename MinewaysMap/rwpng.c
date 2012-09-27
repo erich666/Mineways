@@ -284,8 +284,10 @@ int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *p
         return 2;
     }
 
-
-    png_init_io(png_ptr, infile);
+    //png_init_io(png_ptr, infile);
+	// someday allow a PNG from a gzip to be read, by passing in the gFile and read function,
+	// which should be passed into this method.
+	png_set_read_fn(png_ptr, infile, NULL);
     png_set_sig_bytes(png_ptr, 8);  /* we already read the 8 signature bytes */
 
     png_read_info(png_ptr, info_ptr);  /* read all PNG info up to image data */

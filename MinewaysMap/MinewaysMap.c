@@ -71,6 +71,7 @@ static int gHighlightID=0;
 
 // was an unknown block read in?
 static int gUnknownBlock = 0;
+static int gPerformUnknownBlockCheck = 1;
 
 void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz )
 {
@@ -751,6 +752,16 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_CAULDRON:
 		// uses 0-3
 		if ( dataVal < 4 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = (unsigned char)type;
+			// shift up the data val by 4 if on the odd value location
+			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+		}
+		break;
+	case BLOCK_HEAD:	// TODO!
+		// uses 0-4
+		if ( dataVal < 5 )
 		{
 			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
 			block->grid[bi] = (unsigned char)type;
@@ -1631,9 +1642,12 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 				{
 					// some new version of Minecraft, block ID is unrecognized;
 					// turn this block into stone. dataVal will be ignored.
-					assert( *pBlockID < NUM_BLOCKS_STANDARD );	// note the program needs fixing
+					assert( (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
 					*pBlockID = BLOCK_STONE;
-					gUnknownBlock = 1;
+					// note that we always clean up bad blocks;
+					// whether we flag that a bad block was found is optional
+					if ( gPerformUnknownBlockCheck )
+						gUnknownBlock = 1;
 				}
             }
         //}
@@ -1652,6 +1666,11 @@ void ClearBlockReadCheck()
 int UnknownBlockRead()
 {
 	return gUnknownBlock;
+}
+
+void CheckUnknownBlock( int check )
+{
+	gPerformUnknownBlockCheck = check;
 }
 
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)

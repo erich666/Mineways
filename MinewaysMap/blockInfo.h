@@ -339,11 +339,13 @@ typedef struct Options {
     float dim_cm[3];
     float cost;
     int totalBlocks;
+	float block_mm;
+	float block_inch;
 } Options;
 
 
 // number of official Minecraft blocks - 139 (block IDs + 1)
-#define NUM_BLOCKS_STANDARD 144
+#define NUM_BLOCKS_STANDARD 145
 // number of blocks + 16 for the 16 colored wool
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
@@ -578,7 +580,8 @@ static struct {
     {"Flower Pot",             0x7C4536, 1.000f, 0x7C4536, 10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //8C
     {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8d
     {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8e
-    {"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f
+	{"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f
+    {"Head",			       0xcacaca, 1.000f, 0xcacaca,  4, 0, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//90 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
@@ -734,6 +737,7 @@ enum block_types {
 	BLOCK_CARROTS = 0x8D,
 	BLOCK_POTATOES = 0x8E,
 	BLOCK_WOODEN_BUTTON = 0x8F,
+	BLOCK_HEAD = 0x90,
 
     BLOCK_WHITE_WOOL = (NUM_BLOCKS-16),
     BLOCK_BLACK_WOOL = (NUM_BLOCKS-1)

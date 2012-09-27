@@ -66,9 +66,10 @@ static Options gOptions = {0,   // which world is visible
     0,  // start with low memory
     NULL};
 
-static wchar_t gWorld[MAX_PATH];							//path to currently loaded world
+static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
 static BOOL gSameWorld=FALSE;
-static wchar_t gSelectTerrain[MAX_PATH];					//path to selected terrain.png file, if any
+static wchar_t gSelectTerrain[MAX_PATH];				//path to selected terrain.png file, if any
+static wchar_t gSelectMinecraftJar[MAX_PATH];			//path to MinecraftJar
 static BOOL gLoaded=FALSE;								//world loaded?
 static double gCurX,gCurZ;								//current X and Z
 static int gLockMouseX=0;                               // if true, don't allow this coordinate to change with mouse, 
@@ -141,8 +142,9 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
+static void minecraftJarPath(TCHAR *path);
 static void worldPath(TCHAR *path);
-static void worldPathMac(TCHAR *path);
+static void mcPathMac(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
@@ -164,6 +166,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 {
     GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
     gSelectTerrain[0] = (wchar_t)0;
+
+	minecraftJarPath( gSelectMinecraftJar );
 
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
@@ -1655,10 +1659,26 @@ static int loadWorld()
 		gTargetDepth = MIN_OVERWORLD_DEPTH;
 		gHighlightOn=FALSE;
 		SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
-    }
+		// turn on error checking for this new world, to warn of unknown blocks
+		CheckUnknownBlock( true );
+	}
     gLoaded=TRUE;
     draw();
+	if ( UnknownBlockRead() )
+	{
+		MessageBox( NULL, _T("Warning: new, unknown block types encountered; Mineways turns these into stone. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
+			_T("Read error"), MB_OK|MB_ICONERROR);
+		// flag this just the first time found, then turn off error
+		CheckUnknownBlock( false );
+	}
     return 0;
+}
+
+static void minecraftJarPath(TCHAR *path)
+{
+	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
+	PathAppend(path,L".minecraft");
+	PathAppend(path,L"bin");
 }
 
 static void worldPath(TCHAR *path)
@@ -1668,12 +1688,27 @@ static void worldPath(TCHAR *path)
 	PathAppend(path,L"saves");
 }
 
-// I really have no idea what will work here, but let's give this a try. TODO
-static void worldPathMac(TCHAR *path)
+// I really have no idea what will work here, but let's give this a try. Does it work now?
+static void mcPathMac(TCHAR *path)
 {
-	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
-	PathAppend(path,L"minecraft");
-	PathAppend(path,L"saves");
+	char *home;
+	size_t len;
+	_dupenv_s( &home, &len, "HOME" );
+	if ( home != NULL )
+	{
+		MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,home,-1,path,MAX_PATH);
+		PathAppend(path,L"Library");
+		PathAppend(path,L"Application Support");
+		PathAppend(path,L"Minecraft");
+	}
+	else
+	{
+		// try something crazy, I really don't know what the Mac wants... TODO!
+		wcscpy_s(path,MAX_PATH,L"~");
+		PathAppend(path,L"Library");
+		PathAppend(path,L"Application Support");
+		PathAppend(path,L"Minecraft");
+	}
 }
 
 static int loadWorldList(HMENU menu)
@@ -1695,7 +1730,8 @@ static int loadWorldList(HMENU menu)
 	// did we find the directory at all?
 	if ( hFind == INVALID_HANDLE_VALUE )
 	{
-		worldPathMac(path);
+		mcPathMac(path);
+		PathAppend(path,L"saves");
 		PathAppend(path,L"*");
 		hFind=FindFirstFile(path,&ffd);
 
@@ -2055,9 +2091,11 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         InvalidateRect(hWnd,NULL,FALSE);
         UpdateWindow(hWnd);
 
+		// TODO!!! Check that minecraft.jar exists in the right place
+
         int errCode = SaveVolume( objFileName, fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-            updateProgress, terrainFileName, &outputFileList );
+            updateProgress, terrainFileName, &outputFileList, gSelectMinecraftJar );
 
 		// note how many files were output
 		retCode = outputFileList.count;
@@ -2098,9 +2136,10 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         {
             int retval;
             wchar_t msgString[2000];
-            swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is $ %0.2f\nBase is %d x %d blocks, %d blocks high\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+            swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is $ %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                 gOptions.cost,
-                gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1], 
+                gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
+				gOptions.block_mm, gOptions.block_inch,
                 gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1], 
                 gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1], 
                 gOptions.totalBlocks );

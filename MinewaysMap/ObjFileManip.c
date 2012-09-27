@@ -462,7 +462,7 @@ typedef struct TouchRecord {
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax );
 static void initializeModelData();
 
-static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
+static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName, wchar_t *minecraftJar );
 
 static int populateBox(const wchar_t *world, IBox *box);
 #ifndef OLD_BUILD
@@ -630,7 +630,7 @@ void ChangeCache( int size )
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, 
-    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList )
+    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar )
 {
 //#ifdef WIN32
 //    DWORD br;
@@ -673,7 +673,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
-        retCode = readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName);
+        retCode = readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName, minecraftJar);
         if ( retCode >= MW_BEGIN_ERRORS )
         {
             // nothing in box, so end.
@@ -1037,9 +1037,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 	if ( UnknownBlockRead() )
 	{
 		retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
-		// flag this just the first time found; if new data is read later,
-		// it gets flagged again
-		ClearBlockReadCheck();
+		// flag this just the first time found, then turn off error
+		CheckUnknownBlock( 0 );
 	}
 
     return retCode;
@@ -1143,7 +1142,7 @@ static void initializeModelData()
 	gModel.uvIndexList = (UVOutput*)malloc(gModel.uvIndexListSize*sizeof(UVOutput));
 }
 
-static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName )
+static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName, wchar_t *minecraftJar )
 {
     // file should be in same directory as .exe, sort of
     wchar_t defaultTerrainFileName[MAX_PATH];
@@ -1155,6 +1154,9 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     int row, col;
 
     memset(pII,0,sizeof(progimage_info));
+
+	// Look in minecraft.jar and find terrain.png, read it.
+
 
     if ( wcslen(selectedTerrainFileName) > 0 )
     {
@@ -1175,6 +1177,8 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
         memset(pII,0,sizeof(progimage_info));
         rc = readpng(pII,defaultTerrainFileName);
     }
+
+	minecraftJar;
 
     if ( rc )
         return MW_CANNOT_READ_IMAGE_FILE;
@@ -8145,7 +8149,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,4, 7,4 );
             break;
         case BLOCK_PUMPKIN:
-        case BLOCK_JACK_O_LANTERN:
+		case BLOCK_JACK_O_LANTERN:
+		case BLOCK_HEAD:	// definitely wrong, TODO! How is facing done?
             SWATCH_SWITCH_SIDE( faceDirection, 6,7 );
             xoff = ( type == BLOCK_PUMPKIN ) ? 7 : 8;
             if ( ( faceDirection != DIRECTION_BLOCK_TOP ) && ( faceDirection != DIRECTION_BLOCK_BOTTOM ) )
@@ -10975,7 +10980,9 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
             gOptions->dim_inches[X], gOptions->dim_inches[Y], gOptions->dim_inches[Z], errorString );
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-        sprintf_s(outputString,256,"# each block is %0.2f mm on a side, and has a volume of %g mm^3\n", gModel.scale*METERS_TO_MM, inCM3*1000 );
+		gOptions->block_mm = gModel.scale*METERS_TO_MM;
+		gOptions->block_inch = gOptions->block_mm / 25.4f;
+        sprintf_s(outputString,256,"# each block is %0.2f mm on a side, and has a volume of %g mm^3\n", gOptions->block_mm, inCM3*1000 );
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
         sumOfDimensions = 10*inCM *(gFilledBoxSize[X]+gFilledBoxSize[Y]+gFilledBoxSize[Z]);
@@ -11217,10 +11224,10 @@ static int finalModelChecks()
     int retCode = MW_NO_ERROR;
 
     // go from most to least serious
-    // were there multiple groups?
-    if ( gSolidGroups > 1 && (gOptions->exportFlags & EXPT_3DPRINT) )
+    // were there multiple groups? are we 3D printing? and are we not using the "lesser" option?
+    if ( gSolidGroups > 1 && (gOptions->exportFlags & EXPT_3DPRINT) && !gOptions->pEFD->chkExportAll )
     {
-        // we care only if exporting to 3D print
+        // we care only if exporting to 3D print, without lesser.
         retCode |= MW_MULTIPLE_GROUPS_FOUND;
     }
     if ( gOptions->exportFlags & EXPT_3DPRINT )
