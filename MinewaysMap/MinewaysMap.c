@@ -732,6 +732,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_TALL_GRASS:
 	case BLOCK_SANDSTONE:
 	case BLOCK_HIDDEN_SILVERFISH:
+	case BLOCK_ANVIL:
 		// uses 0-2
 		if ( dataVal < 3 )
 		{
@@ -794,7 +795,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_SNOW:
 	case BLOCK_FENCE_GATE:
 	case BLOCK_FARMLAND:
-		// uses 0-7
+		// uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
 		if ( dataVal < 8 )
 		{
 			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);

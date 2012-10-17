@@ -344,8 +344,8 @@ typedef struct Options {
 } Options;
 
 
-// number of official Minecraft blocks - 139 (block IDs + 1)
-#define NUM_BLOCKS_STANDARD 145
+// number of official Minecraft blocks - 146 (block IDs + 1)
+#define NUM_BLOCKS_STANDARD 146
 // number of blocks + 16 for the 16 colored wool
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
 
@@ -487,7 +487,7 @@ static struct {
     {"Moss Stone",             0x627162, 1.000f, 0x627162,  4, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//30
     {"Obsidian",               0x1b1729, 1.000f, 0x1b1729,  5, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//31
     {"Torch",                  0xfcfc00, 1.000f, 0xfcfc00,  0, 5, BLF_MIDDLER|BLF_FLATSIDE|BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//32 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
-    {"Fire",                   0xfca100, 1.000f, 0xfca100, /* somewhat bogus */ 15, 1, BLF_BILLBOARD|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//33 - 51 - no billboard, sadly BLF_CUTOUTS
+    {"Fire",                   0xfca100, 1.000f, 0xfca100, /* somewhat bogus */ 15, 1, BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_EMITTER|BLF_DNE_FLUID},	//33 - 51 - no billboard, sadly BLF_CUTOUTS
     {"Monster Spawner",        0x254254, 1.000f, 0x254254,  1, 4, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//34 - TODO: not quite whole
     {"Wooden Stairs",          0x9e804f, 1.000f, 0x9e804f,  4, 0, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//35
     {"Chest",                  0xa06f23, 1.000f, 0xa06f23,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//36 (10,1) side; (11,1) front - TODO: in release it's not whole
@@ -566,7 +566,7 @@ static struct {
     {"Cocoa Plant",            0xBE742D, 1.000f, 0xBE742D,  8,10, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},    //7f
     {"Sandstone Stairs",       0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //80
     {"Emerald Ore",            0x900303, 1.000f, 0x900303, 11,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},    //81
-    {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C,  8,14, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //82 - don't really have tiles for this one, added to terrain.png
+    {"Ender Chest",            0x293A3C, 1.000f, 0x293A3C, 12,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //82 - don't really have tiles for this one, added to terrain.png
     {"Tripwire Hook",          0xC79F63, 1.000f, 0xC79F63, 12,10, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},    //83 - decal
     {"Tripwire",               0x000000, 1.000f, 0x000000, 13,10, BLF_NONE},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
     //{"Tripwire",               0x8F8F8F, 1.000f, 0x8F8F8F, 13,10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},    //84 - sorta redwire decal, but really it should be invisible, so BLF_NONE. Color 0x8F8F8F
@@ -581,7 +581,8 @@ static struct {
     {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8d
     {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8e
 	{"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f
-    {"Head",			       0xcacaca, 1.000f, 0xcacaca,  4, 0, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//90 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
+    {"Head",			       0xcacaca, 1.000f, 0xcacaca,  6, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//90 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
+	{"Anvil",                  0x404040, 1.000f, 0x404040,  7,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    // 91 - NOTE: the top swatch is not used, the generic side swatch is
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
@@ -738,6 +739,7 @@ enum block_types {
 	BLOCK_POTATOES = 0x8E,
 	BLOCK_WOODEN_BUTTON = 0x8F,
 	BLOCK_HEAD = 0x90,
+	BLOCK_ANVIL = 0x91,
 
     BLOCK_WHITE_WOOL = (NUM_BLOCKS-16),
     BLOCK_BLACK_WOOL = (NUM_BLOCKS-1)

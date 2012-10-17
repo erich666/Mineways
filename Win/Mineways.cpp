@@ -129,7 +129,7 @@ static struct {
     {_T("Warning: Mineways encountered an unknown block type.\nSuch blocks are converted to stone.\n\nDownload a new version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
     {_T("No solid blocks found;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
     {_T("All solid blocks were deleted;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
-    {_T("Error: no terrain.png file found.\nPlease put a terrain.png file in the same\ndirectory as mineways.exe. If this doesn't work,\nplease use the 'File|Select terrain.png for export'\nmenu item and pick the terrain.png file."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
+    {_T("Error: no terrain.png file found.\nPlease put a terrain.png file in the same\ndirectory as mineways.exe. If this doesn't work,\nplease use the 'File|Select terrain.png for export'\nmenu item and pick the terrain.png file.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
     {_T("Error creating export file;\nno file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
     {_T("Error writing to export file;\npartial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
     {_T("Error: the incoming terrain.png file\nresolution must be a power of two\n(like 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
@@ -1703,11 +1703,11 @@ static void mcPathMac(TCHAR *path)
 	}
 	else
 	{
-		// try something crazy, I really don't know what the Mac wants... TODO!
+		// try something crazy, I really don't know what the Mac wants... TODO! Need someone who knows...
 		wcscpy_s(path,MAX_PATH,L"~");
 		PathAppend(path,L"Library");
 		PathAppend(path,L"Application Support");
-		PathAppend(path,L"Minecraft");
+		PathAppend(path,L"minecraft");
 	}
 }
 
@@ -1737,7 +1737,7 @@ static int loadWorldList(HMENU menu)
 
 		if ( hFind == INVALID_HANDLE_VALUE )
 		{
-			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your world. It's usually located at ~/Library/Application Support/minecraft/saves."),
+			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory (probably my fault). You'll need to guide Mineways to where you save your world. It's usually located at ~/Library/Application Support/minecraft/saves (and I haven't figured out yet how to have Mineways find it properly!)."),
 				_T("Informational"), MB_OK|MB_ICONINFORMATION);
 			return 0;
 		}
@@ -1997,8 +1997,12 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 
 				if ( gpEFD->chkG3DMaterial )
 				{
-					// G3D
-					gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL|EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+					gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+					if ( gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_TEXTURE_SWATCHES))
+					{
+						// G3D - use only if textures are on.
+						gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
+					}
 				}
 			}
 		}

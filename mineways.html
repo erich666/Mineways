@@ -88,14 +88,15 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#packages">Other Packages</a> - other model exporters and related software.
 </UL>
 <LI><a href="#shortcuts">Shortcut Keys</a> - along with quick descriptions of various features.
-<LI><b><a href="#bugs">Known bugs</a></b> - and workarounds, so check here if you have a problem loading, saving, etc.
+<LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
+<LI><b><a href="#bugs">Known Bugs</a></b> - and workarounds, so check here if you have a problem loading, saving, etc.
 <LI><a href="#wishlist">Wishlist</a>
 <LI><a href="#versions">Version History</a>
 </UL>
 <HR>
 <P><H2><A NAME="offsite">Links</a></H2>
 <UL>
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.18, updated 9/27/2012). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.19, updated 10/17/2012). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
@@ -452,20 +453,24 @@ On the left, the basic 256x256 terrain.png file is used; on the right, the input
 <a name="lesser">
 <b>Export lesser blocks:</b></a> when 3D printing, this option is off by default. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down.
 <P>
-Checking this box for 3D printing is experimental and risky, but will allow you to properly export slabs, stairs, etc. The model produced with this option on will not be "watertight" (aka "manifold"). The risk is that the service bureau or printer software cannot properly repair your files. For example, <a href="http://shapeways.com">Shapeways</a> can repair the geometry but currently does not consistently fix the texture coordinates. <a href="http://sculpteo.com">Sculpteo</a> fixes both properly (most of the time; I've seen partial lava block textures occasionally fail to merge correctly), and can show you a stress diagram where objects are likely to break off in printing. Check over your model carefully at Sculpteo after upload for any irregularities.
+Checking this box for 3D printing is experimental and risky, but will allow you to properly export slabs, stairs, etc. The model produced with this option on will not be "watertight" (aka "manifold"). The risk is that the service bureau or printer software cannot properly repair your files. For example, <a href="http://shapeways.com">Shapeways</a> can repair the geometry but currently does not consistently fix the texture coordinates. When you upload your model, look it over in their rendered shot for any texturing errors. In fact, I'll export and upload my model four times, using the "rotate model clockwise" option to give a different view each time and so be able to preview it. Here's an example: <a href="http://www.shapeways.com/model/740800/solamar-v52.html">1</a>, <a href="http://www.shapeways.com/model/740820">2</a>, <a href="http://www.shapeways.com/model/740821">3</a>, <a href="http://www.shapeways.com/model/740822">4</a>.
+<P>
+<a href="http://sculpteo.com">Sculpteo</a> fixes both properly (most of the time; I've seen partial lava block textures occasionally fail to merge correctly, and water disappear), and can show you a stress diagram where objects are likely to break off in printing. Check over your model carefully at Sculpteo after upload for any irregularities. Secret Sculpteo trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for <a href="http://www.sculpteo.com/en/design/sand-castle-1/hfM9BZw2">this model</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2<a/> to see it large. Try the two links and compare.
 <TABLE>
 <tr colspan="2">
-On the left, <a href="http://shapeways.com">Shapeways</a> merges most of the "lesser blocks" geometry properly but not the textures. In the middle, <a href="http://sculpteo.com">Sculpteo</a> does the merge properly. On the right, Sculpteo's solidity check feature showing how fences along the top of this palace model are likely to break off.
+On the left, <a href="http://shapeways.com">Shapeways</a> merges most of the "lesser blocks" geometry properly but fails with some textures. In the middle, <a href="http://sculpteo.com">Sculpteo</a> does the texture merge properly, but is missing a stair step on the right part of the roof. On the right, Sculpteo's solidity check feature showing how fences along the top of this palace model are likely to break off.
 </tr>
 <tr>
 <td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/shapeways_icehouse.jpg">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/shapeways_solamar_compare
+.jpg">
 </td>
 <td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/sculpteo_icehouse.jpg">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/sculpteo_solamar_compare
+2.jpg">
 </td>
 <td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/sculpteo_stress.jpg">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/sculpteo_stress_small.jpg">
 </td>
 </tr>
 </TABLE>
@@ -474,12 +479,14 @@ Currently even extremely thin objects, such as sign posts and single fence posts
 <P>
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/model_sizes.jpg">
 <P>
-<b>Fatten lesser blocks:</b> If you do decide to export using the "lesser" option, you can make some of the more delicate blocks fatter so that they are less likely to break off during printing. No guarantees! The blocks fattened are: fences, fence gates, doors, free-standing sign posts (which I suspect will still snap off), and pressure plates (since they sometimes get used for table tops).
+<a name="fatten">
+<b>Fatten lesser blocks:</b></a> If you do decide to export using the "lesser" option, you can make some of the more delicate blocks fatter so that they are less likely to break off during printing. No guarantees! The blocks fattened are: fences, fence gates, doors, free-standing sign posts (which I suspect will still snap off), and pressure plates (since they sometimes get used for table tops).
 <P>
 <a name="individual">
 <b>Individual blocks:</b></a> For rendering, you may want to have every block in the scene be a separate object. In this way you could have a character mine blocks, a creeper or TNT explode them, etc. By checking this box, every block is a separate object and so can be deleted, created, animated, etc., as you desire. This considerably increases file size, so use it only if you need it. If you run into memory/performance problems and have some small area you want to modify, export just that volume using this option, then export the rest of the scene without this option. You can use careful trimming, a <a href="#schemes">color scheme</a>, or simply removing the blocks using Minecraft itself, to avoid exporting the same blocks twice. You may want to turn off "Center Model" so that each export uses the same coordinates. Note that this option affects VRML export for printing, though is usually A Bad Idea, as the model is formed of individual blocks. <I>(thanks to Ryan Miller for the idea.)</I>
 <P>
-If you want to export any particular block, use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://www.minecraftwiki.net/wiki/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
+<a name="blocktestworld">
+If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://www.minecraftwiki.net/wiki/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
 Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>:
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/test_world.jpg">
@@ -896,11 +903,11 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://www.thingiverse.com/thing:9940">Minecraft structure planner</a> - written in Ruby, this is a basic exporter of STL files from schematics. It's the first program I know to export color models from Minecraft for 3D printing.
 
-</li><li><a href="http://www.minecraftforum.net/topic/333322-world-downloader">Minecraft world exporter</a> - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
+</li><li><a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">Minecraft world exporter</a> - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
 
 </li><li><a href="http://www.minecraftforum.net/topic/208006-creation-tykens-texture-testmap-110">Texture testmap</a> - a bit dated, but useful if you want to see what a texture pack looks like on all the blocks available (well, up to version 1.10 of Minecraft).
 
-</li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once.
+</li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to dig out the terrain.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
 
@@ -947,7 +954,674 @@ Most operations can be done with the mouse: left button and mousewheel for viewi
 </li><li><b>?</b> pops up the About dialog.
 </li></ul>
 
-<h2><A NAME="bugs">Known bugs</a></h2>
+<h2><A NAME="blocks">Block Types Supported</a></h2>
+There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can actually be printed as-is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
+<P>
+If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the <a href="http://www.minecraftwiki.net/wiki/Block_ids">block IDs</a> to select and export whatever block types in whatever mode you want.
+<P>
+Mineways does not support export of biome colors, paintings, characters, or creatures.
+<P>
+All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes. The table below outlines the rest. "Flatten" means a billboard like a flower, etc., is flattened to be a decal on the block below. Sometimes a special tile is used in the terrain.png that Minecraft doesn't normally use (or currently use, but used to do so). If you use a custom terrain.png file, these blocks then need special texture support from you.
+<TABLE border="1">
+<tr>
+<td>
+<B>Block Type and <a href="http://www.minecraftwiki.net/wiki/Block_ids">ID</a></B>
+</td>
+<td>
+<B>Render Export</B>
+</td>
+<td>
+<B>Print Export</B>
+</td>
+<td>
+<B>Print w/<a href="#lesser">"Lesser"</a></B>
+</td>
+<td>
+<B>Notes</B>
+</td>
+</tr>
+
+<tr>
+<td>
+Saplings (#6)<br>Tall Grass (#31)<br>Dead Bush (#32)<br>Flowers (#37, #38)<br>Mushrooms (#39, #40)<br>Pumpkin and Melon Stems (#104, #105)
+</td>
+<td>
+<center>Billboards</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+Stems do not darken with maturity, nor attach to fruit.
+</td>
+</tr>
+
+<tr>
+<td>
+Water (#8)<br>
+Lava (#10)
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+Tiles 15,12 and 15,14 on terrain.png (0,0 is upper left) are used for these textures.
+</td>
+</tr>
+
+<tr>
+<td>
+Bed (#26)
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+<center>Stretched to full block</center>
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+When printed, area under bed is solid
+</td>
+</tr>
+
+<tr>
+<td>
+Rails (#27, #28, #66)
+</td>
+<td>
+<center>Yes</center>
+</td>
+<td>
+<center>Flattened to block sides</center>
+</td>
+<td>
+<center>Yes, slope block added</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Cobweb (#30)
+</td>
+<td>
+<center>Crossed billboard</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Piston Extension (#34)
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+Currently always a full block covered with piston textures.
+</td>
+</tr>
+
+<tr>
+<td>
+Slabs (#44, #126)
+</td>
+<td>
+<center>True slab</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>True slab</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Torches (#50, #75, #76)
+</td>
+<td>
+<center>Billboard torch (no flame)</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+Torches are rotated into place, not sheared as in Minecraft.
+</td>
+</tr>
+
+<tr>
+<td>
+Fire (#51)
+</td>
+<td>
+<center>Billboards</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+Tile 15,1 on terrain.png (0,0 is upper left) is used for the texture.
+</td>
+</tr>
+
+<tr>
+<td>
+Stairs (#53, #67, #108, #109, #114, #128, #134, #135, #136)
+</td>
+<td>
+<center>True stairs</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>True stairs</center>
+</td>
+<td>
+Note that 1.4 beta connects stairs differently.
+</td>
+</tr>
+
+<tr>
+<td>
+Chests (#54, #95)
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+The old textures in terrain.png are used, so newer 1.3 texture packs mess this up.
+</td>
+</tr>
+
+<tr>
+<td>
+Redstone Wire (#55)
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+Connects properly; always shown as being "on".
+</td>
+</tr>
+
+<tr>
+<td>
+Wheat Seeds (#59)<br>Sugar Cane (#83)<br>Nether Wart (#115)<br>Carrots (#141)<br>Potatoes (#142)
+</td>
+<td>
+<center>Grows properly</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+<center>Block with texture</center>
+</td>
+<td>
+The fully matured texture is used for printing, on all sides.
+</td>
+</tr>
+
+<tr>
+<td>
+Farmland (#60)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+Wetness level is ignored.
+</td>
+</tr>
+
+<tr>
+<td>
+Doors (#64, #71)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Full textured block</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Ladder (#65)<br>Lever (#69)<br>Lily Pad (#111)<br>Tripwire Hook (#131)
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Wall Sign (#68)<br>
+Pressure Plates (#70, #72)<br>
+Buttons (#77, #143)<br>
+Snow (#78)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+Wall signs are put next to wall for printing - no gap.
+</td>
+</tr>
+
+<tr>
+<td>
+Cactus (#81)
+</td>
+<td>
+<center>Interlocking billboards</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Smaller block</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Full wood block</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Portal (#90)<br>End Portal (#119)
+</td>
+<td>
+<center>Colored block</center>
+</td>
+<td>
+<center>Colored block</center>
+</td>
+<td>
+<center>Colored block</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Cake (#92)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Stretched to full block</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Redstone Repeaters (#93, #94)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Geometry without torches</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Trapdoor (#96)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Iron Bars (#101)
+</td>
+<td>
+<center>Textured block</center>
+</td>
+<td>
+<center>Textured block</center>
+</td>
+<td>
+<center>Textured block</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Glass Pane (#102)
+</td>
+<td>
+<center>Replaced with Glass</center>
+</td>
+<td>
+<center>Replaced with Glass</center>
+</td>
+<td>
+<center>Replaced with Glass</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Vines (#106)
+</td>
+<td>
+<center>Geometry/flattened</center>
+</td>
+<td>
+<center>Block geometry/flattened</center>
+</td>
+<td>
+<center>Block geometry/flattened</center>
+</td>
+<td>
+Since vines cannot hang in air for printing, blocks are added.
+</td>
+</tr>
+
+<tr>
+<td>
+Enchantment Table (#116)
+</td>
+<td>
+<center>Grown to block</center>
+</td>
+<td>
+<center>Grown to block</center>
+</td>
+<td>
+<center>Grown to block</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Brewing Stand (#117)
+</td>
+<td>
+<center>Beige block</center>
+</td>
+<td>
+<center>Beige block</center>
+</td>
+<td>
+<center>Beige block</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Cauldron (#118)<br>End Portal Frame (#120)<br>Dragon Egg (#122)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Stretch to full block</center>
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+When printed, area under cauldron is solid; top bit not added to completed portal frame.
+</td>
+</tr>
+
+<tr>
+<td>
+Cocoa Pod (#127)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Most geometry, no gap</center>
+</td>
+<td>
+Stem is removed for "lesser" printing.
+</td>
+</tr>
+
+<tr>
+<td>
+Ender Chest (#130)
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+Faked by using tiles in rows 13 and 14 in terrain.png.
+</td>
+</tr>
+
+<tr>
+<td>
+Tripwire (#132)
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+Hey, it's supposed to be hidden...
+</td>
+</tr>
+
+<tr>
+<td>
+Block of Emerald (#133)
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+Faked by putting tile at 12,14 in terrain.png.
+</td>
+</tr>
+
+<tr>
+<td>
+Beacon (#138)
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+Faked by putting tile at 11,14 in terrain.png.
+</td>
+</tr>
+
+<tr>
+<td>
+Flower Pot (#140)
+</td>
+<td>
+<center>True geometry</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Pot geometry and cactus</center>
+</td>
+<td>
+For "lesser" printing, the pot is always created, but only cacti added.
+</td>
+</tr>
+
+<tr>
+<td>
+Head (#144)
+</td>
+<td>
+<center>Pumpkin</center>
+</td>
+<td>
+<center>Pumpkin</center>
+</td>
+<td>
+<center>Pumpkin</center>
+</td>
+<td>
+Heads use <a href="http://www.minecraftwiki.net/wiki/Tile_entity">tile entity data</a>, which Mineways doesn't support.
+</td>
+</tr>
+
+</TABLE>
+
+
+<h2><A NAME="bugs">Known Bugs</a></h2>
 Find a bug? First, make sure you have the latest version installed, and check <a href="#troubleshooting">the troubleshooting section</a> and the list below. Still stuck? <a href="mailto:erich@acm.org">Send me an email</a> and I'll help you out. Fix a bug? You're my personal hero, and <a href="mailto:erich@acm.org">send me the code</a>.
 <UL>
 <LI>The program will crash on huge area exports. Basically, it runs out of memory. See the <a href="#troubleshooting">the troubleshooting section</a> for a workaround (multiple exports).
@@ -1008,9 +1682,10 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.13, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Shapeways redesigned its upload page, now millimeters is the default model unit. Changed Mineways to export in millimeters by default, rewrote the documentation for Shapeways export.
 <LI>Version 2.14, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV214.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Vines not exporting for 3D printing when the "lesser" feature was on. Fixed. Thanks to Sterling Babcock for reporting this bug.
 <LI>Version 2.15, 8/28/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV215.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added "fatten lesser blocks" option, so that small features that are printed are less likely to snap off during manufacture. Removed "flatten blocks" option, since it's never turned off by anyone nowadays. Numerous minor tiled texture fixes. Fixed farmland output for printing. Added correct bed, cactus, and redstone repeater output for rendering and "lesser" 3D printing. Added sloped rails for 3D printing when "lesser" is on. Cauldrons with water levels added. Dragon egg geometry added. Command and beacon blocks added (default terrain.png only; beacon block is currently at 8,11), along with cobblestone walls, flower pots, carrots, potatoes, and wooden buttons.
-<LI>Version 2.16, 9/8/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV216.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - bug fixes: fixed 3D printing color export for Sculpteo (OBJ) format viewed in SAP Viewer, fixed output of relative texture coordinates for OBJ export. Fixed color schemes so that old color schemes will autoupdate when used with newer worlds.Provided guidance to Mac users looking for their world directory (still trying to figure out how to make this happen automatically). Added Xzip/unzip in anticipation of someday reading texture packs directly for textures. Added Ender Chest, but only for default terrain.png. Thanks to Sterling Babcock for bug reports and the Ender Chest texture addition.
+<LI>Version 2.16, 9/8/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV216.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - bug fixes: fixed 3D printing color export for Sculpteo (OBJ) format viewed in SAP Viewer, fixed output of relative texture coordinates for OBJ export. Fixed color schemes so that old color schemes will autoupdate when used with newer worlds. Provided guidance to Mac users looking for their world directory (still trying to figure out how to make this happen automatically). Added Xzip/unzip in anticipation of someday reading texture packs directly for textures. Added Ender Chest, but only for default terrain.png. Thanks to Sterling Babcock for bug reports and the Ender Chest texture addition.
 <LI>Version 2.17, 9/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV217.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - bug fixes: for cobblestone walls, pillars were not appearing on straight walls when objects were placed above the walls (thanks again to Sterling Babcock for the bug report). Also, in version 2.16 I tried to fix a problem for the Mac where it crashes for some users, possibly due to a memory use improvement introduced in version 2.09. I've turned this memory improvement back on in this version as it doesn't seem to matter for the crash. If you want to try out the 2.16 Mac version, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMacV216.zip">download it here</a>.
-<LI>Version 2.18, 9/27/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV218.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Output block size Warn user if unknown block type is encountered. Add a "head block" placeholder (pumpkin) for now; it turns out to be hard to really add the new beta's head blocks. Bug fixes: fix the scale dialog (the radio boxes got separated from one another). Turn default options (connect blocks, delete floaters) back on when "lesser blocks" option is turned off. Attempt to find Minecraft worlds a bit better on the Mac (no promises...). Remove warning about floaters when "lesser blocks" is used.
+<LI>Version 2.18, 9/27/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV218.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Output block size in statistics popup. Warn user if unknown block type is encountered. Add a "head block" placeholder (pumpkin) for now; it turns out to be hard to really add the new beta's head blocks. Bug fixes: fix the scale dialog (the radio boxes got separated from one another). Turn default options (connect blocks, delete floaters) back on when "lesser blocks" option is turned off. Attempt to find Minecraft worlds a bit better on the Mac (no promises...). Remove warning about floaters when "lesser blocks" is used.
+<LI>Version 2.19, 10/17/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV219.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added anvil. Fixed terrain.png to avoid rendering errors. Fixed crash on solid color export for rendering, and proper export for 3D printing. Added fire tile for 3D printing. Added path information to .OBJ header. Fixed texturing and placement errors for doors, cauldrons, and cocoa. Fixed texture clamping for furnaces, bed, and cauldron. Added color expansion (bleeding a decal's texture colors outward into the transparent parts) to improve rendering quality on various renderers. G3D/SAP export also now performs further color expansion. Improved error messages for Mac version - I still don't know how to detect Mac paths using MFC and WINE; advice appreciated. Added beta's stair "trimming" rules (where stairs at right angles will trim away part of the upper step), but this feature will not be enabled until 1.4 is released.
 </UL>
 <p>
 That's it - have fun!
@@ -1034,7 +1709,7 @@ That's it - have fun!
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 9/27/2012</i>
+Last updated 10/17/2012</i>
 </font>
 </div> <!-- /footer -->
 </div>
