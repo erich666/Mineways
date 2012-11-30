@@ -111,7 +111,7 @@ void ColorManager::load(ColorScheme *cs)
     RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
 
 	// find out how many entries are invalid and fix these by shifting up
-	int woolLoc = NUM_BLOCKS-1;
+	int woolLoc = BLOCK_BLACK_WOOL;
 	// Find black wool entry (for backwards compatibility)
 	unsigned int color=blockColor(BLOCK_BLACK_WOOL);
 
@@ -128,9 +128,11 @@ void ColorManager::load(ColorScheme *cs)
 		// with missing entries
 		int gap = BLOCK_BLACK_WOOL - woolLoc;
 		int i;
+		// set unknown block attribute, one past wool
+		cs->colors[NUM_BLOCKS-1] = blockColor(NUM_BLOCKS-1);
 		for ( i = 0; i > -16; i-- )
 		{
-			// correct black wool set to where black wool is currently, on back
+			// correct black wool set to where black wool is currently, on back down
 			cs->colors[woolLoc+gap+i] = cs->colors[woolLoc+i];
 		}
 		for ( i = 0; i < gap; i++ )

@@ -239,6 +239,11 @@ static float gUnitsScale=1.0f;
 
 static int gExportBillboards=0;
 
+static int gMajorVersion=0;
+static int gMinorVersion=0;
+
+static int gBadBlocksInModel=0;
+
 // extra face directions, for normals
 #define DIRECTION_LO_X_LO_Z 6
 #define DIRECTION_LO_X_HI_Z 7
@@ -378,7 +383,7 @@ static int gFaceDirectionVector[6][3] =
                                              (((z)-(bz)*16)*16) + \
                                              ((x)-(bx)*16)  )
 
-#define UPDATE_PROGRESS(p)		if (*gpCallback){ (*gpCallback)(p);}
+#define UPDATE_PROGRESS(p)		if (*gpCallback){ (*gpCallback)((float)(p));}
 
 #define AREA_IN_CM2     (gModel.faceCount * gModel.scale * gModel.scale * METERS_TO_CM * METERS_TO_CM)
 
@@ -565,6 +570,21 @@ static int writeVRML2Box( const wchar_t *world, IBox *box );
 static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
 static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc );
 
+static int writeSchematicBox();
+static int schematicWriteCompoundTag( gzFile gz, char *tag );
+static int schematicWriteShortTag( gzFile gz, char *tag, short value );
+static int schematicWriteEmptyListTag( gzFile gz, char *tag );
+static int schematicWriteString( gzFile gz, char *tag, char *field );
+static int schematicWriteByteArrayTag( gzFile gz, char *tag, unsigned char *byteData, int totalSize );
+
+static int schematicWriteTagValue( gzFile gz, unsigned char tagValue, char *tag );
+static int schematicWriteUnsignedCharValue( gzFile gz, unsigned char charValue );
+static int schematicWriteUnsignedShortValue( gzFile gz, unsigned short shortValue );
+static int schematicWriteShortValue( gzFile gz, short shortValue );
+static int schematicWriteIntValue( gzFile gz, int intValue );
+static int schematicWriteStringValue( gzFile gz, char *stringValue );
+
+
 static int writeLines( HANDLE file, char **textLines, int lines );
 
 static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worldBox );
@@ -631,7 +651,7 @@ void ChangeCache( int size )
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, 
-    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar )
+    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar, int majorVersion, int minorVersion )
 {
 //#ifdef WIN32
 //    DWORD br;
@@ -642,9 +662,13 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     int newRetCode;
     int needDifferentTextures = 0;
 
+	gMajorVersion = majorVersion;
+	gMinorVersion = minorVersion;
+
 	// we might someday reload when reading the data that will actually be exported;
 	// Right now, any bad data encountered will flag the problem.
 	//ClearBlockReadCheck();
+	gBadBlocksInModel = 0;
 
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
@@ -744,6 +768,17 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         goto Exit;
     }
     UPDATE_PROGRESS(0.80f*PG_DB);
+
+
+	// at this point all data is read in and filtered. At this point check if we're outputting a
+	// non-polygonal output format, like schematic. If so, do that and be done.
+	if ( fileType == FILE_TYPE_SCHEMATIC )
+	{
+		newRetCode = writeSchematicBox();
+		retCode = max(newRetCode,retCode);
+	    goto Exit;
+	}
+
     newRetCode = determineScaleAndHollowAndMelt();
     retCode = max(newRetCode,retCode);
     if ( retCode >= MW_BEGIN_ERRORS )
@@ -777,9 +812,12 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     case FILE_TYPE_ASCII_STL:
         newRetCode = writeAsciiSTLBox( world, &worldBox );
         break;
-    case FILE_TYPE_VRML2:
-        newRetCode = writeVRML2Box( world, &worldBox );
-        break;
+	case FILE_TYPE_VRML2:
+		newRetCode = writeVRML2Box( world, &worldBox );
+		break;
+	default:
+		assert(0);
+		break;
     }
 
     retCode = max(newRetCode,retCode);
@@ -935,7 +973,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 				};
 
 				// now that we're totally done, fill in the main pieces which were left empty as templates;
-				// these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO >>>>>),
+				// these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO)
 				for ( i = 0; i < FA_FINAL_TABLE_SIZE; i++ )
 				{
 					compositePNGSwatches( gModel.pPNGtexture,
@@ -1037,11 +1075,12 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     UPDATE_PROGRESS(PG_END);
 
-	if ( UnknownBlockRead() )
+	if ( gBadBlocksInModel )
+	// if ( UnknownBlockRead() && gBadBlocksInModel )
 	{
 		retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
 		// flag this just the first time found, then turn off error
-		CheckUnknownBlock( 0 );
+		//CheckUnknownBlock( 0 );
 	}
 
     return retCode;
@@ -1135,9 +1174,9 @@ static void initializeModelData()
             }
         }
     }
-    // double the face size count, just to avoid frequent reallocation
+    // increase the face list size
     // - it can sometimes get even higher, with foliage + billboards
-    gModel.faceSize = gModel.faceSize*2 + 1;
+    gModel.faceSize = (int)(gModel.faceSize*1.4 + 1);
     gModel.faceList = (FaceRecord**)malloc(gModel.faceSize*sizeof(FaceRecord*));
 
     memset(gModel.uvSwatches,0,NUM_MAX_SWATCHES*sizeof(UVList));
@@ -1375,6 +1414,8 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
     int chunkIndex, boxIndex;
     int blockID;
 
+	int notSchematic = (gOptions->pEFD->fileType != FILE_TYPE_SCHEMATIC);
+
     //IPoint loc;
     //unsigned char dataVal;
 
@@ -1457,10 +1498,14 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                     // how the wires actually connect to each other.
 					// TODO: We could still save the value, then use the high 4 bits for the
 					// connection values. The only headache: need a new "wire off" set of tiles.
-                    if ( blockID == BLOCK_REDSTONE_WIRE )
+                    if ( (blockID == BLOCK_REDSTONE_WIRE) && notSchematic )
                     {
                         gBoxData[boxIndex].data = 0x0;
                     }
+					else if ( blockID == BLOCK_UNKNOWN )
+					{
+						gBadBlocksInModel++;
+					}
                 //}
 #endif
             }
@@ -2074,7 +2119,7 @@ static int computeFlatFlags( int boxIndex )
 				// is there a neighbor large enough to composite a vine onto?
 				// Right now we keep vines solid if they are next to leaves, so that the vines hanging down in air below these
 				// will continue to look OK, i.e. fully connected as vines.
-				// TODO >>>>> shift the "air vines" inwards, as shown in the "else" statement. However, this code here is not
+				// TODO shift the "air vines" inwards, as shown in the "else" statement. However, this code here is not
 				// really the place to do it - vines could extend past the border, and if "seal tunnels" etc. is done things go
 				// very wrong.
 				if ( gBlockDefinitions[gBoxData[boxIndex+gBoxSize[Y]].type].flags & (BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF) &&
@@ -2122,7 +2167,7 @@ static int computeFlatFlags( int boxIndex )
 				}
 				else
 				{
-					// TODO >>>>> for rendering export, we really want vines to always be offset billboards, I believe
+					// TODO for rendering export, we really want vines to always be offset billboards, I believe
 					// force the block to become a vine - could be weird if there was something else here.
 					//gBoxData[boxIndex-gBoxSize[Y]].type = BLOCK_VINES;
 					//gBoxData[boxIndex-gBoxSize[Y]].data = 0x0;
@@ -4704,7 +4749,7 @@ static void checkGroupListSize()
 	if (gGroupCount == gGroupListSize)
     {
         BoxGroup *groups;
-        gGroupListSize *= 2;
+        gGroupListSize = (int)(gGroupListSize * 1.4 + 1);
         groups = (BoxGroup*)malloc(gGroupListSize*sizeof(BoxGroup));
         memcpy( groups, gGroupList, gGroupCount*sizeof(BoxGroup));
         free( gGroupList );
@@ -4717,7 +4762,7 @@ static void checkVertexListSize()
 	if (gModel.vertexCount == gModel.vertexListSize)
     {
         Point *vertices;
-        gModel.vertexListSize *= 2;
+        gModel.vertexListSize = (int)(gModel.vertexListSize * 1.4 + 1);
         vertices = (Point*)malloc(gModel.vertexListSize*sizeof(Point));
         memcpy( vertices, gModel.vertices, gModel.vertexCount*sizeof(Point));
         free( gModel.vertices );
@@ -4730,7 +4775,7 @@ static void checkFaceListSize()
 	if (gModel.faceCount == gModel.faceSize)
     {
         FaceRecord **faceList;
-        gModel.faceSize *= 2;
+        gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
         faceList = (FaceRecord**)malloc(gModel.faceSize*sizeof(FaceRecord*));
         memcpy( faceList, gModel.faceList, gModel.faceCount*sizeof(FaceRecord*));
         free( gModel.faceList );
@@ -4878,7 +4923,7 @@ static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint **pSeedStack, i
 	{
 		IPoint *seeds;
 		*seedSize += 6;
-		*seedSize *= 2;
+		*seedSize = (int)(*seedSize * 1.4 + 1);
 		seeds = (IPoint*)malloc(*seedSize*sizeof(IPoint));
 		memcpy( seeds, (*pSeedStack), *seedCount*sizeof(IPoint));
 		free( (*pSeedStack) );
@@ -6629,7 +6674,7 @@ static void hollowSeed( int x, int y, int z, IPoint **pSeedList, int *seedSize, 
 			{
 				IPoint *seeds;
 				*seedSize += 6;
-				*seedSize *= 2;
+				*seedSize = (int)(*seedSize * 1.4 + 1);
 				seeds = (IPoint*)malloc(*seedSize*sizeof(IPoint));
 				memcpy( seeds, (*pSeedList), *seedCount*sizeof(IPoint));
 				free( (*pSeedList) );
@@ -6745,7 +6790,7 @@ static void generateBlockDataAndStatistics()
     // go through blocks and see which is solid; use solid blocks to generate faces
     for ( loc[X] = gSolidBox.min[X]; loc[X] <= gSolidBox.max[X]; loc[X]++ )
     {
-        UPDATE_PROGRESS( pgFaceStart + pgFaceOffset*((float)(loc[X]-gSolidBox.min[X])/(float)(gSolidBox.max[X]-gSolidBox.min[X])));
+        UPDATE_PROGRESS( pgFaceStart + pgFaceOffset*((float)(loc[X]-gSolidBox.min[X]+1)/(float)(gSolidBox.max[X]-gSolidBox.min[X]+1)));
         for ( loc[Z] = gSolidBox.min[Z]; loc[Z] <= gSolidBox.max[Z]; loc[Z]++ )
         {
             boxIndex = BOX_INDEX(loc[X],gSolidBox.min[Y],loc[Z]);
@@ -8877,7 +8922,7 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v )
         {
             // realloc
             UVRecord *records;
-            int newSize = gModel.uvSwatches[swatchLoc].size * 3;
+            int newSize = gModel.uvSwatches[swatchLoc].size * 3;	// I forget why I triple it - I think it's "floodgates are open, we need a lot more"
             records = (UVRecord*)malloc(newSize*sizeof(UVRecord));
             memcpy( records, gModel.uvSwatches[swatchLoc].records, count*sizeof(UVRecord));
             free( gModel.uvSwatches[swatchLoc].records );
@@ -8898,7 +8943,7 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v )
 	{
 		// resize time
 		UVOutput *output;
-		int newSize = gModel.uvIndexListSize * 2;
+		int newSize = (int)(gModel.uvIndexListSize * 1.4 + 1);
 		output = (UVOutput*)malloc(newSize*sizeof(UVOutput));
 		memcpy( output, gModel.uvIndexList, gModel.uvIndexCount*sizeof(UVOutput));
 		free( gModel.uvIndexList );
@@ -9014,7 +9059,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     wcharToChar(world,worldChar);
     justWorldFileName = removePathChar(worldChar);
 
-    sprintf_s(outputString,256,"# Wavefront OBJ file made by Mineways, http://mineways.com\n" );
+    sprintf_s(outputString,256,"# Wavefront OBJ file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
     retCode = writeStatistics( gModelFile, justWorldFileName, worldBox );
@@ -10770,7 +10815,7 @@ DWORD br;
 	wcharToChar(world,worldChar);
     justWorldFileName = removePathChar(worldChar);
 
-    sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways, http://mineways.com\n" );
+    sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
     retCode = writeStatistics( gModelFile, justWorldFileName, worldBox );
@@ -11131,6 +11176,323 @@ static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc )
 	return 1;
 }
 
+
+static int writeSchematicBox()
+{
+#ifdef WIN32
+	//DWORD br;
+#endif
+	FILE *fptr;
+	int err;
+	gzFile gz;
+
+	wchar_t schematicFileNameWithSuffix[MAX_PATH];
+
+	int retCode = MW_NO_ERROR;
+
+	int width, height, length, totalSize, maxShortSize;
+	unsigned char *blocks, *block_ptr;
+	unsigned char *blockData, *blockData_ptr;
+	IPoint loc;
+	float progressStart, progressOffset;
+
+	int xStart, xEnd, xIncr;
+	int zStart, zEnd, zIncr;
+
+	int rotateQuarter = 0;
+
+	width = gSolidBox.max[X] - gSolidBox.min[X] + 1;
+	height = gSolidBox.max[Y] - gSolidBox.min[Y] + 1;
+	length = gSolidBox.max[Z] - gSolidBox.min[Z] + 1;
+
+	// maximum short size
+	maxShortSize = (1<<16) - 1;
+
+	if (width > maxShortSize) {
+		// Width of region too large for a .schematic");
+		return MW_DIMENSION_TOO_LARGE;
+	}
+	if (height > maxShortSize) {
+		// Height of region too large for a .schematic");
+		return MW_DIMENSION_TOO_LARGE;
+	}
+	if (length > maxShortSize) {
+		// Length of region too large for a .schematic");
+		return MW_DIMENSION_TOO_LARGE;
+	}
+
+	concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schematic");
+
+	// create the schematic file
+	err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
+	if (fptr == NULL || err != 0)
+	{
+		return MW_CANNOT_CREATE_FILE;
+	}
+	// now make it a gzip file
+	gz = gzdopen(_fileno(fptr),"wb");
+	if (gz == NULL)
+	{
+		return MW_CANNOT_CREATE_FILE;
+	}
+
+	addOutputFilenameToList(schematicFileNameWithSuffix);
+
+	blocks = blockData = NULL;
+
+	if ( gOptions->pEFD->radioRotate0 )
+	{
+		//angle = 0;
+		xStart = gSolidBox.min[X];
+		xEnd = gSolidBox.max[X];
+		xIncr = 1;
+		zStart = gSolidBox.min[Z];
+		zEnd = gSolidBox.max[Z];
+		zIncr = 1;
+	}
+	else if ( gOptions->pEFD->radioRotate90 )
+	{
+		//angle = 90;
+		xStart = gSolidBox.max[Z];
+		xEnd = gSolidBox.min[Z];
+		xIncr = -1;
+		zStart = gSolidBox.min[X];
+		zEnd = gSolidBox.max[X];
+		zIncr = 1;
+
+		rotateQuarter = 1;
+	}
+	else if ( gOptions->pEFD->radioRotate180 )
+	{
+		//angle = 180;
+		xStart = gSolidBox.max[X];
+		xEnd = gSolidBox.min[X];
+		xIncr = -1;
+		zStart = gSolidBox.max[Z];
+		zEnd = gSolidBox.min[Z];
+		zIncr = -1;
+	}
+	else
+	{
+		//angle = 270;
+		assert(gOptions->pEFD->radioRotate270);
+
+		xStart = gSolidBox.min[Z];
+		xEnd = gSolidBox.max[Z];
+		xIncr = 1;
+		zStart = gSolidBox.max[X];
+		zEnd = gSolidBox.min[X];
+		zIncr = -1;
+
+		rotateQuarter = 1;
+	}
+
+	if ( rotateQuarter )
+	{
+		// swap X and Z widths for output
+		int swapper = width;
+		width = length;
+		length = swapper;
+	}
+
+#define CHECK_SCHEMATIC_QUIT( b )			\
+	if ( (b) == 0 ) {						\
+		if ( blocks ) free( blocks );		\
+		if ( blockData ) free( blockData );	\
+		gzclose(gz);						\
+		return MW_CANNOT_WRITE_TO_FILE;		\
+	}
+
+	// check if return codes are 0, if so failed and we should abort
+	CHECK_SCHEMATIC_QUIT( schematicWriteCompoundTag(gz, "Schematic") );
+	// follow a typical file structure from schematics site, giving an order
+	CHECK_SCHEMATIC_QUIT( schematicWriteShortTag(gz, "Height", (short)height ) );
+	CHECK_SCHEMATIC_QUIT( schematicWriteShortTag(gz, "Length", (short)length ) );
+	CHECK_SCHEMATIC_QUIT( schematicWriteShortTag(gz, "Width", (short)width ) );
+
+	//// WorldEdit likes to add these, not sure what they are. TODO someday, figure these out.
+	////schematicWriteInt("WEOriginX", new IntTag("WEOriginX", clipboard.getOrigin().getBlockX()));
+	////schematicWriteInt("WEOriginY", new IntTag("WEOriginY", clipboard.getOrigin().getBlockY()));
+	////schematicWriteInt("WEOriginZ", new IntTag("WEOriginZ", clipboard.getOrigin().getBlockZ()));
+	////schematicWriteInt("WEOffsetX", new IntTag("WEOffsetX", clipboard.getOffset().getBlockX()));
+	////schematicWriteInt("WEOffsetY", new IntTag("WEOffsetY", clipboard.getOffset().getBlockY()));
+	////schematicWriteInt("WEOffsetZ", new IntTag("WEOffsetZ", clipboard.getOffset().getBlockZ()));
+
+	CHECK_SCHEMATIC_QUIT( schematicWriteEmptyListTag(gz, "Entities" ) );
+	CHECK_SCHEMATIC_QUIT( schematicWriteEmptyListTag(gz, "TileEntities" ) );
+
+	CHECK_SCHEMATIC_QUIT( schematicWriteString(gz, "Materials", "Alpha" ) );
+
+	// Copy
+	totalSize = width * height * length;
+	blocks = block_ptr = (unsigned char *)malloc(totalSize);
+	blockData = blockData_ptr = (unsigned char *)malloc(totalSize);
+
+	progressStart = 0.80f*PG_DB;
+	progressOffset = PG_END - progressStart;
+
+	// go through blocks and see which is solid; use solid blocks to generate faces
+	// Order is YZX according to http://www.minecraftwiki.net/wiki/Schematic_file_format
+	for ( loc[Y] = gSolidBox.min[Y]; loc[Y] <= gSolidBox.max[Y]; loc[Y]++ )
+	{
+		float localT = ((float)(loc[Y]-gSolidBox.min[Y]+1)/(float)(gSolidBox.max[Y]-gSolidBox.min[Y]+1));
+		float globalT = progressStart + progressOffset*localT;
+		UPDATE_PROGRESS( globalT );
+
+		for ( loc[Z] = zStart; loc[Z]*zIncr <= zEnd*zIncr; loc[Z]+=zIncr )
+		{
+			for ( loc[X] = xStart; loc[X]*xIncr <= xEnd*xIncr; loc[X]+=xIncr )
+			{
+				unsigned char type, data;
+				int boxIndex;
+				// if we rotate 90 or 270, X and Z are swapped for rotation. This allows us to
+				// have just one set of loops, above.
+				if ( rotateQuarter )
+				{
+					boxIndex = BOX_INDEX(loc[Z],loc[Y],loc[X]);
+				}
+				else
+				{
+					boxIndex = BOX_INDEX(loc[X],loc[Y],loc[Z]);
+				}
+
+				type = gBoxData[boxIndex].type;
+				data = gBoxData[boxIndex].data;
+				if ( gBoxData[boxIndex].type >= BLOCK_WHITE_WOOL )
+				{
+					// wool or unknown block
+					if ( gBoxData[boxIndex].type == BLOCK_UNKNOWN )
+					{
+						// convert to bedrock, I guess...
+						data = 0x0;
+						type = BLOCK_BEDROCK;
+						retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
+					}
+					else
+					{
+						// wool, convert back to 
+						data = type - BLOCK_WHITE_WOOL;
+						type = BLOCK_WOOL;
+					}
+				}
+				*block_ptr++ = type;
+				*blockData_ptr++ = data;
+			}
+		}
+	}
+
+	CHECK_SCHEMATIC_QUIT( schematicWriteByteArrayTag(gz, "Blocks", blocks, totalSize ) );
+	CHECK_SCHEMATIC_QUIT( schematicWriteByteArrayTag(gz, "Data", blockData, totalSize ) );
+
+	// TAG_End
+	CHECK_SCHEMATIC_QUIT( schematicWriteUnsignedCharValue( gz, 0x0 ) );
+
+	gzclose(gz);
+
+	free( blocks );
+	free( blockData );
+
+	return retCode;
+}
+
+static int schematicWriteCompoundTag( gzFile gz, char *tag )
+{
+	int totWrite = schematicWriteTagValue( gz, 0x0A, tag );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteShortTag( gzFile gz, char *tag, short value )
+{
+	int totWrite = schematicWriteTagValue( gz, 0x02, tag );
+	totWrite += schematicWriteShortValue( gz, value );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteEmptyListTag( gzFile gz, char *tag )
+{
+	int totWrite = schematicWriteTagValue( gz, 0x09, tag );
+	// cheat: just force in empty data. Not sure what I'd normally see here...
+	totWrite += schematicWriteUnsignedCharValue( gz, 0x0A );
+	totWrite += schematicWriteIntValue( gz, 0 );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteString( gzFile gz, char *tag, char *field )
+{
+	int totWrite = schematicWriteTagValue( gz, 0x08, tag );
+	totWrite += schematicWriteUnsignedShortValue( gz, (unsigned short)strlen(field) );
+	totWrite += schematicWriteStringValue( gz, field );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteByteArrayTag( gzFile gz, char *tag, unsigned char *byteData, int totalSize )
+{
+	int totWrite = schematicWriteTagValue( gz, 0x07, tag );
+	totWrite += schematicWriteIntValue( gz, totalSize );
+	totWrite += gzwrite( gz, byteData, totalSize );
+	assert(totWrite);
+	return totWrite;
+}
+
+
+// writes tag value, length of string, and string
+static int schematicWriteTagValue( gzFile gz, unsigned char tagValue, char *tag )
+{
+	int totWrite = schematicWriteUnsignedCharValue( gz, tagValue );
+	totWrite += schematicWriteUnsignedShortValue( gz, (unsigned short)strlen(tag) );
+	totWrite += schematicWriteStringValue( gz, tag );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteUnsignedCharValue( gzFile gz, unsigned char charValue )
+{
+	int totWrite = gzwrite( gz, &charValue, 1 );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteUnsignedShortValue( gzFile gz, unsigned short shortValue )
+{
+	unsigned char writeByte = (shortValue>>8)&0xff;
+	int totWrite = gzwrite( gz, &writeByte, 1 );
+	writeByte = shortValue&0xff;
+	totWrite += gzwrite( gz, &writeByte, 1 );
+	assert(totWrite);
+	return totWrite;
+}
+
+// really, identical to the one above, just a different signature
+static int schematicWriteShortValue( gzFile gz, short shortValue )
+{
+	unsigned char writeByte = (shortValue>>8)&0xff;
+	int totWrite = gzwrite( gz, &writeByte, 1 );
+	writeByte = shortValue&0xff;
+	totWrite += gzwrite( gz, &writeByte, 1 );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteIntValue( gzFile gz, int intValue )
+{
+	int totWrite = schematicWriteUnsignedShortValue( gz, (unsigned short)((intValue>>16) & 0xffff) );
+	totWrite += schematicWriteUnsignedShortValue( gz, (unsigned short)(intValue & 0xffff) );
+	assert(totWrite);
+	return totWrite;
+}
+
+static int schematicWriteStringValue( gzFile gz, char *stringValue )
+{
+	int totWrite = gzwrite( gz, stringValue, strlen(stringValue) );
+	assert(totWrite);
+	return totWrite;
+}
+
+
 static int writeLines( HANDLE file, char **textLines, int lines )
 {
 #ifdef WIN32
@@ -11193,8 +11555,9 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     float inCM = gModel.scale * METERS_TO_CM;
     float inCM3 = inCM * inCM * inCM;
 
-    sprintf_s(outputString,256,"# Extracted from Minecraft world %s\n", justWorldFileName );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+	sprintf_s(outputString,256,"# Extracted from Minecraft world %s\n", justWorldFileName );
+	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
 
     _time32( &aclock );   // Get time in seconds.
     _localtime32_s( &newtime, &aclock );   // Convert time to struct tm form.
@@ -11208,7 +11571,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     }
 
 	// put the selection box near the top, since I find I use these values most of all
-	sprintf_s(outputString,256,"\n# Selection location: %d, %d, %d to %d, %d, %d\n\n",
+	sprintf_s(outputString,256,"\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
 		worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
 		worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
 	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
@@ -11408,7 +11771,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     }
     else if ( gOptions->pEFD->radioScaleByCost )
     {
-        sprintf_s(outputString,256,"# Scale model by aiming for a cost of %0.2f for the %s material\n", gOptions->pEFD->costVal, mtlCostTable[gPhysMtl] );
+        sprintf_s(outputString,256,"# Scale model by aiming for a cost of %0.2f for the %s material\n", gOptions->pEFD->costVal, mtlCostTable[gPhysMtl].name );
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
     else if ( gOptions->pEFD->radioScaleToHeight )
@@ -11418,7 +11781,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     }
     else if ( gOptions->pEFD->radioScaleToMaterial )
     {
-        sprintf_s(outputString,256,"# Scale model by using the minimum wall thickness for the %s material\n", mtlCostTable[gPhysMtl] );
+        sprintf_s(outputString,256,"# Scale model by using the minimum wall thickness for the %s material\n", mtlCostTable[gPhysMtl].name );
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
 
@@ -12273,7 +12636,7 @@ static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffi
     {
         // look for suffix
         wchar_t foundSuffix[MAX_PATH];
-        wcsncpy_s(foundSuffix,MAX_PATH,src + wcsnlen(src,MAX_PATH)-4,20);
+        wcsncpy_s(foundSuffix,MAX_PATH,src + wcsnlen(src,MAX_PATH)-wcsnlen(suffix,MAX_PATH),20);
         _wcslwr_s(foundSuffix,MAX_PATH);
         if (wcscmp(foundSuffix,suffix) == 0)
         {
@@ -12394,6 +12757,8 @@ static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wch
     case FILE_TYPE_VRML2:
         removeSuffix(root,tfilename,L".wrl");
         break;
+	case FILE_TYPE_SCHEMATIC:
+		removeSuffix(root,tfilename,L".schematic");
     }
 }
 

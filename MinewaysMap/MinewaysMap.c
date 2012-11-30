@@ -329,7 +329,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     if (y == (unsigned char)-1)
     {
         *oy=-1;
-        *type=BLOCK_BEDROCK;
+        *type=BLOCK_BEDROCK;	// TODO - better as BLOCK_UNKNOWN?
         return "Empty";  // nothing was rendered here
     }
 
@@ -1643,10 +1643,12 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 				{
 					// some new version of Minecraft, block ID is unrecognized;
 					// turn this block into stone. dataVal will be ignored.
-					assert( (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
-					*pBlockID = BLOCK_STONE;
+					// flag assert only once
+					assert( (gUnknownBlock == 1 ) || (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
+					*pBlockID = BLOCK_UNKNOWN;
 					// note that we always clean up bad blocks;
-					// whether we flag that a bad block was found is optional
+					// whether we flag that a bad block was found is optional.
+					// This gets turned off once the user has been warned, once, that his map has some funky data.
 					if ( gPerformUnknownBlockCheck )
 						gUnknownBlock = 1;
 				}
@@ -1659,16 +1661,20 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
     return NULL;
 }
 
+// Clear that an unknown block was encountered. Good to do when loading a new world.
 void ClearBlockReadCheck()
 {
 	gUnknownBlock = 0;
 }
 
+// was an unknown block found during mapping? Will be set true only if CheckUnknownBlock is true (which it is by default)
 int UnknownBlockRead()
 {
 	return gUnknownBlock;
 }
 
+// should we check for unknown blocks? If turned off, we won't assert and won't flag (but will still clean up) any unknown blocks found.
+// Normally always on, could turn it off for debugging situations.
 void CheckUnknownBlock( int check )
 {
 	gPerformUnknownBlockCheck = check;

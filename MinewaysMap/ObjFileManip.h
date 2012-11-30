@@ -54,9 +54,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_CANNOT_CREATE_FILE                       (1<<9)
 #define MW_CANNOT_WRITE_TO_FILE                     (1<<10)
 #define MW_IMAGE_WRONG_SIZE                         (1<<11)
-#define MW_ERRORS                                 (1<<11)
+#define MW_DIMENSION_TOO_LARGE                      (1<<12)
+#define MW_ERRORS                                 (1<<12)
 
-#define MW_NUM_CODES                                12
+#define MW_NUM_CODES                                13
 
 #ifdef __cplusplus
 extern "C" {
@@ -65,7 +66,7 @@ extern "C" {
     __declspec(dllexport) void __cdecl ChangeCache( int size );
 
     __declspec(dllexport) int __cdecl SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
-        ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar );
+        ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar, int majorVersion, int minorVersion );
 
     // palette should be in RGBA format, num colors in the palette
     __declspec(dllexport) void __cdecl SetExportPalette(unsigned int *palette,int num);

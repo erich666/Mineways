@@ -92,6 +92,7 @@ static int gTargetDepth=MIN_OVERWORLD_DEPTH;								//how far down the depth is 
 // Export 3d print and view data
 static ExportFileData gExportPrintData;
 static ExportFileData gExportViewData;
+static ExportFileData gExportSchematicData;
 // this one is set to whichever is active;
 static ExportFileData *gpEFD;
 
@@ -108,31 +109,35 @@ static int gAutocorrectDepth=1;
 
 static int gBottomControlEnabled = FALSE;
 
-static BOOL gPrintModel = FALSE;
+static int gPrintModel = 0;	// 1 is print, 0 is render, 2 is schematic
 static BOOL gExported=0;
-static int gFileType = 0;
 static TCHAR gExportPath[MAX_PATH] = _T("");
 
+static WORD gMajorVersion = 0;
+static WORD gMinorVersion = 0;
+static WORD gBuildNumber = 0;
+static WORD gRevisionNumber = 0;
 
-// Error codes
+// Error codes - see ObjFileManip.h for error numbers, look for MW_NO_ERROR
 static struct {
     TCHAR *text;
     TCHAR *caption;
     unsigned int type;
 } gPopupInfo[]={
     {_T("No error"), _T("No error"), MB_OK},	//00
-    {_T("Thin walls possible.\nThe thickness of a single block is smaller\nthan the recommended wall thickness.\nPrint only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
-    {_T("Sum of dimensions low.\nThe sum of the dimensions of the model is less than 65 mm.\nThis is officially too small for a Shapeways color sandstone\nmodel, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
-    {_T("Too many polygons.\nThere are more than one million polygons in file.\nThis is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
-    {_T("Multiple separate parts found after processing.\nThis may not be what you want to print. Increase the\nvalue for 'Delete floating parts' to delete these. Try\nthe 'Debug: show separate parts' export option to\nsee if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
-	{_T("At least one dimension of the model is too long.\nCheck the dimensions for this printer's material:\nlook at the top of the model file."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type.\nSuch blocks are converted to stone.\n\nDownload a new version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-    {_T("No solid blocks found;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
-    {_T("All solid blocks were deleted;\nno file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
-    {_T("Error: no terrain.png file found.\nPlease put a terrain.png file in the same\ndirectory as mineways.exe. If this doesn't work,\nplease use the 'File|Select terrain.png for export'\nmenu item and pick the terrain.png file.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
-    {_T("Error creating export file;\nno file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
-    {_T("Error writing to export file;\npartial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
-    {_T("Error: the incoming terrain.png file\nresolution must be a power of two\n(like 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
+    {_T("Thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
+    {_T("Sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
+    {_T("Too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
+    {_T("Multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
+	{_T("At least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
+    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("No solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
+    {_T("All solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
+    {_T("Error: no terrain.png file found.\n\nPlease put a terrain.png file in the same directory as mineways.exe. If this doesn't work, please use the 'File|Select terrain.png for export' menu item and pick the terrain.png file.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
+    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
+    {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
+	{_T("Error: the incoming terrain.png file resolution must be a power of two (e.g. 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
+	{_T("Error: the width, height, and length of the model area must all be < 65536"), _T("Export error"), MB_OK|MB_ICONERROR},	//12
 };
 
 
@@ -155,7 +160,8 @@ static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
 static void syncCurrentHighlightDepth();
-static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName, BOOL showDialog );
+static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog );
+static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber );
 static const wchar_t *removePath( const wchar_t *src );
 static void initializeExportDialogData();
 
@@ -189,6 +195,18 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     }
 
     hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
+
+	// get version info
+	GetAppVersion( _T("mineways.exe"), &gMajorVersion, &gMinorVersion, &gBuildNumber, &gRevisionNumber );
+
+	// Being ignorant, I don't know where this tidbit would go, to set the version number into the About box: TODO
+	//{
+	//	TCHAR strVersion[100];
+	//	swprintf(strVersion,100,_T("V%hu.%hu"),gMajorVersion,gMinorVersion);
+	//	HWND hWndAppStatic = GetDlgItem (hDlg,IDC_STATIC_VERSION);
+	//	if (hWndAppStatic)
+	//		SetWindowText(hWndAppStatic,strVersion);
+	//}
 
     // Main message loop:
     while (GetMessage(&msg, NULL, 0, 0))
@@ -1172,6 +1190,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case IDM_FILE_PRINTOBJ:
 		case IDM_FILE_SAVEOBJ:
+		case IDM_FILE_SCHEMATIC:
 			if ( !gHighlightOn )
 			{
 				// we keep the export options ungrayed now so that they're selectable when the world is loaded
@@ -1179,43 +1198,81 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					_T("Informational"), MB_OK|MB_ICONINFORMATION);
 				break;
 			}
-            gPrintModel = (wmId==IDM_FILE_PRINTOBJ);
-            {
-                ZeroMemory(&ofn,sizeof(OPENFILENAME));
-                ofn.lStructSize=sizeof(OPENFILENAME);
-                ofn.hwndOwner=hWnd;
-                ofn.lpstrFile=gExportPath;
-                //gExportPath[0]=0;
-                ofn.nMaxFile=MAX_PATH;
-				ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-											   L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-                ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
-                ofn.lpstrFileTitle=NULL;
-                ofn.nMaxFileTitle=0;
-                ofn.lpstrInitialDir=NULL;
-                ofn.lpstrTitle=gPrintModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
-                ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+			switch ( wmId )
+			{
+			case IDM_FILE_SAVEOBJ:
+				gPrintModel = 1;
+				break;
+			case IDM_FILE_PRINTOBJ:
+				gPrintModel = 1;
+				break;
+			case IDM_FILE_SCHEMATIC:
+				gPrintModel = 2;
+				break;
+			default:
+				assert(0);
+				gPrintModel = 0;
+			}
+			{
+				if ( gPrintModel == 2 )
+				{
+					// schematic
+					ZeroMemory(&ofn,sizeof(OPENFILENAME));
+					ofn.lStructSize=sizeof(OPENFILENAME);
+					ofn.hwndOwner=hWnd;
+					ofn.lpstrFile=gExportPath;
+					//gExportPath[0]=0;
+					ofn.nMaxFile=MAX_PATH;
+					ofn.lpstrFilter= L"Schematic file (*.schematic)\0*.schematic\0";
+					ofn.nFilterIndex= 1;
+					ofn.lpstrFileTitle=NULL;
+					ofn.nMaxFileTitle=0;
+					ofn.lpstrInitialDir=NULL;
+					ofn.lpstrTitle= L"Save Model to Schematic File";
+					ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-                saveOK = GetSaveFileName(&ofn);
-                // save file type selected, no matter what (even on cancel); we
-                // always set it because even if someone cancels a save, he probably still
-                // wanted the file type chosen.
-                if ( gPrintModel )
-                {
-                    gExportPrintData.fileType = ofn.nFilterIndex-1;
-                }
-                else
-                {
-                    gExportViewData.fileType = ofn.nFilterIndex-1;
-                }
+					saveOK = GetSaveFileName(&ofn);
+
+					gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+				}
+				else
+				{
+					// print model or render model - quite similar
+					ZeroMemory(&ofn,sizeof(OPENFILENAME));
+					ofn.lStructSize=sizeof(OPENFILENAME);
+					ofn.hwndOwner=hWnd;
+					ofn.lpstrFile=gExportPath;
+					//gExportPath[0]=0;
+					ofn.nMaxFile=MAX_PATH;
+					ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+												   L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+					ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
+					ofn.lpstrFileTitle=NULL;
+					ofn.nMaxFileTitle=0;
+					ofn.lpstrInitialDir=NULL;
+					ofn.lpstrTitle=gPrintModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
+					ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+					saveOK = GetSaveFileName(&ofn);
+					// save file type selected, no matter what (even on cancel); we
+					// always set it because even if someone cancels a save, he probably still
+					// wanted the file type chosen.
+					if ( gPrintModel )
+					{
+						gExportPrintData.fileType = ofn.nFilterIndex-1;
+					}
+					else
+					{
+						gExportViewData.fileType = ofn.nFilterIndex-1;
+					}
+				}
                 if ( saveOK )
                 {
 					// if we got this far, then previous export is off, and we also want to ask for dialog.
 					gExported=0;
-					gFileType = ofn.nFilterIndex-1;
 
 		case IDM_FILE_REPEATPREVIOUSEXPORT:
-                    gExported = saveObjFile(hWnd,gExportPath,gPrintModel,gFileType,gSelectTerrain,!gExported);
+                    gExported = saveObjFile(hWnd,gExportPath,gPrintModel,gSelectTerrain,!gExported);
 
                     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
 					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
@@ -1504,6 +1561,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
+
+	if ( UnknownBlockRead() )
+	{
+		MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
+			_T("Read error"), MB_OK|MB_ICONERROR);
+		// flag this just the first time found, then turn off error and don't check again for this world
+		CheckUnknownBlock( false );
+		ClearBlockReadCheck();
+	}
+
     return 0;
 }
 
@@ -1661,16 +1728,11 @@ static int loadWorld()
 		SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
 		// turn on error checking for this new world, to warn of unknown blocks
 		CheckUnknownBlock( true );
+		// just to be safe, make sure flag is cleared for read check.
+		ClearBlockReadCheck();
 	}
     gLoaded=TRUE;
     draw();
-	if ( UnknownBlockRead() )
-	{
-		MessageBox( NULL, _T("Warning: new, unknown block types encountered; Mineways turns these into stone. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
-			_T("Read error"), MB_OK|MB_ICONERROR);
-		// flag this just the first time found, then turn off error
-		CheckUnknownBlock( false );
-	}
     return 0;
 }
 
@@ -1820,13 +1882,15 @@ static void validateItems(HMENU menu)
 		EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
 		EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
 		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
+		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
     }
     else
     {
         EnableMenuItem(menu,IDM_JUMPSPAWN,MF_DISABLED);
         EnableMenuItem(menu,IDM_JUMPPLAYER,MF_DISABLED);
         EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_DISABLED);
-        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
+		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
+		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_DISABLED);
         EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_DISABLED);
     }
 	// has a save been done?
@@ -1871,13 +1935,21 @@ static void syncCurrentHighlightDepth()
 }
 
 // returns number of files written on successful export, 0 files otherwise.
-static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fileType, wchar_t *terrainFileName, BOOL showDialog )
+static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog )
 {
     int on;
     int retCode = 0;
 
-    if ( printModel )
+	if ( printModel == 2 )
+	{
+		// schematic file - treat sort of like a render
+		gpEFD = &gExportSchematicData;
+		gOptions.exportFlags = 0x0;
+		gpEFD->flags = 0x0;
+	}
+	else if ( printModel == 1 )
     {
+		// print
         gpEFD = &gExportPrintData;
         gOptions.exportFlags = EXPT_3DPRINT;
 		gpEFD->flags = EXPT_3DPRINT;
@@ -1984,7 +2056,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 
 
 	// set OBJ group and material output state
-	if ( fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+	if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
 	{
 		if ( gpEFD->chkMultipleObjects )
 		{
@@ -2007,14 +2079,15 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 			}
 		}
 		// if in debugging mode, force groups and material type
+
+		// check if we're exporting relative coordinates
+		if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+		{
+			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
+		}
 	}
-	// check if we're exporting relative coordinates
-    if ( fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-    {
-        gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
-    }
 	// STL files never need grouping by material, and certainly don't export textures
-    else if ( fileType == FILE_TYPE_ASCII_STL )
+    else if ( gpEFD->fileType == FILE_TYPE_ASCII_STL )
     {
         int unsupportedCodes = (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_GROUP_BY_MATERIAL|
             EXPT_DEBUG_SHOW_GROUPS|EXPT_DEBUG_SHOW_WELDS);
@@ -2029,12 +2102,12 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         // we never have to group by material for STL, as there are no material groups.
         gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
     }
-    else if ( ( fileType == FILE_TYPE_BINARY_MAGICS_STL ) || ( fileType == FILE_TYPE_BINARY_VISCAM_STL ) )
+    else if ( ( gpEFD->fileType == FILE_TYPE_BINARY_MAGICS_STL ) || ( gpEFD->fileType == FILE_TYPE_BINARY_VISCAM_STL ) )
     {
         int unsupportedCodes = (EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES);
         if ( gOptions.exportFlags & unsupportedCodes )
         {
-            if ( fileType == FILE_TYPE_BINARY_VISCAM_STL )
+            if ( gpEFD->fileType == FILE_TYPE_BINARY_VISCAM_STL )
             {
                 MessageBox( NULL, _T("Note: texture output is not supported for binary STL.\nFile will contain VisCAM colors instead."),
                     _T("Informational"), MB_OK|MB_ICONINFORMATION);
@@ -2050,11 +2123,11 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
         // we never have to group by material for STL, as there are no material groups.
         gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
     }
-    else if ( fileType == FILE_TYPE_VRML2 )
-    {
+	else if ( gpEFD->fileType == FILE_TYPE_VRML2 )
+	{
 		// are we outputting color textures?
-        if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
-        {
+		if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
+		{
 			if ( gOptions.exportFlags & EXPT_3DPRINT)
 			{
 				// if printing, we don't need to group by material, as it can be one huge pile of data
@@ -2062,8 +2135,18 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 			}
 			// else if we're outputting for rendering, VRML then outputs grouped by material, unless it's a single material output
 			// (in which case this flag isn't turned on anyway).
-        }
-    }
+		}
+	}
+	else if ( gpEFD->fileType == FILE_TYPE_SCHEMATIC )
+	{
+		// really, ignore all options for Schematic - set how you want, but they'll all be ignored except rotation around the Y axis.
+		gOptions.exportFlags &= 0x0;
+	}
+	else
+	{
+		// unknown file type?
+		assert(0);
+	}
 
 	// if individual blocks are to be exported, we group by cube, not by material, so turn that off
 	if ( gpEFD->chkIndividualBlocks )
@@ -2097,9 +2180,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
 
 		// TODO!!! Check that minecraft.jar exists in the right place
 
-        int errCode = SaveVolume( objFileName, fileType, &gOptions, gWorld, gCurrentDirectory,
+        int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-            updateProgress, terrainFileName, &outputFileList, gSelectMinecraftJar );
+            updateProgress, terrainFileName, &outputFileList, gSelectMinecraftJar, (int)gMajorVersion, (int)gMinorVersion );
 
 		// note how many files were output
 		retCode = outputFileList.count;
@@ -2188,6 +2271,38 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, BOOL printModel, int fi
     return retCode;
 }
 
+static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber )
+{
+	DWORD dwHandle, dwLen;
+	UINT BufLen;
+	LPTSTR lpData;
+	VS_FIXEDFILEINFO *pFileInfo;
+	dwLen = GetFileVersionInfoSize( LibName, &dwHandle );
+	if (!dwLen) 
+		return FALSE;
+
+	lpData = (LPTSTR) malloc (dwLen);
+	if (!lpData) 
+		return FALSE;
+
+	if( !GetFileVersionInfo( LibName, dwHandle, dwLen, lpData ) )
+	{
+		free (lpData);
+		return FALSE;
+	}
+	if( VerQueryValue( lpData, _T("\\"), (LPVOID *) &pFileInfo, (PUINT)&BufLen ) ) 
+	{
+		*MajorVersion = HIWORD(pFileInfo->dwFileVersionMS);
+		*MinorVersion = LOWORD(pFileInfo->dwFileVersionMS);
+		*BuildNumber = HIWORD(pFileInfo->dwFileVersionLS);
+		*RevisionNumber = LOWORD(pFileInfo->dwFileVersionLS);
+		free (lpData);
+		return TRUE;
+	}
+	free (lpData);
+	return FALSE;
+}
+
 // yes, this it totally lame, copying code from MinewaysMap
 static const wchar_t *removePath( const wchar_t *src )
 {
@@ -2211,13 +2326,14 @@ static const wchar_t *removePath( const wchar_t *src )
     return strPtr;
 }
 
-#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5)    \
+#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5,v6)    \
     (a)[FILE_TYPE_WAVEFRONT_REL_OBJ] = (v0);    \
     (a)[FILE_TYPE_WAVEFRONT_ABS_OBJ] = (v1);    \
     (a)[FILE_TYPE_BINARY_MAGICS_STL] = (v2);    \
     (a)[FILE_TYPE_BINARY_VISCAM_STL] = (v3);    \
     (a)[FILE_TYPE_ASCII_STL] = (v4);    \
-    (a)[FILE_TYPE_VRML2] = (v5);
+	(a)[FILE_TYPE_VRML2] = (v5);	\
+	(a)[FILE_TYPE_SCHEMATIC] = (v6);
 
 static void initializeExportDialogData()
 {
@@ -2227,27 +2343,27 @@ static void initializeExportDialogData()
     // turn stuff on
     gExportPrintData.fileType = FILE_TYPE_VRML2;
 
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         1, 1, 0, 0, 0, 1);
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         1, 1, 0, 0, 0, 1, 0);
 	// I used to set the last value to 0, meaning only the zip would be created. The idea
 	// was that the naive user would then only have the zip, and so couldn't screw up
 	// when uploading the model file. But this setting is a pain if you want to preview
 	// the model file, you have to always remember to check the box so you can get the
 	// preview files. So, now it's off.
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1);
+	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
 
-    // Only VRML2 imports into Shapeways with color
+    // OBJ and VRML have color, depending...
     // order: OBJ, BSTL, ASTL, VRML
-    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0, 1);
     // might as well export color with OBJ and binary STL - nice for previewing
-    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportMtlColors,    0, 0, 1, 1, 0, 0);  
-    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0);  
-    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportFullTexture,  1, 1, 0, 0, 0, 1);  
+    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportMtlColors,    0, 0, 1, 1, 0, 0, 0);  
+    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);  
+    INIT_ALL_FILE_TYPES( gExportPrintData.radioExportFullTexture,  1, 1, 0, 0, 0, 1, 0);  
 
     gExportPrintData.chkMergeFlattop = 1;
     // Shapeways imports VRML files and displays them with Y up, that is, it
     // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
 	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
-    INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 1, 1, 1, 1, 1, 0);  
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 1, 1, 1, 1, 1, 0, 0);  
     gExportPrintData.chkCenterModel = 1;
 	gExportPrintData.chkExportAll = 0; 
 	gExportPrintData.chkFatten = 0; 
@@ -2263,6 +2379,7 @@ static void initializeExportDialogData()
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
+		METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
     gExportPrintData.costVal = 25.00f;
 
@@ -2293,12 +2410,13 @@ static void initializeExportDialogData()
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
+		METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
 
     // materials selected
-    INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,1,1,1,1,0,1);
+    INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,1,1,1,1,0,1,1);
     // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-    INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_CENTIMETER,UNITS_CENTIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER);
+    INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_CENTIMETER,UNITS_CENTIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER);
  
 
     //////////////////////////////////////////////////////
@@ -2309,17 +2427,17 @@ static void initializeExportDialogData()
     gExportViewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 
     // don't really need to create a zip for rendering output
-	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateZip,         0, 0, 0, 0, 0, 0);
-	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1);
+	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateZip,         0, 0, 0, 0, 0, 0, 0);
+	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
 
-    INIT_ALL_FILE_TYPES( gExportViewData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0);  
-    INIT_ALL_FILE_TYPES( gExportViewData.radioExportMtlColors,    0, 0, 1, 1, 0, 0);  
-    INIT_ALL_FILE_TYPES( gExportViewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0);  
-    INIT_ALL_FILE_TYPES( gExportViewData.radioExportFullTexture,  1, 1, 0, 0, 0, 1);  
+    INIT_ALL_FILE_TYPES( gExportViewData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0, 1);  
+    INIT_ALL_FILE_TYPES( gExportViewData.radioExportMtlColors,    0, 0, 1, 1, 0, 0, 0);  
+    INIT_ALL_FILE_TYPES( gExportViewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);  
+    INIT_ALL_FILE_TYPES( gExportViewData.radioExportFullTexture,  1, 1, 0, 0, 0, 1, 0);  
 
     gExportViewData.chkExportAll = 1; 
 	// for renderers, assume Y is up, which is the norm
-    INIT_ALL_FILE_TYPES( gExportViewData.chkMakeZUp, 0, 0, 0, 0, 0, 0);  
+    INIT_ALL_FILE_TYPES( gExportViewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0);  
 
     gExportViewData.modelHeightVal = 1000.0f;    // 10 cm - view doesn't need a minimum, really
     INIT_ALL_FILE_TYPES( gExportViewData.blockSizeVal,
@@ -2327,7 +2445,8 @@ static void initializeExportDialogData()
         100.0f,
         100.0f,
         100.0f,
-        100.0f,
+		100.0f,
+		100.0f,
         100.0f);
     gExportViewData.costVal = 25.00f;
 
@@ -2345,9 +2464,15 @@ static void initializeExportDialogData()
 
     gExportViewData.floaterCountVal = 16;
     // irrelevant for viewing
-    INIT_ALL_FILE_TYPES( gExportViewData.hollowThicknessVal, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f );    // 10 mm
-    INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,1,1,1,1,0,1);
-    INIT_ALL_FILE_TYPES( gExportViewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER);
+    INIT_ALL_FILE_TYPES( gExportViewData.hollowThicknessVal, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f );    // 10 mm
+    INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,1,1,1,1,0,1,1);
+    INIT_ALL_FILE_TYPES( gExportViewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
+
+	// copy schematic data - a little goofy, but there it is
+	gExportSchematicData = gExportViewData;
+	gExportSchematicData.chkMergeFlattop = 0;
+	// TODO someday allow getting rid of floaters, that would be cool.
+	//gExportSchematicData.chkDeleteFloaters = 1;
 }
 
 // Message handler for about box.

@@ -232,14 +232,17 @@ static struct {
 #define FILE_TYPE_BINARY_VISCAM_STL 3
 #define FILE_TYPE_ASCII_STL 4
 #define FILE_TYPE_VRML2 5
+// this is an entirely separate file type, only exportable through the schematic export option
+#define FILE_TYPE_SCHEMATIC 6
 
-#define FILE_TYPE_TOTAL         6
+#define FILE_TYPE_TOTAL         7
+
 
 typedef struct
 {
     // dialog file type last chosen in export dialog; this is used next time.
     // Note that this value is *not* valid during export itself; fileType is passed in.
-    int fileType;           // 0,1 - OBJ, 2,3 - Binary STL, 4 - ASCII STL, 5 - VRML2
+    int fileType;           // 0,1 - OBJ, 2,3 - Binary STL, 4 - ASCII STL, 5 - VRML2, 6 - Schematic
 
     // in reality, the character fields could be kept private, but whatever
     char minxString[EP_FIELD_LENGTH];
@@ -346,8 +349,8 @@ typedef struct Options {
 
 // number of official Minecraft blocks - 146 (block IDs + 1)
 #define NUM_BLOCKS_STANDARD 146
-// number of blocks + 16 for the 16 colored wool
-#define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16)
+// number of blocks + 16 for the 16 colored wool, plus one for the unknown block
+#define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16+1)
 
 // number of texture swatches
 #define NUM_SWATCHES (NUM_BLOCKS+256)
@@ -401,7 +404,7 @@ typedef struct Options {
 #define BLF_IMAGE_TEXTURE   0x10000
 // this object emits light
 #define BLF_EMITTER         0x20000
-// this object attaches to fences
+// this object attaches to fences; note that fences do not have this property themselves, so that nether & regular fence won't attach
 #define BLF_FENCE_NEIGHBOR	0x40000
 // this object outputs its true geometry (not just a block) for rendering
 #define BLF_TRUE_GEOMETRY	0x80000
@@ -443,7 +446,7 @@ static struct {
     {"Cobblestone",            0x828282, 1.000f, 0x828282,  0, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//04
     {"Wooden Plank",           0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//05
     {"Sapling",                0x7b9a29, 1.000f, 0x7b9a29, 15, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//06
-    {"Bedrock",                0x565656, 1.000f, 0x565656,  1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_FENCE_NEIGHBOR},	//07
+    {"Bedrock",                0x565656, 1.000f, 0x565656,  1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//07
     {"Water",                  0x295dfe, 0.535f, 0x163288, 15,12, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//08
     {"Stationary Water",       0x295dfe, 0.535f, 0x163288, 15,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//09
     {"Lava",                   0xf56d00, 1.000f, 0xf56d00, 15,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},	//0a
@@ -599,7 +602,8 @@ static struct {
     {"Brown Wool",             0x56331B, 1.000f, 0x56331B,  1,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
     {"Green Wool",             0x374D18, 1.000f, 0x374D18,  1, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
     {"Red Wool",               0xA32C28, 1.000f, 0xA32C28,  1, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    {"Black Wool",             0x1B1717, 1.000f, 0x1B1717,  1, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+	{"Black Wool",             0x1B1717, 1.000f, 0x1B1717,  1, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+	{"Unknown Block",          0x565656, 1.000f, 0x565656,  1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR}	// same as bedrock
 };
 
 //unsigned int gWoolColors[16]={
@@ -741,8 +745,9 @@ enum block_types {
 	BLOCK_HEAD = 0x90,
 	BLOCK_ANVIL = 0x91,
 
-    BLOCK_WHITE_WOOL = (NUM_BLOCKS-16),
-    BLOCK_BLACK_WOOL = (NUM_BLOCKS-1)
+    BLOCK_WHITE_WOOL = (NUM_BLOCKS-16-1),
+    BLOCK_BLACK_WOOL = (NUM_BLOCKS-1-1),
+	BLOCK_UNKNOWN = (NUM_BLOCKS-1)
 };
 
 #endif

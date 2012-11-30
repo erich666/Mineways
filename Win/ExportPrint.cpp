@@ -158,7 +158,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 				CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
 			}
 
-            BOOL debugAvailable = !epd.radioExportNoMaterials[epd.fileType] && (epd.fileType != FILE_TYPE_ASCII_STL);
+            BOOL debugAvailable = !epd.radioExportNoMaterials[epd.fileType] && (epd.fileType != FILE_TYPE_ASCII_STL) && (epd.fileType != FILE_TYPE_SCHEMATIC);
 
             CheckDlgButton(hDlg,IDC_SHOW_PARTS,debugAvailable?epd.chkShowParts:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_SHOW_WELDS,debugAvailable?epd.chkShowWelds:BST_INDETERMINATE);
