@@ -1201,7 +1201,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			switch ( wmId )
 			{
 			case IDM_FILE_SAVEOBJ:
-				gPrintModel = 1;
+				gPrintModel = 0;
 				break;
 			case IDM_FILE_PRINTOBJ:
 				gPrintModel = 1;
@@ -2219,7 +2219,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
 
         // output stats, if printing and there *are* stats
-        if ( gShowPrintStats && printModel && gOptions.cost > 0.0f && outputFileList.count > 0 )
+        if ( gShowPrintStats && (printModel==1) && gOptions.cost > 0.0f && outputFileList.count > 0 )
         {
             int retval;
             wchar_t msgString[2000];
@@ -2414,7 +2414,7 @@ static void initializeExportDialogData()
         METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
 
     // materials selected
-    INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,1,1,1,1,0,1,1);
+    INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
     INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_CENTIMETER,UNITS_CENTIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER);
  

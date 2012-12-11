@@ -13,6 +13,9 @@
 *.vcxproj.user
 *.rar
 *.aps
+*.opensdf
+*.cppcheck
+*x*.png
 Debug
 MinewaysMap/Debug
 MinewaysMap/Release

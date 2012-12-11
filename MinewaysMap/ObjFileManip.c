@@ -3139,7 +3139,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
 			// hinge is on left, so give it a different translation
 			static float offx = 0.0f;
-			static float offz = 0.0f;
             translateMtx(mtx, 0.0f + offx/16.0f, 0.0f, ((float)(13-fatten)/16.0f) * ((bottomDataVal & 0x4) ? 1.0f : -1.0f) );
             signMult = -1.0f;
         }
@@ -11582,25 +11581,29 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     if ( gOptions->exportFlags & EXPT_3DPRINT )
     {
 		char warningString[256];
+		int isSculpteo = ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ );
 		
-        // If we add materials, put the material chosen here.
-        sprintf_s(outputString,256,"\n# Cost estimate for this model:\n");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+		if ( !isSculpteo )
+		{
+			// If we add materials, put the material chosen here.
+			sprintf_s(outputString,256,"\n# Cost estimate for this model:\n");
+			WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-        sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "" );
-        sprintf_s(outputString,256,"#   if made using the white, strong & flexible material: $ %0.2f%s\n",
-            computeMaterialCost( PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gStats.density ),
-            warningString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+			sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "" );
+			sprintf_s(outputString,256,"#   if made using the white, strong & flexible material: $ %0.2f%s\n",
+				computeMaterialCost( PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gStats.density ),
+				warningString);
+			WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+		}
 
-        sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "" );
+        sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "" );
         sprintf_s(outputString,256,"#   if made using the full color sandstone material:     $ %0.2f%s\n",
-            computeMaterialCost( PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gStats.density ),
+            computeMaterialCost( isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gStats.density ),
             warningString);
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
         // if material is not one of these, print its cost
-        if ( gPhysMtl > PRINT_MATERIAL_FULL_COLOR_SANDSTONE )
+        if ( gPhysMtl > PRINT_MATERIAL_FULL_COLOR_SANDSTONE && gPhysMtl != PRINT_MATERIAL_FCS_SCULPTEO )
         {
             sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[gPhysMtl].minWall) ? " *** WARNING, thin wall ***" : "" );
             sprintf_s(outputString,256,
@@ -11945,9 +11948,10 @@ static float computeMaterialCost( int printMaterialType, float blockEdgeSize, in
     }
     else
     {
+		// sculpteo sandstone tends to be about 50% more expensive, with a higher setup fee. This equation is just my guess, needs work...
         return ( mtlCostTable[printMaterialType].costHandling + 
             mtlCostTable[printMaterialType].costPerSquareCentimeter * AREA_IN_CM2 +    // ceramics only
-            mtlCostTable[printMaterialType].costPerCubicCentimeter * ccmMaterial);
+            mtlCostTable[printMaterialType].costPerCubicCentimeter * ccmMaterial );
     }
 }
 

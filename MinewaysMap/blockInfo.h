@@ -45,6 +45,7 @@ typedef unsigned int    UINT;
 //// http://www.shapeways.com/materials/material-options
 #define PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE 0
 #define PRINT_MATERIAL_FULL_COLOR_SANDSTONE 1
+#define PRINT_MATERIAL_FCS_SCULPTEO 8
 //
 //// Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
 //// White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
@@ -80,7 +81,7 @@ typedef unsigned int    UINT;
 // TODO: yes, this is dumb, we have a separate static mtlCostTable for every code file that includes this .h file.
 
 // http://www.shapeways.com/materials/material-options
-#define MTL_COST_TABLE_SIZE 8
+#define MTL_COST_TABLE_SIZE 9
 static struct {
     // lame on my part: we really shouldn't be using wide characters in the dialog TODO
     wchar_t *wname;
@@ -113,6 +114,9 @@ static struct {
     { L"Stainless Steel",    "stainless steel",    3.0f*MM_TO_METERS, 0.0f,               6.00f, 8.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,     100.0f,45.0f,25.0f },
     { L"Silver",             "silver",             0.6f*MM_TO_METERS, 0.0f,               30.0f, 20.0f,    999.0f, 99999.0f, 20.0f *0.10f,  0.0f,      15.0f,15.0f, 3.0f },
     { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
+	// I haven't figured out Sculpteo's cost model. Prices tend to be 50% higher, so that's what's here, but I think it also has to do with dimensionts, which affects print time.
+	// With full-sized rectangular blocks, the costPerCCM is more like 1.05
+	{ L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               2.55f, 1.375f,   999.0f, 99999.0f,  2.55f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
 };
 
 
