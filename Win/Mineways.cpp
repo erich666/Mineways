@@ -2465,7 +2465,7 @@ static void initializeExportDialogData()
     gExportViewData.floaterCountVal = 16;
     // irrelevant for viewing
     INIT_ALL_FILE_TYPES( gExportViewData.hollowThicknessVal, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f );    // 10 mm
-    INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,1,1,1,1,0,1,1);
+	INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     INIT_ALL_FILE_TYPES( gExportViewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
 
 	// copy schematic data - a little goofy, but there it is
