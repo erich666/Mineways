@@ -96,7 +96,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <HR>
 <P><H2><A NAME="offsite">Links</a></H2>
 <UL>
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.21, updated 12/11/2012). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.22, updated 1/21/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
@@ -712,11 +712,11 @@ If only a Kd texture is listed, go to the next mesh in the Scene tree at the top
 <P>
 10) <b>Fixing shadows:</b> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
 <P>
-If you want the blocky look for textures, good luck! In other rendering packages you can set texture interpolation off. You can do the same thing in Blender: select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. This should do it, but in Blender 2.61 unchecking this box does nothing. I've also tried setting the Filter Size to 0.10. If you figure out how to make the textures look blocky, let me know.
+11) <b>Blocky textures:</b> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I>
 <P>
-11) <b>Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the scene tree). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
+12) <b>Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the scene tree). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
 <P>
-12) Water looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
+13) <b>Water:</b> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
 Transparency: Fresnel = 2, Blend = 1.25 (the default)<BR>
 Optional is to select "Raytrace" and IOR = 1.33, though ray tracing appears to sometimes create artifacts<BR>
 Mirror: check this checkbox, then Fresnel = 2, Blend = 1.25 (the default), Gloss = 0.96<BR>
@@ -726,7 +726,7 @@ At the bottom of the Influence section there's a list under Bump Mapping of Meth
 <P>
 13) <b>Lighting</b>: There is one predefined lightsource on the working area (which looks like a dot with two enclosing dotted circles). You'll usually have to zoom out to see it. You can right click to select it, or select the Lamp from the Scene tree menu, and move it around the screen by selecting the red, green, and blue arrows and dragging. Then, select the Lamp settings in the same menu bar where you found the camera symbol. It looks like a small sun with four arrows pointing away from it in different directions. Click it, and you can find all kinds of parameters that affect the lighting of your scene. For example, try exchanging the "point" type for "sun", and play with the "Energy" value. You can also change the color by clicking the color field above the Energy settings. You can add Lamps from the "Add" menu in the upper left.
 <P>
-14) You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
+14) <b>Render Size:</b> You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
 <P>
 15) Upload your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended)
 
@@ -1698,6 +1698,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.19, 10/17/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV219.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added anvil. Fixed terrain.png to avoid rendering errors. Fixed crash on solid color export for rendering, and proper export for 3D printing. Added fire tile for 3D printing. Added path information to .OBJ header. Fixed texturing and placement errors for doors, cauldrons, and cocoa. Fixed texture clamping for furnaces, bed, and cauldron. Added color expansion (bleeding a decal's texture colors outward into the transparent parts) to improve rendering quality on various renderers. G3D/SAP export also now performs further color expansion. Improved error messages for Mac version - I still don't know how to detect Mac paths using MFC and WINE; advice appreciated. Added beta's stair "trimming" rules (where stairs at right angles will trim away part of the upper step), but this feature will not be enabled until 1.4 is released.
 <LI>Version 2.20, 11/30/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV220.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>Major feature addition: schematic export</B>. See <a href="#schematic">the relevant documentation</a> for more information. Added version number to output file's comment header, to help in debugging. Fixed physical material name in output file's comment header (was printing just one character instead of the string). Fixed error message warning of bad blocks: further code added to handle this problem (thanks to Josh Smith for pointing out the problem). There is now an "unknown block" type that will show up on the map and on export, which looks like bedrock. As usual, you can remove these blocks by using a color scheme. Fixed bedrock properties (was listed as having transparency).
 <LI>Version 2.21, 12/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV221.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Stupid bug fix: I managed to break rendering support a bit, causing export to use the printing code path (slower and unnecessary). Now it works again. Minor feature addition: Sculpteo exports now have a somewhat better price displayed, but since I don't know their formula it's still pretty approximate.
+<LI>Version 2.22, 1/21/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV221.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Bug fix: sometimes unknown blocks caused a timing error, making the "bad block" message repeat many times. Fixed, I believe... <I>(thanks to Michael Leone for reporting this bug)</I>
 </UL>
 <p>
 That's it - have fun!
@@ -1721,7 +1722,7 @@ That's it - have fun!
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 12/11/2012</i>
+Last updated 1/21/2013</i>
 </font>
 </div> <!-- /footer -->
 </div>

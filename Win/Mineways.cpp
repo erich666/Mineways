@@ -1562,13 +1562,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
-	if ( UnknownBlockRead() )
+	if ( UnknownBlockRead() && NeedToCheckUnknownBlock() )
 	{
-		MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
-			_T("Read error"), MB_OK|MB_ICONERROR);
 		// flag this just the first time found, then turn off error and don't check again for this world
 		CheckUnknownBlock( false );
 		ClearBlockReadCheck();
+
+		MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
+			_T("Read error"), MB_OK|MB_ICONERROR);
 	}
 
     return 0;

@@ -1680,6 +1680,12 @@ void CheckUnknownBlock( int check )
 	gPerformUnknownBlockCheck = check;
 }
 
+// should not be needed, but there's some timing thread weirdness
+int NeedToCheckUnknownBlock()
+{
+	return gPerformUnknownBlockCheck;
+}
+
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 {
 	bfFile bf;
