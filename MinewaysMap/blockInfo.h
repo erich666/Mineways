@@ -352,7 +352,7 @@ typedef struct Options {
 
 
 // number of official Minecraft blocks - 146 (block IDs + 1)
-#define NUM_BLOCKS_STANDARD 146
+#define NUM_BLOCKS_STANDARD 174
 // number of blocks + 16 for the 16 colored wool, plus one for the unknown block
 #define NUM_BLOCKS (NUM_BLOCKS_STANDARD+16+1)
 
@@ -470,8 +470,8 @@ static struct {
     {"Sandstone",              0xe0d8a6, 1.000f, 0xe0d8a6,  0,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//18 0,12 side, 0,13 bottom
     {"Note Block",             0x342017, 1.000f, 0x342017, 10, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//19 10,4 side
     {"Bed",                    0xff3333, 1.000f, 0xff3333,  6, 8, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//1a
-    {"Powered Rail",           0x693838, 1.000f, 0x693838,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1b
-    {"Detector Rail",          0x694d3a, 1.000f, 0x694d3a,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1c
+    {"Powered Rail",           0xAB0301, 1.000f, 0xAB0301,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//1b
+    {"Detector Rail",          0xCD5E58, 1.000f, 0xCD5E58,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//1c
     {"Sticky Piston",          0x719e60, 1.000f, 0x719e60, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//1d
     {"Cobweb",                 0xeeeeee, 1.000f, 0xeeeeee, 11, 0, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1e
     {"Tall Grass",             0x68a33d, 1.000f, 0x68a33d,  7, 2, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//1f (31)
@@ -491,7 +491,7 @@ static struct {
     {"Brick",                  0xa0807b, 1.000f, 0xa0807b,  7, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2d 
     {"TNT",                    0xdb441a, 1.000f, 0xdb441a,  9, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//2e 7,0 side, 9,0 under
     {"Bookshelf",              0x795a39, 1.000f, 0x795a39,  4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//2f 3,2
-    {"Moss Stone",             0x627162, 1.000f, 0x627162,  4, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//30
+    {"Mossy Stone",            0x627162, 1.000f, 0x627162,  4, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//30
     {"Obsidian",               0x1b1729, 1.000f, 0x1b1729,  5, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//31
     {"Torch",                  0xfcfc00, 1.000f, 0xfcfc00,  0, 5, BLF_MIDDLER|BLF_FLATSIDE|BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//32 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
     {"Fire",                   0xfca100, 1.000f, 0xfca100, /* somewhat bogus */ 15, 1, BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_EMITTER|BLF_DNE_FLUID},	//33 - 51 - no billboard, sadly BLF_CUTOUTS
@@ -536,8 +536,8 @@ static struct {
     {"Portal",                 0x472272, 0.800f, 0x381b5b, /* bogus */ 14, 0, BLF_PANE|BLF_TRANSPARENT|BLF_EMITTER|BLF_DNE_FLUID},   //5a - 0xd67fff unpremultiplied
     {"Jack-O-Lantern",         0xe9b416, 1.000f, 0xe9b416,  6, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},   //5b 6,7 side, 8,7 lit face
     {"Cake",                   0xfffdfd, 1.000f, 0xfffdfd,  9, 7, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5c 10,7 side, 11,7 inside, 12,7 under - TODO: not really whole
-    {"Repeater (off)",         0x560000, 1.000f, 0x560000,  3, 8, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5d
-    {"Repeater (on)",          0xee5555, 1.000f, 0xee5555,  3, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //5e
+    {"Repeater (off)",         0x560000, 1.000f, 0x560000,  3, 8, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   //5d
+    {"Repeater (on)",          0xee5555, 1.000f, 0xee5555,  3, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   //5e
     {"Locked Chest",           0xa06f23, 1.000f, 0xa06f23,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //5f (10,1) side; (11,1) front
     {"Trapdoor",               0x886634, 1.000f, 0x886634,  4, 5, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //60 - tricky case: could be a flattop, or a flatside. For now, render it
     {"Hidden Silverfish",      0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE},   //61
@@ -584,12 +584,43 @@ static struct {
     {"Command Block",          0xD6A17E, 1.000f, 0xD6A17E,  8,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//89 - TODO: is this really a fence neighbor?
     {"Beacon Block",           0x87E5E1, 0.500f, 0x447370, 11,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//8A - TODO!: need to adjust to true position for 1.3.X: 9,2
     {"Cobblestone Wall",       0x828282, 1.000f, 0x828282,  0, 1, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //8B
-    {"Flower Pot",             0x7C4536, 1.000f, 0x7C4536, 10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   //8C
+    {"Flower Pot",             0x7C4536, 1.000f, 0x7C4536, 10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   //8C
     {"Carrots",                0x056B05, 1.000f, 0x056B05, 11,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8d
     {"Potatoes",               0x00C01B, 1.000f, 0x00C01B, 12,12, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//8e
 	{"Wooden Button",          0x9f8150, 1.000f, 0x9f8150,  4, 0, BLF_FLATSIDE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f
-    {"Head",			       0xcacaca, 1.000f, 0xcacaca,  6, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//90 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
-	{"Anvil",                  0x404040, 1.000f, 0x404040,  7,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    // 91 - NOTE: the top swatch is not used, the generic side swatch is
+    {"Head",			       0xcacaca, 1.000f, 0xcacaca,  6, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//90 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
+	{"Anvil",                  0x404040, 1.000f, 0x404040,  7,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    // 91/145 - NOTE: the top swatch is not used, the generic side swatch is
+	// TODO: make new terrain.png with the blocks, give the terrain locations all #defines, give new locations to new data, figure out the "temporary workspace" areas, move the chest elsewhere.
+	// make sure the new things react as expected to water, and check comparable "TODO block" type to make sure we're doing same special actions.
+	// Future: 64 bit, colored clay and carpet on map itself.
+	{"Trapped Chest",          0xa06f23, 1.000f, 0xa06f23,  9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	// 92/146 TODO from chest
+	{"Weighted Pressure Plate (Light)",0xEFE140, 1.000f, 0xEFE140,  1, 0, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	// 93/147 TODO from plate
+	{"Weighted Pressure Plate (Heavy)",0xD7D7D7, 1.000f, 0xD7D7D7,  1, 0, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	// 94/148 TODO from plate
+	{"Redstone Comparator (inactive)",0xC5BAAD, 1.000f, 0xC5BAAD,  3, 8, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   // 95/149 TODO from repeater off
+	{"Redstone Comparator (active)",0xD1B5AA, 1.000f, 0xD1B5AA,  3, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_FLATTOP|BLF_DNE_FLUID|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   // 96/150 TODO from repeater on
+	{"Daylight Sensor",        0xBBA890, 1.000f, 0xBBA890,  4, 5, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},   // 97/151 TODO from trapdoor
+	{"Block of Redstone",      0xA81E09, 1.000f, 0xA81E09,  6, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER|BLF_FENCE_NEIGHBOR},	// 98/152 TODO from redstone ore (lit)
+	{"Nether Quartz Ore",      0x7A5B57, 1.000f, 0x7A5B57,  1,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR}, // 99/153 TODO brown wool
+	{"Hopper",                 0x363636, 1.000f, 0x363636,  7,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    // 9A/154 - NOTE: the top swatch is not used, the generic side swatch is
+	{"Block of Quartz",        0xE0DDD7, 1.000f, 0xE0DDD7,  2, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// 9B/155 TODO from block of snow
+	{"Quartz Stairs",          0xE1DCD1, 1.000f, 0xE1DCD1,  0,11, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    // 9C/156 TODO from anvil
+	{"Activator Rail",         0x880300, 1.000f, 0x880300,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	// 9D/157 TODO from dispenser
+	{"Dropper",                0x6E6E6E, 1.000f, 0x6E6E6E, 14, 3, BLF_WHOLE|BLF_IMAGE_TEXTURE},	// 9E/158 TODO from dispenser
+	{"Stained Clay",           0xD4B7A3, 1.000f, 0xD4B7A3,  8, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// 9F/159 TODO from clay, someday have multicolor on map
+	{"Unused 160",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// A0/160 Stone, since it's unused
+	{"Unused 161",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 162",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 163",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 164",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 165",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 166",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 167",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 168",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Unused 169",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Hay",                    0xB5970C, 1.000f, 0xB5970C, 15, 5, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AA/170 TODO Wheat
+	{"Carpet",                 0xEBEBEB, 1.000f, 0xEBEBEB,  0, 4, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	// AB/171 TODO from snow, someday have multicolor on map
+	{"Hardened Clay",          0x945A41, 1.000f, 0x945A41,  8, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AC/172 TODO from clay
+	{"Block of Coal",          0x191919, 1.000f, 0x191919,  5, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AD/173 TODO from obsidian
 // for simplicity, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
     {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
@@ -748,10 +779,342 @@ enum block_types {
 	BLOCK_WOODEN_BUTTON = 0x8F,
 	BLOCK_HEAD = 0x90,
 	BLOCK_ANVIL = 0x91,
+	// 1.5.2
+	BLOCK_TRAPPED_CHEST = 0x92,
+	// TODO
+	BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT = 0x93,
+	BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY = 0x94,
+	BLOCK_REDSTONE_COMPARATOR_INACTIVE = 0x95,	// TODO line 1916
+	BLOCK_REDSTONE_COMPARATOR_ACTIVE = 0x96,
+	BLOCK_DAYLIGHT_SENSOR = 0x97,	// TODO line 1916, make like trapdoor?
+	BLOCK_REDSTONE_BLOCK = 0x98,
+	BLOCK_NETHER_QUARTZ_ORE = 0x99,
+	BLOCK_HOPPER = 0x9A,
+	BLOCK_QUARTZ_BLOCK = 0x9B,
+	BLOCK_QUARTZ_STAIRS = 0x9C,
+	BLOCK_ACTIVATOR_RAIL = 0x9D,
+	BLOCK_DROPPER = 0x9E,
+	// 1.6.2
+	BLOCK_STAINED_CLAY = 0x9F,
+	BLOCK_HAY = 0xAA,
+	BLOCK_CARPET = 0xAB,
+	BLOCK_HARDENED_CLAY = 0xAC,
+	BLOCK_COAL_BLOCK = 0xAD,
 
+	// colored wool at end - special internal IDs, so that the mapping program part can show wool in different colors
     BLOCK_WHITE_WOOL = (NUM_BLOCKS-16-1),
     BLOCK_BLACK_WOOL = (NUM_BLOCKS-1-1),
 	BLOCK_UNKNOWN = (NUM_BLOCKS-1)
 };
+
+// Someday may use as way to read in terrain. Uses names used by Mojang.
+/*
+static struct {
+	int txrX;   // column and row, from upper left, of 16x16 tiles in terrain.png, for top view of block
+	int txrY;
+	const char *name;
+} gTerrainTile[256]={
+	{  0,  0, "grass_top" },	// tinted by grass.png
+	{  1,  0, "stone" },
+	{  2,  0, "dirt" },
+	{  3,  0, "grass_side" },	// not grass_side_overlay, which is grayscale and tinted by grass.png
+	{  4,  0, "planks_oak" },
+	{  5,  0, "stone_slab_side" },
+	{  6,  0, "stone_slab_top" },
+	{  7,  0, "brick" },
+	{  8,  0, "tnt_side" },
+	{  9,  0, "tnt_top" },
+	{ 10,  0, "tnt_bottom" },
+	{ 11,  0, "web" },
+	{ 12,  0, "flower_rose" },
+	{ 13,  0, "flower_dandelion" },
+	{ 14,  0, "portal" },	// really, bluish - used as a portal by Mineways. TODO: fix in program
+	{ 15,  0, "sapling_oak" },
+	{  0,  1, "cobblestone" },
+	{  1,  1, "bedrock" },
+	{  2,  1, "sand" },
+	{  3,  1, "gravel" },
+	{  4,  1, "log_oak" },
+	{  5,  1, "log_oak_top" },	// and every other log, we don't separate these out
+	{  6,  1, "iron_block" },
+	{  7,  1, "gold_block" },
+	{  8,  1, "diamond_block" },
+	{  9,  1, "emerald_block" },	// TODO: switch location in terrain.png and in table above - was chest
+	{ 10,  1, "" },	//unused TODO
+	{ 11,  1, "" },	//unused TODO
+	{ 12,  1, "mushroom_red" },
+	{ 13,  1, "mushroom_brown" },
+	{ 14,  1, "sapling_jungle" },
+	{ 15,  1, "fire_layer_0" },	// input is fire animation strip
+	{  0,  2, "gold_ore" },
+	{  1,  2, "iron_ore" },
+	{  2,  2, "coal_ore" },
+	{  3,  2, "bookshelf" }, // side - top and bottom are oak planks
+	{  4,  2, "cobblestone_mossy" },
+	{  5,  2, "obsidian" },
+	{  6,  2, "grass_side_overlay" },	// TODO unused, tinted by grass.png 
+	{  7,  2, "tallgrass" },
+	{  8,  2, "grass" },
+	{  9,  2, "beacon" }, // TODO move to here, we have it elsewhere in Mineways
+	{ 10,  2, "" },	//unused TODO
+	{ 11,  2, "crafting_table_top" },
+	{ 12,  2, "furnace_front_off" },
+	{ 13,  2, "furnace_side" },
+	{ 14,  2, "dispenser_front_horizontal" },
+	{ 15,  2, "fire_layer_1" }, // input is second fire animation strip - TODO use both?
+	{  0,  3, "sponge" },
+	{  1,  3, "glass" },
+	{  2,  3, "diamond_ore" },
+	{  3,  3, "redstone_ore" },
+	{  4,  3, "leaves_oak" },
+	{  5,  3, "leaves_oak_opaque" },
+	{  6,  3, "stonebrick" },
+	{  7,  3, "deadbush" },
+	{  8,  3, "fern" },
+	{  9,  3, "" },	//unused TODO
+	{ 10,  3, "" },	//unused TODO
+	{ 11,  3, "crafting_table_side" },
+	{ 12,  3, "crafting_table_front" },
+	{ 13,  3, "furnace_front_on" },
+	{ 14,  3, "furnace_top" },
+	{ 15,  3, "sapling_spruce" },
+	{  0,  4, "wool_colored_white" },
+	{  1,  4, "mob_spawner" },
+	{  2,  4, "snow" },
+	{  3,  4, "ice" },
+	{  4,  4, "grass_side_snowed" },
+	{  5,  4, "cactus_top" },
+	{  6,  4, "cactus_side" },
+	{  7,  4, "cactus_bottom" },
+	{  8,  4, "clay" },
+	{  9,  4, "reeds" },
+	{ 10,  4, "jukebox_side" },	// and noteblock
+	{ 11,  4, "jukebox_top" },
+	{ 12,  4, "waterlily" },
+	{ 13,  4, "mycelium_side" },
+	{ 14,  4, "mycelium_top" },
+	{ 15,  4, "sapling_birch" },
+	{  0,  5, "torch_on" },
+	{  1,  5, "door_wood_upper" },
+	{  2,  5, "door_iron_upper" },
+	{  3,  5, "ladder" },
+	{  4,  5, "trapdoor" },
+	{  5,  5, "iron_bars" },
+	{  6,  5, "farmland_wet" },
+	{  7,  5, "farmland_dry" },
+	{  8,  5, "wheat_stage_0" },
+	{  9,  5, "wheat_stage_1" },
+	{ 10,  5, "wheat_stage_2" },
+	{ 11,  5, "wheat_stage_3" },
+	{ 12,  5, "wheat_stage_4" },
+	{ 13,  5, "wheat_stage_5" },
+	{ 14,  5, "wheat_stage_6" },
+	{ 15,  5, "wheat_stage_7" },
+	{  0,  6, "lever" },
+	{  1,  6, "door_wood_lower" },
+	{  2,  6, "door_iron_lower" },
+	{  3,  6, "redstone_torch_on" },
+	{  4,  6, "stonebrick_mossy" },
+	{  5,  6, "stonebrick_cracked" },
+	{  6,  6, "pumpkin_top" },
+	{  7,  6, "netherrack" },
+	{  8,  6, "soul_sand" },
+	{  9,  6, "glowstone" },
+	{ 10,  6, "piston_top_sticky" },
+	{ 11,  6, "piston_top_normal" },
+	{ 12,  6, "piston_side" },
+	{ 13,  6, "piston_bottom" },
+	{ 14,  6, "piston_inner" },
+	{ 15,  6, "melon_stem_disconnected" }, // and pumpkin_stem_disconnected
+	{  0,  7, "rail_normal_turned" },
+	{  1,  7, "wool_colored_black" },
+	{  2,  7, "wool_colored_gray" },
+	{  3,  7, "redstone_torch_off" },
+	{  4,  7, "log_spruce" },
+	{  5,  7, "log_birch" },
+	{  6,  7, "pumpkin_side" },
+	{  7,  7, "pumpkin_face_off" },
+	{  8,  7, "pumpkin_face_on" },
+	{  9,  7, "cake_top" },
+	{ 10,  7, "cake_side" },
+	{ 11,  7, "cake_inner" },
+	{ 12,  7, "cake_bottom" },
+	{ 13,  7, "mushroom_block_skin_red" },
+	{ 14,  7, "mushroom_block_skin_brown" },
+	{ 15,  7, "melon_stem_connected" }, // and pumpkin_stem_connected
+	{  0,  8, "rail_normal" },
+	{  1,  8, "wool_colored_red" },
+	{  2,  8, "wool_colored_pink" },
+	{  3,  8, "repeater_off" },
+	{  4,  8, "leaves_spruce" },
+	{  5,  8, "leaves_spruce_opaque" },
+	{  6,  8, "bed_feet_top" },
+	{  7,  8, "bed_head_top" },
+	{  8,  8, "melon_side" },
+	{  9,  8, "melon_top" },
+	{ 10,  8, "cauldron_top" },
+	{ 11,  8, "cauldron_inner" },
+	{ 12,  8, "" }, // cake item, unused, TODO
+	{ 13,  8, "mushroom_block_skin_stem" },
+	{ 14,  8, "mushroom_block_inside" },
+	{ 15,  8, "vine" },	// grayscale
+	{  0,  9, "lapis_block" },
+	{  1,  9, "wool_colored_green" },
+	{  2,  9, "wool_colored_lime" },
+	{  3,  9, "repeater_on" },
+	{  4,  9, "glass_pane_top" },
+	{  5,  9, "bed_feet_end" },
+	{  6,  9, "bed_feet_side" },
+	{  7,  9, "bed_head_side" },
+	{  8,  9, "bed_head_end" },
+	{  9,  9, "log_jungle" },
+	{ 10,  9, "cauldron_side" },
+	{ 11,  9, "cauldron_bottom" },
+	{ 12,  9, "brewing_stand_base" },
+	{ 13,  9, "brewing_stand" },
+	{ 14,  9, "endframe_top" }, // not used TODO
+	{ 15,  9, "endframe_side" }, // not used TODO
+	{  0, 10, "lapis_ore" },
+	{  1, 10, "wool_colored_brown" },
+	{  2, 10, "wool_colored_yellow" },
+	{  3, 10, "rail_golden" },
+	{  4, 10, "redstone_dust_cross" },
+	{  5, 10, "redstone_dust_line" },
+	{  6, 10, "enchanting_table_top" },
+	{  7, 10, "dragon_egg" },
+	{  8, 10, "cocoa_stage_2" },
+	{  9, 10, "cocoa_stage_1" },
+	{ 10, 10, "cocoa_stage_0" },
+	{ 11, 10, "emerald_ore" },
+	{ 12, 10, "trip_wire_source" },
+	{ 13, 10, "trip_wire" },
+	{ 14, 10, "endframe_eye" },
+	{ 15, 10, "end_stone" },
+	{  0, 11, "sandstone_top" },
+	{  1, 11, "wool_colored_blue" },
+	{  2, 11, "wool_colored_light_blue" },
+	{  3, 11, "rail_golden_powered" },
+	{  4, 11, "redstone_dust_cross_overlay" },	// TODO - used? What's it for?
+	{  5, 11, "redstone_dust_line_overlay" },	// TODO - used? What's it for?
+	{  6, 11, "enchanting_table_side" },
+	{  7, 11, "enchanting_table_bottom" },
+	{  8, 11, "command_block" },
+	{  9, 11, "itemframe_background" },	// frame around item, unimplemented, TODO
+	{ 10, 11, "flower_pot" },
+	{ 11, 11, "" },	// unused
+	{ 12, 11, "" },	// unused
+	{ 13, 11, "" },	// unused
+	{ 14, 11, "" },	// unused
+	{ 15, 11, "" },	// unused
+	{  0, 12, "sandstone_normal" },
+	{  1, 12, "wool_colored_purple" },
+	{  2, 12, "wool_colored_magenta" },
+	{  3, 12, "rail_detector" },
+	{  4, 12, "leaves_jungle" },
+	{  5, 12, "leaves_jungle_opaque" },
+	{  6, 12, "planks_spruce" },
+	{  7, 12, "planks_jungle" },
+	{  8, 12, "carrots_stage_0" },	// also potatoes_stage_0
+	{  9, 12, "carrots_stage_1" },	// also potatoes_stage_1
+	{ 10, 12, "carrots_stage_2" },	// also potatoes_stage_2
+	{ 11, 12, "carrots_stage_3" },
+	{ 12, 12, "potatoes_stage_3" },
+	{ 13, 12, "water_still" },	// TODO duplicate
+	{ 14, 12, "water_still" },	// TODO duplicate
+	{ 15, 12, "water_still" },	// TODO duplicate
+	{  0, 13, "sandstone_bottom" },
+	{  1, 13, "wool_colored_cyan" },
+	{  2, 13, "wool_colored_orange" },
+	{  3, 13, "redstone_lamp_off" },
+	{  4, 13, "redstone_lamp_on" },
+	{  5, 13, "stonebrick_carved" },
+	{  6, 13, "planks_birch" },
+	{  7, 13, "anvil_base" },
+	{  8, 13, "anvil_top_damaged_1" },
+	{  9, 13, "" },	// unused
+	{ 10, 13, "" },	// unused
+	{ 11, 13, "" },	// unused
+	{ 12, 13, "" },	// unused
+	{ 13, 13, "" },	// unused
+	{ 14, 13, "water_still" },	// TODO duplicate
+	{ 15, 13, "water_still" },
+	{  0, 14, "nether_brick" },
+	{  1, 14, "wool_colored_silver" },
+	{  2, 14, "nether_wart_stage_0" },
+	{  3, 14, "nether_wart_stage_1" },
+	{  4, 14, "nether_wart_stage_2" },
+	{  5, 14, "sandstone_carved" },
+	{  6, 14, "sandstone_smooth" },
+	{  7, 14, "anvil_top_damaged_0" },
+	{  8, 14, "anvil_top_damaged_2" },
+	{  9, 14, "" },	// unused
+	{ 10, 14, "" },	// unused
+	{ 11, 14, "" },	// unused
+	{ 12, 14, "" },	// unused
+	{ 13, 14, "lava_still" },	// TODO duplicate
+	{ 14, 14, "lava_still" },	// TODO duplicate
+	{ 15, 14, "lava_still" },	// TODO duplicate
+	{  0, 15, "" },	// destroy, etc. unused - make these chests and ender chests
+	{  1, 15, "" },	// destroy, etc. unused
+	{  2, 15, "" },	// destroy, etc. unused
+	{  3, 15, "" },	// destroy, etc. unused
+	{  4, 15, "" },	// destroy, etc. unused
+	{  5, 15, "" },	// destroy, etc. unused
+	{  6, 15, "" },	// destroy, etc. unused
+	{  7, 15, "" },	// destroy, etc. unused
+	{  8, 15, "" },	// destroy, etc. unused
+	{  9, 15, "" },	// destroy, etc. unused
+	{ 10, 15, "" },	// destroy, etc. unused
+	{ 11, 15, "" },	// destroy, etc. unused
+	{ 12, 15, "" },	// destroy, etc. unused
+	{ 13, 15, "" },	// destroy, etc. unused
+	{ 14, 15, "lava_flow" },	// TODO duplicate
+	{ 15, 15, "lava_flow" }
+};
+Removed: destroy_stage_0 through 9
+
+Unclear: dispenser_front_vertical, dropper_front_vertical (maybe part of animation?)
+
+To be done: coal_block, comparator_off, comparator_on, daylight_detector_side, daylight_detector_top, dropper_front_horizontal,
+hardened_clay_stained_black.png
+hardened_clay_stained_blue.png
+hardened_clay_stained_brown.png
+hardened_clay_stained_cyan.png
+hardened_clay_stained_gray.png
+hardened_clay_stained_green.png
+hardened_clay_stained_light_blue.png
+hardened_clay_stained_lime.png
+hardened_clay_stained_magenta.png
+hardened_clay_stained_orange.png
+hardened_clay_stained_pink.png
+hardened_clay_stained_purple.png
+hardened_clay_stained_red.png
+hardened_clay_stained_silver.png
+hardened_clay_stained_white.png
+hardened_clay_stained_yellow.png
+hardened_clay.png
+hay_block_side, hay_block_top, hopper_inside, hopper_outside, hopper_top,
+quartz_block_bottom.png
+quartz_block_chiseled_top.png
+quartz_block_chiseled.png
+quartz_block_lines_top.png
+quartz_block_lines.png
+quartz_block_side.png
+quartz_block_top.png
+quartz_ore.png
+rail_activator_powered.png
+rail_activator.png
+rail_detector_powered
+redstone_block, 
+trapped chest fronts (lock)
+
+Not planned to be in terrain.png, as they are duplicated in basic game: potatoes 0-2 (same as carrots), leaves_birch_opaque, leaves_birch, 
+log_birch_top, log_jungle_top, log_spruce_top, noteblock, pumpkin_stem_connected, pumpkin_stem_disconnected
+
+Unused: lava_flow, water_flow
+
+Issues to clean up: location of 7 chest tiles, 6 ender chest tiles, move beacon, move emerald block
+*/
+
 
 #endif

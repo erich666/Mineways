@@ -330,7 +330,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     // Show message
 #ifdef _DEBUG
     wchar_t buf[100];
-    swprintf( buf, 100, L"Message: %d\n", message);
+    swprintf( buf, 100, L"Message: %u\n", message);
     OutputDebugStringW( buf );
 #endif
 

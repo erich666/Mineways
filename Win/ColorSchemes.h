@@ -42,6 +42,7 @@ public:
     void create(ColorScheme *cs); //creates a colorscheme, inits it and saves it
     int next(int id,ColorScheme *cs); //enumerate colorschemes
     void load(ColorScheme *cs); //loads a color scheme (id must be set)
+	void copy(ColorScheme *cs, ColorScheme *csSource); // copy from source to cs; must have loaded both previously
     void save(ColorScheme *cs); //saves a color scheme
     void remove(int id); //remove a color scheme
 	static unsigned int blockColor(int type); // get color to store for a block

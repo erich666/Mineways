@@ -720,6 +720,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		break;
 	case BLOCK_WOODEN_PRESSURE_PLATE:
 	case BLOCK_STONE_PRESSURE_PLATE:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
 		// uses 0-1
 		if ( dataVal < 2 )
 		{
@@ -733,6 +735,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_SANDSTONE:
 	case BLOCK_HIDDEN_SILVERFISH:
 	case BLOCK_ANVIL:
+	case BLOCK_HOPPER:
 		// uses 0-2
 		if ( dataVal < 3 )
 		{
@@ -792,7 +795,9 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_SPRUCE_WOOD_STAIRS:
 	case BLOCK_BIRCH_WOOD_STAIRS:
 	case BLOCK_JUNGLE_WOOD_STAIRS:
+	case BLOCK_QUARTZ_STAIRS:
 	case BLOCK_SNOW:
+	case BLOCK_CARPET:
 	case BLOCK_FENCE_GATE:
 	case BLOCK_FARMLAND:
 		// uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
@@ -842,6 +847,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_SIGN_POST:
 	case BLOCK_REDSTONE_REPEATER_OFF:
 	case BLOCK_REDSTONE_REPEATER_ON:
+	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
 		// uses all bits, 0-15
 		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
 		block->grid[bi] = (unsigned char)type;
@@ -963,6 +970,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		// falls through on 0 through 5, since these are handled below for all rails
 	case BLOCK_POWERED_RAIL:
 	case BLOCK_DETECTOR_RAIL:
+	case BLOCK_ACTIVATOR_RAIL:
 		trimVal = dataVal & 0x7;
 		if ( trimVal <= 5 )
 		{
@@ -1136,6 +1144,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_TRAPDOOR:
+	case BLOCK_DAYLIGHT_SENSOR:
 		if ( dataVal < 8 )
 		{
 			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
@@ -1264,6 +1273,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_CHEST:
+	case BLOCK_TRAPPED_CHEST:
 		// uses 2-5, we add an extra chest on 0x8
 		trimVal = dataVal & 0x7;
 		if ( trimVal >= 2 && trimVal <= 5 )

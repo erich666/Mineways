@@ -1766,6 +1766,7 @@ static int computeFlatFlags( int boxIndex )
         // SO - don't dare put a break here, we need to flow through, to avoid repeating all this code
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
+	case BLOCK_ACTIVATOR_RAIL:
         // only pay attention to sloped rails, as these mark sides;
         // remove top bit, as that's whether it's powered
         switch ( gBoxData[boxIndex].data & 0x7 )
@@ -1792,9 +1793,14 @@ static int computeFlatFlags( int boxIndex )
         // the block below this one, if solid, gets marked
     case BLOCK_STONE_PRESSURE_PLATE:
     case BLOCK_WOODEN_PRESSURE_PLATE:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
     case BLOCK_SNOW:
+	case BLOCK_CARPET:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
+	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
 	case BLOCK_LILY_PAD:
 	case BLOCK_DANDELION:
 	case BLOCK_ROSE:
@@ -1880,14 +1886,18 @@ static int computeFlatFlags( int boxIndex )
         // Test *all* things that redstone connects to. This could be a table, for speed.
         if ( gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_LEVER ||
 			// repeaters attach only at their ends, so test the direction they're at
 			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
 			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
             gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF
+            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
+			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
             )
         {
             if ( gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE )
@@ -1896,13 +1906,17 @@ static int computeFlatFlags( int boxIndex )
         }
         if ( gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_LEVER ||
             (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
             (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
             gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF
+            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
+			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
             )
         {
             if ( gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE )
@@ -1913,11 +1927,15 @@ static int computeFlatFlags( int boxIndex )
         if ( gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_ON ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
             gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_LEVER ||
 			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
 			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
+			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
             )
         {
             gBoxData[boxIndex].data |= FLAT_FACE_LO_X;
@@ -1925,11 +1943,15 @@ static int computeFlatFlags( int boxIndex )
         if ( gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_ON ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
             gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_LEVER ||
 			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
 			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
+			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
             )
         {
             gBoxData[boxIndex].data |= FLAT_FACE_LO_Z;
@@ -2037,6 +2059,7 @@ static int computeFlatFlags( int boxIndex )
 		break;
 
     case BLOCK_TRAPDOOR:
+	case BLOCK_DAYLIGHT_SENSOR:
         if ( gBoxData[boxIndex].data & 0x4 )
         {
             switch ( gBoxData[boxIndex].data & 0x3 )
@@ -2387,6 +2410,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_RAIL:
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
+	case BLOCK_ACTIVATOR_RAIL:
 		if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
 		{
 			return saveBillboardFaces( boxIndex, type, BB_RAILS );
@@ -2407,6 +2431,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				}
 				// fall through:
 			case BLOCK_DETECTOR_RAIL:
+			case BLOCK_ACTIVATOR_RAIL:
 				// if not a normal rail, there are no curve bits, so mask off upper bit, which is
 				// whether the rail is powered or not.
 				modDataVal &= 0x7;
@@ -2601,6 +2626,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_WOODEN_PRESSURE_PLATE:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
+	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
 		// the only reason I fatten here is because plates get used for table tops sometimes...
 		saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1+fatten, 1,15);
 		if ( dataVal & 0x1 )
@@ -2621,8 +2648,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_SPRUCE_WOOD_STAIRS:
     case BLOCK_BIRCH_WOOD_STAIRS:
     case BLOCK_JUNGLE_WOOD_STAIRS:
+	case BLOCK_QUARTZ_STAIRS:
 		// once 1.4 is out, set this to true so that neighboring stairs will be affected
-		checkNeighbors = 0;
+		checkNeighbors = 1;
         // first output the small block, which is determined by direction,
         // then output the slab, which we can share with the slab output
         switch ( type )
@@ -2637,10 +2665,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         case BLOCK_SPRUCE_WOOD_STAIRS:
         case BLOCK_BIRCH_WOOD_STAIRS:
         case BLOCK_JUNGLE_WOOD_STAIRS:
+		case BLOCK_QUARTZ_STAIRS:
             topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
             break;
         case BLOCK_SANDSTONE_STAIRS:
-            topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+			topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
             sideSwatchLoc = SWATCH_INDEX( 0,12 );
             bottomSwatchLoc = SWATCH_INDEX( 0,13 );
             break;
@@ -3014,6 +3043,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_TRAPDOOR:
+	case BLOCK_DAYLIGHT_SENSOR:
 		// On second thought, in testing it worked fine.
 		//if ( printing && !(dataVal & 0x4) )
 		//{
@@ -3160,7 +3190,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
         break;
 
-    case BLOCK_SNOW:
+	case BLOCK_SNOW:
+	case BLOCK_CARPET:
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
         if ( printing &&
               ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
@@ -3420,6 +3451,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		break;
 
 	case BLOCK_ANVIL:
+	case BLOCK_HOPPER:
 		// top to bottom
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		if ( dataVal < 4)
@@ -3673,6 +3705,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_REDSTONE_REPEATER_OFF:
 	case BLOCK_REDSTONE_REPEATER_ON:
+	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:	// TODO, of course
+	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
 		swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
 		angle = 90.0f*(float)(dataVal&0x3);
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
@@ -4305,7 +4339,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             swatchLoc = SWATCH_INDEX( 3, 10 );
         }
         // fall through:
-    case BLOCK_DETECTOR_RAIL:
+    case BLOCK_DETECTOR_RAIL:	// TODO - should be powered
+	case BLOCK_ACTIVATOR_RAIL:	// TODO - should be powered
         // if not a normal rail, there are no curve bits, so mask off upper bit, which is
         // whether the rail is powered or not.
         dataVal &= 0x7;
@@ -6710,6 +6745,7 @@ static void meltSnow()
             boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
             for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
             {
+				// The melting option melts away snow built as supports or whatever
                 if ( gBoxData[boxIndex].type == BLOCK_SNOW_BLOCK )
                 {
                     // melting time
@@ -7944,7 +7980,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( 3, 10 );
             }
             // fall through:
-        case BLOCK_DETECTOR_RAIL:
+        case BLOCK_DETECTOR_RAIL:	// TODO - should be powered
+		case BLOCK_ACTIVATOR_RAIL:	// TODO - should be powered
             // if not a normal rail, there are no curve bits, so mask off upper bit, which is
             // whether the rail is powered or not.
             dataVal &= 0x7;
@@ -8255,6 +8292,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			break;
         case BLOCK_CHEST:
         case BLOCK_LOCKED_CHEST:
+		case BLOCK_TRAPPED_CHEST:
             SWATCH_SWITCH_SIDE( faceDirection, 10,1 );
             switch ( dataVal )
             {
@@ -8262,11 +8300,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
@@ -8275,11 +8313,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
@@ -8289,11 +8327,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
@@ -8302,11 +8340,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
@@ -8316,11 +8354,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
@@ -8329,11 +8367,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
@@ -8343,11 +8381,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
@@ -8356,11 +8394,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == BLOCK_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == BLOCK_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
@@ -8423,8 +8461,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_FARMLAND:
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 2,0, 2,0 );
             break;
-        case BLOCK_REDSTONE_REPEATER_OFF:
-        case BLOCK_REDSTONE_REPEATER_ON:
+		case BLOCK_REDSTONE_REPEATER_OFF:
+		case BLOCK_REDSTONE_REPEATER_ON:
+		case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+		case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
 			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
 			rotateIndices( localIndices, 90*(dataVal&0x3));
 			break;
@@ -8527,6 +8567,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_TRAPDOOR:
+		case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
         case BLOCK_LILY_PAD:
 		case BLOCK_DANDELION:
@@ -9782,7 +9823,7 @@ static int createBaseMaterialTexture()
         { SWATCH_INDEX( 3, 5 ), /* BLOCK_LADDER */ SWATCH_INDEX( 1, 0 ) }, // ladder over stone
         { SWATCH_INDEX( 3, 11 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
         { SWATCH_INDEX( 3, 10 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
-        { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone
+        { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone - TODO add BLOCK_ACTIVATOR_RAIL, and add activated vs. non-activated?
         { SWATCH_INDEX( 3, 6 ), /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
         { RS_TORCH_TOP_ON, /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
         { SWATCH_INDEX( 3, 7 ), /* BLOCK_REDSTONE_TORCH_OFF */ SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
@@ -11730,7 +11771,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 		}
 	}
 
-    sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp ? "YES" : "no" );
+    sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no" );

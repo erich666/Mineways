@@ -135,7 +135,7 @@ void ColorManager::load(ColorScheme *cs)
 			// correct black wool set to where black wool is currently, on back down
 			cs->colors[woolLoc+gap+i] = cs->colors[woolLoc+i];
 		}
-		for ( i = 0; i < gap; i++ )
+		for ( i = 0; i <= BLOCK_BLACK_WOOL; i++ )
 		{
 			// set where white wool was, on up, to missing color
 			cs->colors[woolLoc-15+i] = blockColor(woolLoc-15+i);
@@ -143,6 +143,28 @@ void ColorManager::load(ColorScheme *cs)
 		save(cs);
 	}
 }
+// Already has name and data fields, along with unique ID; just copy colors.
+// You should load the cs and csSource before calling to ensure they're the same size,
+// BLOCK_BLACK_WOOL
+void ColorManager::copy(ColorScheme *cs, ColorScheme *csSource)
+{
+	wchar_t keyname[50];
+	DWORD csLen=sizeof(ColorScheme);
+
+	swprintf(keyname,50,L"scheme %d",cs->id);
+	RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
+
+	swprintf(keyname,50,L"scheme %d",csSource->id);
+	RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)csSource,&csLen);
+
+	for ( int i = 0; i <= BLOCK_BLACK_WOOL; i++ )
+	{
+		// set where white wool was, on up, to missing color
+		cs->colors[i] = csSource->colors[i];
+	}
+	save(cs);
+}
+
 void ColorManager::remove(int id)
 {
     wchar_t keyname[50];
@@ -233,19 +255,44 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
                 SendMessage(list,LB_SETCURSEL,item,0);
             }
             break;
-        case IDC_ADD:
-            {
-                ColorManager cm;
-                ColorScheme cs;
-                // goofy, all color schemes use the same name by default.
-                swprintf_s(cs.name,255,L"Color Scheme %d",gLocalCountForNames);
-                cm.create(&cs);
-                list=GetDlgItem(hDlg,IDC_SCHEMELIST);
-                int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
-                SendMessage(list,LB_SETITEMDATA,pos,cs.id);
-                validateButtons(hDlg);
-            }
-            break;
+		case IDC_COPY:
+			{
+				// select the highlighted scheme
+				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+				int item=(int)SendMessage(list,LB_GETCURSEL,0,0);
+				curCS.id=(int)SendMessage(list,LB_GETITEMDATA,item,0);
+
+				ColorManager cm;
+				ColorScheme cs;
+				// this ensures the source is the proper size in blocks, same as the new one
+				cm.load(&curCS);
+				swprintf_s(cs.name,255,L"%ls %d",curCS.name, gLocalCountForNames);
+				gLocalCountForNames++;
+				// create the new one
+				cm.create(&cs);
+				// and copy it over
+				cm.copy(&cs,&curCS);
+				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+				int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+				SendMessage(list,LB_SETITEMDATA,pos,cs.id);
+				validateButtons(hDlg);
+			}
+			break;
+		case IDC_ADD:
+			{
+				ColorManager cm;
+				ColorScheme cs;
+				// goofy, all color schemes use the same name by default.
+				swprintf_s(cs.name,255,L"Color Scheme %d",gLocalCountForNames);
+				gLocalCountForNames++;
+				cm.create(&cs);
+				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+				int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+				SendMessage(list,LB_SETITEMDATA,pos,cs.id);
+				validateButtons(hDlg);
+			}
+			break;
+break;
         case IDC_REMOVE:
             {
                 ColorManager cm;
@@ -260,8 +307,8 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
                 validateButtons(hDlg);
             }
             break;
-        case IDOK:
-            // TODO: add an OK button. It's unnerving.
+		// There's no real cancel, it's the same as OK
+		case IDOK:
         case IDCANCEL:
             {
                 list=GetDlgItem(hDlg,IDC_SCHEMELIST);
@@ -287,18 +334,21 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
 }
 static void validateButtons(HWND hDlg)
 {
-    HWND edit=GetDlgItem(hDlg,IDC_EDIT);
+	HWND edit=GetDlgItem(hDlg,IDC_EDIT);
+	HWND copy=GetDlgItem(hDlg,IDC_COPY);
     HWND remove=GetDlgItem(hDlg,IDC_REMOVE);
     HWND list=GetDlgItem(hDlg,IDC_SCHEMELIST);
     int item=(int)SendMessage(list,LB_GETCURSEL,0,0);
     if (item==LB_ERR)
     {
-        EnableWindow(edit,FALSE);
+		EnableWindow(edit,FALSE);
+		EnableWindow(copy,FALSE);
         EnableWindow(remove,FALSE);
     }
     else
     {
-        EnableWindow(edit,TRUE);
+		EnableWindow(edit,TRUE);
+		EnableWindow(copy,TRUE);
         EnableWindow(remove,TRUE);
     }
 }
