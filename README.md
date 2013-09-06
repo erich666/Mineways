@@ -5,7 +5,7 @@
 
 **http://vokselia.com**
 
-[Visit the project homepage @](http://mineways.com/index.htm) for documentation links, credits, etc.
+[Visit the project homepage](http://mineways.com/index.htm) for documentation links, credits, etc.
 [Here is a link to minatour where most of the original source code came from.](http://seancode.com/minutor/)
 
 You need to pick the right version of Mineways, depending on your version of Minecraft:
