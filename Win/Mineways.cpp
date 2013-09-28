@@ -154,6 +154,7 @@ static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBott
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
 static void draw();
+static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel);
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hwndStatus);
 static void populateColorSchemes(HMENU menu);
 static void useCustomColor(int wmId,HWND hWnd);
@@ -1059,6 +1060,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorld,MAX_PATH,NULL,NULL);
             gSameWorld = (wcscmp(gWorld,worlds[wmId-IDM_WORLD])==0);
             wcscpy_s(gWorld,MAX_PATH,worlds[wmId-IDM_WORLD]);
+			// if this is not the same world, switch back to the aboveground view.
+			// TODO: this code is repeated, should really be a subroutine.
+			if (!gSameWorld)
+			{
+				gotoSurface( hWnd, hwndSlider, hwndLabel);
+			}
 			loadErr = loadWorld();
             if ( loadErr )
             {
@@ -1124,6 +1131,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDM_TEST_WORLD:
 			gWorld[0] = 0;
 			gSameWorld = 0;
+			gotoSurface( hWnd, hwndSlider, hwndLabel);
 			loadWorld();
 			goto InitEnable;
 		case IDM_WORLD:
@@ -1148,6 +1156,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorld,MAX_PATH,NULL,NULL);
                 gSameWorld = (wcscmp(gWorld,path)==0);
                 wcscpy_s(gWorld,MAX_PATH,path);
+
+				// if this is not the same world, switch back to the aboveground view.
+				if (!gSameWorld)
+				{
+					gotoSurface( hWnd, hwndSlider, hwndLabel);
+				}
+
+				UpdateWindow(hWnd);
                 if ( loadWorld() )
                 {
                     // world not loaded properly
@@ -1420,22 +1436,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             else
             {
-                // back to the overworld
-                gCurX*=8.0;
-                gCurZ*=8.0;
-                if ( gCurDepth == 126 )
-                {
-                    gCurDepth = MAP_MAX_HEIGHT;
-					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                }
-                // turn off obscured, then restore overworld's obscured status
-                gOptions.worldType &= ~HIDEOBSCURED;
-                gOptions.worldType |= gOverworldHideStatus;
-                //gTargetDepth=MIN_OVERWORLD_DEPTH;
-
-                // semi-useful, I'm not sure: zoom out when going back
-                //gCurScale /= 8.0;
-                //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+				// back to the overworld
+				gotoSurface( hWnd, hwndSlider, hwndLabel);
             }
             CheckMenuItem(GetMenu(hWnd),IDM_OBSCURED,(gOptions.worldType&HIDEOBSCURED)?MF_CHECKED:MF_UNCHECKED);
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&HELL)?MF_CHECKED:MF_UNCHECKED);
@@ -1459,8 +1461,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 if (gOptions.worldType&HELL)
                 {
+					// get out of hell zoom
                     gCurX*=8.0;
                     gCurZ*=8.0;
+					// and undo other hell stuff
+					if ( gCurDepth == 126 )
+					{
+						gCurDepth = MAP_MAX_HEIGHT;
+						setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+					}
+					// turn off obscured, then restore overworld's obscured status
+					gOptions.worldType &= ~HIDEOBSCURED;
+					gOptions.worldType |= gOverworldHideStatus;
+					// uncheck hell menu item
                     CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
                     gOptions.worldType&=~HELL;
                 }
@@ -1573,6 +1586,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
     return 0;
+}
+
+static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
+{
+	if (gOptions.worldType&HELL)
+	{
+		// get out of hell zoom
+		gCurX*=8.0;
+		gCurZ*=8.0;
+		// and undo other hell stuff
+		if ( gCurDepth == 126 )
+		{
+			gCurDepth = MAP_MAX_HEIGHT;
+			setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+		}
+		// turn off obscured, then restore overworld's obscured status
+		gOptions.worldType &= ~HIDEOBSCURED;
+		gOptions.worldType |= gOverworldHideStatus;
+		// uncheck hell menu item
+		CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
+		gOptions.worldType&=~HELL;
+
+		// semi-useful, I'm not sure: zoom out when going back
+		//gCurScale /= 8.0;
+		//gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+	}
+	// Ender is easy, just turn it off 
+	gOptions.worldType&=~ENDER;
+	CheckMenuItem(GetMenu(hWnd),IDM_END,MF_UNCHECKED);
 }
 
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hwndStatus)

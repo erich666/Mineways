@@ -42,10 +42,6 @@ typedef unsigned int    UINT;
 #define SEA_LEVEL 62
 #define SEA_LEVEL_STRING L"62"
 
-//// http://www.shapeways.com/materials/material-options
-#define PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE 0
-#define PRINT_MATERIAL_FULL_COLOR_SANDSTONE 1
-#define PRINT_MATERIAL_FCS_SCULPTEO 8
 //
 //// Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
 //// White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
@@ -81,7 +77,12 @@ typedef unsigned int    UINT;
 // TODO: yes, this is dumb, we have a separate static mtlCostTable for every code file that includes this .h file.
 
 // http://www.shapeways.com/materials/material-options
-#define MTL_COST_TABLE_SIZE 9
+#define MTL_COST_TABLE_SIZE 11
+
+#define PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE 0
+#define PRINT_MATERIAL_FULL_COLOR_SANDSTONE 1
+#define PRINT_MATERIAL_FCS_SCULPTEO (MTL_COST_TABLE_SIZE-1)
+
 static struct {
     // lame on my part: we really shouldn't be using wide characters in the dialog TODO
     wchar_t *wname;
@@ -105,16 +106,18 @@ static struct {
     float costPerSquareCentimeter;   // cost per square centimeter of surface (currently only for ceramic)
     float maxSize[3];
 } mtlCostTable[MTL_COST_TABLE_SIZE]={
-    // wname                 name                  minWall in meters  minSum in meters    costH  costPerCCM cDens    cDisCCM  costMinimum?  costPerCM2 maxSizeCM
-    { L"White & Flexible",   "white & flexible",   0.7f*MM_TO_METERS, 0.0f,               1.50f, 1.40f,      0.10f,  20.0f,   1.50f*0.10f,  0.0f,      66.0f,55.0f,35.0f },
+    // wname                 name                  minWall in meters  minSum in meters    costH  costPerCCM cDens    cDisCCM  costMinimum?  costPerCM2 maxSizeCM (descending order)
+    { L"White & Flexible",   "white & flexible",   0.7f*MM_TO_METERS, 0.0f,               1.50f, 1.40f,      0.10f,  20.0f,   1.50f*0.10f,  0.0f,      65.0f,55.0f,35.0f },
     { L"Colored Sandstone",  "colored sandstone",  2.0f*MM_TO_METERS, 65.0f*MM_TO_METERS, 3.00f, 0.75f,    999.0f, 99999.0f,  3.00f*0.134f, 0.0f,      38.0f,25.0f,20.0f },
-    { L"Polished White",     "polished white",     0.7f*MM_TO_METERS, 0.0f,               1.50f, 1.75f,    999.0f, 99999.0f,  1.75f*0.10f,  0.0f,      15.0f,15.0f,15.0f },
-    { L"Colored & Flexible", "colored & flexible", 0.7f*MM_TO_METERS, 0.0f,               1.75f, 1.75f,    999.0f, 99999.0f,  1.75f*0.10f,  0.0f,      31.0f,23.0f,18.0f },
-    { L"Frosted Detail",     "frosted detail",     0.5f*MM_TO_METERS, 0.0f,               5.00f, 2.39f,    999.0f, 99999.0f,  2.39f*0.10f,  0.0f,      29.8f,18.5f,20.3f },
-    { L"Stainless Steel",    "stainless steel",    3.0f*MM_TO_METERS, 0.0f,               6.00f, 8.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,     100.0f,45.0f,25.0f },
-    { L"Silver",             "silver",             0.6f*MM_TO_METERS, 0.0f,               30.0f, 20.0f,    999.0f, 99999.0f, 20.0f *0.10f,  0.0f,      15.0f,15.0f, 3.0f },
+	{ L"Colored & Flexible", "colored & flexible", 0.7f*MM_TO_METERS, 0.0f,               1.75f, 1.75f,    999.0f, 99999.0f,  1.75f*0.10f,  0.0f,      31.0f,23.0f,18.0f },
+    { L"Alumide/Detail",     "alumide/detail",	   1.0f*MM_TO_METERS, 0.0f,               2.50f, 2.99f,    999.0f, 99999.0f,  2.50f*0.10f,  0.0f,      25.0f,25.0f,20.0f },
+	{ L"Frosted Detail",     "frosted detail",     0.5f*MM_TO_METERS, 0.0f,               5.00f, 2.39f,    999.0f, 99999.0f,  5.00f*0.10f,  0.0f,      29.8f,20.3f,18.5f },
+	{ L"Elasto Plastic",     "elasto plastic",     0.8f*MM_TO_METERS, 0.0f,               1.95f, 1.75f,    999.0f, 99999.0f,  1.95f*0.10f,  0.0f,      30.0f,30.0f,25.0f },
+	{ L"Brass",              "brass",              0.6f*MM_TO_METERS, 0.0f,               10.0f, 16.0f,    999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
+	{ L"Silver",             "silver",             0.6f*MM_TO_METERS, 0.0f,               30.0f, 20.0f,    999.0f, 99999.0f, 20.0f *0.10f,  0.0f,      11.0f,11.0f, 3.0f },
+	{ L"Stainless Steel",    "stainless steel",    3.0f*MM_TO_METERS, 0.0f,               6.00f, 8.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,     100.0f,45.0f,25.0f },
     { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
-	// I haven't figured out Sculpteo's cost model. Prices tend to be 50% higher, so that's what's here, but I think it also has to do with dimensionts, which affects print time.
+	// I haven't figured out Sculpteo's cost model. Prices tend to be 50% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
 	// With full-sized rectangular blocks, the costPerCCM is more like 1.05
 	{ L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               2.55f, 1.375f,   999.0f, 99999.0f,  2.55f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
 };

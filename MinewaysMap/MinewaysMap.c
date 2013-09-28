@@ -44,6 +44,7 @@ static void initColors();
 
 static int gColorsInited=0;
 static unsigned int gBlockColors[256*16];
+static unsigned char gEmptyR,gEmptyG,gEmptyB;
 static unsigned char gBlankTile[16*16*4];
 
 static unsigned short gColormap=0;
@@ -317,7 +318,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     if (block==NULL)
     {
         *oy=-1;
-        *type=BLOCK_AIR;
+        *type=BLOCK_UNKNOWN;
         return "Unknown";
     }
 
@@ -329,7 +330,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     if (y == (unsigned char)-1)
     {
         *oy=-1;
-        *type=BLOCK_BEDROCK;	// TODO - better as BLOCK_UNKNOWN?
+        *type=BLOCK_AIR;
         return "Empty";  // nothing was rendered here
     }
 
@@ -499,8 +500,9 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             prevSely = -1;
 
             bofs=((maxHeight*16+z)*16+x);
-            color=0;
-            r=g=b=0;
+            r=gEmptyR;
+			g=gEmptyG;
+			b=gEmptyB;
             // if we start at the top of the world, seenempty is set to 1 (there's air above), else 0
             // The idea here is that if you're delving into cave areas, "hide obscured" will treat all
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
@@ -1541,6 +1543,8 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 
 	if ( directory[0] == (wchar_t)'/' )
 	{
+		// if directory starts with /, this is [Block Test World], a synthetic test world
+		// made by the testBlock() method.
 		int x, z;
 		int grassHeight = 62;
 		int blockHeight = 63;
@@ -1625,6 +1629,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 			return NULL;
 		}
 	}
+	// end of test world, resume normal programming
 
     if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light)) {
         // got block successfully
@@ -1632,7 +1637,8 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         // to simply change to a new block type, colored wool, than put special-case
         // code throughout the program. If you don't like colored wool (it costs a
         // little speed to process the wool), comment out this piece. You'll also
-        // have to change numBlocks = numBlocksStandard
+        // have to change numBlocks = numBlocksStandard.
+		// TODO: someday add tinted clay and carpets
         //if ( convertToColoredWool )
         //{
             int i;
@@ -1801,7 +1807,13 @@ static void initColors()
         }
     }
 
-    // also initialize the "missing tile" graphic
+	// set the Empty color, for initialization
+	gEmptyR = (unsigned char)(gBlockColors[15]>>16);
+	gEmptyG = (unsigned char)((gBlockColors[15]>>8)&0xff);
+	gEmptyB = (unsigned char)(gBlockColors[15]&0xff);
+
+    // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
+	// TODO - could be influenced by unknown color, if desired.
 
     for (rx = 0; rx < 16; ++rx)
     {

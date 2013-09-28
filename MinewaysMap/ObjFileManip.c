@@ -2496,42 +2496,130 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	// real-live output, baby
     case BLOCK_FENCE:
     case BLOCK_NETHER_BRICK_FENCE:
-		// post, always output
-		saveBoxGeometry( boxIndex, type, 1, 0x0, 6-fatten,10+fatten, 0,16, 6-fatten,10+fatten);
-        // which posts are needed: NSEW. Brute-force it.
+		// if fence is to be fattened, instead make it like a brick wall - stronger
+		if ( fatten )
+		{
+			swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+			hasPost = 0;
+			// if there's *anything* above the wall, put the post
+			if ( gBoxData[boxIndex+1].origType != 0 )
+			{
+				hasPost = 1;
+			}
+			else
+			{
+				// else, test if there are neighbors and not across from one another.
+				int xCount = 0;
+				int zCount = 0;
+				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+				if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+				{
+					xCount++;
+				}
+				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+				if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+				{
+					xCount++;
+				}
+				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+				if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+				{
+					zCount++;
+				}
+				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+				if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+				{
+					zCount++;
+				}
 
-        // since we erase "billboard" objects as we go, we need to test against origType.
-        // Note that if a render export chops through a fence, the fence will not join.
-        // TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
-        // this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
-		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 6,9, 7-fatten,9+fatten );
-            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 12,15, 7-fatten,9+fatten );
-        }
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 6,9, 7-fatten,9+fatten );
-            saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 12,15, 7-fatten,9+fatten );
-        }
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-			saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 10+fatten,16 );
-			saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 10+fatten,16 );
-        }
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-			saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 0,6-fatten );
-			saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 0,6-fatten );
-        }
+				// for cobblestone walls, if the count is anything but 2, put the post
+				if ( (xCount != 2) && (zCount != 2) )
+				{
+					// cobblestone post
+					hasPost = 1;
+				}
+			}
+
+			if ( hasPost )
+			{
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, 0x0, 4,12, 0,16, 4,12 );
+				firstFace = 0;
+			}
+			else
+			{
+				firstFace = 1;
+			}
+
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4, 0,13, 5,11 );
+				firstFace = 0;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16, 0,13, 5,11 );
+				firstFace = 0;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 8+hasPost*4,16 );
+				firstFace = 0;
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 0,8-hasPost*4 );
+				firstFace = 0;
+			}
+		}
+		else
+		{
+			// don't really need to "fatten", as it's now done above, but keeping fatten around is good to know.
+
+			// post, always output
+			saveBoxGeometry( boxIndex, type, 1, 0x0, 6-fatten,10+fatten, 0,16, 6-fatten,10+fatten);
+			// which posts are needed: NSEW. Brute-force it.
+
+			// since we erase "billboard" objects as we go, we need to test against origType.
+			// Note that if a render export chops through a fence, the fence will not join.
+			// TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
+			// this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 6,9, 7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 12,15, 7-fatten,9+fatten );
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 6,9, 7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 12,15, 7-fatten,9+fatten );
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 10+fatten,16 );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 10+fatten,16 );
+			}
+			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+			{
+				// this fence connects to the neighboring block, so output the fence pieces
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 0,6-fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 0,6-fatten );
+			}
+		}
 		break;
 
 	case BLOCK_COBBLESTONE_WALL:
@@ -4455,13 +4543,12 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         }
         break;
     case BB_TORCH:
-        // could use this for cactus, like a torch, but you also have to add the top and bottom. Too much work for me...
         {
             float texelWidth,texelLow,texelHigh;
 
             // width is space between parallel billboards
             // Annoyingly, it all depends on how you interpolate your textures. Torches will show
-            // gaps if you use bilinear interpolation, but the size of the gap depends on the texture resolution;
+            // gaps if you use bilinear interpolation (so don't!), but the size of the gap depends on the texture resolution;
             // higher is narrower. So compromise by pulling in the width a bit more. Since torches are not beautiful
             // anyway, I'm fine with this.
             texelWidth = 0.125f;
@@ -4710,9 +4797,17 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     // if torch, transform at end if needed
     if ( billboardType == BB_TORCH )
     {
+		float mtx[4][4];
+		int torchVertexCount = gModel.vertexCount;
+		// add a tip to the torch, shift it one texel in X
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 0,10, 8,10);
+		torchVertexCount = gModel.vertexCount - torchVertexCount;
+		identityMtx(mtx);
+		translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f);
+		transformVertices(torchVertexCount,mtx);
+
         if ( dataVal != 5 )
         {
-            float mtx[4][4];
             float yAngle;
             switch (dataVal)
             {
@@ -8749,6 +8844,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_END_PORTAL_FRAME:
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 15,9, 15,10 );
             break;
+		case BLOCK_COBBLESTONE_WALL:
+			if ( dataVal == 0x1 )
+			{
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY );
+			}
+			break;
         }
     }
 
