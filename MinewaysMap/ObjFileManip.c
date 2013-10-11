@@ -30,6 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 #include "stdafx.h"
+#include "tiles.h"
 #include "rwpng.h"
 #include "blockInfo.h"
 #include "cache.h"
@@ -46,7 +47,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
-static PORTAFILE gPngFile;  // for terrain.png input (not texture output)
+static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
 
 #define MINECRAFT_SINGLE_MATERIAL "MC_material"
 
@@ -170,6 +171,7 @@ typedef struct Model {
     int textureResolution;  // size of output texture
     float invTextureResolution; // inverse, commonly used
     int tileSize;    // number of pixels in a tile, e.g. 16
+	int verticalTiles;	// number of rows of tiles, e.g. a 16x19 set of tiles gives 19
     int swatchSize;  // number of pixels in a swatch, e.g. 18
     int swatchesPerRow;  // a swatch is a tile with a +1 border (or SWATCH_BORDER) around it
     float textureUVPerSwatch; // how much a swatch spans in UV space
@@ -275,14 +277,15 @@ static int gBadBlocksInModel=0;
 
 // these are swatches that we will use for other things;
 // The swatches reused are the "breaking block" animations, which we'll never need
-#define TORCH_TOP               SWATCH_INDEX( 0, 15 )
-#define RS_TORCH_TOP_ON         SWATCH_INDEX( 1, 15 )
-#define RS_TORCH_TOP_OFF        SWATCH_INDEX( 2, 15 )
-#define REDSTONE_WIRE_ANGLED_2  SWATCH_INDEX( 3, 15 )
-#define REDSTONE_WIRE_3         SWATCH_INDEX( 4, 15 )
+#define TORCH_TOP               SWATCH_INDEX( 0,15 )
+#define RS_TORCH_TOP_ON         SWATCH_INDEX( 1,15 )
+#define RS_TORCH_TOP_OFF        SWATCH_INDEX( 2,15 )
+#define REDSTONE_WIRE_ANGLED_2  SWATCH_INDEX( 3,15 )
+#define REDSTONE_WIRE_3         SWATCH_INDEX( 4,15 )
 // these spots are used for compositing, as temporary places to put swatches to edit
-#define SWATCH_WORKSPACE        SWATCH_INDEX( 11, 15 )
-#define SWATCH_WORKSPACE2       SWATCH_INDEX( 12, 15 )
+// TODOTODO - make separate hunks of memory that don't get output.
+#define SWATCH_WORKSPACE        SWATCH_INDEX( 6, 2 )
+#define SWATCH_WORKSPACE2       SWATCH_INDEX( 8, 2 )
 
 
 wchar_t gOutputFilePath[MAX_PATH];
@@ -300,10 +303,6 @@ static int gBlockCount = -999;
 static int gDebugTransparentType = -999;
 
 static long gMySeed = 12345;
-
-// set to true if we are using a newer terrain.png that includes jungle leaves
-// Commented out with 1.2, since 1.2 always has jungle
-//static int gJungleExists=0;
 
 
 // these should not be relied on for much of anything during processing,
@@ -330,7 +329,7 @@ static ExportStatistics gStats;
 
 typedef struct TypeTile {
     int type;	// block id
-    int col;    // location on terrain.png
+    int col;    // location on terrainExt.png
     int row;
     float colorMult[3]; // how much to scale map color - currently not used, just an idea. Idea is for making pine different than oak, than grass.
 } TypeTile;
@@ -467,7 +466,7 @@ typedef struct TouchRecord {
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax );
 static void initializeModelData();
 
-static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName, wchar_t *minecraftJar );
+static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
 static int populateBox(const wchar_t *world, IBox *box);
 #ifndef OLD_BUILD
@@ -651,7 +650,7 @@ void ChangeCache( int size )
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, 
-    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, wchar_t *minecraftJar, int majorVersion, int minorVersion )
+    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion )
 {
 //#ifdef WIN32
 //    DWORD br;
@@ -698,13 +697,15 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
-        retCode = readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName, minecraftJar);
+        retCode = readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName);
         if ( retCode >= MW_BEGIN_ERRORS )
         {
             // nothing in box, so end.
             goto Exit;
         }
         gModel.tileSize = gModel.inputTerrainImage.width/16;
+		// note vertical tile limit for texture. We will save all these tiles away.
+		gModel.verticalTiles = gModel.inputTerrainImage.height/gModel.tileSize;
     }
 
     // Billboards and true geometry to be output?
@@ -728,7 +729,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
             gModel.textureResolution = 256;
             gModel.inputTerrainImage.width = 256;    // really, no image, but act like there is
         }
-        // there are always 16 tiles in terrain.png, so we divide by this.
+        // there are always 16 tiles wide in terrainExt.png, so we divide by this.
         gModel.tileSize = gModel.inputTerrainImage.width/16;
         gModel.swatchSize = 2 + gModel.tileSize;
         gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
@@ -836,10 +837,10 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     UPDATE_PROGRESS(PG_TEXTURE);
     if ( gModel.pPNGtexture != NULL )
     {
-#define FA_TABLE_SIZE 66
-#define FA_TABLE__VIEW_SIZE 18
 // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
 #define FA_TABLE__RENDER_BLOCK_START 10
+#define FA_TABLE__VIEW_SIZE 18
+#define FA_TABLE_SIZE 71
 		static FillAlpha faTable[FA_TABLE_SIZE] =
 		{
 			// stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block
@@ -876,48 +877,53 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			{ SWATCH_INDEX( 15, 0 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
 			{ SWATCH_INDEX( 12, 1 ), SWATCH_INDEX( 0, 0 ) }, // red mushroom over grass
 			{ SWATCH_INDEX( 13, 1 ), SWATCH_INDEX( 0, 0 ) }, // brown mushroom over grass
-			{ SWATCH_INDEX( 1, 3 ), BLOCK_GLASS }, // glass over glass color
-			{ SWATCH_INDEX( 4, 3 ), BLOCK_AIR }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
-			{ SWATCH_INDEX( 7, 3 ), SWATCH_INDEX( 2, 1 ) }, // dead bush over grass
-			{ SWATCH_INDEX( 8, 3 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
-			{ SWATCH_INDEX( 1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
-			{ SWATCH_INDEX( 9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
+			{ SWATCH_INDEX(  1, 3 ), BLOCK_GLASS }, // glass over glass color
+			{ SWATCH_INDEX(  4, 3 ), BLOCK_AIR }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
+			{ SWATCH_INDEX(  7, 3 ), SWATCH_INDEX( 2, 1 ) }, // dead bush over grass
+			{ SWATCH_INDEX(  8, 3 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
+			{ SWATCH_INDEX(  1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
+			{ SWATCH_INDEX(  9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
 			{ SWATCH_INDEX( 15, 4 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
 			{ SWATCH_INDEX( 14, 1 ), SWATCH_INDEX( 0, 0 ) }, // jungle sapling over grass
-			{ SWATCH_INDEX( 1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
-			{ SWATCH_INDEX( 2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
-			{ SWATCH_INDEX( 5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
-			{ SWATCH_INDEX( 8, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 9, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+			{ SWATCH_INDEX(  1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
+			{ SWATCH_INDEX(  2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
+			{ SWATCH_INDEX(  5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
+			{ SWATCH_INDEX(  8, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+			{ SWATCH_INDEX(  9, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 10, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 11, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 12, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 13, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 14, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
 			{ SWATCH_INDEX( 15, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
-			{ SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // stem over farmland
+			{ SWATCH_INDEX(  0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
+			{ SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // melon stem over farmland
 			{ SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
-			{ SWATCH_INDEX( 4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
+			{ SWATCH_INDEX(  4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
 			{ SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
 			{ SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
-			{ SWATCH_INDEX( 4, 9 ), BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
+			{ SWATCH_INDEX(  4, 9 ), BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
 			{ SWATCH_INDEX( 13, 9 ), SWATCH_INDEX( 1, 0 ) }, // brewing stand over stone
-			{ SWATCH_INDEX( 15, 10 ), SWATCH_INDEX( 1, 0 ) }, // end portal thingy (unused) over stone
-			{ SWATCH_INDEX( 4, 12 ), BLOCK_AIR }, // jungle leaves over air (black) - doesn't really matter, not used
-			{ SWATCH_INDEX( 2, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX( 3, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX( 4, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX( 11, 14 ), BLOCK_WHITE_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
-			{ SWATCH_INDEX(  8, 10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
-			{ SWATCH_INDEX(  9, 10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-			{ SWATCH_INDEX( 10, 10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-			{ SWATCH_INDEX(  8, 12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX(  9, 12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 10, 12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 11, 12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 12, 12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 15,  1 ), BLOCK_AIR }, // fire over air (black)
+			{ SWATCH_INDEX( 15,10 ), SWATCH_INDEX( 1, 0 ) }, // end portal thingy (unused) over stone
+			{ SWATCH_INDEX( 14,11 ), SWATCH_INDEX( 6, 5 ) }, // pumpkin stem over farmland
+			{ SWATCH_INDEX( 15,11 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
+			{ SWATCH_INDEX(  4,12 ), BLOCK_AIR }, // jungle leaves over air (black) - doesn't really matter, not used
+			{ SWATCH_INDEX(  2,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+			{ SWATCH_INDEX(  3,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+			{ SWATCH_INDEX(  4,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+			{ SWATCH_INDEX( 11,14 ), BLOCK_WHITE_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
+			{ SWATCH_INDEX(  8,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
+			{ SWATCH_INDEX(  9,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+			{ SWATCH_INDEX( 10,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+			{ SWATCH_INDEX(  8,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX(  9,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 10,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 11,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 12,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 13,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 14,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 15,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+			{ SWATCH_INDEX( 15, 1 ), BLOCK_AIR }, // fire over air (black)
 		};
 
 		int rc;
@@ -1184,7 +1190,7 @@ static void initializeModelData()
 	gModel.uvIndexList = (UVOutput*)malloc(gModel.uvIndexListSize*sizeof(UVOutput));
 }
 
-static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName, wchar_t *minecraftJar )
+static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName )
 {
     // file should be in same directory as .exe, sort of
     wchar_t defaultTerrainFileName[MAX_PATH];
@@ -1196,9 +1202,6 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     int row, col;
 
     memset(pII,0,sizeof(progimage_info));
-
-	// Look in minecraft.jar and find terrain.png, read it.
-
 
     if ( wcslen(selectedTerrainFileName) > 0 )
     {
@@ -1214,18 +1217,16 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
 
     if ( tryDefault )
     {
-        concatFileName2(defaultTerrainFileName,curDir,L"\\terrain.png");
+        concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
 
         memset(pII,0,sizeof(progimage_info));
         rc = readpng(pII,defaultTerrainFileName);
     }
 
-	minecraftJar;
-
     if ( rc )
         return MW_CANNOT_READ_IMAGE_FILE;
 
-    if ( pII->width != pII->height )
+    if ( pII->width > pII->height )
         return MW_IMAGE_WRONG_SIZE;
 
     // what power of two is the image? Start at 16x16 as a minimum,
@@ -1239,9 +1240,14 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     if ( !foundPower )
         return MW_IMAGE_WRONG_SIZE;
 
+	// check that height is divisible by tile size
+	// TODOTODO - should set number of columns in set of tiles here.
+	if ( pII->height / (pII->width / 16) != floor(pII->height / (pII->width / 16)) )
+		 return MW_IMAGE_WRONG_SIZE;
+
     if ( markTiles )
     {
-        for ( row = 0; row < 16; row++ )
+        for ( row = 0; row < gModel.verticalTiles; row++ )
         {
             for ( col = 0; col < 16; col++ )
             {
@@ -1811,6 +1817,8 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DEAD_BUSH:
 	case BLOCK_PUMPKIN_STEM:
 	case BLOCK_MELON_STEM:
+	case BLOCK_DAYLIGHT_SENSOR:
+	case BLOCK_DOUBLE_FLOWER:	// TODOTODO - need to make a tile where it's merged to grass
 	//case BLOCK_TRIPWIRE:
         gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -1884,39 +1892,20 @@ static int computeFlatFlags( int boxIndex )
         // -X and -Z on this level (by these same tests below) and the 4 "wires down a level"
         // possibilities (by these same tests above).
         // Test *all* things that redstone connects to. This could be a table, for speed.
-        if ( gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_LEVER ||
+        if ( (gBlockDefinitions[gBoxData[boxIndex+gBoxSizeYZ].origType].flags & BLF_CONNECTS_REDSTONE) ||
 			// repeaters attach only at their ends, so test the direction they're at
 			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
-			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1)) ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
-			gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
+			(gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex+gBoxSizeYZ].data & 0x1))
             )
         {
             if ( gBoxData[boxIndex+gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE )
                 gBoxData[boxIndex+gBoxSizeYZ].data |= FLAT_FACE_LO_X;
             gBoxData[boxIndex].data |= FLAT_FACE_HI_X;
         }
-        if ( gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_LEVER ||
+		if ( (gBlockDefinitions[gBoxData[boxIndex+gBoxSize[Y]].origType].flags & BLF_CONNECTS_REDSTONE) ||
+			// repeaters attach only at their ends, so test the direction they're at
             (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
-            (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1)) ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
-			gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
+            (gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex+gBoxSize[Y]].data & 0x1))
             )
         {
             if ( gBoxData[boxIndex+gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE )
@@ -1924,34 +1913,18 @@ static int computeFlatFlags( int boxIndex )
             gBoxData[boxIndex].data |= FLAT_FACE_HI_Z;
         }
         // catch redstone torches at the -X and -Z faces
-        if ( gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_TORCH_OFF ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_STONE_PRESSURE_PLATE ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
-            gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_LEVER ||
+		if ( (gBlockDefinitions[gBoxData[boxIndex-gBoxSizeYZ].origType].flags & BLF_CONNECTS_REDSTONE) ||
+			// repeaters attach only at their ends, so test the direction they're at
 			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
-			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1)) ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_DETECTOR_RAIL ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
-			gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
+			(gBoxData[boxIndex-gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_ON && (gBoxData[boxIndex-gBoxSizeYZ].data & 0x1))
             )
         {
             gBoxData[boxIndex].data |= FLAT_FACE_LO_X;
         }
-        if ( gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_ON ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_TORCH_OFF ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WOODEN_PRESSURE_PLATE ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_STONE_PRESSURE_PLATE ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY ||
-            gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_LEVER ||
+		if ( (gBlockDefinitions[gBoxData[boxIndex-gBoxSize[Y]].origType].flags & BLF_CONNECTS_REDSTONE) ||
+			// repeaters attach only at their ends, so test the direction they're at
 			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_OFF && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
-			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1)) ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_DETECTOR_RAIL ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_INACTIVE ||
-			gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_COMPARATOR_ACTIVE
+			(gBoxData[boxIndex-gBoxSize[Y]].origType == BLOCK_REDSTONE_REPEATER_ON && !(gBoxData[boxIndex-gBoxSize[Y]].data & 0x1))
             )
         {
             gBoxData[boxIndex].data |= FLAT_FACE_LO_Z;
@@ -2059,7 +2032,6 @@ static int computeFlatFlags( int boxIndex )
 		break;
 
     case BLOCK_TRAPDOOR:
-	case BLOCK_DAYLIGHT_SENSOR:
         if ( gBoxData[boxIndex].data & 0x4 )
         {
             switch ( gBoxData[boxIndex].data & 0x3 )
@@ -2374,7 +2346,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int hasPost, firstFace, totalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom;
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
-	int printing = (gOptions->exportFlags & EXPT_3DPRINT);
+	int printing = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
 	// how much to add to dimension when fattening
 	int fatten = (gOptions->pEFD->chkFatten) ? 2 : 0;
 	int checkNeighbors;
@@ -2429,30 +2401,44 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 					// unpowered rail
 					swatchLoc = SWATCH_INDEX( 3, 10 );
 				}
-				// fall through:
-			case BLOCK_DETECTOR_RAIL:
-			case BLOCK_ACTIVATOR_RAIL:
 				// if not a normal rail, there are no curve bits, so mask off upper bit, which is
 				// whether the rail is powered or not.
 				modDataVal &= 0x7;
-				// fall through:
-			case BLOCK_RAIL:
-				switch ( modDataVal )
+				break;
+			case BLOCK_DETECTOR_RAIL:
+				// by default, the detector rail is in its undetected state
+				if ( modDataVal & 0x8 )
 				{
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-					// sloping, so continue
-					break;
-				default:
-					// it's a flat
-					return 0;
+					// rail detector activated (same tile in basic game)
+					swatchLoc = SWATCH_INDEX( 11,17 );
 				}
+				// if not a normal rail, there are no curve bits, so mask off upper bit, which is
+				// whether the rail is powered or not.
+				modDataVal &= 0x7;
+				break;
+			case BLOCK_ACTIVATOR_RAIL:
+				if ( modDataVal & 0x8 )
+				{
+					// activated rail
+					swatchLoc = SWATCH_INDEX( 9,17 );
+				}
+				// if not a normal rail, there are no curve bits, so mask off upper bit, which is
+				// whether the rail is powered or not.
+				modDataVal &= 0x7;
+				break;
+			}
+			// do for all rails
+			switch ( modDataVal )
+			{
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+				// sloping, so continue
 				break;
 			default:
-				assert(0);
-				break;
+				// it's a flat
+				return 0;
 			}
 
 			// it's sloping, so check if object below it is not air - use it if so, else return, which will flatten
@@ -2554,28 +2540,28 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4, 0,13, 5,11 );
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16, 0,13, 5,11 );
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16,  0,13,  5,11 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 8+hasPost*4,16 );
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  8+hasPost*4,16 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 0,8-hasPost*4 );
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
 				firstFace = 0;
 			}
 		}
@@ -2595,29 +2581,29 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 6,9, 7-fatten,9+fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 12,15, 7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 6,9,  7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 12,15,  7-fatten,9+fatten );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 6,9, 7-fatten,9+fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 12,15, 7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 6,9,  7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 12,15,  7-fatten,9+fatten );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 10+fatten,16 );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 10+fatten,16 );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  10+fatten,16 );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  10+fatten,16 );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9, 0,6-fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 0,6-fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  0,6-fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  0,6-fatten );
 			}
 		}
 		break;
@@ -2686,28 +2672,28 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4, 0,13, 5,11 );
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16, 0,13, 5,11 );
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16,  0,13,  5,11 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 8+hasPost*4,16 );
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  8+hasPost*4,16 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11, 0,13, 0,8-hasPost*4 );
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
 			firstFace = 0;
 		}
 		break;
@@ -2716,6 +2702,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_WOODEN_PRESSURE_PLATE:
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+		// if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
+		if ( printing &&
+			( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+		{
+			return 0;
+		}
 		// the only reason I fatten here is because plates get used for table tops sometimes...
 		saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1+fatten, 1,15);
 		if ( dataVal & 0x1 )
@@ -2725,6 +2717,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateMtx(mtx, 0.0f, -0.5f/16.0f, 0.5/16.0f);
 			transformVertices(8,mtx);
 		}
+		break;
+
+	case BLOCK_CARPET:
+		// if printing and the location below the carpet is empty, then don't make carpet (it'll be too thin)
+		if ( printing &&
+			( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+		{
+			return 0;
+		}
+		// simply add data value to get the proper color of wool, since wool entries are in order at the end
+		swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WHITE_WOOL+dataVal].txrX, gBlockDefinitions[BLOCK_WHITE_WOOL+dataVal].txrY );
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 0,1, 0,16 );
 		break;
 
     case BLOCK_OAK_WOOD_STAIRS:
@@ -2987,10 +2991,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         case BLOCK_STONE_SLAB:
 		    switch ( dataVal & 0x7 )
 		    {
-		    default:
-			    assert(0);
-		    case 6:
-			    // true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
+			default:
+				assert(0);
 		    case 0:
 			    // 
 			    topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -3018,6 +3020,16 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			    // stone brick
 			    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
 			    break;
+			case 6:
+				// nether brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY );
+				break;
+			case 7:
+				// quartz with distinctive sides and bottom
+				topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY );
+				sideSwatchLoc = SWATCH_INDEX( 6,17 );
+				bottomSwatchLoc = SWATCH_INDEX( 1,17 );
+				break;
 		    }
             break;
 
@@ -3131,7 +3143,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_TRAPDOOR:
-	case BLOCK_DAYLIGHT_SENSOR:
 		// On second thought, in testing it worked fine.
 		//if ( printing && !(dataVal & 0x4) )
 		//{
@@ -3279,7 +3290,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
 	case BLOCK_SNOW:
-	case BLOCK_CARPET:
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
         if ( printing &&
               ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
@@ -3404,10 +3414,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7-fatten,9+fatten);
                 saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7-fatten,9+fatten);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9, 7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15, 7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15,  7-fatten,9+fatten );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12, 7-fatten,9+fatten);
+                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12,  7-fatten,9+fatten);
             }
         }
         break;
@@ -3420,15 +3430,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		case 0:
 			// small
 			swatchLoc += 2;
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 11,15, 7,12, 11,15);
-			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4, 12,16, 12,16);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,  11,15,  7,12,  11,15);
+			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4,  12,16,  12,16);
 			shiftVal = 5;
 			break;
 		case 1:
 			// medium
 			swatchLoc++;
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 9,15, 5,12, 9,15);
-			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6, 10,16, 10,16);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,  9,15,  5,12,  9,15);
+			saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6,  10,16,  10,16);
 			shiftVal = 4;
 			break;
 		case 2:
@@ -3445,7 +3455,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// -X (west) is the "base" position for the cocoa plant pod
 		identityMtx(mtx);
 		// push fruit against tree if printing
-		translateMtx(mtx, printing ? 1.0f/16.0f : 0.0f, 0.0f, (float)shiftVal/16.0f);
+		translateMtx(mtx, (float)printing/16.0f, 0.0f, (float)shiftVal/16.0f);
 		transformVertices(8,mtx);
 
 		bitAdd = 8;
@@ -3539,19 +3549,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		break;
 
 	case BLOCK_ANVIL:
-	case BLOCK_HOPPER:
 		// top to bottom
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		if ( dataVal < 4)
 		{
+			// undamaged
 			topSwatchLoc = swatchLoc+16;
 		}
 		else if ( dataVal < 8 )
 		{
+			// damaged 1
 			topSwatchLoc = swatchLoc+1;
 		}
 		else
 		{
+			// damaged 2
 			topSwatchLoc = swatchLoc+17;
 		}
 		saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0, 
@@ -3599,24 +3611,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				typeB = BLOCK_DANDELION;
 				break;
 			case 3:
-				// sapling
+				// sapling (oak)
 				typeB = BLOCK_SAPLING;
 				scale = 0.75f;
 				break;
 			case 4:
-				// spruce
+				// spruce sapling flower
 				typeB = BLOCK_SAPLING;
 				dataValB = 1;
 				scale = 0.75f;
 				break;
 			case 5:
-				// birch
+				// birch sapling
 				typeB = BLOCK_SAPLING;
 				dataValB = 2;
 				scale = 0.75f;
 				break;
 			case 6:
-				// jungle
+				// jungle sapling
 				typeB = BLOCK_SAPLING;
 				dataValB = 3;
 				scale = 0.75f;
@@ -3676,20 +3688,20 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		saveBoxGeometry( boxIndex, type, firstFace, DIR_TOP_BIT|DIR_BOTTOM_BIT, 5,11, 0,6, 5,11 );
 		// top as 4 small faces, and corresponding inside faces
 		saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
-			10,11, 4,6, 5,11 );
+			10,11,  4,6,  5,11 );
 		saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_X_BIT),
-			5,6, 4,6, 5,11 );
+			5,6,  4,6,  5,11 );
 		saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_Z_BIT),
-			6,10, 4,6, 10,11 );
+			6,10,  4,6,  10,11 );
 		saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_Z_BIT),
-			6,10, 4,6, 5,6 );
+			6,10,  4,6,  5,6 );
 
 		// inside bottom
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_DIRT].txrX, gBlockDefinitions[BLOCK_DIRT].txrY );
 		if ( useInsidesAndBottom )
-			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 6,10, 0,4, 6,10);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 6,10,  0,4,  6,10);
 		// outside bottom - in theory never seen, so we make it dirt, since the flowerpot texture itself has a hole in it at these coordinates
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 5,11, 0,4, 5,11);
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,  5,11,  0,4,  5,11);
 
 		break;
 
@@ -3793,8 +3805,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_REDSTONE_REPEATER_OFF:
 	case BLOCK_REDSTONE_REPEATER_ON:
-	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:	// TODO, of course
-	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
 		swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
 		angle = 90.0f*(float)(dataVal&0x3);
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
@@ -3820,7 +3830,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(totalVertexCount,mtx);
 
-			// the one shifted 5 down
+			// the one shifted 5 sideways
 			totalVertexCount = gModel.vertexCount;
 			saveBillboardFacesExtraData( boxIndex, (type==BLOCK_REDSTONE_REPEATER_OFF)?BLOCK_REDSTONE_TORCH_OFF:BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5, 0 );
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -3830,6 +3840,133 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			rotateMtx(mtx, 0.0f, angle, 0.0f);
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(totalVertexCount,mtx);
+		}
+		break;
+
+	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+		// in 1.5, comparator active is used for top bit
+		// in 1.6, comparator active is not used, it depends on dataVal
+		{
+			int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_ACTIVE) || (dataVal >= 8));
+			int out_powered = (dataVal & 0x4) == 0x4;
+			swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
+			angle = 90.0f*(float)(dataVal&0x3);
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			translateMtx(mtx, 0.0f, -14.0f/16.0f, 0.0f );
+			rotateMtx(mtx, 0.0f, angle, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(8,mtx);
+			if ( !printing )
+			{
+				// TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
+				// matter, because no one ever sees the bottom of a repeater.
+
+				// the left one shifted 5 sideways
+				totalVertexCount = gModel.vertexCount;
+				saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, -3.0f/16.0f, -3.0f/16.0f, 4.0f/16.0f );
+				rotateMtx(mtx, 0.0f, angle, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount,mtx);
+
+				// the right one shifted 5 sideways
+				totalVertexCount = gModel.vertexCount;
+				saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, 3.0f/16.0f, -3.0f/16.0f, 4.0f/16.0f );
+				rotateMtx(mtx, 0.0f, angle, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount,mtx);
+
+				// the inner one moved 3 more down if not powered
+				totalVertexCount = gModel.vertexCount;
+				saveBillboardFacesExtraData( boxIndex, out_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
+				rotateMtx(mtx, 0.0f, angle, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount,mtx);
+			}
+		}
+		break;
+
+	case BLOCK_DAYLIGHT_SENSOR:
+		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+		swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;	// 6,15
+		swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] =  swatchLoc-1;	// 5,15
+		// TODO! For tile itself, Y data was centered instead of put at bottom, so note we have to shift it down
+		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 0,16, 0,6, 0,16 );
+		break;
+
+	case BLOCK_HOPPER:
+		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+		// outsides and bottom
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0, 16,  10, 16,  0, 16 );
+		// next level down outsides and bottom
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 4, 12,   4, 10,  4, 12 );
+		// bottom level cube - move to position TODOTODO based on dataVal
+		totalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, 0x0,         0, 6, 10,   0,  4,  6, 10 );
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		if ( dataVal > 1 )
+		{
+			float xShift = 0.0f;
+			float zShift = 0.0f;
+			identityMtx(mtx);
+			// move 4x4x4 box up and over
+			switch ( dataVal )
+			{
+			case 2:
+				zShift = -6.0/16.0f;
+				break;
+			case 3:
+				zShift = 6.0/16.0f;
+				break;
+			case 4:
+				xShift = -6.0/16.0f;
+				break;
+			case 5:
+				xShift = 6.0/16.0f;
+				break;
+			}
+			translateMtx(mtx, xShift, 4.0f/16.0f, zShift);
+			transformVertices(totalVertexCount,mtx);
+		}
+
+		if ( fatten )
+		{
+			// top as a single flat face - really won't print well otherwise, as surface is infinitely thin at level Y=10.
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+				0, 16,   16, 16,   0, 16 );
+		}
+		else
+		{
+			// top as 4 small faces, and corresponding inside faces
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+				14, 16,  10+printing*2, 16,   0, 16 );
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+				 0,  2,  10+printing*2, 16,   0, 16 );
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
+				 2, 14,  10+printing*2, 16,  14, 16 );
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
+				 2, 14,  10+printing*2, 16,   0,  2 );
+			// inside bottom
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc-2, swatchLoc-2, swatchLoc-2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+				 2, 14,  10+printing*2, 10+printing*2,   2, 14 );
 		}
 		break;
 
@@ -4335,24 +4472,21 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     case BLOCK_SAPLING:
         switch ( dataVal & 0x3 )
         {
-        case 0: // OAK
+        case 0: // OAK sapling
             // set OK already
             break;
         case 1:
-			// spruce
+			// spruce sapling
             swatchLoc = SWATCH_INDEX(15,3);
             break;
         case 2:
-            // birch
+            // birch sapling
             swatchLoc = SWATCH_INDEX(15,4);
             break;
 		default:
         case 3:
-            // jungle
-            //if ( gJungleExists )
-            //{
-                swatchLoc = SWATCH_INDEX(14,1);
-            //}
+            // jungle sapling
+            swatchLoc = SWATCH_INDEX(14,1);
             break;
         }
         break;
@@ -4393,11 +4527,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		swatchLoc += ( dataVal/2 - 3 );
 		break;
 	case BLOCK_POTATOES:
-		// extra shift for potatoes
-		if ( dataVal != 7 )
-		{
-			swatchLoc += ( dataVal/2 - 4 );
-		}
+		swatchLoc += ( dataVal/2 - 3 );
 		break;
     case BLOCK_NETHER_WART:
         if ( dataVal == 0 )
@@ -4420,15 +4550,36 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         //    //swatchLoc += 16;
         //}
         break;
-    case BLOCK_POWERED_RAIL:
-        if ( !(dataVal & 0x8) )
-        {
-            // unpowered rail
-            swatchLoc = SWATCH_INDEX( 3, 10 );
-        }
-        // fall through:
+
+	case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:	// TODO - should be powered
 	case BLOCK_ACTIVATOR_RAIL:	// TODO - should be powered
+		switch ( type )
+		{
+		case BLOCK_POWERED_RAIL:
+			if ( !(dataVal & 0x8) )
+			{
+				// unpowered rail
+				swatchLoc = SWATCH_INDEX( 3, 10 );
+			}
+			break;
+		case BLOCK_DETECTOR_RAIL:
+			// by default, the detector rail is in its undetected state
+			if ( dataVal & 0x8 )
+			{
+				// rail detector activated (same tile in basic game)
+				swatchLoc = SWATCH_INDEX( 11,17 );
+			}
+			break;
+		case BLOCK_ACTIVATOR_RAIL:
+			// by default, unactivated
+			if ( dataVal & 0x8 )
+			{
+				// activated rail
+				swatchLoc = SWATCH_INDEX( 9,17 );
+			}
+			break;
+		}
         // if not a normal rail, there are no curve bits, so mask off upper bit, which is
         // whether the rail is powered or not.
         dataVal &= 0x7;
@@ -7709,13 +7860,19 @@ static int getMaterialUsingGroup( int groupID )
 
 #define SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, sx,sy, bx,by ) \
     if ( (faceDirection) == DIRECTION_BLOCK_BOTTOM )          \
-        swatchLoc = SWATCH_XY_TO_INDEX( (bx), (by) );             \
+        swatchLoc = SWATCH_XY_TO_INDEX( (bx), (by) );         \
     else if ( (faceDirection) != DIRECTION_BLOCK_TOP )        \
         swatchLoc = SWATCH_XY_TO_INDEX( (sx), (sy) );
 
 #define SWATCH_SWITCH_SIDE( faceDirection, sx,sy )      \
-    if ( ((faceDirection) != DIRECTION_BLOCK_BOTTOM) && ((faceDirection) != DIRECTION_BLOCK_TOP))      \
-    swatchLoc = SWATCH_XY_TO_INDEX( (sx), (sy) );
+	if ( ((faceDirection) != DIRECTION_BLOCK_BOTTOM) && ((faceDirection) != DIRECTION_BLOCK_TOP))      \
+	swatchLoc = SWATCH_XY_TO_INDEX( (sx), (sy) );
+
+#define SWATCH_SWITCH_SIDE_VERTICAL( faceDirection, sx,sy, vx,vy ) \
+	if ( (faceDirection) == DIRECTION_BLOCK_TOP || (faceDirection) == DIRECTION_BLOCK_BOTTOM )          \
+	swatchLoc = SWATCH_XY_TO_INDEX( (vx), (vy) );             \
+	else													  \
+	swatchLoc = SWATCH_XY_TO_INDEX( (sx), (sy) );
 
 // note that, for flattops and sides, the dataVal passed in is indeed the data value of the neighboring flattop being merged
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] )
@@ -7727,19 +7884,17 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) || 
         !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
     {
-        // use a solid color
+        // use a solid color - we could add carpet and stairs here, among others.
         // TODO: note that this is not as fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
         swatchLoc = type;
         switch ( type )
         {
-        case BLOCK_DOUBLE_SLAB:
+        case BLOCK_DOUBLE_STONE_SLAB:
         case BLOCK_STONE_SLAB:
             switch ( dataVal )
             {
             default:
                 assert(0);
-            case 6:
-                // true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
             case 0:
                 // no change, default stone "cement" BLOCK_STONE_SLAB
                 break;
@@ -7759,10 +7914,30 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // brick
                 swatchLoc = BLOCK_BRICK;
                 break;
-            case 5:
-                // stone brick
-                swatchLoc = BLOCK_STONE_BRICKS;
-                break;
+			case 5:
+				// stone brick
+				swatchLoc = BLOCK_STONE_BRICKS;
+				break;
+			case 6:
+				// nether brick
+				swatchLoc = BLOCK_NETHER_BRICKS;
+				break;
+			case 7:
+				// quartz
+				swatchLoc = BLOCK_QUARTZ_BLOCK;
+				break;
+			case 8:
+				// smooth stone slab (double slab only)
+				// same as stone, AFAIK.
+				break;
+			case 9:
+				// smooth sandstone (double slab only)
+				swatchLoc = BLOCK_SANDSTONE;
+				break;
+			case 15:
+				// quartz (normally same quartz on all faces? See http://minecraft.gamepedia.com/Data_values)
+				swatchLoc = BLOCK_QUARTZ_BLOCK;
+				break;
             }
             break;
         }
@@ -7770,7 +7945,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     else
     {
 		int col,head,bottom,angle,inside,outside,newFaceDirection,flip;
-		int xoff,xstart,dir,dirBit,frontLoc;
+		int xoff,xstart,dir,dirBit,frontLoc,trimVal;
 		// north is 0, east is 1, south is 2, west is 3
 		int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
 
@@ -7782,7 +7957,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         switch ( type )
         {
         case BLOCK_GRASS:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3,0, 2,0 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             if ( faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM )
             {
                 // check if block above is snow; if so, use snow side tile; note we
@@ -7793,26 +7968,41 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 }
             }
             break;
-		case BLOCK_DOUBLE_SLAB:
+		case BLOCK_DIRT:
+			switch ( dataVal )
+			{
+			default:
+				assert(0);
+			case 0:
+			case 1: // dirty dirt, never takes grass
+				// no change, default dirt is fine
+				break;
+			case 2: // podzol
+				swatchLoc = SWATCH_INDEX( 15,17 );
+				SWATCH_SWITCH_SIDE( faceDirection, 14,17 );
+				break;
+			}
+			break;
+		case BLOCK_DOUBLE_STONE_SLAB:
 		case BLOCK_STONE_SLAB:
 			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
 			// Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
 			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
-			switch ( dataVal & 0x7 )
+			// high order bit for double slabs means something else
+			trimVal = ( type == BLOCK_STONE_SLAB ) ? (dataVal & 0x7) : dataVal;
+			switch ( trimVal )
 			{
 			default:
 				assert(0);
-			case 6:
-				// true stone? Doesn't seem to be different than case 0. See http://www.minecraftwiki.net/wiki/Block_ids#Slab_and_Double_Slab_material
 			case 0:
-				// no change, default stone "cement" BLOCK_STONE_SLAB
-				// might want to use stone side pattern
-				SWATCH_SWITCH_SIDE( faceDirection, 5,0 );
+				// smooth stone, two slabs
+				// use stone side pattern
+				SWATCH_SWITCH_SIDE( faceDirection, 5, 0 );
 				break;
 			case 1:
 				// sandstone
 				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
-				SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+				SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12,  0,13 );
 				break;
 			case 2:
 				// wooden
@@ -7830,10 +8020,31 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				// stone brick
 				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
 				break;
+			case 6:
+				// nether brick
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY );
+				break;
+			case 7:
+				// quartz with distinctive sides and bottom
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY );
+				SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,17,  1,17 );
+				break;
+			case 8:
+				// smooth stone slab (double slab only)
+				// don't touch a thing, as top should be used on all sides
+				break;
+			case 9:
+				// smooth sandstone (double slab only); top used on the sides
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
+				break;
+			case 15:
+				// quartz same on all faces
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY );
+				break;
 			}
 			break;
 		case BLOCK_SANDSTONE_STAIRS:
-			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12, 0,13 );
+			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12,  0,13 );
 			break;
 		case BLOCK_ENDER_CHEST:
 			// fake TODO!
@@ -7883,11 +8094,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				}
 				if ( (angle % 360) == 0 )
 				{
-					swatchLoc = SWATCH_INDEX( 10, 14 );
+					swatchLoc = SWATCH_INDEX( 10,14 );
 				}
 				else
 				{
-					swatchLoc = SWATCH_INDEX( 9, 14 );
+					swatchLoc = SWATCH_INDEX( 9,14 );
 				}
 			}
 			break;
@@ -7959,13 +8170,13 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			switch ( dataVal & 0x3 )
 			{
 			case 1: // spruce (dark)
-				SWATCH_SWITCH_SIDE( newFaceDirection, 4,7 );
+				SWATCH_SWITCH_SIDE_VERTICAL( newFaceDirection, 4, 7,  12,11 );
 				break;
 			case 2: // birch
-				SWATCH_SWITCH_SIDE( newFaceDirection, 5,7 );
+				SWATCH_SWITCH_SIDE_VERTICAL( newFaceDirection, 5, 7,  11,11 );
 				break;
 			case 3: // jungle
-				SWATCH_SWITCH_SIDE( newFaceDirection, 9,9 );
+				SWATCH_SWITCH_SIDE_VERTICAL( newFaceDirection, 9, 9,  13,11 );
 				break;
 			default: // normal log
 				SWATCH_SWITCH_SIDE( newFaceDirection, 4,1 );
@@ -8012,32 +8223,42 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 1: // Spruce leaves
                 swatchLoc = SWATCH_INDEX( col, 8 );
                 break;
-            case 2: // birch - shaded differently in tile code, same as normal tree otherwise
-                swatchLoc = SWATCH_INDEX( col, 3 );
+            case 2: // birch - shaded differently in tile code, same as normal tree otherwise - now separate
+                swatchLoc = SWATCH_INDEX( col+9, 13 );
                 break;
             case 3: // jungle - switch depending on whether jungle exists!
-                //if ( gJungleExists )
-                //{
-                    swatchLoc = SWATCH_INDEX( col, 12 );
-                //}
-                //else
-                //{
-                //    swatchLoc = SWATCH_INDEX( col, 3 );
-                //}
+                swatchLoc = SWATCH_INDEX( col, 12 );
                 break;
            }
             break;
+		case BLOCK_SAND:
+			switch ( dataVal )
+			{
+			default:
+				assert(0);
+			case 0:
+				// no change, default sand is fine
+				break;
+			case 1: // red sand
+				swatchLoc = SWATCH_INDEX( 13,17 );
+				break;
+			}
+			break;
         case BLOCK_DISPENSER:
+		case BLOCK_DROPPER:
 		case BLOCK_FURNACE:
         case BLOCK_BURNING_FURNACE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13,2, 14,3 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 2,  14, 3 );
             if ( (faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM) )
             {
                 switch ( type )
                 {
-                case BLOCK_DISPENSER:
-                    frontLoc = SWATCH_INDEX( 14, 2 );
-                    break;
+				case BLOCK_DISPENSER:
+					frontLoc = SWATCH_INDEX( 14, 2 );
+					break;
+				case BLOCK_DROPPER:
+					frontLoc = SWATCH_INDEX(  7,15 );
+					break;
                 case BLOCK_FURNACE:
                     frontLoc = SWATCH_INDEX( 12, 2 );
                     break;
@@ -8046,8 +8267,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     frontLoc = SWATCH_INDEX( 13, 3 );
                     break;
                 }
-                switch ( dataVal )
+                switch ( dataVal & 0x7 )
                 {
+				case 0:	// dispenser/dropper facing down, can't be anything else
+					swatchLoc = SWATCH_INDEX( 14, 3 );
+					break;
+				case 1: // dispenser/dropper facing up, can't be anything else
+					swatchLoc = SWATCH_INDEX( 14, 3 );
+					break;
                 case 2: // North
                     if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
                         swatchLoc = frontLoc;
@@ -8067,20 +8294,70 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     break;
                 }
             }
+			else
+			{
+				// top or bottom face: is it a dispenser or dropper?
+				if ( ( type == BLOCK_DISPENSER ) || ( type == BLOCK_DROPPER ) )
+				{
+					switch ( dataVal )
+					{
+					case 0:	// dispenser/dropper facing down, can't be anything else
+						if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+						{
+							swatchLoc = ( type == BLOCK_DISPENSER ) ? SWATCH_INDEX( 15, 2 ) : SWATCH_INDEX( 8,15 ) ;
+						}
+						else
+						{
+							swatchLoc = SWATCH_INDEX( 14, 3 );
+						}
+						break;
+					case 1: // dispenser/dropper facing up, can't be anything else
+						if (faceDirection == DIRECTION_BLOCK_TOP)
+						{
+							swatchLoc = ( type == BLOCK_DISPENSER ) ? SWATCH_INDEX( 15, 2 ) : SWATCH_INDEX( 8,15 ) ;
+						}
+						else
+						{
+							swatchLoc = SWATCH_INDEX( 14, 3 );
+						}
+						break;
+					}
+				}
+			}
             break;
         case BLOCK_POWERED_RAIL:
-            if ( !(dataVal & 0x8) )
-            {
-                // unpowered rail
-                swatchLoc = SWATCH_INDEX( 3, 10 );
-            }
-            // fall through:
-        case BLOCK_DETECTOR_RAIL:	// TODO - should be powered
-		case BLOCK_ACTIVATOR_RAIL:	// TODO - should be powered
-            // if not a normal rail, there are no curve bits, so mask off upper bit, which is
-            // whether the rail is powered or not.
-            dataVal &= 0x7;
-            // fall through:
+        case BLOCK_DETECTOR_RAIL:
+		case BLOCK_ACTIVATOR_RAIL:
+			switch ( type )
+			{
+			case BLOCK_POWERED_RAIL:
+				if ( !(dataVal & 0x8) )
+				{
+					// unpowered rail
+					swatchLoc = SWATCH_INDEX( 3, 10 );
+				}
+				break;
+			case BLOCK_DETECTOR_RAIL:
+				// by default, the detector rail is in its undetected state
+				if ( dataVal & 0x8 )
+				{
+					// rail detector activated (same tile in basic game)
+					swatchLoc = SWATCH_INDEX( 11,17 );
+				}
+				break;
+			case BLOCK_ACTIVATOR_RAIL:
+				// by default, unactivated
+				if ( dataVal & 0x8 )
+				{
+					// activated rail
+					swatchLoc = SWATCH_INDEX( 9,17 );
+				}
+				break;
+			}
+			// if not a normal rail, there are no curve bits, so mask off upper bit, which is
+			// whether the rail is powered or not.
+			dataVal &= 0x7;
+			// fall through:
         case BLOCK_RAIL:
             // get data of track itself
             switch ( dataVal )
@@ -8138,7 +8415,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
             break;
         case BLOCK_NOTEBLOCK:
-            SWATCH_SWITCH_SIDE( faceDirection, 10,4 );
+            SWATCH_SWITCH_SIDE( faceDirection, 12, 8 );	// was 10, 4 jukebox side, now is separate at 
             break;
         case BLOCK_BED:
             if ( (faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM) )
@@ -8327,10 +8604,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_TNT:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 8,0, 10,0 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 8, 0,  10, 0 );
             break;
         case BLOCK_BOOKSHELF:
-            SWATCH_SWITCH_SIDE( faceDirection, 3,2 );
+            SWATCH_SWITCH_SIDE( faceDirection, 3, 2 );
             break;
         case BLOCK_WOODEN_DOOR:
             // top half is default
@@ -8388,58 +8665,61 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_CHEST:
         case BLOCK_LOCKED_CHEST:
 		case BLOCK_TRAPPED_CHEST:
-            SWATCH_SWITCH_SIDE( faceDirection, 10,1 );
+			// set side of chest as default
+            SWATCH_SWITCH_SIDE( faceDirection, 10, 1 );
             switch ( dataVal )
             {
             case 3: // new south
-                if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
+                if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z ) // south
                 {
-                    swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+					// front of chest, on possibly long face
+                    swatchLoc = SWATCH_INDEX( 11, 1 );	// front
+					// is neighbor to east also a chest?
+                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+					// else, is neighbor to west also a chest?
+                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
                 }
-                else if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
+                else if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z ) // north
                 {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                    if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
                 }
                 break;
             case 4: // west
-                if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X )
+                if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X ) // west
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
                 }
-                else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
+                else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X ) // east
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
@@ -8449,11 +8729,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
@@ -8462,11 +8742,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex-gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex+gBoxSizeYZ].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
@@ -8476,11 +8756,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
                 {
                     swatchLoc = SWATCH_INDEX( 11, 1 );
-                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 2 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 2 );
                     }
@@ -8489,11 +8769,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    if ( gBoxData[backgroundIndex+gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
-                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type != BLOCK_LOCKED_CHEST )
+                    else if ( gBoxData[backgroundIndex-gBoxSize[Y]].type == type )
                     {
                         swatchLoc = SWATCH_INDEX( 10, 3 );
                     }
@@ -8502,19 +8782,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_CRAFTING_TABLE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 11,3, 4,0 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 11, 3,  4, 0 );
             if ( ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X ) || ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z ) )
             {
-                SWATCH_SWITCH_SIDE( faceDirection, 12,3 );
+                SWATCH_SWITCH_SIDE( faceDirection, 12, 3 );
             }
             break;
         case BLOCK_CACTUS:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,4, 7,4 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 4,  7, 4 );
             break;
         case BLOCK_PUMPKIN:
 		case BLOCK_JACK_O_LANTERN:
-		case BLOCK_HEAD:	// definitely wrong, TODO! How is facing done?
-            SWATCH_SWITCH_SIDE( faceDirection, 6,7 );
+		case BLOCK_HEAD:	// definitely wrong for heads, TODOTODO! How is facing done?
+            SWATCH_SWITCH_SIDE( faceDirection, 6, 7 );
             xoff = ( type == BLOCK_PUMPKIN ) ? 7 : 8;
             if ( ( faceDirection != DIRECTION_BLOCK_TOP ) && ( faceDirection != DIRECTION_BLOCK_BOTTOM ) )
             {
@@ -8548,19 +8828,27 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_JUKEBOX:
-            SWATCH_SWITCH_SIDE( faceDirection, 10,4 );
+            SWATCH_SWITCH_SIDE( faceDirection, 10, 4 );
             break;
         case BLOCK_CAKE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 10,7, 12,7 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 10, 7,  12, 7 );
             break;
         case BLOCK_FARMLAND:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 2,0, 2,0 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 2, 0,  2, 0 );
             break;
 		case BLOCK_REDSTONE_REPEATER_OFF:
 		case BLOCK_REDSTONE_REPEATER_ON:
+			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
+			rotateIndices( localIndices, 90*(dataVal&0x3));
+			break;
 		case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
 		case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
-			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
+			// in 1.5, comparator active is used for top bit
+			// in 1.6, comparator active is not used, it depends on dataVal
+			{
+				int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_ACTIVE) || (dataVal >= 8));
+				swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
+			}
 			rotateIndices( localIndices, 90*(dataVal&0x3));
 			break;
         case BLOCK_REDSTONE_WIRE:
@@ -8572,20 +8860,20 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                 case 0x0:
                     // no connections, just a dot
-                    swatchLoc = SWATCH_INDEX( 4, 11);
+                    swatchLoc = SWATCH_INDEX( 4,11);
                     break;
 
                 case FLAT_FACE_LO_X:
                 case FLAT_FACE_HI_X:
                 // one node, but it's a two-way in Minecraft: no single branch
                 case FLAT_FACE_LO_X|FLAT_FACE_HI_X:
-                    swatchLoc = SWATCH_INDEX( 5, 10 );
+                    swatchLoc = SWATCH_INDEX( 5,10 );
                     break;
                 case FLAT_FACE_LO_Z:
                 case FLAT_FACE_HI_Z:
                 case FLAT_FACE_LO_Z|FLAT_FACE_HI_Z:
                     angle = 90;
-                    swatchLoc = SWATCH_INDEX( 5, 10 );
+                    swatchLoc = SWATCH_INDEX( 5,10 );
                     break;
 
                 // angled 2 wire:
@@ -8657,7 +8945,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
 			case 3:
 				// circle - added in 1.2.4
-				swatchLoc = SWATCH_INDEX( 5, 13 );
+				swatchLoc = SWATCH_INDEX( 5,13 );
                 break;
             }
             break;
@@ -8690,11 +8978,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				break;
 			default:
 			case 3:
-				// jungle
-				//if ( gJungleExists )
-				//{
 				swatchLoc = SWATCH_INDEX(14,1);
-				//}
 				break;
 			}
 			swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
@@ -8822,27 +9106,27 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 10: //10	 Stem piece	 Stem texture on all four sides, pores on top and bottom
                 swatchLoc = inside;
-                SWATCH_SWITCH_SIDE( faceDirection, 13,8 );
+                SWATCH_SWITCH_SIDE( faceDirection, 13, 8 );
                 break;
             }
             break;
         case BLOCK_MELON:
-            SWATCH_SWITCH_SIDE( faceDirection, 8,8 );
+            SWATCH_SWITCH_SIDE( faceDirection, 8, 8 );
             break;
         case BLOCK_MYCELIUM:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13,4, 2,0 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 4,  2, 0 );
             break;
         case BLOCK_ENCHANTMENT_TABLE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,11, 7,11 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,11,  7,11 );
             break;
         case BLOCK_BREWING_STAND:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13,9, 12,9 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 9,  12, 9 );
             break;
         case BLOCK_CAULDRON:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 10,9, 11,9 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 10, 9,  11, 9 );
             break;
         case BLOCK_END_PORTAL_FRAME:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 15,9, 15,10 );
+            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 15, 9,  15,10 );
             break;
 		case BLOCK_COBBLESTONE_WALL:
 			if ( dataVal == 0x1 )
@@ -8850,7 +9134,73 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY );
 			}
 			break;
-        }
+		case BLOCK_CARPET:
+			// use wool locations at end in a clever way
+			swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WHITE_WOOL+dataVal].txrX, gBlockDefinitions[BLOCK_WHITE_WOOL+dataVal].txrY );
+			break;
+		case BLOCK_STAINED_CLAY:
+			swatchLoc += dataVal;
+			break;
+		case BLOCK_HAY:
+			SWATCH_SWITCH_SIDE( faceDirection, 9,15 );
+			break;
+		case BLOCK_HOPPER:
+			// full block version - inside gets used for bottom; a little goofy, but smoother, I think.
+			SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 12,15,  11,15 );
+			break;
+        case BLOCK_QUARTZ_BLOCK:
+			// use data to figure out which type of quartz
+			switch ( dataVal )
+			{
+			case 0:
+				SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,17, 1,17 );
+				break;
+			case 1:	// chiseled quartz block
+				SWATCH_SWITCH_SIDE_VERTICAL( faceDirection, 3,17, 2,17 );
+				break;
+			case 2: // pillar quartz block (vertical)
+				SWATCH_SWITCH_SIDE_VERTICAL( faceDirection, 5,17, 4,17 );
+				break;
+			case 3: // pillar quartz block (north-south)
+				switch ( faceDirection )
+				{
+				case DIRECTION_BLOCK_BOTTOM:
+				case DIRECTION_BLOCK_TOP:
+					swatchLoc = SWATCH_INDEX( 5,17 );
+					rotateIndices( localIndices, 90 );
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					swatchLoc = SWATCH_INDEX( 5,17 );
+					rotateIndices( localIndices, 90 );
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_X:
+				case DIRECTION_BLOCK_SIDE_HI_X:
+					swatchLoc = SWATCH_INDEX( 4,17 );
+					break;
+				}
+				break;
+			case 4: // pillar quartz block (east-west)
+				switch ( faceDirection )
+				{
+				case DIRECTION_BLOCK_BOTTOM:
+				case DIRECTION_BLOCK_TOP:
+					swatchLoc = SWATCH_INDEX( 5,17 );
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_X:
+				case DIRECTION_BLOCK_SIDE_HI_X:
+					swatchLoc = SWATCH_INDEX( 5,17 );
+					rotateIndices( localIndices, 90 );
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					swatchLoc = SWATCH_INDEX( 4,17 );
+					break;
+				}
+				break;
+			}
+			break;
+		}
     }
 
     // flag UVs as being used for this swatch, so that the actual four UV values
@@ -9214,7 +9564,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
 	wcharToChar(terrainFileName,worldChar);
-	sprintf_s(outputString,256,"# Full terrain.png path: %s\n", worldChar );
+	sprintf_s(outputString,256,"# Full terrainExt.png path: %s\n", worldChar );
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
 	wcharToChar(curDir,worldChar);
@@ -9879,27 +10229,31 @@ static int createBaseMaterialTexture()
 
     // all the blocks that need premultiplication by a color.
     // See http://www.minecraftwiki.net/wiki/File:TerrainGuide.png
-#define MULT_TABLE_SIZE 19
+#define MULT_TABLE_SIZE 23
     static TypeTile multTable[MULT_TABLE_SIZE] = {
         { BLOCK_GRASS /* grass */, 0,0, {1.0f,1.0f,1.0f} },
-        { BLOCK_GRASS /* fancy grass? */, 6,2, {1.0f,1.0f,1.0f} },
-        { BLOCK_TALL_GRASS /* tall grass */, 7,2, {1.0f,1.0f,1.0f} },
-        { BLOCK_GRASS /* grass? */, 8,2, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* leaves, fancy */, 4,3, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* leaves, fast */, 5,3, {1.0f,1.0f,1.0f} },
-        { BLOCK_TALL_GRASS /* fern */, 8,3, {1.0f,1.0f,1.0f} },
-        { BLOCK_LILY_PAD /* lily pad */, 12,4, {1.0f,1.0f,1.0f} },
-        { BLOCK_PUMPKIN_STEM /* pumpkin stem */, 15,6, {1.0f,1.0f,1.0f} },
-        { BLOCK_PUMPKIN_STEM /* pumpkin stem, matured */, 15,7, {1.0f,1.0f,1.0f} }, /* TODO: probably want a different color, a yellow? */
-        { BLOCK_VINES /* vines */, 15,8, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* pine leaves fancy */, 4,8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
-        { BLOCK_LEAVES /* pine leaves fast */, 5,8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
+        { BLOCK_GRASS /* fancy grass? */, 6, 2, {1.0f,1.0f,1.0f} },
+        { BLOCK_TALL_GRASS /* tall grass */, 7, 2, {1.0f,1.0f,1.0f} },
+        { BLOCK_GRASS /* grass? */, 8, 2, {1.0f,1.0f,1.0f} },
+        { BLOCK_LEAVES /* leaves, fancy */, 4, 3, {1.0f,1.0f,1.0f} },
+        { BLOCK_LEAVES /* leaves, fast */, 5, 3, {1.0f,1.0f,1.0f} },
+        { BLOCK_TALL_GRASS /* fern */, 8, 3, {1.0f,1.0f,1.0f} },
+        { BLOCK_LILY_PAD /* lily pad */, 12, 4, {1.0f,1.0f,1.0f} },
+		{ BLOCK_MELON_STEM /* melon stem */, 14,11, {1.0f,1.0f,1.0f} },
+		{ BLOCK_MELON_STEM /* melon stem, matured */, 15,11, {1.0f,1.0f,1.0f} }, /* TODO: probably want a different color, a yellow? */
+		{ BLOCK_PUMPKIN_STEM /* pumpkin stem */, 15, 6, {1.0f,1.0f,1.0f} },
+		{ BLOCK_PUMPKIN_STEM /* pumpkin stem, matured */, 15, 7, {1.0f,1.0f,1.0f} }, /* TODO: probably want a different color, a yellow? */
+        { BLOCK_VINES /* vines */, 15, 8, {1.0f,1.0f,1.0f} },
+        { BLOCK_LEAVES /* pine leaves fancy */, 4, 8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
+        { BLOCK_LEAVES /* pine leaves fast */, 5, 8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
         { BLOCK_REDSTONE_WIRE /* redstone wire */, 4,10, {1.0f,1.0f,1.0f} },
         { BLOCK_REDSTONE_WIRE /* redstone wire */, 5,10, {1.0f,1.0f,1.0f} },
         { BLOCK_REDSTONE_TORCH_ON /* redstone */, 4,11, {1.0f,1.0f,1.0f} },
         { BLOCK_REDSTONE_TORCH_ON /* redstone */, 5,11, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* jungle leaves, fancy */, 4,12, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* jungle leaves, fast */, 5,12, {1.0f,1.0f,1.0f} }
+		{ BLOCK_LEAVES /* jungle leaves, fancy */, 4,12, {1.0f,1.0f,1.0f} },
+		{ BLOCK_LEAVES /* jungle leaves, fancy */, 4,12, {1.0f,1.0f,1.0f} },
+		{ BLOCK_LEAVES /* birch leaves, fast */, 13,13, {1.0f,1.0f,1.0f} },
+		{ BLOCK_LEAVES /* birch leaves, fast */, 14,13, {1.0f,1.0f,1.0f} }
     };
 
     // the blocks that should be solid if valid water tile is not found
@@ -9924,7 +10278,7 @@ static int createBaseMaterialTexture()
         { SWATCH_INDEX( 3, 5 ), /* BLOCK_LADDER */ SWATCH_INDEX( 1, 0 ) }, // ladder over stone
         { SWATCH_INDEX( 3, 11 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
         { SWATCH_INDEX( 3, 10 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
-        { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone - TODO add BLOCK_ACTIVATOR_RAIL, and add activated vs. non-activated?
+        { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone - TODOTODO add BLOCK_ACTIVATOR_RAIL, and add activated vs. non-activated
         { SWATCH_INDEX( 3, 6 ), /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
         { RS_TORCH_TOP_ON, /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
         { SWATCH_INDEX( 3, 7 ), /* BLOCK_REDSTONE_TORCH_OFF */ SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
@@ -9999,106 +10353,6 @@ static int createBaseMaterialTexture()
 //        { SWATCH_INDEX( 3, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
 //        { SWATCH_INDEX( 4, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
 //    };
-//
-// an edge has 3 states: ignore (do nothing), repeat other side to it, or clamp (copy neighbor) to it
-#define SBIT_REPEAT_SIDES       0x01
-#define SBIT_REPEAT_TOP_BOTTOM  0x02
-#define SBIT_CLAMP_BOTTOM       0x04
-#define SBIT_CLAMP_TOP          0x08
-#define SBIT_CLAMP_RIGHT        0x10
-#define SBIT_CLAMP_LEFT         0x20
-
-// types of blocks: tiling, billboard, and sides (which tile only horizontally)
-#define SWATCH_REPEAT_ALL                   (SBIT_REPEAT_SIDES|SBIT_REPEAT_TOP_BOTTOM)
-#define SWATCH_REPEAT_SIDES_ELSE_CLAMP      (SBIT_REPEAT_SIDES|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
-#define SWATCH_TILE_BOTTOM_AND_TOP          SBIT_REPEAT_TOP_BOTTOM
-#define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
-#define SWATCH_CLAMP_ALL_BUT_TOP            (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
-#define SWATCH_CLAMP_ALL                    (SBIT_CLAMP_TOP|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
-
-    int swatchHoldTable[256];
-    for ( i = 0; i < 256; i++ )
-    {
-        swatchHoldTable[i] = SWATCH_REPEAT_ALL;
-    }
-
-    // billboards are different:
-
-	// grass
-	swatchHoldTable[0*16+3] = swatchHoldTable[2*16+6] = swatchHoldTable[4*16+4] = swatchHoldTable[4*16+13] = SWATCH_REPEAT_SIDES_ELSE_CLAMP;
-
-	// cobweb, flowers, sapling
-    swatchHoldTable[0*16+11] = swatchHoldTable[12] = swatchHoldTable[13] = swatchHoldTable[15] = SBIT_CLAMP_BOTTOM;
-	// mushrooms, sapling, fire
-    swatchHoldTable[1*16+12] = swatchHoldTable[1*16+13] = swatchHoldTable[1*16+14] = swatchHoldTable[1*16+15] = SBIT_CLAMP_BOTTOM;
-	// wild grass, fire
-	swatchHoldTable[2*16+7] = swatchHoldTable[2*16+15] = SBIT_CLAMP_BOTTOM;
-	// furnaces
-	swatchHoldTable[2*16+12] = SWATCH_REPEAT_SIDES_ELSE_CLAMP;
-	swatchHoldTable[3*16+13] = SWATCH_REPEAT_SIDES_ELSE_CLAMP;
-	// dead bush, fern, sapling
-    swatchHoldTable[3*16+7] = swatchHoldTable[3*16+8] = swatchHoldTable[3*16+15] = SBIT_CLAMP_BOTTOM;
-	// cactus
-	swatchHoldTable[4*16+6] = SWATCH_TILE_BOTTOM_AND_TOP; // cactus sides
-	// lily pad, sapling
-    swatchHoldTable[4*16+12] = swatchHoldTable[4*16+15] = SBIT_CLAMP_BOTTOM;
-	// torch, wheat
-    swatchHoldTable[5*16+0] = swatchHoldTable[5*16+8] = swatchHoldTable[5*16+9] = swatchHoldTable[5*16+10] = SBIT_CLAMP_BOTTOM;
-    swatchHoldTable[5*16+11] = swatchHoldTable[5*16+12] = swatchHoldTable[5*16+13] = swatchHoldTable[5*16+14] = swatchHoldTable[5*16+15] = SBIT_CLAMP_BOTTOM;
-    // torch, stem
-	swatchHoldTable[6*16+0] = swatchHoldTable[6*16+15] = SBIT_CLAMP_BOTTOM;
-	// redstone torch
-	swatchHoldTable[6*16+3] = SBIT_CLAMP_BOTTOM;
-
-	// clamp bottom and right (curved rail, only)
-	swatchHoldTable[7*16+0] = SWATCH_CLAMP_BOTTOM_AND_RIGHT;
-
-    swatchHoldTable[7*16+3] = // redstone torch off
-		swatchHoldTable[7*16+9] = swatchHoldTable[7*16+10] = swatchHoldTable[7*16+11] = swatchHoldTable[7*16+12] = swatchHoldTable[7*16+15] = SBIT_CLAMP_BOTTOM; // cake
-
-	// tile bottom and top: rail
-	swatchHoldTable[8*16+0] = SWATCH_TILE_BOTTOM_AND_TOP;
-	// bed
-	swatchHoldTable[8*16+6] = SWATCH_CLAMP_ALL;
-	swatchHoldTable[8*16+7] = SWATCH_CLAMP_ALL;
-	// cauldron top
-	swatchHoldTable[8*16+10] = SWATCH_CLAMP_ALL;
-	// cake (weird) and vines
-	swatchHoldTable[8*16+12] = swatchHoldTable[8*16+15] = SBIT_CLAMP_BOTTOM;
-
-	// clamp things we'll stretch (well, we don't switch when gExportBillboards is on, but that's OK) - bed
-	swatchHoldTable[9*16+5] = swatchHoldTable[9*16+6] = swatchHoldTable[9*16+7] = swatchHoldTable[9*16+8] = SWATCH_CLAMP_ALL_BUT_TOP;	// bed
-
-	// cauldron side
-	swatchHoldTable[9*16+10] = SWATCH_REPEAT_SIDES_ELSE_CLAMP;
-	// brewing stand - unused, however
-	swatchHoldTable[9*16+13] = SBIT_CLAMP_BOTTOM;
-	// tile bottom and top: rails
-	swatchHoldTable[10*16+3] = SWATCH_TILE_BOTTOM_AND_TOP;
-
-	// cocoa
-	swatchHoldTable[10*16+8] = swatchHoldTable[10*16+9] = swatchHoldTable[10*16+10] = SWATCH_CLAMP_ALL;
-	swatchHoldTable[10*16+12] = swatchHoldTable[10*16+13] = SWATCH_CLAMP_ALL; // tripwire
-
-	// tile bottom and top: rails
-	swatchHoldTable[11*16+3] = SWATCH_TILE_BOTTOM_AND_TOP;
-	// clamp things we'll stretch
-	swatchHoldTable[11*16+6] = SWATCH_CLAMP_ALL_BUT_TOP; // ender portal
-	swatchHoldTable[11*16+10] = SWATCH_CLAMP_ALL; // flowerpot
-	// tile bottom and top: rails
-	swatchHoldTable[12*16+3] = SWATCH_TILE_BOTTOM_AND_TOP;
-	swatchHoldTable[12*16+8] = swatchHoldTable[12*16+9] = swatchHoldTable[12*16+10] = swatchHoldTable[12*16+11] = swatchHoldTable[12*16+12] = SBIT_CLAMP_BOTTOM;
-
-    swatchHoldTable[14*16+2] = swatchHoldTable[14*16+3] = swatchHoldTable[14*16+4] = SBIT_CLAMP_BOTTOM;
-
-
-    // tiles that fill block but should not repeat smoothly: chests. Currently we tile furnaces and so on by default, but these could be clamped, too.
-	// TODO! remove when we go to 1.3.x
-    swatchHoldTable[1*16+9] = swatchHoldTable[1*16+10] = swatchHoldTable[1*16+11] = SWATCH_CLAMP_ALL;
-    swatchHoldTable[2*16+9] = 
-        swatchHoldTable[2*16+10] = SWATCH_CLAMP_ALL;
-    swatchHoldTable[3*16+9] = 
-        swatchHoldTable[3*16+10] = SWATCH_CLAMP_ALL;
 
     mainprog = (progimage_info *)malloc(sizeof(progimage_info));
     memset(mainprog,0,sizeof(progimage_info));
@@ -10125,7 +10379,7 @@ static int createBaseMaterialTexture()
     mainprog->have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
     mainprog->title = "Mineways model texture";
     mainprog->author = "mineways.com";
-    mainprog->desc = "Mineways texture file for model, generated from user's terrain.png";
+    mainprog->desc = "Mineways texture file for model, generated from user's terrainExt.png";
     mainprog->copyright;
     mainprog->email;
     mainprog->url;
@@ -10205,13 +10459,13 @@ static int createBaseMaterialTexture()
     if ( useTextureImage )
     {
         int dstCol,dstRow;
-        // we then convert *all* 256 tiles in terrain.png to 18x18 or whatever tiles, adding a 1 pixel border (SWATCH_BORDER)
+        // we then convert *all* 256+ tiles in terrainExt.png to 18x18 or whatever tiles, adding a 1 pixel border (SWATCH_BORDER)
         // around each (since with tile mosaics, we can't clamp to border, nor can we know that the renderer
         // will clamp and get blocky pixels)
 
 		// this count gets used again when walking through to tile
 		int currentSwatchCount = gModel.swatchCount;
-        for ( row = 0; row < 16; row++ )
+        for ( row = 0; row < gModel.verticalTiles; row++ )
         {
             for ( col = 0; col < 16; col++ )
             {
@@ -10277,39 +10531,23 @@ static int createBaseMaterialTexture()
 		// such as G3D, and Blender, have problems in this area. Done only for those things rendered with decals. A few extra are done.
 		if ( !(gOptions->exportFlags & EXPT_3DPRINT) && gOptions->pEFD->chkG3DMaterial )
 		{
-			int pairs[] = { 12, 0, 13, 0, 15, 0,	// 3
-				12, 1, 13, 1, 14, 1, 15,1,	// 4
-				7, 2, 15, 2,	// 2
-				1, 3, 4, 3, 7, 3,  8, 3, 15,3,	// 5
-				1, 4, /*5, 4,*/  6, 4,  /*7, 4,*/  9,  4, 15,4,	// 4
-				0, 5,  1, 5,  2, 5,  4, 5,  5, 5,  8, 5,  9, 5, 10,5, 11,5, 12,5, 13,5, 14,5, 15,5,	// 13
-				0, 6,  3, 6, 15, 6,	// 3
-				3, 7,  /*9, 7, 10, 7, 11, 7, 12, 7,*/ 15,7,	// 2
-				0, 8, 4, 8, /*10, 8,*/ 15,8, // 3
-				5, 9, 6, 9, 7, 9, 8, 9, 10,9, 11,9, 13,9, // 6
-				3,10, 8,10, 9,10, 10,10, // 4
-				3,11, 6,11,	// 2
-				3,12, 4,12, 8,12, 9,12, 10,12, 11,12, 12,12,	// 7
-				2,14, 3,14, 4,14, 11,14	// 4
-			};
-			int numPairs = 63;
-			for ( i = 0; i < numPairs; i++ )
+			for ( i = 0; i < TOTAL_TILES; i++ )
 			{
-				bleedPNGSwatch( mainprog, SWATCH_INDEX( pairs[i*2], pairs[i*2+1] ), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0 );
+				if ( gTiles[i].flags & SBIT_DECAL )
+				{
+					bleedPNGSwatch( mainprog, SWATCH_INDEX( gTiles[i].txrX, gTiles[i].txrY ), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0 );
+				}
 			}
-			// check last pair was used, so count is right
-			assert( pairs[i*2-2] == 11);
-			assert( pairs[i*2-1] == 14);
 		}
 
 		// now do clamp and tile of edges of swatches
-		for ( row = 0; row < 16; row++ )
+		for ( row = 0; row < gModel.verticalTiles; row++ )
 		{
 			for ( col = 0; col < 16; col++ )
 			{
 				SWATCH_TO_COL_ROW( currentSwatchCount, dstCol, dstRow );
                 // copy left and right edges only if block is solid - billboards don't tile
-                if ( swatchHoldTable[row*16+col] & SBIT_REPEAT_SIDES )
+                if ( gTiles[row*16+col].flags & SBIT_REPEAT_SIDES )
                 {
                     // copy right edge from left side of tile
                     copyPNGArea( mainprog, 
@@ -10332,7 +10570,7 @@ static int createBaseMaterialTexture()
                 }
                 else 
                 {
-                    if ( swatchHoldTable[row*16+col] & SBIT_CLAMP_LEFT )
+                    if ( gTiles[row*16+col].flags & SBIT_CLAMP_LEFT )
                     {
                         // copy left edge from left side of tile
                         copyPNGArea( mainprog, 
@@ -10344,7 +10582,7 @@ static int createBaseMaterialTexture()
                             gModel.swatchSize*dstRow+SWATCH_BORDER
                             );
                     }
-                    if ( swatchHoldTable[row*16+col] & SBIT_CLAMP_RIGHT )
+                    if ( gTiles[row*16+col].flags & SBIT_CLAMP_RIGHT )
                     {
                         // copy right edge from right side of tile
                         copyPNGArea( mainprog, 
@@ -10360,7 +10598,7 @@ static int createBaseMaterialTexture()
 
 				// Now do top and bottom. Note we copy the swatchSize here, not tileSize
                 // top edge
-                if ( swatchHoldTable[row*16+col] & SBIT_CLAMP_BOTTOM )
+                if ( gTiles[row*16+col].flags & SBIT_CLAMP_BOTTOM )
                 {
                     // hold and repeat bottom of billboard, and of any "side" blocks where top and bottom don't tile
                     // NOTE: this really won't work for SWATCH_BORDER > 1, you really need to loop through each
@@ -10374,7 +10612,7 @@ static int createBaseMaterialTexture()
                         gModel.swatchSize*(dstRow+1)-SWATCH_BORDER-1  // copy bottom dstRow that exists
                         );
                 }
-                if ( swatchHoldTable[row*16+col] & SBIT_CLAMP_TOP )
+                if ( gTiles[row*16+col].flags & SBIT_CLAMP_TOP )
                 {
                     // hold and repeat top (otherwise, top remains all zeroes, which is good for billboards)
                     copyPNGArea( mainprog, 
@@ -10386,7 +10624,7 @@ static int createBaseMaterialTexture()
                         gModel.swatchSize*dstRow+SWATCH_BORDER  // copy top dstRow that exists
                         );
                 }
-                else if ( swatchHoldTable[row*16+col] & SBIT_REPEAT_TOP_BOTTOM )
+                else if ( gTiles[row*16+col].flags & SBIT_REPEAT_TOP_BOTTOM )
                 {
                     // repeat tile
                     // copy upper fringe from self!
@@ -10413,24 +10651,23 @@ static int createBaseMaterialTexture()
         }
 
         // test if water tile is semitransparent throughout - if not, then we don't want to use water, lava, and file tiles.
-        if ( tileIsSemitransparent( &gModel.inputTerrainImage, 15, 12 ) &&
-             tileIsOpaque( &gModel.inputTerrainImage, 15, 14 ) )
+        if ( tileIsSemitransparent( &gModel.inputTerrainImage, 15,13 ) &&
+             tileIsOpaque( &gModel.inputTerrainImage, 15,15 ) )
         {
             // Water is special, and we want to provide more user control for it, to be able to give a deep
             // blue, etc. We therefore blend between the water texture and the water swatch based on alpha:
             // the higher the alpha (more opaque) the water color is set, the more it contributes to the
             // water texture.
-            for ( i = 0; i < 2; i++ )
-            {
-                blendTwoSwatches( mainprog, SWATCH_INDEX( 15, 12+i ), BLOCK_WATER+i, gBlockDefinitions[BLOCK_WATER+i].alpha,
-                    (gOptions->exportFlags & EXPT_3DPRINT) ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER+i].alpha*255) );
-            }
+            blendTwoSwatches( mainprog, SWATCH_INDEX( 15,13 ), BLOCK_WATER, gBlockDefinitions[BLOCK_WATER].alpha,
+                    (gOptions->exportFlags & EXPT_3DPRINT) ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );
         }
         else
         {
+			// This should never happen with a properly formed terrainExt.png, but just in case, leave the test in.
             int srcCol,srcRow;
+			assert(0);
 
-            // can't use water (15,12), lava (15,14), and fire (15,1), so just copy solid color over
+            // can't use water (15,13), lava (15,15), and fire (15,1), so just copy solid color over
             for ( i = 0; i < solidCount; i++ )
             {
                 int id = solidTable[i];
@@ -10447,10 +10684,6 @@ static int createBaseMaterialTexture()
                     );
             }
         }
-
-        // test if jungle leaves exist (which used to be oak leaves): if not, then use oak leaves instead
-        //gJungleExists = tileIsCutout( &gModel.inputTerrainImage, 4, 12 ) &&
-        //    tileIsOpaque( &gModel.inputTerrainImage, 5, 12 );
 
 		// TODO! Switch to reading actual chest tiles
         // insane corrective: truly tile between chest shared edges, grabbing samples from *adjacent* swatch
@@ -12456,7 +12689,7 @@ static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatc
 			
             float oneMinusBlend = 1.0f - blend;
 
-            GET_PNG_TEXEL( tr,tg,tb,ta, *cti );
+            GET_PNG_TEXEL( tr,tg,tb,ta, *cti ); // ta is unused
             GET_PNG_TEXEL( sr,sg,sb,sa, *csi );	// sa is unused
 
             tr = (unsigned char)(tr*oneMinusBlend + sr*blend);
@@ -12697,7 +12930,7 @@ static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
     dst.have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
     dst.title = "Mineways RGB model texture";
     dst.author = "mineways.com";
-    dst.desc = "Mineways texture file for model, generated from user's terrain.png";
+    dst.desc = "Mineways texture file for model, generated from user's terrainExt.png";
 
     imageSrc = src->image_data;
     imageDst = dst.image_data;

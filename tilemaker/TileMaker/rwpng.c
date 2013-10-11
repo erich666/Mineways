@@ -1,33 +1,14 @@
-/*
-Copyright (c) 2011, Eric Haines
-All rights reserved.
+// PngXfer.cpp : Defines the entry point for the console application.
+//
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-* Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-
-* Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
-
-#include "stdafx.h"
 #include "rwpng.h"
+
+
+#ifdef DEBUG
+#  define Trace(x)  {fprintf x ; fflush(stderr); fflush(stdout);}
+#else
+#  define Trace(x)  ;
+#endif
 
 
 int writepngheader(progimage_info *mainprog_ptr);
@@ -55,7 +36,7 @@ int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *p
 int readpng_get_bgcolor(int bit_depth, int color_type, unsigned char *red, unsigned char *green, unsigned char *blue, png_structp png_ptr, png_infop info_ptr);
 
 unsigned char *readpng_get_image(int height, int bit_depth, int color_type, double display_exponent, int *pChannels,
-    int *pRowbytes, png_structp png_ptr, png_infop info_ptr);
+	int *pRowbytes, png_structp png_ptr, png_infop info_ptr);
 
 
 
@@ -66,167 +47,110 @@ unsigned char *readpng_get_image(int height, int bit_depth, int color_type, doub
 
 int readpng(progimage_info *mainprog_ptr, wchar_t *filename)
 {
-    int err;
-    int channels, rowbytes;
-    int rc;
+	int err;
+	int channels, rowbytes;
+	int rc;
 
-    mainprog_ptr->infile = NULL;
-    err = _wfopen_s(&mainprog_ptr->infile,filename, L"rb");
-    if (mainprog_ptr->infile == NULL )
-        return 1;
-    if ( err != 0 )
-    {
-        return 1;
-    }
+	mainprog_ptr->infile = NULL;
+	err = _wfopen_s(&mainprog_ptr->infile,filename, L"rb");
+	if (mainprog_ptr->infile == NULL )
+		return 1;
+	if ( err != 0 )
+	{
+		return 1;
+	}
 
-    rc = readpng_init(mainprog_ptr->infile, &mainprog_ptr->width, &mainprog_ptr->height,
-        &mainprog_ptr->bit_depth,&mainprog_ptr->color_type,&mainprog_ptr->png_ptr,&mainprog_ptr->info_ptr);
+	rc = readpng_init(mainprog_ptr->infile, &mainprog_ptr->width, &mainprog_ptr->height,
+		&mainprog_ptr->bit_depth,&mainprog_ptr->color_type,&mainprog_ptr->png_ptr,&mainprog_ptr->info_ptr);
 
-    if ( rc != 0 )
-    {
-        switch (rc) {
-        case 1:
-            //fprintf(stderr, PROGNAME
-            //	":  [%s] is not a PNG file: incorrect signature\n",
-            //	filename);
-            break;
-        case 2:
-            //fprintf(stderr, PROGNAME
-            //	":  [%s] has bad IHDR (libpng longjmp)\n", filename);
-            break;
-        case 4:
-            //fprintf(stderr, PROGNAME ":  insufficient memory\n");
-            break;
-        default:
-            //fprintf(stderr, PROGNAME
-            //	":  unknown readpng_init() error\n");
-            break;
-        }
-        fclose(mainprog_ptr->infile);
-        return 1;
-    }
+	if ( rc != 0 )
+	{
+		switch (rc) {
+		case 1:
+			//fprintf(stderr, PROGNAME
+			//	":  [%s] is not a PNG file: incorrect signature\n",
+			//	filename);
+			break;
+		case 2:
+			//fprintf(stderr, PROGNAME
+			//	":  [%s] has bad IHDR (libpng longjmp)\n", filename);
+			break;
+		case 4:
+			//fprintf(stderr, PROGNAME ":  insufficient memory\n");
+			break;
+		default:
+			//fprintf(stderr, PROGNAME
+			//	":  unknown readpng_init() error\n");
+			break;
+		}
+		fclose(mainprog_ptr->infile);
+		return rc;
+	}
 
-    mainprog_ptr->image_data = readpng_get_image(mainprog_ptr->height, mainprog_ptr->bit_depth, mainprog_ptr->color_type, 2.2, &channels, &rowbytes, mainprog_ptr->png_ptr, mainprog_ptr->info_ptr);
+	mainprog_ptr->image_data = readpng_get_image(mainprog_ptr->height, mainprog_ptr->bit_depth, mainprog_ptr->color_type, 2.2, &channels, &rowbytes, mainprog_ptr->png_ptr, mainprog_ptr->info_ptr);
 
     fclose(mainprog_ptr->infile);
 
-    return 0;
+	return 0;
 }
 
-// return 0 on success
-int writepng(progimage_info *mainprog_ptr, int channels, wchar_t *filename)
+int writepng(progimage_info *mainprog_ptr, wchar_t *filename)
 {
-    int err;
-    int r;
-    unsigned char *image_data;
+	int err;
+	int r;
+	unsigned char *image_data;
 
-    mainprog_ptr->outfile = NULL;
-    err = _wfopen_s(&mainprog_ptr->outfile,filename, L"wb");
-    if (mainprog_ptr->outfile == NULL )
-        return 1;
-    if ( err != 0 )
-    {
-        return 1;
-    }
+	mainprog_ptr->outfile = NULL;
+	err = _wfopen_s(&mainprog_ptr->outfile,filename, L"wb");
+	if (mainprog_ptr->outfile == NULL )
+		return 1;
+	if ( err != 0 )
+	{
+		return 1;
+	}
 
-    // should be set by calling code
-    //mainprog_ptr->gamma = 0.0;
-    //mainprog_ptr->have_time = 0;
-    //mainprog_ptr->modtime;
-    //mainprog_ptr->interlaced = PNG_INTERLACE_NONE;
-    //mainprog_ptr->have_bg = 0;
-    //mainprog_ptr->bg_red;
-    //mainprog_ptr->bg_green;
-    //mainprog_ptr->bg_blue;
-    ////unsigned char **row_pointers;	// needed only for interlaced output
-    ////mainprog_ptr->row_pointers = (unsigned char **)malloc(main->width*sizeof(unsigned char *));
-    //mainprog_ptr->have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
-    //mainprog_ptr->title = "Mineways model texture";
-    //mainprog_ptr->author = "mineways.com";
-    //mainprog_ptr->desc = "Mineways texture file for model, generated from user's terrainExt.png";
-    //mainprog_ptr->copyright;
-    //mainprog_ptr->email;
-    //mainprog_ptr->url;
-    ////mainprog.jmpbuf;
+	mainprog_ptr->gamma = 0.0;
+	mainprog_ptr->have_time = 0;
+	mainprog_ptr->modtime;
+	mainprog_ptr->interlaced = PNG_INTERLACE_NONE;
+	mainprog_ptr->have_bg = 0;
+	mainprog_ptr->bg_red;
+	mainprog_ptr->bg_green;
+	mainprog_ptr->bg_blue;
+	//unsigned char **row_pointers;	// needed only for interlaced output
+	//mainprog_ptr->row_pointers = (unsigned char **)malloc(256*sizeof(unsigned char *));
+	mainprog_ptr->have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
+	mainprog_ptr->title = "Minecraft tile texture";
+	mainprog_ptr->author;
+	mainprog_ptr->desc;
+	mainprog_ptr->copyright;
+	mainprog_ptr->email;
+	mainprog_ptr->url;
+	//mainprog.jmpbuf;
 
-    // whatever image data is in image_data will be written out.
-    image_data = mainprog_ptr->image_data;
+	// whatever image data is in image_data will be written out.
+	image_data = mainprog_ptr->image_data;
 
-    writepngheader(mainprog_ptr);
+	writepngheader(mainprog_ptr);
 
-    //pImg = image_data;
-    for ( r = 0; r < mainprog_ptr->height; r++ )
-    {
-        mainprog_ptr->image_data = &image_data[r*mainprog_ptr->width*channels];
-        writepng_encode_row(mainprog_ptr);
-    }
+	//pImg = image_data;
+	for ( r = 0; r < mainprog_ptr->height; r++ )
+	{
+		//mainprog.row_pointers[r] = &mainprog.image_data[r*256*4];
+		mainprog_ptr->image_data = &image_data[r*mainprog_ptr->width*4];
+		writepng_encode_row(mainprog_ptr);
+	}
 
-    // restore original image data pointer.
-    mainprog_ptr->image_data = image_data;
+	// restore original image data pointer.
+	mainprog_ptr->image_data = image_data;
 
-    //writepng_encode_image(mainprog_ptr);
+	//writepng_encode_image(mainprog_ptr);
     writepng_encode_finish(mainprog_ptr);
 
-    fclose(mainprog_ptr->outfile);
+	fclose(mainprog_ptr->outfile);
 
-    return 0;
+	return 0;
 }
-
-
-/*---------------------------------------------------------------------------
-
-   rpng - simple PNG display program                              readpng.c
-
-  ---------------------------------------------------------------------------
-
-      Copyright (c) 1998-2007 Greg Roelofs.  All rights reserved.
-
-      This software is provided "as is," without warranty of any kind,
-      express or implied.  In no event shall the author or contributors
-      be held liable for any damages arising in any way from the use of
-      this software.
-
-      The contents of this file are DUAL-LICENSED.  You may modify and/or
-      redistribute this software according to the terms of one of the
-      following two licenses (at your option):
-
-
-      LICENSE 1 ("BSD-like with advertising clause"):
-
-      Permission is granted to anyone to use this software for any purpose,
-      including commercial applications, and to alter it and redistribute
-      it freely, subject to the following restrictions:
-
-      1. Redistributions of source code must retain the above copyright
-         notice, disclaimer, and this list of conditions.
-      2. Redistributions in binary form must reproduce the above copyright
-         notice, disclaimer, and this list of conditions in the documenta-
-         tion and/or other materials provided with the distribution.
-      3. All advertising materials mentioning features or use of this
-         software must display the following acknowledgment:
-
-            This product includes software developed by Greg Roelofs
-            and contributors for the book, "PNG: The Definitive Guide,"
-            published by O'Reilly and Associates.
-
-
-      LICENSE 2 (GNU GPL v2 or later):
-
-      This program is free software; you can redistribute it and/or modify
-      it under the terms of the GNU General Public License as published by
-      the Free Software Foundation; either version 2 of the License, or
-      (at your option) any later version.
-
-      This program is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
-      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-      GNU General Public License for more details.
-
-      You should have received a copy of the GNU General Public License
-      along with this program; if not, write to the Free Software Foundation,
-      Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-  ---------------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------------------------------------------*/
 
@@ -244,10 +168,10 @@ void readpng_version_info(void)
 int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *pColorType, png_structp *ppng_ptr, png_infop *pinfo_ptr)
 {
     unsigned char sig[8];
-    png_uint_32 width, height;
-    int bit_depth, color_type;
-    png_structp png_ptr;
-    png_infop info_ptr;
+	png_uint_32 width, height;
+	int bit_depth, color_type;
+	png_structp png_ptr;
+	png_infop info_ptr;
 
 
     /* first do a quick check that the file really is a PNG image; could
@@ -284,10 +208,8 @@ int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *p
         return 2;
     }
 
-    //png_init_io(png_ptr, infile);
-	// someday allow a PNG from a gzip to be read, by passing in the gFile and read function,
-	// which should be passed into this method.
-	png_set_read_fn(png_ptr, infile, NULL);
+
+    png_init_io(png_ptr, infile);
     png_set_sig_bytes(png_ptr, 8);  /* we already read the 8 signature bytes */
 
     png_read_info(png_ptr, info_ptr);  /* read all PNG info up to image data */
@@ -301,8 +223,8 @@ int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *p
       NULL, NULL, NULL);
     *pWidth = width;
     *pHeight = height;
-    *pBitDepth = bit_depth;
-    *pColorType = color_type;
+	*pBitDepth = bit_depth;
+	*pColorType = color_type;
 
 
     /* OK, that's all we need for now; return happy */
@@ -371,7 +293,7 @@ int readpng_get_bgcolor(int bit_depth, int color_type, unsigned char *red, unsig
 unsigned char *readpng_get_image(int height, int bit_depth, int color_type, double display_exponent, int *pChannels, int *pRowbytes, png_structp png_ptr, png_infop info_ptr)
 {
     double  gamma;
-    unsigned char *image_data;
+	unsigned char *image_data;
     int  i, rowbytes;
     png_bytepp  row_pointers = NULL;
 
@@ -435,8 +357,8 @@ unsigned char *readpng_get_image(int height, int bit_depth, int color_type, doub
         return NULL;
     }
 
-    //Trace((stderr, "readpng_get_image:  channels = %d, rowbytes = %ld, height = %ld\n",
-    //    *pChannels, rowbytes, height));
+    Trace((stderr, "readpng_get_image:  channels = %d, rowbytes = %ld, height = %ld\n",
+        *pChannels, rowbytes, height));
 
 
     /* set the individual row_pointers to point at the correct offsets */
@@ -535,9 +457,9 @@ void readpng_cleanup(int free_image_data, progimage_info *mainprog_ptr)
 
 int writepngheader(progimage_info *mainprog_ptr)
 {
-    png_structp  png_ptr;       /* note:  temporary variables! */
-    png_infop  info_ptr;
-    int interlace_type;
+	png_structp  png_ptr;       /* note:  temporary variables! */
+	png_infop  info_ptr;
+	int interlace_type;
     /* could also replace libpng warning-handler (final NULL), but no need: */
 
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, mainprog_ptr,
@@ -686,7 +608,7 @@ int writepngheader(progimage_info *mainprog_ptr)
 
     /* OK, that's all we need to do for now; return happy */
 
-    return 0;
+	return 0;
 }
 
 
@@ -795,11 +717,11 @@ int writepng_encode_finish(progimage_info *mainprog_ptr)   /* NON-interlaced! */
 
 void writepng_cleanup(progimage_info *mainprog_ptr)
 {
-    if (mainprog_ptr->png_ptr && mainprog_ptr->info_ptr) {
-        png_destroy_write_struct(&mainprog_ptr->png_ptr, &mainprog_ptr->info_ptr);
-        mainprog_ptr->png_ptr = NULL;
-        mainprog_ptr->info_ptr = NULL;
-    }
+	if (mainprog_ptr->png_ptr && mainprog_ptr->info_ptr) {
+		png_destroy_write_struct(&mainprog_ptr->png_ptr, &mainprog_ptr->info_ptr);
+		mainprog_ptr->png_ptr = NULL;
+		mainprog_ptr->info_ptr = NULL;
+	}
 }
 
 

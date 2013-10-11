@@ -89,8 +89,8 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#shortcuts">Shortcut Keys</a> - along with quick descriptions of various features.
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
 <LI><b><a href="#bugs">Known Bugs</a></b> - and workarounds, so check here if you have a problem loading, saving, etc.
-<LI><a href="#wishlist">Wishlist</a>
 <LI><a href="#versions">Version History</a>
+<LI><a href="#wishlist">Wishlist</a>
 <LI><a href="#offsite">Links</a> - useful links to Mineways-related information.
 </UL>
 <p>
@@ -130,7 +130,7 @@ Once I've figured out what to capture, there are then a few steps I walk through
 <LI>Do I want to remove glass? If I want to look inside the building and it has glass in the windows, the glass should go (it doesn't print as transparent). Using a <a href="#schemes">color scheme</a> removes the glass, as described in <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">this video tutorial</a> (note that if you use glass panes, you should remove those, too). The downside of removing glass is that costs usually go up, since rooms won't then get removed by hollowing.
 <LI>Does filling in the tunnels look better? I'll try the option "Fill in isolated tunnels in base of model" and see how things look on the outside: do I mind having these tunnels filled in? I'll also check the cost and see how much money this option saves me (the price is always lower).
 <LI>Should I use the <a href="#lesser">"Export lesser blocks" option</a>? If I have fine details I think would look cool and I don't think they'll break off in printing, then I turn it on.
-<LI>Should I use another texture pack? I'm still experimenting in this area, and in practice the printing process won't pick up on many fine details (I'm guessing about 8x8 pixel resolution detail at 2 mm/block; at 3 mm/block the details show up well), but certainly the colors and contrast of a texture pack makes a difference. See <a href="#terrain_png">this section</a> about how to get and use terrain.png files.
+<LI>Should I use another texture pack? I'm still experimenting in this area, and in practice the printing process won't pick up on many fine details (I'm guessing about 8x8 pixel resolution detail at 2 mm/block; at 3 mm/block the details show up well), but certainly the colors and contrast of a texture pack makes a difference. See <a href="#terrain_png">this section</a> about how to get and use terrainExt.png files.
 </UL>
 
 <P><H2><A NAME="troubleshooting">
@@ -179,7 +179,7 @@ Color schemes allows you to change the color for any block, and - extremely usef
 <P>
 How do use a color scheme: From the menu, Add a new color scheme, then Edit it. Change the name "Color Scheme" at the top of the dialog that pops up to something useful, then select any block type to edit it. Color is given in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal color format</a>. You can use <a href="http://www.mirekw.com/winfreeware/mwsnap.html">MWSnap</a> (old but free), <a href="http://www.faststone.org/FSCapturerDownload.htm">FastStone Capture</a> (new but costs $20), or other programs to find the hexadecimal (e.g. #787878) color value of any pixel on your screen. 'Alpha' says how opaque a block will appear on the screen, with 255 meaning fully opaque and 0 meaning fully transparent (invisible). <I>Blocks with an alpha of 0 will be deleted when exporting.</I> You can turn off export of <i>all</i> blocks by using the "Hide All Blocks" button. This feature allows you to create separate parts, e.g. a glass roof could be created by then turning on just glass export.
 <P>
-Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrain.png itself.
+Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself.
 
 <P><H2><A NAME="select">
 Selecting a Region
@@ -296,13 +296,13 @@ By putting these numbers in the 6 coordinate boxes, you can easily continue to w
 <b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 <P>
 <a NAME="terrain_png">
-<b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrain.png file (look at the start of this page for more info), reading this file to create full textures for each block, as possible. Some blocks, such as fire, do not have any texture in the terrain.png image, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
+<b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file (look at the start of this page for more info), reading this file to create full textures for each block, as possible. Some blocks, such as the brewing stand, are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
 <P>
-The one file you may want to change is the terrain.png file that comes with Mineways, which is from the <a href="http://vokselia.com">Ancient Roots</a> texture pack; I did not want to distribute the original Minecraft default texture pack, though I think it's better for 3D printing (higher contrast). Minecraft itself and all <a href="http://www.minecraftwiki.net/wiki/Texture_Packs">texture packs</a> make their own terrain.png files. If you unzip minecraft.jar, you'll find the default terrain.png in there. If you unzip a <a href="http://www.minecraftwiki.net/wiki/Texture_Packs">texture pack</a>, you'll see the terrain.png inside. You can also find these by searching <a href="https://www.google.com/search?q=terrain.png&hl=en&rlz=1C1ARAB_enUS470US470&site=webhp&prmd=imvns&tbm=isch&tbo=u&source=univ&sa=X&ei=mms6T9TYLqrz0gHmhaDTCw&ved=0CCoQsAQ&biw=1594&bih=948">Google Images</a>, though many are dated. To select a different terrain.png file, use the "Select terrain.png for export" under the File menu. If you have a terrain.png file you would always like to use by default, copy it into the directory where mineways.exe is located, replacing the one that is there.
+The one file you may want to change is the terrainExt.png file that comes with Mineways. Minecraft itself and all <a href="http://www.minecraftwiki.net/wiki/Texture_Packs">texture packs</a> make their own terrainExt.png files. If you unzip minecraft.jar, you'll find the tiles used in assets\minecraft\textures\blocks. <B>TODO:</B> To select a different terrainExt.png file, use the "Select terrainExt.png for export" under the File menu. If you have a terrainExt.png file you would always like to use by default, copy it into the directory where mineways.exe is located, replacing the one that is there.
 
 <TABLE>
 <tr colspan="7">
-Here are some of the texture pack terrain.png files distributed with Mineways, displayed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>. Click on an image for the larger version.
+Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>. Click on an image for the larger version.
 </tr>
 
 <tr>
@@ -366,7 +366,7 @@ The effective 3D print resolution of textures appears to be around maybe 10x10 f
 <P>
 <TABLE>
 <tr colspan="3">
-<b>Texture resolution:</b> The image on the left was made using <a href="http://www.minecraftforum.net/topic/45534-glimmars-steampunk-v37132x12-animated-cogs-alchemy-at-work-in-a-dark-victorian-industrial-world-updated-28thfeb-fixes-64x-waterlavaetc/">Glimmar's Steampunk terrain.png</a> and printed at 2 mm/block. It appears that the glass cube grillwork texture has some synchronization problem with the printer, causing the pattern to sometimes print out incorrectly. The middle image is printed at 3 mm/block and shows the original 16x16 TNT tile; however, at both ends the fidelity becomes poor. On the right, from <a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">Alexander Boden</a>, a 5 mm/block print clearly shows details such as cobblestone and tree bark. Click on an image for higher resolution versions.
+<b>Texture resolution:</b> The image on the left was made using <a href="http://www.minecraftforum.net/topic/45534-glimmars-steampunk-v37132x12-animated-cogs-alchemy-at-work-in-a-dark-victorian-industrial-world-updated-28thfeb-fixes-64x-waterlavaetc/">Glimmar's Steampunk terrainExt.png</a> and printed at 2 mm/block. It appears that the glass cube grillwork texture has some synchronization problem with the printer, causing the pattern to sometimes print out incorrectly. The middle image is printed at 3 mm/block and shows the original 16x16 TNT tile; however, at both ends the fidelity becomes poor. On the right, from <a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">Alexander Boden</a>, a 5 mm/block print clearly shows details such as cobblestone and tree bark. Click on an image for higher resolution versions.
 </tr>
 <tr>
 <td>
@@ -383,17 +383,14 @@ The effective 3D print resolution of textures appears to be around maybe 10x10 f
 </td>
 </tr>
 </TABLE>
-<P>
 
-<P>
-Note to terrain.png experts: I do use the four tiles in the rightmost column, at the bottom, for water and lava (water, stationary water, lava, stationary lava). Many texture pack terrain.png files do not have lava, water, and fire tiles that are valid. Mineways detects this and replaces with a solid color - if you want textures for these, replace the tiles in the terrain.png file. Algorithm: if the water tile at 16,13 (column and row from upper left, in <a href="http://www.minecraftwiki.net/wiki/File:TerrainGuide.png">the 16x16 array</a>) is fully semitransparent and the lava tile at 16,15 is fully opaque, we assume the terrain.png file has good water tiles at 16,13 and 16,14, good lava at 16,15 and 16,16, and good fire at 16,2.
 <P>
 One warning: 128x128 and larger tile texture packs will work (and will take awhile to process), but previewing these files in <a href="#previewing">an interactive viewer</a> may not work. This is because DirectX and OpenGL has limitations on the maximum texture size. These texture files should display fine in offline renderers.
 <P>
-Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a more blocky look, take your terrain.png file and resize it to be say 4x larger in both directions; alternately, resize the texture(s) that Mineways exports. Make sure you just use a "pixel resize" without any filtering. You also want to check if your image filtering program deals with alpha support correctly (Irfanview doesn't, for example). <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">Download this example</a> and use it in place of the terrain.png in your Mineways program directory to see the difference. From experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
+Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a more blocky look, take your terrainExt.png file and resize it to be say 4x larger in both directions; alternately, resize the texture(s) that Mineways exports. Make sure you just use a "pixel resize" without any filtering. You also want to check if your image filtering program deals with alpha support correctly (Irfanview doesn't, for example). <I>DEPRECATED:</I> <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">Download this example</a> and use it in place of the terrain.png in your Mineways program directory to see the difference. From experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
 <TABLE>
 <tr colspan="2">
-On the left, the basic 256x256 terrain.png file is used; on the right, the input terrain.png image is resized (without filtering) to <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">1024x1024</a>.
+On the left, the basic 256x256 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">1024x1024</a>.
 </tr>
 <tr>
 <td>
@@ -671,8 +668,8 @@ If you are already happy with your result, you can select "Image -> Save as Imag
 <P>
 9) <b>Fixing transparency:</b> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
 <P>
-<img src="images/blender_txr.jpg">
-<img src="images/blender_txr2.jpg">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr.jpg">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr2.jpg">
 <P>
 If only a Kd texture is listed, go to the next mesh in the Scene tree at the top (by clicking on it). If there is also a D texture (outlined in green above), uncheck the box for this texture. Then click on the texture just above the "D" texture, it starts with "Kd". Once selected, scroll down to the "Influence" section and open it up. Under "Diffuse:" check the "Alpha: 1.000" box to enable it. Now cutouts should display correctly when rendered (but will still look bad in the interactive scene). You will need to do this for every mesh, unless you exported just one material as I suggested at the start, in which case you're done!
 <P>
@@ -891,7 +888,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
-</li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to dig out the terrain.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
+</li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to dig out the terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
 
 </li><li><a href="http://minetoys.com/">MineToys</a> and the <a href="http://www.minefield.fr/minecon/">MineCon Shop</a> (French) offer 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
 
@@ -949,7 +946,7 @@ If you want to test particular blocks to see what they look like, use the <a hre
 <P>
 Mineways does not support export of biome colors, paintings, characters, or creatures.
 <P>
-All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes. The table below outlines the rest. "Flatten" means a billboard like a flower, etc., is flattened to be a decal on the block below. Sometimes a special tile is used in the terrain.png that Minecraft doesn't normally use (or currently use, but used to do so). If you use a custom terrain.png file, these blocks then need special texture support from you.
+All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes. The table below outlines the rest. "Flatten" means a billboard like a flower, etc., is flattened to be a decal on the block below, since such objects are too thin to be 3D printed.
 <TABLE border="1">
 <tr>
 <td>
@@ -1002,7 +999,7 @@ Lava (#10)
 <center>Proper geometry</center>
 </td>
 <td>
-Tiles 15,12 and 15,14 on terrain.png (0,0 is upper left) are used for these textures.
+The bottommost tile found in Minecraft's water_still.png and lava_still.png are used for these blocks.
 </td>
 </tr>
 
@@ -1125,7 +1122,7 @@ Fire (#51)
 <center>Block with texture</center>
 </td>
 <td>
-Tile 15,1 on terrain.png (0,0 is upper left) is used for the texture.
+The bottommost tile found in Minecraft's fire_layer_0.png is used for this block.
 </td>
 </tr>
 
@@ -1143,13 +1140,13 @@ Stairs (#53, #67, #108, #109, #114, #128, #134, #135, #136)
 <center>True stairs</center>
 </td>
 <td>
-Note that 1.4 beta connects stairs differently.
+Note that Minecraft 1.4 connects stairs differently. If you have a pre-1.4 world, use Mineways 2.22 to export it.
 </td>
 </tr>
 
 <tr>
 <td>
-Chests (#54, #95)
+Chests (#54, #95, #146)
 </td>
 <td>
 <center>Full block</center>
@@ -1161,7 +1158,7 @@ Chests (#54, #95)
 <center>Full block</center>
 </td>
 <td>
-The old textures in terrain.png are used, so newer 1.3 texture packs mess this up.
+Not supported properly, the chest textures are hacked into terrainExt.png. Also note the top of a long chest is incorrect.
 </td>
 </tr>
 
@@ -1313,15 +1310,16 @@ Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
 Portal (#90)<br>End Portal (#119)
 </td>
 <td>
-<center>Colored block</center>
+<center>True geometry</center>
 </td>
 <td>
-<center>Colored block</center>
+<center>True geometry</center>
 </td>
 <td>
-<center>Colored block</center>
+<center>True geometry</center>
 </td>
 <td>
+Uses the last tile in the Minecraft portal.png texture.
 </td>
 </tr>
 
@@ -1459,6 +1457,7 @@ Brewing Stand (#117)
 <center>Beige block</center>
 </td>
 <td>
+Someday! <a href="http://code.google.com/p/j-mc-2-obj/">Jmc2obj</a> has it.
 </td>
 </tr>
 
@@ -1512,7 +1511,7 @@ Ender Chest (#130)
 <center>Full block</center>
 </td>
 <td>
-Faked by using tiles in rows 13 and 14 in terrain.png.
+Not supported properly, the chest textures are hacked into terrainExt.png.
 </td>
 </tr>
 
@@ -1606,24 +1605,6 @@ Heads use <a href="http://www.minecraftwiki.net/wiki/Tile_entity">tile entity da
 </td>
 </tr>
 
-<tr>
-<td>
-Trapped Chest (#146) through Block of Coal (#173)
-</td>
-<td>
-<center>Some related old texture tile</center>
-</td>
-<td>
-<center>Some related tile</center>
-</td>
-<td>
-<center>Some related tile; activator rail is wedged</center>
-</td>
-<td>
-Heads use <a href="http://www.minecraftwiki.net/wiki/Tile_entity">tile entity data</a>, which Mineways doesn't support.
-</td>
-</tr>
-
 </TABLE>
 
 
@@ -1634,18 +1615,6 @@ Find a bug? First, make sure you have the latest version installed, and check <a
 <LI>Superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, caused by internal tunnels. "Delete floating objects" currently does not remove these. The workaround is to use "fill in isolated tunnels", or to just let these separate little chunks print and pay a bit more for them. The real fix to add to the code is to search the whole model again for groups and delete the small groups.
 <LI>Sometimes the selected area is not cleared from the screen itself. This will happen when you select, scroll to a new place, select, then scroll back. Easy to fix: just switch lighting on and off, hit 'L' and 'L' again. Or, reload with 'R'.
 <LI>ZLIB: for some weird reason I need to link to two different versions of the ZLIB library. It's some problem with <a href="http://en.wikipedia.org/wiki/Name_mangling">name mangling</a>, but I don't know what. Things work fine, but this is dumb (on my part, I would guess). Help appreciated!
-</UL>
-
-<h2><A NAME="wishlist">Wishlist</a></h2>
-This is my own wishlist; if you really want a feature, add it yourself! I'm busy writing a book in my spare time so don't have a lot of cycles to spare for this project.
-<UL>
-<LI>Texture packs: really, there's no reason to force the user to extract the terrain.png file from the texture pack. I should have the code look for the texture packs available and let the user pick, pulling out the terrain.png needed. The only tiny downside is that I've modified the default terrain.png a tiny bit so that any flames output for rendering will actually look like flames, vs. "FIRE TEX!"
-<LI>Now with jungles appearing, vines really should work better. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching.
-<LI>Proper "lesser" block merging: right now smaller blocks such as slabs are exported without any care taken to merge them properly with surrounding blocks. Basically, I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does not, such as Shapeways and standalone ZPrinter software; even Sculpteo occasionally makes mistakes. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would fix this problem.
-<LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API (not out yet): Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
-<LI>Schematic file import: some players store their creations in <a href="http://www.minecraftwiki.net/wiki/Schematic_File_Format">schematic files</a>. You can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
-<LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. To port, there's some old <a href="http://seancode.com/minutor/">minutor</a> platform-independent code (colorschemes.c, mapviewer.c, Mineways.c) in the topmost source directory, but I haven't touched it. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
-<LI>Better color selection: <a href="http://bugs.seancode.com/show_bug.cgi?id=13">this is a weakness</a> with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a> and the alpha.
 </UL>
 
 <h2><A NAME="versions">Version History</a></h2>
@@ -1695,7 +1664,27 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.20, 11/30/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV220.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>Major feature addition: schematic export</B>. See <a href="#schematic">the relevant documentation</a> for more information. Added version number to output file's comment header, to help in debugging. Fixed physical material name in output file's comment header (was printing just one character instead of the string). Fixed error message warning of bad blocks: further code added to handle this problem (thanks to Josh Smith for pointing out the problem). There is now an "unknown block" type that will show up on the map and on export, which looks like bedrock. As usual, you can remove these blocks by using a color scheme. Fixed bedrock properties (was listed as having transparency).
 <LI>Version 2.21, 12/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV221.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Stupid bug fix: I managed to break rendering support a bit, causing export to use the printing code path (slower and unnecessary). Now it works again. Minor feature addition: Sculpteo exports now have a somewhat better price displayed, but since I don't know their formula it's still pretty approximate.
 <LI>Version 2.22, 1/21/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Bug fix: sometimes unknown blocks caused a timing error, making the "bad block" message repeat many times. Fixed, I believe... <I>(thanks to Michael Leone for reporting this bug)</I>
-<LI>Version 2.23, 9/3/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV223.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Enable stairs to join together under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.</UL>
+<LI>Version 2.23, 9/3/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV223.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Enable stairs to join together under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.
+
+<LI><B>Version 3.0</B>, 10/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways 1.15</a>. <B>Changes:</B> began TileMaker project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme’s air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you’ll never notice.
+</UL>
+
+<h2><A NAME="wishlist">Wishlist</a></h2>
+This is my own wishlist, in order of interest; if you really want a feature, add it yourself! I'm busy writing a book in my spare time so don't have a lot of cycles to spare for this project.
+<UL>
+<LI>Create your own input terrainExt.png files from texture packs, and include some pre-made conversions.
+<LI>1.7+ export, and improve existing block support.
+<LI>64 bit support: export much larger chunks.
+<LI>Schematic file import: some players store their creations in <a href="http://www.minecraftwiki.net/wiki/Schematic_File_Format">schematic files</a>. You can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
+<LI>Command line control: useful for reusing settings.
+<LI>Various blocks need improvement: brewing stand, beacon, etc.
+<LI>Vines really should work better. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching.
+<LI>Proper "lesser" block merging: right now smaller blocks such as slabs are exported without any care taken to merge them properly with surrounding blocks. Basically, I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does not, such as Shapeways and standalone ZPrinter software; even Sculpteo occasionally makes mistakes. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
+<LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API (not out yet): Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
+<LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. To port, there's some old <a href="http://seancode.com/minutor/">minutor</a> platform-independent code (colorschemes.c, mapviewer.c, Mineways.c) in the topmost source directory, but I haven't touched it. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
+<LI>Better color selection: <a href="http://bugs.seancode.com/show_bug.cgi?id=13">this is a weakness</a> with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a> and the alpha.
+</UL>
+
 <p>
 That's it - have fun!
 
@@ -1703,7 +1692,7 @@ That's it - have fun!
 <P><H2><A NAME="offsite">Links</a></H2>
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 2.23, updated 9/3/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.0, updated 10/11/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. <I>DEPRECATED:</I> The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)

@@ -6,7 +6,7 @@
 **http://vokselia.com**
 
 [Visit the project homepage](http://mineways.com/index.htm) for documentation links, credits, etc.
-[Here is a link to minatour where most of the original source code came from.](http://seancode.com/minutor/)
+[Here is a link to minutor where most of the original source code came from.](http://seancode.com/minutor/)
 
 You need to pick the right version of Mineways, depending on your version of Minecraft:
 
@@ -26,40 +26,7 @@ Compiling
 * Windows - (You can compile this with Visual Studio Express 2010)
 Open Minewayswin.sln in Visual C++, switch the target to Release, compile the solution to
 		`generate Mineways.exe`
-Run make_installer.bat to make the Mineways.msi installer.
-(This part requires you to install WiX)
 
-* OSX -
-	Open Mineways.xcodeproj in XCode. Compile the solution to
-		generate Mineways.app
-	Run DiskUtility to create a dmg.  Put app in dmg.  :)
+Sorry, other platforms are not directly supported, though Mineways runs fine under [WINE](http://www.winehq.org/) and we also provide a Mac-specific version.
 
-* Linux -
-Run:
-```$ make```
-```$ sudo make install```
-Linux .deb creation -
-	first you need to create a pbuilder environment for Lucid (10.04 LTS).
-
-	```$ pbuilder-dist lucid create```
-
-	if you're on amd64 and want to create an i386 version, do this too:
-
-	```$ pbuilder-dist lucid i386 create```
-
-	once that's done, you won't need to do that again, except maybe
-	to run pbuilder-dist lucid update  to install new patches
-	Next we need to build the tar.gz and .dsc
-
-	```$ cd Mineways```
-	```$ debuild -S -us```
-
-	(`-us` means don't sign the .dsc)
-	Finally we want to compile the .dsc and tar.gz into a .deb
-
-	```$ cd ..```
-	```$ pbuilder-dist lucid build *.dsc```
-
-	and if we want to do it for i386 on amd64:
-
-	```$ pbuilder-dist lucid i386 build *.dsc```
+If you want to work on the mapping part of this program on another platform, see [Minutor](http://seancode.com/minutor/), which *is* supported on Mac and Linux.

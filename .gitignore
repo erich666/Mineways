@@ -23,3 +23,5 @@ Release
 Win/Debug
 Win/Release
 ipch
+TileMaker/tiles_*
+TileMaker/tiles/*.png*

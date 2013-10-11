@@ -68,8 +68,7 @@ static Options gOptions = {0,   // which world is visible
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
 static BOOL gSameWorld=FALSE;
-static wchar_t gSelectTerrain[MAX_PATH];				//path to selected terrain.png file, if any
-static wchar_t gSelectMinecraftJar[MAX_PATH];			//path to MinecraftJar
+static wchar_t gSelectTerrain[MAX_PATH];				//path to selected terrainExt.png file, if any
 static BOOL gLoaded=FALSE;								//world loaded?
 static double gCurX,gCurZ;								//current X and Z
 static int gLockMouseX=0;                               // if true, don't allow this coordinate to change with mouse, 
@@ -133,10 +132,10 @@ static struct {
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
     {_T("No solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
     {_T("All solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
-    {_T("Error: no terrain.png file found.\n\nPlease put a terrain.png file in the same directory as mineways.exe. If this doesn't work, please use the 'File|Select terrain.png for export' menu item and pick the terrain.png file.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
+    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
     {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
-	{_T("Error: the incoming terrain.png file resolution must be a power of two (e.g. 256x256), square, and at least 16x16."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
+	{_T("Error: the incoming terrainExt.png file resolution must be a power of two horizontally, and at least 16 pixels wide."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
 	{_T("Error: the width, height, and length of the model area must all be < 65536"), _T("Export error"), MB_OK|MB_ICONERROR},	//12
 };
 
@@ -147,7 +146,6 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
-static void minecraftJarPath(TCHAR *path);
 static void worldPath(TCHAR *path);
 static void mcPathMac(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
@@ -173,8 +171,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 {
     GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
     gSelectTerrain[0] = (wchar_t)0;
-
-	minecraftJarPath( gSelectMinecraftJar );
 
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
@@ -1192,7 +1188,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ofn.lpstrFile=path;
             //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
-            ofn.lpstrFilter=L"Terrain file terrain.png\0*.png\0";
+            ofn.lpstrFilter=L"Terrain file terrainExt.png\0*.png\0";
             ofn.nFilterIndex=1;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
@@ -1779,12 +1775,12 @@ static int loadWorld()
     return 0;
 }
 
-static void minecraftJarPath(TCHAR *path)
-{
-	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
-	PathAppend(path,L".minecraft");
-	PathAppend(path,L"bin");
-}
+//static void minecraftJarPath(TCHAR *path)
+//{
+//	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
+//	PathAppend(path,L".minecraft");
+//	PathAppend(path,L"bin");
+//}
 
 static void worldPath(TCHAR *path)
 {
@@ -2225,7 +2221,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
         int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-            updateProgress, terrainFileName, &outputFileList, gSelectMinecraftJar, (int)gMajorVersion, (int)gMinorVersion );
+            updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion );
 
 		// note how many files were output
 		retCode = outputFileList.count;
