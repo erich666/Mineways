@@ -2234,10 +2234,10 @@ static void multiplyMtx(float mtx1[4][4],float mtx2[4][4])
 }
 static void translateMtx(float mtx[4][4], float tx, float ty, float tz)
 {
-    float tmtx[4][4];
-    identityMtx( tmtx );
-    Vec3Scalar( tmtx[3], =, tx, ty, tz );
-    multiplyMtx( mtx, tmtx );
+	float tmtx[4][4];
+	identityMtx( tmtx );
+	Vec3Scalar( tmtx[3], =, tx, ty, tz );
+	multiplyMtx( mtx, tmtx );
 }
 // translates center of block to origin
 static void translateToOriginMtx(float mtx[4][4], int boxIndex)
@@ -2308,6 +2308,14 @@ static void rotateMtx(float mtx[4][4], float xAngle, float yAngle, float zAngle 
             multiplyMtx(mtx,rmtx);
         }
     }
+}
+static void shearMtx(float mtx[4][4], float shx, float shy)
+{
+	float shmtx[4][4];
+	identityMtx( shmtx );
+	shmtx[0][2] = shx;
+	shmtx[1][2] = shy;
+	multiplyMtx( mtx, shmtx );
 }
 static void transformVertices(int count,float mtx[4][4])
 {
@@ -3900,6 +3908,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break;
 
+	case BLOCK_BEACON:
+		saveBoxGeometry( boxIndex, BLOCK_GLASS, 1, 0x0, 0,16, 0,16, 0,16);
+		saveBoxGeometry( boxIndex, BLOCK_BEACON, 1, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
+		saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 1, 0x0, 2,14, 0,3, 2,14);
+		break;
+
 	case BLOCK_DAYLIGHT_SENSOR:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;	// 6,15
@@ -4295,7 +4309,7 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 		    switch (faceDirection)
 		    {
 			default:
-		    case DIRECTION_BLOCK_SIDE_LO_X:
+		    case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
 				vindex[0] = 0x2|0x1;	// ymax, zmax
 				vindex[1] = 0x2;		// ymax, zmin
 			    vindex[2] = 0;			// ymin, zmin
@@ -4309,7 +4323,7 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
                 if ( useRotUVs )
                     reverseLoop = 1;
 			    break;
-		    case DIRECTION_BLOCK_SIDE_HI_X:
+		    case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
 				vindex[0] = 0x4|0x2;		// ymax, zmin
 				vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
 			    vindex[2] = 0x4|0x1;		// ymin, zmax
@@ -4319,7 +4333,7 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 			    minv = (float)minPixY/16.0f;
 			    maxv = (float)maxPixY/16.0f;
 			    break;
-		    case DIRECTION_BLOCK_SIDE_LO_Z:
+		    case DIRECTION_BLOCK_SIDE_LO_Z:	
 				vindex[0] = 0x2;		// xmin, ymax
 				vindex[1] = 0x4|0x2;	// xmax, ymax
 			    vindex[2] = 0x4;		// xmax, ymin
@@ -4653,8 +4667,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 				vertShift = 0.0f;
 
             // width is space between parallel billboards
-            // Fire goes to the edge of the block.
-            texelWidth = (billboardType == BB_FIRE) ? 1.0f : 0.5f;
+            // Fire goes to almost the very edge of the block (by not going to the very edge, this stops z-fighting with neighboring blocks).
+            texelWidth = (billboardType == BB_FIRE) ? 0.995f : 0.5f;
 			// NOTE: we don't actually use billboards for cactus, but if we did, this is what we'd do.
 			// We don't use it because thorns should show up on front faces only.
 			if ( type == BLOCK_CACTUS )
@@ -4951,7 +4965,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		float mtx[4][4];
 		int torchVertexCount = gModel.vertexCount;
 		// add a tip to the torch, shift it one texel in X
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 0,10, 8,10);
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 8,10);
 		torchVertexCount = gModel.vertexCount - torchVertexCount;
 		identityMtx(mtx);
 		translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f);
@@ -4959,6 +4973,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 
         if ( dataVal != 5 )
         {
+			static float shr = -0.8f/2.0f;
+			static float trans = 8.0f/16.0f;
             float yAngle;
             switch (dataVal)
             {
@@ -4985,8 +5001,9 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             // this moves block up so that bottom of torch is at Y=0
             // also move to wall
             translateMtx(mtx, 0.0f, 0.5f, 0.0f );
-            rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
-            translateMtx(mtx, 0.0f, 0.0f, 8.0f/16.0f );
+			//rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
+			shearMtx(mtx, 0.0f, shr);
+            translateMtx(mtx, 0.0f, 0.0f, trans );
             rotateMtx(mtx, 0.0f, yAngle, 0.0f);
             // undo translation, and kick it up the wall a bit
             translateMtx(mtx, 0.0f, -0.5f + 3.8f/16.0f, 0.0f);
@@ -4994,6 +5011,42 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             transformVertices(totalVertexCount,mtx);
         }
     }
+	else if ( billboardType == BB_FIRE )
+	{
+		int face;
+		for ( face = 0; face < 8; face++ )
+		{
+			// add sheared "cross flames" inside, 8 in all
+			float mtx[4][4];
+			int fireVertexCount = gModel.vertexCount;
+			// add a tip to the torch, shift it one texel in X
+			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 
+				(face < 4 ) ? DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT : DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT,
+				0, 0,16, 0,16, 0,0);
+			fireVertexCount = gModel.vertexCount - fireVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			shearMtx(mtx, 0.0f, (face<4) ? 3.5f/8.0f : -3.5f/8.0f );
+			translateMtx(mtx, 0.0f, 0.0f, -8.0f/16.0f);
+			switch ( face % 4 )
+			{
+			case 0:
+				break;
+			case 1:
+				rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+				break;
+			case 2:
+				rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
+				break;
+			case 3:
+				rotateMtx(mtx, 0.0f, 270.0f, 0.0f);
+				break;
+			}
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(fireVertexCount,mtx);
+		}
+	}
+
     //identityMtx(mtx);
     //translateToOriginMtx(mtx, boxIndex);
     //// this moves block up so that bottom of sign is at Y=0
@@ -10650,16 +10703,19 @@ static int createBaseMaterialTexture()
             }
         }
 
-        // test if water tile is semitransparent throughout - if not, then we don't want to use water, lava, and file tiles.
-        if ( tileIsSemitransparent( &gModel.inputTerrainImage, 15,13 ) &&
-             tileIsOpaque( &gModel.inputTerrainImage, 15,15 ) )
+        // OLD: test if water tile is semitransparent throughout - if not, then we don't want to use water, lava, and fire tiles.
+        if ( tileIsSemitransparent( &gModel.inputTerrainImage, gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ) &&
+             tileIsOpaque( &gModel.inputTerrainImage, gBlockDefinitions[BLOCK_LAVA].txrX, gBlockDefinitions[BLOCK_LAVA].txrY ) )
         {
             // Water is special, and we want to provide more user control for it, to be able to give a deep
             // blue, etc. We therefore blend between the water texture and the water swatch based on alpha:
             // the higher the alpha (more opaque) the water color is set, the more it contributes to the
             // water texture.
-            blendTwoSwatches( mainprog, SWATCH_INDEX( 15,13 ), BLOCK_WATER, gBlockDefinitions[BLOCK_WATER].alpha,
-                    (gOptions->exportFlags & EXPT_3DPRINT) ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );
+            blendTwoSwatches( mainprog, 
+				SWATCH_INDEX( gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ),	// texture to blend
+				BLOCK_WATER,	// solid to blend
+				gBlockDefinitions[BLOCK_WATER].alpha,	// how to blend the two (lower alpha will use the solid color less)
+                (gOptions->exportFlags & EXPT_3DPRINT) ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );	// alpha to always assign and use
         }
         else
         {

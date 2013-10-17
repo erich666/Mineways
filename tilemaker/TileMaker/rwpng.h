@@ -46,6 +46,8 @@ typedef struct _progimage_info {
 	char *url;
 	int color_type; //PNG_COLOR_TYPE_RGB_ALPHA
 	int bit_depth;
+	int channels;
+	int rowbytes;
 	int interlaced;
 	int have_bg;
 	int have_time;

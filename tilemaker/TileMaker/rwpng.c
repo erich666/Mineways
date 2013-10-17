@@ -31,7 +31,7 @@ static void writepng_error_handler(png_structp png_ptr, png_const_charp msg);
 
 void readpng_version_info(void);
 
-int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *pColorType, png_structp *ppng_ptr, png_infop *pinfo_ptr);
+int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *pColorType, int *pInterlaceMethod, png_structp *ppng_ptr, png_infop *pinfo_ptr);
 
 int readpng_get_bgcolor(int bit_depth, int color_type, unsigned char *red, unsigned char *green, unsigned char *blue, png_structp png_ptr, png_infop info_ptr);
 
@@ -48,7 +48,6 @@ unsigned char *readpng_get_image(int height, int bit_depth, int color_type, doub
 int readpng(progimage_info *mainprog_ptr, wchar_t *filename)
 {
 	int err;
-	int channels, rowbytes;
 	int rc;
 
 	mainprog_ptr->infile = NULL;
@@ -61,7 +60,7 @@ int readpng(progimage_info *mainprog_ptr, wchar_t *filename)
 	}
 
 	rc = readpng_init(mainprog_ptr->infile, &mainprog_ptr->width, &mainprog_ptr->height,
-		&mainprog_ptr->bit_depth,&mainprog_ptr->color_type,&mainprog_ptr->png_ptr,&mainprog_ptr->info_ptr);
+		&mainprog_ptr->bit_depth,&mainprog_ptr->color_type,&mainprog_ptr->interlaced,&mainprog_ptr->png_ptr,&mainprog_ptr->info_ptr);
 
 	if ( rc != 0 )
 	{
@@ -87,7 +86,8 @@ int readpng(progimage_info *mainprog_ptr, wchar_t *filename)
 		return rc;
 	}
 
-	mainprog_ptr->image_data = readpng_get_image(mainprog_ptr->height, mainprog_ptr->bit_depth, mainprog_ptr->color_type, 2.2, &channels, &rowbytes, mainprog_ptr->png_ptr, mainprog_ptr->info_ptr);
+	mainprog_ptr->image_data = readpng_get_image(mainprog_ptr->height, mainprog_ptr->bit_depth, mainprog_ptr->color_type, 2.2,
+		&mainprog_ptr->channels, &mainprog_ptr->rowbytes, mainprog_ptr->png_ptr, mainprog_ptr->info_ptr);
 
     fclose(mainprog_ptr->infile);
 
@@ -165,11 +165,11 @@ void readpng_version_info(void)
 
 /* return value = 0 for success, 1 for bad sig, 2 for bad IHDR, 4 for no mem */
 
-int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *pColorType, png_structp *ppng_ptr, png_infop *pinfo_ptr)
+int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *pColorType, int *pInterlaceMethod, png_structp *ppng_ptr, png_infop *pinfo_ptr)
 {
     unsigned char sig[8];
 	png_uint_32 width, height;
-	int bit_depth, color_type;
+	int bit_depth, color_type, interlace_method;
 	png_structp png_ptr;
 	png_infop info_ptr;
 
@@ -220,11 +220,12 @@ int readpng_init(FILE *infile, int *pWidth, int *pHeight, int *pBitDepth, int *p
      * compression_type and filter_type => NULLs] */
 
     png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type,
-      NULL, NULL, NULL);
+      &interlace_method, NULL, NULL);
     *pWidth = width;
     *pHeight = height;
 	*pBitDepth = bit_depth;
 	*pColorType = color_type;
+	*pInterlaceMethod = interlace_method;
 
 
     /* OK, that's all we need for now; return happy */

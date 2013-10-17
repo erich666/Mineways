@@ -68,7 +68,7 @@ deflated data is the chunk length - 1.
 #define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
 
 
-// directory: the base world directory, e.g. "/home/ryan/.minecraft/saves/World1/"
+// directory: the base world directory, e.g. "/home/ryan/.minecraft/saves/World1/" - note the trailing "/" is in place
 // cx, cz: the chunk's x and z offset
 // block: a 32KB buffer to write block data into
 // blockLight: a 16KB buffer to write block light into (not skylight)
@@ -99,7 +99,7 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 	}
 
     // open the region file - note we get the new mca 1.2 file type here!
-    swprintf_s(filename,256,L"%s/region/r.%d.%d.mca",directory,cx>>5,cz>>5);
+    swprintf_s(filename,256,L"%sregion/r.%d.%d.mca",directory,cx>>5,cz>>5);
 
     regionFile=PortaOpen(filename);
     if (regionFile == INVALID_HANDLE_VALUE)

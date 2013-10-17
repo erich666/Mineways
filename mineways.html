@@ -49,7 +49,7 @@
 <font face="verdana">
 
 <h1>General Information</h1>
-Mineways is a program for exporting Minecraft models for 3D printing or rendering. The <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">latest version</a> works with Minecraft 1.2 and later (<a href="http://www.minecraftwiki.net/wiki/Anvil_file_format">Anvil</a>); <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> works with Minecraft 1.1 and earlier (<a href="http://www.minecraftwiki.net/wiki/McRegion">McRegion</a>). The home page is <a href="http://realtimerendering.com/erich/minecraft/public/mineways/">here</a>. This page explains how to use Mineways effectively, with in-depth descriptions of the various options and related resources.
+Mineways is a program for exporting Minecraft models for 3D printing or rendering. The <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">latest version</a> works with Minecraft 1.2 and later (<a href="http://minecraft.gamepedia.com/Anvil_file_format">Anvil</a>); <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> works with Minecraft 1.1 and earlier (<a href="http://minecraft.gamepedia.com/McRegion">McRegion</a>). The home page is <a href="http://realtimerendering.com/erich/minecraft/public/mineways/">here</a>. This page explains how to use Mineways effectively, with in-depth descriptions of the various options and related resources.
 <P>
 <a href="#bugs">Check the bug list</a> if you have problems, and <a href="mailto:erich@acm.org">let me know</a> if you're still stuck. The program is open-source and is based on the (great) open-source mapping program <a href="http://seancode.com/minutor/">minutor</a> written by Sean Kasun - his work gave me a huge headstart. Mineways is a superset of his mapper, with a model exporter and other features added. I wrote this program just for fun, I'm not associated with Shapeways or Mojang. There are other print services besides <a href="http://shapeways.com">Shapeways</a> that work with Mineways, such as <a href="http://sculpteo.com/">Sculpteo</a>, <a href="http://i.materialise.com/">i.materialise</a> and <a href="http://ponoko.com">Ponoko</a>, as well as <a href="http://www.additive3d.com/3dpr_cht.htm">home 3D printers</a>, such as <a href="http://reprap.org/wiki/RepRap">RepRaps</a> and <a href="http://store.makerbot.com/thing-o-matic-kit-mk7.html">Thing-O-Matics</a> (<a href="http://wiki.makerbot.com/thingomatic">wiki</a>).
 <P>
@@ -68,6 +68,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><b><a href="#too_big">"My Model's Too Expensive!"</a></b> - how to keep it cheap.
  <LI><a href="#options">Export Options</a> - the various export options shown on the giant dialog.
  <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
+ <LI><a href="#tilemaker">TileMaker</a> - how to make your own terrainExt.png files.
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
   <LI><a href="#blender">Blender</a>
@@ -130,7 +131,7 @@ Once I've figured out what to capture, there are then a few steps I walk through
 <LI>Do I want to remove glass? If I want to look inside the building and it has glass in the windows, the glass should go (it doesn't print as transparent). Using a <a href="#schemes">color scheme</a> removes the glass, as described in <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">this video tutorial</a> (note that if you use glass panes, you should remove those, too). The downside of removing glass is that costs usually go up, since rooms won't then get removed by hollowing.
 <LI>Does filling in the tunnels look better? I'll try the option "Fill in isolated tunnels in base of model" and see how things look on the outside: do I mind having these tunnels filled in? I'll also check the cost and see how much money this option saves me (the price is always lower).
 <LI>Should I use the <a href="#lesser">"Export lesser blocks" option</a>? If I have fine details I think would look cool and I don't think they'll break off in printing, then I turn it on.
-<LI>Should I use another texture pack? I'm still experimenting in this area, and in practice the printing process won't pick up on many fine details (I'm guessing about 8x8 pixel resolution detail at 2 mm/block; at 3 mm/block the details show up well), but certainly the colors and contrast of a texture pack makes a difference. See <a href="#terrain_png">this section</a> about how to get and use terrainExt.png files.
+<LI>Should I use another texture pack? I'm still experimenting in this area, and in practice the printing process won't pick up on many fine details (I'm guessing about 8x8 pixel resolution detail at 2 mm/block; at 3 mm/block the details show up well), but certainly the colors and contrast of a texture pack makes a difference. See <a href="#terrain_png">this section</a> about how to create and use terrainExt.png files.
 </UL>
 
 <P><H2><A NAME="troubleshooting">
@@ -179,7 +180,7 @@ Color schemes allows you to change the color for any block, and - extremely usef
 <P>
 How do use a color scheme: From the menu, Add a new color scheme, then Edit it. Change the name "Color Scheme" at the top of the dialog that pops up to something useful, then select any block type to edit it. Color is given in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal color format</a>. You can use <a href="http://www.mirekw.com/winfreeware/mwsnap.html">MWSnap</a> (old but free), <a href="http://www.faststone.org/FSCapturerDownload.htm">FastStone Capture</a> (new but costs $20), or other programs to find the hexadecimal (e.g. #787878) color value of any pixel on your screen. 'Alpha' says how opaque a block will appear on the screen, with 255 meaning fully opaque and 0 meaning fully transparent (invisible). <I>Blocks with an alpha of 0 will be deleted when exporting.</I> You can turn off export of <i>all</i> blocks by using the "Hide All Blocks" button. This feature allows you to create separate parts, e.g. a glass roof could be created by then turning on just glass export.
 <P>
-Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself.
+Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself. See <a href="#tilemaker">TileMaker</a>.
 
 <P><H2><A NAME="select">
 Selecting a Region
@@ -222,7 +223,7 @@ The big difference between rendering and printing is that 3D print models <i>mus
 <P>
 <a NAME="schematic">
 Mineways' schematic export option</a> allows you to easily grab a volume of your world and turn it into a schematic file. This type of file is commonly used to share constructions among builders. Tools such as <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
-<a href="http://davidvierra.com/mcedit.html">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://www.minecraftwiki.net/wiki/Paintings">paintings</a> are not exported, and <a href="http://www.minecraftwiki.net/wiki/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. 
+<a href="http://davidvierra.com/mcedit.html">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. 
 <P><H3><A NAME="too_big">
 "My Model's Too Expensive!"
 </A></H3>
@@ -274,7 +275,7 @@ By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</
 <P>
 <B>ASCII text STL:</B> A variant for 3D printers, the file generated is considerably larger than the binary form and cannot include color. The main advantage is that this file type is a simple text file and so can be easily edited. The format is trivial and so can provide a raw set of triangles for a model.
 <P>
-<B>VRML97:</B> Also known as VRML2 or VRML 2.0. While this format has been superceded by <a href="http://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways uses for colored models. The *.wrl and *.png file created are put into a zip file and uploaded to Shapeways for printing - see more about this process <a href="#shapeways">below</a>. The VRML file produced is tailored towards making a single texture for printing. Note: Shapeways will properly preview all VRML output modes other than "solid material colors", where it has a limit of 16 different colors. These colored models will print fine, however.
+<I>VRML97:</I> Also known as VRML2 or VRML 2.0. While this format has been superceded by <a href="http://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways uses for colored models. The *.wrl and *.png file created are put into a zip file and uploaded to Shapeways for printing - see more about this process <a href="#shapeways">below</a>. The VRML file produced is tailored towards making a single texture for printing. Note: Shapeways will properly preview all VRML output modes other than "solid material colors", where it has a limit of 16 different colors. These colored models will print fine, however.
 
 <P><H3><A NAME="options">
 Export options
@@ -296,9 +297,11 @@ By putting these numbers in the 6 coordinate boxes, you can easily continue to w
 <b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 <P>
 <a NAME="terrain_png">
-<b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file (look at the start of this page for more info), reading this file to create full textures for each block, as possible. Some blocks, such as the brewing stand, are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
+<b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file, reading this file to create full textures for each block, as possible. Some blocks are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
 <P>
-The one file you may want to change is the terrainExt.png file that comes with Mineways. Minecraft itself and all <a href="http://www.minecraftwiki.net/wiki/Texture_Packs">texture packs</a> make their own terrainExt.png files. If you unzip minecraft.jar, you'll find the tiles used in assets\minecraft\textures\blocks. <B>TODO:</B> To select a different terrainExt.png file, use the "Select terrainExt.png for export" under the File menu. If you have a terrainExt.png file you would always like to use by default, copy it into the directory where mineways.exe is located, replacing the one that is there.
+The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. Mineways comes with a number of premade terrainExt.png files for you to try. If you have a terrainExt.png file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there.
+<P>
+To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a>.
 
 <TABLE>
 <tr colspan="7">
@@ -323,10 +326,6 @@ Here are some of the texture pack terrainExt.png files distributed with Mineways
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_lb_photo_realism.jpg"></a>
 </td>
 <td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_misa.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_misa.jpg"></a>
-</td>
-<td>
 <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_quandary_ar.jpg">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_quandary_ar.jpg"></a>
 </td>
@@ -348,9 +347,6 @@ Default Minecraft<br>textures, plus flame
 </td>
 <td>
 <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a><br>by Scuttles
-</td>
-<td>
-<a href="http://www.minecraftforum.net/topic/69354-64x1112pre12w06a-misas-realistic-texture-pack-updated-31jan/">Misa's Realistic Texture<br>Pack</a> by Misa
 </td>
 <td>
 <a href="http://vokselia.com">Quandary Ancient Roots</a>
@@ -387,7 +383,7 @@ The effective 3D print resolution of textures appears to be around maybe 10x10 f
 <P>
 One warning: 128x128 and larger tile texture packs will work (and will take awhile to process), but previewing these files in <a href="#previewing">an interactive viewer</a> may not work. This is because DirectX and OpenGL has limitations on the maximum texture size. These texture files should display fine in offline renderers.
 <P>
-Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a more blocky look, take your terrainExt.png file and resize it to be say 4x larger in both directions; alternately, resize the texture(s) that Mineways exports. Make sure you just use a "pixel resize" without any filtering. You also want to check if your image filtering program deals with alpha support correctly (Irfanview doesn't, for example). <I>DEPRECATED:</I> <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">Download this example</a> and use it in place of the terrain.png in your Mineways program directory to see the difference. From experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
+Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a more blocky look, take your terrainExt.png file and resize it to be say 4x larger in both directions - you can use the <a href="#tilemaker">TileMaker</a> program included with Mineways, or any other image manipulation program (I'd use a box filter, if possible). Note: from experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
 <TABLE>
 <tr colspan="2">
 On the left, the basic 256x256 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">1024x1024</a>.
@@ -450,7 +446,7 @@ Currently even extremely thin objects, such as sign posts and single fence posts
 <b>Individual blocks:</b></a> For rendering, you may want to have every block in the scene be a separate object. In this way you could have a character mine blocks, a creeper or TNT explode them, etc. By checking this box, every block is a separate object and so can be deleted, created, animated, etc., as you desire. This considerably increases file size, so use it only if you need it. If you run into memory/performance problems and have some small area you want to modify, export just that volume using this option, then export the rest of the scene without this option. You can use careful trimming, a <a href="#schemes">color scheme</a>, or simply removing the blocks using Minecraft itself, to avoid exporting the same blocks twice. You may want to turn off "Center Model" so that each export uses the same coordinates. Note that this option affects VRML export for printing, though is usually A Bad Idea, as the model is formed of individual blocks. <I>(thanks to Ryan Miller for the idea.)</I>
 <P>
 <a name="blocktestworld">
-If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://www.minecraftwiki.net/wiki/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
+If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
 Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>:
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/test_world.jpg">
@@ -612,6 +608,66 @@ The "show welds" option shows what blocks were added by the various "connect par
 <b>Key tip, worth repeating:</b> at the beginning of the model file itself (which is a text file, so can be viewed in any text editor) is a summary of various statistics, such as number of blocks generated, model dimensions, and cost (good to within a few cents).
 
 
+<P><H3><A NAME="tilemaker">
+TileMaker
+</A></H3>
+TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_Packs">resource packs</a> have their own block image files. You'll find your minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.6.4". If you unzip the Minecraft jar file there, e.g. 1.6.4.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
+<P>
+You can instead use other versions of any of these images. For example, you could download a <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">texture pack</a> - one made for version 1.6 or later (before that version a different format is used, but older texture packs can be converted with a little work). Note that the <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">Minepedia listing</a> often doesn't have the latest version supported; go to the pack's site itself.
+<P>
+As an example, say you download <a href="http://www.minecraftforum.net/topic/115061-16x-mc164-coterie-craft-v4s30-updated-91513/">Coterie Craft</a>. The zip file, similar to the Minecraft jar, will have a directory ""assets\minecraft\textures\blocks". Put these in some directory, call it "blocks". Make this directory where TileMaker.exe is located (this specific location isn't necessary, just easier).
+<P>
+To use these blocks in Mineways instead of the defaults, you make your own terrainExt.png file. In this same directory you should see a terrainBase.png file, and the "blocks" directory you made of the Coterie blocks.
+<P>
+With terrainBase.png and "blocks" in place in the same directory, run the TileMaker by double-clicking on it.
+<P>
+What TileMaker does by default is pretty simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), then writes out this new image as terrainExt.png. You then can use this terrainExt.png in Mineways by using the "File -> Select Terrain File (terrainExt.png)" command. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size.
+<P>
+There are many options available for doing more elaborate operations, but you need to run TileMaker from the  <a href="http://www.bleepingcomputer.com/tutorials/windows-command-prompt-introduction/">command line</a>. In the command line you use "cd" to go to the directory where the TileMaker.exe file is located, then do something like this:
+<PRE>
+TileMaker -d blocks_doku -o terrainExtDoku.png
+</PRE>
+The "-d directory" option tells TileMaker to use this directory instead of "blocks" for the images you want to overlay. The "-o filename" tells it to write the resulting image to the filename given.
+<P>
+Here is a rundown of the other TileMaker options and their uses. To get a reminder of these, type:
+<PRE>
+TileMaker -?
+</PRE>
+on the command line.
+<PRE>
+TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
+        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]
+</PRE>
+<P>
+  -i terrainBase.png - image containing the base set of terrain blocks
+    (includes special chest tiles). Default is 'terrainBase.png'.
+<P>
+  -d blocks - directory of block textures to overlay on top of the base.
+    Default directory is 'blocks'.
+<P>
+  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is
+    terrainExt.png.
+<P>
+  -t tileSize - force a power of 2 tile size for the resulting terrainExt.png
+    file, e.g. 32, 128. Useful for zooming or making a "draft quality"
+    terrainExt.png. If not set, the largest tile found in the base or blocks directory is used.
+<P>
+  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),
+    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;
+    -1 bottommost, -2 next to bottom.
+<P>
+  -nb - no base; the base texture terrainBase.png is not read. This option is good for seeing what images are
+    in the blocks directory, as these are what get put into terrainExt.png. This terrainExt.png file is probably not usable as-is, since terrainBase.png contains some special tiles, such as those for the chests.
+<P>
+  -nt - no tile directory; don't read in any images in the "blocks" directory, only the base image is read (and probably zoomed, otherwise this option is pointless).
+<P>
+  -r - replace (from the 'blocks' directory) only those tiles not in the base
+    texture. This is a way of extending a base texture to new versions of Minecraft, while retaining existing blocks. For example, say you spend some time making a great terrainExt.png file you love. A new version of Minecraft comes out, adding say a wheat mill block. You put this new wheat mill block image in the blocks directory, get the latest version of Mineways/TileMaker (which hopefully would support the wheat mill), and run with "-r". This reads the blocks directory and checks the terrainBase.png at the same time. If terrainBase.png has no data for the tile's location, i.e. it's black with an alpha of 0, then the block is used to create a terrainExt.png file, otherwise the block is ignored.
+<P>
+  -m - to report all missing tiles, ones that Mineways uses but were not in
+    the tiles directory. This option is a way of finding if there are any images you can still add to the "blocks" directory. For example, if "nether_brick.png" is reported missing, you know that "blocks" doesn't have this image and that Mineways will use it. This merely means that the default terrainBase.png texture will be used instead.
+<P>
+  -v - verbose, explain everything going on. Default: display only warnings.
 
 <P><H3><A NAME="rendering">
 Rendering Tips
@@ -844,10 +900,10 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from MCEdit in that it is a plug-in to Minecraft, while MCEdit is standalone.
 <LI><a href="http://www.voxelwiki.com/minecraft/VoxelSniper">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
 <LI><a href="http://www.diamondpants.com/spritecraft/">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
-<LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://www.minecraftwiki.net/wiki/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5533030544811105330">guardian</a>, and <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5544034260231691970">hopper</a>, among other models.
+<LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5533030544811105330">guardian</a>, and <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5544034260231691970">hopper</a>, among other models.
 <LI><a href="http://tinkercad.com">TinkerCAD</a> is an online CAD program. You can now export <i>to</i> Minecraft from it - try the "Download for Minecraft" feature. They also have a <a href="https://tinkercad.com/tags/minecraft">Minecraft gallery</a>.
 <LI><a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> is a fantastic 3D viewer for your world. You can zoom through, see a huge distance, and get coordinates for wherever you are. It's slightly outdated and buggy right now, but a new version is in the works.
-<LI>More Minecraft tools <a href="http://www.minecraftwiki.net/wiki/Editors">here</a>.
+<LI>More Minecraft tools <a href="http://minecraft.gamepedia.com/Editors">here</a>.
 </UL>
 
 <h3><A NAME="models">Stuff to Print</a></h3>
@@ -866,7 +922,7 @@ For something amazing, <a href="http://www.shapeways.com/blog/archives/2011/07/C
 <p>
 <h3><A NAME="packages">Other Packages</a></h3>
 </p><p>
-Mineways is not the first to offer a Minecraft model exporter, nor the best for export for rendering. Minepedia has a <a href="http://www.minecraftwiki.net/wiki/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services. They may fit your needs better than Mineways:
+Mineways is not the first to offer a Minecraft model exporter, nor the best for export for rendering. Minepedia has a <a href="http://minecraft.gamepedia.com/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services. They may fit your needs better than Mineways:
 </p><ul>
 <li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home printers for the most part, since the STL comes without any colors. Step by step instructions <a href="http://curriculum.makerbot.com/daily_lessons/april/printcraft.html">here</a>.
 
@@ -888,7 +944,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
-</li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to dig out the terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
+</li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
 
 </li><li><a href="http://minetoys.com/">MineToys</a> and the <a href="http://www.minefield.fr/minecon/">MineCon Shop</a> (French) offer 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
 
@@ -933,7 +989,7 @@ Most operations can be done with the mouse: left button and mousewheel for viewi
 </li><li><b>C</b> shows underground caves below the given altitude.
 </li><li><b>H</b> hides obscured blocks. When you set a maximum altitude underground, this option discards all blocks at this altitude and lower, until an air pocket is hit. Try it with the slider set to 60 or lower, to see tunnels. On by default in the Nether.
 </li><li><b>F</b> shades by altitude. This option does not affect exported models.
-</li><li><b>I</b> shows <a href="http://www.minecraftwiki.net/wiki/Slime#Spawning">slime spawning areas</a> underground, from level 40 on down (you can use the altitude slider to see these more clearly).
+</li><li><b>I</b> shows <a href="http://minecraft.gamepedia.com/Slime#Spawning">slime spawning areas</a> underground, from level 40 on down (you can use the altitude slider to see these more clearly).
 </li><li><b>R</b> reloads the world's map. This is useful for when you edit your world while Mineways is running, see <a href="http://www.youtube.com/watch?v=8I5K-nB86z4&t=5m3s">this tutorial</a>.
 </li><li><b>Ctrl-W</b> closes the program.
 </li><li><b>?</b> pops up the About dialog.
@@ -942,7 +998,7 @@ Most operations can be done with the mouse: left button and mousewheel for viewi
 <h2><A NAME="blocks">Block Types Supported</a></h2>
 There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can actually be printed as-is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
 <P>
-If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the <a href="http://www.minecraftwiki.net/wiki/Block_ids">block IDs</a> to select and export whatever block types in whatever mode you want.
+If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the <a href="http://minecraft.gamepedia.com/Block_ids">block IDs</a> to select and export whatever block types in whatever mode you want.
 <P>
 Mineways does not support export of biome colors, paintings, characters, or creatures.
 <P>
@@ -950,7 +1006,7 @@ All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes
 <TABLE border="1">
 <tr>
 <td>
-<B>Block Type and <a href="http://www.minecraftwiki.net/wiki/Block_ids">ID</a></B>
+<B>Block Type and <a href="http://minecraft.gamepedia.com/Block_ids">ID</a></B>
 </td>
 <td>
 <B>Render Export</B>
@@ -1104,7 +1160,6 @@ Torches (#50, #75, #76)
 <center>Flattened</center>
 </td>
 <td>
-Torches are rotated into place, not sheared as in Minecraft.
 </td>
 </tr>
 
@@ -1556,7 +1611,7 @@ Faked by putting tile at 12,14 in terrain.png.
 Beacon (#138)
 </td>
 <td>
-<center>Full block</center>
+<center>True geometry</center>
 </td>
 <td>
 <center>Full block</center>
@@ -1601,7 +1656,7 @@ Head (#144)
 <center>Pumpkin</center>
 </td>
 <td>
-Heads use <a href="http://www.minecraftwiki.net/wiki/Tile_entity">tile entity data</a>, which Mineways doesn't support.
+Heads use <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity data</a>, which Mineways doesn't support.
 </td>
 </tr>
 
@@ -1666,7 +1721,8 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.22, 1/21/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Bug fix: sometimes unknown blocks caused a timing error, making the "bad block" message repeat many times. Fixed, I believe... <I>(thanks to Michael Leone for reporting this bug)</I>
 <LI>Version 2.23, 9/3/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV223.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Enable stairs to join together under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.
 
-<LI><B>Version 3.0</B>, 10/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways 1.15</a>. <B>Changes:</B> began TileMaker project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme’s air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you’ll never notice.
+<LI><B>Version 3.0</B>, 10/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways 1.15</a>. <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme’s air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you’ll never notice.
+<LI><B>Version 3.01</B>, 10/17/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <a href="#tilemaker">TileMaker</a> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft’s style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
 </UL>
 
 <h2><A NAME="wishlist">Wishlist</a></h2>
@@ -1675,7 +1731,7 @@ This is my own wishlist, in order of interest; if you really want a feature, add
 <LI>Create your own input terrainExt.png files from texture packs, and include some pre-made conversions.
 <LI>1.7+ export, and improve existing block support.
 <LI>64 bit support: export much larger chunks.
-<LI>Schematic file import: some players store their creations in <a href="http://www.minecraftwiki.net/wiki/Schematic_File_Format">schematic files</a>. You can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
+<LI>Schematic file import: some players store their creations in <a href="http://minecraft.gamepedia.com/Schematic_File_Format">schematic files</a>. You can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
 <LI>Command line control: useful for reusing settings.
 <LI>Various blocks need improvement: brewing stand, beacon, etc.
 <LI>Vines really should work better. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching.
@@ -1697,7 +1753,6 @@ That's it - have fun!
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a> (just the 64x64 - there are other sizes) by Scuttles (up to Minecraft 1.2.3)
-<LI> <a href="http://www.minecraftforum.net/topic/69354-64x1112pre12w06a-misas-realistic-texture-pack-updated-31jan/">Misa's Realistic Texture Pack</a> by Misa (up to Minecraft 1.2.4)
 <LI> <a href="http://bdcraft.net">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84 (up to Minecraft 1.2.4)
 </UL>
 <LI><b><a href="http://psp-networks.com/mineways/">Download  the latest for Mac OSX</a></b> (<a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">alternate download</a>). If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>.
@@ -1743,7 +1798,7 @@ How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_i
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 8/14/2013</i>
+Last updated 10/17/2013</i>
 </font>
 </div> <!-- /footer -->
 </div>

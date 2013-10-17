@@ -1188,7 +1188,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ofn.lpstrFile=path;
             //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
-            ofn.lpstrFilter=L"Terrain file terrainExt.png\0*.png\0";
+            ofn.lpstrFilter=L"Terrain File (terrainExt.png)\0*.png\0";
             ofn.nFilterIndex=1;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;

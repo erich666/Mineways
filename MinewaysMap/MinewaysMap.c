@@ -574,8 +574,8 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                         b+=(unsigned char)((1.0-alpha)*(color&0xff));
                         alpha+=gBlockDefinitions[voxel].alpha*(1.0-alpha);
                     }
-                    // if the block is solid, break out of the loop, we're done
-                    if (gBlockDefinitions[voxel].alpha==1.0)
+                    // if the block is solid and something we want visible, break out of the loop, we're done
+                    if ((gBlockDefinitions[voxel].flags & BLF_HIDE_ON_MAP) == 0x0)
                         break;
                 }
             }
