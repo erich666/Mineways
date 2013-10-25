@@ -69,7 +69,8 @@ typedef void (*ProgressCallback)(float progress);
     //__declspec(dllexport) void __cdecl GetRandomSeed(const wchar_t *world,long long* pseed);
     
     // palette should be in RGBA format, num colors in the palette
-    __declspec(dllexport) void __cdecl SetMapPalette(unsigned int *palette,int num);
+	__declspec(dllexport) void __cdecl SetMapPremultipliedColors();
+	__declspec(dllexport) void __cdecl SetMapPalette(unsigned int *palette,int num);
 #ifdef __cplusplus
 }
 #endif

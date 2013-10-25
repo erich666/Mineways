@@ -1,4 +1,4 @@
-// PngXfer.cpp : Defines the entry point for the console application.
+// tiles.h - defines where each Minecraft texture block is used (if used at all)
 //
 
 //#include "targetver.h"
@@ -26,7 +26,7 @@
 #define SWATCH_CLAMP_ALL                    (SBIT_CLAMP_TOP|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
 
 
-#define VERTICAL_TILES 22
+#define VERTICAL_TILES 23
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
 	int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -214,8 +214,8 @@ static struct {
 	{  1,11, L"wool_colored_blue", SWATCH_REPEAT_ALL },
 	{  2,11, L"wool_colored_light_blue", SWATCH_REPEAT_ALL },
 	{  3,11, L"rail_golden_powered", SWATCH_TILE_BOTTOM_AND_TOP|SBIT_DECAL },
-	{  4,11, L"MW_REDSTONE_WIRE_CROSS", SWATCH_REPEAT_ALL }, // MANUFACTURED was redstone_dust_cross_overlay - we now use it for a redstone dot
-	{  5,11, L"MW_REDSTONE_WIRE_LINE", SWATCH_REPEAT_ALL }, // MANUFACTURED was redstone_dust_line_overlay - do we use it for anything? TODOTODO
+	{  4,11, L"MW_REDSTONE_WIRE_DOT", SWATCH_REPEAT_ALL }, // MANUFACTURED was redstone_dust_cross_overlay - we now use it for a redstone dot
+	{  5,11, L"log_acacia", 0x0 },	// ADD-IN 1.7.2
 	{  6,11, L"enchanting_table_side", SWATCH_CLAMP_ALL_BUT_TOP|SBIT_DECAL },
 	{  7,11, L"enchanting_table_bottom", SWATCH_REPEAT_ALL },
 	{  8,11, L"command_block", SWATCH_REPEAT_ALL },
@@ -269,11 +269,11 @@ static struct {
 	{  8,14, L"anvil_top_damaged_2", SWATCH_REPEAT_ALL },
 	{  9,14, L"MW_ENDER_CHEST_TOP1", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
 	{ 10,14, L"MW_ENDER_CHEST_TOP2", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
-	{ 11,14, L"beacon", SWATCH_REPEAT_ALL|SBIT_DECAL },	// was unused, beacon was moved to here TODOTODO make better beacon
+	{ 11,14, L"beacon", SWATCH_REPEAT_ALL|SBIT_DECAL },	// was unused, beacon was moved to here
 	{ 12,14, L"emerald_block", SWATCH_REPEAT_ALL },	// was unused, emerald was moved to here
-	{ 13,14, L"coal_block", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still TODO duplicate
-	{ 14,14, L"comparator_off", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still TODO duplicate
-	{ 15,14, L"comparator_on", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still TODO duplicate
+	{ 13,14, L"coal_block", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still
+	{ 14,14, L"comparator_off", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still
+	{ 15,14, L"comparator_on", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still
 	{  0,15, L"MW_FLATTENED_TORCH", SWATCH_REPEAT_ALL },	// MANUFACTURED used for flattened torch top
 	{  1,15, L"MW_FLATTENED_REDSTONE_TORCH_ON", SWATCH_REPEAT_ALL },	// MANUFACTURED used for flattened redstone torch top, on
 	{  2,15, L"MW_FLATTENED_REDSTONE_TORCH_OFF", SWATCH_REPEAT_ALL },	// MANUFACTURED used for flattened redstone torch top, off
@@ -288,7 +288,7 @@ static struct {
 	{ 11,15, L"hopper_inside", SWATCH_REPEAT_ALL },	// ADD-IN destroy, etc. unused
 	{ 12,15, L"hopper_outside", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN destroy, etc. unused
 	{ 13,15, L"hopper_top", SWATCH_CLAMP_ALL },	// ADD-IN destroy, etc. unused
-	{ 14,15, L"redstone_block", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still TODO duplicate
+	{ 14,15, L"redstone_block", SWATCH_REPEAT_ALL },	// ADD-IN was lava_still
 	{ 15,15, L"lava_still", SWATCH_REPEAT_ALL },
 	// brave new world, off the 256x256 edge
 	{  0,16, L"hardened_clay_stained_white", SWATCH_REPEAT_ALL },
@@ -338,8 +338,8 @@ static struct {
 	{ 11,18, L"double_plant_rose_top", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{ 12,18, L"double_plant_paeonia_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP|SBIT_DECAL },	// peony
 	{ 13,18, L"double_plant_paeonia_top", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
-	{ 14,18, L"", 0x0 },	// UNUSED
-	{ 15,18, L"", 0x0 }, // UNUSED
+	{ 14,18, L"sapling_acacia", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
+	{ 15,18, L"sapling_roofed_oak", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// yes, "roofed"
 	{  0,19, L"flower_blue_orchid", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  1,19, L"flower_allium", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  2,19, L"flower_houstonia", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// azure bluet
@@ -349,13 +349,13 @@ static struct {
 	{  6,19, L"flower_tulip_pink", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  7,19, L"flower_oxeye_daisy", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  8,19, L"flower_paeonia", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// not used currently, but save for now.
-	{  9,19, L"", 0x0 },
-	{ 10,19, L"", 0x0 },
-	{ 11,19, L"", 0x0 },
-	{ 12,19, L"", 0x0 },
-	{ 13,19, L"", 0x0 },
-	{ 14,19, L"", 0x0 },
-	{ 15,19, L"", 0x0 },
+	{  9,19, L"leaves_acacia", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
+	{ 10,19, L"leaves_acacia_opaque", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 11,19, L"leaves_big_oak", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
+	{ 12,19, L"leaves_big_oak_opaque", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 13,19, L"log_acacia_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 14,19, L"log_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 15,19, L"log_big_oak_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
 	{  0,20, L"glass_white", SWATCH_REPEAT_ALL },
 	{  1,20, L"glass_orange", SWATCH_REPEAT_ALL },
 	{  2,20, L"glass_magenta", SWATCH_REPEAT_ALL },
@@ -388,118 +388,24 @@ static struct {
 	{ 13,21, L"glass_pane_top_green", SWATCH_REPEAT_ALL },
 	{ 14,21, L"glass_pane_top_red", SWATCH_REPEAT_ALL },
 	{ 15,21, L"glass_pane_top_black", SWATCH_REPEAT_ALL },
+	{  0,22, L"planks_acacia", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{  1,22, L"planks_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{  2,22, L"", SWATCH_REPEAT_ALL },
+	{  3,22, L"", SWATCH_REPEAT_ALL },
+	{  4,22, L"", SWATCH_REPEAT_ALL },
+	{  5,22, L"", SWATCH_REPEAT_ALL },
+	{  6,22, L"", SWATCH_REPEAT_ALL },
+	{  7,22, L"", SWATCH_REPEAT_ALL },
+	{  8,22, L"", SWATCH_REPEAT_ALL },
+	{  9,22, L"", SWATCH_REPEAT_ALL },
+	{ 10,22, L"", SWATCH_REPEAT_ALL },
+	{ 11,22, L"", SWATCH_REPEAT_ALL },
+	{ 12,22, L"", SWATCH_REPEAT_ALL },
+	{ 13,22, L"", SWATCH_REPEAT_ALL },
+	{ 14,22, L"", SWATCH_REPEAT_ALL },
+	{ 15,22, L"", SWATCH_REPEAT_ALL },
 };
 /*
-Removed: destroy_stage_0 through 9
-
-Should be added to terrainExt.png, duplicates in basic game but make valid here, adding tiles, and use in code: 
-potatoes_stage_0, 1, 2 - done
-leaves_birch_opaque - done
-leaves_birch - done
-
-log_birch_top 11,11 - done
-log_jungle_top 13,11 - done
-log_spruce_top 12,11 - done
-noteblock - 12, 8 - done
-pumpkin_stem_connected 15,11 - done (well, really, TODOTODO for pumpkins and melons)
-pumpkin_stem_disconnected 14,11 - done
-
-dispenser_front_vertical - definitely put at 15,2;  - this is for when the dispenser/dropper is vertical up or down (used to only be horizontal) - done
-
-NEW BLOCKS (1.6):
-coal_block 13,14 - done
-comparator_off 14,14 - done
-comparator_on 15,14 - done
-
-daylight_detector_side 5,15 - done
-daylight_detector_top 6,15 - done
-dropper_front_horizontal 7,15 - done
-dropper_front_vertical 8,15 - done
-
-hardened_clay_stained_black 15,16 - done
-hardened_clay_stained_blue 11,16
-hardened_clay_stained_brown 12,16
-hardened_clay_stained_cyan 9,16
-hardened_clay_stained_gray 7,16
-hardened_clay_stained_green 13,16
-hardened_clay_stained_light_blue 3,16
-hardened_clay_stained_lime 5,16
-hardened_clay_stained_magenta 2,16
-hardened_clay_stained_orange 1,16
-hardened_clay_stained_pink 6,16
-hardened_clay_stained_purple 10,16
-hardened_clay_stained_red 14,16
-hardened_clay_stained_silver 8,16
-hardened_clay_stained_white 0,16
-hardened_clay_stained_yellow 4,16
-
-hardened_clay 0,17 - done
-
-hay_block_side 9,15 - done
-hay_block_top 10,15 - done
-
-hopper_inside 11,15 - done
-hopper_outside 12,15
-hopper_top 13,15
-
-quartz_block_bottom 1,17 - done
-quartz_block_chiseled_top 2,17
-quartz_block_chiseled 3,17
-quartz_block_lines_top 4,17
-quartz_block_lines 5,17
-quartz_block_side 6,17
-quartz_block_top 7,17
-quartz_ore 8,17 - done
-rail_activator_powered 9,17 - done
-rail_activator 10,17
-rail_detector_powered 11,17
-
-redstone_block 14,15 - done
-
-carpet! - make it get the right color, not be like snow. - done
-
-trapped chest fronts (lock) - done
-
-FIX RAIL COMPOSITE BUG
-
-1.7 stuff, need to add to tilemaker itself, and Mineways:
-
-ice_packed - done
-
-red_sand 13,17 - done
-
-dirt_podzol_side 14,17 - done
-dirt_podzol_top 15,17
-
-TODOTODO - need to make a tile where it's merged to grass. Have to merge *each* tile, ugh, and pay attention to data values.
-double_plant_fern_bottom
-double_plant_fern_top
-double_plant_grass_bottom
-double_plant_grass_top
-double_plant_paeonia_bottom
-double_plant_paeonia_top
-double_plant_rose_bottom
-double_plant_rose_top
-double_plant_sunflower_back
-double_plant_sunflower_bottom
-double_plant_sunflower_front
-double_plant_sunflower_top
-double_plant_syringa_bottom
-double_plant_syringa_top
-
-flower_allium
-flower_blue_orchid
-flower_houstonia
-flower_oxeye_daisy
-flower_paeonia
-
-flower_tulip_orange
-flower_tulip_pink
-flower_tulip_red
-flower_tulip_white
-
-ADD PANES
-
 Loose ends:
 
 pumpkin and melon connectors

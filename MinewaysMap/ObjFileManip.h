@@ -69,6 +69,7 @@ extern "C" {
         ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion );
 
     // palette should be in RGBA format, num colors in the palette
+	__declspec(dllexport) void __cdecl SetExportPremultipliedColors();
     __declspec(dllexport) void __cdecl SetExportPalette(unsigned int *palette,int num);
 #ifdef __cplusplus
 }

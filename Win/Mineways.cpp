@@ -205,6 +205,11 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	//		SetWindowText(hWndAppStatic,strVersion);
 	//}
 
+	// One-time initialization for mapping and object export
+	// set the pcolors properly once. They'll change from color schemes.
+	SetExportPremultipliedColors();
+	SetMapPremultipliedColors();
+
     // Main message loop:
     while (GetMessage(&msg, NULL, 0, 0))
     {

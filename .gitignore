@@ -15,6 +15,7 @@
 *.aps
 *.opensdf
 *.cppcheck
+*.zip
 *x*.png
 Debug
 MinewaysMap/Debug
@@ -23,5 +24,8 @@ Release
 Win/Debug
 Win/Release
 ipch
-TileMaker/tiles_*
-TileMaker/tiles/*.png*
+TileMaker/TileMaker/blocks_*
+TileMaker/TileMaker/blocks/*.png*
+TileMaker/TileMaker/code*
+TileMaker/TileMaker/make_terrain.bat
+TileMaker/TileMaker/output.txt

@@ -142,7 +142,7 @@ int wmain(int argc, wchar_t* argv[])
 			wprintf( L"  -t tileSize - force a power of 2 tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
 			wprintf( L"  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),\n    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
 			wprintf( L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
-			wprintf( L"  -nt - no tile directory; don't read in any images in the "blocks" directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
+			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
 			wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
@@ -168,7 +168,11 @@ int wmain(int argc, wchar_t* argv[])
 	{
 		// read the base terrain file
 		rc = readpng(&basicterrain, terrainBase);
-		if ( rc != 0 ) { reportReadError(rc,terrainBase); return 1;}
+		if ( rc != 0 )
+		{
+			reportReadError(rc,terrainBase);
+			return 1;
+		}
 		readpng_cleanup(0,&basicterrain);
 		if ( verbose )
 			wprintf (L"The base terrain is %s\n", terrainBase);
@@ -204,7 +208,7 @@ int wmain(int argc, wchar_t* argv[])
 		if (hFind == INVALID_HANDLE_VALUE) 
 		{
 			printf ("ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
-			wprintf (L"Perhaps the tile path %s is incorrect or empty?\n", ffd.cFileName);
+			wprintf (L"No files found - please put your new blocks in the directory %s.\n", tilePath);
 			return 1;
 		} 
 		else 
@@ -242,7 +246,11 @@ int wmain(int argc, wchar_t* argv[])
 							wcscat_s( readFileName, MAX_PATH, ffd.cFileName );
 							// read in tile for later
 							rc = readpng(&tile[tilesFound], readFileName);
-							if ( rc != 0 ) { reportReadError(rc,readFileName); return 1;}
+							if ( rc != 0 )
+							{
+								reportReadError(rc,readFileName);
+								return 1;
+							}
 							readpng_cleanup(0,&tile[tilesFound]);
 						}
 
@@ -387,7 +395,11 @@ int wmain(int argc, wchar_t* argv[])
 
 	// write out the result
 	rc = writepng(destination_ptr, terrainExtOutput);
-	if ( rc != 0 ) { reportReadError(rc,terrainExtOutput); return 1;}
+	if ( rc != 0 )
+	{
+		reportReadError(rc,terrainExtOutput);
+		return 1;
+	}
 	writepng_cleanup(destination_ptr);
 	if ( verbose )
 		wprintf (L"New texture %s created.\n", terrainExtOutput);

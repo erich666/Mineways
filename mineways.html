@@ -139,7 +139,6 @@ Troubleshooting
 </A></H2>
 If something goes wrong, here's the checklist I go through with people:
 <UL>
-<LI><B>The Mac version tends to crash right now</B> - this seems to have to do with WINE, I'm hoping to work around this problem soon.
 <LI>Did you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">download the latest version</a>? Mineways has undergone many bug fixes.
 <LI>Did you read any warnings from the program carefully?
 <LI>Try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertantly checked, or untangles some hidden program bug.
@@ -627,7 +626,7 @@ There are many options available for doing more elaborate operations, but you ne
 <PRE>
 TileMaker -d blocks_doku -o terrainExtDoku.png
 </PRE>
-The "-d directory" option tells TileMaker to use this directory instead of "blocks" for the images you want to overlay. The "-o filename" tells it to write the resulting image to the filename given.
+The "-d directory" option tells TileMaker to use this directory instead of "blocks" for the images you want to overlay. The "-o filename" tells it to write the resulting image to the filename given. Directory and image names cannot have spaces in them.
 <P>
 Here is a rundown of the other TileMaker options and their uses. To get a reminder of these, type:
 <PRE>
@@ -649,8 +648,9 @@ TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
     terrainExt.png.
 <P>
   -t tileSize - force a power of 2 tile size for the resulting terrainExt.png
-    file, e.g. 32, 128. Useful for zooming or making a "draft quality"
-    terrainExt.png. If not set, the largest tile found in the base or blocks directory is used.
+    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'
+    terrainExt.png - a low-resolution terrainExt.png makes for a much faster export.
+	If not set, the largest tile found in the base or blocks directory is used.
 <P>
   -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),
     choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;
@@ -1024,7 +1024,7 @@ All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes
 
 <tr>
 <td>
-Saplings (#6)<br>Tall Grass (#31)<br>Dead Bush (#32)<br>Flowers (#37, #38)<br>Mushrooms (#39, #40)<br>Pumpkin and Melon Stems (#104, #105)
+Saplings (#6)<br>Tall Grass (#31)<br>Dead Bush (#32)<br>Flowers (#37, #38, #175)<br>Mushrooms (#39, #40)<br>Pumpkin and Melon Stems (#104, #105)
 </td>
 <td>
 <center>Billboards</center>
@@ -1036,7 +1036,7 @@ Saplings (#6)<br>Tall Grass (#31)<br>Dead Bush (#32)<br>Flowers (#37, #38)<br>Mu
 <center>Flattened</center>
 </td>
 <td>
-Stems do not darken with maturity, nor attach to fruit.
+Pumpkin and melon stems do not darken with maturity, nor attach to fruit.
 </td>
 </tr>
 
@@ -1183,7 +1183,7 @@ The bottommost tile found in Minecraft's fire_layer_0.png is used for this block
 
 <tr>
 <td>
-Stairs (#53, #67, #108, #109, #114, #128, #134, #135, #136)
+Stairs (#53, #67, #108, #109, #114, #128, #134, #135, #136, #163, #164)
 </td>
 <td>
 <center>True stairs</center>
@@ -1258,13 +1258,13 @@ The fully matured texture is used for printing, on all sides.
 Farmland (#60)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Full block</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 Wetness level is ignored.
@@ -1276,13 +1276,13 @@ Wetness level is ignored.
 Doors (#64, #71)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Full textured block</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 </td>
@@ -1290,7 +1290,7 @@ Doors (#64, #71)
 
 <tr>
 <td>
-Ladder (#65)<br>Lever (#69)<br>Lily Pad (#111)<br>Tripwire Hook (#131)
+Ladder (#65)<br>Lily Pad (#111)<br>Tripwire Hook (#131)
 </td>
 <td>
 <center>Flattened</center>
@@ -1313,16 +1313,33 @@ Buttons (#77, #143)<br>
 Snow (#78)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Flattened</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 Wall signs are put next to wall for printing - no gap.
+</td>
+</tr>
+
+<tr>
+<td>
+Lever (#69)
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
 </td>
 </tr>
 
@@ -1348,13 +1365,13 @@ Cactus (#81)
 Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Full wood block</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 </td>
@@ -1365,13 +1382,13 @@ Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
 Portal (#90)<br>End Portal (#119)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 Uses the last tile in the Minecraft portal.png texture.
@@ -1383,13 +1400,13 @@ Uses the last tile in the Minecraft portal.png texture.
 Cake (#92)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Stretched to full block</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 </td>
@@ -1397,10 +1414,10 @@ Cake (#92)
 
 <tr>
 <td>
-Redstone Repeaters (#93, #94)
+Redstone Repeaters (#93, #94) and Comparators (#149, #150)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Flattened</center>
@@ -1417,13 +1434,13 @@ Redstone Repeaters (#93, #94)
 Trapdoor (#96)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Flattened</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 </td>
@@ -1503,16 +1520,16 @@ Enchantment Table (#116)
 Brewing Stand (#117)
 </td>
 <td>
-<center>Beige block</center>
+<center>Proper geometry</center>
 </td>
 <td>
-<center>Beige block</center>
+<center>Textured block</center>
 </td>
 <td>
-<center>Beige block</center>
+<center>Textured block</center>
 </td>
 <td>
-Someday! <a href="http://code.google.com/p/j-mc-2-obj/">Jmc2obj</a> has it.
+Delicate, and billboards won't print on a 3D printer.
 </td>
 </tr>
 
@@ -1521,13 +1538,13 @@ Someday! <a href="http://code.google.com/p/j-mc-2-obj/">Jmc2obj</a> has it.
 Cauldron (#118)<br>End Portal Frame (#120)<br>Dragon Egg (#122)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Stretch to full block</center>
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 When printed, area under cauldron is solid; top bit not added to completed portal frame.
@@ -1539,13 +1556,13 @@ When printed, area under cauldron is solid; top bit not added to completed porta
 Cocoa Pod (#127)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Removed</center>
 </td>
 <td>
-<center>Most geometry, no gap</center>
+<center>Pod geometry, no stem or gap</center>
 </td>
 <td>
 Stem is removed for "lesser" printing.
@@ -1611,7 +1628,7 @@ Faked by putting tile at 12,14 in terrain.png.
 Beacon (#138)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Full block</center>
@@ -1629,16 +1646,16 @@ Faked by putting tile at 11,14 in terrain.png.
 Flower Pot (#140)
 </td>
 <td>
-<center>True geometry</center>
+<center>Proper geometry, except acacia and dark oak</center>
 </td>
 <td>
 <center>Removed</center>
 </td>
 <td>
-<center>Pot geometry and cactus</center>
+<center>Pot geometry, and only cactus</center>
 </td>
 <td>
-For "lesser" printing, the pot is always created, but only cacti added.
+Acacia and dark oak not identifiable by Mineways currently.
 </td>
 </tr>
 
@@ -1657,6 +1674,23 @@ Head (#144)
 </td>
 <td>
 Heads use <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity data</a>, which Mineways doesn't support.
+</td>
+</tr>
+
+<tr>
+<td>
+Hopper (#154)
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Hopper interior filled in to make it solid</center>
+</td>
+<td>
 </td>
 </tr>
 
@@ -1701,14 +1735,14 @@ Find a bug? First, make sure you have the latest version installed, and check <a
 <LI>Version 2.06, 6/19/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV206.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Improvements: The lower depth is now autoadjusted for every new selection, and autoadjustment can be turned off. VRML rendering output is now grouped by material, for a bit more Cinema 4D support. VRML now exports to solid color and single color formats, for Ponoko support - many thanks to Ariock for and Ponoko for their help. VRML files now write out squares instead of triangles, reducing ZIP file size by about 20%. VRML files are now generated by default again, for previewing (generating just the ZIP is good for utter newbies, but a pain for everyone else). Various format bug fixes, including making rich color and floating object debugging mode work again. Unknown block ID check added, to future-proof Mineways and warn users of unknown block types. Week24 beta block additions are unofficially supported, though I'm ignoring the cocoa plant, and block of emerald is semi-supported (it conflicts with the old chest lid texture location - grrr).
 <LI>Version 2.07, 6/26/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV207.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - bug fix: huge mushrooms were not textured correctly, now they are.
 <LI>Version 2.08, 7/9/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV208.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - New features: individual block export and block test world added. See <a href="#individual">this section</a> of the documentation. Bug fixes: fixed export of redstone torches and repeaters, made vines always properly cover the underside of blocks, and made the bed texturing slightly better.
-<LI>Version 2.09, 7/20/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV209.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Many new blocks have been added for rendering and for printing. These blocks are exported by default for rendering, and can be exported for 3D printing, by using the <a href="#lesser">"Export lesser blocks" option</a>. This feature is experimental (fences and fence gates are highly likely to break off, for example), and <B>works with <a href="http://sculpteo.com">Sculpteo</a> but not Shapeways</B>. See more details <a href="#lesser">here</a>. Flowers, mushrooms, tall grass, dead bush, saplings, and stems now are visible on the map and print as flattened decals (if you don't like this, disable using a <a href="#schemes">color scheme</a>). 
+<LI>Version 2.09, 7/20/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV209.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Many new blocks have been added for rendering and for printing. These blocks are exported by default for rendering, and can be exported for 3D printing, by using the <a href="#lesser">"Export lesser blocks" option</a>. This feature is experimental (fences and fence gates are highly likely to break off, for example), and works with <a href="http://sculpteo.com">Sculpteo</a> but not Shapeways. See more details <a href="#lesser">here</a>. Flowers, mushrooms, tall grass, dead bush, saplings, and stems now are visible on the map and print as flattened decals (if you don't like this, disable using a <a href="#schemes">color scheme</a>). 
 <P>
 You can export again instantly with the same options and filename by using Control-X (or the File menu item). This is useful when adjusting bounds, fixing the world, reloading ("R"), or changing the color scheme and then re-exporting. File path is now retained for normal file export, also making adjusting easier. Material output has been simplified for OBJ, to improve import into Blender (though water now looks more boring in G3D - sorry; and just uncomment "illum" in the .mtl file). Absolute and relative OBJ have changed position on the file type selector, and 3D print firm names added when exporting for 3D printing. Changed default terrain.png to support all new Minecraft 1.3 blocks (note Emerald Block is shifted). Numerous fixes to [Block Test World] and block IDs added. Memory use has been considerably reduced, half or less of previous typical use.
 <P>
 Here's the list of blocks which now have correct geometry: slabs, stairs, fences and gates, farmland, signs, doors (but not for 3D print - too thin), pressure plates, buttons, snow, trapdoors, end portal frames, cocoa plants, and cake.
 <LI>Version 2.10, 7/24/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fences, gates, doors, trapdoors, and sign posts are now exported for printing when the "lesser" option is used; see more details <a href="#lesser">here</a>. Options for tailoring OBJ export, and improved documentation on exporting to renderers.
 <LI>Version 2.11, 8/2/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV211.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added water and lava level export that matches Minecraft's; this always exports for rendering, and for 3D printing only when the <a href="#lesser">"lesser"</a> option is checked. Support sideways logs and upside-down levers in 1.3.1. Bug fixes: flipped tiles on "lesser" objects so they properly matched left and right. Rewrite of the UV texture coordinate system in anticipation of major changes for full support of Minecraft 1.3.1 (modest reduction of number of UV coordinates saved). Mineways will mostly work with MC 1.3.1, but note that 1.3.1 texture packs used with Mineways will make chests disappear (thanks, Mojang). Major rework is needed to fix this mismatch; the default texture pack will work fine for everything but Emerald blocks.
-<LI>Version 2.12, 8/3/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV212.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <b>critical bug fix</b> for VRML export, I introduced a bug in version 2.11, in which the first few faces would not be exported. Thanks to Jonah Shafer for reporting this bug.
+<LI>Version 2.12, 8/3/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV212.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - critical bug fix for VRML export, I introduced a bug in version 2.11, in which the first few faces would not be exported. Thanks to Jonah Shafer for reporting this bug.
 <LI>Version 2.13, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Shapeways redesigned its upload page, now millimeters is the default model unit. Changed Mineways to export in millimeters by default, rewrote the documentation for Shapeways export.
 <LI>Version 2.14, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV214.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Vines not exporting for 3D printing when the "lesser" feature was on. Fixed. Thanks to Sterling Babcock for reporting this bug.
 <LI>Version 2.15, 8/28/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV215.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added "fatten lesser blocks" option, so that small features that are printed are less likely to snap off during manufacture. Removed "flatten blocks" option, since it's never turned off by anyone nowadays. Numerous minor tiled texture fixes. Fixed farmland output for printing. Added correct bed, cactus, and redstone repeater output for rendering and "lesser" 3D printing. Added sloped rails for 3D printing when "lesser" is on. Cauldrons with water levels added. Dragon egg geometry added. Command and beacon blocks added (default terrain.png only; beacon block is currently at 8,11), along with cobblestone walls, flower pots, carrots, potatoes, and wooden buttons.
@@ -1721,8 +1755,9 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.22, 1/21/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Bug fix: sometimes unknown blocks caused a timing error, making the "bad block" message repeat many times. Fixed, I believe... <I>(thanks to Michael Leone for reporting this bug)</I>
 <LI>Version 2.23, 9/3/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV223.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Enable stairs to join together under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.
 
-<LI><B>Version 3.0</B>, 10/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways 1.15</a>. <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme’s air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you’ll never notice.
-<LI><B>Version 3.01</B>, 10/17/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <a href="#tilemaker">TileMaker</a> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft’s style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
+<LI><B>Version 3.0</B>, 10/11/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways 1.15</a>. <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme’s air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you’ll never notice.
+<LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft’s style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
+<LI>Version 3.02, 10/25/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV302.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool’s locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 </UL>
 
 <h2><A NAME="wishlist">Wishlist</a></h2>
@@ -1748,16 +1783,14 @@ That's it - have fun!
 <P><H2><A NAME="offsite">Links</a></H2>
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.0, updated 10/11/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. <I>DEPRECATED:</I> The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.01, updated 10/17/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. <I>DEPRECATED:</I> The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a> (just the 64x64 - there are other sizes) by Scuttles (up to Minecraft 1.2.3)
 <LI> <a href="http://bdcraft.net">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84 (up to Minecraft 1.2.4)
 </UL>
-<LI><b><a href="http://psp-networks.com/mineways/">Download  the latest for Mac OSX</a></b> (<a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">alternate download</a>). If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>.
-You <i>must</i> use the Update:Uninstall.command file in this download to remove any previous version before installing. This program requires X11 for Mac OS X, which comes with the xcode tools, as found on the Mac OS X Install DVD.
-How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_install_apple_developer_tools_cc_gcc_mac_os_x.html">here</a>. To load your world, you need to <a href="http://www.youtube.com/watch?v=q4GMJl38WOU">navigate to ~/Library/Application Support/minecraft/saves/</a> and select your save.
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Download the latest for Mac OSX</a></b>. If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">Mineways v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. See <a href="index.html#mac">the Mac guide</a>.
 <LI>Other platforms: Mineways works on Linux and the Mac under <a href="http://www.winehq.org/">Wine</a> - see link below (and I suspect it also works on the Mac using a <a href="http://lifehacker.com/5714966/five-best-virtual-machine-applications">virtual machine like VirtualBox</a> - let me know).
 <LI><b><a href="https://github.com/erich666/Mineways/tags">Download the source code (C/C++)</a></b> - on github, free for just about any use; contributions welcome!
 <LI><b><a href="http://www.minecraftforum.net/topic/892856-mineways-3d-prints-of-minecraft-objects/">Minecraft forum thread</a></b> - this is where I announce important update information, so subscribe to the thread if you're a serious user.
@@ -1798,7 +1831,7 @@ How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_i
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 10/17/2013</i>
+Last updated 10/25/2013</i>
 </font>
 </div> <!-- /footer -->
 </div>
