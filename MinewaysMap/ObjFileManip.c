@@ -5822,10 +5822,10 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		float mtx[4][4];
 		int torchVertexCount = gModel.vertexCount;
 		// add a tip to the torch, shift it one texel in X
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 8,10);
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
 		torchVertexCount = gModel.vertexCount - torchVertexCount;
 		identityMtx(mtx);
-		translateMtx(mtx, 0.0f, 0.0f, -1.0f/16.0f);
+		translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f);
 		transformVertices(torchVertexCount,mtx);
 
         if ( dataVal != 5 )
