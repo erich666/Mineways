@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>Mineways</title>
@@ -96,9 +96,13 @@ What to try next: check out the <a href="mineways.html#lesser">"Export lesser bl
 <b>Super-fast quickstart for rendering:</b> Same as for 3D printing export, but instead select "File | Export for Rendering..." - just hit "OK" on the Options dialog. You can preview the output OBJ file by using <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>, <a href="http://meshlab.sourceforge.net/">MeshLab</a>, or any other OBJ file viewer. To import the model to a rendering program, <a href="mineways.html#rendering">see this area of the documentation</a>.
 <P>
 <a name="mac">
-<b>Mac users:</b></a> Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a> (currently still on version 2.23). There are some directory path problems with this conversion, but it works otherwise. You <i>must</i> use the Update:Uninstall.command file in this download to remove any previous version before installing. This program requires X11 for Mac OS X, which comes with the xcode tools, as found on the Mac OS X Install DVD. How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_install_apple_developer_tools_cc_gcc_mac_os_x.html">here</a>.
+<b>Mac users:</b></a> Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a>, version 3.02.
+To load your world, you need to navigate to ~/Library/Application Support/minecraft/saves/ and select the level.dat file there - see <a href="http://www.youtube.com/watch?v=q4GMJl38WOU">this video</a>.
+If you can't find the Application Support/minecraft folder, open up the Terminal utility (Applications -&gt; Utilities) and then type "chflags nohidden ~/Library".
+If you are warned that the terrainExt.png file is not found, use "File | Set Terrain File" and look for it in Downloads/osxmineways or wherever you put mineways.exe. 
 <P>
-To load your world, you need to navigate to ~/Library/Application Support/minecraft/saves/ and select the level.dat file there - see <a href="http://www.youtube.com/watch?v=q4GMJl38WOU">this video</a>. If you are warned that the terrain*.png file is not found, use "File | Set Terrain File" and look for it in Downloads/osxmineways or wherever you put mineways.exe.
+Installation notes: You <i>must</i> use the Update:Uninstall.command file in this download to remove any previous version before installing. This program requires X11 for Mac OS X, which comes with the xcode tools, as found on the Mac OS X Install DVD. How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_install_apple_developer_tools_cc_gcc_mac_os_x.html">here</a>.
+If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. 
 <TABLE>
 <tr colspan="5">
 <a href="http://mauriciovives.com/eiffel/"><b>L'Effie Tower.</b></a> From left to right the images are: in <a href="http://minecraft.net">Minecraft</a>, selected in Mineways, previewed, delivered from <a href="http://shapeways.com">Shapeways</a>, and under glass. Click on an image for more about it.
@@ -124,11 +128,11 @@ To load your world, you need to navigate to ~/Library/Application Support/minecr
 <p>
 <table border=0 style="background-color: #fff; padding: 5px;" cellspacing=0>
   <tr><td>
-  <img src="http://groups.google.com/intl/en/images/logos/groups_logo_sm.gif"
-         height=30 width=140 alt="Google Groups">
+  <img src="images/groups_logo_sm.gif"
+         height=27 width=141 alt="Google Groups">
   </td></tr>
   <tr><td style="padding-left: 5px">
-  <b>Subscribe to Mineways</b> - only for important announcements, such as new version releases. <a href="http://groups.google.com/group/mineways">Visit this group.</a>
+  <b>Subscribe to Mineways</b> - you'll be informed of only important announcements, such as new version releases. <a href="http://groups.google.com/group/mineways">Visit this group.</a>
   </td></tr>
   <form action="http://groups.google.com/group/mineways/boxsubscribe">
   <tr><td style="padding-left: 5px;">
@@ -140,16 +144,13 @@ To load your world, you need to navigate to ~/Library/Application Support/minecr
 <P>
 The most useful links:
 <UL>
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.02, updated 10/25/2013), which also runs on Linux under WINE. This version supports Minecraft 1.2 through 1.7.2. If you are still using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.html#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.03, updated 11/17/2013), which also runs on Linux under WINE. This version supports Minecraft 1.2 through 1.7.2. If you are still using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrain.png for export"), by permission of their creators (thanks!) - go <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.html#terrain_png">here</a> to see previews:
 <UL>
-<LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.6.4)
-<LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.6.4)
+<LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.7)
+<LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> Light and High by Hickerydickery (up to Minecraft 1.7)
 <LI> <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a> (just the 64x64 - there are other sizes) by Scuttles (up to Minecraft 1.6.4)
 <LI> <a href="http://bdcraft.net">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84 (up to Minecraft 1.7)
 </UL>
-<LI><b><a href="http://psp-networks.com/mineways/">Download the latest for Mac OSX</a></b> (<a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">alternate download</a>). If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. 
-You <i>must</i> use the Update:Uninstall.command file in this download to remove any previous version before installing. This program requires X11 for Mac OS X, which comes with the xcode tools, as found on the Mac OS X Install DVD.
-How to install xcode can be found <a href="http://www.askdavetaylor.com/how_to_install_apple_developer_tools_cc_gcc_mac_os_x.html">here</a>. To load your world, you need to <a href="http://www.youtube.com/watch?v=q4GMJl38WOU">navigate to ~/Library/Application Support/minecraft/saves/</a> and select your save.
 <LI><b><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">Video Playlist</a></b> - includes tutorials, such as a <a href="http://www.youtube.com/watch?v=MTAztZjP3ak">quick run through</a>, a walkthrough of <a href="http://www.youtube.com/watch?v=8I5K-nB86z4">the basics</a>, and <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0">more advanced methods</a>, like how to turn off the export of glass blocks.
 <LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.html">The main Mineways page</a></b> - go here for an in-depth version of this page, including source code download, Linux version advice, etc.
 </UL>
@@ -222,7 +223,7 @@ From <a href="http://www.flickr.com/groups/mineways/pool/">the Mineways Flickr p
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_scale1.jpg"></a>
 </td>
 <td>
-<a href="http://www.flickr.com/photos/imaterialise/7087383947/in/pool-mineways/">
+<a href="http://i.materialise.com/blog/entry/materialising-minecraft-dreams">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_imaterialise.jpg"></a>
 </td>
 </tr>
@@ -323,11 +324,44 @@ From <a href="http://www.flickr.com/groups/mineways/pool/">the Mineways Flickr p
 
 
 
+<tr>
+<td>
+<a href="http://www.thingiverse.com/thing:34812">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_lighthouse.jpg"></a>
+</td>
+<td>
+<a href="http://www.thingiverse.com/thing:147829">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_die.jpg"></a>
+</td>
+<td>
+<a href="https://www.shapeways.com/model/413543/morgan-s-manor.html?li=search-results&materialId=26">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_manor.jpg"></a>
+</td>
+<td>
+<a href="http://www.thingiverse.com/thing:25147">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_topography.jpg"></a>
+</td>
+<td>
+<a href="http://www.flickr.com/photos/postapocalyptic/9533648590/in/pool-mineways">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_keep.jpg"></a>
+</td>
+<td>
+<a href="http://www.thingiverse.com/thing:15516">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_block_puzzle.jpg"></a>
+</td>
+<td>
+<a href="http://www.flickr.com/photos/postapocalyptic/9248390673/in/pool-mineways">
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_apartment.jpg"></a>
+</td>
+</tr>
+
+
+
 </TABLE>
 </div> <!-- /content -->
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 10/25/2013</i>
+Last updated 11/17/2013</i>
 </font>
 </div> <!-- /footer -->
 </div>

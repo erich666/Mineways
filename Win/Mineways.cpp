@@ -124,14 +124,16 @@ static struct {
     unsigned int type;
 } gPopupInfo[]={
     {_T("No error"), _T("No error"), MB_OK},	//00
-    {_T("Thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
-    {_T("Sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
-    {_T("Too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
-    {_T("Multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
-	{_T("At least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-    {_T("No solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
-    {_T("All solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
+    {_T("Warning: thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
+    {_T("Warning: sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
+    {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
+    {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
+	{_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
+	{_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 23 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    
+	{_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
+    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
     {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
     {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10

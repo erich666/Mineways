@@ -26,6 +26,7 @@
 #define SWATCH_CLAMP_ALL                    (SBIT_CLAMP_TOP|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
 
 
+// If this number changes, also change warning #6 in gPopupInfo in Mineways.cpp
 #define VERTICAL_TILES 23
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {

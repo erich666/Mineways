@@ -116,7 +116,8 @@ static struct {
 	{ L"Brass",              "brass",              0.6f*MM_TO_METERS, 0.0f,               10.0f, 16.0f,    999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
 	{ L"Silver",             "silver",             0.6f*MM_TO_METERS, 0.0f,               30.0f, 20.0f,    999.0f, 99999.0f, 20.0f *0.10f,  0.0f,      11.0f,11.0f, 3.0f },
 	{ L"Stainless Steel",    "stainless steel",    3.0f*MM_TO_METERS, 0.0f,               6.00f, 8.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,     100.0f,45.0f,25.0f },
-    { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
+	{ L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               6.00f, 0.35f,    999.0f, 99999.0f,  6.00f,        0.0f,      30.0f,22.0f,17.0f },
+	// old model, based on surface area: { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
 	// I haven't figured out Sculpteo's cost model. Prices tend to be 50% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
 	// With full-sized rectangular blocks, the costPerCCM is more like 1.05
 	{ L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               2.55f, 1.375f,   999.0f, 99999.0f,  2.55f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
@@ -173,9 +174,9 @@ static struct {
 #define EXPT_OUTPUT_MATERIALS		    0x0010
 // Model is meant to be watertight, e.g. for 3D printing
 #define EXPT_3DPRINT				    0x0020
-// Export a mosaiced texture instead of simple solid materials
+// Export a noisy color texture instead of simple solid materials
 #define EXPT_OUTPUT_TEXTURE_SWATCHES    0x0040
-// Export a mosaiced texture instead of simple solid materials
+// Export a true block texture instead of simple solid materials
 #define EXPT_OUTPUT_TEXTURE_IMAGES	    0x0080
 #define EXPT_OUTPUT_TEXTURE (EXPT_OUTPUT_TEXTURE_SWATCHES|EXPT_OUTPUT_TEXTURE_IMAGES)
 

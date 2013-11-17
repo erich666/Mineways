@@ -311,6 +311,8 @@ static int gHollowBlockThickness = -999;
 
 static int gBlockCount = -999;
 
+static int gMinorBlockCount = -999;
+
 static int gDebugTransparentType = -999;
 
 static long gMySeed = 12345;
@@ -599,7 +601,7 @@ static int writeLines( HANDLE file, char **textLines, int lines );
 
 static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worldBox );
 
-static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, float densityRatio );
+static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, int numMinorBlocks, float densityRatio );
 static int finalModelChecks();
 
 static void addOutputFilenameToList(wchar_t *filename);
@@ -669,7 +671,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     IBox worldBox;
     int retCode = MW_NO_ERROR;
-    int newRetCode;
     int needDifferentTextures = 0;
 
 	gMajorVersion = majorVersion;
@@ -708,12 +709,37 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
-        retCode = readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName);
+        retCode |= readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName);
         if ( retCode >= MW_BEGIN_ERRORS )
         {
-            // nothing in box, so end.
+            // couldn't read terrain image
             goto Exit;
         }
+
+		// check if height of texture is sufficient.
+		if ( gModel.inputTerrainImage.height / (gModel.inputTerrainImage.width/16) < 16 )
+		{
+			// image does not have the minimum 16 rows, something's really wrong
+			retCode |= MW_NEED_16_ROWS;
+			goto Exit;
+		}
+		if ( gModel.inputTerrainImage.height / (gModel.inputTerrainImage.width/16) < VERTICAL_TILES )
+		{
+			// fix image, expanding the image with white. Warn user.
+			int tileSize = gModel.inputTerrainImage.width/16;
+			unsigned char *oldImage = gModel.inputTerrainImage.image_data;
+			unsigned char *newImage = (unsigned char *)malloc(VERTICAL_TILES*tileSize*gModel.inputTerrainImage.width*4);
+			if ( newImage == NULL )
+			{
+				retCode |= MW_CANNOT_READ_IMAGE_FILE;	// well, really, out of memory
+				goto Exit;
+			}
+			memcpy( newImage, oldImage, gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4 );
+			// set empty area to all 1's
+			memset( &newImage[gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4], 0xff, (VERTICAL_TILES*tileSize-gModel.inputTerrainImage.height)*gModel.inputTerrainImage.width*4 );
+			gModel.inputTerrainImage.image_data = newImage;
+			retCode |= MW_NOT_ENOUGH_ROWS;
+		}
     }
 
     // Billboards and true geometry to be output?
@@ -729,11 +755,12 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         // make it twice as large if we're outputting image textures, too- we need the space
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
         {
+			// use true textures
             gModel.textureResolution = 2*gModel.inputTerrainImage.width;
         }
         else
         {
-            // fixed 256 x 256 - we could actually make this texture quite small
+            // Use "noisy" colors, fixed 256 x 256 - we could actually make this texture quite small
             gModel.textureResolution = 256;
             gModel.inputTerrainImage.width = 256;    // really, no image, but act like there is
         }
@@ -755,9 +782,11 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     gBoxData = NULL;
 
+	gMinorBlockCount = 0;
+
     initializeWorldData( &worldBox, xmin, ymin, zmin, xmax, ymax, zmax );
 
-    retCode = populateBox(world, &worldBox);
+    retCode |= populateBox(world, &worldBox);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // nothing in box, so end.
@@ -768,9 +797,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     UPDATE_PROGRESS(0.10f*PG_DB);
 
-    newRetCode = filterBox();
+    retCode |= filterBox();
     // always return the worst error
-    retCode = max(newRetCode,retCode);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // problem found
@@ -783,13 +811,11 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 	// non-polygonal output format, like schematic. If so, do that and be done.
 	if ( fileType == FILE_TYPE_SCHEMATIC )
 	{
-		newRetCode = writeSchematicBox();
-		retCode = max(newRetCode,retCode);
+		retCode |= writeSchematicBox();
 	    goto Exit;
 	}
 
-    newRetCode = determineScaleAndHollowAndMelt();
-    retCode = max(newRetCode,retCode);
+    retCode |= determineScaleAndHollowAndMelt();
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // problem found
@@ -812,31 +838,30 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
         // for OBJ, we may use more than one texture
         needDifferentTextures = 1;
-		newRetCode = writeOBJBox( world, &worldBox, curDir, terrainFileName );
+		retCode |= writeOBJBox( world, &worldBox, curDir, terrainFileName );
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
-        newRetCode = writeBinarySTLBox( world, &worldBox );
+        retCode |= writeBinarySTLBox( world, &worldBox );
         break;
     case FILE_TYPE_ASCII_STL:
-        newRetCode = writeAsciiSTLBox( world, &worldBox );
+        retCode |= writeAsciiSTLBox( world, &worldBox );
         break;
 	case FILE_TYPE_VRML2:
-		newRetCode = writeVRML2Box( world, &worldBox );
+		retCode |= writeVRML2Box( world, &worldBox );
 		break;
 	default:
 		assert(0);
 		break;
     }
 
-    retCode = max(newRetCode,retCode);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // problem found
         goto Exit;
     }
 
-    retCode = finalModelChecks();
+    retCode |= finalModelChecks();
 
     // done!
     Exit:
@@ -1235,7 +1260,7 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
         return MW_CANNOT_READ_IMAGE_FILE;
 
     if ( pII->width > pII->height )
-        return MW_IMAGE_WRONG_SIZE;
+        return MW_IMAGE_WRONG_WIDTH;
 
     // what power of two is the image? Start at 16x16 as a minimum,
     // since we need 16x16 images stored.
@@ -1246,11 +1271,11 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     }
 
     if ( !foundPower )
-        return MW_IMAGE_WRONG_SIZE;
+        return MW_IMAGE_WRONG_WIDTH;
 
 	// check that height is divisible by tile size
 	if ( pII->height / (pII->width / 16) != floor(pII->height / (pII->width / 16)) )
-		 return MW_IMAGE_WRONG_SIZE;
+		 return MW_IMAGE_WRONG_WIDTH;
 
 	gModel.tileSize = gModel.inputTerrainImage.width/16;
 	// note vertical tile limit for texture. We will save all these tiles away.
@@ -2373,6 +2398,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int checkNeighbors;
 
     dataVal = gBoxData[boxIndex].data;
+
+	// Add to minor count if this object has some heft. This is approximate, but better than nothing.
+	if ( gBlockDefinitions[type].flags & (BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_PANE))
+	{
+		gMinorBlockCount++;
+	}
 
     switch ( type )
     {
@@ -7608,7 +7639,7 @@ static void scaleByCost()
     if ( (gStats.density > mtlCostTable[gPhysMtl].costDiscountDensityLevel) && (pow((double)(gModel.scale*METERS_TO_CM),3.0)*gBlockCount > mtlCostTable[gPhysMtl].costDiscountCCMLevel ) )
     {
             // We wimp out here by simply incrementing the scale by 0.1 mm (which is smaller than the minimum detail) until the cost is reached
-        while ( gOptions->pEFD->costVal > computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gStats.density ))
+        while ( gOptions->pEFD->costVal > computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount, gStats.density ))
         {
             gModel.scale += 0.1f*MM_TO_METERS;
         }
@@ -10951,7 +10982,7 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 	}
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    return 1;
+    return MW_NO_ERROR;
 }
 
 
@@ -12584,7 +12615,7 @@ static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc )
 	}
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-	return 1;
+	return MW_NO_ERROR;
 }
 
 
@@ -13003,14 +13034,14 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
 			sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "" );
 			sprintf_s(outputString,256,"#   if made using the white, strong & flexible material: $ %0.2f%s\n",
-				computeMaterialCost( PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gStats.density ),
+				computeMaterialCost( PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gMinorBlockCount, gStats.density ),
 				warningString);
 			WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 		}
 
         sprintf_s(warningString,256,"%s", (gModel.scale < mtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "" );
         sprintf_s(outputString,256,"#   if made using the full color sandstone material:     $ %0.2f%s\n",
-            computeMaterialCost( isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gStats.density ),
+            computeMaterialCost( isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gMinorBlockCount, gStats.density ),
             warningString);
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
@@ -13021,11 +13052,11 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
             sprintf_s(outputString,256,
                 "#   if made using the %s material:     $ %0.2f%s\n",
                 mtlCostTable[gPhysMtl].name,
-                computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gStats.density ),
+                computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount, gStats.density ),
                 warningString);
             WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
         }
-        gOptions->cost = computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gStats.density );
+        gOptions->cost = computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount, gStats.density );
 
         sprintf_s(outputString,256, "# For %s printer, minimum wall is %g mm, maximum size is %g x %g x %g cm\n", mtlCostTable[gPhysMtl].name, mtlCostTable[gPhysMtl].minWall*METERS_TO_MM,
             mtlCostTable[gPhysMtl].maxSize[0], mtlCostTable[gPhysMtl].maxSize[1], mtlCostTable[gPhysMtl].maxSize[2] );
@@ -13346,9 +13377,10 @@ static int finalModelChecks()
     return retCode;
 }
 
-static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, float densityRatio )
+static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, int numMinorBlocks, float densityRatio )
 {
-    float ccmMaterial = (float)pow((double)(blockEdgeSize*METERS_TO_CM),3.0)*(float)numBlocks;
+	// as a guess, take the minor blocks number, i.e. those printed as partial blocks such as steps, and divide by two.
+    float ccmMaterial = (float)pow((double)(blockEdgeSize*METERS_TO_CM),3.0)*((float)numBlocks + (float)numMinorBlocks/2.0f);
     if ( densityRatio > mtlCostTable[printMaterialType].costDiscountDensityLevel && ccmMaterial > mtlCostTable[printMaterialType].costDiscountCCMLevel)
     {
         // density & size discount applies.
