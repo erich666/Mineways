@@ -97,8 +97,8 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <p>
 <table border=0 style="background-color: #fff; padding: 5px;" cellspacing=0>
   <tr><td>
-  <img src="http://groups.google.com/intl/en/images/logos/groups_logo_sm.gif"
-         height=30 width=140 alt="Google Groups">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/groups_logo_sm.gif"
+         height=27 width=141 alt="Google Groups">
   </td></tr>
   <tr><td style="padding-left: 5px">
   <b>Subscribe to Mineways</b> - only for important announcements, such as new version releases. <a href="http://groups.google.com/group/mineways">Visit this group.</a>
@@ -304,7 +304,7 @@ To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a
 
 <TABLE>
 <tr colspan="7">
-Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>. Click on an image for the larger version.
+Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>. Click on an image for the larger version.
 </tr>
 
 <tr>
@@ -402,7 +402,7 @@ On the left, the basic 256x256 terrainExt.png file is used; on the right, the in
 <UL>
 <LI>Export separate objects: on by default, this option says each type of block - stone, logs, fences - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages.
 <LI>Material per object: on by default, each object is given a separate material. Turning this option off for some renderers makes for a simpler import conversion process, at the cost of having only one material.
-<LI><a name="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
+<LI><a name="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
 </UL>
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
@@ -447,7 +447,7 @@ Currently even extremely thin objects, such as sign posts and single fence posts
 <a name="blocktestworld">
 If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
-Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D</a>:
+Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>:
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/test_world.jpg">
 <P>
 The rest of the options mostly have to do with 3D printing, which follows.
@@ -680,7 +680,7 @@ While I have your ear, you should also check out <a href="http://www.minecraftfo
 <a NAME="previewing">
 <b>Previewing:</b></a> to quickly check results before printing or importing into a rendering program, consider using an interactive previewer. <a href="<a href="http://meshlab.sourceforge.net/">MeshLab</a>MeshLab</a> is a good previewer models in any format Mineways produces.
 <P>
-For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
+For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
 <P>
 <TABLE>
 <tr colspan="2">
@@ -891,7 +891,7 @@ Related Resources
 Here are some related (free) tools that are handy, collected in one spot:
 <UL>
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3d printing.
-<LI>The <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/9.00%20beta%203/G3D-viewer-9.00-b035-win.zip/download">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
+<LI>The <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
 <LI>The <a href="http://www.marcam.de/cms/viscam-view.83.en.html">VisCAM View</a> is good for viewing and checking STL files.
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> helps you convert, simplify, and smooth meshes, among a huge number of other operations.
 <LI><a href="http://blender.org">Blender</a> for rendering OBJ files.
@@ -901,7 +901,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://www.voxelwiki.com/minecraft/VoxelSniper">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
 <LI><a href="http://www.diamondpants.com/spritecraft/">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
 <LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5533030544811105330">guardian</a>, and <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5544034260231691970">hopper</a>, among other models.
-<LI><a href="http://tinkercad.com">TinkerCAD</a> is an online CAD program. You can now export <i>to</i> Minecraft from it - try the "Download for Minecraft" feature. They also have a <a href="https://tinkercad.com/tags/minecraft">Minecraft gallery</a>.
+<LI><a href="http://tinkercad.com">TinkerCAD</a> is an online CAD program. You can now <a href="http://blog.123dapp.com/2013/08/tinkercrafting">export <i>to</i> Minecraft from it</a> - try the "Download for Minecraft" feature. They also have a <a href="https://tinkercad.com/tags/minecraft">Minecraft gallery</a>.
 <LI><a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> is a fantastic 3D viewer for your world. You can zoom through, see a huge distance, and get coordinates for wherever you are. It's slightly outdated and buggy right now, but a new version is in the works.
 <LI>More Minecraft tools <a href="http://minecraft.gamepedia.com/Editors">here</a>.
 </UL>
@@ -1759,6 +1759,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft’s style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
 <LI>Version 3.02, 10/25/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV302.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool’s locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
+<LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
 </UL>
 
 <h2><A NAME="wishlist">Wishlist</a></h2>
@@ -1832,7 +1833,7 @@ That's it - have fun!
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 11/17/2013</i>
+Last updated 12/10/2013</i>
 </font>
 </div> <!-- /footer -->
 </div>

@@ -1709,7 +1709,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             {
                 for ( z = 0; z < 16; z++ )
                 {
-                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? BLOCK_WOODEN_PLANKS : BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? (unsigned char)BLOCK_WOODEN_PLANKS : (unsigned char)BLOCK_STONE;
                 }
             }
 
@@ -1721,7 +1721,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
                     if ( type+i < NUM_BLOCKS )
                     {
                         for ( j = 0; j <= (int)(cx/8); j++ )
-                            block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((type+i)%50) == 0) ? BLOCK_WATER : BLOCK_LAVA;
+                            block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((type+i)%50) == 0) ? (unsigned char)BLOCK_WATER : (unsigned char)BLOCK_LAVA;
                     }
                 }
             }

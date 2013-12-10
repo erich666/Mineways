@@ -63,10 +63,10 @@ static int hash_coord(int x, int z) {
 }
 
 static block_entry* hash_new(int x, int z, void* data, block_entry* next) {
-    block_entry* ret = malloc(sizeof(block_entry));
+    block_entry* ret = (block_entry*)malloc(sizeof(block_entry));
     ret->x = x;
     ret->z = z;
-    ret->data = data;
+    ret->data = (WorldBlock*)data;
     ret->next = next;
     return ret;
 }
@@ -122,7 +122,7 @@ void Cache_Add(int bx, int bz, void *data)
         to_del->next = gBlockCache[hash];
         to_del->x = bx;
         to_del->z = bz;
-        to_del->data = data;
+        to_del->data = (WorldBlock*)data;
         gBlockCache[hash] = to_del;
     } else {
         gBlockCache[hash] = hash_new(bx, bz, data, gBlockCache[hash]);
@@ -192,7 +192,7 @@ WorldBlock* block_alloc()
         last_block = NULL;
         return ret;
     }
-    return malloc(sizeof(WorldBlock));
+    return (WorldBlock*)malloc(sizeof(WorldBlock));
 }
 
 void block_free(WorldBlock* block)

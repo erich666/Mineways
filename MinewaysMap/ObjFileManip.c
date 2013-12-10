@@ -240,6 +240,8 @@ static Options *gOptions;
 
 static FileList *gOutputFileList;
 
+static int gExportTexture=0;
+
 static int gPhysMtl;
 
 static float gUnitsScale=1.0f;
@@ -695,6 +697,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     gOptions->cost = 0.0f;
     gpCallback = &callback;
     gOutputFileList = outputFileList;
+	gExportTexture = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
 
     // get path name and root of output file name as separate globals. Also have a
     // "clean" (no extended characters, spaces turns to _) version of the output name, for the files
@@ -738,19 +741,21 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			// set empty area to all 1's
 			memset( &newImage[gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4], 0xff, (VERTICAL_TILES*tileSize-gModel.inputTerrainImage.height)*gModel.inputTerrainImage.width*4 );
 			gModel.inputTerrainImage.image_data = newImage;
+			// get rid of old terrain image.
+			free(oldImage);
 			retCode |= MW_NOT_ENOUGH_ROWS;
 		}
     }
 
     // Billboards and true geometry to be output?
-    // True only if we're exporting full textures and for rendering only, and billboards are flagged as visible.
+    // True only if we're exporting all geometry.
     // Must be set now, as this influences whether we stretch textures.
     gExportBillboards =
-        (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+        //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
         gOptions->pEFD->chkExportAll;
 
     // write texture, if needed
-    if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
+    if (gExportTexture)
     {
         // make it twice as large if we're outputting image textures, too- we need the space
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
@@ -1024,7 +1029,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
         // if we're debugging groups, make the largest group transparent and set it to red
         if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
-            (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) )
+            gExportTexture )
         {
             unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
             unsigned char r = 0xff;
@@ -1274,7 +1279,7 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
         return MW_IMAGE_WRONG_WIDTH;
 
 	// check that height is divisible by tile size
-	if ( pII->height / (pII->width / 16) != floor(pII->height / (pII->width / 16)) )
+	if ( pII->height / (pII->width / 16) != (int)((pII->height / (pII->width / 16))) )
 		 return MW_IMAGE_WRONG_WIDTH;
 
 	gModel.tileSize = gModel.inputTerrainImage.width/16;
@@ -4793,7 +4798,10 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 	vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
 
 	// Make decal tile and put it here for swatchLoc - note we don't need the swatch loc itself, the uvSlopeIndices are all we need
-	getSwatch( type, dataVal, DIRECTION_BLOCK_TOP, boxIndex-1, uvSlopeIndices );
+	if ( gExportTexture )
+	{
+		getSwatch( type, dataVal, DIRECTION_BLOCK_TOP, boxIndex-1, uvSlopeIndices );
+	}
 
 	switch ( choppedSide )
 	{
@@ -4936,10 +4944,13 @@ static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int st
 	int uvIndices[3];
 
 	// output each face
-	// get the three UV texture vertices, stored by swatch type
-	uvIndices[0] = saveTextureUV( swatchLoc, type, uvs[0][X], uvs[0][Y] );
-	uvIndices[1] = saveTextureUV( swatchLoc, type, uvs[1][X], uvs[1][Y] );
-	uvIndices[2] = saveTextureUV( swatchLoc, type, uvs[2][X], uvs[2][Y] );
+	if ( gExportTexture )
+	{
+		// get the three UV texture vertices, stored by swatch type
+		uvIndices[0] = saveTextureUV( swatchLoc, type, uvs[0][X], uvs[0][Y] );
+		uvIndices[1] = saveTextureUV( swatchLoc, type, uvs[1][X], uvs[1][Y] );
+		uvIndices[2] = saveTextureUV( swatchLoc, type, uvs[2][X], uvs[2][Y] );
+	}
 
 	face = (FaceRecord *)malloc(sizeof(FaceRecord));
 
@@ -4957,11 +4968,13 @@ static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int st
 	for ( j = 0; j < 3; j++ )
 	{
 		face->vertexIndex[j] = startVertexIndex + vindex[j];
-		face->uvIndex[j] = uvIndices[j];
+		if (gExportTexture)
+			face->uvIndex[j] = uvIndices[j];
 	}
 	// double last point
 	face->vertexIndex[3] = face->vertexIndex[2];
-	face->uvIndex[3] = face->uvIndex[2];
+	if (gExportTexture)
+		face->uvIndex[3] = face->uvIndex[2];
 
 	// all set, so save it away
 	checkFaceListSize();
@@ -5255,23 +5268,26 @@ static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFir
 	int uvIndices[4];
 	int orderedUvIndices[4];
 
-	// output each face
-	// get the four UV texture vertices, stored by swatch type
-	saveRectangleTextureUVs( swatchLoc, type, minu, maxu, minv, maxv, uvIndices );
-
-	// get four face indices for the four corners of the face, and always create each
-	for ( j = 0; j < 4; j++ )
+	if ( gExportTexture )
 	{
-        if ( reverseLoop )
-        {
-			// 13 is really like "1", just higher so that %4 will be positive (and not confusing)
-			orderedUvIndices[j] = uvIndices[(13 - j - rotUVs)%4];
-        }
-        else
-        {
-			// rotUVs
-			orderedUvIndices[j] = uvIndices[(j+2+rotUVs)%4];
-        }
+		// output each face
+		// get the four UV texture vertices, stored by swatch type
+		saveRectangleTextureUVs( swatchLoc, type, minu, maxu, minv, maxv, uvIndices );
+
+		// get four face indices for the four corners of the face, and always create each
+		for ( j = 0; j < 4; j++ )
+		{
+			if ( reverseLoop )
+			{
+				// 13 is really like "1", just higher so that %4 will be positive (and not confusing)
+				orderedUvIndices[j] = uvIndices[(13 - j - rotUVs)%4];
+			}
+			else
+			{
+				// rotUVs
+				orderedUvIndices[j] = uvIndices[(j+2+rotUVs)%4];
+			}
+		}
 	}
 
 	saveBoxFaceUVs( type, faceDirection, markFirstFace, startVertexIndex, vindex, orderedUvIndices );
@@ -5297,7 +5313,8 @@ static void saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int 
 	for ( j = 0; j < 4; j++ )
 	{
 		face->vertexIndex[j] = startVertexIndex + vindex[j];
-		face->uvIndex[j] = uvIndices[j];
+		if ( gExportTexture )
+			face->uvIndex[j] = uvIndices[j];
 	}
 
 	// all set, so save it away
@@ -5820,7 +5837,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                     pt[Z] = (float)(anchor[Z] + vertexOffsets[fc][j][Z]);
 
                     face->vertexIndex[j] = startVertexCount + j;
-                    face->uvIndex[j] = uvIndices[j];
+					if (gExportTexture)
+						face->uvIndex[j] = uvIndices[j];
 
                     gModel.vertexCount++;
                     assert( gModel.vertexCount <= gModel.vertexListSize );
@@ -5837,7 +5855,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                 for ( j = 0; j < 4; j++ )
                 {
                     face->vertexIndex[3-j] = startVertexCount + j;
-                    face->uvIndex[3-j] = uvIndices[j];
+					if (gExportTexture)
+						face->uvIndex[3-j] = uvIndices[j];
                 }
             }
 
@@ -8628,7 +8647,7 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
 				// Since we're saving a special location, we also need a special UV index
 				// to go along with it and use later.
 				// Check the direction - top and bottom don't need these, sides do.
-				if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) && !computedSpecialUVs && (faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP) )
+				if ( gExportTexture && !computedSpecialUVs && (faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP) )
 				{
 					int j;
 					computedSpecialUVs = 1;
@@ -8788,7 +8807,7 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
     }
     // else no material, so type is not needed
 
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+    if ( gExportTexture )
     {
         // I guess we really don't need the swatch location returned; it's
         // main effect is to set the proper indices in the texture map itself
@@ -10242,7 +10261,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
 
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+    if ( gExportTexture )
     {
 		int standardCorners[4];
         // get four UV texture vertices, based on type of block
@@ -10266,11 +10285,6 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             uvIndices[2] = standardCorners[localIndices[2]];
             uvIndices[3] = standardCorners[localIndices[3]];
         }
-    }
-    else
-    {
-        // easy: just use the color swatch directly
-        saveTextureCorners( swatchLoc, type, uvIndices );
     }
  
     return swatchLoc;
@@ -10423,7 +10437,7 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v )
 
 	int col, row;
 
-	assert(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
+	assert(gExportTexture);
 
     for ( i = 0; i < count; i++ )
     {
@@ -10565,7 +10579,8 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
 
     FaceRecord *pFace;
 
-    char worldChar[MAX_PATH];
+	char worldChar[MAX_PATH];
+	char outChar[MAX_PATH];
 
 #ifdef OUTPUT_NORMALS
 	int outputFaceDirection;
@@ -10583,7 +10598,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    wcharToChar(world,worldChar);
+    wcharToChar(world,worldChar);	// don't touch worldChar after this, as justWorldFileName depends on it
     justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString,256,"# Wavefront OBJ file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
@@ -10595,16 +10610,15 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
 
 
 	// Debug info, to figure out Mac paths:
-	wcharToChar(world,worldChar);
 	sprintf_s(outputString,256,"\n# Full world path: %s\n", worldChar );
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-	wcharToChar(terrainFileName,worldChar);
-	sprintf_s(outputString,256,"# Full terrainExt.png path: %s\n", worldChar );
+	wcharToChar(terrainFileName,outChar);
+	sprintf_s(outputString,256,"# Full terrainExt.png path: %s\n", outChar );
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-	wcharToChar(curDir,worldChar);
-	sprintf_s(outputString,256,"# Full current path: %s\n", worldChar );
+	wcharToChar(curDir,outChar);
+	sprintf_s(outputString,256,"# Full current path: %s\n", outChar );
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
 
@@ -10637,7 +10651,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     }
 #endif
 
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+    if ( gExportTexture )
     {
 		int prevSwatch = -1;
         for ( i = 0; i < gModel.uvIndexCount; i++ )
@@ -10758,7 +10772,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
 #endif
 
         // first, are there texture coordinates?
-        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+        if ( gExportTexture )
         {
 #ifdef OUTPUT_NORMALS
 			// with normals - not really needed by most renderers
@@ -11009,7 +11023,7 @@ static int writeOBJMtlFile()
 		(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) ? gModel.mtlCount : 1 );
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
-    if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE )
+    if (gExportTexture )
     {
         // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
         // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
@@ -11069,13 +11083,14 @@ static int writeOBJMtlFile()
 			int type;
 			char tfString[256];
 			char mapdString[256];
+			char mapKeString[256];
 			char keString[256];
 			char mtlName[MAX_PATH];
 			char *typeTextureFileName;
 			char fullMtl[256];
 			double alpha;
 			double fRed,fGreen,fBlue;
-			double ka, kd, ke;
+			double ka, kd;
 
 			type = gModel.mtlList[i];
 
@@ -11111,15 +11126,12 @@ static int writeOBJMtlFile()
 			// good for blender:
 			ka = 0.2;
 			kd = 1.0;
-			// looks bad in G3D, but if you want to emit light from various emitters - torches, etc. - make it non-zero.
-			// If nothing else you can identify emitters when you see 'Ke 0 0 0' in the material.
-			ke = 0.0f;
 			// 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
 			// is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
 			// in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
 			// Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
 			// do not support textures (e.g. Blender).
-			//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)) ? 1.0f : gBlockDefinitions[type].alpha;
+			//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
 			// Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
 			// alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
 			alpha = gBlockDefinitions[type].alpha;
@@ -11171,20 +11183,36 @@ static int writeOBJMtlFile()
 			else
 			{
 				gModel.usesRGB = 1;
-				typeTextureFileName = textureRGB;
+				if ( gExportTexture )
+				{
+					typeTextureFileName = textureRGB;
+				}
+				else
+				{
+					typeTextureFileName = '\0'; 
+				}
 				mapdString[0] = '\0';
 			}
 			if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
 			{
 				// emitter
-				sprintf_s(keString,256,"%sKe %g %g %g\n", fullMtl, (float)(fRed*ke), (float)(fGreen*ke), (float)(fBlue*ke) );
+				sprintf_s(keString,256,"Ke 1 1 1\n" );
+				if ( gExportTexture )
+				{
+					sprintf_s(mapKeString,256,"map_Ke %s\n", typeTextureFileName );
+				}
+				else
+				{
+					mapKeString[0] = '\0';
+				}
 			}
 			else
 			{
 				keString[0] = '\0';
+				mapKeString[0] = '\0';
 			}
 
-			if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)
+			if (gExportTexture)
 			{
 				sprintf_s(outputString,1024,
 					"\nnewmtl %s\n"
@@ -11196,6 +11224,7 @@ static int writeOBJMtlFile()
 					"%smap_Ka %s\n"
 					"map_Kd %s\n"
 					"%s" // map_d, if there's a cutout
+					"%s"	// map_Ke
 					// "Ni 1.0\n" - Blender likes to output this - no idea what it is
 					"%sillum %d\n"
 					"# d %g\n"	// some use Tr here - Blender likes "d"
@@ -11211,6 +11240,7 @@ static int writeOBJMtlFile()
 					fullMtl,typeTextureFileName,
 					typeTextureFileName,
 					mapdString,
+					mapKeString,
 					fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
 					(float)(alpha),
 					(float)(alpha),
@@ -12217,7 +12247,7 @@ DWORD br;
 	char textureDefOutputString[256];
 	//char textureUseOutputString[256];
 
-    int currentFace, j, firstShape, exportSingleMaterial, exportSolidColors, exportTextures;
+    int currentFace, j, firstShape, exportSingleMaterial, exportSolidColors;
 
     int retCode = MW_NO_ERROR;
 
@@ -12248,8 +12278,7 @@ DWORD br;
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-	exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
-	exportTextures = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE);
+	exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !gExportTexture;
 
 	// if you want each separate textured object to be its own shape, do this line instead:
 	exportSingleMaterial = !(gOptions->exportFlags & EXPT_GROUP_BY_MATERIAL);
@@ -12279,7 +12308,7 @@ DWORD br;
 	// output vertex coordinate loops
 
 	// prepare generic material for texture (texture gets multiplied by the color, so we have to use just the generic)
-	if ( exportTextures )
+	if ( gExportTexture )
 	{
 		// prepare output texture file name string
 		// get texture name to export, if needed
@@ -12343,7 +12372,7 @@ DWORD br;
 			}
 
 			// textures need texture coordinates output, only needed when texturing
-			if ( exportTextures )
+			if ( gExportTexture )
 			{
 				int prevSwatch = -1;
 				int k;
@@ -12364,7 +12393,7 @@ DWORD br;
 		}
 		else
 		{
-			if ( exportTextures )
+			if ( gExportTexture )
 			{
 				strcpy_s(outputString,256,"        texCoord USE texCoord_Craft\n");
 				WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -12409,7 +12438,7 @@ DWORD br;
 		}
 
 		// output texture coordinates for face loops
-		if ( exportTextures )
+		if ( gExportTexture )
 		{
 			strcpy_s(outputString,256,"        ]\n        texCoordIndex\n        [\n");
 			WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -12451,8 +12480,8 @@ DWORD br;
 		// - if it's a single material, then the output name is "generic"
 		retCode |= writeVRMLAttributeShapeSplit( exportSolidColors ? currentType : GENERIC_MATERIAL, 
 			mtlName,
-			// DEF/USE - Shapeways does not like: exportTextures ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
-		    exportTextures ? textureDefOutputString : NULL );
+			// DEF/USE - Shapeways does not like: gExportTexture ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
+		    gExportTexture ? textureDefOutputString : NULL );
 
 		if ( retCode >= MW_BEGIN_ERRORS )
 			goto Exit;
@@ -12516,7 +12545,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
 	// in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
 	// Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
 	// do not support textures (e.g. Blender).
-	//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE)) ? 1.0f : gBlockDefinitions[type].alpha;
+	//alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
 	// Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
 	// alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
 	alpha = gBlockDefinitions[type].alpha;
@@ -12929,7 +12958,7 @@ static int schematicWriteIntValue( gzFile gz, int intValue )
 
 static int schematicWriteStringValue( gzFile gz, char *stringValue )
 {
-	int totWrite = gzwrite( gz, stringValue, strlen(stringValue) );
+	int totWrite = gzwrite( gz, stringValue, (unsigned int)strlen(stringValue) );
 	assert(totWrite);
 	return totWrite;
 }
@@ -12980,6 +13009,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
     char outputString[256];
     char timeString[256];
+	char formatString[256];
     errno_t errNum;
     struct tm newtime;
     __time32_t aclock;
@@ -13018,7 +13048,33 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 		worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
 	WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-    sprintf_s(outputString,256,"# Created for %s\n", (gOptions->exportFlags & EXPT_3DPRINT) ? "3D printing" : "Viewing" );
+	// If STL, say which type of STL, etc.
+	switch ( gOptions->pEFD->fileType )
+	{
+	case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+		strcpy_s( formatString, 256, "Wavefront OBJ absolute indices");
+		break;
+	case FILE_TYPE_WAVEFRONT_REL_OBJ:
+		strcpy_s( formatString, 256, "Wavefront OBJ relative indices");
+		break;
+	case FILE_TYPE_BINARY_MAGICS_STL:
+		strcpy_s( formatString, 256, "Binary STL iMaterialise");
+		break;
+	case FILE_TYPE_BINARY_VISCAM_STL:
+		strcpy_s( formatString, 256, "Binary STL VisCAM");
+		break;
+	case FILE_TYPE_ASCII_STL:
+		strcpy_s( formatString, 256, "ASCII STL");
+		break;
+	case FILE_TYPE_VRML2:
+		strcpy_s( formatString, 256, "VRML 2.0");
+		break;
+	default:
+		strcpy_s( formatString, 256, "Unknown file type");
+		assert(0);
+		break;
+	}
+    sprintf_s(outputString,256,"# Created for %s - %s\n", (gOptions->exportFlags & EXPT_3DPRINT) ? "3D printing" : "Viewing", formatString );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     if ( gOptions->exportFlags & EXPT_3DPRINT )
@@ -14199,7 +14255,7 @@ static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wch
     else
     {
         // look for /
-        rootPtr = wcsrchr(src,(wchar_t)'/');
+        rootPtr = wcsrchr(path,(wchar_t)'/');
         if ( rootPtr )
             // found a /, so move up past it
             rootPtr++;

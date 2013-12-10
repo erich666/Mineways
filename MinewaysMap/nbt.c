@@ -247,7 +247,7 @@ static int compare(bfFile bf,char *name)
 #ifdef C99
     char thisName[len+1];
 #else
-    char *thisName=malloc(len+1);
+    char *thisName=(char*)malloc(len+1);
 #endif
     bfread(bf,thisName,len);
     thisName[len]=0;

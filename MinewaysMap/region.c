@@ -94,8 +94,8 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 	if (buf==NULL)
 	{
 		// note that these will never get freed, but we just need this one.
-		buf=malloc(CHUNK_DEFLATE_MAX);
-		out=malloc(CHUNK_INFLATE_MAX);
+		buf=(unsigned char*)malloc(CHUNK_DEFLATE_MAX);
+		out=(unsigned char*)malloc(CHUNK_INFLATE_MAX);
 	}
 
     // open the region file - note we get the new mca 1.2 file type here!

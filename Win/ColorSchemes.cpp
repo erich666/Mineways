@@ -29,7 +29,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include <CommDlg.h>
 #include "Resource.h"
-#include "../MinewaysMap/blockInfo.h"
 #include "ColorSchemes.h"
 
 #define NO_COLOR_ENTRY 0x000100FF

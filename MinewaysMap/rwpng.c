@@ -29,6 +29,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include "rwpng.h"
 
+#include <SETJMP.H>
+
 
 int writepngheader(progimage_info *mainprog_ptr);
 

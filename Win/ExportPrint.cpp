@@ -30,7 +30,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <assert.h>
 #include "Resource.h"
-//#include "../MinewaysMap/blockInfo.h"
 #include "ExportPrint.h"
 
 
