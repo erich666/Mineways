@@ -69,6 +69,7 @@ static Options gOptions = {0,   // which world is visible
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
 static BOOL gSameWorld=FALSE;
 static wchar_t gSelectTerrain[MAX_PATH];				//path to selected terrainExt.png file, if any
+static wchar_t gImportFile[MAX_PATH];					//path to import file for settings
 static BOOL gLoaded=FALSE;								//world loaded?
 static double gCurX,gCurZ;								//current X and Z
 static int gLockMouseX=0;                               // if true, don't allow this coordinate to change with mouse, 
@@ -92,7 +93,7 @@ static int gTargetDepth=MIN_OVERWORLD_DEPTH;								//how far down the depth is 
 static ExportFileData gExportPrintData;
 static ExportFileData gExportViewData;
 static ExportFileData gExportSchematicData;
-// this one is set to whichever is active;
+// this one is set to whichever is active for export or import, 3D printing or rendering
 static ExportFileData *gpEFD;
 
 static int gOverworldHideStatus=0x0;
@@ -124,23 +125,28 @@ static struct {
     unsigned int type;
 } gPopupInfo[]={
     {_T("No error"), _T("No error"), MB_OK},	//00
-    {_T("Warning: thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<0
+    {_T("Warning: thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// 1
     {_T("Warning: sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
 	{_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
 	{_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 23 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 23 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<6
     
-	{_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//06
-    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	//07
-    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	//08
-    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//09
-    {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	//10
-	{_T("Error: the incoming terrainExt.png file resolution must be a power of two horizontally, and at least 16 pixels wide."), _T("Export error"), MB_OK|MB_ICONERROR},	//11
-	{_T("Error: the width, height, and length of the model area must all be < 65536"), _T("Export error"), MB_OK|MB_ICONERROR},	//12
+	{_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
+    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<8
+    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
+    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
+    {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
+	{_T("Error: the incoming terrainExt.png file resolution must be a power of two horizontally, and at least 16 pixels wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
+	{_T("Error: the incoming terrainExt.png file image is too large."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13
+	{_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<14
+	{_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
+	{_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<16
 };
 
+// Number of lines to read from the header - don't want to go too far
+#define HEADER_LINES 60
 
 // Forward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -162,9 +168,15 @@ static int findColorScheme(wchar_t* name);
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
 static void syncCurrentHighlightDepth();
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog );
+static void PopupErrorDialogs( int errCode );
 static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber );
 static const wchar_t *removePath( const wchar_t *src );
 static void initializeExportDialogData();
+static int importSettings( wchar_t *importFile );
+static int readLineSet( FILE *fh, char lines[HEADER_LINES][120], int maxLine );
+static int readLine( FILE *fh, char *inputString, int stringLength );
+static int findLine( char *checkString, char lines[HEADER_LINES][120], int startLine, int maxLines );
+
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
                      HINSTANCE hPrevInstance,
@@ -173,6 +185,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 {
     GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
     gSelectTerrain[0] = (wchar_t)0;
+	gImportFile[0] = (wchar_t)0;
 
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
@@ -1207,6 +1220,72 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 wcscpy_s(gSelectTerrain,MAX_PATH,path);
             }
             break;
+		case ID_FILE_IMPORTSETTINGS:
+			ZeroMemory(&ofn,sizeof(OPENFILENAME));
+			ofn.lStructSize=sizeof(OPENFILENAME);
+			ofn.hwndOwner=hWnd;
+			wcscpy_s(path,MAX_PATH,gImportFile);
+			ofn.lpstrFile=path;
+			//path[0]=0;
+			ofn.nMaxFile=MAX_PATH;
+			ofn.lpstrFilter=L"All files (*.obj;*.txt;*.wrl)\0*.obj;*.txt;*.wrl\0Wavefront OBJ (*.obj)\0*.obj\0Summary text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+			ofn.nFilterIndex=1;
+			ofn.lpstrFileTitle=NULL;
+			ofn.nMaxFileTitle=0;
+			ofn.lpstrInitialDir=NULL;
+			ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+			if (GetOpenFileName(&ofn)==TRUE)
+			{
+				// copy file name, since it definitely appears to exist.
+				wcscpy_s(gImportFile,MAX_PATH,path);
+				int retVal = importSettings( gImportFile );
+				if ( MW_NO_ERROR != retVal )
+				{
+					// error, so warn.
+					PopupErrorDialogs( retVal );
+				}
+				else
+				{
+					gCurX=(gpEFD->minxVal+gpEFD->maxxVal)/2;
+					gCurZ=(gpEFD->minzVal+gpEFD->maxzVal)/2;
+
+					if ( gHighlightOn )
+					{
+						// reload world in order to clear out any previous selection displayed.
+						loadWorld();
+					}
+
+					gHighlightOn = true;
+					SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
+					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+					// put target depth to new depth set, if any
+					if ( gTargetDepth != gpEFD->maxyVal )
+					{
+						gTargetDepth = gpEFD->minyVal;
+					}
+					blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+						bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+					updateStatus(mx,mz,my,blockLabel,hwndStatus);
+					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+
+					// redraw, as selection bounds will change
+					draw();
+					InvalidateRect(hWnd,NULL,FALSE);
+					UpdateWindow(hWnd);
+
+					// and note which import was done
+					MessageBox(
+						NULL,
+						( gpEFD->flags & EXPT_3DPRINT ) ?
+						_T("Previous settings for 3D printing imported.\nNote that the color scheme is not changed on import.") :
+							_T("Previous settings for rendering imported.\nNote that the color scheme is not changed on import."),
+						_T("Informational"),
+						MB_OK|MB_ICONINFORMATION
+						);
+				}
+			}
+			break;
         case IDM_FILE_PRINTOBJ:
 		case IDM_FILE_SAVEOBJ:
 		case IDM_FILE_SCHEMATIC:
@@ -1926,6 +2005,7 @@ static void validateItems(HMENU menu)
 		//EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
 		//EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
 		EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
+		EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_ENABLED);
 		EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
 		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
 		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
@@ -1934,6 +2014,7 @@ static void validateItems(HMENU menu)
     {
         EnableMenuItem(menu,IDM_JUMPSPAWN,MF_DISABLED);
         EnableMenuItem(menu,IDM_JUMPPLAYER,MF_DISABLED);
+		EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_DISABLED);
         EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_DISABLED);
 		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
 		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_DISABLED);
@@ -2286,35 +2367,40 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
         if ( errCode != MW_NO_ERROR )
         {
-            // pop up all errors flagged
-            for ( int errNo = MW_NUM_CODES-1; errNo >= 0; errNo-- )
-            {
-                if ( (1<<errNo) & errCode )
-                {
-                    //int msgboxID = 
-                    MessageBox(
-                        NULL,
-                        gPopupInfo[errNo+1].text,
-                        gPopupInfo[errNo+1].caption,
-                        gPopupInfo[errNo+1].type
-                        );
-
-                    //switch (msgboxID)
-                    //{
-                    //case IDCANCEL:
-                    //    break;
-                    //case IDTRYAGAIN:
-                    //    break;
-                    //case IDCONTINUE:
-                    //    break;
-
-                    //}
-                }
-            }
+			PopupErrorDialogs( errCode );
         }
     }
 
     return retCode;
+}
+
+static void PopupErrorDialogs( int errCode )
+{
+	// pop up all errors flagged
+	for ( int errNo = MW_NUM_CODES-1; errNo >= 0; errNo-- )
+	{
+		if ( (1<<errNo) & errCode )
+		{
+			//int msgboxID = 
+			MessageBox(
+				NULL,
+				gPopupInfo[errNo+1].text,
+				gPopupInfo[errNo+1].caption,
+				gPopupInfo[errNo+1].type
+				);
+
+			//switch (msgboxID)
+			//{
+			//case IDCANCEL:
+			//    break;
+			//case IDTRYAGAIN:
+			//    break;
+			//case IDCONTINUE:
+			//    break;
+
+			//}
+		}
+	}
 }
 
 static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber )
@@ -2541,3 +2627,559 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
+
+static int importSettings( wchar_t *importFile )
+{
+	// read header, as written by writeStatistics(), and get export settings from it
+
+	//char inputString[256];
+	int worldBox[6];
+	char c;
+
+	FILE *fh;
+	errno_t err = _wfopen_s( &fh, importFile, L"rt" );
+
+	if (err != 0) {
+		return MW_CANNOT_READ_IMPORT_FILE;
+	}
+
+	char lines[HEADER_LINES][120];
+
+	int numLines = readLineSet( fh, lines, HEADER_LINES );
+
+	fclose( fh );
+
+	if ( numLines == 0 )
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	// find size
+	int lineNo = findLine( "# Selection location min to max:", lines, 0, 10 );
+	if ( lineNo >= 0)
+	{
+		// found selection, parse it
+		if ( 6 != sscanf_s( lines[lineNo], "# Selection location min to max: %d, %d, %d to %d, %d, %d", 
+			&worldBox[0], &worldBox[1], &worldBox[2],
+			&worldBox[3], &worldBox[4], &worldBox[5] ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+	{
+		// old format, and need to not pass in lineNo (which is -1)
+		lineNo = findLine( "# Selection location:", lines, 0, 30 );
+		if ( lineNo >= 0)
+		{
+			// found selection, parse it
+			if ( 6 != sscanf_s( lines[lineNo], "# Selection location: %d, %d, %d to %d, %d, %d", 
+				&worldBox[0], &worldBox[1], &worldBox[2],
+				&worldBox[3], &worldBox[4], &worldBox[5] ) )
+				return MW_CANNOT_PARSE_IMPORT_FILE;
+		}
+		else
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+
+	// note we restart the search here, because old style output had this bit earlier
+	lineNo = findLine( "# Created for ", lines, 0, 20 );
+	if ( lineNo >= 0)
+	{
+		// found selection, parse it
+		if ( !sscanf_s( lines[lineNo], "# Created for %c", &c, sizeof(char) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	ExportFileData efd;
+	ExportFileData *pSaveEFD;
+	// 3d print or render?
+	if ( c == '3' )
+	{
+		efd = gExportPrintData;
+		pSaveEFD = &gExportPrintData;
+		efd.flags = EXPT_3DPRINT;
+	}
+	else
+	{
+		efd = gExportViewData;
+		pSaveEFD = &gExportViewData;
+		efd.flags = 0x0;
+	}
+	// file type - if not found, abort;
+	// older files don't have this info
+	if ( strstr( lines[lineNo], "Wavefront OBJ absolute indices" ) )
+	{
+		efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+	}
+	else if ( strstr( lines[lineNo], "Wavefront OBJ relative indices" ) )
+	{
+		efd.fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
+	}
+	else if ( strstr( lines[lineNo], "Binary STL iMaterialise" ) )
+	{
+		efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
+	}
+	else if ( strstr( lines[lineNo], "Binary STL VisCAM" ) )
+	{
+		efd.fileType = FILE_TYPE_BINARY_VISCAM_STL;
+	}
+	else if ( strstr( lines[lineNo], "ASCII STL" ) )
+	{
+		efd.fileType = FILE_TYPE_ASCII_STL;
+	}
+	else if ( strstr( lines[lineNo], "VRML 2.0" ) )
+	{
+		efd.fileType = FILE_TYPE_VRML2;
+	}
+	else
+	{
+		// can't figure it out from the file (old-style), so figure it out
+		// from the file name itself.
+		if ( wcsstr( importFile, L".obj" ) )
+		{
+			efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+		}
+		else if ( wcsstr( importFile, L".txt" ) )
+		{
+			efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
+		}
+		else if ( wcsstr( importFile, L".wrl" ) )
+		{
+			efd.fileType = FILE_TYPE_VRML2;
+		}
+		else
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+
+	// units - well after 3D print output, so scan many lines
+	char string1[100], string2[100], string3[100];
+	lineNo = findLine( "# Units for the model vertex data itself:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		// found selection, parse it
+		if ( !sscanf_s( lines[lineNo], "# Units for the model vertex data itself: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	int i;
+	for ( i = 0; i < MODELS_UNITS_TABLE_SIZE; i++ )
+	{
+		if ( strcmp( unitTypeTable[i].name, string1 ) == 0 )
+		{
+			efd.comboModelUnits[efd.fileType] = i;
+			break;
+		}
+	}
+	// units found?
+	if ( i >= 4 )
+	{
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+
+	lineNo = findLine( "# File type:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		// found selection, parse it
+		if ( !sscanf_s( lines[lineNo], "# File type: Export %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	char *outputTypeString[] = {
+		"no", // "Export no materials",
+		"solid", // "Export solid material colors only (no textures)",
+		"richer", // "Export richer color textures",
+		"full", // "Export full color texture patterns"
+	};
+	for ( i = 0; i < 4; i++ )
+	{
+		if ( strcmp( outputTypeString[i], string1 ) == 0 )
+		{
+			break;
+		}
+	}
+
+	efd.radioExportNoMaterials[efd.fileType] = 0;
+	efd.radioExportMtlColors[efd.fileType] = 0;
+	efd.radioExportSolidTexture[efd.fileType] = 0;
+	efd.radioExportFullTexture[efd.fileType] = 0;
+	switch ( i )
+	{
+	case 0:
+		efd.radioExportNoMaterials[efd.fileType] = 1;
+		break;
+	case 1:
+		efd.radioExportMtlColors[efd.fileType] = 1;
+		break;
+	case 2:
+		efd.radioExportSolidTexture[efd.fileType] = 1;
+		break;
+	case 3:
+		efd.radioExportFullTexture[efd.fileType] = 1;
+		break;
+	default:
+	case 4:
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+
+	// set material options if using OBJ
+	if ( ( efd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( efd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ) )
+	{
+		lineNo = findLine( "# Export separate objects:", lines, lineNo+1, 20 );
+		if ( lineNo >= 0)
+		{
+			if ( !sscanf_s( lines[lineNo], "# Export separate objects: %s", string1, _countof(string1) ) )
+				return MW_CANNOT_PARSE_IMPORT_FILE;
+
+			efd.chkMultipleObjects = ( string1[0] == 'Y');
+
+			if ( efd.chkMultipleObjects )
+			{
+				lineNo = findLine( "#  Material per object:", lines, lineNo+1, 20 );
+				if ( lineNo >= 0)
+				{
+					if ( !sscanf_s( lines[lineNo], "#  Material per object: %s", string1, _countof(string1) ) )
+						return MW_CANNOT_PARSE_IMPORT_FILE;
+				}
+				else
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+
+				efd.chkMaterialPerType = ( string1[0] == 'Y');
+
+				if ( efd.chkMaterialPerType )
+				{
+					lineNo = findLine( "#   G3D full material:", lines, lineNo+1, 20 );
+					if ( lineNo >= 0)
+					{
+						if ( !sscanf_s( lines[lineNo], "#   G3D full material: %s", string1, _countof(string1) ) )
+							return MW_CANNOT_PARSE_IMPORT_FILE;
+					}
+					else
+						return MW_CANNOT_PARSE_IMPORT_FILE;
+
+					efd.chkG3DMaterial = ( string1[0] == 'Y');
+				}
+			}
+		}
+		// else if not found, that's OK, this is a newer feature; set defaults
+		else
+		{
+			efd.chkMultipleObjects = 1;
+			efd.chkMaterialPerType = 1;
+		}
+	}
+
+	lineNo = findLine( "# Make Z the up", lines, 0, 40 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Make Z the up direction instead of Y: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+
+		efd.chkMakeZUp[efd.fileType] = ( string1[0] == 'Y');
+	}
+	else
+	{
+		// unfortunately the old code had a bug and it always said YES, even when not set.
+		// So we leave this value untouched and move on.
+		/*
+		lineNo = findLine( "# Make Z direction up:", lines, 0, 40 );
+		if ( lineNo >= 0)
+		{
+			if ( !sscanf_s( lines[lineNo], "# Make Z direction up: %s", string1, _countof(string1) ) )
+				return MW_CANNOT_PARSE_IMPORT_FILE;
+		}
+		else
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+		*/
+	}
+
+
+	lineNo = findLine( "# Center model:", lines, 0, 40 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Center model: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkCenterModel = ( string1[0] == 'Y');
+
+
+	lineNo = findLine( "# Export lesser blocks:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Export lesser blocks: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+
+		efd.chkExportAll = ( string1[0] == 'Y');
+
+		if ( efd.chkExportAll )
+		{
+			lineNo = findLine( "# Fatten lesser blocks:", lines, lineNo+1, 20 );
+			if ( lineNo >= 0)
+			{
+				if ( !sscanf_s( lines[lineNo], "# Fatten lesser blocks: %s", string1, _countof(string1) ) )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+			}
+			else
+				return MW_CANNOT_PARSE_IMPORT_FILE;
+
+			efd.chkFatten = ( string1[0] == 'Y');
+		}
+	}
+	// this is a newer feature, so if we don't find it, continue on
+	else
+	{
+		// if rendering, set this to be on
+		if ( !(efd.flags & EXPT_3DPRINT) )
+		{
+			efd.chkExportAll = 1;
+		}
+	}
+
+
+	lineNo = findLine( "# Individual blocks:", lines, 0, 40 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Individual blocks: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+
+		efd.chkIndividualBlocks = ( string1[0] == 'Y');
+	}
+	// new feature - if missing, assume it's off, but don't fail
+
+	float floatVal = 0.0f;
+	lineNo = findLine( "# Rotate model", lines, 0, 40 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Rotate model %f degrees", &floatVal ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.radioRotate0 = efd.radioRotate90 = efd.radioRotate180 = efd.radioRotate270 = 0;
+
+	efd.radioRotate0 = ( floatVal == 0.0f );
+	efd.radioRotate90 = ( floatVal == 90.0f );
+	efd.radioRotate180 = ( floatVal == 180.0f );
+	efd.radioRotate270 = ( floatVal == 270.0f );
+
+	// just in case
+	if ( !( efd.radioRotate90 || efd.radioRotate180 || efd.radioRotate270) )
+		efd.radioRotate0 = 1;
+
+
+	lineNo = findLine( "# Scale model by ", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		efd.radioScaleByBlock = efd.radioScaleByCost = efd.radioScaleToHeight = efd.radioScaleToMaterial = 0;
+
+		if ( sscanf_s( lines[lineNo], "# Scale model by making each block %f mm high", &floatVal ) )
+		{
+			efd.radioScaleByBlock = 1;
+			efd.blockSizeVal[efd.fileType] = floatVal;
+		}
+		else if ( 2 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s material", &floatVal, string1, _countof(string1) ) )
+		{
+			efd.radioScaleByCost = 1;
+			efd.costVal = floatVal;
+		}
+		else if ( sscanf_s( lines[lineNo], "# Scale model by fitting to a height of %f cm", &floatVal ) )
+		{
+			efd.radioScaleToHeight = 1;
+			efd.modelHeightVal = floatVal;
+		}
+		else if ( sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s material", string1, _countof(string1) ) )
+		{
+			efd.radioScaleToMaterial = 1;
+		}
+		else
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+
+		// if by cost or by material, need to set the material type.
+		if ( efd.radioScaleByCost || efd.radioScaleToMaterial )
+		{
+			for ( i = 0; i < MTL_COST_TABLE_SIZE; i++ )
+			{
+				if ( strcmp( string1, mtlCostTable[i].name ) == 0 )
+				{
+					break;
+				}
+			}
+			if ( i >= MTL_COST_TABLE_SIZE )
+				return MW_CANNOT_PARSE_IMPORT_FILE;
+
+			efd.comboPhysicalMaterial[efd.fileType] = i;
+		}
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	lineNo = findLine( "#   Fill air bubbles:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( 3 != sscanf_s( lines[lineNo], "#   Fill air bubbles: %s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
+			string1, _countof(string1),
+			string2, _countof(string2),
+			string3, _countof(string3)
+			) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkFillBubbles = ( string1[0] == 'Y');
+	efd.chkSealEntrances = ( string2[0] == 'Y');
+	efd.chkSealSideTunnels = ( string3[0] == 'Y');
+
+
+	lineNo = findLine( "#   Connect parts sharing an edge:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( 3 != sscanf_s( lines[lineNo], "#   Connect parts sharing an edge: %s Connect corner tips: %s Weld all shared edges: %s",
+			string1, _countof(string1),
+			string2, _countof(string2),
+			string3, _countof(string3)
+			) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkConnectParts = ( string1[0] == 'Y');
+	efd.chkConnectCornerTips = ( string2[0] == 'Y');
+	efd.chkConnectAllEdges = ( string3[0] == 'Y');
+
+
+	int intVal = 0;
+	lineNo = findLine( "#   Delete floating objects:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( 2 != sscanf_s( lines[lineNo], "#   Delete floating objects: trees and parts smaller than %d blocks: %s",
+			&intVal,
+			string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkDeleteFloaters = ( string1[0] == 'Y');
+	efd.floaterCountVal = intVal;
+
+
+	lineNo = findLine( "#   Hollow out bottom of model", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( 3 != sscanf_s( lines[lineNo], "#   Hollow out bottom of model, making the walls %f mm thick: %s Superhollow: %s",
+			&floatVal,
+			string1, _countof(string1),
+			string2, _countof(string2)
+			) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.hollowThicknessVal[efd.fileType] = floatVal;
+	efd.chkHollow = ( string1[0] == 'Y');
+	efd.chkSuperHollow = ( string2[0] == 'Y');
+
+
+	lineNo = findLine( "# Melt snow blocks:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Melt snow blocks: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkMeltSnow = ( string1[0] == 'Y');
+
+
+	lineNo = findLine( "#   Debug: show separate parts as colors:", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "#   Debug: show separate parts as colors: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkShowParts = ( string1[0] == 'Y');
+
+
+	lineNo = findLine( "#   Debug: show weld blocks", lines, lineNo+1, 20 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "#   Debug: show weld blocks in bright colors: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+	}
+	else
+		return MW_CANNOT_PARSE_IMPORT_FILE;
+
+	efd.chkShowWelds = ( string1[0] == 'Y');
+
+
+	// survived, so copy data read in over
+	*pSaveEFD = efd;
+	pSaveEFD->minxVal = worldBox[0];
+	pSaveEFD->minyVal = worldBox[1];
+	pSaveEFD->minzVal = worldBox[2];
+	pSaveEFD->maxxVal = worldBox[3];
+	pSaveEFD->maxyVal = worldBox[4];
+	pSaveEFD->maxzVal = worldBox[5];
+
+	gpEFD = pSaveEFD;
+
+	return MW_NO_ERROR;
+}
+
+// read line, includes \n at end.
+static int readLineSet( FILE *fh, char lines[HEADER_LINES][120], int maxLine )
+{
+	int lineNum = 0;
+	int pos;
+	do {
+		pos = readLine( fh, lines[lineNum++], 120 );
+	} while ( (pos > 0) && ( lineNum < maxLine ) );
+	return lineNum;
+}
+
+// read line, includes \n at end.
+static int readLine( FILE *fh, char *inputString, int stringLength )
+{
+	int pos = 0;
+	int c;
+	do {
+		c = fgetc(fh);
+		if (c != EOF) inputString[pos++] = (char)c;
+		// line too long?
+		if (pos >= stringLength - 1)
+		{
+			inputString[stringLength-1] = '\0';
+			return ( c != EOF ) ? pos : -1;
+		}
+	} while (c != EOF && c != '\n');
+	inputString[pos] = '\0';
+
+	return ( c != EOF) ? pos : -1;
+}
+
+// return line number if checkString is found in the next maxLines of the file.
+static int findLine( char *checkString, char lines[HEADER_LINES][120], int startLine, int maxLines )
+{
+	int trueMaxLines = ( startLine+maxLines >= HEADER_LINES ) ? HEADER_LINES : startLine+maxLines;
+	for ( int i=startLine; i < trueMaxLines; i++ )
+	{
+		if ( strstr( lines[i], checkString ) != NULL )
+		{
+			return i;
+		}
+	}
+	return -1;
+}

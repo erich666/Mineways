@@ -44,7 +44,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
-#define STOP_Z_FIGHTING	(0.0002f/2.0f)
+//#define STOP_Z_FIGHTING	(0.0002f/2.0f)
+// feature currently disabled, G3D was fixed so this is no longer an issue.
+#define STOP_Z_FIGHTING	0.0f
 
 // To build the code the old way, which took up a lot more memory but maybe
 // solves some problems people with Macs have running Mineways under Wine
@@ -252,6 +254,13 @@ static int gMajorVersion=0;
 static int gMinorVersion=0;
 
 static int gBadBlocksInModel=0;
+
+// If set, the current faces being output will be transformed later (most likely)
+// This is important to know for merging faces: if faces are to later be rotated, etc.,
+// then their geometric coordinates cannot be used for seeing if the face should be removed
+// because it is neighboring something that covers it.
+// This is a global hack, but I didn't want to add this variable *everywhere* when it's usually 0.
+static int gUsingTransform=0;
 
 // extra face directions, for normals
 #define DIRECTION_LO_X_LO_Z 6
@@ -503,6 +512,9 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
 static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
+static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4] );
+static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRect[4] );
 static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
 static void saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
@@ -552,7 +564,9 @@ static int faceIdCompare( void *context, const void *str1, const void *str2);
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
 static void checkAndCreateFaces( int boxIndex, IPoint loc );
-static int checkMakeFace( int type, int neighborType, int view3D, int faceDirection, int boxIndex, int neighborBoxIndex );
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex );
+static int neighborCoversFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
+static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int view3D );
 static int isFluidBlockFull( int type, int boxIndex );
 static int cornerHeights( int type, int boxIndex, float heights[4] );
 static float computeUpperCornerHeight( int type, int boxIndex, int x, int z );
@@ -1571,8 +1585,10 @@ static int filterBox()
     int retCode = MW_NO_ERROR;
     int foundBlock = 0;
 
-    // Filter out all stuff that is not to be rendered. If billboards are in use, create these
-    // as found
+	int outputFlags;
+
+    // Filter out all stuff that is not to be rendered. Done before anything, as these blocks simply
+	// should not exist for all operations beyond.
     for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
     {
         for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
@@ -1589,51 +1605,71 @@ static int filterBox()
                     if ( !(flags & gOptions->saveFilterFlags) ||
                         gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0 ) {
                             // things that should not be saved should be gone, gone, gone
-                            gBoxData[boxIndex].type =   gBoxData[boxIndex].origType = BLOCK_AIR;
+                            gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
                             gBoxData[boxIndex].data = 0x0;
                     }
-                    else
+				}
+			}
+		}
+	}
+	// what should we output? Only 3D bits (no billboards) if printing or if textures are off
+	if ( (gOptions->exportFlags & EXPT_3DPRINT) || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+	{
+		outputFlags = BLF_3D_BIT;
+	}
+	else
+	{
+		outputFlags = (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY);
+	}
+	// check for billboards and lesser geometry - immediately output. Flatten that which should be flattened. 
+	for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
+	{
+		for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
+		{
+			boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
+			for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
+			{
+				// sorry, air is never allowed to turn solid
+				if ( gBoxData[boxIndex].type != BLOCK_AIR )
+				{
+					int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
+                    // check: is it a billboard we can export? Clear it out if so.
+					int blockProcessed = 0;
+                    if ( gExportBillboards )
                     {
-                        // check: is it a billboard we can export? Clear it out if so.
-						int blockProcessed = 0;
-                        if ( gExportBillboards )
+                        // If we're 3d printing, or rendering without textures, then export 3D printable bits,
+						// on the assumption that the software can merge the data properly with the solid model.
+                        // TODO: Should any blocks that are bits get used to note connected objects,
+                        // so that floaters are not deleted? Probably... but we don't try to test.
+                        if ( flags & outputFlags )
                         {
-                            // If we're 3d printing, then export 3D printable bits, on the assumption
-                            // that the software can merge the data properly with the solid model.
-                            // TODO: Should any blocks that are bits get used to note connected objects,
-                            // so that floaters are not deleted? Probably... but we don't try to test
-                            // If we're not 3D printing, export billboards and true geometry.
-                            if ( flags & ((gOptions->exportFlags & EXPT_3DPRINT) ?
-                                BLF_3D_BIT : (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY)) )
+                            if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
                             {
-                                if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
-                                {
-                                    // this block is then cleared out, since it's been processed.
-                                    gBoxData[boxIndex].type = BLOCK_AIR;
-                                    foundBlock = 1;
-									blockProcessed = 1;
-                                }
-                            }
-                        }
-
-                        // not filtered out by the basics or billboard
-                        if ( !blockProcessed && flatten && ( gBlockDefinitions[gBoxData[boxIndex].type].flags & (BLF_FLATTOP|BLF_FLATSIDE) ) )
-                        {
-                            // this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
-                            // or to its neighbor, or both (depends on dataval),
-                            // instead of rendering a block for it.
-
-                            // was: gBoxData[boxIndex-1].flatFlags = gBoxData[boxIndex].type;
-                            // if object was indeed flattened, set it to air
-                            if ( computeFlatFlags( boxIndex ) )
-                            {
+                                // this block is then cleared out, since it's been processed.
                                 gBoxData[boxIndex].type = BLOCK_AIR;
+                                foundBlock = 1;
+								blockProcessed = 1;
                             }
                         }
-                        // note that we found any sort of block that was valid (flats don't count, whatever
-                        // they're pushed against needs to exist, too)
-                        foundBlock |= (gBoxData[boxIndex].type > BLOCK_AIR);
                     }
+
+                    // not filtered out by the basics or billboard
+                    if ( !blockProcessed && flatten && ( flags & (BLF_FLATTOP|BLF_FLATSIDE) ) )
+                    {
+                        // this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
+                        // or to its neighbor, or both (depends on dataval),
+                        // instead of rendering a block for it.
+
+                        // was: gBoxData[boxIndex-1].flatFlags = gBoxData[boxIndex].type;
+                        // if object was indeed flattened, set it to air
+                        if ( computeFlatFlags( boxIndex ) )
+                        {
+                            gBoxData[boxIndex].type = BLOCK_AIR;
+                        }
+                    }
+                    // note that we found any sort of block that was valid (flats don't count, whatever
+                    // they're pushed against needs to exist, too)
+                    foundBlock |= (gBoxData[boxIndex].type > BLOCK_AIR);
                 }
             }
         }
@@ -2441,7 +2477,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
 	case BLOCK_ACTIVATOR_RAIL:
-		if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
+		if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
 			return saveBillboardFaces( boxIndex, type, BB_RAILS );
 		}
@@ -2775,6 +2811,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			return 0;
 		}
 		// the only reason I fatten here is because plates get used for table tops sometimes...
+		// note we don't use gUsingTransform here, because if bottom of plate can match, remove it
 		saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1+fatten, 1,15);
 		if ( dataVal & 0x1 )
 		{
@@ -2809,7 +2846,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_ACACIA_WOOD_STAIRS:
 	case BLOCK_DARK_OAK_WOOD_STAIRS:
 	case BLOCK_QUARTZ_STAIRS:
-		// once 1.4 is out, set this to true so that neighboring stairs will be affected
+		// now that 1.4 is out, this is set to true so that neighboring stairs will be affected
 		checkNeighbors = 1;
         // first output the small block, which is determined by direction,
         // then output the slab, which we can share with the slab output
@@ -2850,7 +2887,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 				// is there a fence to the east?
-				// TODO!!! Note version must be 1.4 - we need to see this in the database somehow?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -2894,7 +2930,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
 				// is there a fence to the east?
-				// TODO!!! Note version must be 1.4 - we need to see this in the database somehow?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -2938,7 +2973,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 				// is there a fence to the east?
-				// TODO!!! Note version must be 1.4 - we need to see this in the database somehow?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -2981,7 +3015,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 				// is there a fence to the east?
-				// TODO!!! Note version must be 1.4 - we need to see this in the database somehow?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -3018,10 +3051,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
         // The 0x4 bit is about whether the bottom of the stairs is in the top half or bottom half (used to always be bottom half).
         // See http://www.minecraftwiki.net/wiki/Block_ids#Stairs
-		// First create the step (TODO: week 39 turns the step into a single block if the step behind it is at 90 degrees to it)
+		// First create the step (the small box)
         if ( dataVal & 0x4 )
         {
-            // lower step
+            // lower step (stairs is upside down)
             miny = 0;
             maxy = 8;
             faceMask = DIR_TOP_BIT;
@@ -3204,7 +3237,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
 		// TODO: sign is actually a bit thick here - it should be more like 1.5 and move 0.25 out.
 		// To do this we would need to pass in floats, which might be fine.
-        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 14,16 );
+		gUsingTransform = 1;
+		saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 14,16 );
+		gUsingTransform = 0;
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -3229,7 +3264,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		//	if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
 		//		return 0;
 		//}
+		gUsingTransform = 1;
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,3, 0,16);
+		gUsingTransform = 0;
         // rotate as needed
         if (dataVal & 0x4 )
         {
@@ -3266,7 +3303,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // bottom output first, which saves one translation
         topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_LOG].txrX, gBlockDefinitions[BLOCK_LOG].txrY );
         sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
+		gUsingTransform = 1;
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, DIR_TOP_BIT, 0, 7-fatten,9+fatten, 0,14, 7-fatten,9+fatten);
+		gUsingTransform = 0;
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -3279,7 +3318,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
 
         // top is 12 high, extends 2 blocks above. Scale down by 16/24 and move up by 14/24
+		gUsingTransform = 1;
         saveBoxGeometry( boxIndex, type, 0, 0x0, 0,16, 0,12, 7-fatten,9+fatten );
+		gUsingTransform = 0;
         translateMtx(mtx, 0.0f, 14.0f/24.0f, 0.0f);
         transformVertices(8,mtx);
 
@@ -3340,7 +3381,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// TODO: note that Minecraft does not generate its doors like this. The difference is in the top (and bottom) of the door.
 		// Their doors are oriented and so use different pieces of the texture for the tops and bottoms, depending on which direction
 		// the door faces (and maybe open/closed).
+		gUsingTransform = 1;
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0,16, 0,16, 13-fatten, 16);
+		gUsingTransform = 0;
 
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -3506,6 +3549,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_COCOA_PLANT:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		shiftVal = 0;
+		gUsingTransform = 1;
 		switch ( dataVal >> 2 )
 		{
 		case 0:
@@ -3541,8 +3585,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 		bitAdd = 8;
 
-		// add stem if not printing
-		if ( !printing )
+		// add stem if not printing and images in use
+		if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
 			// tricky kludge here: bottom and top faces make a matching piece. Then need to rotate and translate it into position.
 			// This was done before I has FLIP_X_VERTICALLY, etc. which would have been much easier to use
@@ -3584,6 +3628,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(bitAdd,mtx);
 		}
+		gUsingTransform = 0;
 		break;
 
 	case BLOCK_CAULDRON:
@@ -3660,9 +3705,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		useInsidesAndBottom = (dataVal != 9);	// cactus
 		firstFace = 1;
 
-		if ( printing )
+		if ( printing || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
-			// printing: only geometry we can add is a cactus
+			// printing or not using images: only geometry we can add is a cactus
 			if ( dataVal == 9 )
 			{
 				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
@@ -3750,7 +3795,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( performMatrixOps )
 			{
 				totalVertexCount = gModel.vertexCount;
+				gUsingTransform = 1;
 				saveBillboardFacesExtraData( boxIndex, typeB, billboardType, dataValB, firstFace );
+				gUsingTransform = 0;
 				totalVertexCount = gModel.vertexCount - totalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -3789,6 +3836,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_BED:
 		// side of bed - head or foot?
+		gUsingTransform = 1;
 		if ( dataVal & 0x8 )
 		{
 			// head of bed.
@@ -3808,6 +3856,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0,
 				0,16, 0,9, 0,16 );
 		}
+		gUsingTransform = 0;
 		identityMtx(mtx);
 		translateToOriginMtx(mtx, boxIndex);
 		rotateMtx(mtx, 0.0f, 90.0f*(((dataVal & 0x3)+1)%4), 0.0f);
@@ -3830,8 +3879,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			faceMask |= DIR_BOTTOM_BIT;
 		// remember that this gives the top of the block:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-		// for rendering, make a billboard-like object, for printing, pull in the edges
-		if ( printing )
+		// for textured rendering, make a billboard-like object, for printing or solid rendering, pull in the edges
+		if ( printing || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
 		}
@@ -3859,7 +3908,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc+13;
 		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc+13;
 		// TODO! For tile itself, Y data was centered instead of put at bottom, so note we have to shift it down
+		gUsingTransform = 1;
 		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1, 15, 1, 15, 1, 15 );
+		gUsingTransform = 0;
 		switch ( dataVal )
 		{
 		default:
@@ -3889,6 +3940,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_REDSTONE_REPEATER_ON:
 		swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
 		angle = 90.0f*(float)(dataVal&0x3);
+		gUsingTransform = 1;
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
 		identityMtx(mtx);
 		translateToOriginMtx(mtx, boxIndex);
@@ -3896,7 +3948,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		rotateMtx(mtx, 0.0f, angle, 0.0f);
 		translateFromOriginMtx(mtx, boxIndex);
 		transformVertices(8,mtx);
-		if ( !printing )
+		if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
 			// TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
 			// matter, because no one ever sees the bottom of a repeater.
@@ -3923,6 +3975,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(totalVertexCount,mtx);
 		}
+		gUsingTransform = 0;
 		break;
 
 	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
@@ -3934,6 +3987,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			int out_powered = (dataVal & 0x4) == 0x4;
 			swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
 			angle = 90.0f*(float)(dataVal&0x3);
+			gUsingTransform = 1;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
 			identityMtx(mtx);
 			translateToOriginMtx(mtx, boxIndex);
@@ -3941,7 +3995,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			rotateMtx(mtx, 0.0f, angle, 0.0f);
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(8,mtx);
-			if ( !printing )
+			if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 			{
 				// TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
 				// matter, because no one ever sees the bottom of a repeater.
@@ -3979,6 +4033,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				translateFromOriginMtx(mtx, boxIndex);
 				transformVertices(totalVertexCount,mtx);
 			}
+			gUsingTransform = 0;
 		}
 		break;
 
@@ -4008,7 +4063,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// 0x4: The slot pointing northwest
 			// Set angle and whether there is a bottle.
 			// We don't look at (or have!) TileEntity data at this point. TODO
+			gUsingTransform = 1;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY,  9-filled*9, 16-filled*9,  0, 16,  8,  8 );
+			gUsingTransform = 0;
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			identityMtx(mtx);
 			translateToOriginMtx(mtx, boxIndex);
@@ -4031,6 +4088,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		totalVertexCount = gModel.vertexCount;
 		littleTotalVertexCount = gModel.vertexCount;
 		// tip - move over by 1
+		gUsingTransform = 1;
 		saveBoxGeometry( boxIndex, BLOCK_LEVER, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT,  7,9,  10,10,  6,8);
 		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 		identityMtx(mtx);
@@ -4094,6 +4152,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		rotateMtx(mtx, xrot, 0.0f, zrot);
 		translateFromOriginMtx(mtx, boxIndex);
 		transformVertices(uberTotalVertexCount,mtx);
+		gUsingTransform = 0;
 		break;
 
 	case BLOCK_DAYLIGHT_SENSOR:
@@ -4111,12 +4170,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_HOPPER:
 		swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 		// outsides and bottom
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0, 16,  10, 16,  0, 16 );
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0,16,  10,16,  0,16 );
 		// next level down outsides and bottom
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, DIR_TOP_BIT, 0, 4, 12,   4, 10,  4, 12 );
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, DIR_TOP_BIT, 0, 4,12,   4,10,  4,12 );
 		// bottom level cube - move to position based on dataVal
 		totalVertexCount = gModel.vertexCount;
-		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, 0x0,         0, 6, 10,   0,  4,  6, 10 );
+		gUsingTransform = (dataVal > 1);
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, 0x0,         0, 6,10,   0, 4,  6,10 );
+		gUsingTransform = 0;
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
 		if ( dataVal > 1 )
 		{
@@ -4249,7 +4310,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
 		swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-		if ( (type == BLOCK_IRON_BARS) && !printing )
+		if ( (type == BLOCK_IRON_BARS) && !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
 		{
 			// for rendering iron bars, we just need one side of each wall - easier
 			switch (filled)
@@ -5101,152 +5162,164 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
         // if bit is not set in mask, output face
         if ( !((1<<faceDirection) & faceMask) )
         {
-            int reverseLoop = 0;
-			// rotUVs == 1 means vertically flip X face
-			// rotUVs == 2 means vertically flip Z face
-            int useRotUVs = 0;
-            swatchLoc = swatchLocSet[faceDirection];
-		    switch (faceDirection)
-		    {
-			default:
-		    case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
-				vindex[0] = 0x2|0x1;	// ymax, zmax
-				vindex[1] = 0x2;		// ymax, zmin
-			    vindex[2] = 0;			// ymin, zmin
-			    vindex[3] = 0x1;		// ymin, zmax
-				minu = (float)minPixZ/16.0f;
-				maxu = (float)maxPixZ/16.0f;
-				minv = (float)minPixY/16.0f;
-				maxv = (float)maxPixY/16.0f;
-			    break;
-		    case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
-				vindex[0] = 0x4|0x2;		// ymax, zmin
-				vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
-			    vindex[2] = 0x4|0x1;		// ymin, zmax
-			    vindex[3] = 0x4;			// ymin, zmin
-				// rotate 90 or 180 - used for glass
-				// when rotUVs are used currently, also reverse the loop
-				if ( rotUVs&FLIP_X_FACE_VERTICALLY )
-				{
-					// to mirror the face, use the same coordinates as the LO_X face
-					minu = (float)minPixZ/16.0f;
-					maxu = (float)maxPixZ/16.0f;
-					minv = (float)minPixY/16.0f;
-					maxv = (float)maxPixY/16.0f;
-					useRotUVs = 2;
-					reverseLoop = 1;
-				}
-				else
-				{
-					// normal case
-					// On the hi X face, the Z direction is negative, so we negate
-					minu = (float)(16.0f-maxPixZ)/16.0f;
-					maxu = (float)(16.0f-minPixZ)/16.0f;
-					minv = (float)minPixY/16.0f;
-					maxv = (float)maxPixY/16.0f;
-				}
-			    break;
-		    case DIRECTION_BLOCK_SIDE_LO_Z:	
-				vindex[0] = 0x2;		// xmin, ymax
-				vindex[1] = 0x4|0x2;	// xmax, ymax
-			    vindex[2] = 0x4;		// xmax, ymin
-			    vindex[3] = 0;			// xmin, ymin 
-				// here for the sides of beds and for doors, and for glass, so one mirrors the other
-				// rotate 180 and flip
-				// when rotUVs are used currently, also reverse the loop
-				if ( rotUVs&FLIP_Z_FACE_VERTICALLY )
-				{
-					// use same coordinates as HI_Z, so that the faces mirror one another
-					minu = (float)minPixX/16.0f;
-					maxu = (float)maxPixX/16.0f;
-					minv = (float)minPixY/16.0f;
-					maxv = (float)maxPixY/16.0f;
-					useRotUVs = 2;
-					reverseLoop = 1;
-				}
-				else
-				{
-					// say we're looking at the left half of a tile;
-					// on the low Z face the X direction is negative, so we have to negate here
-					minu = (float)(16.0f-maxPixX)/16.0f;
-					maxu = (float)(16.0f-minPixX)/16.0f;
-					minv = (float)minPixY/16.0f;
-					maxv = (float)maxPixY/16.0f;
-				}
-			    break;
-		    case DIRECTION_BLOCK_SIDE_HI_Z:
-				vindex[0] = 0x1|0x4|0x2;	// xmax, ymax
-				vindex[1] = 0x1|0x2;		// xmin, ymax
-			    vindex[2] = 0x1;			// xmin, ymin 
-			    vindex[3] = 0x1|0x4;		// xmax, ymin
-			    minu = (float)minPixX/16.0f;
-			    maxu = (float)maxPixX/16.0f;
-			    minv = (float)minPixY/16.0f;
-			    maxv = (float)maxPixY/16.0f;
-			    break;
-		    case DIRECTION_BLOCK_BOTTOM:
-				vindex[0] = 0x4|0x1;	// xmax, zmax
-				vindex[1] = 0x1;		// xmin, zmax
-			    vindex[2] = 0;			// xmin, zmin 
-			    vindex[3] = 0x4;		// xmax, zmin
-				// rotate bottom 90 and rotate bounds to match
-				useRotUVs = (rotUVs&ROTATE_TOP_AND_BOTTOM) ? 1 : 0;
-				if ( useRotUVs )
-				{
-					// rotate 90 as far as bounds go
-					// used for glass pane and nothing else.
-					// NOTE: may need some "(16.0f-" adjustment
-					// similar to below if the object rendered
-					// is NOT symmetric around the center 8,8
-					minv = (float)minPixX/16.0f;
-					maxv = (float)maxPixX/16.0f;
-					minu = (float)minPixZ/16.0f;
-					maxu = (float)maxPixZ/16.0f;
-				}
-				else
-				{
-					// normal case
-					minu = (float)minPixX/16.0f;
-					maxu = (float)maxPixX/16.0f;
-					minv = (float)(16.0f-maxPixZ)/16.0f;
-					maxv = (float)(16.0f-minPixZ)/16.0f;
-				}
-                reverseLoop = 1;
-			    break;
-		    case DIRECTION_BLOCK_TOP:
-				vindex[0] = 0x2|0x4;		// xmax, zmin
-				vindex[1] = 0x2;			// xmin, zmin 
-                vindex[2] = 0x2|0x1;		// xmin, zmax
-                vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
-				// rotate top 90, and rotate bounds
-				useRotUVs = (rotUVs&ROTATE_TOP_AND_BOTTOM) ? 1 : 0;
-				if ( useRotUVs )
-				{
-					// rotate 90 as far as bounds go
-					// used for glass pane and nothing else.
-					// NOTE: may need some "(16.0f-" adjustment
-					// similar to below if the object rendered
-					// is NOT symmetric around the center 8,8
-					minv = (float)minPixX/16.0f;
-					maxv = (float)maxPixX/16.0f;
-					minu = (float)minPixZ/16.0f;
-					maxu = (float)maxPixZ/16.0f;
-				}
-				else
-				{
-					// normal case
-					minu = (float)minPixX/16.0f;
-					maxu = (float)maxPixX/16.0f;
-					minv = (float)(16.0f-maxPixZ)/16.0f;
-					maxv = (float)(16.0f-minPixZ)/16.0f;
-				}
-			    break;
-		    }
+			// see if neighbor covers this face
+			int rect[4];
+			// if it is going to be transformed, 
+			// or doesn't touch the voxel's face, 
+			// or it touches and its neighbor doesn't cover the geometry in rect,
+			// then output the face. Whew!
+			if ( gUsingTransform || !findFaceDimensions( rect, faceDirection, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ ) ||
+				!lesserNeighborCoversFace(faceDirection, boxIndex, rect) )
+			{
 
-		    // mark the first face if calling routine wants it, and this is the first face of six
-		    saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
-            // face output, so don't need to mark first face
-            markFirstFace = 0;
+				int reverseLoop = 0;
+				// rotUVs == 1 means vertically flip X face
+				// rotUVs == 2 means vertically flip Z face
+				int useRotUVs = 0;
+
+				swatchLoc = swatchLocSet[faceDirection];
+				switch (faceDirection)
+				{
+				default:
+				case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
+					vindex[0] = 0x2|0x1;	// ymax, zmax
+					vindex[1] = 0x2;		// ymax, zmin
+					vindex[2] = 0;			// ymin, zmin
+					vindex[3] = 0x1;		// ymin, zmax
+					minu = (float)minPixZ/16.0f;
+					maxu = (float)maxPixZ/16.0f;
+					minv = (float)minPixY/16.0f;
+					maxv = (float)maxPixY/16.0f;
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
+					vindex[0] = 0x4|0x2;		// ymax, zmin
+					vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
+					vindex[2] = 0x4|0x1;		// ymin, zmax
+					vindex[3] = 0x4;			// ymin, zmin
+					// rotate 90 or 180 - used for glass
+					// when rotUVs are used currently, also reverse the loop
+					if ( rotUVs&FLIP_X_FACE_VERTICALLY )
+					{
+						// to mirror the face, use the same coordinates as the LO_X face
+						minu = (float)minPixZ/16.0f;
+						maxu = (float)maxPixZ/16.0f;
+						minv = (float)minPixY/16.0f;
+						maxv = (float)maxPixY/16.0f;
+						useRotUVs = 2;
+						reverseLoop = 1;
+					}
+					else
+					{
+						// normal case
+						// On the hi X face, the Z direction is negative, so we negate
+						minu = (float)(16.0f-maxPixZ)/16.0f;
+						maxu = (float)(16.0f-minPixZ)/16.0f;
+						minv = (float)minPixY/16.0f;
+						maxv = (float)maxPixY/16.0f;
+					}
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:	
+					vindex[0] = 0x2;		// xmin, ymax
+					vindex[1] = 0x4|0x2;	// xmax, ymax
+					vindex[2] = 0x4;		// xmax, ymin
+					vindex[3] = 0;			// xmin, ymin 
+					// here for the sides of beds and for doors, and for glass, so one mirrors the other
+					// rotate 180 and flip
+					// when rotUVs are used currently, also reverse the loop
+					if ( rotUVs&FLIP_Z_FACE_VERTICALLY )
+					{
+						// use same coordinates as HI_Z, so that the faces mirror one another
+						minu = (float)minPixX/16.0f;
+						maxu = (float)maxPixX/16.0f;
+						minv = (float)minPixY/16.0f;
+						maxv = (float)maxPixY/16.0f;
+						useRotUVs = 2;
+						reverseLoop = 1;
+					}
+					else
+					{
+						// say we're looking at the left half of a tile;
+						// on the low Z face the X direction is negative, so we have to negate here
+						minu = (float)(16.0f-maxPixX)/16.0f;
+						maxu = (float)(16.0f-minPixX)/16.0f;
+						minv = (float)minPixY/16.0f;
+						maxv = (float)maxPixY/16.0f;
+					}
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					vindex[0] = 0x1|0x4|0x2;	// xmax, ymax
+					vindex[1] = 0x1|0x2;		// xmin, ymax
+					vindex[2] = 0x1;			// xmin, ymin 
+					vindex[3] = 0x1|0x4;		// xmax, ymin
+					minu = (float)minPixX/16.0f;
+					maxu = (float)maxPixX/16.0f;
+					minv = (float)minPixY/16.0f;
+					maxv = (float)maxPixY/16.0f;
+					break;
+				case DIRECTION_BLOCK_BOTTOM:
+					vindex[0] = 0x4|0x1;	// xmax, zmax
+					vindex[1] = 0x1;		// xmin, zmax
+					vindex[2] = 0;			// xmin, zmin 
+					vindex[3] = 0x4;		// xmax, zmin
+					// rotate bottom 90 and rotate bounds to match
+					useRotUVs = (rotUVs&ROTATE_TOP_AND_BOTTOM) ? 1 : 0;
+					if ( useRotUVs )
+					{
+						// rotate 90 as far as bounds go
+						// used for glass pane and nothing else.
+						// NOTE: may need some "(16.0f-" adjustment
+						// similar to below if the object rendered
+						// is NOT symmetric around the center 8,8
+						minv = (float)minPixX/16.0f;
+						maxv = (float)maxPixX/16.0f;
+						minu = (float)minPixZ/16.0f;
+						maxu = (float)maxPixZ/16.0f;
+					}
+					else
+					{
+						// normal case
+						minu = (float)minPixX/16.0f;
+						maxu = (float)maxPixX/16.0f;
+						minv = (float)(16.0f-maxPixZ)/16.0f;
+						maxv = (float)(16.0f-minPixZ)/16.0f;
+					}
+					reverseLoop = 1;
+					break;
+				case DIRECTION_BLOCK_TOP:
+					vindex[0] = 0x2|0x4;		// xmax, zmin
+					vindex[1] = 0x2;			// xmin, zmin 
+					vindex[2] = 0x2|0x1;		// xmin, zmax
+					vindex[3] = 0x2|0x4|0x1;	// xmax, zmax
+					// rotate top 90, and rotate bounds
+					useRotUVs = (rotUVs&ROTATE_TOP_AND_BOTTOM) ? 1 : 0;
+					if ( useRotUVs )
+					{
+						// rotate 90 as far as bounds go
+						// used for glass pane and nothing else.
+						// NOTE: may need some "(16.0f-" adjustment
+						// similar to below if the object rendered
+						// is NOT symmetric around the center 8,8
+						minv = (float)minPixX/16.0f;
+						maxv = (float)maxPixX/16.0f;
+						minu = (float)minPixZ/16.0f;
+						maxu = (float)maxPixZ/16.0f;
+					}
+					else
+					{
+						// normal case
+						minu = (float)minPixX/16.0f;
+						maxu = (float)maxPixX/16.0f;
+						minv = (float)(16.0f-maxPixZ)/16.0f;
+						maxv = (float)(16.0f-minPixZ)/16.0f;
+					}
+					break;
+				}
+
+				// mark the first face if calling routine wants it, and this is the first face of six
+				saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+				// face output, so don't need to mark first face
+				markFirstFace = 0;
+			}
         }
 	}
 
@@ -5259,6 +5332,289 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 	}
 
 	gModel.billboardCount++;
+}
+
+// find if face has anything bordering in given direction, and get the dimensions found.
+// Return 0 if nothing found on face
+static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+	switch ( faceDirection )
+	{
+	default:
+	case DIRECTION_BLOCK_SIDE_LO_X:
+		if ( minPixX > 0 )
+			return 0;
+		rect[0] = minPixZ;
+		rect[1] = maxPixZ;
+		rect[2] = minPixY;
+		rect[3] = maxPixY;
+		break;
+	case DIRECTION_BLOCK_SIDE_HI_X:
+		if ( maxPixX < 16 )
+			return 0;
+		rect[0] = minPixZ;
+		rect[1] = maxPixZ;
+		rect[2] = minPixY;
+		rect[3] = maxPixY;
+		break;
+	case DIRECTION_BLOCK_SIDE_LO_Z:	
+		if ( minPixZ > 0 )
+			return 0;
+		rect[0] = minPixX;
+		rect[1] = maxPixX;
+		rect[2] = minPixY;
+		rect[3] = maxPixY;
+		break;
+	case DIRECTION_BLOCK_SIDE_HI_Z:	
+		if ( maxPixZ < 16 )
+			return 0;
+		rect[0] = minPixX;
+		rect[1] = maxPixX;
+		rect[2] = minPixY;
+		rect[3] = maxPixY;
+		break;
+	case DIRECTION_BLOCK_BOTTOM:
+		if ( minPixY > 0 )
+			return 0;
+		rect[0] = minPixX;
+		rect[1] = maxPixX;
+		rect[2] = minPixZ;
+		rect[3] = maxPixZ;
+		break;
+	case DIRECTION_BLOCK_TOP:
+		if ( maxPixY < 16 )
+			return 0;
+		rect[0] = minPixX;
+		rect[1] = maxPixX;
+		rect[2] = minPixZ;
+		rect[3] = maxPixZ;
+		break;
+	}
+	// does touch face, so check if it can be deleted
+	return 1;
+}
+
+// it is assumed lesser block is on, as that's the only one that calls this method
+static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4] )
+{
+	int type, neighborType, neighborBoxIndex;
+	int neighborRect[4];
+	int view3D;
+
+	if ( gOptions->exportFlags & EXPT_GROUP_BY_BLOCK )
+	{
+		// full block output, so return false
+		return 0;
+	}
+
+	// check for easy case: if neighbor is a full block, neighbor covers all, so return 1
+	type = gBoxData[boxIndex].type;
+	neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
+	neighborType = gBoxData[neighborBoxIndex].type;
+	if ( gBlockDefinitions[neighborType].flags & BLF_WHOLE )
+	{
+		// special cases for viewing (rendering), having to do with semitransparency or cutouts
+		if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
+		{
+			// check if the neighbor is semitransparent (glass, water, etc.)
+			if (gBlockDefinitions[neighborType].alpha < 1.0f)
+			{
+				// and this object is a different
+				// type - including ice on water, glass next to water, etc. - then output face
+				if ( neighborType != type )
+				{
+					return 0;
+				}
+			}
+			// look for blocks with cutouts next to them - only for rendering
+			if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+				(gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
+			{
+				//(neighborType == BLOCK_LEAVES) ||
+				//(neighborType == BLOCK_SUGAR_CANE) ||
+				//(neighborType == BLOCK_CROPS) ||
+				//(neighborType == BLOCK_NETHER_WART) ||
+				//(neighborType == BLOCK_MONSTER_SPAWNER)||
+				//(neighborType == BLOCK_COBWEB) ||
+				//((neighborType == BLOCK_IRON_BARS) && (type != BLOCK_IRON_BARS)) ||
+				//((neighborType == BLOCK_VINES) && (type != BLOCK_VINES) ) )
+
+				if ( !((neighborType == BLOCK_GLASS || neighborType == BLOCK_STAINED_GLASS) && (type == BLOCK_GLASS || type == BLOCK_STAINED_GLASS_PANE)) &&
+					!((neighborType == BLOCK_GLASS_PANE || neighborType == BLOCK_STAINED_GLASS_PANE) && (type == BLOCK_GLASS_PANE || type == BLOCK_STAINED_GLASS_PANE)) &&
+					!((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
+					!((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)) )
+				{
+					// anything neighboring a leaf block should be created, since leaves can be seen through. This does
+					// include other leaf blocks. Do similar for iron bars and vines, but neighbors that are also iron bars
+					// or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
+					// TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
+					// add as a composite, like ladder pretty much.
+					return 0;
+				}
+			}
+		}
+		// it's a whole block, opaque, so hide stuff with it.
+		return 1;
+	}
+	// check if lesser block fully covers face
+	view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
+	if ( lesserBlockCoversFace( faceDirection, neighborBoxIndex, view3D ) )
+	{
+		// whole face covered, so we can quit now
+		return 1;
+	}
+
+	// check if lesser block covers the rectangle passed in
+	if ( getFaceRect( (faceDirection+3)%6, neighborBoxIndex, view3D, neighborRect ) )
+	{
+		// see if our rectangle is inside neighborRect
+		if ( ( rect[0] >= neighborRect[0] ) &&
+			 ( rect[1] <= neighborRect[1] ) &&
+			 ( rect[2] >= neighborRect[2] ) &&
+			 ( rect[3] <= neighborRect[3] ) )
+		{
+			// inside, so is covered.
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+// Find partial rectangle covered by face. You should first call lesserBlockCoversFace
+// to check full face coverage (easy out), then this for partial coverage, ONLY.
+// faceDirection is relative to the neighbor itself.
+static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRect[4] )
+{
+	// we have partial blocks possible. Check if neighbor's original type exists at all
+	int origType = gBoxData[boxIndex].origType;
+	// not air?
+	if ( origType > BLOCK_AIR )
+	{
+		int dataVal = gBoxData[boxIndex].data;
+		int setBottom = 0;
+		int setTop = 0;
+		// a minor block exists, so check its coverage given the face direction
+		switch ( origType )
+		{
+		case BLOCK_OAK_WOOD_STAIRS:
+		case BLOCK_COBBLESTONE_STAIRS:
+		case BLOCK_BRICK_STAIRS:
+		case BLOCK_STONE_BRICK_STAIRS:
+		case BLOCK_NETHER_BRICK_STAIRS:
+		case BLOCK_SANDSTONE_STAIRS:
+		case BLOCK_SPRUCE_WOOD_STAIRS:
+		case BLOCK_BIRCH_WOOD_STAIRS:
+		case BLOCK_JUNGLE_WOOD_STAIRS:
+		case BLOCK_ACACIA_WOOD_STAIRS:
+		case BLOCK_DARK_OAK_WOOD_STAIRS:
+		case BLOCK_QUARTZ_STAIRS:
+			// TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
+			// Returning the little block, which can further be trimmed to a cube, is a PAIN.
+			// This does mean the little stair block sides won't be deleted. Ah well.
+		case BLOCK_STONE_SLAB:
+		case BLOCK_WOODEN_SLAB:
+			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+			if ( ( faceDirection != DIRECTION_BLOCK_BOTTOM ) &&
+				( faceDirection != DIRECTION_BLOCK_TOP ) )
+			{
+				// sides
+				if ( dataVal & 0x8 )
+				{
+					// upper slab
+					setBottom = 8;
+					setTop = 16;
+				}
+				else
+				{
+					// lower slab
+					setBottom = 0;
+					setTop = 8;
+				}
+			}
+			break;
+
+		case BLOCK_BED:
+			setTop = 9;
+			if ( view3D )
+			{
+				setBottom = 3;
+			}
+			break;
+
+		case BLOCK_CARPET:
+			setTop = 1;
+			break;
+
+		case BLOCK_END_PORTAL_FRAME:
+			setTop = 13;
+			break;
+
+		case BLOCK_FARMLAND:
+			setTop = 15;
+			break;
+
+		case BLOCK_SNOW:
+			setTop = 2 * (1 + (dataVal&0x7));
+			break;
+
+		case BLOCK_CAULDRON:
+			setTop = 16;
+			if ( view3D )
+			{
+				setBottom = 3;
+			}
+			break;
+
+		case BLOCK_REDSTONE_REPEATER_OFF:
+		case BLOCK_REDSTONE_REPEATER_ON:
+		case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+		case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+			// annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear each other...
+			setTop = 2;
+			break;
+
+		case BLOCK_DAYLIGHT_SENSOR:
+			setTop = 6;
+			break;
+
+		case BLOCK_HOPPER:
+			// blocks bottom
+			setTop = 16;
+			setBottom = 10;
+			break;
+
+		case BLOCK_TRAPDOOR:
+			if ( !(dataVal & 0x4) )
+			{
+				// trapdoor is flat on ground
+				setTop = 3;
+			}
+			break;
+
+		default:
+			// not in list, so won't cover anything
+			break;
+		}
+
+		if ( setTop )
+		{
+			if ( ( faceDirection != DIRECTION_BLOCK_BOTTOM ) &&
+				( faceDirection != DIRECTION_BLOCK_TOP ) )
+			{
+				// sides
+				faceRect[0] = 0;
+				faceRect[1] = 16;
+				faceRect[2] = setBottom;
+				faceRect[3] = setTop;
+				return 1;
+			}
+		}
+	}
+
+	// no rectangle found - done
+	return 0;
 }
 
 // rotUVs rotates the face: 0 - no rotation, 1 - 90 degrees (I forget if it's CCW or CW), 2 - 180, 3 - 270
@@ -5872,7 +6228,9 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		float mtx[4][4];
 		int torchVertexCount = gModel.vertexCount;
 		// add a tip to the torch, shift it one texel in X
+		gUsingTransform = 1;
 		saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
+		gUsingTransform = 0;
 		torchVertexCount = gModel.vertexCount - torchVertexCount;
 		identityMtx(mtx);
 		translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f);
@@ -5926,9 +6284,11 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 			// add sheared "cross flames" inside, 8 in all
 			float mtx[4][4];
 			int fireVertexCount = gModel.vertexCount;
+			gUsingTransform = 1;
 			saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 
 				DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT,
 				FLIP_Z_FACE_VERTICALLY, 0,16, 0,16, 16,16);
+			gUsingTransform = 0;
 			fireVertexCount = gModel.vertexCount - fireVertexCount;
 			identityMtx(mtx);
 			translateToOriginMtx(mtx, boxIndex);
@@ -5971,9 +6331,11 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		// back of sunflower is before front
 		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X]--; 
 
+		gUsingTransform = 1;
 		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, 
 			DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT,
 			FLIP_X_FACE_VERTICALLY, 0,  8,8, 0,16, 0,16);
+		gUsingTransform = 0;
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
 		identityMtx(mtx);
 		translateToOriginMtx(mtx, boxIndex);
@@ -8217,12 +8579,12 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
     int faceDirection;
     int neighborType;
     int type = gBoxData[boxIndex].type;
-    int view3D;
+    int view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
 	int computeHeights = 1;
 	int isFullBlock = 0;	// to make compiler happy
 	float heights[4];
 	int heightIndices[4];
-    view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
+	int testPartial = gOptions->pEFD->chkExportAll;
 
     // only solid blocks should be passed in here.
     assert(type != BLOCK_AIR);
@@ -8237,13 +8599,13 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
         // TODO: do we care if two transparent objects are touching each other? (Ice & water?)
         // Right now water and ice touching will generate no faces, which I think is fine.
         // so, create a face?
-        if ( checkMakeFace( type, neighborType, view3D, faceDirection, boxIndex, neighborBoxIndex ) )
+        if ( checkMakeFace( type, neighborType, view3D, testPartial, faceDirection, boxIndex, neighborBoxIndex ) )
         {
             // Air (or water, or portal) found next to solid block: time to write it out.
             // First write out any vertices that are needed (this may do nothing, if they're
             // already written out by previous faces doing output of the same vertices).
 
-			// check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block
+			// check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block.
 			if ( ( view3D || gOptions->pEFD->chkExportAll ) && 
 				(type>=BLOCK_WATER) && (type<=BLOCK_STATIONARY_LAVA) &&
 				(faceDirection != DIRECTION_BLOCK_BOTTOM ) )
@@ -8262,6 +8624,7 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 				}
 				else
 				{
+					// save partial block for water and lava
 					saveSpecialVertices( boxIndex, faceDirection, loc, heights, heightIndices );
 					saveFaceLoop( boxIndex, faceDirection, heights, heightIndices );
 				}
@@ -8277,84 +8640,337 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
     }
 }
 
-static int checkMakeFace( int type, int neighborType, int view3D, int faceDirection, int boxIndex, int neighborBoxIndex )
+// Assumes the following: billboards and lesser stuff has been output and their blocks made into air -
+//   this then means that if any neighbor is found, it must be a full block and so will cover the face.
+// Check if we should make a face: return 1 if face should be output
+// type is type of face of currect voxel,
+// neighborType is neighboring type,
+// faceDirection is which way things connect
+// boxIndex and neighborBoxIndex is real locations, in case more info is needed
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex )
 {
-	// if neighboring face is air, or if individual (i.e., all) blocks are being output, then output the face
-    if ( neighborType <= BLOCK_AIR || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
+	// if neighboring face does not cover block type fully, or if individual (i.e., all) blocks are being output as separate entities, then output the face
+    if ( !neighborCoversFace( neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
     {
+		// exposed to air and so fully visible, or exporting all blocks, or neighbor doesn't cover face, so display
         return 1;
     }
-	else if ( view3D )
-    {
-        // special cases for viewing
 
-        // if the neighbor is semitransparent (glass, water, etc.)
-        if (gBlockDefinitions[neighborType].alpha < 1.0f)
-        {
-            // and this object is a different
-            // type - including ice on water, glass next to water, etc. - then output face
-            if ( neighborType != type )
-            {
-                return 1;
-            }
-        }
-        // look for blocks with cutouts next to them - only for rendering
-        if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
-            (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
-        {
-            //(neighborType == BLOCK_LEAVES) ||
-            //(neighborType == BLOCK_SUGAR_CANE) ||
-            //(neighborType == BLOCK_CROPS) ||
-            //(neighborType == BLOCK_NETHER_WART) ||
-            //(neighborType == BLOCK_MONSTER_SPAWNER)||
-            //(neighborType == BLOCK_COBWEB) ||
-            //((neighborType == BLOCK_IRON_BARS) && (type != BLOCK_IRON_BARS)) ||
-            //((neighborType == BLOCK_VINES) && (type != BLOCK_VINES) ) )
-
-            if ( !((neighborType == BLOCK_GLASS || neighborType == BLOCK_STAINED_GLASS) && (type == BLOCK_GLASS || type == BLOCK_STAINED_GLASS_PANE)) &&
-				!((neighborType == BLOCK_GLASS_PANE || neighborType == BLOCK_STAINED_GLASS_PANE) && (type == BLOCK_GLASS_PANE || type == BLOCK_STAINED_GLASS_PANE)) &&
-                !((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
-                !((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)) )
-            {
-                // anything neighboring a leaf block should be created, since leaves can be seen through. This does
-                // include other leaf blocks. Do similar for iron bars and vines, but neighbors that are also iron bars
-                // or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
-                // TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
-                // add as a composite, like ladder pretty much.
-                return 1;
-            }
-        }
-    }
-
-	// final, crazy check for when the neighbor is lava or water, when outputting fluid levels.
-	if ( view3D || gOptions->pEFD->chkExportAll )
+	// do additional testing for the case where neighbors are 'full size' but may be transparent or fluids
+	if (neighborType > BLOCK_AIR)
 	{
-		if ( neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA )
+		// special cases for viewing (rendering), having to do with semitransparency or cutouts
+		if ( view3D )
 		{
-			if ( !sameFluid(neighborType, type) && faceDirection != DIRECTION_BLOCK_TOP && !isFluidBlockFull( neighborType, neighborBoxIndex ))
+			// check if the neighbor is semitransparent (glass, water, etc.)
+			if (gBlockDefinitions[neighborType].alpha < 1.0f)
 			{
-				// This block borders a lava or water block, so output face. Will be a waste for a few situations:
-				// lava block fully fills its volume (in which case no face should have been output)
-				// 3D printing and water block fully fills its volume (but we're exporting lesser blocks, so this should be safe).
-				// TODO:
-				// We *could* do a further check of heights in advance and if they're both 1.0 for this particular side face, then don't output face.
-				// Tricksy, and more coding.
-				return 1;
+				// and this object is a different
+				// type - including ice on water, glass next to water, etc. - then output face
+				if ( neighborType != type )
+				{
+					return 1;
+				}
+			}
+			// look for blocks with cutouts next to them - only for rendering
+			if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+				(gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
+			{
+				//(neighborType == BLOCK_LEAVES) ||
+				//(neighborType == BLOCK_SUGAR_CANE) ||
+				//(neighborType == BLOCK_CROPS) ||
+				//(neighborType == BLOCK_NETHER_WART) ||
+				//(neighborType == BLOCK_MONSTER_SPAWNER)||
+				//(neighborType == BLOCK_COBWEB) ||
+				//((neighborType == BLOCK_IRON_BARS) && (type != BLOCK_IRON_BARS)) ||
+				//((neighborType == BLOCK_VINES) && (type != BLOCK_VINES) ) )
+
+				if ( !((neighborType == BLOCK_GLASS || neighborType == BLOCK_STAINED_GLASS) && (type == BLOCK_GLASS || type == BLOCK_STAINED_GLASS_PANE)) &&
+					!((neighborType == BLOCK_GLASS_PANE || neighborType == BLOCK_STAINED_GLASS_PANE) && (type == BLOCK_GLASS_PANE || type == BLOCK_STAINED_GLASS_PANE)) &&
+					!((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
+					!((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)) )
+				{
+					// anything neighboring a leaf block should be created, since leaves can be seen through. This does
+					// include other leaf blocks. Do similar for iron bars and vines, but neighbors that are also iron bars
+					// or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
+					// TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
+					// add as a composite, like ladder pretty much.
+					return 1;
+				}
 			}
 		}
-		if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
+
+		// final, crazy check for when the neighbor is lava or water, when outputting fluid levels.
+		// Do test if we're rendering, or if all "lesser" blocks are output for printing.
+		if ( view3D || testPartial )
 		{
-			// if the top face of a fluid is being output, if the thing above the fluid is not the same fluid, then
-			// this fluid block is irregular (not full height) for sure and so should be output. This rule can be
-			// wrong in extremely rare circumstances, like the four corners still being 1.0
-			if ( (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType) && !isFluidBlockFull( type, boxIndex ) )
+			// Check fluids.
+			// Is neighbor a fluid?
+			if ( neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA )
 			{
-				return 1;
+				// if so, does the neighbor NOT have the same fluid type?
+				// And is not above us? (If above us, then it clearly borders and covers)
+				// And is not full? (If full, then it clearly fully borders)
+				if ( !sameFluid(neighborType, type) && faceDirection != DIRECTION_BLOCK_TOP && !isFluidBlockFull( neighborType, neighborBoxIndex ))
+				{
+					// This block borders a lava or water block, so output face. Will be a waste for a few situations:
+					// lava block fully fills its volume (in which case no face should have been output)
+					// 3D printing and water block fully fills its volume (but we're exporting lesser blocks, so this should be safe).
+					// TODO:
+					// We *could* do a further check of heights in advance and if they're both 1.0 for this particular side face, then don't output face.
+					// Tricksy, and more coding.
+					return 1;
+				}
+			}
+			// Are we a fluid?
+			if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
+			{
+				// We're a fluid, check if we're filled by looking above.
+				// If the top face of a fluid is being output, if the thing above the fluid is not the same fluid, then
+				// this fluid block is irregular (not full height) for sure and so should be output. This rule can be
+				// wrong in extremely rare circumstances, like the four corners still being 1.0.
+				if ( (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType) && !isFluidBlockFull( type, boxIndex ) )
+				{
+					return 1;
+				}
 			}
 		}
 	}
 
+	// don't make the face
     return 0;
+}
+
+// Used only for printing, and for when partial blocks were output. Check if the partial face would cover this face.
+// TODO: use incoming type and box index (data) to know how much of face is used
+static int neighborCoversFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex )
+{
+	// If the neighbor is real at this point (not a partial block), then it WILL cover the face, barring transparency.
+	// That is, it's a full block
+	if ( neighborType > BLOCK_AIR )
+	{
+		return 1;
+	}
+	// else, see if partial objects are being output. If not, we're done here with geometric coverage, as it's only blocks or air.
+	else if ( !testPartial )
+	{
+		// not doing a partial 3D print test, only blocks, so just output the face as it's covered by air
+		return 0;
+	}
+
+	return lesserBlockCoversFace( faceDirection, neighborBoxIndex, view3D );
+}
+
+static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int view3D )
+{
+	// we have partial blocks possible. Check if neighbor's original type exists at all
+	int origType = gBoxData[neighborBoxIndex].origType;
+	// not air?
+	if ( origType > BLOCK_AIR )
+	{
+		int neighborDataVal = gBoxData[neighborBoxIndex].data;
+		// a minor block exists, so check its coverage given the face direction
+		switch ( origType )
+		{
+		case BLOCK_OAK_WOOD_STAIRS:
+		case BLOCK_COBBLESTONE_STAIRS:
+		case BLOCK_BRICK_STAIRS:
+		case BLOCK_STONE_BRICK_STAIRS:
+		case BLOCK_NETHER_BRICK_STAIRS:
+		case BLOCK_SANDSTONE_STAIRS:
+		case BLOCK_SPRUCE_WOOD_STAIRS:
+		case BLOCK_BIRCH_WOOD_STAIRS:
+		case BLOCK_JUNGLE_WOOD_STAIRS:
+		case BLOCK_ACACIA_WOOD_STAIRS:
+		case BLOCK_DARK_OAK_WOOD_STAIRS:
+		case BLOCK_QUARTZ_STAIRS:
+			switch (neighborDataVal & 0x3)
+			{
+			default:    // make compiler happy
+			case 0: // ascending east
+				if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+					return 1;
+				break;
+			case 1: // ascending west
+				if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+					return 1;
+				break;
+			case 2: // ascending south
+				if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+					return 1;
+				break;
+			case 3: // ascending north
+				if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+					return 1;
+				break;
+			}
+			// The 0x4 bit is about whether the bottom of the stairs is in the top half or bottom half (used to always be bottom half).
+			// See http://www.minecraftwiki.net/wiki/Block_ids#Stairs
+			if ( neighborDataVal & 0x4 )
+			{
+				// upper slab
+				return (faceDirection == DIRECTION_BLOCK_BOTTOM);
+			}
+			else
+			{
+				// lower slab
+				return (faceDirection == DIRECTION_BLOCK_TOP);
+			}
+
+		case BLOCK_STONE_SLAB:
+		case BLOCK_WOODEN_SLAB:
+			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+			// See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+			if ( neighborDataVal & 0x8 )
+			{
+				// upper slab
+				return (faceDirection == DIRECTION_BLOCK_BOTTOM);
+			}
+			else
+			{
+				// lower slab
+				return (faceDirection == DIRECTION_BLOCK_TOP);
+			}
+
+		case BLOCK_BED:
+			// top
+			if ( !view3D )
+			{
+				return (faceDirection == DIRECTION_BLOCK_TOP);
+			}
+			break;
+
+		case BLOCK_CARPET:
+			return (faceDirection == DIRECTION_BLOCK_TOP);
+
+		case BLOCK_END_PORTAL_FRAME:
+			return (faceDirection == DIRECTION_BLOCK_TOP);
+
+		case BLOCK_FARMLAND:
+			return (faceDirection == DIRECTION_BLOCK_TOP);
+
+		case BLOCK_TRAPDOOR:
+			if ( !view3D )
+			{
+				// rotate as needed
+				if (neighborDataVal & 0x4 )
+				{
+					switch (neighborDataVal & 0x3)
+					{
+					default:    // make compiler happy
+					case 0: // south
+						return (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z);
+					case 1: // north
+						return (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z);
+					case 2: // east
+						return (faceDirection == DIRECTION_BLOCK_SIDE_HI_X);
+					case 3: // west
+						return (faceDirection == DIRECTION_BLOCK_SIDE_LO_X);
+					}
+				}
+				else
+				{
+					// trapdoor is down, have it block above.
+					return (faceDirection == DIRECTION_BLOCK_TOP);
+				}
+			}
+			break;
+
+		case BLOCK_SNOW:
+			return (faceDirection == DIRECTION_BLOCK_TOP);
+
+		case BLOCK_CAULDRON:
+			if ( !view3D )
+			{
+				return (faceDirection == DIRECTION_BLOCK_TOP);
+			}
+			break;
+
+		case BLOCK_REDSTONE_REPEATER_OFF:
+		case BLOCK_REDSTONE_REPEATER_ON:
+		case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+		case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+		case BLOCK_DAYLIGHT_SENSOR:
+			// blocks top
+			return (faceDirection == DIRECTION_BLOCK_TOP);
+
+		case BLOCK_HOPPER:
+			// blocks bottom
+			return (faceDirection == DIRECTION_BLOCK_BOTTOM);
+
+		case BLOCK_RAIL:
+		case BLOCK_POWERED_RAIL:
+		case BLOCK_DETECTOR_RAIL:
+		case BLOCK_ACTIVATOR_RAIL:
+			if ( !view3D )
+			{
+				int modDataVal = neighborDataVal;
+				// for printing, angled pieces get triangle blocks.
+				// first check dataVal to see if it's a triangle, and remove top bit if so.
+				switch ( origType )
+				{
+				case BLOCK_POWERED_RAIL:
+				case BLOCK_DETECTOR_RAIL:
+				case BLOCK_ACTIVATOR_RAIL:
+					// if not a normal rail, there are no curve bits, so mask off upper bit, which is
+					// whether the rail is powered or not.
+					modDataVal &= 0x7;
+					break;
+				}
+				// do for all rails
+				switch ( modDataVal )
+				{
+				case 2:
+				case 3:
+				case 4:
+				case 5:
+					// sloping, so continue
+					break;
+				default:
+					// it's a flat piece, return that it doesn't cover
+					return 0;
+				}
+
+				// it's sloping - covers top
+				if (faceDirection == DIRECTION_BLOCK_TOP)
+					return 1;
+
+				// brute force the four cases: always draw bottom of block as the thing, use top of block for decal,
+				// use sides for triangles. Really, we'll just use the top for everything for now (TODO), as it's kind of
+				// a bogus object anyway (no right answer).
+				switch ( modDataVal )
+				{
+				case 2: // ascending east
+					if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+						return 1;
+					break;
+				case 3: // ascending west
+					if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+						return 1;
+					break;
+				case 4: // ascending north
+					if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+						return 1;
+					break;
+				case 5: // ascending south
+					if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+						return 1;
+					break;
+				default:
+					// it's a flat, so flatten
+					return 0;
+				}
+			}
+			break;
+
+		default:
+			// not in list, so won't cover anything
+			break;
+		}
+	}
+
+	// no cover found, so note that the face is exposed and not covered
+	return 0;
 }
 
 static int isFluidBlockFull( int type, int boxIndex )
@@ -13296,7 +13912,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     sprintf_s(outputString,256,"#   Connect parts sharing an edge: %s; Connect corner tips: %s; Weld all shared edges: %s\n",
         (gOptions->pEFD->chkConnectParts ? "YES" : "no"),
         (gOptions->pEFD->chkConnectCornerTips ? "YES" : "no"),
-        (gOptions->pEFD->chkShowWelds ? "YES" : "no"));
+        (gOptions->pEFD->chkConnectAllEdges ? "YES" : "no"));
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"#   Delete floating objects: trees and parts smaller than %d blocks: %s\n",

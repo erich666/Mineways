@@ -68,6 +68,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><b><a href="#too_big">"My Model's Too Expensive!"</a></b> - how to keep it cheap.
  <LI><a href="#options">Export Options</a> - the various export options shown on the giant dialog.
  <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
+ <LI><a href="#importsettings">Import Settings</a> - reading back in previous export settings.
  <LI><a href="#tilemaker">TileMaker</a> - how to make your own terrainExt.png files.
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
@@ -606,6 +607,14 @@ The "show welds" option shows what blocks were added by the various "connect par
 <P>
 <b>Key tip, worth repeating:</b> at the beginning of the model file itself (which is a text file, so can be viewed in any text editor) is a summary of various statistics, such as number of blocks generated, model dimensions, and cost (good to within a few cents).
 
+<P><H3><A NAME="importsettings">
+Import Settings
+</A></H3>
+So you've worked hard to figure out exactly what piece of your world to export, you've set the myriad export settings just how you want, then you export your file. You close down Mineways, then three seconds later you realize you should have made one more tweak. Aagh, now you need to put in all the settings again!
+<P>
+One way around this problem is to look at the top of the output file (if OBJ or WRL) or the related TXT file (if STL). You can copy these settings over, one by one. That's a pain.
+<P>
+With "Import Settings", under the File menu, you can read any Mineways output file and automatically have all your settings made to match your previous export. This feature has some limitations: you need to have the proper world loaded, and you need to set the color scheme you want. When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for settings specific to OBJ files, such as material output). This feature is backwards compatible to Mineways 2.0, though of course features added since then will be given default values.
 
 <P><H3><A NAME="tilemaker">
 TileMaker
@@ -1700,7 +1709,7 @@ Hopper (#154)
 <h2><A NAME="bugs">Known Bugs</a></h2>
 Find a bug? First, make sure you have the latest version installed, and check <a href="#troubleshooting">the troubleshooting section</a> and the list below. Still stuck? <a href="mailto:erich@acm.org">Send me an email</a> and I'll help you out. Fix a bug? You're my personal hero, and <a href="mailto:erich@acm.org">send me the code</a>.
 <UL>
-<LI>The program will crash on huge area exports. Basically, it runs out of memory. See the <a href="#troubleshooting">the troubleshooting section</a> for a workaround (multiple exports).
+<LI>The program will crash on huge area exports. Basically, it runs out of memory. See the <a href="#troubleshooting">the troubleshooting section</a> for a workaround (multiple exports). I hope to make a 64-bit version someday (it's harder than it looks, at least for me).
 <LI>Superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, caused by internal tunnels. "Delete floating objects" currently does not remove these. The workaround is to use "fill in isolated tunnels", or to just let these separate little chunks print and pay a bit more for them. The real fix to add to the code is to search the whole model again for groups and delete the small groups.
 <LI>Sometimes the selected area is not cleared from the screen itself. This will happen when you select, scroll to a new place, select, then scroll back. Easy to fix: just switch lighting on and off, hit 'L' and 'L' again. Or, reload with 'R'.
 <LI>ZLIB: for some weird reason I need to link to two different versions of the ZLIB library. It's some problem with <a href="http://en.wikipedia.org/wiki/Name_mangling">name mangling</a>, but I don't know what. Things work fine, but this is dumb (on my part, I would guess). Help appreciated!
@@ -1760,22 +1769,23 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.02, 10/25/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV302.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool’s locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
 <LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
+<LI>Version 3.05, 1/1/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV305.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Export "lesser" blocks more efficiently, removing many invisible polygons and so improving 3D print conversion. Added <a href="#importsettings">"Import Settings" feature</a>, which lets you read in a previously-exported Mineways file and match its export settings. Various bug fixes: proper export of "connect all edges", proper export of solid-color renderings, fixed some error messages to properly display.
 </UL>
 
 <h2><A NAME="wishlist">Wishlist</a></h2>
-This is my own wishlist, in order of interest; if you really want a feature, add it yourself! I'm busy writing a book in my spare time so don't have a lot of cycles to spare for this project.
+This is my own wishlist, in order of interest; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
-<LI>Create your own input terrainExt.png files from texture packs, and include some pre-made conversions.
-<LI>1.7+ export, and improve existing block support.
-<LI>64 bit support: export much larger chunks.
-<LI>Schematic file import: some players store their creations in <a href="http://minecraft.gamepedia.com/Schematic_File_Format">schematic files</a>. You can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
-<LI>Command line control: useful for reusing settings.
-<LI>Various blocks need improvement: brewing stand, beacon, etc.
-<LI>Vines really should work better. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching.
-<LI>Proper "lesser" block merging: right now smaller blocks such as slabs are exported without any care taken to merge them properly with surrounding blocks. Basically, I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does not, such as Shapeways and standalone ZPrinter software; even Sculpteo occasionally makes mistakes. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
-<LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API (not out yet): Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
-<LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. To port, there's some old <a href="http://seancode.com/minutor/">minutor</a> platform-independent code (colorschemes.c, mapviewer.c, Mineways.c) in the topmost source directory, but I haven't touched it. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
-<LI>Better color selection: <a href="http://bugs.seancode.com/show_bug.cgi?id=13">this is a weakness</a> with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a> and the alpha.
+<LI>Full "lesser" block merging: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does poorly - Shapeways messes up textures, Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
+<LI>64 bit support: export much larger chunks. Headache is getting zlib and libpng static libraries linking probably. Help appreciated!
+<LI>Biome support: get biome color and use it to change terrain's output color.
+<LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
+<LI>Chest support: chests and other things (Ender portal) are simple blocks, they should use Minecraft's special textures. Big headache. <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#blocks">Other blocks</a> could also use more support, e.g. pistons, redstone wire, pumpkin and melon stems, farmland wetness.
+<LI>Command line control: useful for reusing settings. Not sure I can really do this for a Windows program...
+<LI>Better color selection: <a href="http://bugs.seancode.com/show_bug.cgi?id=13">this is a weakness</a> with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a> and the alpha. Really, using Qt would probably allow better color selection.
+<LI>Schematic file import: some players store their creations in <a href="http://minecraft.gamepedia.com/Schematic_File_Format">schematic files</a>. Currently you can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
+<LI>Vines really should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching, but intervening properly is tricky.
+<LI>Head and sign support, which means that <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity support</a> is needed.
+<LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
 </UL>
 
 <p>
@@ -1783,6 +1793,7 @@ That's it - have fun!
 
 <HR>
 <P><H2><A NAME="offsite">Links</a></H2>
+Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
 <LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b> (version 3.01, updated 10/17/2013). If you are using Minecraft 1.1 or older, you should use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> to read these files. <I>DEPRECATED:</I> The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
@@ -1833,7 +1844,7 @@ That's it - have fun!
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 12/10/2013</i>
+Last updated 1/1/2014</i>
 </font>
 </div> <!-- /footer -->
 </div>

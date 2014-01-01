@@ -47,8 +47,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_AT_LEAST_ONE_DIMENSION_TOO_HIGH          (1<<4)
 #define MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED           (1<<5)
 #define MW_NOT_ENOUGH_ROWS                          (1<<6)
+
 // errors
 #define MW_BEGIN_ERRORS                           (1<<7)
+
 #define MW_NO_BLOCKS_FOUND                          (1<<7)
 #define MW_ALL_BLOCKS_DELETED                       (1<<8)
 #define MW_CANNOT_READ_IMAGE_FILE                   (1<<9)
@@ -57,9 +59,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_IMAGE_WRONG_WIDTH                        (1<<12)
 #define MW_DIMENSION_TOO_LARGE                      (1<<13)
 #define MW_NEED_16_ROWS                             (1<<14)
-#define MW_ERRORS                                 (1<<14)
+#define MW_CANNOT_READ_IMPORT_FILE                  (1<<15)
+#define MW_CANNOT_PARSE_IMPORT_FILE                 (1<<16)
+#define MW_ERRORS                                 (1<<16)
 
-#define MW_NUM_CODES                                13
+#define MW_NUM_CODES                                17
 
 #ifdef __cplusplus
 extern "C" {
