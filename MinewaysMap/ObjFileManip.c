@@ -805,6 +805,12 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         retCode |= createBaseMaterialTexture();
     }
 
+	// all done with base input texture, free up its memory.
+	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+	{
+		readpng_cleanup(1,&gModel.inputTerrainImage);
+	}
+
     gPhysMtl = gOptions->pEFD->comboPhysicalMaterial[gOptions->pEFD->fileType];
 
     gUnitsScale = unitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].unitsPerMeter;
@@ -1135,11 +1141,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     if ( gBoxData )
         free(gBoxData);
     gBoxData = NULL;
-
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
-    {
-        readpng_cleanup(1,&gModel.inputTerrainImage);
-    }
 
     UPDATE_PROGRESS(PG_END);
 

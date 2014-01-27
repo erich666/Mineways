@@ -148,8 +148,8 @@ If something goes wrong, here's the checklist I go through with people:
 <P>
 Here are some common problems:
 <UL>
+<LI> "Mineways dies on large exports" - In version 3.06 I added an option under the Help menu: "Give more export memory!" - select it. This option exports models more slowly, but will cut memory use a significant amount. Mineways is tailored for 3D printing, so wants to have the whole model in memory at once for analysis. It is also a 32-bit program. These factors combine to make it run out of memory for particularly large exports. If you really can't get it to work, my advice is to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or <a href="https://sites.google.com/site/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import. Alternately, here's a workaround for Mineways itself: make multiple exports. Use the Box min and Box max boxes in the export dialog to keep your exports next to each other. Turn off the "Center Model" option - now all your models exported will have absolute coordinates. You can then perform exports "next to each other" and the renderer's importer should place these in the correct positions when read in. For example, say you want to export [0,0,0] to [400,255,300]. Splitting in half on the X axis, you type in for one export [0,0,0] to [199,255,300] and for the other [200,0,0] to [400,255,300]. Still crashing? Make the exports smaller still.
 <LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? Version 1.x of Mineways reads only older Minecraft (pre-1.2.x) worlds, not Anvil worlds. Version 2.x of Mineways reads Anvil worlds and will warn if it finds a pre-Anvil (unconverted) world.
-<LI> "Mineways dies on large exports" - Mineways is tailored for 3D printing, so wants to have the whole model in memory at once for analysis. It is also a 32-bit program. These factors combine to make it run out of memory for particularly large exports. My advice is to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or <a href="https://sites.google.com/site/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import. Alternately, here's a workaround for Mineways itself: make multiple exports. Use the Box min and Box max boxes in the export dialog to keep your exports next to each other. Turn off the "Center Model" option - now all your models exported will have absolute coordinates. You can then perform exports "next to each other" and the renderer's importer should place these in the correct positions when read in. For example, say you want to export [0,0,0] to [400,255,300]. Splitting in half on the X axis, you type in for one export [0,0,0] to [199,255,300] and for the other [200,0,0] to [400,255,300]. Still crashing? Make the exports smaller still.
 <LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place.
 <LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Often, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> bother with trying STL instead of VRML; STL will not print at Shapeways with color.
 <LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure you've got a version of Mineways newer than version 2.12 (look at "Help | About"), and "Model's units" on the export dialog should say "Millimeters".
@@ -1655,16 +1655,16 @@ Faked by putting tile at 11,14 in terrain.png.
 Flower Pot (#140)
 </td>
 <td>
-<center>Proper geometry, except acacia and dark oak</center>
+<center>Proper geometry made in 1.6.4 or earlier, except acacia and dark oak</center>
 </td>
 <td>
 <center>Removed</center>
 </td>
 <td>
-<center>Pot geometry, and only cactus</center>
+<center>Pot geometry, and only cactus made in 1.6.4 or earlier</center>
 </td>
 <td>
-Acacia and dark oak not identifiable by Mineways currently.
+Acacia and dark oak not identifiable by Mineways currently. Pots made in 1.7 will not have any contents.
 </td>
 </tr>
 
@@ -1769,7 +1769,8 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.02, 10/25/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV302.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool’s locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
 <LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
-<LI>Version 3.05, 1/1/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV305.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Export "lesser" blocks more efficiently, removing many invisible polygons and so improving 3D print conversion. Added <a href="#importsettings">"Import Settings" feature</a>, which lets you read in a previously-exported Mineways file and match its export settings. Various bug fixes: proper export of "connect all edges", proper export of solid-color renderings, fixed some error messages to properly display.
+<LI>Version 3.05, 1/1/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV305.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac305.zip">Mac</a> - Export "lesser" blocks more efficiently, removing many invisible polygons and so improving 3D print conversion. Added <a href="#importsettings">"Import Settings" feature</a>, which lets you read in a previously-exported Mineways file and match its export settings. Various bug fixes: proper export of "connect all edges", proper export of solid-color renderings, fixed some error messages to properly display.
+<LI>Version 3.06, 1/27/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV306.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added option under "Help" that minimizes the amount of memory used during export. Use this option if you're running out of memory on large exports. This is not on by default, as this option will make exports take a few seconds longer. // Share some common export settings (color, material, block size, etc.) among some related file formats. This is useful for when you export to both Shapeways and Sculpteo, for example. // Free the input TerrainExt.png file as soon as we're done with it. // Added automatic cache resizing and recovery for large map display.
 </UL>
 
 <h2><A NAME="wishlist">Wishlist</a></h2>
@@ -1844,7 +1845,7 @@ Some links I commonly use.
 
 <div id="footer" class="clearfix">
 <i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 1/1/2014</i>
+Last updated 1/27/2014</i>
 </font>
 </div> <!-- /footer -->
 </div>
