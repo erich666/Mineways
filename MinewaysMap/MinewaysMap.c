@@ -1663,6 +1663,13 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
 WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 {
     WorldBlock *block=block_alloc();
+
+	// out of memory? If so, clear cache and cross fingers
+	if ( block == NULL )
+	{
+		Cache_Empty();
+		block=block_alloc();
+	}
     block->rendery = -1; // force redraw
 
 	if ( directory[0] == (wchar_t)'/' )

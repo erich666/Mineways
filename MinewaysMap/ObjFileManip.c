@@ -668,6 +668,11 @@ void ChangeCache( int size )
 {
     Change_Cache_Size(size);
 }
+
+void ClearCache()
+{
+	Cache_Empty();
+}
 ////////////////////////////////////////////////////////
 //
 // Main code begins
@@ -689,6 +694,13 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
 
+	if ( options->moreExportMemory )
+	{
+		// clear the cache before export - this lets us export larger worlds.
+		// This could be made optional, but map reload is pretty fast, so let's always do this.
+		ClearCache();
+	}
+
 	gMajorVersion = majorVersion;
 	gMinorVersion = minorVersion;
 
@@ -703,8 +715,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     // reset random number seed
     myseedrand(12345);
-
-    //test of making cache large: Change_Cache_Size( 15000 );
 
     gOptions = options;
     gOptions->totalBlocks = 0;
@@ -1348,6 +1358,12 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
 		return MW_NO_BLOCKS_FOUND;
 	}
 
+	// done with reading chunk for export, so free memory
+	if ( gOptions->moreExportMemory )
+	{
+		ClearCache();
+	}
+
 	// have to reinitialize to get right globals for gSolidWorldBox.
 	initializeWorldData( worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z] );
 #endif
@@ -1366,6 +1382,12 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
         {
             // this method also sets gSolidWorldBox for OLD_BUILD
             extractChunk(world,blockX,blockZ,worldBox);
+
+			// done with reading chunk for export, so free memory
+			if ( gOptions->moreExportMemory )
+			{
+				ClearCache();
+			}
         }
     }
 
@@ -1377,7 +1399,14 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     }
 #endif
 
-    // convert to solid relative box (0 through boxSize-1)
+	// done with reading chunk for export, so free memory.
+	// should all be freed, but just in case...
+	if ( gOptions->moreExportMemory )
+	{
+		ClearCache();
+	}
+	
+	// convert to solid relative box (0 through boxSize-1)
     Vec3Op( gSolidBox.min, =, gSolidWorldBox.min, +, gWorld2BoxOffset );
     Vec3Op( gSolidBox.max, =, gSolidWorldBox.max, +, gWorld2BoxOffset );
 

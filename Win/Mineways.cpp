@@ -64,6 +64,7 @@ static Options gOptions = {0,   // which world is visible
     BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP | BLF_FLATSIDE,   // what's exportable (really, set on output)
     0x0,
     0,  // start with low memory
+	INITIAL_CACHE_SIZE,	// cache size
     NULL};
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
@@ -167,6 +168,7 @@ static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
 static void syncCurrentHighlightDepth();
+static void copyOverExportPrintData( ExportFileData *pEFD );
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog );
 static void PopupErrorDialogs( int errCode );
 static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber );
@@ -1246,6 +1248,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				else
 				{
+					// cross-over any values that are semi-shared to other file formats
+					copyOverExportPrintData( gpEFD );
+
 					gCurX=(gpEFD->minxVal+gpEFD->maxxVal)/2;
 					gCurZ=(gpEFD->minzVal+gpEFD->maxzVal)/2;
 
@@ -1568,12 +1573,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_HELP_GIVEMEMOREMEMORY:
             // If you go full screen, you'll want more memory, if your computer can handle it.
             // TODO document
-            gOptions.moreMemory = !gOptions.moreMemory;
-            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.moreMemory)?MF_CHECKED:MF_UNCHECKED);
-            ChangeCache( gOptions.moreMemory ? 30000 : 15000 );  // was 15000 : 6000 - Sean said "make it bigger"
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            gOptions.moreExportMemory = !gOptions.moreExportMemory;
+            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.moreExportMemory)?MF_CHECKED:MF_UNCHECKED);
             break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
@@ -1639,6 +1640,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bitmap=CreateDIBSection(NULL,&bmi,DIB_RGB_COLORS,(void **)&map,NULL,0);
         if (hdcMem!=NULL)
             SelectObject(hdcMem,bitmap);
+
+		// On resize, figure out a better hash table size for cache, if needed.
+		if ( (rect.bottom-rect.top) * (rect.right-rect.left) > 256 * gOptions.currentCacheSize )
+		{
+			// make new cache twice the size of the screen's needs, should be enough I hope.
+			gOptions.currentCacheSize = 2 * (rect.bottom-rect.top) * (rect.right-rect.left) / 256;
+			ChangeCache( gOptions.currentCacheSize );
+		}
+			//InvalidateRect(hWnd,NULL,TRUE);
+			//UpdateWindow(hWnd);
         draw();
         break;
     case WM_DESTROY:
@@ -2061,6 +2072,89 @@ static void syncCurrentHighlightDepth()
     }
 }
 
+// So that you can change some options in Sculpteo export and they get used for
+// Shapeways export, and vice versa. Also works for STL. A few parameters are
+// specific to the service, e.g. Z is up, and unit type used, so these are not copied.
+static void copyOverExportPrintData( ExportFileData *pEFD )
+{
+	// Whatever is set for OBJ should be set for VRML, and vice versa,
+	// so that Sculpteo and Shapeways can both be exported off a single setting, set once.
+	// Similarly, do this for all the STL.
+	int source = pEFD->fileType;
+	int dest[2];
+	int count = 0;
+	int service = 0;
+
+	switch ( source )
+	{
+	case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+		dest[0] = FILE_TYPE_WAVEFRONT_REL_OBJ;
+		dest[1] = FILE_TYPE_VRML2;
+		count = 2;
+		service = 1;
+		break;
+	case FILE_TYPE_WAVEFRONT_REL_OBJ:
+		dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+		dest[1] = FILE_TYPE_VRML2;
+		count = 2;
+		service = 1;
+		break;
+	case FILE_TYPE_VRML2:
+		dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+		dest[1] = FILE_TYPE_WAVEFRONT_REL_OBJ;
+		count = 2;
+		service = 1;
+		break;
+
+	case FILE_TYPE_BINARY_MAGICS_STL:
+		dest[0] = FILE_TYPE_BINARY_VISCAM_STL;
+		dest[1] = FILE_TYPE_ASCII_STL;
+		count = 2;
+		break;
+	case FILE_TYPE_BINARY_VISCAM_STL:
+		dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
+		dest[1] = FILE_TYPE_ASCII_STL;
+		count = 2;
+		break;
+	case FILE_TYPE_ASCII_STL:
+		dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
+		dest[1] = FILE_TYPE_BINARY_VISCAM_STL;
+		count = 2;
+		break;
+	default:
+		// unknown, don't copy
+		assert(0);
+		return;
+	}
+	
+	// copy!
+	for ( int i = 0; i < count; i++ )
+	{
+		pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
+		pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
+		pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
+		pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+
+		// don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
+		if ( service == 0 )
+			pEFD->chkMakeZUp[dest[i]] = pEFD->chkMakeZUp[source];
+
+		pEFD->blockSizeVal[dest[i]] = pEFD->blockSizeVal[source];
+
+		// don't do, as this seems file type specific: chkCreateZip[FILE_TYPE_TOTAL];
+		// don't do, as this seems file type specific: chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
+
+		pEFD->hollowThicknessVal[dest[i]] = pEFD->hollowThicknessVal[source];
+
+		// don't do, as Sculpteo sandstone stats are different than Shapeways':
+		if ( service == 0 )
+			pEFD->comboPhysicalMaterial[dest[i]] = pEFD->comboPhysicalMaterial[source];
+		// for service, don't do, as Sculpteo and Shapeways use centimeters vs. millimeters
+		if ( service == 0 )
+			pEFD->comboModelUnits[dest[i]] = pEFD->comboModelUnits[source];
+	}
+}
+
 // returns number of files written on successful export, 0 files otherwise.
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog )
 {
@@ -2108,7 +2202,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         return 0;
     }
 
-    getExportPrintData(gpEFD);  // could be unchanged, on cancel, but that's OK
+    getExportPrintData(gpEFD);
+
+	copyOverExportPrintData(gpEFD);
 
     // if user changed depths
     if ( miny != gpEFD->minyVal || maxy != gpEFD->maxyVal )

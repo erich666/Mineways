@@ -41,7 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // arbitrary, let users tune this?
 // 6000 entries translates to Mineways using ~300MB of RAM (on x64)
 
-static int gHashMaxEntries=12000;   // was 6000, Sean said to increase it
+static int gHashMaxEntries=INITIAL_CACHE_SIZE;   // was 6000, Sean said to increase it - really should be 30000, because export memory toggle now changes it to this
 
 typedef struct block_entry {
     int x, z;
@@ -99,8 +99,6 @@ void Cache_Add(int bx, int bz, void *data)
 
     if (gCacheN >= gHashMaxEntries) {
         // we need to remove an old entry
-        // TODO: this is really bad for a full screen view, it seems
-        // like no entries whatsoever get reused on a draw.
         IPoint2 coord = gCacheHistory[gCacheN % gHashMaxEntries];
         int oldhash = hash_coord(coord.x, coord.z);
 
@@ -135,16 +133,16 @@ void Cache_Add(int bx, int bz, void *data)
 
 void *Cache_Find(int bx,int bz)
 {
-    block_entry *entry;
+	block_entry *entry;
 
-    if (gBlockCache == NULL)
-        return NULL;
+	if (gBlockCache == NULL)
+		return NULL;
 
-    for (entry = gBlockCache[hash_coord(bx, bz)]; entry != NULL; entry = entry->next)
-        if (entry->x == bx && entry->z == bz)
-            return entry->data;
-    
-    return NULL;
+	for (entry = gBlockCache[hash_coord(bx, bz)]; entry != NULL; entry = entry->next)
+		if (entry->x == bx && entry->z == bz)
+			return entry->data;
+
+	return NULL;
 }
 
 void Cache_Empty()

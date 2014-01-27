@@ -343,7 +343,8 @@ typedef struct Options {
     int worldType;          // what world we're looking at: HELL, ENDER, etc.
     int saveFilterFlags;	// what objects should be kept - basic difference is flatsides get shown
     int exportFlags;		// exporting options
-    int moreMemory;             // use more memory for caching or not?
+    int moreExportMemory;             // use more memory for caching or not?
+	int currentCacheSize;
     ExportFileData *pEFD;   // print or view option values, etc.
     ///// these are really statistics, but let's shove them in here - so sloppy!
     int dimensions[3];

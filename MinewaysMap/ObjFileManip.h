@@ -69,7 +69,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif
 
-    __declspec(dllexport) void __cdecl ChangeCache( int size );
+	__declspec(dllexport) void __cdecl ChangeCache( int size );
+	__declspec(dllexport) void __cdecl ClearCache();
 
     __declspec(dllexport) int __cdecl SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
         ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion );

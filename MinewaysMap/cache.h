@@ -30,6 +30,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+#define INITIAL_CACHE_SIZE 6000
+
 typedef struct WorldBlock {
 	unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
 	// someday we'll need the top four bits field when > 256 blocks
