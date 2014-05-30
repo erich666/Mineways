@@ -61,9 +61,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_NEED_16_ROWS                             (1<<14)
 #define MW_CANNOT_READ_IMPORT_FILE                  (1<<15)
 #define MW_CANNOT_PARSE_IMPORT_FILE                 (1<<16)
-#define MW_ERRORS                                 (1<<16)
+#define MW_TEXTURE_TOO_LARGE						(1<<17)
+#define MW_WORLD_EXPORT_TOO_LARGE					(1<<18)
+#define MW_INTERNAL_ERROR							(1<<19)
+#define MW_ERRORS                                 (1<<19)
 
-#define MW_NUM_CODES                                17
+#define MW_NUM_CODES                                20
 
 #ifdef __cplusplus
 extern "C" {

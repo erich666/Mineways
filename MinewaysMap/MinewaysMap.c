@@ -795,6 +795,13 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			block->data[(int)(bi/2)] |= (unsigned char)(10<<((bi%2)*4));
 		}
 		break;
+	case BLOCK_STONE:
+		// uses 0-6
+		if ( dataVal < 7 )
+		{
+			addBlock = 1;
+		}
+		break;
 	case BLOCK_PUMPKIN_STEM:
 	case BLOCK_MELON_STEM:
 	case BLOCK_OAK_WOOD_STAIRS:
@@ -1190,39 +1197,97 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_TRAPDOOR:
-		if ( dataVal < 8 )
-		{
-			addBlock = 1;
+	case BLOCK_IRON_TRAPDOOR:
+		addBlock = 1;
 
-			trimVal = dataVal & 0x3;
-			switch ( trimVal )
-			{
-			case 3:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 2:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 1:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 0:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			}
+		trimVal = dataVal & 0x3;
+		switch ( trimVal )
+		{
+		case 3:
+			// put block to west
+			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+			break;
+		case 2:
+			// put block to east
+			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+			break;
+		case 1:
+			// put block to north
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+			break;
+		case 0:
+			// put block to south
+			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+			break;
 		}
 		break;
 	case BLOCK_PISTON:
 	case BLOCK_STICKY_PISTON:
-		// TODO: piston head/extension
 		trimVal = dataVal & 0x7;
 		if ( trimVal < 6 )
 		{
+			int bx = 0;
+			int by = 0;
+			int bz = 0;
 			addBlock = 1;
+
+			// is piston extended?
+			if ( dataVal & 0x8 )
+			{
+				switch ( trimVal )
+				{
+				case 0: // pointing down
+					bx = 4+(type%2)*8;
+					by = y;
+					bz = 4+(dataVal%2)*8;
+					// increase y by 1 so piston is one block higher
+					y++;
+					break;
+				case 1: // pointing up
+					bx = 4+(type%2)*8;
+					by = y+1;
+					bz = 4+(dataVal%2)*8;
+					break;
+				case 2: // pointing north
+					bx = 4+(type%2)*8;
+					by = y;
+					bz = 3+(dataVal%2)*8;
+					break;
+				case 3: // pointing south
+					bx = 4+(type%2)*8;
+					by = y;
+					bz = 5+(dataVal%2)*8;
+					break;
+				case 4: // pointing west
+					bx = 3+(type%2)*8;
+					by = y;
+					bz = 4+(dataVal%2)*8;
+					break;
+				case 5: // pointing east
+					bx = 5+(type%2)*8;
+					by = y;
+					bz = 4+(dataVal%2)*8;
+					break;
+				default:
+					assert(0);
+					break;
+				}
+				bi = BLOCK_INDEX(bx,by,bz);
+				block->grid[bi] = BLOCK_PISTON_HEAD;
+				// sticky or not, plus direction
+				block->data[(int)(bi/2)] |= (unsigned char)((trimVal | ((type == BLOCK_STICKY_PISTON) ? 0x8 : 0x0))<<((bi%2)*4));
+			}
+		}
+		break;
+	case BLOCK_PISTON_HEAD:
+		// uses bits 0-5 and 8-13
+		if ( (dataVal&0x7) < 6 )
+		{
+			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+			block->grid[bi] = BLOCK_GLASS_PANE;
+			// make it float above ground, to avoid asserts and to test
+			y++;
+			addBlock=1;
 		}
 		break;
 	case BLOCK_VINES:

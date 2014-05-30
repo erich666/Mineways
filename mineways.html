@@ -6,57 +6,41 @@
 <meta name="verify-v1" content="Yu6GNfK3unr7miPWkaF7C1daboagTtYqaPoIF+K7j2g=" />
 <link rel="shortcut icon" href="icon.ico" type="image/x-icon" />
 <link rel="icon" href="icon.ico" type="image/x-icon" />
-<link rel="stylesheet" href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.css" type="text/css" />
+<link rel="stylesheet" href="mineways.css" type="text/css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.2.6/jquery.min.js"></script>
+<script src="javascripts/headerFooterLoader.js"></script>
 </head>
 <body bgcolor="#FFFFFF">
 
 <div id="wrapper">
-
-  <div id="header">
-    <div id="mineways-header-image">
-      <table width="100%" border="0" cellspacing="0" cellpadding="0">
-        <tr bgcolor="#FFFFFF">
-          <td>
-            <a href="http://realtimerendering.com/erich/minecraft/public/mineways/index.html">
-              <img src="http://realtimerendering.com/erich/minecraft/public/mineways/mineways_header.png" alt="Header image" width="787" height="125" />
-            </a>
-          </td>
-        </tr>
-      </table>
-    </div>
-    <div id="navigation" class="clearfix">
-      <ul class="primary">
-        <li><a title="Download for PC" href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download for PC</a></li>
-        <li><a title="Download for Mac" href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Download for Mac</a></li>
-        <li><a title="Home page"  href="index.html">Home Page</a></li>
-        <li><a class="nav-current" title="Documentation"  href="mineways.html">Documentation</a></li>
-        <li><a title="Flickr Gallery"  href="http://www.flickr.com/groups/mineways/pool/">Flickr Gallery</a></li>
-        <li><a title="Video"  href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">Videos</a></li>
-        <li><a title="Forum"  href="http://www.minecraftforum.net/topic/892856-mineways-3d-prints-of-minecraft-objects/">Forum</a></li>
-        <li><a title="Subreddit"  href="http://www.reddit.com/r/mineways/">Subreddit</a></li>
-        <li><a title="Support" href="mailto:erich@acm.org?subject=Problem with Mineways">Support</a></li>
-      <ul>
-    </div>
-  </div>
-
+  <div id="headerFile"></div>
   <div id="content" class="clearfix">
-
 
 <link rel="shortcut icon" href="http://realtimerendering.com/erich/minecraft/public/mineways/icon.ico" type="image/x-icon">
 <link rel="icon" href="http://realtimerendering.com/erich/minecraft/public/mineways/icon.ico" type="image/x-icon">
-</head>
-<body bgcolor="#E0F2FC">
+
 <font face="verdana">
 
 <h1>General Information</h1>
-Mineways is a program for exporting Minecraft models for 3D printing or rendering. The <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">latest version</a> works with Minecraft 1.2 and later (<a href="http://minecraft.gamepedia.com/Anvil_file_format">Anvil</a>); <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV115.zip">Mineways Version 1.15</a> works with Minecraft 1.1 and earlier (<a href="http://minecraft.gamepedia.com/McRegion">McRegion</a>). The home page is <a href="http://realtimerendering.com/erich/minecraft/public/mineways/">here</a>. This page explains how to use Mineways effectively, with in-depth descriptions of the various options and related resources.
-<P>
+
+<div id="googleGroup">
+    <p class="noPadNoMarg">Subscribe to the Mineways mailing list - it's for only important announcements, such as new version releases.</p> 
+    <form action="http://groups.google.com/group/mineways/boxsubscribe">
+    <div>
+      <div>
+      Email: <input type=text name=email>
+      <input type=submit name="sub" value="Subscribe"> <a href="http://groups.google.com/group/mineways">Visit this group.</a>
+      </div>
+    </div>
+  </form>
+</div>
+<P>&nbsp;<br>
 <a href="#bugs">Check the bug list</a> if you have problems, and <a href="mailto:erich@acm.org">let me know</a> if you're still stuck. The program is open-source and is based on the (great) open-source mapping program <a href="http://seancode.com/minutor/">minutor</a> written by Sean Kasun - his work gave me a huge headstart. Mineways is a superset of his mapper, with a model exporter and other features added. I wrote this program just for fun, I'm not associated with Shapeways or Mojang. There are other print services besides <a href="http://shapeways.com">Shapeways</a> that work with Mineways, such as <a href="http://sculpteo.com/">Sculpteo</a>, <a href="http://i.materialise.com/">i.materialise</a> and <a href="http://ponoko.com">Ponoko</a>, as well as <a href="http://www.additive3d.com/3dpr_cht.htm">home 3D printers</a>, such as <a href="http://reprap.org/wiki/RepRap">RepRaps</a> and <a href="http://store.makerbot.com/thing-o-matic-kit-mk7.html">Thing-O-Matics</a> (<a href="http://wiki.makerbot.com/thingomatic">wiki</a>).
 <P>
 Normally you can just hit "OK" on the export dialog and things will work fine. Read on if you want to understand how to make your models less expensive, use different texture packs, and otherwise tailor you want to see printed out. What follows is extensive documentation about each part of the export and print process. If you don't want to wade through it all, at least search this page for the phrase "Key tip", as these bits are particularly useful.
 <UL>
-<LI><b><a href="#myway">How I Make an Export</a></b> - what steps I go through.
-<LI><b><a href="#troubleshooting">Troubleshooting</a></b> - for if something goes wrong.
+<LI><a href="#myway">How I Make an Export</a> - what steps I go through.
+<LI><a href="#troubleshooting">Troubleshooting</a> - for if something goes wrong.
 <LI><a href="#install">Installation</a> - simple!
 <LI><a href="#map">Mapping</a> - lots of ways to change the view and what you see.
 <UL>
@@ -65,7 +49,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#select">Selecting a Region</a> - define a 3D box in your world for export.
 <LI><a href="#export">Exporting Models</a> - basics of exporting.
 <UL>
- <LI><b><a href="#too_big">"My Model's Too Expensive!"</a></b> - how to keep it cheap.
+ <LI><a href="#too_big">"My Model's Too Expensive!"</a> - how to keep it cheap.
  <LI><a href="#options">Export Options</a> - the various export options shown on the giant dialog.
  <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
  <LI><a href="#importsettings">Import Settings</a> - reading back in previous export settings.
@@ -88,34 +72,18 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#models">Stuff to Print</a> - where to get models and worlds.
  <LI><a href="#packages">Other Packages</a> - other model exporters and related software.
 </UL>
-<LI><a href="#shortcuts">Shortcut Keys</a> - along with quick descriptions of various features.
+<LI><a href="#mcpe">Minecraft Pocket Edition Support</a> - how to open one of these worlds in Mineways.
+<LI><a href="#shortcuts">Keyboard Shortcut Keys</a> - along with quick descriptions of various features.
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
-<LI><b><a href="#bugs">Known Bugs</a></b> - and workarounds, so check here if you have a problem loading, saving, etc.
+<LI><a href="#bugs">Known Bugs</a> - and workarounds, so check here if you have a problem loading, saving, etc.
 <LI><a href="#versions">Version History</a>
 <LI><a href="#wishlist">Wishlist</a>
 <LI><a href="#offsite">Links</a> - useful links to Mineways-related information.
 </UL>
-<p>
-<table border=0 style="background-color: #fff; padding: 5px;" cellspacing=0>
-  <tr><td>
-  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/groups_logo_sm.gif"
-         height=27 width=141 alt="Google Groups">
-  </td></tr>
-  <tr><td style="padding-left: 5px">
-  <b>Subscribe to Mineways</b> - only for important announcements, such as new version releases. <a href="http://groups.google.com/group/mineways">Visit this group.</a>
-  </td></tr>
-  <form action="http://groups.google.com/group/mineways/boxsubscribe">
-  <tr><td style="padding-left: 5px;">
-  Email: <input type=text name=email>
-  <input type=submit name="sub" value="Subscribe">
-  </td></tr>
-</form>
-</table>
 
-
-<P><H2><A NAME="myway">
+<H2 id="myway">
 How I Make an Export
-</A></H2>
+</H2>
 
 I'm assuming you have basic knowledge from the <a href="http://realtimerendering.com/erich/minecraft/public/mineways">quick-start guide</a> and can find options on the output dialog. If you need more information on a process, just follow the links or search this page for the term.
 <P>
@@ -135,15 +103,15 @@ Once I've figured out what to capture, there are then a few steps I walk through
 <LI>Should I use another texture pack? I'm still experimenting in this area, and in practice the printing process won't pick up on many fine details (I'm guessing about 8x8 pixel resolution detail at 2 mm/block; at 3 mm/block the details show up well), but certainly the colors and contrast of a texture pack makes a difference. See <a href="#terrain_png">this section</a> about how to create and use terrainExt.png files.
 </UL>
 
-<P><H2><A NAME="troubleshooting">
+<H2 id="troubleshooting">
 Troubleshooting
-</A></H2>
+</H2>
 If something goes wrong, here's the checklist I go through with people:
 <UL>
 <LI>Did you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">download the latest version</a>? Mineways has undergone many bug fixes.
 <LI>Did you read any warnings from the program carefully?
 <LI>Try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertantly checked, or untangles some hidden program bug.
-<LI>If you're on a Mac, <a href="index.html#mac">see this information</a> for how to run Mineways.
+<LI>If you're on a Mac, <a href="downloads.html#mac">see this information</a> for how to run Mineways.
 </UL>
 <P>
 Here are some common problems:
@@ -156,15 +124,15 @@ Here are some common problems:
 <LI> "It (still) doesn't work" - please <a href="mailto:erich@acm.org">email me</a>; you can also check the <a href="#bugs">bug list</a> for known issues.
 </UL>
 
-<P><H2><A NAME="install">
+<H2 id="install">
 Installation
-</A></H2>
+</H2>
 Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and really want to clean these out, search for "Mineways" in your registry editor and you'll find them.
-<P><H2><A NAME="map">
+<H2 id="map">
 Mapping
-</A></H2>
+</H2>
 Double-click the mineways.exe to run the program. Here's basic map use:
 </p><ul>
 <li>Load a Minecraft world map with File | Open World. Only worlds where you have the file are available (e.g. single player, or worlds you've downloaded). If you put your maps in a non-standard location, use "Open..." instead and find your level.dat. If you can't load a world, it's almost always due to the first bug described <a href="#bugs">here</a>.
@@ -175,58 +143,60 @@ Double-click the mineways.exe to run the program. Here's basic map use:
 </li><li>Search the menu for other interesting options. The "hide obscured" option removes all blocks above the first air found in caves, making it easier to see the caves themselves. This option is turned on when first viewing the Nether. The "give me more memory" option allocates more space for the map; else, if you increase the size of the map window to near-full screen, you'll find performance can die.
 </li></ul>
 <P>
-<h3><A NAME="schemes">Color Schemes</a></h3> 
+<h3 id="schemes">Color Schemes</h3> 
 Color schemes allows you to change the color for any block, and - extremely useful for 3d printing - remove any blocks you want from view. <b>Key tip:</b> you can eliminate all glass from your model by setting its alpha to 0 in a color scheme. <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">This part of this video</a> shows how to use color schemes to do this.
 <P>
 How do use a color scheme: From the menu, Add a new color scheme, then Edit it. Change the name "Color Scheme" at the top of the dialog that pops up to something useful, then select any block type to edit it. Color is given in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal color format</a>. You can use <a href="http://www.mirekw.com/winfreeware/mwsnap.html">MWSnap</a> (old but free), <a href="http://www.faststone.org/FSCapturerDownload.htm">FastStone Capture</a> (new but costs $20), or other programs to find the hexadecimal (e.g. #787878) color value of any pixel on your screen. 'Alpha' says how opaque a block will appear on the screen, with 255 meaning fully opaque and 0 meaning fully transparent (invisible). <I>Blocks with an alpha of 0 will be deleted when exporting.</I> You can turn off export of <i>all</i> blocks by using the "Hide All Blocks" button. This feature allows you to create separate parts, e.g. a glass roof could be created by then turning on just glass export.
 <P>
 Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself. See <a href="#tilemaker">TileMaker</a>.
 
-<P><H2><A NAME="select">
+<H2 id="select">
 Selecting a Region
-</A></H2>
-To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle.
+</H2>
+To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle.
 <P>
 Once you make a selection, you may get a dialog as shown below.
 <P>
-<TABLE>
-<tr colspan="3">
-<b>Example:</b> at first, the selected area does not include all terrain visible from above, as the lower depth is too high. Choosing "yes" lowers this depth and adjusts the slider, as shown in the center. Note that sometimes the adjusted lower depth becomes too low, for example when the selection includes a deep hole. On the right, the lower depth has been increased to the point where some terrain is now not selected. Bright pink shows terrain exactly at this lower depth.
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select1.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select2.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select3.jpg">
-</td>
-</tr>
-</TABLE>
+
+<div id="terrainSelection">
+  <b>Example Region Selection:</b>
+  <div id="terrainImgs">
+    <div class="terrainImg">
+      <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select1.jpg">
+      <span class="caption">At first, the selected area excludes some terrain visible from above, as the lower boundary is too high.</span>
+    </div>
+    <div class="terrainImg">
+      <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select2.jpg">
+      <p class="caption">Choosing "yes" lowers this depth and adjusts the slider</p>
+    </div>
+    <div class="terrainImg">
+      <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/select3.jpg">
+      <p>Note that sometimes the adjusted lower depth becomes too low, for example when the selection includes a deep hole. In photo above, the lower depth has been increased to the point where some terrain is now unselected. Bright pink shows terrain exactly at this lower depth.</p>
+    </div>
+  </div>
+</div>
 <P>
-By default the heights used for the rectangular block are from y=62 (sea level) to y=255. The upper slider determines the maximum height, but usually you'll leave this one alone. You'll normally use it for viewing or selecting areas fully underground or in the Nether. The number keys 0-9 can be used to quickly shift the maximum height; the <b>&lt;</b> and <b>&gt;</b> keys shift the altitude by one.
+By default the heights used for the rectangular block are from y=62 (sea level) to y=255. The upper slider determines the maximum height, but usually you'll leave this one alone. You'll normally use it for viewing or selecting areas fully underground or in the Nether. The number keys 0-9 can be used to quickly shift the maximum height; the [ and ] keys shift the altitude by one.
 <P>
 The lower depth can be changed in a number of ways, even when no area is selected. The lower slider is the simplest way to modify this value. If you click the middle mouse button on a location, the lower depth is set to its height.  The <b>[</b> and <b>]</b> keys shift the lower depth by one, and so are useful for tuning. See <a href="#shortcuts">the shortcut key list</a> for more program options.
 <P>
 <B>Key tip:</B> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="http://meshlab.sourceforge.net/">MeshLab</a> (which has a "file reload" option, Control-R) to see the results.
 
-<P><H2><A NAME="export">
+<H2 id="export">
 Exporting Models
-</A></H2>
+</H2>
 You can select "Export Model for 3D Printing", control-P, to create a model suitable for sending to a 3D printer. Because of limitations in what the Shapeways model importer can accept, please keep the save file name simple: avoid punctuation, for example.
 If you want to render the model instead, select "Export Model for Rendering" from the File menu, or use control-R, and save your file. The resulting file(s) can then be imported into a huge variety of 3D modelers and viewers, e.g. <a href="http://blender.org">Blender</a>. There is also a third option, "Export Schematic", which allows you to then import your model to another world by using <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
 <a href="http://davidvierra.com/mcedit.html">MCEdit</a>. Currently Mineways does not read schematic files; it's easy enough to import these into a world and then use Mineways on them.
 <P>
 The big difference between rendering and printing is that 3D print models <i>must</i> be solid and well-formed. Currently Mineways treats all blocks as solid, full blocks: half-steps or stairs are treated as blocks, as is every other block. There is also no transparency for the materials, since printers do not currently support this type of creation. Models for rendering can, when full texturing is on, include billboard models for flowers, saplings, crops, and other elements. Note that the billboard locations are added in comments to the output .OBJ and .WRL files. In this way, a dedicated modeler could substitute his own elaborate grass, flower, or other models in place of the simple billboards Minecraft provides.
 <P>
-<a NAME="schematic">
+<a id="schematic">
 Mineways' schematic export option</a> allows you to easily grab a volume of your world and turn it into a schematic file. This type of file is commonly used to share constructions among builders. Tools such as <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
 <a href="http://davidvierra.com/mcedit.html">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. 
-<P><H3><A NAME="too_big">
+<H3 id="too_big">
 "My Model's Too Expensive!"
-</A></H3>
+</H3>
 If you export to print and upload to Shapeways, you might be surprised to find that the price is sometimes just shy of a used car. For example, <a href="http://www.shapeways.com/model/422470/spawn.html?gid=ug">this model of our spawn area</a> is 15 x 9.8 inches in size (about 190 x 125 blocks, 2 mm wide), and costs $633.14. Expensive models happen because either the model is too small, or too large. The problem with models with only a few blocks in them is that you'll then scale it up to see it: each block itself is then massive. You have to pay for each block's volume. Mineways can't help you much there, you'll need to use a CAD program to hollow out your object manually. Shapeways has <a href="http://www.shapeways.com/tutorials/creating-hollow-objects">a tutorial on hollowing</a>.
 <P>
 The more common problem you can hit is the blocks are not small enough.
@@ -242,28 +212,6 @@ There are some solutions to the price problem:
 </UL>
 By the way, I hear "it would be cheaper using LEGOs" a fair bit. LEGO blocks cost around <a href="http://shop.lego.com/en-US/LEGO-Basic-Bricks-Deluxe-6177">4-5 cents a block</a>, 2 mm colored sandstone 3D printed blocks run about 6/10th of a cent. There are advantages to LEGOs (larger, reusable, fun to make) and disadvantages (no textures, not perfect cubes), but LEGO cost is not an advantage.
 <P>
-<TABLE>
-<tr colspan="2">
-On the top, the wonderful cross-section of the SAP Viewer Complete (sadly, pulled off their site) in action. Below, leaves look fine in the left view; on the right, leaf cutout problems.
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/crazy1.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/crazy2.jpg">
-</td>
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/woods1.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/woods2.jpg">
-</td>
-</tr>
-</TABLE>
-
 <P>
 By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</a> *.obj (and *.mtl) files are exported for rendering, <a href="http://en.wikipedia.org/wiki/VRML">VRML97</a> (aka VRML2) for 3D printing. Here's the rundown of the various file types you can select, including some subtleties about each.
 <P>
@@ -277,15 +225,16 @@ By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</
 <P>
 <I>VRML97:</I> Also known as VRML2 or VRML 2.0. While this format has been superceded by <a href="http://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways uses for colored models. The *.wrl and *.png file created are put into a zip file and uploaded to Shapeways for printing - see more about this process <a href="#shapeways">below</a>. The VRML file produced is tailored towards making a single texture for printing. Note: Shapeways will properly preview all VRML output modes other than "solid material colors", where it has a limit of 16 different colors. These colored models will print fine, however.
 
-<P><H3><A NAME="options">
+<H3 id="options">
 Export options
-</A></H3>
-
+</H3>
+<p>
 There is a bewildering dialog that pops up on export, with a ton of options. You can blithely ignore this dialog and always just click OK (or the Enter key). However, some of the options are extremely useful, so plow on if you want to make sure your model is strong enough and still cheap as can be.
-<P>
+</p>
+<p class="center">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/export_dialog.jpg">
+<p>
 
-<P>
 <B>World coordinates selection</B>: you can see and change the 3D volume of space to export from your world. <B>Key tip:</B> You can view the output *.obj or *.wrl with a text editor, like Notepad (or, better yet, <a href="http://notepad-plus-plus.org/download/v5.9.6.2.html">Notepad++</a>). By doing so, you'll see a line like this:
 <PRE>
 # Selection location: -80, 72, 66 to -66, 127, 104
@@ -296,126 +245,109 @@ By putting these numbers in the 6 coordinate boxes, you can easily continue to w
 <P>
 <b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 <P>
-<a NAME="terrain_png">
+<a id="terrain_png">
 <b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file, reading this file to create full textures for each block, as possible. Some blocks are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
 <P>
 The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. Mineways comes with a number of premade terrainExt.png files for you to try. If you have a terrainExt.png file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there.
 <P>
 To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a>.
 
-<TABLE>
-<tr colspan="7">
-Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>. Click on an image for the larger version.
-</tr>
-
-<tr>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_default.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_default.jpg"></a>
-</td>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_coterie_craft.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_coterie_craft.jpg"></a>
-</td>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_dokucraft_high.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_dokucraft_high.jpg"></a>
-</td>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_lb_photo_realism.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_lb_photo_realism.jpg"></a>
-</td>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_quandary_ar.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_quandary_ar.jpg"></a>
-</td>
-<td>
-<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_sphax_pure_bd_craft.jpg">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_sphax_pure_bd_craft.jpg"></a>
-</td>
-</tr>
-
-<tr>
-<td>
-Default Minecraft<br>textures, plus flame
-</td>
-<td>
-<a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a><br>by Cpt. Corn
-</td>
-<td>
-<a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft High</a><br>by Hickerydickery
-</td>
-<td>
-<a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a><br>by Scuttles
-</td>
-<td>
-<a href="http://vokselia.com">Quandary Ancient Roots</a>
-</td>
-<td>
-<a href="http://www.minecraftforum.net/topic/376784-16x-32x-64x-128x-256x-512xmc12-sphax-purebdcraft-050211/">Sphax PureBDCraft</a><br>by Sphax84
-</td>
-</tr>
-</TABLE>
+<div class ="inliner">
+  <p>Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with</p> 
+  <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>
+  <p>. Click on an image for the larger version.</p>
+</div>
+<div id="texturePacks">
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_default.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_default.jpg"></a>
+    <span> Default Minecraft textures, plus flame </span>
+  </div>
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_coterie_craft.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_coterie_craft.jpg"></a>
+    <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a><span>by Cpt. Corn<span>
+  </div>
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_dokucraft_high.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_dokucraft_high.jpg"></a>
+    <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft High</a><br>by Hickerydickery
+  </div>
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_lb_photo_realism.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_lb_photo_realism.jpg"></a>
+    <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a>
+    <span>by Scuttles</span>
+  </div>
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_quandary_ar.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_quandary_ar.jpg"></a>
+    <a href="http://vokselia.com">Quandary Ancient Roots</a>
+  </div>
+  <div class="textureBox">
+    <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_sphax_pure_bd_craft.jpg">
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_sphax_pure_bd_craft.jpg"></a>
+    <a href="http://www.minecraftforum.net/topic/376784-16x-32x-64x-128x-256x-512xmc12-sphax-purebdcraft-050211/">Sphax PureBDCraft</a>
+    <span>by Sphax84</span>
+  </div>
+</div>
 
 <P>
 The effective 3D print resolution of textures appears to be around maybe 10x10 for the default output block size of 2 mm/block. Fine details are unlikely to be visible, though sometimes I'm surprised to see them.
-<P>
-<TABLE>
-<tr colspan="3">
-<b>Texture resolution:</b> The image on the left was made using <a href="http://www.minecraftforum.net/topic/45534-glimmars-steampunk-v37132x12-animated-cogs-alchemy-at-work-in-a-dark-victorian-industrial-world-updated-28thfeb-fixes-64x-waterlavaetc/">Glimmar's Steampunk terrainExt.png</a> and printed at 2 mm/block. It appears that the glass cube grillwork texture has some synchronization problem with the printer, causing the pattern to sometimes print out incorrectly. The middle image is printed at 3 mm/block and shows the original 16x16 TNT tile; however, at both ends the fidelity becomes poor. On the right, from <a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">Alexander Boden</a>, a 5 mm/block print clearly shows details such as cobblestone and tree bark. Click on an image for higher resolution versions.
-</tr>
-<tr>
-<td>
-<a href="http://www.flickr.com/photos/68387974@N02/6803344170/in/pool-1862849@N21/">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_grill.jpg"></a>
-</td>
-<td>
-<a href="http://www.flickr.com/photos/68387974@N02/6841200607/in/pool-1862849@N21/">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_chain.jpg"></a>
-</td>
-<td>
-<a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_chest.jpg"></a>
-</td>
-</tr>
-</TABLE>
+</P>
+<b class="center b">Texture resolution:</b>
+<div id="textureImgs">
+  <div id="disgustingTextDONTDOTHISEVER">
+    <p>The image on the left was made using</p><a href="http://www.minecraftforum.net/topic/45534-glimmars-steampunk-v37132x12-animated-cogs-alchemy-at-work-in-a-dark-victorian-industrial-world-updated-28thfeb-fixes-64x-waterlavaetc/">Glimmar's Steampunk terrainExt.png</a><p> and printed at 2 mm/block. It appears that the glass cube grillwork texture has some synchronization problem with the printer, causing the pattern to sometimes print out incorrectly. The middle image is printed at 3 mm/block and shows the original 16x16 TNT tile; however, at both ends the fidelity becomes poor. On the right, from </p><a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">Alexander Boden</a><p>, a 5 mm/block print clearly shows details such as cobblestone and tree bark. Click on an image for higher resolution versions.</p>
+  </div>
+  <a href="http://www.flickr.com/photos/68387974@N02/6803344170/in/pool-1862849@N21/">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_grill.jpg"></a>
+  <a href="http://www.flickr.com/photos/68387974@N02/6841200607/in/pool-1862849@N21/">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_chain.jpg"></a>
+  <a href="http://www.flickr.com/photos/postapocalyptic/6766498167/in/pool-1862849@N21/">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/small_chest.jpg"></a>
+</div>
 
 <P>
 One warning: 128x128 and larger tile texture packs will work (and will take awhile to process), but previewing these files in <a href="#previewing">an interactive viewer</a> may not work. This is because DirectX and OpenGL has limitations on the maximum texture size. These texture files should display fine in offline renderers.
+</P>
 <P>
 Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a more blocky look, take your terrainExt.png file and resize it to be say 4x larger in both directions - you can use the <a href="#tilemaker">TileMaker</a> program included with Mineways, or any other image manipulation program (I'd use a box filter, if possible). Note: from experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
-<TABLE>
-<tr colspan="2">
-On the left, the basic 256x256 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">1024x1024</a>.
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/spawn_lores.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/spawn_hires.jpg">
-</td>
-</tr>
-</TABLE>
+</P>
+<p>
+On the left, the basic 256x256 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to
+<a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/terrain1024.png">1024x1024</a>.</p>
+<div id="textureImgs">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/spawn_lores.jpg">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/spawn_hires.jpg">
+</div>
 <P>
-<a name="obj_export_options">
+<a id="obj_export_options">
 <B>Wavefront OBJ file export options:</B></a>
 <UL>
 <LI>Export separate objects: on by default, this option says each type of block - stone, logs, fences - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages.
 <LI>Material per object: on by default, each object is given a separate material. Turning this option off for some renderers makes for a simpler import conversion process, at the cost of having only one material.
-<LI><a name="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
+<LI><a id="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
 </UL>
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
+</P>
+
 <P>
 <b>Center model:</b> when checked, the center of the bottom of the model is put at the origin, location (0,0,0). This helps for import into a renderer, and can improve the floating-point resolution of the data. If you want to instead have the same coordinate values as in your world, uncheck this box (you might also want to set the "Make each block" size to whatever you like). Unchecking this option is useful if you do multiple exports from the same world for rendering and want them to use the same coordinate space.
+</P>
 <P>
-<a name="lesser">
-<b>Export lesser blocks:</b></a> when 3D printing, this option is off by default. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down.
+<b id="lesser">Export lesser blocks:</b>when 3D printing, this option is off by default. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down.
+</P>
 <P>
 Checking this box for 3D printing is experimental and risky, but will allow you to properly export slabs, stairs, etc. The model produced with this option on will not be "watertight" (aka "manifold"). The risk is that the service bureau or printer software cannot properly repair your files. For example, <a href="http://shapeways.com">Shapeways</a> can repair the geometry but currently does not consistently fix the texture coordinates. When you upload your model, look it over in their rendered shot for any texturing errors. In fact, I'll export and upload my model four times, using the "rotate model clockwise" option to give a different view each time and so be able to preview it. Here's an example: <a href="http://www.shapeways.com/model/740800/solamar-v52.html">1</a>, <a href="http://www.shapeways.com/model/740820">2</a>, <a href="http://www.shapeways.com/model/740821">3</a>, <a href="http://www.shapeways.com/model/740822">4</a>.
-<P>
-<a href="http://sculpteo.com">Sculpteo</a> fixes both properly (most of the time; I've seen partial lava block textures occasionally fail to merge correctly, and water disappear), and can show you a stress diagram where objects are likely to break off in printing. Check over your model carefully at Sculpteo after upload for any irregularities. Secret Sculpteo trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for <a href="http://www.sculpteo.com/en/design/sand-castle-1/hfM9BZw2">this model</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2<a/> to see it large. Try the two links and compare.
+</P>
+<div id="sculpteoBlurb">
+  <a href="http://sculpteo.com">Sculpteo </a><P>fixes both properly (most of the time; I've seen partial lava block textures occasionally fail to merge correctly, and water disappear), and can show you a stress diagram where objects are likely to break off in printing. Check over your model carefully at Sculpteo after upload for any irregularities. Secret Sculpteo trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for </P><a href="http://www.sculpteo.com/en/design/sand-castle-1/hfM9BZw2">this model</a><p> the 8 characters in the URL are "hfM9BZw2", so use </p><a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2
+  </a>
+  <p> to see it large. Try the two links and compare.</p>
+</div>
+
 <TABLE>
 <tr colspan="2">
 On the left, <a href="http://shapeways.com">Shapeways</a> merges most of the "lesser blocks" geometry properly but fails with some textures. In the middle, <a href="http://sculpteo.com">Sculpteo</a> does the texture merge properly, but is missing a stair step on the right part of the roof. On the right, Sculpteo's solidity check feature showing how fences along the top of this palace model are likely to break off.
@@ -439,22 +371,23 @@ Currently even extremely thin objects, such as sign posts and single fence posts
 <P>
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/model_sizes.jpg">
 <P>
-<a name="fatten">
-<b>Fatten lesser blocks:</b></a> If you do decide to export using the "lesser" option, you can make some of the more delicate blocks fatter so that they are less likely to break off during printing. No guarantees! The blocks fattened are: fences, fence gates, doors, free-standing sign posts (which I suspect will still snap off), and pressure plates (since they sometimes get used for table tops).
+<b id="fatten">Fatten lesser blocks:</b><span> If you do decide to export using the "lesser" option, you can make some of the more delicate blocks fatter so that they are less likely to break off during printing. No guarantees! The blocks fattened are: fences, fence gates, doors, free-standing sign posts (which I suspect will still snap off), and pressure plates (since they sometimes get used for table tops).</span>
+
+<p>
+<b id="individual" class="ib">Individual blocks:</b><span> For rendering, you may want to have every block in the scene be a separate object. In this way you could have a character mine blocks, a creeper or TNT explode them, etc. By checking this box, every block is a separate object and so can be deleted, created, animated, etc., as you desire. This considerably increases file size, so use it only if you need it. If you run into memory/performance problems and have some small area you want to modify, export just that volume using this option, then export the rest of the scene without this option. You can use careful trimming, a</span><a href="#schemes">color scheme</a><span>, or simply removing the blocks using Minecraft itself, to avoid exporting the same blocks twice. You may want to turn off "Center Model" so that each export uses the same coordinates. Note that this option affects VRML export for printing, though is usually A Bad Idea, as the model is formed of individual blocks.</span><I>(thanks to Ryan Miller for the idea.)</I>
+</p>
 <P>
-<a name="individual">
-<b>Individual blocks:</b></a> For rendering, you may want to have every block in the scene be a separate object. In this way you could have a character mine blocks, a creeper or TNT explode them, etc. By checking this box, every block is a separate object and so can be deleted, created, animated, etc., as you desire. This considerably increases file size, so use it only if you need it. If you run into memory/performance problems and have some small area you want to modify, export just that volume using this option, then export the rest of the scene without this option. You can use careful trimming, a <a href="#schemes">color scheme</a>, or simply removing the blocks using Minecraft itself, to avoid exporting the same blocks twice. You may want to turn off "Center Model" so that each export uses the same coordinates. Note that this option affects VRML export for printing, though is usually A Bad Idea, as the model is formed of individual blocks. <I>(thanks to Ryan Miller for the idea.)</I>
-<P>
-<a name="blocktestworld">
+<a id="blocktestworld">
 If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
 Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>:
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/test_world.jpg">
 <P>
 The rest of the options mostly have to do with 3D printing, which follows.
-<P><H3><A NAME="print">
+<P>
+<H3 id="print">
 Exporting to 3D print
-</A></H3>
+</H3>
 As background, view the <a href="http://www.youtube.com/watch?v=hHxp9Ail6MY&feature=player_embedded">Shapeways 3D color printing process video</a>. Layers of material are laid down and solidified at the appropriate spots. Unsolidified "sand" is vacuumed away. You pay by volume, not by complexity. What this means to you is: avoid making enclosed spaces with tiny entrances. Unfortunately, most buildings are just that: large rooms with small doors. Your job is to make sure your model has either no openings at all, in which case the Hollow option can clear out the inside, leaving just a shell. Alternately, make escape holes yourself using snow blocks, which you then melt after all processing of your model. I'll explain these options below.
 <P>
 There are other potential pitfalls with 3D printing, such as <a href="http://www.shapeways.com/tutorials/3dprintingminimumwallthicknesstutorial">thin wall problems</a> (more <a href="http://www.shapeways.com/tutorials/thin_walls_tutorial">here</a>), and <a href="http://www.shapeways.com/tutorials/how_to_use_meshlab_and_netfabb">too many polygons</a> (rare for a Minecraft model), to name just two. Shapeways' <a href="http://www.shapeways.com/tutorials/">tutorial pages</a> and <a href="http://www.shapeways.com/materials/">materials pages</a> give you a lot to chew on, <a href="http://www.sculpteo.com/en/help/">Sculpteo</a> has a good single-page rundown. The Mineways program tries to guide you past the major pitfalls, but it's always possible to generate something that's essentially unprintable: too weak, holes too small to clear out the dust, etc. Browsing the tutorials there should help you understand what is possible. Options follow.
@@ -532,26 +465,14 @@ By default, the model is heavily processed to clear up a number of potential 3D 
 <li>Weld all shared edges: Shapeways normally allows two blocks' edges to touch, despite <a href="http://www.shapeways.com/tutorials/fixing-non-manifold-models">information to the contrary</a>. If this behavior is unacceptable (Shapeways or some other application rejects the model), checking this box will work to remove all shared edges.
 </li>
 </ul>
-<P>
-<TABLE>
-<tr colspan="4">
-<b>Example:</b> on the far left, with all connect parts options off, the strings of the balloons do not connect. These will probably print as separate bits. In the middle left, blocks sharing an edge are connected. Some parts of the strings touch only at corner tips, so are still not connected. Note that for these examples the "delete floating objects" option was turned off, as otherwise the disconnected string bits would have been removed. On the middle right, corner tips are connected, and now each balloon will print correctly. On the far right, debug mode, showing edge connecting blocks as lava and tip connecting blocks as pink wool.
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons1.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons2.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons3.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons4.jpg">
-</td>
-</tr>
-</TABLE>
+<div id="balloonImgs">
+  <b>Example:</b><p> on the far left, with all connect parts options off, the strings of the balloons do not connect. These will probably print as separate bits. In the middle left, blocks sharing an edge are connected. Some parts of the strings touch only at corner tips, so are still not connected. Note that for these examples the "delete floating objects" option was turned off, as otherwise the disconnected string bits would have been removed. On the middle right, corner tips are connected, and now each balloon will print correctly. On the far right, debug mode, showing edge connecting blocks as lava and tip connecting blocks as pink wool.</p>
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons1.jpg">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons2.jpg">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons3.jpg">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/balloons4.jpg">
+</div>
+
 
 <P>
 <b>Delete floating objects:</b> if objects hang in space, these are eliminated if they're small (less than 16 blocks in size) or are entirely tree logs and leaves. This step eliminates parts of trees hanging along the edge because of where the selection box is located. If you get a warning about there being more than one part in a model exported, crank the block number up to 1000 or more to get rid of larger chunks (once you know what those chunks are - see the debug display parts mode below).
@@ -607,18 +528,18 @@ The "show welds" option shows what blocks were added by the various "connect par
 <P>
 <b>Key tip, worth repeating:</b> at the beginning of the model file itself (which is a text file, so can be viewed in any text editor) is a summary of various statistics, such as number of blocks generated, model dimensions, and cost (good to within a few cents).
 
-<P><H3><A NAME="importsettings">
+<P><H3 id="importsettings">
 Import Settings
-</A></H3>
+</H3>
 So you've worked hard to figure out exactly what piece of your world to export, you've set the myriad export settings just how you want, then you export your file. You close down Mineways, then three seconds later you realize you should have made one more tweak. Aagh, now you need to put in all the settings again!
 <P>
 One way around this problem is to look at the top of the output file (if OBJ or WRL) or the related TXT file (if STL). You can copy these settings over, one by one. That's a pain.
 <P>
 With "Import Settings", under the File menu, you can read any Mineways output file and automatically have all your settings made to match your previous export. This feature has some limitations: you need to have the proper world loaded, and you need to set the color scheme you want. When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for settings specific to OBJ files, such as material output). This feature is backwards compatible to Mineways 2.0, though of course features added since then will be given default values.
-
-<P><H3><A NAME="tilemaker">
+</P>
+<H3 id="tilemaker">
 TileMaker
-</A></H3>
+</H3>
 TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_Packs">resource packs</a> have their own block image files. You'll find your minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.6.4". If you unzip the Minecraft jar file there, e.g. 1.6.4.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 You can instead use other versions of any of these images. For example, you could download a <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">texture pack</a> - one made for version 1.6 or later (before that version a different format is used, but older texture packs can be converted with a little work). Note that the <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">Minepedia listing</a> often doesn't have the latest version supported; go to the pack's site itself.
@@ -678,73 +599,78 @@ TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
 <P>
   -v - verbose, explain everything going on. Default: display only warnings.
 
-<P><H3><A NAME="rendering">
+<H3 id="rendering">
 Rendering Tips
-</A></H3>
-This section covers the basics on importing Mineways files into various renderers.
-To be honest, if you want better geometry, <B>you should use <a href="#packages">jmc2obj</a></b>. Mineways' focus is on 3D printing more than rendering, so objects such as fences are simplified to blocks in Mineways. The one feature that Mineways offers animators that is currently not in other exporters is the <a href="#individual">"individual blocks" option</a>, which exports each block as a separate object.
-<P>
-While I have your ear, you should also check out <a href="http://www.minecraftforum.net/topic/249637-100-optifine-hd-d3-fps-boost-hd-textures/">OptiFine</a>, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a>, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> for in-game play or viewing: they have lots of cool rendering options.
-<P>
-<a NAME="previewing">
-<b>Previewing:</b></a> to quickly check results before printing or importing into a rendering program, consider using an interactive previewer. <a href="<a href="http://meshlab.sourceforge.net/">MeshLab</a>MeshLab</a> is a good previewer models in any format Mineways produces.
-<P>
-For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
-<P>
-<TABLE>
-<tr colspan="2">
-On the left, the old SAP Viewer Complete (no longer available anywhere) showing the VRML (WRL) printing file; on the right, G3D on the OBJ rendering file:
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/sap_view.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/g3d_view.jpg">
-</td>
-</tr>
-</TABLE>
-<P><A NAME="blender"><H4>Blender</H4></a>
+</H3>
+<div id="renderTips">
+  <p>
+  This section covers the basics on importing Mineways files into various renderers.
+  To be honest, if you want better geometry, <b>you should use <a href="#packages">jmc2obj</a></b>
+  </p>
+  <p>. Mineways' focus is on 3D printing more than rendering, so objects such as fences are simplified to blocks in Mineways. The one feature that Mineways offers animators that is currently not in other exporters is the </p>
+  <a href="#individual">"individual blocks" option</a>
+  <p>, which exports each block as a separate object.</p>
+  <P>
+  While I have your ear, you should also check out <a href="http://www.minecraftforum.net/topic/249637-100-optifine-hd-d3-fps-boost-hd-textures/">OptiFine</a>, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a>, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> for in-game play or viewing: they have lots of cool rendering options.
+  <P>
+  <h3 id="previewing">Previewing:</h3>
+  <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer.<p><a href="http://meshlab.sourceforge.net/">MeshLab</a><p> is a good previewer models in any format Mineways produces.</p>
+  <P>
+  For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
+  <P>
+  <p>G3D on the OBJ rendering file:</p>
+  <div>
+    <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/g3d_view.jpg">
+  </div>
+</div>
+<P><H4 id="blender">Blender</H4></a>
 Here's a quick tutorial from Alexander Boden, who's just learning Blender himself, along with ideas by Milenco Mulder and my own additions; if you have anything to add, let me know. This is for Blender version 2.61. That said, you probably should be using <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or <a href="https://sites.google.com/site/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
+</P>
 <P>
 There is some additional information on Blender and Mineways in <a href="http://www.minecraftforum.net/topic/1037751-how-to-import-minecraft-worlds-into-blender/">this</a>, <a href="http://blenderartists.org/forum/showthread.php?240821-Mineways-export-Minecraft-data-to-an-OBJ-file-for-Blender-import">this</a> and <a href="http://blenderartists.org/forum/showthread.php?237105-Mineblend-Blender-importer-add-on-for-Minecraft-worlds&p=2015414#post2015414">this</a> thread. There are a number of add-ons for Blender with Minecraft, e.g. <a href="http://www.minecraftforum.net/topic/464707-blender-258-minecraft-rigs/page__hl__%20mineways">these rigs</a>, which can give you models that Mineways itself currently does not export.
 <P>
-1) Open your World in Mineways, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File -> Export Model for Rendering" from the menu.
+<b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File -> Export Model for Rendering" from the menu.
+</P>
 <P>
-2) "File | Export Model for Rendering" and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You can just click "OK" in the dialog with the export settings. However, to make life much easier, you could uncheck the "Material per object" checkbox in the OBJ file export options. Doing so will save you a fair bit of time when fixing individual materials in the steps below, though at the expense of not having a separate material per object (you could always assign a new material if needed, I assume - I don't know Blender that well...).
+<b>2) "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You can just click "OK" in the dialog with the export settings. However, to make life much easier, you could uncheck the "Material per object" checkbox in the OBJ file export options. Doing so will save you a fair bit of time when fixing individual materials in the steps below, though at the expense of not having a separate material per object (you could always assign a new material if needed, I assume - I don't know Blender that well...).
+</P>
 <P>
-3) Open Blender 2.61 and click anywhere on the screen to make the splashcreen disappear. Then, click on the cube in the middle of the scene, hit "x" (or "delete"), and then "Enter". This deletes the cube.
+<b>3) Open Blender 2.61</b> and click anywhere on the screen to make the splashcreen disappear. Then, click on the cube in the middle of the scene, hit "x" (or "delete"), and then "Enter". This deletes the cube.
+</P>
 <P>
-4) Now, import the model we have just created by selecting "File -> Import -> Wavefront (.obj)" from the menu. Search and select the right file (the .obj file) and click "Import OBJ".
+<b>4) Import the model</b> select "File -> Import -> Wavefront (.obj)" from the menu. Search and select the right file (the .obj file) and click "Import OBJ".
+</P>
 <P>
 If you cannot select Wavefront from the Import dialog, you have to activate this file format first from the settings menu.  Select "File -> User Preferences", activate the "Addons" tab, and scroll down in the list until you find "Import-Export: Wavefront OBJ format)". Just activate the checkbox at this entry, dismiss the settings dialog and try importing again.
+</P>
 <P>
-5) <b>Resizing:</b> The model we have just imported is probably small. Move the cursor to the center of the screen, hit "s", and move the mouse until you have the right size, then click the left mouse button to save the size. You may have to move in a different direction if the model is flipped upside down.
+<b>5) Resizing:</b> The model we have just imported is probably small. Move the cursor to the center of the screen, hit "s", and move the mouse until you have the right size, then click the left mouse button to save the size. You may have to move in a different direction if the model is flipped upside down.
+</P>
 <P>
-6) <b>Turn on textured display:</b> near the bottom of the window, above the animation timeline, is "View Select Object" etc. Just to the right of "Object Mode" is a solid white sphere. Click on it and pick "Texture". You should now see the model as textured. Alternate method (and I don't understand how it's different): click the "n" key and a menu should appear to the right, the view properties menu (sometimes this hotkey is flaky - you can also find the Properties menu at the bottom of the View menu; look for the View menu in the lower left of the screen). Near the bottom is "Display". Open this menu by clicking on the arrow to the left of the word "Display". Near the bottom it says "Textured Solid" - click this box. Just above, for "Shading:", you can select "GLSL" for faster rendering. Click "n" again to dismiss this menu.
+<b>6) Turn on textured display:</b> near the bottom of the window, above the animation timeline, is "View Select Object" etc. Just to the right of "Object Mode" is a solid white sphere. Click on it and pick "Texture". You should now see the model as textured. Alternate method (and I don't understand how it's different): click the "n" key and a menu should appear to the right, the view properties menu (sometimes this hotkey is flaky - you can also find the Properties menu at the bottom of the View menu; look for the View menu in the lower left of the screen). Near the bottom is "Display". Open this menu by clicking on the arrow to the left of the word "Display". Near the bottom it says "Textured Solid" - click this box. Just above, for "Shading:", you can select "GLSL" for faster rendering. Click "n" again to dismiss this menu.
 <P>
-7) <b>Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render -> Render Image" from the menu and have a look. The lighting and view is probably not so great, and the background is a boring grey. So next you will want to position the camera and set the lighting and background.
+<b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render -> Render Image" from the menu and have a look. The lighting and view is probably not so great, and the background is a boring grey. So next you will want to position the camera and set the lighting and background.
 <P>
-8) <b>Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view.
+<b>8) Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view.
 <P>
 If you found the right angle and perspective for your camera, you can fine tune a couple of parameters in the camera menu. This can be found by clicking the small film-camera (not the photo camera) symbol in the upper half of the right menu bar, below the scene graph. When you click it, a section called "lens" should appear. You can set the "Shift" of the X and Y axis, as well as the focal length of the camera.
 <P>
 If you are already happy with your result, you can select "Image -> Save as Image" from the menu near the left bottom of the screen, or hit F3.
 <P>
-9) <b>Fixing transparency:</b> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
-<P>
+<b>9) Fixing transparency:</b> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
+<P id="blenderImgs">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr.jpg">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr2.jpg">
 <P>
 If only a Kd texture is listed, go to the next mesh in the Scene tree at the top (by clicking on it). If there is also a D texture (outlined in green above), uncheck the box for this texture. Then click on the texture just above the "D" texture, it starts with "Kd". Once selected, scroll down to the "Influence" section and open it up. Under "Diffuse:" check the "Alpha: 1.000" box to enable it. Now cutouts should display correctly when rendered (but will still look bad in the interactive scene). You will need to do this for every mesh, unless you exported just one material as I suggested at the start, in which case you're done!
 <P>
-10) <b>Fixing shadows:</b> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
+<b>10) Fixing shadows:</b> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
 <P>
-11) <b>Blocky textures:</b> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I>
+<b>11) Blocky textures:</b> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I>
 <P>
-12) <b>Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the scene tree). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
+<b>12) Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the scene tree). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
 <P>
-13) <b>Water:</b> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
+<b>13) Water:</b> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
 Transparency: Fresnel = 2, Blend = 1.25 (the default)<BR>
 Optional is to select "Raytrace" and IOR = 1.33, though ray tracing appears to sometimes create artifacts<BR>
 Mirror: check this checkbox, then Fresnel = 2, Blend = 1.25 (the default), Gloss = 0.96<BR>
@@ -752,85 +678,111 @@ Select the Texture icon:<BR>
 Influence: Color = 0.8, alpha = 1.0 (the default), select checkbox Mirror = 0.3, select checkbox Normal = 0.05<BR>
 At the bottom of the Influence section there's a list under Bump Mapping of Metho [sic], choose "Best Quality".<BR>
 <P>
-13) <b>Lighting</b>: There is one predefined lightsource on the working area (which looks like a dot with two enclosing dotted circles). You'll usually have to zoom out to see it. You can right click to select it, or select the Lamp from the Scene tree menu, and move it around the screen by selecting the red, green, and blue arrows and dragging. Then, select the Lamp settings in the same menu bar where you found the camera symbol. It looks like a small sun with four arrows pointing away from it in different directions. Click it, and you can find all kinds of parameters that affect the lighting of your scene. For example, try exchanging the "point" type for "sun", and play with the "Energy" value. You can also change the color by clicking the color field above the Energy settings. You can add Lamps from the "Add" menu in the upper left.
+<b>14) Lighting</b>: There is one predefined lightsource on the working area (which looks like a dot with two enclosing dotted circles). You'll usually have to zoom out to see it. You can right click to select it, or select the Lamp from the Scene tree menu, and move it around the screen by selecting the red, green, and blue arrows and dragging. Then, select the Lamp settings in the same menu bar where you found the camera symbol. It looks like a small sun with four arrows pointing away from it in different directions. Click it, and you can find all kinds of parameters that affect the lighting of your scene. For example, try exchanging the "point" type for "sun", and play with the "Energy" value. You can also change the color by clicking the color field above the Energy settings. You can add Lamps from the "Add" menu in the upper left.
 <P>
-14) <b>Render Size:</b> You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
+<b>15) Render Size:</b> You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
 <P>
-15) Upload your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended)
+<b>16) Upload</b> your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended)
+</P>
 
-<P><A NAME="c4d"><H4>Cinema 4D</H4></a>
+<P><H4 id="c4d">Cinema 4D</H4>
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. That said, for best results you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
 <P>
-Step 1: Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+<b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+</P>
 <P>
-Step 2: Save as the file type 'OBJ'.
+<b>Step 2:</b> Save as the file type 'OBJ'.
+</P>
 <P>
-Step 3: Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter.
+<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter.
+</P>
 <P>
 You may wish to change the OBJ file export options in the upper right of the dialog, but the defaults are fine.
+</P>
 <P>
-Step 4: Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. Hit "OK" for the import options dialog.
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. Hit "OK" for the import options dialog.
+</P>
 <P>
 To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
+</P>
 <P>
-Step 5: Once it is all loaded, all objects will be white. Select all the materials in the material viewer, the row of spheres at the lower left. Do this by clicking one sphere and then hitting control-A. All spheres should now be selected.
+<b>Step 5:</b> Once it is all loaded, all objects will be white. Select all the materials in the material viewer, the row of spheres at the lower left. Do this by clicking one sphere and then hitting control-A. All spheres should now be selected.
+</P>
 <P>
-Step 6: On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option.
+<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option.
+</P>
 <P>
-Step 7: Select the "Color" settings, towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
+<b>Step 7:</b> Select the "Color" settings, towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
+</P>
 <P>
-Step 8: Select the "Alpha" settings, at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel. All transparent objects should now appear so.
+<b>Step 8:</b> Select the "Alpha" settings, at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel. All transparent objects should now appear so.
+</P>
 <P>
-Step 9: If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine.
+<b>Step 9:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine.
+</P>
 <P>
-<B>VRML</B>: If you have problems with OBJ import, or would prefer a single material for the whole scene, you can also import using VRML. (Note: there is also an OBJ plugin for C4D with a free trial, <a href="http://skinprops.com/riptide.php">Riptide</a>). Here are steps from <a href="mailto:james_christien@hotmail.com">James Christien</a> (<a href="http://www.youtube.com/user/jamesdarandom">icecruiser xD</a>; example C4D result <a href="http://www.youtube.com/watch?v=SYfqp9807no&list=PL3AE7AB94E9114715&index=14&feature=plpp_video">here</a>), with help from <a href="http://www.youtube.com/watch?v=BMgxB1a6YAc">Huskyiee</a> on alpha.
+<B>Alternate method: VRML</B>: If you have problems with OBJ import, or would prefer a single material for the whole scene, you can also import using VRML. (Note: there is also an OBJ plugin for C4D with a free trial, <a href="http://skinprops.com/riptide.php">Riptide</a>). Here are steps from <a href="mailto:james_christien@hotmail.com">James Christien</a> (<a href="http://www.youtube.com/user/jamesdarandom">icecruiser xD</a>; example C4D result <a href="http://www.youtube.com/watch?v=SYfqp9807no&list=PL3AE7AB94E9114715&index=14&feature=plpp_video">here</a>), with help from <a href="http://www.youtube.com/watch?v=BMgxB1a6YAc">Huskyiee</a> on alpha.
 <P>
-Step 1: Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+<b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+</P>
 <P>
-Step 2: Save as the file type 'VRML'.
+<b>Step 2:</b> Save as the file type 'VRML'.
+</P>
 <P>
-Step 3: Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter.
+<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter.
+</P>
 <P>
-Step 4: Once the model is exported, open Cinema4D and drag into the main window the 2 files (.png and .wrl) generated. Hit "OK" for the import options dialog.
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the 2 files (.png and .wrl) generated. Hit "OK" for the import options dialog.
+</P>
 <P>
-Step 5: Once it is all loaded, if black ugly things are present on tiles - such as glass or torches - then double-click the material in the materials viewer. The materials viewer is the round sphere with materials on it, at the left bottom of the interface.
+<b>Step 5:</b> Once it is all loaded, if black ugly things are present on tiles - such as glass or torches - then double-click the material in the materials viewer. The materials viewer is the round sphere with materials on it, at the left bottom of the interface.
+</P>
 <P>
-Step 6: On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option. You should see to the right of the blue "Basic" button the button "Color", then "Alpha". Click on Alpha.
+<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option. You should see to the right of the blue "Basic" button the button "Color", then "Alpha". Click on Alpha.
+</P>
 <P>
-Step 7: In the Alpha settings, at the bottom is the Texture setting. Click on the little right arrow next to "Texture", go down the menu and select Bitmaps, and choose the only image file name listed there. All the black things should now be gone, ready to be used and rendered properly.
+<b>Step 7:</b> In the Alpha settings, at the bottom is the Texture setting. Click on the little right arrow next to "Texture", go down the menu and select Bitmaps, and choose the only image file name listed there. All the black things should now be gone, ready to be used and rendered properly.
+</P>
 <P>
-Step 8: If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the blue "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine.
+<b>Step 8:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the blue "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine.
+</P>
 
-<P><A NAME="3dsmax"><H4>3DS MAX</H4></a>
+<P><H4 id="3dsmax">3DS MAX</H4>
 These instructions are for 3DS MAX 2012. To be honest, you should probably be using <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a> instead, as it does a much better job producing geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
+</P>
 <P>
 For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
+</P>
 <P>
-Step 1: Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+<b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+</P>
 <P>
-Step 2: Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
+<b>Step 2:</b> Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
+</P>
 <P>
-Step 3: Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
+<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
+</P>
 <P>
-Step 4: Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
+<b>Step 4:</b> Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
 <P>
-Step 5: Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
+<b>Step 5:</b> Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
+</P>
 <P>
-Step 6 (optional): At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials,". Click on the "+" to show the scene’s materials. Double-click on whatever material looks bad, e.g. Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, etc. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
+<b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials,". Click on the "+" to show the scene’s materials. Double-click on whatever material looks bad, e.g. Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, etc. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
+</P>
 
-
-<P><A NAME="maya"><H4>Maya</H4></a>
+<P><H4 id="maya">Maya</H4>
 Check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import.
 <P>
 A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
+</P>
 
-
-<P><H2><A NAME="print_services">
+<P><H2 id="print_services">
 3D Print Services
-</A></H2>
+</H2>
 If you want to make a 3D print of a model, the easiest way is to use a 3D print service such as <a href="http://shapeways.com">Shapeways</a> or <a href="http://sculpteo.com">Sculpteo</a>. The main differences are cost, quality, and speed of delivery. Shapeways is almost always less expensive, Sculpteo offers faster delivery and fully supports the <a href="#lesser">"Export lesser blocks"</a> option, which lets you print out slabs, steps, fences, and other smaller bits in your model. There are other 3D print services for consumers, such as <a href="http://i.materialise.com/">i.materialise</a> and <a href="http://ponoko.com">Ponoko</a>, but currently these two do not offer fully-textured 3D printing.
 <P>
-<H3><A NAME="shapeways">Shapeways</a></H3>
+<H3 id="shapeways">Shapeways</H3>
 After <a href="http://www.shapeways.com/register">creating an account</a> (and  <a href="http://www.shapeways.com/myshop">creating a shop</a>), go to the <a href="http://www.shapeways.com/upload/">upload page</a>. Choose a file for upload, <B>you must pick the .ZIP file for your model</B> that you created with Mineways, using 3D print export. You also don't need to change the Unit of Measure: "millimeters" is the default and is what Mineways always outputs.
 <P>
 Once you've uploaded, go to your account menu (upper right of screen) and select "My Models" from the menu (or use <a href="http://www.shapeways.com/mymodels">this link</a>). <B>Key tip:</B> you <i>must</i> select directly on the text itself in most Shapeways menus and other elements - selecting the box is not enough. This drove me insane before I realized that is how it works.
@@ -860,7 +812,7 @@ That's it! You can then add models to your cart and checkout. Note there's a fix
 If you get serious about printing models, the <a href="http://www.shapeways.com/model/133452/">materials sampler</a> is worth considering: it costs just $5 to add to an order, factoring in the $25 coupon you receive with it towards your next order.
 
 <P>
-<H3><A NAME="sculpteo">Sculpteo</a></H3>
+<H3 id="sculpteo">Sculpteo</H3>
 Go to the <a href="http://www.sculpteo.com/en/">Sculpteo site</a> and register for an account.
 <P>
 In Mineways, you normally want to export to Wavefront OBJ when exporting to print, using the "Sculpteo" file type. Sculpteo also accepts VRML2 files, but the OBJ exporter sets some useful defaults for Sculpteo, such as centimeters for model units. One major advantage of Sculpteo is that they support the <a href="#lesser">"Export lesser blocks"</a> option, which allows you to export slabs, stairs, fences, doors, and other smaller objects. Please <a href="#lesser">read the documentation</a> for that option before using it. Also note that when you export, the price shown is the Shapeways price; Sculpteo prices tend to be about a third higher overall.
@@ -875,28 +827,20 @@ You now have a number of options. The "Click to see repair work on your model" s
 <P>
 Note the links above these options. "Settings" lets you add photos, change your description and sharing options, and set the initial scale for the object. "Customize" gives some interesting options, such as engraving text, adding images and symbols, and smoothing the design. This last option can give an interesting look to smaller models, though there is a risk of some bits of the model becoming detached when printed.
 <P>
-<TABLE>
-<tr colspan="2">
-<b>Smoothing:</b> done using Sculpteo's "smooth the design" customization option:
-</tr>
-<tr>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/smoothing_happy_home.jpg">
-</td>
-<td>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/smoothing_adobe.jpg">
-</td>
-</tr>
-</TABLE>
+<div id="imgSmoothing">
+  <b>Smoothing:</b><p> done using Sculpteo's "smooth the design" customization option:</p><br>
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/smoothing_happy_home.jpg">
+  <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/smoothing_adobe.jpg">
+</div>
 
 <P>
-<H3><A NAME="sculpteo">Zebra Imaging</a></H3>
+<H3 id="sculpteo">Zebra Imaging</H3>
 If you <i>really</i> want to get meta, consider this option: making a hologram of your creation! See <a href="http://www.zebraimaging.com/mineways">Zebra Imaging's Mineways site</a>. You can use Mineways to export a model, then order a holographic 3D print of your creation. I made a little (pretty terrible!) video of the results; I hope to make a better one soon.
 <P>
 
-<P><H2><A NAME="stuff">
+<P><H2 id="stuff">
 Related Resources
-</A></H2>
+</H2>
 Here are some related (free) tools that are handy, collected in one spot:
 <UL>
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3d printing.
@@ -915,7 +859,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI>More Minecraft tools <a href="http://minecraft.gamepedia.com/Editors">here</a>.
 </UL>
 
-<h3><A NAME="models">Stuff to Print</a></h3>
+<h3 id="models">Stuff to Print</h3>
 Want something to try Mineways on? There are a number of sites with cool downloadable models and worlds, including:
 <UL>
 <LI><a href="http://www.planetminecraft.com/resources/projects/any/?order=order_popularity">Planet Minecraft projects</a> - all sorts of great stuff to print, sorted by popularity.
@@ -928,14 +872,18 @@ You could get a copy of our world, <a href="http://vokselia.com/">Vokselia</a>. 
 <P>
 For something amazing, <a href="http://www.shapeways.com/blog/archives/2011/07/C8.html">check this out</a> (more <a href="http://www.youtube.com/watch?v=RzDm9e28D0M">here</a>)- meta! Double-meta, I exported this model using Mineways, <a href="http://www.shapeways.com/model/417909/3d_printer.html?key=7c0a7947033d4539c38aae232616d217">check it out</a>.
 
+
+<h3 id="packages">Other Packages</h3>
 <p>
-<h3><A NAME="packages">Other Packages</a></h3>
-</p><p>
 Mineways is not the first to offer a Minecraft model exporter, nor the best for export for rendering. Minepedia has a <a href="http://minecraft.gamepedia.com/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services. They may fit your needs better than Mineways:
 </p><ul>
 <li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home printers for the most part, since the STL comes without any colors. Step by step instructions <a href="http://curriculum.makerbot.com/daily_lessons/april/printcraft.html">here</a>.
 
 </li><li><a href="http://code.google.com/p/j-mc-2-obj/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It has grown to become a great tool for creating OBJ files; I think it's the best exporter for rendering that is out there. It's free and open source. There is a little wiftiness with the interface when zoomed in and with the export dialog, and I recommend choosing "Center" for the Offset option, but the resulting export is excellent - every block I tested was output properly. The only mismatches I saw were some obscure redstone wiring cases.
+
+</li><li><a href="http://3dprintingindustry.com/2014/04/21/3d-printing-cubeteam-browser/">CubeTeam</a> is a free multiplayer online 3D modeling program. It's Minecraft meets CAD, with some interesting options such as smoothing your model or importing and voxeling an existing 3D mesh.
+
+</li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are actually textured, so 3D print out with more than just simple flat surfaces.
 
 </li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways, <a href="https://sketchfab.com/show/vPw6MyJPT5j6wHURu51KFcrqLOE">such as this example</a>.
 
@@ -954,6 +902,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 </li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is very snappy. A very cool thing is that it works in multiplayer! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>. But, this software can all but improve over time - if it gets people trying out 3D printing, great!
+
+</li><li><a href="https://www.whiteclouds.com/3d-printed-minecraft-building">WhiteClouds</a> - this print service uses Mineways to export your Minecraft creations, among other 3D models. Worth a look for the cool pictures of models, along with Minecraft characters! There are a few more pictures <a href="http://imgur.com/a/E9Kvz">here</a>.  
 
 </li><li><a href="http://minetoys.com/">MineToys</a> and the <a href="http://www.minefield.fr/minecon/">MineCon Shop</a> (French) offer 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
 
@@ -974,8 +924,82 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 </li>
 </ul>
 
-<h2><A NAME="shortcuts">Shortcut keys</a></h2>
-Most operations can be done with the mouse: left button and mousewheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export - more on this in the <a href="#select">Selection section</a>.
+<h2 id="mcpe">Minecraft Pocket Edition Support</h2>
+
+This section describes how to open a <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. The format used by Minecraft Pocket Edition is different from the standard Minecraft format. To  open these worlds in Mineways, some extra steps are required to copy the world to your PC or  Mac and to convert it to a format that Mineways can read.
+<P>
+You'll need:
+<UL>
+<LI><a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html">Mineways</a></LI>
+<LI><a href="http://www.mcedit.net">MCEdit</a></LI>
+<LI>USB cable to connect your device to your PC</LI>
+<LI>For an iOS device, you will also need a program on your Mac or PC called <a href="http://www.macroplant.com/iexplorer/">iExplorer</a></LI>
+</UL>
+<P>
+Author’s note: There may be other (free?) methods for transferring files from an iOS device, but  iExplorer is the one I see recommended on the Internet. (I am not an iOS user). Also, I have not  tested the iOS instructions personally. They are based on information I found on the Web.
+
+<h3>Copying the world folder from your mobile device</h3>
+<h4>Android</h4>
+<OL>
+<LI>Connect your device to your computer via USB cable as a media/storage device.</LI>
+<LI>In the file manager on your computer, locate the device and open the folder: games/com.mojang/minecraftWorlds</LI>
+<LI>Copy the desired world folder to a location on your computer.</LI>
+</OL>
+<h4>iOS</h4>
+<OL>
+<LI>Open iExplorer and locate your iPad.</LI>
+<LI>On the left, click on "Applications".</LI>
+<LI>Open "Minecraft PE".</LI>
+<LI>Click on "Documents", then "Games", then "Com.Mojang", then "minecraftWorlds".</LI>
+<LI>Drag the file for your world onto a location on the computer.</LI>
+</OL>
+
+<h3>Converting the world in MCEdit</h3>
+<OL>
+<LI>Run MCEdit by double-clicking the file "mcedit.exe".</LI>
+<LI>Select "Open a level...".</LI>
+<LI>Browse to your level folder, select the file "level.dat" and click "Open".</LI>
+<LI>In the upper left of the MCEdit window, click on "MCEdit" to open the menu.</LI>
+<LI>Click on "Select All" (or use the shortcut Ctrl-A without opening the menu).</LI>
+<LI>Click on "MCEdit" again to close the menu.</LI>
+<LI>In the selection menu on the left, click on "Copy".</LI>
+<LI>Click "MCEdit" to open the menu.</LI>
+<LI>Click "Create New World".</LI>
+<LI>Browse to a location on your computer, name the new world and click "Save".</LI>
+<LI>Under "Generator:", click on "Minecraft Server" and change it to "Flatland".</LI>
+<LI>Change the "Height" to 1.</LI>
+<LI>Click "Create". (Accept the message that appears with "OK").</LI>
+<LI>Click "Select All" and close the menu (or press Ctrl-A).</LI>
+<LI>If the "Import" button at the bottom of the control box on the left is greyed out, try clicking and  holding on the "Nudge" button and pressing z once then q once. This should move the paste  blocks to the height of the camera. The "Import" button should turn yellow.</LI>
+<LI>Click "Import".</LI>
+<LI>When the import is finished, open the MCEdit menu and click "Save" (or press Ctrl+S).</LI>
+</OL>
+
+Note: To move around in MCEdit, use the WASDQZ keys (W=Forward, S=Back, A=Left,  D=Right, Q=Up, Z=Down). To look around with the camera, click the Right Mouse Button  once to toggle camera look on. Click again to turn it off. The WASDQZ keys are also used  to move the paste blocks before clicking Import.
+
+<h3>Opening the world in Mineways</h3>
+<OL>
+<LI>Start Mineways by double-clicking on "Mineways.exe".</LI>
+<LI>In the menu, select "File > Open..."</LI>
+<LI>Browse to your world folder and select "level.dat", click "Open".</LI>
+<LI>Follow the instructions on this page for using Mineways.</LI>
+</OL>
+
+<h3>Optional MCEdit steps for playing your world in standard Minecraft</h3>
+
+If you also want to play your converted world in Minecraft, you can remove the extra "flatland".
+<OL>
+<LI>Click on "Chunk view" at the top of the MCEdit window.</LI>
+<LI>Click and drag with the Left Mouse Button to select just the chunks of your imported world.</LI>
+<LI>In the controls on the left, select "Prune".</LI>
+<LI>In the MCEdit menu, click "Save" (or press Ctrl-S).</LI>
+<LI>Copy the world folder to your Minecraft saves directory.</LI>
+</OL>
+
+Note: The easiest way to locate this hidden directory is via the Minecraft launcher. On the  lower left of the launcher window (do not click "Play"), click on "Edit Profile". At the bottom  of the dialog that appears, click "Open Game Dir", then open the "saves" folder. Copy your  converted world folder here.
+
+<h2 id="shortcuts">Keyboard Shortcut keys</h2>
+Most operations in Mineways can be done with the mouse: left button and mousewheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. More on mouse controls in the <a href="#select">Selection section</a>.
 <ul>
 <li><b>WASD</b> and <b>the arrow keys</b> move around.
 </li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> zoom in/out one level.
@@ -1004,7 +1028,7 @@ Most operations can be done with the mouse: left button and mousewheel for viewi
 </li><li><b>?</b> pops up the About dialog.
 </li></ul>
 
-<h2><A NAME="blocks">Block Types Supported</a></h2>
+<h2 id="blocks">Block Types Supported</h2>
 There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can actually be printed as-is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
 <P>
 If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the <a href="http://minecraft.gamepedia.com/Block_ids">block IDs</a> to select and export whatever block types in whatever mode you want.
@@ -1012,7 +1036,7 @@ If you want to test particular blocks to see what they look like, use the <a hre
 Mineways does not support export of biome colors, paintings, characters, or creatures.
 <P>
 All "full blocks" (stone, dirt, wood, etc. etc.) export the same under all modes. The table below outlines the rest. "Flatten" means a billboard like a flower, etc., is flattened to be a decal on the block below, since such objects are too thin to be 3D printed.
-<TABLE border="1">
+<TABLE id="fullBlocksTable" border="1">
 <tr>
 <td>
 <B>Block Type and <a href="http://minecraft.gamepedia.com/Block_ids">ID</a></B>
@@ -1125,16 +1149,16 @@ Cobweb (#30)
 Piston Extension (#34)
 </td>
 <td>
-<center>Block with texture</center>
+<center>True piston head</center>
 </td>
 <td>
 <center>Block with texture</center>
 </td>
 <td>
-<center>Block with texture</center>
+<center>True piston head</center>
 </td>
 <td>
-Currently always a full block covered with piston textures.
+Detailed piston heads not fattened for 3D printing, may break.
 </td>
 </tr>
 
@@ -1446,7 +1470,7 @@ Trapdoor (#96)
 <center>Proper geometry</center>
 </td>
 <td>
-<center>Flattened</center>
+<center>Flattened or block filled</center>
 </td>
 <td>
 <center>Proper geometry</center>
@@ -1706,7 +1730,7 @@ Hopper (#154)
 </TABLE>
 
 
-<h2><A NAME="bugs">Known Bugs</a></h2>
+<h2 id="bugs">Known Bugs</h2>
 Find a bug? First, make sure you have the latest version installed, and check <a href="#troubleshooting">the troubleshooting section</a> and the list below. Still stuck? <a href="mailto:erich@acm.org">Send me an email</a> and I'll help you out. Fix a bug? You're my personal hero, and <a href="mailto:erich@acm.org">send me the code</a>.
 <UL>
 <LI>The program will crash on huge area exports. Basically, it runs out of memory. See the <a href="#troubleshooting">the troubleshooting section</a> for a workaround (multiple exports). I hope to make a 64-bit version someday (it's harder than it looks, at least for me).
@@ -1715,7 +1739,7 @@ Find a bug? First, make sure you have the latest version installed, and check <a
 <LI>ZLIB: for some weird reason I need to link to two different versions of the ZLIB library. It's some problem with <a href="http://en.wikipedia.org/wiki/Name_mangling">name mangling</a>, but I don't know what. Things work fine, but this is dumb (on my part, I would guess). Help appreciated!
 </UL>
 
-<h2><A NAME="versions">Version History</a></h2>
+<h2 id="versions">Version History</h2>
 <UL>
 <LI>Version 1.0, 12/24/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV100.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV100.rar">source</a>
 <LI>Version 1.01, 12/27/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV101.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV101.rar">source</a> - fixed depth going to -1, added warnings about models being too large, increased map cache size, improved model summary information at top of model file.
@@ -1771,9 +1795,10 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
 <LI>Version 3.05, 1/1/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV305.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac305.zip">Mac</a> - Export "lesser" blocks more efficiently, removing many invisible polygons and so improving 3D print conversion. Added <a href="#importsettings">"Import Settings" feature</a>, which lets you read in a previously-exported Mineways file and match its export settings. Various bug fixes: proper export of "connect all edges", proper export of solid-color renderings, fixed some error messages to properly display.
 <LI>Version 3.06, 1/27/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV306.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added option under "Help" that minimizes the amount of memory used during export. Use this option if you're running out of memory on large exports. This is not on by default, as this option will make exports take a few seconds longer. // Share some common export settings (color, material, block size, etc.) among some related file formats. This is useful for when you export to both Shapeways and Sculpteo, for example. // Free the input TerrainExt.png file as soon as we're done with it. // Added automatic cache resizing and recovery for large map display.
+<LI>Version 3.07, 5/29/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV307.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - If you can’t use the right mouse button, holding down "Control" will make the left mouse button act as the right mouse. // New 1.8 blocks added: Andesite, Diorite, Granite, Slime, Iron Trapdoor. // Piston head now properly created as geometry. // Trapdoors properly render at top of block. // Fences and walls properly join with transparent blocks. // Out of memory conditions now flagged as errors.
 </UL>
 
-<h2><A NAME="wishlist">Wishlist</a></h2>
+<h2 id="wishlist">Wishlist</h2>
 This is my own wishlist, in order of interest; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
 <LI>Full "lesser" block merging: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does poorly - Shapeways messes up textures, Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
@@ -1793,7 +1818,7 @@ This is my own wishlist, in order of interest; if you have a good idea, <a href=
 That's it - have fun!
 
 <HR>
-<P><H2><A NAME="offsite">Links</a></H2>
+<P><H2 id="offsite">Links</H2>
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
@@ -1819,34 +1844,22 @@ Some links I commonly use.
 <LI><a href="http://www.youtube.com/results?search_type=videos&search_query=mineways&search_sort=video_date_uploaded">Search YouTube</a> for newer Mineways videos.
 </UL>
 <LI><b><a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a></b>. Best photo so far: <a href="http://www.flickr.com/photos/postapocalyptic/6606221371/in/pool-1862849@N21/">this one</a> (not made in Mineways, but it could have been). Note: logging into Flickr appears to <a href="http://www.flickr.com/help/forum/82334/?search=group+visible">allow you to see more images</a> in this group, due to their account review policy. If you submit images, I recommend submitting 5 or more (do some close ups) to avoid their limitations - less than 5 and your photos can only be seen by people signed into Flickr (goofy, I know).
-<LI><a href="http://www.shapeways.com/search?q=minecraft">Search Shapeways</a> for models tagged with "Minecraft", excluding <a href="http://minetoys.com">MineToys</a>. You can also <a href="https://www.google.com/search?hl=en&rlz=1C1ARAB_enUS470US470&q=site:shapeways.com+minecraft&ix=sea&bav=on.2,or.r_gc.r_pw.r_cp.r_qf.,cf.osb&biw=1920&bih=1032&um=1&ie=UTF-8&tbm=isch&source=og&sa=N&tab=wi&ei=VHqDT4yKE4ig9QTn_KX2Bw">search via Google Images</a>.
+<LI>Search Shapeways for models tagged with <a href="http://www.shapeways.com/search?q=minecraft">"Minecraft"</a> or <a href="http://www.shapeways.com/search?q=mineways">"Mineways"</a>. You can also <a href="https://www.google.com/search?hl=en&rlz=1C1ARAB_enUS470US470&q=site:shapeways.com+minecraft&ix=sea&bav=on.2,or.r_gc.r_pw.r_cp.r_qf.,cf.osb&biw=1920&bih=1032&um=1&ie=UTF-8&tbm=isch&source=og&sa=N&tab=wi&ei=VHqDT4yKE4ig9QTn_KX2Bw">search via Google Images</a>.
 <LI><a href="http://www.shapeways.com/shops/mineways">My modest (non-profit) Shapeways shop</a> shows some buildings I've exported and purchased, mostly for friends. You can look at photos, check prices, and download the models themselves.
 <LI><a href="http://www.sculpteo.com/en/gallery/public/eerich666/">My even more modest Sculpteo shop</a> shows a few test models. I'm extremely impressed by Sculpteo's website and technologies. Prices are a bit higher than Shapeways, but they work with the <a href="#lesser">"Export lesser blocks" option</a> extremely well.
-<LI>Cambridge Science Festival: things made at the carnival are <a href="http://www.shapeways.com/shops/csf">here</a> on the Shapeways site.
+<LI>You can download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/presentations">some slidesets</a> I've used in talks and workshops on 3D printing and Minecraft. Feel free to reuse them in reasonable, Fair Use ways.
+<LI>There's also a directory with <a href="http://realtimerendering.com/erich/minecraft/public/mineways/videos">introductory videos</a> for download. Again, go ahead and reuse these for educational Fair Use.
+<LI>Things made at the Cambridge Science Festival and by <a href="http://partsandcrafts.org/">Parts &amp; Crafts</a> workshop participants are <a href="http://www.shapeways.com/shops/csf">here</a> on the Shapeways site.
 <LI><a href="http://vokselia.com">Our world's homepage</a>
 </UL>
 
-<TABLE>
-<tr>
-<td rowspan="2">
+<div id="teapotImgs">
 <a href="http://vokselia.com"><img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/teapot.gif"></a>
-</td>
-<td>
-<a href="http://www.shapeways.com/shops/mineways"><img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/teapot_shop.jpg"></a>
-</td>
-</tr>
-<tr>
-<td valign="bottom">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/teapot_real.jpg">
-</td>
-</tr>
-</TABLE>
+<a href="http://www.shapeways.com/shops/mineways"><img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/teapot_shop.jpg"></a>
+</div>
 </div> <!-- /content -->
 
-<div id="footer" class="clearfix">
-<i>contact <a href="mailto:erich@acm.org">Eric Haines</a> (<a href="http://erichaines.com">homepage</a>)<br>
-Last updated 1/27/2014</i>
-</font>
-</div> <!-- /footer -->
-</div>
-</body></html>
+<div id="footerFile"></div>
+</body>
+</html>

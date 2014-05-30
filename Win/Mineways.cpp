@@ -80,6 +80,7 @@ static int gCurDepth=MAP_MAX_HEIGHT;					//current depth
 static int gStartHiX,gStartHiZ;						    //starting highlight X and Z
 
 static BOOL gHighlightOn=FALSE;
+static BOOL gLeftIsRight=FALSE;
 
 static int gSpawnX,gSpawnY,gSpawnZ;
 static int gPlayerX,gPlayerY,gPlayerZ;
@@ -139,11 +140,14 @@ static struct {
     {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
     {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
-	{_T("Error: the incoming terrainExt.png file resolution must be a power of two horizontally, and at least 16 pixels wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
+	{_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally, at least 16 pixels wide, and higher than it is wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
 	{_T("Error: the incoming terrainExt.png file image is too large."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13
 	{_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<14
 	{_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
 	{_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<16
+	{_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
+	{_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. Sorry, I'm working on it!"), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<18
+	{_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
 };
 
 // Number of lines to read from the header - don't want to go too far
@@ -458,6 +462,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bitmap=CreateDIBSection(NULL,&bmi,DIB_RGB_COLORS,(void **)&map,NULL,0);
         break;
     case WM_LBUTTONDOWN:
+		// if control key is held down, consider left-click to be a right-click,
+		// i.e. for selection
+		if ( GetKeyState(VK_CONTROL) < 0 )
+		{
+			gLeftIsRight = TRUE;
+			goto RButtonDown;
+		}
         dragging=TRUE;
         hdragging=FALSE;// just in case
         SetFocus(hWnd);
@@ -466,6 +477,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         oldY=HIWORD(lParam);
         break;
     case WM_RBUTTONDOWN:
+		RButtonDown:
         gAdjustingSelection = 0;
         if (gLoaded)
         {
@@ -599,6 +611,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_LBUTTONUP:
+		// if control key was held down on mouse down, consider left-click to be a right-click,
+		// i.e. for selection
+		if ( gLeftIsRight )
+		{
+			// turn off latch
+			gLeftIsRight = FALSE;
+			goto RButtonUp;
+		}
         dragging=FALSE;
         hdragging=FALSE;	// just in case
         ReleaseCapture();
@@ -636,6 +656,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_RBUTTONUP:
+		RButtonUp:
         dragging=FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
         ReleaseCapture();
@@ -824,7 +845,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_KEYDOWN:
-            // Check if control key is being held down. If so,
+            // Check if control key is not being held down. If so,
             // ignore this keypress and assume the .rc file has
             // emitted a corresponding message. Else control+S will
             // have the effect of saving and scrolling the map.
@@ -1935,7 +1956,7 @@ static int loadWorldList(HMENU menu)
 
 		if ( hFind == INVALID_HANDLE_VALUE )
 		{
-			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory (probably my fault). You'll need to guide Mineways to where you save your world. It's usually located at ~/Library/Application Support/minecraft/saves (and I haven't figured out yet how to have Mineways find it properly!)."),
+			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at ~/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
 				_T("Informational"), MB_OK|MB_ICONINFORMATION);
 			return 0;
 		}

@@ -488,7 +488,7 @@ typedef struct TouchRecord {
 #define PNG_ALPHA_SUFFIX L"-Alpha"
 
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax );
-static void initializeModelData();
+static int initializeModelData();
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
@@ -502,29 +502,29 @@ static int filterBox();
 static int computeFlatFlags( int boxIndex );
 static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
-static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide );
+static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide );
 static void setDefaultUVs( Point2 uvs[3], int skip );
-static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
+static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxTileGeometry( int boxIndex, int type, int swatchLoc, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
 	int rotUVs, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
+static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4] );
 static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRect[4] );
-static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
+static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
-static void saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
+static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardType, int dataVal, int firstFace );
-static void checkGroupListSize();
-static void checkVertexListSize();
-static void checkFaceListSize();
+static int checkGroupListSize();
+static int checkVertexListSize();
+static int checkFaceListSize();
 
-static void findGroups();
+static int findGroups();
 static void addVolumeToGroup( int groupID, int minx, int miny, int minz, int maxx, int maxy, int maxz );
 static void propagateSeed(IPoint point, BoxGroup *groupInfo, IPoint **seedStack, int *seedSize, int *seedCount);
 static int getNeighbor( int faceDirection, IPoint newPoint );
@@ -558,12 +558,12 @@ static void hollowBottomOfModel();
 static void meltSnow();
 static void hollowSeed( int x, int y, int z, IPoint **seedList, int *seedSize, int *seedCount );
 
-static void generateBlockDataAndStatistics();
+static int generateBlockDataAndStatistics();
 static int faceIdCompare( void *context, const void *str1, const void *str2);
 
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
-static void checkAndCreateFaces( int boxIndex, IPoint loc );
+static int checkAndCreateFaces( int boxIndex, IPoint loc );
 static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex );
 static int neighborCoversFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
 static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int view3D );
@@ -572,9 +572,9 @@ static int cornerHeights( int type, int boxIndex, float heights[4] );
 static float computeUpperCornerHeight( int type, int boxIndex, int x, int z );
 static float getFluidHeightPercent( int dataVal );
 static int sameFluid( int fluidType, int type );
-static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] );
-static void saveVertices( int boxIndex, int faceDirection, IPoint loc );
-static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4] );
+static int saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] );
+static int saveVertices( int boxIndex, int faceDirection, IPoint loc );
+static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4] );
 static int getMaterialUsingGroup( int groupID );
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] );
 static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirection, int angle );
@@ -758,7 +758,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			unsigned char *newImage = (unsigned char *)malloc(VERTICAL_TILES*tileSize*gModel.inputTerrainImage.width*4);
 			if ( newImage == NULL )
 			{
-				retCode |= MW_CANNOT_READ_IMAGE_FILE;	// well, really, out of memory
+				retCode |= MW_TEXTURE_TOO_LARGE;	// out of memory
 				goto Exit;
 			}
 			memcpy( newImage, oldImage, gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4 );
@@ -811,6 +811,13 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 		readpng_cleanup(1,&gModel.inputTerrainImage);
 	}
 
+	// were there errors?
+	if ( retCode >= MW_BEGIN_ERRORS )
+	{
+		// texture out of memory or some other read error.
+		goto Exit;
+	}
+
     gPhysMtl = gOptions->pEFD->comboPhysicalMaterial[gOptions->pEFD->fileType];
 
     gUnitsScale = unitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].unitsPerMeter;
@@ -828,7 +835,11 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         goto Exit;
     }
 
-    initializeModelData();
+	retCode |=  initializeModelData();
+    if ( retCode >= MW_BEGIN_ERRORS )
+	{
+		goto Exit;
+	}
 
     UPDATE_PROGRESS(0.10f*PG_DB);
 
@@ -863,7 +874,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // hollowed areas with interiors and let the building material out of "escape holes".
 
     // create database and compute statistics for output
-    generateBlockDataAndStatistics();
+    retCode |= generateBlockDataAndStatistics();
+	if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     UPDATE_PROGRESS(PG_OUTPUT);
 
@@ -903,238 +915,244 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     // write out texture file, if any input data
     UPDATE_PROGRESS(PG_TEXTURE);
-    if ( gModel.pPNGtexture != NULL )
-    {
+
+	// if there were major errors, don't bother
+	if ( retCode < MW_BEGIN_ERRORS )
+	{
+		if ( gModel.pPNGtexture != NULL )
+		{
 // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
 #define FA_TABLE__RENDER_BLOCK_START 10
 #define FA_TABLE__VIEW_SIZE 18
 #define FA_TABLE_SIZE 71
-		static FillAlpha faTable[FA_TABLE_SIZE] =
-		{
-			// stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block
-			{ SWATCH_INDEX( 10, 8 ), BLOCK_BLACK_WOOL }, // cauldron
-			{ SWATCH_INDEX( 10, 9 ), BLOCK_BLACK_WOOL }, // cauldron
-			{ SWATCH_INDEX( 11, 9 ), BLOCK_BLACK_WOOL }, // cauldron
+			static FillAlpha faTable[FA_TABLE_SIZE] =
+			{
+				// stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block
+				{ SWATCH_INDEX( 10, 8 ), BLOCK_BLACK_WOOL }, // cauldron
+				{ SWATCH_INDEX( 10, 9 ), BLOCK_BLACK_WOOL }, // cauldron
+				{ SWATCH_INDEX( 11, 9 ), BLOCK_BLACK_WOOL }, // cauldron
 
-			{ SWATCH_INDEX( 5, 9 ), BLOCK_BLACK_WOOL }, // bed
-			{ SWATCH_INDEX( 6, 9 ), BLOCK_BLACK_WOOL }, // bed
-			{ SWATCH_INDEX( 7, 9 ), BLOCK_BLACK_WOOL }, // bed
-			{ SWATCH_INDEX( 8, 9 ), BLOCK_BLACK_WOOL }, // bed
+				{ SWATCH_INDEX( 5, 9 ), BLOCK_BLACK_WOOL }, // bed
+				{ SWATCH_INDEX( 6, 9 ), BLOCK_BLACK_WOOL }, // bed
+				{ SWATCH_INDEX( 7, 9 ), BLOCK_BLACK_WOOL }, // bed
+				{ SWATCH_INDEX( 8, 9 ), BLOCK_BLACK_WOOL }, // bed
 
-			{ SWATCH_INDEX( 5, 4 ), BLOCK_CACTUS }, // cactus
-			{ SWATCH_INDEX( 6, 4 ), BLOCK_CACTUS }, // cactus
-			{ SWATCH_INDEX( 7, 4 ), BLOCK_CACTUS }, // cactus
+				{ SWATCH_INDEX( 5, 4 ), BLOCK_CACTUS }, // cactus
+				{ SWATCH_INDEX( 6, 4 ), BLOCK_CACTUS }, // cactus
+				{ SWATCH_INDEX( 7, 4 ), BLOCK_CACTUS }, // cactus
 
-			/////////////////////////////////// always do:
-			// stuff that is put in always, fringes that need to be filled
-			{ SWATCH_INDEX( 9, 7 ), BLOCK_CAKE }, // cake
-			{ SWATCH_INDEX( 10, 7 ), BLOCK_CAKE }, // cake
-			{ SWATCH_INDEX( 11, 7 ), BLOCK_CAKE }, // cake
-			{ SWATCH_INDEX( 12, 7 ), BLOCK_CAKE }, // cake
-			{ SWATCH_INDEX( 15, 9 ), SWATCH_INDEX(15,10) }, // ender portal (should be filled, but just in case, due to stretch)
-			{ SWATCH_INDEX( 15, 14 ), BLOCK_LAVA }, // lava, in case it's not filled
-			{ SWATCH_INDEX( 15, 15 ), BLOCK_STATIONARY_LAVA }, // stationary lava, in case it's not present
-			{ SWATCH_INDEX( 10, 11 ), BLOCK_FLOWER_POT }, // flower pot
+				/////////////////////////////////// always do:
+				// stuff that is put in always, fringes that need to be filled
+				{ SWATCH_INDEX( 9, 7 ), BLOCK_CAKE }, // cake
+				{ SWATCH_INDEX( 10, 7 ), BLOCK_CAKE }, // cake
+				{ SWATCH_INDEX( 11, 7 ), BLOCK_CAKE }, // cake
+				{ SWATCH_INDEX( 12, 7 ), BLOCK_CAKE }, // cake
+				{ SWATCH_INDEX( 15, 9 ), SWATCH_INDEX(15,10) }, // ender portal (should be filled, but just in case, due to stretch)
+				{ SWATCH_INDEX( 15, 14 ), BLOCK_LAVA }, // lava, in case it's not filled
+				{ SWATCH_INDEX( 15, 15 ), BLOCK_STATIONARY_LAVA }, // stationary lava, in case it's not present
+				{ SWATCH_INDEX( 10, 11 ), BLOCK_FLOWER_POT }, // flower pot
 
-			// count is FA_TABLE__VIEW_SIZE up to this point
+				// count is FA_TABLE__VIEW_SIZE up to this point
 
-			// stuff filled in for 3D printing only
-			{ SWATCH_INDEX( 11, 0 ), SWATCH_INDEX( 6, 3 ) }, // spiderweb over stone block
-			{ SWATCH_INDEX( 12, 0 ), SWATCH_INDEX( 0, 0 ) }, // red flower over grass
-			{ SWATCH_INDEX( 13, 0 ), SWATCH_INDEX( 0, 0 ) }, // yellow flower over grass
-			{ SWATCH_INDEX( 15, 0 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
-			{ SWATCH_INDEX( 12, 1 ), SWATCH_INDEX( 0, 0 ) }, // red mushroom over grass
-			{ SWATCH_INDEX( 13, 1 ), SWATCH_INDEX( 0, 0 ) }, // brown mushroom over grass
-			{ SWATCH_INDEX(  1, 3 ), BLOCK_GLASS }, // glass over glass color
-			{ SWATCH_INDEX(  4, 3 ), BLOCK_AIR }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
-			{ SWATCH_INDEX(  7, 3 ), SWATCH_INDEX( 2, 1 ) }, // dead bush over grass
-			{ SWATCH_INDEX(  8, 3 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
-			{ SWATCH_INDEX(  1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
-			{ SWATCH_INDEX(  9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
-			{ SWATCH_INDEX( 15, 4 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
-			{ SWATCH_INDEX( 14, 1 ), SWATCH_INDEX( 0, 0 ) }, // jungle sapling over grass
-			{ SWATCH_INDEX(  1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
-			{ SWATCH_INDEX(  2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
-			{ SWATCH_INDEX(  5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
-			{ SWATCH_INDEX(  8, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX(  9, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 10, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 11, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 12, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 13, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 14, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX( 15, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
-			{ SWATCH_INDEX(  0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
-			{ SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // melon stem over farmland
-			{ SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
-			{ SWATCH_INDEX(  4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
-			{ SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
-			{ SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
-			{ SWATCH_INDEX(  4, 9 ), BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
-			{ SWATCH_INDEX( 13, 9 ), SWATCH_INDEX( 1, 0 ) }, // brewing stand over stone
-			{ SWATCH_INDEX( 15,10 ), SWATCH_INDEX( 1, 0 ) }, // end portal thingy (unused) over stone
-			{ SWATCH_INDEX( 14,11 ), SWATCH_INDEX( 6, 5 ) }, // pumpkin stem over farmland
-			{ SWATCH_INDEX( 15,11 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
-			{ SWATCH_INDEX(  4,12 ), BLOCK_AIR }, // jungle leaves over air (black) - doesn't really matter, not used
-			{ SWATCH_INDEX(  2,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX(  3,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX(  4,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-			{ SWATCH_INDEX( 11,14 ), BLOCK_WHITE_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
-			{ SWATCH_INDEX(  8,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
-			{ SWATCH_INDEX(  9,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-			{ SWATCH_INDEX( 10,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-			{ SWATCH_INDEX(  8,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX(  9,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 10,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 11,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 12,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 13,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 14,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 15,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-			{ SWATCH_INDEX( 15, 1 ), BLOCK_AIR }, // fire over air (black)
-		};
+				// stuff filled in for 3D printing only
+				{ SWATCH_INDEX( 11, 0 ), SWATCH_INDEX( 6, 3 ) }, // spiderweb over stone block
+				{ SWATCH_INDEX( 12, 0 ), SWATCH_INDEX( 0, 0 ) }, // red flower over grass
+				{ SWATCH_INDEX( 13, 0 ), SWATCH_INDEX( 0, 0 ) }, // yellow flower over grass
+				{ SWATCH_INDEX( 15, 0 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
+				{ SWATCH_INDEX( 12, 1 ), SWATCH_INDEX( 0, 0 ) }, // red mushroom over grass
+				{ SWATCH_INDEX( 13, 1 ), SWATCH_INDEX( 0, 0 ) }, // brown mushroom over grass
+				{ SWATCH_INDEX(  1, 3 ), BLOCK_GLASS }, // glass over glass color
+				{ SWATCH_INDEX(  4, 3 ), BLOCK_AIR }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
+				{ SWATCH_INDEX(  7, 3 ), SWATCH_INDEX( 2, 1 ) }, // dead bush over grass
+				{ SWATCH_INDEX(  8, 3 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
+				{ SWATCH_INDEX(  1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
+				{ SWATCH_INDEX(  9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
+				{ SWATCH_INDEX( 15, 4 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
+				{ SWATCH_INDEX( 14, 1 ), SWATCH_INDEX( 0, 0 ) }, // jungle sapling over grass
+				{ SWATCH_INDEX(  1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
+				{ SWATCH_INDEX(  2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
+				{ SWATCH_INDEX(  5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
+				{ SWATCH_INDEX(  8, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX(  9, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 10, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 11, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 12, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 13, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 14, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX( 15, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
+				{ SWATCH_INDEX(  0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
+				{ SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // melon stem over farmland
+				{ SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
+				{ SWATCH_INDEX(  4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
+				{ SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
+				{ SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
+				{ SWATCH_INDEX(  4, 9 ), BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
+				{ SWATCH_INDEX( 13, 9 ), SWATCH_INDEX( 1, 0 ) }, // brewing stand over stone
+				{ SWATCH_INDEX( 15,10 ), SWATCH_INDEX( 1, 0 ) }, // end portal thingy (unused) over stone
+				{ SWATCH_INDEX( 14,11 ), SWATCH_INDEX( 6, 5 ) }, // pumpkin stem over farmland
+				{ SWATCH_INDEX( 15,11 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
+				{ SWATCH_INDEX(  4,12 ), BLOCK_AIR }, // jungle leaves over air (black) - doesn't really matter, not used
+				{ SWATCH_INDEX(  2,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+				{ SWATCH_INDEX(  3,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+				{ SWATCH_INDEX(  4,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
+				{ SWATCH_INDEX( 11,14 ), BLOCK_WHITE_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
+				{ SWATCH_INDEX(  8,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
+				{ SWATCH_INDEX(  9,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+				{ SWATCH_INDEX( 10,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+				{ SWATCH_INDEX(  8,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX(  9,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 10,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 11,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 12,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 13,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 14,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 15,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
+				{ SWATCH_INDEX( 15, 1 ), BLOCK_AIR }, // fire over air (black)
+			};
 
-		int rc;
+			int rc;
 
-		// do only if true textures used
-		if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
-		{
-			int i;
-			int faTableCount;
+			// do only if true textures used
+			if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+			{
+				int i;
+				int faTableCount;
 			
-			// fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
-			// For printing we also then composite over other backgrounds as the defaults.
-			faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
-			// start at solid rendering vs. leave it transparent for true cutaway rendering;
-			// that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
-			for ( i = ( (gOptions->exportFlags & EXPT_3DPRINT) || !gOptions->pEFD->chkExportAll ) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++ )
-			{
-				compositePNGSwatches( gModel.pPNGtexture,
-					faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-					gModel.swatchSize, gModel.swatchesPerRow, 0 );
-			}
-
-			// final swatch cleanup if textures are used and we're doing 3D printing
-			if ( gOptions->exportFlags & EXPT_3DPRINT )
-			{
-
-
-#define FA_FINAL_TABLE_SIZE 19
-				static FillAlpha faFinalTable[] =
-				{
-					{ SWATCH_INDEX( 0, 8 ), SWATCH_INDEX( 1, 0 ) }, // rail over stone
-					{ SWATCH_INDEX( 0, 7 ), SWATCH_INDEX( 1, 0 ) }, // curved rail over stone
-					{ SWATCH_INDEX( 0, 5 ), SWATCH_INDEX( 1, 0 ) }, // torch over stone
-					{ SWATCH_INDEX( 4, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-					{ SWATCH_INDEX( 3, 5 ), SWATCH_INDEX( 1, 0 ) }, // ladder over stone
-					{ SWATCH_INDEX( 3, 11 ), SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
-					{ SWATCH_INDEX( 3, 10 ), SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
-					{ SWATCH_INDEX( 3, 12 ), SWATCH_INDEX( 1, 0 ) }, // detector rail over stone
-					{ SWATCH_INDEX( 3, 6 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
-					{ SWATCH_INDEX( 3, 7 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
-					{ SWATCH_INDEX( 12, 4 ), SWATCH_INDEX( 15, 13 ) }, // lily pad over water
-					{ SWATCH_INDEX( 4, 5 ), SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
-					{ SWATCH_INDEX( 15, 8 ), SWATCH_INDEX( 0, 0 ) }, // vines over grass
-
-					// stuff we don't use, so don't need defaults for
-					{ SWATCH_INDEX( 5, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-					{ SWATCH_INDEX( 4, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-					{ SWATCH_INDEX( 5, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
-
-					{ SWATCH_INDEX( 0, 15 ), SWATCH_INDEX( 1, 0 ) }, // torch top
-					{ SWATCH_INDEX( 1, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on top
-					{ SWATCH_INDEX( 2, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off top
-				};
-
-				// now that we're totally done, fill in the main pieces which were left empty as templates;
-				// these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO)
-				for ( i = 0; i < FA_FINAL_TABLE_SIZE; i++ )
+				// fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
+				// For printing we also then composite over other backgrounds as the defaults.
+				faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+				// start at solid rendering vs. leave it transparent for true cutaway rendering;
+				// that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
+				for ( i = ( (gOptions->exportFlags & EXPT_3DPRINT) || !gOptions->pEFD->chkExportAll ) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++ )
 				{
 					compositePNGSwatches( gModel.pPNGtexture,
-						faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
+						faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
 						gModel.swatchSize, gModel.swatchesPerRow, 0 );
 				}
+
+				// final swatch cleanup if textures are used and we're doing 3D printing
+				if ( gOptions->exportFlags & EXPT_3DPRINT )
+				{
+
+
+#define FA_FINAL_TABLE_SIZE 20
+					static FillAlpha faFinalTable[] =
+					{
+						{ SWATCH_INDEX( 0, 8 ), SWATCH_INDEX( 1, 0 ) }, // rail over stone
+						{ SWATCH_INDEX( 0, 7 ), SWATCH_INDEX( 1, 0 ) }, // curved rail over stone
+						{ SWATCH_INDEX( 0, 5 ), SWATCH_INDEX( 1, 0 ) }, // torch over stone
+						{ SWATCH_INDEX( 4, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+						{ SWATCH_INDEX( 3, 5 ), SWATCH_INDEX( 1, 0 ) }, // ladder over stone
+						{ SWATCH_INDEX( 3, 11 ), SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
+						{ SWATCH_INDEX( 3, 10 ), SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
+						{ SWATCH_INDEX( 3, 12 ), SWATCH_INDEX( 1, 0 ) }, // detector rail over stone
+						{ SWATCH_INDEX( 3, 6 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
+						{ SWATCH_INDEX( 3, 7 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
+						{ SWATCH_INDEX( 12, 4 ), SWATCH_INDEX( 15, 13 ) }, // lily pad over water
+						{ SWATCH_INDEX( 4, 5 ), SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
+						{ SWATCH_INDEX( 15, 8 ), SWATCH_INDEX( 0, 0 ) }, // vines over grass
+
+						// stuff we don't use, so don't need defaults for
+						{ SWATCH_INDEX( 5, 10 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+						{ SWATCH_INDEX( 4, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+						{ SWATCH_INDEX( 5, 11 ), SWATCH_INDEX( 1, 0 ) }, // wire over stone
+
+						{ SWATCH_INDEX( 0, 15 ), SWATCH_INDEX( 1, 0 ) }, // torch top
+						{ SWATCH_INDEX( 1, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch on top
+						{ SWATCH_INDEX( 2, 15 ), SWATCH_INDEX( 1, 0 ) }, // redstone torch off top
+						{ SWATCH_INDEX( 2, 22 ), SWATCH_INDEX( 1, 0 ) }, // iron trapdoor over stone
+					};
+
+					// now that we're totally done, fill in the main pieces which were left empty as templates;
+					// these probably won't get used (and really, we could use them as the initial composited swatches, which we created - silly duplication TODO)
+					for ( i = 0; i < FA_FINAL_TABLE_SIZE; i++ )
+					{
+						compositePNGSwatches( gModel.pPNGtexture,
+							faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
+							gModel.swatchSize, gModel.swatchesPerRow, 0 );
+					}
+				}
 			}
-		}
 
-        // if we're debugging groups, make the largest group transparent and set it to red
-        if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
-            gExportTexture )
-        {
-            unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
-            unsigned char r = 0xff;
-            unsigned char g = 0x00;
-            unsigned char b = 0x00;
-            unsigned int color = (a<<24)|(b<<16)|(g<<8)|r;
-            int col, row;
+			// if we're debugging groups, make the largest group transparent and set it to red
+			if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
+				gExportTexture )
+			{
+				unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
+				unsigned char r = 0xff;
+				unsigned char g = 0x00;
+				unsigned char b = 0x00;
+				unsigned int color = (a<<24)|(b<<16)|(g<<8)|r;
+				int col, row;
             
-            SWATCH_TO_COL_ROW( gDebugTransparentType, col, row );
-            setColorPNGTile( gModel.pPNGtexture, col, row, gModel.swatchSize, color );
-        }
+				SWATCH_TO_COL_ROW( gDebugTransparentType, col, row );
+				setColorPNGTile( gModel.pPNGtexture, col, row, gModel.swatchSize, color );
+			}
 
-        // do we need three textures, or just the one RGBA texture?
-        if ( needDifferentTextures )
-        {
-            // need all three
-            wchar_t textureRGB[MAX_PATH];
-            wchar_t textureRGBA[MAX_PATH];
-            wchar_t textureAlpha[MAX_PATH];
+			// do we need three textures, or just the one RGBA texture?
+			if ( needDifferentTextures )
+			{
+				// need all three
+				wchar_t textureRGB[MAX_PATH];
+				wchar_t textureRGBA[MAX_PATH];
+				wchar_t textureAlpha[MAX_PATH];
 
-            // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
-            // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
-            // The all-alpha image is needed for various renderers to properly read cutouts
-            concatFileName4(textureRGB, gOutputFilePath, gOutputFileRootClean, PNG_RGB_SUFFIX, L".png");
-            concatFileName4(textureRGBA, gOutputFilePath, gOutputFileRootClean, PNG_RGBA_SUFFIX, L".png");
-            concatFileName4(textureAlpha, gOutputFilePath, gOutputFileRootClean, PNG_ALPHA_SUFFIX, L".png");
+				// Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
+				// The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
+				// The all-alpha image is needed for various renderers to properly read cutouts
+				concatFileName4(textureRGB, gOutputFilePath, gOutputFileRootClean, PNG_RGB_SUFFIX, L".png");
+				concatFileName4(textureRGBA, gOutputFilePath, gOutputFileRootClean, PNG_RGBA_SUFFIX, L".png");
+				concatFileName4(textureAlpha, gOutputFilePath, gOutputFileRootClean, PNG_ALPHA_SUFFIX, L".png");
 
-            if ( gModel.usesRGBA )
-            {
-                // output RGBA version
-                rc = writepng(gModel.pPNGtexture,4,textureRGBA);
-                addOutputFilenameToList(textureRGBA);
-                assert(rc == 0);
-                retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
-            }
+				if ( gModel.usesRGBA )
+				{
+					// output RGBA version
+					rc = writepng(gModel.pPNGtexture,4,textureRGBA);
+					addOutputFilenameToList(textureRGBA);
+					assert(rc == 0);
+					retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+				}
 
-            if ( gModel.usesRGB )
-            {
-                // output RGB version
-                rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureRGB);
-                assert(rc == 0);
-                retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
-            }
+				if ( gModel.usesRGB )
+				{
+					// output RGB version
+					rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureRGB);
+					assert(rc == 0);
+					retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+				}
 
-            if ( gModel.usesAlpha )
-            {
-                // output Alpha version, which is actually RGBA, to make 3DS MAX happy
-                convertAlphaToGrayscale( gModel.pPNGtexture );
-                rc = writepng(gModel.pPNGtexture,4,textureAlpha);
-                addOutputFilenameToList(textureAlpha);
-                assert(rc == 0);
-                retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
-            }
-        }
-        else
-        {
-            // just the one (VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
-            wchar_t textureFileName[MAX_PATH];
-            concatFileName3(textureFileName,gOutputFilePath,gOutputFileRootClean,L".png");
-            if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
-            {
-                rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureFileName);
-            }
-            else
-            {
-                rc = writepng(gModel.pPNGtexture,4,textureFileName);
-                addOutputFilenameToList(textureFileName);
-            }
-            assert(rc == 0);
-            retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
-        }
+				if ( gModel.usesAlpha )
+				{
+					// output Alpha version, which is actually RGBA, to make 3DS MAX happy
+					convertAlphaToGrayscale( gModel.pPNGtexture );
+					rc = writepng(gModel.pPNGtexture,4,textureAlpha);
+					addOutputFilenameToList(textureAlpha);
+					assert(rc == 0);
+					retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+				}
+			}
+			else
+			{
+				// just the one (VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
+				wchar_t textureFileName[MAX_PATH];
+				concatFileName3(textureFileName,gOutputFilePath,gOutputFileRootClean,L".png");
+				if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
+				{
+					rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureFileName);
+				}
+				else
+				{
+					rc = writepng(gModel.pPNGtexture,4,textureFileName);
+					addOutputFilenameToList(textureFileName);
+				}
+				assert(rc == 0);
+				retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+			}
 
-        writepng_cleanup(gModel.pPNGtexture);
-        free(gModel.pPNGtexture->image_data);
-    }
+			writepng_cleanup(gModel.pPNGtexture);
+			free(gModel.pPNGtexture->image_data);
+		}
+	}
 
     freeModel( &gModel );
 
@@ -1192,7 +1210,7 @@ static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, i
     Vec3Scalar( worldBox->max, =, xmax, ymax, zmax );
 }
 
-static void initializeModelData()
+static int initializeModelData()
 {
     int i, x,y,z, boxIndex, faceDirection;
 
@@ -1215,6 +1233,10 @@ static void initializeModelData()
 	// These may be reallocated as we go.
     gModel.vertexListSize = startNumVerts;
     gModel.vertices = (Point*)malloc(startNumVerts*sizeof(Point));
+	if ( (gModel.vertexIndices == NULL ) || ( gModel.vertices == NULL ) )
+	{
+		return MW_WORLD_EXPORT_TOO_LARGE;
+	}
 
     VecScalar( gModel.billboardBounds.min, =,  999999);
     VecScalar( gModel.billboardBounds.max, =, -999999);
@@ -1251,6 +1273,12 @@ static void initializeModelData()
     memset(gModel.uvSwatches,0,NUM_MAX_SWATCHES*sizeof(UVList));
 	gModel.uvIndexListSize = 200;	// 50 blocks' worth of UVs, often enough
 	gModel.uvIndexList = (UVOutput*)malloc(gModel.uvIndexListSize*sizeof(UVOutput));
+	if ( (gModel.faceList == NULL ) || ( gModel.uvIndexList == NULL ) )
+	{
+		return MW_WORLD_EXPORT_TOO_LARGE;
+	}
+
+	return MW_NO_ERROR;
 }
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName )
@@ -1258,8 +1286,6 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     // file should be in same directory as .exe, sort of
     wchar_t defaultTerrainFileName[MAX_PATH];
     int rc=0;
-    int foundPower=0;
-    int i;
     int tryDefault=1;
     static int markTiles = 0;	// to put R on each tile for debugging, set to 1
     int row, col;
@@ -1292,20 +1318,13 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     if ( pII->width > pII->height )
         return MW_IMAGE_WRONG_WIDTH;
 
-    // what power of two is the image? Start at 16x16 as a minimum,
-    // since we need 16x16 images stored.
-    for ( i = 4; i < 16 && !foundPower; i++ )
-    {
-        if ( pII->width == (1<<i) )
-            foundPower = 1;
-    }
-
-    if ( !foundPower )
+	// is width >= 16 and evenly dividable by 16?
+    if ( (pII->width < 16) || ((pII->width % 16) > 0) )
         return MW_IMAGE_WRONG_WIDTH;
 
 	// check that height is divisible by tile size
-	if ( pII->height / (pII->width / 16) != (int)((pII->height / (pII->width / 16))) )
-		 return MW_IMAGE_WRONG_WIDTH;
+	if ( (pII->height % (pII->width / 16)) != 0 )
+		return MW_IMAGE_WRONG_WIDTH;
 
 	gModel.tileSize = gModel.inputTerrainImage.width/16;
 	// note vertical tile limit for texture. We will save all these tiles away.
@@ -1370,6 +1389,11 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
 #endif
 
 	gBoxData = (BoxCell*)malloc(gBoxSizeXYZ*sizeof(BoxCell));
+	if ( gBoxData == NULL )
+	{
+		return MW_WORLD_EXPORT_TOO_LARGE;
+	}
+
 	// set all values to "air"
 	memset(gBoxData,0x0,gBoxSizeXYZ*sizeof(BoxCell));
 
@@ -1615,7 +1639,7 @@ static int filterBox()
     int retCode = MW_NO_ERROR;
     int foundBlock = 0;
 
-	int outputFlags;
+	int outputFlags, retVal;
 
     // Filter out all stuff that is not to be rendered. Done before anything, as these blocks simply
 	// should not exist for all operations beyond.
@@ -1673,13 +1697,20 @@ static int filterBox()
                         // so that floaters are not deleted? Probably... but we don't try to test.
                         if ( flags & outputFlags )
                         {
-                            if ( saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type ) )
+							// tricksy code, because I'm lazy: if the return value > 1, then it's an error
+							// and should be treated as such.
+                            retVal = saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type );
+							if ( retVal == 1 )
                             {
                                 // this block is then cleared out, since it's been processed.
                                 gBoxData[boxIndex].type = BLOCK_AIR;
                                 foundBlock = 1;
 								blockProcessed = 1;
                             }
+							else if ( retVal >= MW_BEGIN_ERRORS )
+							{
+								return retVal;
+							}
                         }
                     }
 
@@ -1707,7 +1738,7 @@ static int filterBox()
     UPDATE_PROGRESS(0.20f*PG_DB);
     if ( foundBlock == 0 )
         // everything got filtered out!
-        return MW_NO_BLOCKS_FOUND;
+        return retCode|MW_NO_BLOCKS_FOUND;
 
     // If we'd doing 3D printing, there are lots of things to worry about. Here are some:
     // 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
@@ -1733,10 +1764,16 @@ static int filterBox()
         int foundTouching = 0;
         gGroupListSize = 200;
         gGroupList = (BoxGroup *)malloc(gGroupListSize*sizeof(BoxGroup));
+		if ( gGroupList == NULL )
+		{
+			return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+		}
+
         memset(gGroupList,0,gGroupListSize*sizeof(BoxGroup));
         gGroupCount = 0;
 
-        findGroups();
+        retCode |= findGroups();
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         // We now know a bit about how the blocks are grouped. The first group is always air, the second
         // group is always solid. If there are any more air groups, these are bubbles surround by one or more
@@ -1823,7 +1860,7 @@ static int filterBox()
             // it's possible that all groups are deleted
             if ( gSolidGroups == 0 )
             {
-                retCode = MW_ALL_BLOCKS_DELETED;
+                retCode |= MW_ALL_BLOCKS_DELETED;
                 goto Exit;
             }
         }
@@ -2139,9 +2176,11 @@ static int computeFlatFlags( int boxIndex )
 		}
 		break;
 
-    case BLOCK_TRAPDOOR:
+	case BLOCK_TRAPDOOR:
+	case BLOCK_IRON_TRAPDOOR:
         if ( gBoxData[boxIndex].data & 0x4 )
         {
+			// trapdoor is open, so is against a wall
             switch ( gBoxData[boxIndex].data & 0x3 )
             {
             case 0: // new north, -Z
@@ -2163,22 +2202,32 @@ static int computeFlatFlags( int boxIndex )
         }
         else
         {
-            // not open, so connected to floor (if any!). Very special case:
-            // if there's nothing below trapdoor, block below is set to trapdoor, if
-            // Y is not too low
-            if ( gBoxData[boxIndex-1].origType == BLOCK_AIR )
-            {
-                boxIndexToLoc(loc, boxIndex);
-                if ( loc[Y] > gSolidBox.min[Y] )
-                {
-                    gBoxData[boxIndex-1].origType = BLOCK_TRAPDOOR;
-                }
-            }
-            else
-            {
-                // mark the solid box, as usual
-                gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
-            }
+			// Not open, so connected to floor (if any!) or "roof". Very special case:
+			// attached to roof?
+			if ( gBoxData[boxIndex].data & 0x8 )
+			{
+				// Roof: don't need to do anything, should show up as full block.'
+				return 0;
+			}
+			else
+			{
+				// On floor
+				// if there's nothing below trapdoor, block below is set to trapdoor, if
+				// Y is not too low
+				if ( gBoxData[boxIndex-1].origType == BLOCK_AIR )
+				{
+					boxIndexToLoc(loc, boxIndex);
+					if ( loc[Y] > gSolidBox.min[Y] )
+					{
+						gBoxData[boxIndex-1].origType = BLOCK_TRAPDOOR;
+					}
+				}
+				else
+				{
+					// mark the solid box, as usual
+					gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
+				}
+			}
         }
         break;
 
@@ -2454,9 +2503,10 @@ static int firstFaceModifier( int isFirst, int faceIndex )
 		return faceIndex;
 }
 
+// return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
-	int dataVal, minx, maxx, miny, maxy, minz, maxz, faceMask, tbFaceMask, bitAdd;
+	int dataVal, minx, maxx, miny, maxy, minz, maxz, faceMask, tbFaceMask, bitAdd, dir;
 	int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
     int topDataVal, bottomDataVal, shiftVal, neighborType, neighborDataVal;
 	int i, hasPost, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;
@@ -2467,6 +2517,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	// how much to add to dimension when fattening
 	int fatten = (gOptions->pEFD->chkFatten) ? 2 : 0;
 	int checkNeighbors;
+	int retCode = MW_NO_ERROR;
+	int transNeighbor;
+
 
     dataVal = gBoxData[boxIndex].data;
 
@@ -2562,13 +2615,17 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			default:
 				// it's a flat
+				gMinorBlockCount--;
 				return 0;
 			}
 
 			// it's sloping, so check if object below it is not air - use it if so, else return, which will flatten
 			typeBelow = gBoxData[boxIndex-1].type;
 			if ( typeBelow == BLOCK_AIR )
+			{
+				gMinorBlockCount--;
 				return 0;
+			}
 			dataValBelow = gBoxData[boxIndex-1].data;
 
 			// brute force the four cases: always draw bottom of block as the thing, use top of block for decal,
@@ -2577,21 +2634,22 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			switch ( modDataVal )
 			{
 			case 2: // ascend east +x
-				saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_X_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_X_BIT );
 				break;
 			case 3: // ascend west -x
-				saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_X_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_X_BIT );
 				break;
 			case 4: // ascend north -z
-				saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_Z_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_Z_BIT );
 				break;
 			case 5: // ascend south +z
-				saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_Z_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_Z_BIT );
 				break;
 			default:
 				// it's a flat, so flatten
 				return(0);
 			}
+			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 		}
 		break;
 
@@ -2664,28 +2722,32 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16,  0,13,  5,11 );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
 				firstFace = 0;
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  8+hasPost*4,16 );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
 				firstFace = 0;
 			}
 		}
@@ -2705,29 +2767,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 6,9,  7-fatten,9+fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,6-fatten, 12,15,  7-fatten,9+fatten );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,6-fatten, 6,9,  7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,6-fatten, 12,15,  7-fatten,9+fatten );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 6,9,  7-fatten,9+fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 10+fatten,16, 12,15,  7-fatten,9+fatten );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 6,9,  7-fatten,9+fatten );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 12,15,  7-fatten,9+fatten );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  0,6-fatten );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  0,6-fatten );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  0,6-fatten );
+				saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  0,6-fatten );
 			}
 			neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 			if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 			{
 				// this fence connects to the neighboring block, so output the fence pieces
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  10+fatten,16 );
-				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  10+fatten,16 );
+				transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 6,9,  10+fatten,16 );
+				saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15,  10+fatten,16 );
 			}
 		}
 		break;
@@ -2804,28 +2870,32 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
+			transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|DIR_HI_X_BIT, 8+hasPost*4,16,  0,13,  5,11 );
+			transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
+			transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
 			firstFace = 0;
 		}
 		neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 		if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
 		{
 			// this fence connects to the neighboring block, so output the fence pieces
-			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 5,11,  0,13,  8+hasPost*4,16 );
+			transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+			saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
 			firstFace = 0;
 		}
 		break;
@@ -2838,6 +2908,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		if ( printing &&
 			( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
 		{
+			gMinorBlockCount--;
 			return 0;
 		}
 		// the only reason I fatten here is because plates get used for table tops sometimes...
@@ -2857,6 +2928,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		if ( printing &&
 			( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
 		{
+			gMinorBlockCount--;
 			return 0;
 		}
 		// simply add data value to get the proper color of wool, since wool entries are in order at the end
@@ -3285,7 +3357,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
         break;
 
-    case BLOCK_TRAPDOOR:
+	case BLOCK_TRAPDOOR:
+	case BLOCK_IRON_TRAPDOOR:
 		// On second thought, in testing it worked fine.
 		//if ( printing && !(dataVal & 0x4) )
 		//{
@@ -3326,6 +3399,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(8,mtx);
         }
+		else if ( dataVal & 0x8 )
+		{
+			identityMtx(mtx);
+			translateMtx(mtx, 0.0f, 13.0f/16.0f, 0.0f);
+			transformVertices(8,mtx);
+		}
         break;
 
     case BLOCK_SIGN_POST:
@@ -3448,7 +3527,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         if ( printing &&
               ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
         {
-              return 0;
+			gMinorBlockCount--;
+			return 0;
         }
         // change height as needed
         saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0, 2 * (1 + (dataVal&0x7)), 0,16);
@@ -3477,7 +3557,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		{
 			// if we're print, and there is something above this farmland, don't shift the farmland down (it would just make a gap)
 			if ( gBoxData[boxIndex+1].origType != BLOCK_AIR )
+			{
+				gMinorBlockCount--;
 				return 0;
+			}
 		}
         // TODO: change color by wetness
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -4069,8 +4152,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_BEACON:
 		saveBoxGeometry( boxIndex, BLOCK_GLASS, 1, 0x0, 0,16, 0,16, 0,16);
-		saveBoxGeometry( boxIndex, BLOCK_BEACON, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
-		saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 0, 0x0, 2,14, 0,3, 2,14);
+		if (!printing)
+		{
+			// chewy interior
+			saveBoxGeometry( boxIndex, BLOCK_BEACON, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
+			saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 0, 0x0, 2,14, 0,3, 2,14);
+		}
+		break;
+
+	case BLOCK_SLIME:
+		saveBoxGeometry( boxIndex, BLOCK_SLIME, 1, 0x0, 0,16, 0,16, 0,16);
+		if (!printing)
+		{
+			// tasty slime center
+			saveBoxGeometry( boxIndex, BLOCK_SLIME, 0, 0x0, 3,13, 3,13, 3,13);
+		}
 		break;
 
 	case BLOCK_BREWING_STAND:
@@ -4195,6 +4291,172 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] =  swatchLoc-1;	// 5,15
 		// TODO! For tile itself, Y data was centered instead of put at bottom, so note we have to shift it down
 		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 0,16, 0,6, 0,16 );
+		break;
+
+	case BLOCK_STICKY_PISTON:
+	case BLOCK_PISTON:
+		// TODO: should really add fattening someday, but the textures don't work properly for that
+		// is the piston head extended?
+		if ( !(dataVal & 0x8) )
+		{
+			// If the piston head is not extended, this is a full block and we can return and
+			// use the more efficient full-block output
+			gMinorBlockCount--;
+			return 0;
+		}
+
+		// We know at this point that the piston is extended.
+		// 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
+		// we form the head pointing up, so the up direction needs no transform
+		bottomDataVal = dataVal & 0x7;
+		// compute two rotations, and piston nubbin visibility.
+		// Piston nubbin visibility:
+		// the top face of the piston is output only in the rare case that the neighboring voxel is empty;
+		// normally the extended piston head is in the next voxel. If we see *anything* else, assert, as
+		// something's probably wrong with the code.
+		yrot = zrot = 0.0f;
+		dir = DIRECTION_BLOCK_TOP;
+		switch ( bottomDataVal )
+		{
+		case 0: // pointing down
+			dir = DIRECTION_BLOCK_BOTTOM;
+			zrot = 180.0f;
+			break;
+		case 1: // pointing up
+			dir = DIRECTION_BLOCK_TOP;
+			break;
+		case 2: // pointing north
+			dir = DIRECTION_BLOCK_SIDE_LO_Z;
+			zrot = 90.0f;
+			yrot = 270.0f;
+			break;
+		case 3: // pointing south
+			dir = DIRECTION_BLOCK_SIDE_HI_Z;
+			zrot = 90.0f;
+			yrot = 90.0f;
+			break;
+		case 4: // pointing west
+			dir = DIRECTION_BLOCK_SIDE_LO_X;
+			zrot = 90.0f;
+			yrot = 180.0f;
+			break;
+		case 5: // pointing east
+			dir = DIRECTION_BLOCK_SIDE_HI_X;
+			zrot = 90.0f;
+			break;
+		default:
+			assert(0);
+		}
+		neighborType = gBoxData[boxIndex+gFaceOffset[dir]].origType;
+		assert((neighborType == BLOCK_PISTON_HEAD) || (neighborType == BLOCK_AIR));
+
+		totalVertexCount = gModel.vertexCount;
+		littleTotalVertexCount = gModel.vertexCount;
+
+		// we definitely do move the piston shaft into place, always
+		gUsingTransform = 1;
+		// side of piston body:
+		swatchLoc = SWATCH_INDEX( 12, 6 );
+		// form the piston itself sideways, just the small bit, then we rotate upwards
+		saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD)?DIR_HI_X_BIT:0x0)|DIR_LO_X_BIT,  0,4,   12,16,  0,4 );
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
+		translateMtx(mtx, 6.0f/16.0f, 12.0f/16.0f, 6.0f/16.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(littleTotalVertexCount,mtx);
+
+		// piston body
+		gUsingTransform = (bottomDataVal != 1);
+		saveBoxMultitileGeometry( boxIndex, type, swatchLoc+2, swatchLoc, swatchLoc+1, 0, 0x0,         0, 0,16,   0,12,  0,16 );
+		if ( (zrot != 0.0) || (yrot != 0.0) )
+		{
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0, 0.0f, zrot);
+			rotateMtx(mtx, 0.0f, yrot, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(totalVertexCount,mtx);
+		}
+		gUsingTransform = 0;
+		break;
+
+	case BLOCK_PISTON_HEAD:
+		// 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
+		// we form the head pointing up, so the up direction needs no transform
+		bottomDataVal = dataVal & 0x7;
+		// compute two rotations, and piston nubbin visibility.
+		// Piston nubbin visibility:
+		// the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
+		// normally the piston body is in the next voxel. If we see *anything* else, assert, as
+		// something's probably wrong with the code.
+		yrot = zrot = 0.0f;
+		dir = DIRECTION_BLOCK_TOP;
+		switch ( bottomDataVal )
+		{
+		case 0: // pointing down
+			dir = DIRECTION_BLOCK_TOP;
+			zrot = 180.0f;
+			break;
+		case 1: // pointing up
+			dir = DIRECTION_BLOCK_BOTTOM;
+			break;
+		case 2: // pointing north
+			dir = DIRECTION_BLOCK_SIDE_HI_Z;
+			zrot = 90.0f;
+			yrot = 270.0f;
+			break;
+		case 3: // pointing south
+			dir = DIRECTION_BLOCK_SIDE_LO_Z;
+			zrot = 90.0f;
+			yrot = 90.0f;
+			break;
+		case 4: // pointing west
+			dir = DIRECTION_BLOCK_SIDE_HI_X;
+			zrot = 90.0f;
+			yrot = 180.0f;
+			break;
+		case 5: // pointing east
+			dir = DIRECTION_BLOCK_SIDE_LO_X;
+			zrot = 90.0f;
+			break;
+		default:
+			assert(0);
+		}
+		neighborType = gBoxData[boxIndex+gFaceOffset[dir]].origType;
+		assert((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON) || (neighborType == BLOCK_AIR));
+
+		totalVertexCount = gModel.vertexCount;
+		littleTotalVertexCount = gModel.vertexCount;
+
+		// we definitely do move the piston shaft into place, always
+		gUsingTransform = 1;
+		// side of piston body:
+		swatchLoc = SWATCH_INDEX( 12, 6 );
+		// form the piston itself sideways, just the small bit, then we rotate upwards
+		saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)|DIR_HI_X_BIT,  4,16,   12,16,  0,4 );
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
+		translateMtx(mtx, 6.0f/16.0f, -4.0f/16.0f, 6.0f/16.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(littleTotalVertexCount,mtx);
+
+		// piston body
+		saveBoxMultitileGeometry( boxIndex, type, (dataVal & 0x8)?(swatchLoc-2):(swatchLoc-1), swatchLoc, swatchLoc-1, 0, 0x0,         0, 0,16,   12,16,  0,16 );
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0, 90.0f, zrot);
+		rotateMtx(mtx, 0.0f, yrot, 0.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(totalVertexCount,mtx);
+		gUsingTransform = 0;
 		break;
 
 	case BLOCK_HOPPER:
@@ -4843,13 +5105,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	default:
 		// something tagged as billboard or geometry, but no case here!
 		assert(0);
+		gMinorBlockCount--;
 		return 0;
     }
 
     return 1;
 }
 
-static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide )
+static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide )
 {
 	int swatchLoc;
 	int vindex[4];
@@ -4858,6 +5121,7 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 	int i, startVertexIndex;
 	IPoint anchor;
 	Point *vertices;
+	int retCode = MW_NO_ERROR;
 
 	vertices = &gModel.vertices[gModel.vertexCount];
 	startVertexIndex = gModel.vertexCount;
@@ -4870,7 +5134,8 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 		Vec3Scalar( cornerVertex, =, (i&0x4)?1.0f:0.0f, (i&0x2)?1.0f:0.0f, (i&0x1)?1.0f:0.0f );
 
 		// get vertex and store
-		checkVertexListSize();
+		retCode |= checkVertexListSize();
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -4897,7 +5162,8 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 	switch ( choppedSide )
 	{
 	case DIR_LO_X_BIT:
-		saveBoxFaceUVs( typeBelow, DIRECTION_LO_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_LO_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		// We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
 		// So we then set index X == 0, Y == 1, Z == 0/1 should be set to have the Y value set to 0.0f
@@ -4911,17 +5177,21 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 		vindex[2] = 0x4|0x2;	// xmax, ymax, zmin
 		setDefaultUVs( uvs, 2 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x1;		    // xmin, ymin, zmax
 		vindex[1] = 0x1|0x4;		// xmax, ymin, zmax
 		vindex[2] = 0x1|0x4|0x2;	// xmax, ymax, zmax
 		setDefaultUVs( uvs, 3 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 		break;
 	case DIR_HI_X_BIT:
-		saveBoxFaceUVs( typeBelow, DIRECTION_HI_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_HI_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		// We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
 		// So we then set index X == 1, Y == 1, Z == 0/1 should be set to have the Y value set to 0.0f
@@ -4935,17 +5205,21 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 		vindex[2] = 0x2;	    // xmin, ymax, zmin
 		setDefaultUVs( uvs, 3 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x1;		    // xmin, ymin, zmax
 		vindex[1] = 0x1|0x4;		// xmax, ymin, zmax
 		vindex[2] = 0x1|0x2;	    // xmin, ymax, zmax
 		setDefaultUVs( uvs, 2 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 		break;
 	case DIR_LO_Z_BIT:	// north side, going from north low to south high (i.e. sloping up to south)
-		saveBoxFaceUVs( typeBelow, DIRECTION_LO_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_LO_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		// We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
 		// So we then set index X == 0/1, Y == 1, Z == 0 should be set to have the Y value set to 0.0f
@@ -4959,17 +5233,21 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 		vindex[2] = 0x1|0x2;	// zmax, ymax, xmin
 		setDefaultUVs( uvs, 3 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
 		vindex[1] = 0x4;		    // zmin, ymin, xmax
 		vindex[2] = 0x4|0x1|0x2;	// zmax, ymax, xmax
 		setDefaultUVs( uvs, 2 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 		break;
 	case DIR_HI_Z_BIT:
-		saveBoxFaceUVs( typeBelow, DIRECTION_HI_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_HI_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		// We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
 		// So we then set index X == 0/1, Y == 1, Z == 1 should be set to have the Y value set to 0.0f
@@ -4983,20 +5261,25 @@ static void saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeB
 		vindex[2] = 0x2;	    // zmin, ymax, xmin
 		setDefaultUVs( uvs, 2 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
 		vindex[1] = 0x4;		    // zmin, ymin, xmax
 		vindex[2] = 0x4|0x2;	    // zmin, ymax, xmax
 		setDefaultUVs( uvs, 3 );
 		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndex-1, dummy );
-		saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 		break;
 	default:
 		assert(0);
 	}
 
 	gModel.triangleCount += 2;
+
+	return retCode;
 }
 
 //   3---2
@@ -5028,11 +5311,12 @@ static void setDefaultUVs( Point2 uvs[3], int skip )
 	}
 }
 
-static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
+static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
 	FaceRecord *face;
 	int j;
 	int uvIndices[3];
+	int retCode = MW_NO_ERROR;
 
 	// output each face
 	if ( gExportTexture )
@@ -5044,6 +5328,10 @@ static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int st
 	}
 
 	face = (FaceRecord *)malloc(sizeof(FaceRecord));
+	if ( face == NULL )
+	{
+		return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+	}
 
 	// if we sort, we want to keep faces in the order generated, which is
 	// generally cache-coherent (and also just easier to view in the file)
@@ -5068,8 +5356,12 @@ static void saveTriangleFace( int swatchLoc, int type, int faceDirection, int st
 		face->uvIndex[3] = face->uvIndex[2];
 
 	// all set, so save it away
-	checkFaceListSize();
+	retCode |= checkFaceListSize();
+	if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 	gModel.faceList[gModel.faceCount++] = face;
+
+	return retCode;
 }
 
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
@@ -5113,7 +5405,7 @@ static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int fac
 // rotUVs == FLIP_X_FACE_VERTICALLY means vertically flip X face
 // rotUVs == FLIP_Z_FACE_VERTICALLY means vertically flip Z face
 // rotUVs == ROTATE_TOP_AND_BOTTOM means rotate top and bottom tile 90 degrees; for glass panes.
-static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
 	int i;
 	int swatchLoc;
@@ -5123,11 +5415,12 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 	float minu, maxu, minv, maxv;
 	float fminx, fmaxx, fminy, fmaxy, fminz, fmaxz;
 	int startVertexIndex;
+	int retCode = MW_NO_ERROR;
 
 	// test if no faces are output (it could happen with a glass pane post)
 	if ( faceMask == DIR_ALL_BITS )
 	{
-		return;
+		return retCode;
 	}
 
 	if ( reuseVerts )
@@ -5173,7 +5466,8 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 			Vec3Scalar( cornerVertex, =, (i&0x4)?fmaxx:fminx, (i&0x2)?fmaxy:fminy, (i&0x1)?fmaxz:fminz );
 
 			// get vertex and store
-			checkVertexListSize();
+			retCode |= checkVertexListSize();
+			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 			pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -5346,7 +5640,9 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 				}
 
 				// mark the first face if calling routine wants it, and this is the first face of six
-				saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+				retCode |= saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+				if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 				// face output, so don't need to mark first face
 				markFirstFace = 0;
 			}
@@ -5362,6 +5658,8 @@ static void saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6],
 	}
 
 	gModel.billboardCount++;
+
+	return retCode;
 }
 
 // find if face has anything bordering in given direction, and get the dimensions found.
@@ -5616,6 +5914,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRec
 			break;
 
 		case BLOCK_TRAPDOOR:
+		case BLOCK_IRON_TRAPDOOR:
 			if ( !(dataVal & 0x4) )
 			{
 				// trapdoor is flat on ground
@@ -5648,11 +5947,12 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRec
 }
 
 // rotUVs rotates the face: 0 - no rotation, 1 - 90 degrees (I forget if it's CCW or CW), 2 - 180, 3 - 270
-static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
+static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
 {
 	int j;
 	int uvIndices[4];
 	int orderedUvIndices[4];
+	int retCode = MW_NO_ERROR;
 
 	if ( gExportTexture )
 	{
@@ -5676,16 +5976,22 @@ static void saveBoxFace( int swatchLoc, int type, int faceDirection, int markFir
 		}
 	}
 
-	saveBoxFaceUVs( type, faceDirection, markFirstFace, startVertexIndex, vindex, orderedUvIndices );
+	retCode |= saveBoxFaceUVs( type, faceDirection, markFirstFace, startVertexIndex, vindex, orderedUvIndices );
+	return retCode;
 }
 
-static void saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] )
+static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] )
 {
 	FaceRecord *face;
 	int j;
+	int retCode = MW_NO_ERROR;
 
 	// output each face
 	face = (FaceRecord *)malloc(sizeof(FaceRecord));
+	if ( face == NULL )
+	{
+		return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+	}
 
 	// if we sort, we want to keep faces in the order generated, which is
 	// generally cache-coherent (and also just easier to view in the file)
@@ -5704,8 +6010,12 @@ static void saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int 
 	}
 
 	// all set, so save it away
-	checkFaceListSize();
+	retCode |= checkFaceListSize();
+	if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 	gModel.faceList[gModel.faceCount++] = face;
+
+	return retCode;
 }
 
 // What we need to do here:
@@ -5732,6 +6042,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 	int uvIndices[4];
 	int foundSunflowerTop = 0;
 	int swatchLocSet[6];
+	int retCode = MW_NO_ERROR;
 
 	assert(!(gOptions->exportFlags & EXPT_3DPRINT));
 
@@ -6191,6 +6502,10 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         if ( doubleSided || (i % 2 == 0))
         {
             face = (FaceRecord *)malloc(sizeof(FaceRecord));
+			if ( face == NULL )
+			{
+				return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+			}
 
             // if  we sort, we want to keep faces in the order generated, which is
             // generally cache-coherent (and also just easier to view in the file)
@@ -6214,7 +6529,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                 {
                     // get vertex location and store location
                     float *pt;
-                    checkVertexListSize();
+					retCode |= checkVertexListSize();
+					if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
                     pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -6247,7 +6563,9 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             }
 
             // all set, so save it away
-            checkFaceListSize();
+			retCode |= checkFaceListSize();
+			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
             gModel.faceList[gModel.faceCount++] = face;
         }
     }
@@ -6362,9 +6680,11 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X]--; 
 
 		gUsingTransform = 1;
-		saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, 
+		retCode |= saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, 
 			DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT,
 			FLIP_X_FACE_VERTICALLY, 0,  8,8, 0,16, 0,16);
+		if ( retCode > MW_BEGIN_ERRORS ) return retCode;
+
 		gUsingTransform = 0;
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
 		identityMtx(mtx);
@@ -6403,7 +6723,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     return 1;
 }
 
-static void checkGroupListSize()
+static int checkGroupListSize()
 {
     // there's some play with the group count, e.g. group 0 is not used, so
     // resize should happen a bit earlier. 3 for safety.
@@ -6413,12 +6733,17 @@ static void checkGroupListSize()
         BoxGroup *groups;
         gGroupListSize = (int)(gGroupListSize * 1.4 + 1);
         groups = (BoxGroup*)malloc(gGroupListSize*sizeof(BoxGroup));
+		if ( groups == NULL )
+		{
+			return MW_WORLD_EXPORT_TOO_LARGE;
+		}
         memcpy( groups, gGroupList, gGroupCount*sizeof(BoxGroup));
         free( gGroupList );
         gGroupList = groups;
     }
+	return MW_NO_ERROR;
 }
-static void checkVertexListSize()
+static int checkVertexListSize()
 {
 	assert(gModel.vertexCount <= gModel.vertexListSize);
 	if (gModel.vertexCount == gModel.vertexListSize)
@@ -6426,12 +6751,17 @@ static void checkVertexListSize()
         Point *vertices;
         gModel.vertexListSize = (int)(gModel.vertexListSize * 1.4 + 1);
         vertices = (Point*)malloc(gModel.vertexListSize*sizeof(Point));
+		if ( vertices == NULL )
+		{
+			return MW_WORLD_EXPORT_TOO_LARGE;
+		}
         memcpy( vertices, gModel.vertices, gModel.vertexCount*sizeof(Point));
         free( gModel.vertices );
         gModel.vertices = vertices;
     }
+	return MW_NO_ERROR;
 }
-static void checkFaceListSize()
+static int checkFaceListSize()
 {
 	assert(gModel.faceCount <= gModel.faceSize);
 	if (gModel.faceCount == gModel.faceSize)
@@ -6439,13 +6769,18 @@ static void checkFaceListSize()
         FaceRecord **faceList;
         gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
         faceList = (FaceRecord**)malloc(gModel.faceSize*sizeof(FaceRecord*));
+		if ( faceList == NULL )
+		{
+			return MW_WORLD_EXPORT_TOO_LARGE;
+		}
         memcpy( faceList, gModel.faceList, gModel.faceCount*sizeof(FaceRecord*));
         free( gModel.faceList );
         gModel.faceList = faceList;
     }
+	return MW_NO_ERROR;
 }
 
-static void findGroups()
+static int findGroups()
 {
     int boxIndex;
     IPoint loc;
@@ -6454,6 +6789,7 @@ static void findGroups()
     IPoint *seedStack = (IPoint *)malloc(seedSize*sizeof(IPoint));
     int seedCount = 0;
     BoxGroup *pGroup;
+    int retCode = MW_NO_ERROR;
 
     gGroupList[SURROUND_AIR_GROUP].population = 0;
 
@@ -6494,7 +6830,9 @@ static void findGroups()
                 if ( gBoxData[boxIndex].group == NO_GROUP_SET )
                 {
                     gGroupCount++;
-                    checkGroupListSize();
+                    retCode |= checkGroupListSize();
+					if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
                     // no group, so make a new seed.
                     // Note that group index 0 is not used at all.
                     pGroup = &gGroupList[gGroupCount];
@@ -6536,6 +6874,8 @@ static void findGroups()
     }
 
     free(seedStack);
+
+	return retCode;
 }
 
 
@@ -8389,11 +8729,13 @@ static void meltSnow()
     }
 }
 
-static void generateBlockDataAndStatistics()
+static int generateBlockDataAndStatistics()
 {
     int i, boxIndex;
     IPoint loc;
     float pgFaceStart,pgFaceOffset;
+
+	int retCode = MW_NO_ERROR;
 
 #ifdef OUTPUT_NORMALS
 	int normalCount;
@@ -8464,7 +8806,8 @@ static void generateBlockDataAndStatistics()
                 if ( gBoxData[boxIndex].type > BLOCK_AIR ) 
                 {
                     // block is solid, may need to output some faces.
-                    checkAndCreateFaces(boxIndex,loc);
+                    retCode |= checkAndCreateFaces(boxIndex,loc);
+					if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
                 }
             }
         }
@@ -8491,6 +8834,8 @@ static void generateBlockDataAndStatistics()
     {
         qsort_s(gModel.faceList,gModel.faceCount,sizeof(FaceRecord*),faceIdCompare,NULL);
     }
+
+	return retCode;
 }
 static int faceIdCompare( void* context, const void *str1, const void *str2)
 {
@@ -8604,7 +8949,7 @@ static void rotateLocation( Point pt )
 }
 
 // check if a solid block (assumed) is next to something that causes a face to be created
-static void checkAndCreateFaces( int boxIndex, IPoint loc )
+static int checkAndCreateFaces( int boxIndex, IPoint loc )
 {
     int faceDirection;
     int neighborType;
@@ -8615,6 +8960,7 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 	float heights[4];
 	int heightIndices[4];
 	int testPartial = gOptions->pEFD->chkExportAll;
+	int retCode = MW_NO_ERROR;
 
     // only solid blocks should be passed in here.
     assert(type != BLOCK_AIR);
@@ -8655,7 +9001,9 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 				else
 				{
 					// save partial block for water and lava
-					saveSpecialVertices( boxIndex, faceDirection, loc, heights, heightIndices );
+					retCode |= saveSpecialVertices( boxIndex, faceDirection, loc, heights, heightIndices );
+					if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 					saveFaceLoop( boxIndex, faceDirection, heights, heightIndices );
 				}
 			}
@@ -8663,11 +9011,14 @@ static void checkAndCreateFaces( int boxIndex, IPoint loc )
 			{
 				SaveFullBlock:
 				// normal face save: not fluid, etc.
-				saveVertices( boxIndex, faceDirection, loc );
+				retCode |= saveVertices( boxIndex, faceDirection, loc );
+				if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 				saveFaceLoop( boxIndex, faceDirection, NULL, NULL );
 			}
         }
     }
+	return retCode;
 }
 
 // Assumes the following: billboards and lesser stuff has been output and their blocks made into air -
@@ -8880,6 +9231,7 @@ static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int v
 			return (faceDirection == DIRECTION_BLOCK_TOP);
 
 		case BLOCK_TRAPDOOR:
+		case BLOCK_IRON_TRAPDOOR:
 			if ( !view3D )
 			{
 				// rotate as needed
@@ -8900,8 +9252,16 @@ static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int v
 				}
 				else
 				{
-					// trapdoor is down, have it block above.
-					return (faceDirection == DIRECTION_BLOCK_TOP);
+					if ( neighborDataVal & 0x8 )
+					{
+						// trapdoor is up, have it block below.
+						return (faceDirection == DIRECTION_BLOCK_BOTTOM);
+					}
+					else
+					{
+						// trapdoor is down, have it block above.
+						return (faceDirection == DIRECTION_BLOCK_TOP);
+					}
 				}
 			}
 			break;
@@ -9125,12 +9485,13 @@ static int sameFluid( int fluidType, int type )
 
 // check if each face vertex has an index;
 // if it doesn't, give it one and save out the vertex location itself
-static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] )
+static int saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] )
 {
 	int vertexIndex;
 	int i;
 	IPoint offset;
 	float *pt;
+	int retCode = MW_NO_ERROR;
 
 	// four vertices to output, check that they exist
 	for ( i = 0; i < 4; i++ )
@@ -9147,7 +9508,7 @@ static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, fl
 		if ( vertexIndex < 0 || vertexIndex > gBoxSizeXYZ )
 		{
 			assert(0);
-			return;
+			return retCode|MW_INTERNAL_ERROR;
 		}
 
 		if ( offset[Y] == 1 )
@@ -9162,7 +9523,9 @@ static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, fl
 			{
 				// save the vertex for this location.
 				// need to give an index and write out vertex location
-				checkVertexListSize();
+				retCode |= checkVertexListSize();
+				if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 				heightIndices[heightLoc] = gModel.vertexCount;
 				pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -9180,7 +9543,9 @@ static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, fl
 			if ( gModel.vertexIndices[vertexIndex] == NO_INDEX_SET )
 			{
 				// need to give an index and write out vertex location
-				checkVertexListSize();
+				retCode |= checkVertexListSize();
+				if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
 				gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
 				pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -9198,16 +9563,18 @@ static void saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, fl
 			}
 		}
 	}
+	return retCode;
 }
 
 // check if each face vertex has an index;
 // if it doesn't, give it one and save out the vertex location itself
-static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
+static int saveVertices( int boxIndex, int faceDirection, IPoint loc )
 {
     int vertexIndex;
     int i;
     IPoint offset;
     float *pt;
+	int retCode = MW_NO_ERROR;
 
     // four vertices to output, check that they exist
     for ( i = 0; i < 4; i++ )
@@ -9224,13 +9591,15 @@ static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
         if ( vertexIndex < 0 || vertexIndex > gBoxSizeXYZ )
         {
             assert(0);
-            return;
+			return retCode|MW_INTERNAL_ERROR;
         }
 
         if ( gModel.vertexIndices[vertexIndex] == NO_INDEX_SET )
         {
             // need to give an index and write out vertex location
-            checkVertexListSize();
+			retCode |= checkVertexListSize();
+			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
             gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
             pt = (float *)gModel.vertices[gModel.vertexCount];
 
@@ -9247,9 +9616,10 @@ static void saveVertices( int boxIndex, int faceDirection, IPoint loc )
             assert( gModel.vertexCount <= gModel.vertexListSize );
         }
     }
+	return retCode;
 }
 
-static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndices[4] )
+static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndices[4] )
 {
     int i;
     FaceRecord *face;
@@ -9257,6 +9627,7 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
     unsigned char originalType = gBoxData[boxIndex].type;
 	int computedSpecialUVs = 0;
 	int specialUVindices[4];
+	int retCode = MW_NO_ERROR;
 
     face = (FaceRecord *)malloc(sizeof(FaceRecord));
 
@@ -9444,7 +9815,7 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
                 {
                     assert(0);
                     face->type = originalType;
-                    return;
+					return retCode|MW_INTERNAL_ERROR;
                 }
             }
         }
@@ -9476,10 +9847,14 @@ static void saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int
         //}
     }
 
-    checkFaceListSize();
+	retCode |= checkFaceListSize();
+	if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
     gModel.faceList[gModel.faceCount++] = face;
     // make sure we're not running off the edge, out of memory.
     // We don't need this memory when not writing out materials, as we instantly write out the faces
+
+	return retCode;
 }
 
 
@@ -9870,6 +10245,34 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				break;
 			}
 			break;
+		case BLOCK_STONE:
+			switch ( dataVal )
+			{
+			default: // normal stone
+				assert(0);
+			case 0:
+				// no change, default stone is fine
+				break;
+			case 1: // granite
+				swatchLoc = SWATCH_INDEX( 8,22 );
+				break;
+			case 2: // polished granite
+				swatchLoc = SWATCH_INDEX( 9,22 );
+				break;
+			case 3: // diorite
+				swatchLoc = SWATCH_INDEX( 6,22 );
+				break;
+			case 4: // polished diorite
+				swatchLoc = SWATCH_INDEX( 7,22 );
+				break;
+			case 5: // andesite
+				swatchLoc = SWATCH_INDEX( 4,22 );
+				break;
+			case 6: // polished andesite
+				swatchLoc = SWATCH_INDEX( 5,22 );
+				break;
+			}
+			break;
 		case BLOCK_LEAVES:
 			// if we're using print export, go with the non-fancy leaves (not transparent)
 			col = ( gOptions->exportFlags & EXPT_3DPRINT ) ? 5 : 4;
@@ -10248,8 +10651,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // sticky, extended, or regular?
                 if ( dataVal & 8 )
                 {
-                    // silly, since it's covered...
-                    //assert(0);  // should never get here if extended
+                    // extended, and somewhat irrelevant, since it's covered by the piston head,
+					// but I guess the head could be outside the model bounds.
                     swatchLoc = SWATCH_INDEX( 14, 6 );
                 }
                 else
@@ -10276,6 +10679,114 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 rotateIndices( localIndices, angle );
             }
             break;
+        case BLOCK_PISTON_HEAD:
+			// overkill copy of PISTON above
+			// 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
+			head = bottom = 0;
+			dir = dataVal & 7;
+			angle = 0;
+			switch ( dir )
+			{
+			case 0: // pointing down
+			case 1: // pointing up
+				if ( faceDirection == DIRECTION_BLOCK_BOTTOM )
+				{
+					head = 1 - dir;
+					bottom = dir;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_TOP )
+				{
+					head = dir;
+					bottom = 1 - dir;
+				}
+				// else it's a side, and since sides are aligned, rotate all 180 or none
+				else
+				{
+					angle=180*(1-dir);
+				}
+				break;
+			case 2: // pointing east (new north)
+			case 3: // pointing west (new south)
+				dirBit = dir - 2;
+				if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
+				{
+					head = 1 - dirBit;
+					bottom = dirBit;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
+				{
+					head = dirBit;
+					bottom = 1 - dirBit;
+				}
+				// else it's a side
+				if ( ( faceDirection == DIRECTION_BLOCK_BOTTOM ) ||
+					( faceDirection == DIRECTION_BLOCK_TOP ) )
+				{
+					angle = dirBit*180;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
+				{
+					angle = 90 + dirBit*180;
+				}
+				else
+				{
+					angle = 270 + dirBit*180;
+				}
+				break;
+			case 4: // pointing north (new west)
+			case 5: // pointing south (new east)
+				dirBit = dir - 4;
+				if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X )
+				{
+					head = 1 - dirBit;
+					bottom = dirBit;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
+				{
+					head = dirBit;
+					bottom = 1 - dirBit;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
+				{
+					angle = 270 + dirBit*180;
+				}
+				else if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
+				{
+					angle = 90 + dirBit*180;
+				}
+				else
+				{
+					angle = 270 + dirBit*180;
+				}
+				break;
+			}
+			// ok, now we know head vs. bottom vs. side & angle
+			if ( head )
+			{
+				// sticky, extended, or regular?
+				if ( dataVal & 8 )
+				{
+					// extended, and somewhat irrelevant, since it's covered by the piston head,
+					// but I guess the head could be outside the model bounds.
+					swatchLoc = SWATCH_INDEX( 10, 6 );
+				}
+				else
+				{
+					swatchLoc = SWATCH_INDEX( 11, 6 );
+				}
+			}
+			else if ( bottom )
+			{
+				// easy!
+				swatchLoc = SWATCH_INDEX( 11, 6 );
+			}
+			else
+			{
+				// side
+				swatchLoc = SWATCH_INDEX( 11, 6 );
+				rotateIndices( localIndices, angle );
+			}
+			break;
         case BLOCK_TNT:
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 8, 0,  10, 0 );
             break;
@@ -10623,6 +11134,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_TRAPDOOR:
+		case BLOCK_IRON_TRAPDOOR:
 		case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
         case BLOCK_LILY_PAD:
@@ -11242,7 +11754,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     gModelFile=PortaCreate(objFileNameWithSuffix);
     addOutputFilenameToList(objFileNameWithSuffix);
     if (gModelFile == INVALID_HANDLE_VALUE)
-        return MW_CANNOT_CREATE_FILE;
+        return retCode|MW_CANNOT_CREATE_FILE;
 
     wcharToChar(world,worldChar);	// don't touch worldChar after this, as justWorldFileName depends on it
     justWorldFileName = removePathChar(worldChar);
@@ -11250,10 +11762,9 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     sprintf_s(outputString,256,"# Wavefront OBJ file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    retCode = writeStatistics( gModelFile, justWorldFileName, worldBox );
+    retCode |= writeStatistics( gModelFile, justWorldFileName, worldBox );
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
-
 
 	// Debug info, to figure out Mac paths:
 	sprintf_s(outputString,256,"\n# Full world path: %s\n", worldChar );
@@ -11606,16 +12117,14 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     PortaClose(gModelFile);
 
     // should we call it a day here?
-    if ( retCode >= MW_BEGIN_ERRORS )
-        return retCode;
+    if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     // write materials file
     if ( exportMaterials )
     {
         // write material file
         retCode |= writeOBJMtlFile();
-        if ( retCode >= MW_BEGIN_ERRORS )
-            return retCode;
+        if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
     }
 
     return retCode;
@@ -11982,7 +12491,7 @@ static int createBaseMaterialTexture()
 
     // Create basic composite files for flattops and flatsides with alpha cutouts in them
     // ladder, trapdoor, three torches, two rails, powered rail, detector rail, lily, wire
-#define COMPOSITE_TABLE_SIZE 22
+#define COMPOSITE_TABLE_SIZE 23
     CompositeSwatchPreset compositeTable[COMPOSITE_TABLE_SIZE] =
     { 
         /* MUST BE FIRST IN LIST, code rotates this one - rotated */ { SWATCH_INDEX( 5, 10 ), /* BLOCK_REDSTONE_WIRE */ SWATCH_INDEX( 1, 0 ) }, // wire over stone, vertical
@@ -12005,7 +12514,8 @@ static int createBaseMaterialTexture()
         { RS_TORCH_TOP_OFF, /* BLOCK_REDSTONE_TORCH_OFF */ SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
         { SWATCH_INDEX( 0, 6 ), /* BLOCK_LEVER */ SWATCH_INDEX( 1, 0 ) }, // lever over stone
         { SWATCH_INDEX( 12, 4 ), /* BLOCK_LILY_PAD */ SWATCH_INDEX( 15,13 ) }, // lily pad over water
-        { SWATCH_INDEX( 4, 5 ), /* BLOCK_TRAPDOOR */ SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
+		{ SWATCH_INDEX( 4, 5 ), /* BLOCK_TRAPDOOR */ SWATCH_INDEX( 1, 0 ) }, // trapdoor over stone
+		{ SWATCH_INDEX( 2, 22 ), /* BLOCK_IRON_TRAPDOOR */ SWATCH_INDEX( 1, 0 ) }, // iron trapdoor over stone
 		{ SWATCH_INDEX( 15, 8 ), /* BLOCK_VINES */ SWATCH_INDEX( 1, 0 ) }, // vines over stone
     };
 
@@ -12103,7 +12613,11 @@ static int createBaseMaterialTexture()
     mainprog->copyright;
     mainprog->email;
     mainprog->url;
-    //mainprog->jmpbuf;	
+    //mainprog->jmpbuf;
+
+	// check if we're out of memory
+	if ( mainprog->image_data == NULL )
+		return MW_TEXTURE_TOO_LARGE;
 
     // clear
     memset(mainprog->image_data,0,gModel.textureResolution*gModel.textureResolution*4*sizeof(unsigned char));
@@ -12560,6 +13074,8 @@ static int createBaseMaterialTexture()
         // make the baseline composites - really, we should add these in-place, replacing the original objects, since the originals are never used as-is. TODO
         for ( i = 0; i < COMPOSITE_TABLE_SIZE; i++ )
         {
+			// very first composite, a redstone wire straight across, is rotated on the first one, (i==0) test:
+			//NOTE: in 1.8 this rotation can be removed, their redstone_dust_line.png tile is rotated.
             createCompositeSwatch( compositeTable[i].cutoutSwatch, compositeTable[i].backgroundSwatch, (i==0)?90:0 );
         }
 
@@ -12743,12 +13259,11 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
     statsFile = PortaCreate(statsFileName);
     addOutputFilenameToList(statsFileName);
     if (statsFile == INVALID_HANDLE_VALUE)
-        return MW_CANNOT_CREATE_FILE;
+        return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-    retCode = writeStatistics( statsFile, justWorldFileName, worldBox );
-    if ( retCode >= MW_BEGIN_ERRORS )
-        return retCode;
+    retCode |= writeStatistics( statsFile, justWorldFileName, worldBox );
+    if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
 
@@ -12866,12 +13381,11 @@ static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
     statsFile = PortaCreate(statsFileName);
     addOutputFilenameToList(statsFileName);
     if (statsFile == INVALID_HANDLE_VALUE)
-        return MW_CANNOT_CREATE_FILE;
+        return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-    retCode = writeStatistics( statsFile, justWorldFileName, worldBox );
-    if ( retCode >= MW_BEGIN_ERRORS )
-        return retCode;
+    retCode |= writeStatistics( statsFile, justWorldFileName, worldBox );
+    if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
  
@@ -12922,7 +13436,7 @@ DWORD br;
     gModelFile=PortaCreate(wrlFileNameWithSuffix);
     addOutputFilenameToList(wrlFileNameWithSuffix);
     if (gModelFile == INVALID_HANDLE_VALUE)
-        return MW_CANNOT_CREATE_FILE;
+        return retCode|MW_CANNOT_CREATE_FILE;
 
 	exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !gExportTexture;
 
@@ -12935,7 +13449,7 @@ DWORD br;
     sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    retCode = writeStatistics( gModelFile, justWorldFileName, worldBox );
+    retCode |= writeStatistics( gModelFile, justWorldFileName, worldBox );
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
 
@@ -13327,15 +13841,15 @@ static int writeSchematicBox()
 
 	if (width > maxShortSize) {
 		// Width of region too large for a .schematic");
-		return MW_DIMENSION_TOO_LARGE;
+		return retCode|MW_DIMENSION_TOO_LARGE;
 	}
 	if (height > maxShortSize) {
 		// Height of region too large for a .schematic");
-		return MW_DIMENSION_TOO_LARGE;
+		return retCode|MW_DIMENSION_TOO_LARGE;
 	}
 	if (length > maxShortSize) {
 		// Length of region too large for a .schematic");
-		return MW_DIMENSION_TOO_LARGE;
+		return retCode|MW_DIMENSION_TOO_LARGE;
 	}
 
 	concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schematic");
@@ -13344,13 +13858,13 @@ static int writeSchematicBox()
 	err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
 	if (fptr == NULL || err != 0)
 	{
-		return MW_CANNOT_CREATE_FILE;
+		return retCode|MW_CANNOT_CREATE_FILE;
 	}
 	// now make it a gzip file
 	gz = gzdopen(_fileno(fptr),"wb");
 	if (gz == NULL)
 	{
-		return MW_CANNOT_CREATE_FILE;
+		return retCode|MW_CANNOT_CREATE_FILE;
 	}
 
 	addOutputFilenameToList(schematicFileNameWithSuffix);
@@ -13417,7 +13931,7 @@ static int writeSchematicBox()
 		if ( blocks ) free( blocks );		\
 		if ( blockData ) free( blockData );	\
 		gzclose(gz);						\
-		return MW_CANNOT_WRITE_TO_FILE;		\
+		return retCode|MW_CANNOT_WRITE_TO_FILE;		\
 	}
 
 	// check if return codes are 0, if so failed and we should abort
@@ -14689,7 +15203,7 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
 
 static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
 {
-    int retCode = 0;
+    int retCode = MW_NO_ERROR;
     int row, col;
     progimage_info dst;
     unsigned char *imageDst, *imageSrc;
@@ -14718,7 +15232,7 @@ static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
         }
     }
 
-    retCode = writepng( &dst, 3, filename );
+    retCode |= writepng( &dst, 3, filename );
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);

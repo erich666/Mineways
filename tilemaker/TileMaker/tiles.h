@@ -391,14 +391,14 @@ static struct {
 	{ 15,21, L"glass_pane_top_black", SWATCH_REPEAT_ALL },
 	{  0,22, L"planks_acacia", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
 	{  1,22, L"planks_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
-	{  2,22, L"", SWATCH_REPEAT_ALL },
-	{  3,22, L"", SWATCH_REPEAT_ALL },
-	{  4,22, L"", SWATCH_REPEAT_ALL },
-	{  5,22, L"", SWATCH_REPEAT_ALL },
-	{  6,22, L"", SWATCH_REPEAT_ALL },
-	{  7,22, L"", SWATCH_REPEAT_ALL },
-	{  8,22, L"", SWATCH_REPEAT_ALL },
-	{  9,22, L"", SWATCH_REPEAT_ALL },
+	{  2,22, L"iron_trapdoor", SWATCH_REPEAT_ALL|SBIT_DECAL },	// 1.8
+	{  3,22, L"slime", SWATCH_REPEAT_ALL },
+	{  4,22, L"stone_andesite", SWATCH_REPEAT_ALL },
+	{  5,22, L"stone_andesite_smooth", SWATCH_REPEAT_ALL },
+	{  6,22, L"stone_diorite", SWATCH_REPEAT_ALL },
+	{  7,22, L"stone_diorite_smooth", SWATCH_REPEAT_ALL },
+	{  8,22, L"stone_granite", SWATCH_REPEAT_ALL },
+	{  9,22, L"stone_granite_smooth", SWATCH_REPEAT_ALL },
 	{ 10,22, L"", SWATCH_REPEAT_ALL },
 	{ 11,22, L"", SWATCH_REPEAT_ALL },
 	{ 12,22, L"", SWATCH_REPEAT_ALL },

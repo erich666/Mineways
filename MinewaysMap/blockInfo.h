@@ -487,12 +487,12 @@ static struct {
     {"Bed",                    0xff3333, 1.000f, 0xff3333,  6, 8, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//1a
     {"Powered Rail",           0xAB0301, 1.000f, 0xAB0301,  3,11, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},	//1b/27
     {"Detector Rail",          0xCD5E58, 1.000f, 0xCD5E58,  3,12, BLF_FLATTOP|BLF_BILLBOARD|BLF_3D_BIT|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID|BLF_CONNECTS_REDSTONE},	//1c
-    {"Sticky Piston",          0x719e60, 1.000f, 0x719e60, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//1d
+    {"Sticky Piston",          0x719e60, 1.000f, 0x719e60, 12, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//1d
     {"Cobweb",                 0xeeeeee, 1.000f, 0xeeeeee, 11, 0, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//1e
     {"Tall Grass",             0x68a33d, 1.000f, 0x68a33d,  7, 2, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//1f/31
     {"Dead Bush",              0x946428, 1.000f, 0x946428,  7, 3, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//20/32
-    {"Piston",                 0x95774b, 1.000f, 0x95774b, 12, 6, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//21
-    {"Piston Head",            0x95774b, 1.000f, 0x95774b, 11, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//22
+    {"Piston",                 0x95774b, 1.000f, 0x95774b, 12, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//21
+    {"Piston Head",            0x95774b, 1.000f, 0x95774b, 11, 6, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	//22/34
     {"Wool",                   0xdcdcdc, 1.000f, 0xdcdcdc,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//23 - gets converted to colors at end
     {"Block Moved By Piston",  0x000000, 1.000f, 0x000000, 11, 6, BLF_NONE},	//24 (36) - really, nothing...
     {"Dandelion",              0xD3DD05, 1.000f, 0xD3DD05, 13, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//25
@@ -627,9 +627,9 @@ static struct {
 	{"Acacia/Dark Oak Log",    0x6C655A, 1.000f, 0x6C655A, 13,19, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUNK_PART|BLF_FENCE_NEIGHBOR},	//A2/162
 	{"Acacia Wood Stairs",     0xBA683B, 1.000f, 0xBA683B,  0,22, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //A3
 	{"Dark Oak Wood Stairs",   0x492F17, 1.000f, 0x492F17,  1,22, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //A4/164
-	{"Unused 165",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
-	{"Unused 166",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
-	{"Unused 167",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
+	{"Slime",                  0x787878, 0.500f, 0x787878,  3,22, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_TRANSPARENT|BLF_FENCE_NEIGHBOR},	// A5/165 - 1.8
+	{"Barrier",                0x000000, 1.000f, 0x000000, 13,14, BLF_NONE},	// A6/166 - 1.8
+	{"Iron Trapdoor",          0xC0C0C0, 1.000f, 0xC0C0C0,  2,22, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	// A7/167 - 1.8
 	{"Unused 168",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
 	{"Unused 169",             0x787878, 1.000f, 0x787878,  1, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// Stone
 	{"Hay",                    0xB5970C, 1.000f, 0xB5970C, 10,15, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AA/170
@@ -640,7 +640,7 @@ static struct {
 	{"Packed Ice",             0x7dacfe, 1.000f, 0x4d6a9c, 12,17, BLF_WHOLE|BLF_IMAGE_TEXTURE},	// AE/174 - like ice, but not transparent
 	{"Large Flower",           0x67873F, 1.000f, 0x67873F,  0,18, BLF_FLATTOP|BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	// AF/175 - note color is used to multiply grayscale textures, so don't change it
 // for simplicity for mapping, wool gets converted to its colors when read in, and made separate blocks - in this way, it shows up on the map as different colors easily
-    {"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
+	{"White Wool",             0xDDDDDD, 1.000f, 0xDDDDDD,  0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
     {"Orange Wool",            0xEA8037, 1.000f, 0xEA8037,  2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
     {"Magenta Wool",           0xBF49CA, 1.000f, 0xBF49CA,  2,12, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
     {"Light Blue Wool",        0x6689D3, 1.000f, 0x6689D3,  2,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
@@ -708,7 +708,8 @@ enum block_types {
     BLOCK_COBWEB = 0x1e,
     BLOCK_TALL_GRASS = 0x1f,
     BLOCK_DEAD_BUSH = 0x20,
-    BLOCK_PISTON = 0x21,
+	BLOCK_PISTON = 0x21,
+	BLOCK_PISTON_HEAD = 0x22,
     BLOCK_DANDELION = 0x25,
     BLOCK_POPPY = 0x26,
     BLOCK_BROWN_MUSHROOM = 0x27,
@@ -828,6 +829,10 @@ enum block_types {
 	BLOCK_COAL_BLOCK = 0xAD,
 	// 1.7.2
 	BLOCK_DOUBLE_FLOWER = 0xAF,
+	// 1.8
+	BLOCK_SLIME = 0xA5,
+	BLOCK_BARRIER = 0xA6,
+	BLOCK_IRON_TRAPDOOR = 0xA7,
 
 	// colored wool at end - special internal IDs, so that the mapping program part can show wool in different colors
     BLOCK_WHITE_WOOL = (NUM_BLOCKS-16-1),
