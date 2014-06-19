@@ -3,28 +3,27 @@
 
 **begun 11/14/2011**
 
-**http://vokselia.com**
+**http://mineways.com**
 
-[Visit the project homepage](http://mineways.com/index.htm) for documentation links, credits, etc.
-[Here is a link to minutor where most of the original source code came from.](http://seancode.com/minutor/)
+[Visit the project homepage](http://mineways.com) for documentation links, credits, etc.
+Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
-You need to pick the right version of Mineways, depending on your version of Minecraft:
-
-* **Version 2.x** works on Minecraft 1.2 worlds and after (Anvil format).
+There are different major versions of Mineways. You usually want the latest version; version 1.15 can be used on older worlds.
+* **Version 4.** works on Minecraft 1.2 to 1.8 and beyond, 64-bit for large exports.
+* **Version 3.** works on Minecraft 1.2 to 1.7 worlds (Anvil, stair geometry changes, and new texturing).
+* **Version 2.x** works on Minecraft 1.2 worlds to 1.4 (Anvil format).
 * **Version 1.x** works on Minecraft 1.1 worlds and earlier (McRegion format).
 
-All 3 platform source files are here:
+Source files are here:
 
-* **MinewaysMap/** contains the map generating code used by all 3 versions. (in C)
-* **Win/** contains the Windows UI (in C++)
-* **OSX/** contains the OSX UI (in ObjC).
-* **./** contains the GTK UI. (in C)
+* **Win/** contains the Windows version of Mineways (in C++).
+* **TileMaker/** contains the TileMaker for Mineways, which takes the individual block textures and forms a terrainExt.png file for use by Mineways. This allows you to replace any terrain textures with your own custom tiles.
 
 Compiling
 --------------
 
-* Windows - (You can compile this with Visual Studio Express 2010)
-Open Minewayswin.sln in Visual C++, switch the target to Release, compile the solution to
+* Windows - You can compile this with Visual Studio
+Open Mineways.sln in Visual C++, switch the target to Release and x64, compile the solution to
 		`generate Mineways.exe`
 
 Sorry, other platforms are not directly supported, though Mineways runs fine under [WINE](http://www.winehq.org/) and we also provide a Mac-specific version.

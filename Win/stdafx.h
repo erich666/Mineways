@@ -29,9 +29,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include "targetver.h"
-#include "../MinewaysMap/cache.h"
-#include "../MinewaysMap/MinewaysMap.h"
-#include "../MinewaysMap/ObjFileManip.h"
+#include "cache.h"
+#include "MinewaysMap.h"
+#include "ObjFileManip.h"
+#include "nbt.h"
+#include "region.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files:
@@ -43,6 +45,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 #ifndef max
@@ -58,5 +62,34 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef swapint
-#define swapint(a,b)	{tempint = (a); (a)=(b); (b)=tempint;}
+#define swapint(a,b)	{int tempint = (a); (a)=(b); (b)=tempint;}
+#endif
+
+
+#ifdef WIN32
+#define PORTAFILE HANDLE
+#define PortaOpen(fn) CreateFile(fn,GENERIC_READ,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL)
+// TODO: should probably check if file exists, etc.?
+#define PortaCreate(fn) CreateFileW(fn,GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,CREATE_ALWAYS,0,NULL)
+#define PortaSeek(h,ofs) SetFilePointer(h,ofs,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER
+#define PortaRead(h,buf,len) !ReadFile(h,buf,len,&br,NULL)
+#define PortaWrite(h,buf,len) !WriteFile(h,buf,(DWORD)len,&br,NULL)
+#define PortaClose(h) CloseHandle(h)
+#endif
+
+#ifndef WIN32
+#define strncpy_s(f,n,w,m) strncpy(f,w,m)
+#define strncat_s(f,n,w,m) strncat(f,w,m)
+#define sprintf_s snprintf
+#define PORTAFILE FILE*
+#define PortaOpen(fn) fopen(fn,"rb")
+#define PortaCreate(fn) fopen(fn,"w")
+#define PortaSeek(h,ofs) fseek(h,ofs,SEEK_SET)
+#define PortaRead(h,buf,len) fread(buf,len,1,h)!=1
+#define PortaWrite(h,buf,len) fwrite(buf,len,1,h)!=1
+#define PortaClose(h) fclose(h)
+#endif
+
+#if __STDC_VERSION__ >= 199901L
+#define C99
 #endif

@@ -41,6 +41,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <time.h>
 
+#include <vector>
+
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
@@ -173,7 +175,7 @@ typedef struct Model {
     int mtlList[NUM_BLOCKS];
     int mtlCount;
 
-    progimage_info inputTerrainImage;
+    progimage_info *pInputTerrainImage;
 
     int textureResolution;  // size of output texture
     float invTextureResolution; // inverse, commonly used
@@ -712,6 +714,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
     memset(&gModel,0,sizeof(Model));
+    gModel.pInputTerrainImage = new progimage_info();
 
     // reset random number seed
     myseedrand(12345);
@@ -736,7 +739,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     // first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
-        retCode |= readTerrainPNG(curDir,&gModel.inputTerrainImage,terrainFileName);
+        retCode |= readTerrainPNG(curDir,gModel.pInputTerrainImage,terrainFileName);
         if ( retCode >= MW_BEGIN_ERRORS )
         {
             // couldn't read terrain image
@@ -744,29 +747,18 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         }
 
 		// check if height of texture is sufficient.
-		if ( gModel.inputTerrainImage.height / (gModel.inputTerrainImage.width/16) < 16 )
+		if ( gModel.pInputTerrainImage->height / (gModel.pInputTerrainImage->width/16) < 16 )
 		{
 			// image does not have the minimum 16 rows, something's really wrong
 			retCode |= MW_NEED_16_ROWS;
 			goto Exit;
 		}
-		if ( gModel.inputTerrainImage.height / (gModel.inputTerrainImage.width/16) < VERTICAL_TILES )
+		if ( gModel.pInputTerrainImage->height / (gModel.pInputTerrainImage->width/16) < VERTICAL_TILES )
 		{
 			// fix image, expanding the image with white. Warn user.
-			int tileSize = gModel.inputTerrainImage.width/16;
-			unsigned char *oldImage = gModel.inputTerrainImage.image_data;
-			unsigned char *newImage = (unsigned char *)malloc(VERTICAL_TILES*tileSize*gModel.inputTerrainImage.width*4);
-			if ( newImage == NULL )
-			{
-				retCode |= MW_TEXTURE_TOO_LARGE;	// out of memory
-				goto Exit;
-			}
-			memcpy( newImage, oldImage, gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4 );
+			int tileSize = gModel.pInputTerrainImage->width/16;
 			// set empty area to all 1's
-			memset( &newImage[gModel.inputTerrainImage.height*gModel.inputTerrainImage.width*4], 0xff, (VERTICAL_TILES*tileSize-gModel.inputTerrainImage.height)*gModel.inputTerrainImage.width*4 );
-			gModel.inputTerrainImage.image_data = newImage;
-			// get rid of old terrain image.
-			free(oldImage);
+			gModel.pInputTerrainImage->image_data.resize(VERTICAL_TILES*tileSize*gModel.pInputTerrainImage->width*4, 0xff);
 			retCode |= MW_NOT_ENOUGH_ROWS;
 		}
     }
@@ -785,16 +777,16 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
         {
 			// use true textures
-            gModel.textureResolution = 2*gModel.inputTerrainImage.width;
+            gModel.textureResolution = 2*gModel.pInputTerrainImage->width;
         }
         else
         {
             // Use "noisy" colors, fixed 256 x 256 - we could actually make this texture quite small
             gModel.textureResolution = 256;
-            gModel.inputTerrainImage.width = 256;    // really, no image, but act like there is
+            gModel.pInputTerrainImage->width = 256;    // really, no image, but act like there is
         }
         // there are always 16 tiles wide in terrainExt.png, so we divide by this.
-        gModel.tileSize = gModel.inputTerrainImage.width/16;
+        gModel.tileSize = gModel.pInputTerrainImage->width/16;
         gModel.swatchSize = 2 + gModel.tileSize;
         gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
         gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
@@ -808,8 +800,10 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 	// all done with base input texture, free up its memory.
 	if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
 	{
-		readpng_cleanup(1,&gModel.inputTerrainImage);
-	}
+		readpng_cleanup(1,gModel.pInputTerrainImage);
+        delete gModel.pInputTerrainImage;
+        gModel.pInputTerrainImage = NULL;
+    }
 
 	// were there errors?
 	if ( retCode >= MW_BEGIN_ERRORS )
@@ -1150,7 +1144,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 			}
 
 			writepng_cleanup(gModel.pPNGtexture);
-			free(gModel.pPNGtexture->image_data);
 		}
 	}
 
@@ -1290,8 +1283,6 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     static int markTiles = 0;	// to put R on each tile for debugging, set to 1
     int row, col;
 
-    memset(pII,0,sizeof(progimage_info));
-
     if ( wcslen(selectedTerrainFileName) > 0 )
     {
         rc = readpng(pII,selectedTerrainFileName);
@@ -1307,8 +1298,6 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     if ( tryDefault )
     {
         concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
-
-        memset(pII,0,sizeof(progimage_info));
         rc = readpng(pII,defaultTerrainFileName);
     }
 
@@ -1326,9 +1315,9 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
 	if ( (pII->height % (pII->width / 16)) != 0 )
 		return MW_IMAGE_WRONG_WIDTH;
 
-	gModel.tileSize = gModel.inputTerrainImage.width/16;
+	gModel.tileSize = gModel.pInputTerrainImage->width/16;
 	// note vertical tile limit for texture. We will save all these tiles away.
-	gModel.verticalTiles = gModel.inputTerrainImage.height/gModel.tileSize;
+	gModel.verticalTiles = gModel.pInputTerrainImage->height/gModel.tileSize;
 
     if ( markTiles )
     {
@@ -11706,6 +11695,18 @@ static void freeModel(Model *pModel)
 			pModel->uvSwatches[i].records = NULL;
 		}
 	}
+
+    if (pModel->pInputTerrainImage)
+    {
+        delete pModel->pInputTerrainImage;
+        pModel->pInputTerrainImage = NULL;
+    }
+
+    if (pModel->pPNGtexture)
+    {
+        delete pModel->pPNGtexture;
+        pModel->pPNGtexture = NULL;
+    }
 }
 
 // return 0 if no write
@@ -12584,43 +12585,15 @@ static int createBaseMaterialTexture()
 //        { SWATCH_INDEX( 4, 14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
 //    };
 
-    mainprog = (progimage_info *)malloc(sizeof(progimage_info));
-    memset(mainprog,0,sizeof(progimage_info));
+    mainprog = new progimage_info();
 
-    mainprog->gamma = 0.0;
     mainprog->width = gModel.textureResolution;
     mainprog->height = gModel.textureResolution;
-    mainprog->have_time = 0;
-    mainprog->modtime;
-    mainprog->color_type = PNG_COLOR_TYPE_RGB_ALPHA;	// RGBA - PNG_COLOR_TYPE_RGB_ALPHA
-    //FILE *infile;
-    //returns: void *png_ptr;
-    //returns: void *info_ptr;
-    mainprog->bit_depth = 8;
-    mainprog->interlaced = PNG_INTERLACE_NONE;
-    mainprog->have_bg = 0;
-    mainprog->bg_red;
-    mainprog->bg_green;
-    mainprog->bg_blue;
-    //uch *image_data;
-    mainprog->image_data = (unsigned char *)malloc(gModel.textureResolution*gModel.textureResolution*4*sizeof(unsigned char));
-    //uch **row_pointers;
-    //mainprog->row_pointers = (uch **)malloc(256*sizeof(uch *));
-    mainprog->have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
-    mainprog->title = "Mineways model texture";
-    mainprog->author = "mineways.com";
-    mainprog->desc = "Mineways texture file for model, generated from user's terrainExt.png";
-    mainprog->copyright;
-    mainprog->email;
-    mainprog->url;
-    //mainprog->jmpbuf;
 
-	// check if we're out of memory
-	if ( mainprog->image_data == NULL )
-		return MW_TEXTURE_TOO_LARGE;
+    // resize and clear
+	mainprog->image_data.resize(gModel.textureResolution*gModel.textureResolution*4*sizeof(unsigned char),0x0);
+	// TODO: any way to check if we're out of memory?
 
-    // clear
-    memset(mainprog->image_data,0,gModel.textureResolution*gModel.textureResolution*4*sizeof(unsigned char));
     gModel.pPNGtexture = mainprog;
 
     useTextureImage = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES);
@@ -12712,7 +12685,7 @@ static int createBaseMaterialTexture()
                     gModel.swatchSize*dstCol+SWATCH_BORDER, // upper left corner destination
                     gModel.swatchSize*dstRow+SWATCH_BORDER,
                     gModel.tileSize, gModel.tileSize, // width, height to copy
-                    &gModel.inputTerrainImage,
+                    gModel.pInputTerrainImage,
                     gModel.tileSize*col, // from
                     gModel.tileSize*row
                     );
@@ -12729,13 +12702,13 @@ static int createBaseMaterialTexture()
 				if ( j != 7 )
 				{
 					copyPNGArea( mainprog, 
-					gModel.swatchSize*dstCol+SWATCH_BORDER+gModel.tileSize*j/16,    // copy to right
-					gModel.swatchSize*dstRow+SWATCH_BORDER,  // one down from top
-					gModel.tileSize*2/16, gModel.tileSize,  // 2 tile-texels wide
-					mainprog,
-					gModel.swatchSize*dstCol+SWATCH_BORDER+gModel.tileSize*7/16,
-					gModel.swatchSize*dstRow+SWATCH_BORDER
-					);
+					    gModel.swatchSize*dstCol+SWATCH_BORDER+gModel.tileSize*j/16,    // copy to right
+					    gModel.swatchSize*dstRow+SWATCH_BORDER,  // one down from top
+					    gModel.tileSize*2/16, gModel.tileSize,  // 2 tile-texels wide
+					    mainprog,
+					    gModel.swatchSize*dstCol+SWATCH_BORDER+gModel.tileSize*7/16,
+					    gModel.swatchSize*dstRow+SWATCH_BORDER
+					    );
 				}
 			}
 		}
@@ -12908,8 +12881,8 @@ static int createBaseMaterialTexture()
         }
 
         // OLD: test if water tile is semitransparent throughout - if not, then we don't want to use water, lava, and fire tiles.
-        if ( tileIsSemitransparent( &gModel.inputTerrainImage, gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ) &&
-             tileIsOpaque( &gModel.inputTerrainImage, gBlockDefinitions[BLOCK_LAVA].txrX, gBlockDefinitions[BLOCK_LAVA].txrY ) )
+        if ( tileIsSemitransparent( gModel.pInputTerrainImage, gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ) &&
+             tileIsOpaque( gModel.pInputTerrainImage, gBlockDefinitions[BLOCK_LAVA].txrX, gBlockDefinitions[BLOCK_LAVA].txrY ) )
         {
             // Water is special, and we want to provide more user control for it, to be able to give a deep
             // blue, etc. We therefore blend between the water texture and the water swatch based on alpha:
@@ -14669,7 +14642,7 @@ static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int s
     {
         dst_offset = ((dst_y_min+row)*dst->width + dst_x_min) * 4;
         src_offset = ((src_y_min+row)*src->width + src_x_min) * 4;
-        memcpy(dst->image_data+dst_offset, src->image_data+src_offset, size_x*4);
+        memcpy(&dst->image_data[dst_offset], &src->image_data[src_offset], size_x*4);
     }
 }
 
@@ -14679,7 +14652,7 @@ static int tileIsSemitransparent(progimage_info *src, int col, int row)
 
     for ( r = 0; r < gModel.tileSize; r++ )
     {
-        unsigned char *src_offset = src->image_data + ((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3;
+        unsigned char *src_offset = &src->image_data[((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3];
         for ( c = 0; c < gModel.tileSize; c++ )
         {
             if ( *src_offset <= 0 || *src_offset >= 255 )
@@ -14731,7 +14704,7 @@ static int tileIsOpaque(progimage_info *src, int col, int row)
 
     for ( r = 0; r < gModel.tileSize; r++ )
     {
-        unsigned char *src_offset = src->image_data + ((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3;
+        unsigned char *src_offset = &src->image_data[((row*gModel.tileSize + r)*src->width + col*gModel.tileSize) * 4 + 3];
         for ( c = 0; c < gModel.tileSize; c++ )
         {
             if ( *src_offset < 255 )
@@ -14748,7 +14721,7 @@ static void setColorPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, i
 {
     int row,col;
     int dst_offset;
-    unsigned int *di = ((unsigned int *)(dst->image_data)) + (dst_y_min * dst->width + dst_x_min);
+    unsigned int *di = ((unsigned int *)(&dst->image_data[0])) + (dst_y_min * dst->width + dst_x_min);
 
     for ( row = 0; row < size_y; row++ )
     {
@@ -14766,7 +14739,7 @@ static void stretchSwatchToTop(progimage_info *dst, int swatchIndex, float start
     int row,drow,dcol,dst_offset,src_offset;
     unsigned int *di,*si;
     SWATCH_TO_COL_ROW( swatchIndex, dcol, drow );
-    di = ((unsigned int *)(dst->image_data)) + (drow * gModel.swatchSize * dst->width + dcol * gModel.swatchSize);
+    di = ((unsigned int *)(&dst->image_data[0])) + (drow * gModel.swatchSize * dst->width + dcol * gModel.swatchSize);
     si = di + (int)(startStretch * gModel.swatchSize) * dst->width;
 
     for ( row = 0; row < gModel.swatchSize; row++ )
@@ -14791,7 +14764,7 @@ static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize 
     int i;
     for ( i = 0; i < 12; i++ )
     {
-        unsigned int *di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + 8 + row[i]) * dst->width + x*tileSize + col[i]);
+        unsigned int *di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + 8 + row[i]) * dst->width + x*tileSize + col[i]);
         *di = 0xffff00ff;
     }
 }
@@ -14799,11 +14772,11 @@ static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, uns
 {
     int row, col;
 
-    assert( x*tileSize+tileSize-1 < dst->width );
+    assert( x*tileSize+tileSize-1 < (int)dst->width );
 
     for ( row = 0; row < tileSize; row++ )
     {
-        unsigned int *di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + row) * dst->width + x*tileSize);
+        unsigned int *di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x*tileSize);
         for ( col = 0; col < tileSize; col++ )
         {
             *di++ = value;
@@ -14817,11 +14790,11 @@ static void addNoisePNGTile(progimage_info *dst, int x, int y, int tileSize, uns
     int row, col;
     unsigned int *di;
 
-    assert( x*tileSize+tileSize-1 < dst->width );
+    assert( x*tileSize+tileSize-1 < (int)dst->width );
 
     for ( row = 0; row < tileSize; row++ )
     {
-        di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + row) * dst->width + x*tileSize);
+        di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x*tileSize);
         for ( col = 0; col < tileSize; col++ )
         {
             double grayscale = 1.0 - noise * myrand();
@@ -14839,11 +14812,11 @@ static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, uns
     int row, col;
     unsigned int *di;
 
-    assert( x*tileSize+tileSize-1 < dst->width );
+    assert( x*tileSize+tileSize-1 < (int)dst->width );
 
     for ( row = 0; row < tileSize; row++ )
     {
-        di = ((unsigned int *)(dst->image_data)) + ((y*tileSize + row) * dst->width + x*tileSize);
+        di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x*tileSize);
         for ( col = 0; col < tileSize; col++ )
         {
             unsigned int value = *di;
@@ -14896,8 +14869,8 @@ static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int
 {
     int row, col;
     int m00,m01,m10,m11,offset0,offset1;
-    unsigned int *dul = ((unsigned int*)dst->image_data) + drow*swatchSize*dst->width + dcol*swatchSize;
-    unsigned int *sul = ((unsigned int*)dst->image_data) + srow*swatchSize*dst->width + scol*swatchSize;
+    unsigned int *dul = ((unsigned int*)&dst->image_data[0]) + drow*swatchSize*dst->width + dcol*swatchSize;
+    unsigned int *sul = ((unsigned int*)&dst->image_data[0]) + srow*swatchSize*dst->width + scol*swatchSize;
 
     // cannot rotate in place: need to copy to somewhere in a separate call, then rotate back to final destination
     assert( ( dcol != scol ) || ( drow != srow ) );
@@ -14955,8 +14928,8 @@ static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatc
     int scol = solidSwatch % gModel.swatchesPerRow;
     int srow = solidSwatch / gModel.swatchesPerRow;
     // upper left corner, starting location, of each: over, under, destination
-    unsigned int *ti = (unsigned int *)(dst->image_data) + trow*gModel.swatchSize*dst->width + tcol*gModel.swatchSize;
-    unsigned int *si = (unsigned int *)(dst->image_data) + srow*gModel.swatchSize*dst->width + scol*gModel.swatchSize;
+    unsigned int *ti = (unsigned int *)(&dst->image_data[0]) + trow*gModel.swatchSize*dst->width + tcol*gModel.swatchSize;
+    unsigned int *si = (unsigned int *)(&dst->image_data[0]) + srow*gModel.swatchSize*dst->width + scol*gModel.swatchSize;
 
     int row,col;
     unsigned int *cti,*csi;
@@ -14997,7 +14970,7 @@ static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xma
 	int dcol = dstSwatch % swatchesPerRow;
 	int drow = dstSwatch / swatchesPerRow;
 	// upper left corner, starting location, but then pulled in by one, and the x offset is built in (y offset inside tile is done by loop)
-	unsigned int *dsti = (unsigned int *)(dst->image_data) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
+	unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
 
 	int row,col;
 	unsigned char dr,dg,db,da;
@@ -15112,7 +15085,7 @@ static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xma
 
 	// now go back and make all 123 alpha texels truly opaque
 	// upper left corner, starting location, but then pulled in by one
-	dsti = (unsigned int *)(dst->image_data) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
+	dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
 
 	for ( row = ymin*tileSize16; row < ymax*tileSize16; row++ )
 	{
@@ -15143,9 +15116,9 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
     int dcol = dstSwatch % swatchesPerRow;
     int drow = dstSwatch / swatchesPerRow;
     // upper left corner, starting location, of each: over, under, destination
-    unsigned int *overi = (unsigned int *)(dst->image_data) + orow*swatchSize*dst->width + ocol*swatchSize;
-    unsigned int *underi = (unsigned int *)(dst->image_data) + urow*swatchSize*dst->width + ucol*swatchSize;
-    unsigned int *dsti = (unsigned int *)(dst->image_data) + drow*swatchSize*dst->width + dcol*swatchSize;
+    unsigned int *overi = (unsigned int *)(&dst->image_data[0]) + orow*swatchSize*dst->width + ocol*swatchSize;
+    unsigned int *underi = (unsigned int *)(&dst->image_data[0]) + urow*swatchSize*dst->width + ucol*swatchSize;
+    unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + drow*swatchSize*dst->width + dcol*swatchSize;
 
     int row,col;
     unsigned char or,og,ob,oa;
@@ -15205,24 +15178,18 @@ static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
 {
     int retCode = MW_NO_ERROR;
     int row, col;
-    progimage_info dst;
     unsigned char *imageDst, *imageSrc;
+    progimage_info dst;
+    dst.height = src->height;
+    dst.width = src->width;
+    dst.image_data.resize(src->height*src->width * 3);
 
-    dst = *src;
+    imageSrc = &src->image_data[0];
+    imageDst = &dst.image_data[0];
 
-    dst.color_type = PNG_COLOR_TYPE_RGB;
-    dst.image_data = (unsigned char *)malloc(dst.width*dst.height*3*sizeof(unsigned char));
-    dst.have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
-    dst.title = "Mineways RGB model texture";
-    dst.author = "mineways.com";
-    dst.desc = "Mineways texture file for model, generated from user's terrainExt.png";
-
-    imageSrc = src->image_data;
-    imageDst = dst.image_data;
-
-    for ( row = 0; row < dst.height; row++ )
+    for (row = 0; row < dst.height; row++)
     {
-        for ( col = 0; col < dst.width; col++ )
+        for (col = 0; col < dst.width; col++)
         {
             // copy RGB only
             *imageDst++ = *imageSrc++;
@@ -15232,11 +15199,10 @@ static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
         }
     }
 
-    retCode |= writepng( &dst, 3, filename );
+    retCode |= writepng(&dst, 3, filename);
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);
-    free(dst.image_data);
 
     return retCode;
 }
@@ -15244,8 +15210,8 @@ static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename)
 // for debugging
 static void convertAlphaToGrayscale( progimage_info *dst )
 {
-    int row,col;
-    unsigned int *di = ((unsigned int *)(dst->image_data));
+    int row, col;
+    unsigned int *di = ((unsigned int *)(&dst->image_data[0]));
 
     for ( row = 0; row < dst->height; row++ )
     {

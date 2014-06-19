@@ -69,7 +69,8 @@ static Options gOptions = {0,   // which world is visible
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
 static BOOL gSameWorld=FALSE;
-static wchar_t gSelectTerrain[MAX_PATH];				//path to selected terrainExt.png file, if any
+static wchar_t gSelectTerrain[MAX_PATH];				//path and file name to selected terrainExt.png file, if any
+static wchar_t gSelectTerrainDir[MAX_PATH];				//path (no file name) to selected terrainExt.png file, if any
 static wchar_t gImportFile[MAX_PATH];					//path to import file for settings
 static BOOL gLoaded=FALSE;								//world loaded?
 static double gCurX,gCurZ;								//current X and Z
@@ -190,8 +191,11 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                      int       nCmdShow)
 {
     GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
-    gSelectTerrain[0] = (wchar_t)0;
-	gImportFile[0] = (wchar_t)0;
+    // assume terrainExt.png is in .exe's directory to start
+    wcscpy_s(gSelectTerrainDir, MAX_PATH, gCurrentDirectory);
+    wcscpy_s(gSelectTerrain, MAX_PATH, gCurrentDirectory);
+    wcscat_s(gSelectTerrain, MAX_PATH - wcslen(gSelectTerrain), L"\\terrainExt.png");
+    gImportFile[0] = (wchar_t)0;
 
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
@@ -344,6 +348,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     wchar_t text[4];
     RECT rect;
     TCHAR path[MAX_PATH];
+    TCHAR pathAndFile[MAX_PATH];
     OPENFILENAME ofn;
     int mx,my,mz,type;
     static LPARAM holdlParam;
@@ -1227,20 +1232,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-			wcscpy_s(path,MAX_PATH,gSelectTerrain);
-            ofn.lpstrFile=path;
+			wcscpy_s(pathAndFile,MAX_PATH,gSelectTerrain);
+            ofn.lpstrFile = pathAndFile;
             //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
             ofn.lpstrFilter=L"Terrain File (terrainExt.png)\0*.png\0";
             ofn.nFilterIndex=1;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
-            ofn.lpstrInitialDir=NULL;
+            wcscpy_s(path, MAX_PATH, gSelectTerrainDir);
+            ofn.lpstrInitialDir = path;
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
             if (GetOpenFileName(&ofn)==TRUE)
             {
                 // copy file name, since it definitely appears to exist.
-                wcscpy_s(gSelectTerrain,MAX_PATH,path);
+                wcscpy_s(gSelectTerrain, MAX_PATH, pathAndFile);
+                wcscpy_s(gSelectTerrainDir, MAX_PATH, path);
             }
             break;
 		case ID_FILE_IMPORTSETTINGS:

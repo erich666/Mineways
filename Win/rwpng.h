@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2010, Sean Kasun
+Copyright (c) 2011, Eric Haines
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -25,25 +25,21 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef RWPNG_H
+#define RWPNG_H
 
-// dllmain.cpp : Defines the entry point for the DLL application.
-#include "stdafx.h"
+#include "lodepng.h"
 
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
-{
-    hModule; // to avoid C4100 error, unreferenced formal parameter
-    lpReserved; // to avoid C4100 error, unreferenced formal parameter
-    switch (ul_reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-    case DLL_THREAD_ATTACH:
-    case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
-        break;
-    }
-    return TRUE;
-}
+typedef struct _progimage_info {
+	std::vector<unsigned char> image_data; //the raw pixels
+    int width;
+    int height;
+} progimage_info;
 
+int readpng(progimage_info *mainprog_ptr, wchar_t *filename);
+void readpng_cleanup(int free_image_data, progimage_info *mainprog_ptr);
+
+int writepng(progimage_info *mainprog_ptr, int channels, wchar_t *filename);
+void writepng_cleanup(progimage_info *mainprog_ptr);
+
+#endif

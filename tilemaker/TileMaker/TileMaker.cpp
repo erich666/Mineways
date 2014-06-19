@@ -135,6 +135,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
+			wprintf( L"TileMaker version 2.00\n");
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -222,7 +223,7 @@ int wmain(int argc, wchar_t* argv[])
 
 				wcscpy_s( tileName, MAX_PATH, ffd.cFileName );
 				// check for .png suffix - note test is case insensitive
-				len = wcslen(tileName);
+				len = (int)wcslen(tileName);
 				if ( _wcsicmp( &tileName[len-4], L".png" ) == 0 )
 				{
 					int index;
@@ -324,55 +325,26 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// allocate output image and fill it up
-	destination_ptr = (progimage_info *)malloc(sizeof(progimage_info));
-	memset(destination_ptr,0,sizeof(progimage_info));
+	destination_ptr = new progimage_info();
 
 	outputXResolution = xTiles * outputTileSize;
 	outputYResolution = outputYTiles * outputTileSize;
 
-	//destination_ptr->gamma = 0.0;
 	destination_ptr->width = outputXResolution;
 	destination_ptr->height = outputYResolution;
-	//destination_ptr->have_time = 0;
-	//destination_ptr->modtime;
-	destination_ptr->color_type = PNG_COLOR_TYPE_RGB_ALPHA;	// RGBA - PNG_COLOR_TYPE_RGB_ALPHA
-	////FILE *infile;
-	////returns: void *png_ptr;
-	////returns: void *info_ptr;
-	destination_ptr->bit_depth = 8;
-	//destination_ptr->interlaced = PNG_INTERLACE_NONE;
-	//destination_ptr->have_bg = 0;
-	//destination_ptr->bg_red;
-	//destination_ptr->bg_green;
-	//destination_ptr->bg_blue;
-	////uch *image_data;
-	destination_ptr->image_data = (unsigned char *)malloc(outputXResolution*outputYResolution*4*sizeof(unsigned char));
-	//uch **row_pointers;
-	//destination_ptr->row_pointers = (uch **)malloc(256*sizeof(uch *));
-	//destination_ptr->have_text = TEXT_TITLE|TEXT_AUTHOR|TEXT_DESC;
-	//destination_ptr->title = "Mineways model texture";
-	//destination_ptr->author = "mineways.com";
-	//destination_ptr->desc = "Mineways texture file for model, generated from base terrainBase.png";
-	//destination_ptr->copyright;
-	//destination_ptr->email;
-	//destination_ptr->url;
-	//destination_ptr->jmpbuf;
 
 	if ( nobase )
 	{
 		// for debug, to see just the tiles placed
-		memset(destination_ptr->image_data,0,outputXResolution*outputYResolution*4*sizeof(unsigned char));
+		destination_ptr->image_data.resize(outputXResolution*outputYResolution*4*sizeof(unsigned char),0x0);
 	}
 	else
 	{
 		// copy base texture over
+		destination_ptr->image_data.resize(outputXResolution*outputYResolution*4*sizeof(unsigned char),0x0);
 		copyPNGArea(destination_ptr, &basicterrain);
 		if ( verbose )
 			wprintf (L"Base texture %s copied to output.\n", terrainBase);
-
-		// clear rest (we're assuming the data is logically ordered, top to bottom)
-		if ( outputYTiles > baseYTiles )
-			memset(destination_ptr->image_data + outputXResolution*(baseYTiles*outputTileSize)*4,0,outputXResolution*(outputYTiles-baseYTiles)*outputTileSize*4*sizeof(unsigned char));
 	}
 
 	// copy tiles found over
@@ -394,7 +366,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// write out the result
-	rc = writepng(destination_ptr, terrainExtOutput);
+	rc = writepng(destination_ptr, 4, terrainExtOutput);
 	if ( rc != 0 )
 	{
 		reportReadError(rc,terrainExtOutput);
@@ -476,7 +448,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 
 		for ( row = 0; row < tileSize; row++ )
 		{
-			dst_data = dst->image_data + ((dst_y*tileSize + row) * dst->width + dst_x*tileSize) * 4;
+			dst_data = &dst->image_data[0] + ((dst_y*tileSize + row) * dst->width + dst_x*tileSize) * 4;
 			for ( col = 0; col < tileSize; col++ )
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
@@ -519,7 +491,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 				}
 				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
 				{
-					dst_data = dst->image_data + ((dst_y*zoomTileSize + row * zoom + zoomrow ) * dst->width + dst_x*zoomTileSize + col * zoom) * 4;
+					dst_data = &dst->image_data[0] + ((dst_y*zoomTileSize + row * zoom + zoomrow ) * dst->width + dst_x*zoomTileSize + col * zoom) * 4;
 					for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
 					{
 						memcpy(dst_data,color,4);
@@ -563,7 +535,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 						sumA += (unsigned int)color[3];
 					}
 				}
-				dst_data = dst->image_data + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize + col) * 4;
+				dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize + col) * 4;
 				for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
 				{
 					dst_data[0] = (unsigned char)(sumR/zoom2);
@@ -601,44 +573,47 @@ static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *co
 	unsigned char *src_data;
 
 	//if ( ( src->color_type == PNG_COLOR_TYPE_RGB_ALPHA ) || ( src->color_type == PNG_COLOR_TYPE_PALETTE ) || ( src->color_type == PNG_COLOR_TYPE_GRAY_ALPHA ) )
-	if ( src->channels == 4 )
-	{
-		src_data = src->image_data + ( row * src->width + col ) * 4;
-		memcpy(color,src_data,4);
-	}
-	//else if ( ( src->color_type == PNG_COLOR_TYPE_RGB ) || (src->color_type == PNG_COLOR_TYPE_GRAY) )
-	else if ( src->channels == 3 )
-	{
-		src_data = src->image_data + ( row * src->width + col ) * 3;
-		memcpy(color,src_data,3);
-		color[3] = 255;	// alpha always 1.0
-	}
-	else if ( src->channels == 2 )
-	{
-		// just a guess
-		src_data = src->image_data + ( row * src->width + col ) * 2;
-		color[0] = color[1] = color[2] = *src_data++;
-		color[3] = *src_data;
-	}
-	else if ( src->channels == 1 )
-	{
-		// just a guess
-		src_data = src->image_data + ( row * src->width + col );
-		color[0] = color[1] = color[2] = *src_data;
-		color[3] = 255;	// alpha always 1.0
-	}
-	//else if ( src->color_type == PNG_COLOR_TYPE_GRAY )
+	//if ( src->channels == 4 )
 	//{
-	//	// I'm guessing there's just one channel...
-	//	src_data = src->image_data + row * src->width + col;
+
+	// LodePNG does all the work for us, going to RGBA by default:
+	src_data = &src->image_data[0] + ( row * src->width + col ) * 4;
+	memcpy(color,src_data,4);
+
+	//}
+	//else if ( ( src->color_type == PNG_COLOR_TYPE_RGB ) || (src->color_type == PNG_COLOR_TYPE_GRAY) )
+	//else if ( src->channels == 3 )
+	//{
+	//	src_data = &src->image_data[0] + ( row * src->width + col ) * 3;
+	//	memcpy(color,src_data,3);
+	//	color[3] = 255;	// alpha always 1.0
+	//}
+	//else if ( src->channels == 2 )
+	//{
+	//	// just a guess
+	//	src_data = &src->image_data[0] + ( row * src->width + col ) * 2;
+	//	color[0] = color[1] = color[2] = *src_data++;
+	//	color[3] = *src_data;
+	//}
+	//else if ( src->channels == 1 )
+	//{
+	//	// just a guess
+	//	src_data = &src->image_data[0] + ( row * src->width + col );
 	//	color[0] = color[1] = color[2] = *src_data;
 	//	color[3] = 255;	// alpha always 1.0
 	//}
-	else
-	{
-		// unknown type
-		assert(0);
-	}
+	////else if ( src->color_type == PNG_COLOR_TYPE_GRAY )
+	////{
+	////	// I'm guessing there's just one channel...
+	////	src_data = &src->image_data[0] + row * src->width + col;
+	////	color[0] = color[1] = color[2] = *src_data;
+	////	color[3] = 255;	// alpha always 1.0
+	////}
+	//else
+	//{
+	//	// unknown type
+	//	assert(0);
+	//}
 }
 
 static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y )
@@ -650,7 +625,7 @@ static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y )
 
 	for ( row = 0; row < tileSize; row++ )
 	{
-		dst_data = dst->image_data + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize ) * 4;
+		dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize ) * 4;
 		for ( col = 0; col < tileSize; col++ )
 		{
 			if ( (dst_data+col)[3] != 0 )
@@ -674,7 +649,7 @@ static void copyPNGArea(progimage_info *dst, progimage_info *src)
 
 	if ( dst->width == src->width )
 	{
-		memcpy(dst->image_data, src->image_data, src->width*src->height*4);
+		memcpy(&dst->image_data[0], &src->image_data[0], src->width*src->height*4);
 	}
 	else if ( dst->width > src->width )
 	{
@@ -685,10 +660,10 @@ static void copyPNGArea(progimage_info *dst, progimage_info *src)
 		zoom = dst->width / src->width;
 		assert( dst->height >= src->height*zoom );
 
-		src_data = src->image_data;
+		src_data = &src->image_data[0];
 		for ( row = 0; row < src->height; row++ )
 		{
-			dst_data = dst->image_data + row * dst->width * zoom * 4;
+			dst_data = &dst->image_data[0] + row * dst->width * zoom * 4;
 			for ( col = 0; col < src->width; col++ )
 			{
 				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
@@ -713,10 +688,10 @@ static void copyPNGArea(progimage_info *dst, progimage_info *src)
 		assert( dst->height*zoom >= src->height );
 		zoom2 = zoom * zoom;
 
-		dst_data = dst->image_data;
+		dst_data = &dst->image_data[0];
 		for ( row = 0; row < dst->height; row++ )
 		{
-			src_data = src->image_data + row * src->width * zoom * 4;
+			src_data = &src->image_data[0] + row * src->width * zoom * 4;
 			for ( col = 0; col < dst->width; col++ )
 			{
 				sumR = sumG = sumB = sumA = 0;

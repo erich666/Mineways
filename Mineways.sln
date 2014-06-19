@@ -2,31 +2,23 @@
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Mineways", "Win\Mineways.vcxproj", "{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}"
-	ProjectSection(ProjectDependencies) = postProject
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786} = {9E6153B8-20A1-42DC-B889-DAD936A8A786}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MinewaysMap", "MinewaysMap\MinewaysMap.vcxproj", "{9E6153B8-20A1-42DC-B889-DAD936A8A786}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
-		Release 64bit|Win32 = Release 64bit|Win32
+		Debug|x64 = Debug|x64
 		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Debug|Win32.ActiveCfg = Debug|Win32
 		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Debug|Win32.Build.0 = Debug|Win32
-		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release 64bit|Win32.ActiveCfg = Release|Win32
-		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release 64bit|Win32.Build.0 = Release|Win32
+		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Debug|x64.ActiveCfg = Debug|x64
+		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Debug|x64.Build.0 = Debug|x64
 		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release|Win32.ActiveCfg = Release|Win32
 		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release|Win32.Build.0 = Release|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Debug|Win32.ActiveCfg = Debug|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Debug|Win32.Build.0 = Debug|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Release 64bit|Win32.ActiveCfg = Release 64bit|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Release 64bit|Win32.Build.0 = Release 64bit|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Release|Win32.ActiveCfg = Release|Win32
-		{9E6153B8-20A1-42DC-B889-DAD936A8A786}.Release|Win32.Build.0 = Release|Win32
+		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release|x64.ActiveCfg = Release|x64
+		{DFF5C3E2-4DE5-4C7D-8E85-D13ADED53655}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

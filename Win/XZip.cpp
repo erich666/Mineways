@@ -90,11 +90,13 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+#ifndef MINEWAYS_X64
 #define _USE_32BIT_TIME_T	//+++1.2
-
-
 #define STRICT
+#endif
+
 #define WIN32_LEAN_AND_MEAN
+
 #include <windows.h>
 #include <tchar.h>
 #include <time.h>
@@ -2219,7 +2221,7 @@ const ulg crc_table[256] = {
 #define DO4(buf)  DO2(buf); DO2(buf)
 #define DO8(buf)  DO4(buf); DO4(buf)
 
-ulg crc32(ulg crc, const uch *buf, extent len)
+ulg xzip_crc32(ulg crc, const uch *buf, extent len)
 { if (buf==NULL) return 0L;
   crc = crc ^ 0xffffffffL;
   while (len >= 8) {DO8(buf); len -= 8;}
@@ -2684,7 +2686,7 @@ unsigned TZip::read(char *buf, unsigned size)
     memcpy(buf, bufin+posin, red);
     posin += red;
     ired += red;
-    crc = crc32(crc, (uch*)buf, red);
+    crc = xzip_crc32(crc, (uch*)buf, red);
     return red;
   }
   else if (hfin!=0)
@@ -2692,7 +2694,7 @@ unsigned TZip::read(char *buf, unsigned size)
     BOOL ok = ReadFile(hfin,buf,size,&red,NULL);
     if (!ok) return 0;
     ired += red;
-    crc = crc32(crc, (uch*)buf, red);
+    crc = xzip_crc32(crc, (uch*)buf, red);
     return red;
   }
   else {oerr=ZR_NOTINITED; return 0;}
