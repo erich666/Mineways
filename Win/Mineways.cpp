@@ -440,7 +440,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             -100,-100,10,10,
             hWnd,(HMENU)ID_STATUSBAR,NULL,NULL);
         {
-        int parts[]={300,400};
+        int parts[]={300,-1};
         RECT rect;
         SendMessage(hwndStatus,SB_SETPARTS,2,(LPARAM)parts);
 
@@ -1291,11 +1291,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					gHighlightOn = true;
 					SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
 					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-					// put target depth to new depth set, if any
-					if ( gTargetDepth != gpEFD->maxyVal )
-					{
-						gTargetDepth = gpEFD->minyVal;
-					}
+					// put target (bottom) depth to new depth set, if any
+					gTargetDepth = gpEFD->minyVal;
+					// adjust maximum height up, but not down. We export the maximum height at which
+					// something is found, when normally this height is *set* to 255.
+					// On second thought, no: if someone is importing an underground area, they want the height.
+					//if ( gCurDepth < gpEFD->maxyVal )
+					//{
+						gCurDepth = gpEFD->maxyVal;
+					//}
 					blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
 						bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
 					updateStatus(mx,mz,my,blockLabel,hwndStatus);
