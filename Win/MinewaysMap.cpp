@@ -438,40 +438,40 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         Cache_Add(bx,bz,block);
     }
 
-    if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap) // already rendered
+	// At this point the block is loaded.
+
+	// Is it inside highlighted area?
+	bool isInside = ( bx >= gDirtyBoxMinX-1 && bx <= gDirtyBoxMaxX &&
+		bz >= gDirtyBoxMinZ-1 && bz <= gDirtyBoxMaxZ );
+
+
+	 // already rendered?
+    if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
     {
-        // final check, has highlighting state changed
-        if ( block->renderhilitID==gHighlightID )
-        {
-            if (block->rendermissing // wait, the last render was incomplete
-                && Cache_Find(bx, bz+block->rendermissing) != NULL) {
-                    ; // we can do a better render now that the missing block is loaded
-            } else {
-                // there's no need to re-render, use cache
+		if (block->rendermissing // wait, the last render was incomplete
+			&& Cache_Find(bx, bz+block->rendermissing) != NULL) {
+				; // we can do a better render now that the missing block is loaded
+		} else {
+			// Yes, it's been rendered, but now we need to check if the highlight number is OK:
+			// If the area is inside the highlighted region, renderhilitID==gHighlightID.
+			// If the area is outside the hightlighted region, renderhilitID==0.
+			// Else the area should be redrawn.
+			// final check, is highlighting state OK?
+			if ( ((block->renderhilitID==gHighlightID) && isInside) ||
+				((block->renderhilitID==0) && !isInside) )
+			{
+                // there's no need to re-render, use cached image already generated
                 return block->rendercache;
             }
-        }
-        else
-        {
-            // check if block overlaps dirty rectangle
-            if ( bx < gDirtyBoxMinX-1 || bx > gDirtyBoxMaxX ||
-                bz < gDirtyBoxMinZ-1 || bz > gDirtyBoxMaxZ )
-            {
-                // doesn't overlap, so check cache, same as above
-                if (block->rendermissing // wait, the last render was incomplete
-                    && Cache_Find(bx, bz+block->rendermissing) != NULL) {
-                        ; // we can do a better render now that the missing block is loaded
-                } else {
-                    // there's no need to re-render, use cache
-                    return block->rendercache;
-                }
-            }
+			// else re-render, to clean up previous highlight
         }
     }
 
     block->rendery=maxHeight;
     block->renderopts=opts.worldType;
-    block->renderhilitID=gHighlightID;
+	// if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
+	// when we come back next time, the code above will note the rendering is OK.
+    block->renderhilitID= isInside ? gHighlightID : 0;
     block->rendermissing=0;
     block->colormap=gColormap;
 
@@ -1749,6 +1749,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 		memset(block->grid, 0, 16*16*256);
 		memset(block->data, 0, 16*16*128);
 		memset(block->light, 0xff, 16*16*128);
+		block->renderhilitID = 0;
 
 		if ( type >= 0 && type < NUM_BLOCKS && cz >= 0 && cz < 8)
 		{

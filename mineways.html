@@ -623,7 +623,7 @@ Rendering Tips
   </div>
 </div>
 <P><H4 id="blender">Blender</H4></a>
-Here's a quick tutorial from Alexander Boden, who's just learning Blender himself, along with ideas by Milenco Mulder and my own additions; if you have anything to add, let me know. This is for Blender version 2.61. That said, you probably should be using <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or <a href="https://sites.google.com/site/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
+Here's a quick tutorial from Alexander Boden, who's just learning Blender himself, along with ideas by Milenco Mulder and my own additions; if you have anything to add, let me know. This is for <a href="http://www.blender.org/">Blender version 2.70a</a>. Just to warn you, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or possibly <a href="https://sites.google.com/site/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import (though hasn't been updated in a few years, so maybe not...).
 </P>
 <P>
 There is some additional information on Blender and Mineways in <a href="http://www.minecraftforum.net/topic/1037751-how-to-import-minecraft-worlds-into-blender/">this</a>, <a href="http://blenderartists.org/forum/showthread.php?240821-Mineways-export-Minecraft-data-to-an-OBJ-file-for-Blender-import">this</a> and <a href="http://blenderartists.org/forum/showthread.php?237105-Mineblend-Blender-importer-add-on-for-Minecraft-worlds&p=2015414#post2015414">this</a> thread. There are a number of add-ons for Blender with Minecraft, e.g. <a href="http://www.minecraftforum.net/topic/464707-blender-258-minecraft-rigs/page__hl__%20mineways">these rigs</a>, which can give you models that Mineways itself currently does not export.
@@ -637,7 +637,7 @@ There is some additional information on Blender and Mineways in <a href="http://
 <b>3) Open Blender 2.61</b> and click anywhere on the screen to make the splashcreen disappear. Then, click on the cube in the middle of the scene, hit "x" (or "delete"), and then "Enter". This deletes the cube.
 </P>
 <P>
-<b>4) Import the model</b> select "File -> Import -> Wavefront (.obj)" from the menu. Search and select the right file (the .obj file) and click "Import OBJ".
+<b>4) Import the model:</b> select "File -> Import -> Wavefront (.obj)" from the menu. Search and select the right file (the .obj file) and click "Import OBJ".
 </P>
 <P>
 If you cannot select Wavefront from the Import dialog, you have to activate this file format first from the settings menu.  Select "File -> User Preferences", activate the "Addons" tab, and scroll down in the list until you find "Import-Export: Wavefront OBJ format)". Just activate the checkbox at this entry, dismiss the settings dialog and try importing again.
@@ -650,26 +650,36 @@ If you cannot select Wavefront from the Import dialog, you have to activate this
 <P>
 <b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render -> Render Image" from the menu and have a look. The lighting and view is probably not so great, and the background is a boring grey. So next you will want to position the camera and set the lighting and background.
 <P>
-<b>8) Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view.
+<b>8) Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view. If you always want your current view to show what is rendered, while in interactive mode select "View" (in the lower left), "Properties", and under the View area select "Lock Camera to View".
 <P>
-If you found the right angle and perspective for your camera, you can fine tune a couple of parameters in the camera menu. This can be found by clicking the small film-camera (not the photo camera) symbol in the upper half of the right menu bar, below the scene graph. When you click it, a section called "lens" should appear. You can set the "Shift" of the X and Y axis, as well as the focal length of the camera.
+If you found the right angle and perspective for your camera, you can fine tune a couple of parameters in the camera menu. This can be found by first selecting the Camera object from the list of objects in the upper right, then clicking the small film-camera (not the photo camera) symbol just below the list of objects, towards the right. When you click it, a section called "lens" should appear. You can set the "Shift" of the X and Y axis, as well as the focal length of the camera.
 <P>
-If you are already happy with your result, you can select "Image -> Save as Image" from the menu near the left bottom of the screen, or hit F3.
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_camera.jpg">
 <P>
-<b>9) Fixing transparency:</b> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
+If you are happy with your results, you can select "Image -> Save as Image" from the menu near the left bottom of the screen, or hit F3.
+<P>
+<B>9) Material Conversion:</B> You'll probably notice a few problems, though: transparent objects aren't, flowers and torches are on billboards, etc. At this point you have two choices: easy and hard. The easy route is to use a script provided with the Mineways distribution as of 4.02: <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>. Here are the steps for using it, once you've loaded a model, as above (or you can follow the videos by <a href="http://www.youtube.com/watch?v=X41QQqCib3A&t=6m29s">Nicky</a> or <a href="http://www.youtube.com/watch?v=hb906Xzh7dQ&t=1m36s">Wyatt</a>):
+<UL>
+<LI>To the right of the "Help" menu in the upper left, click on the "keys" icon next to the word "Default" and pick "Scripting".
+<LI>At the bottom of the gray window you'll see a menu "Text"; click it and select "Open Text Block". Go to the directory where "blender_mineways.py" is and select it. You should now see some text in the gray window.
+<LI>To apply this script, click on the "Run Script" button at the bottom right of the text window.
+</UL>
+If you want to see that the script did something, from the upper left select "Window" and "Toggle System Console". If you don't have a "Window" menu item between "Render" and "Help", you have an older version of Blender and should consider updating. This menu item pops up a console window. It isn't critical to see this window, but gives you a warm and fuzzy feeling that the script has worked.
+<P>
+If you do use the script, skip the next few steps - they're done for you - and go to step #10 for more about using Blender. If the script isn't working for you or you'd rather do a lot of work by hand, what follows are the step-by-step instructions for setting each material.
+<P>
+<I>9a) Fixing transparency:</I> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
 <P id="blenderImgs">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr.jpg">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr2.jpg">
 <P>
 If only a Kd texture is listed, go to the next mesh in the Scene tree at the top (by clicking on it). If there is also a D texture (outlined in green above), uncheck the box for this texture. Then click on the texture just above the "D" texture, it starts with "Kd". Once selected, scroll down to the "Influence" section and open it up. Under "Diffuse:" check the "Alpha: 1.000" box to enable it. Now cutouts should display correctly when rendered (but will still look bad in the interactive scene). You will need to do this for every mesh, unless you exported just one material as I suggested at the start, in which case you're done!
 <P>
-<b>10) Fixing shadows:</b> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
+<i>9b) Fixing shadows:</i> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
 <P>
-<b>11) Blocky textures:</b> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I>
+<i>9c) Blocky textures:</i> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I> You may also find that turning off MIP Map", above "Interpolation", can help avoid line artifacts between distant grass blocks. However, mipmapping is useful to avoid crawlies during animation.
 <P>
-<b>12) Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the scene tree). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
-<P>
-<b>13) Water:</b> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
+<i>9d) Water:</i> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
 Transparency: Fresnel = 2, Blend = 1.25 (the default)<BR>
 Optional is to select "Raytrace" and IOR = 1.33, though ray tracing appears to sometimes create artifacts<BR>
 Mirror: check this checkbox, then Fresnel = 2, Blend = 1.25 (the default), Gloss = 0.96<BR>
@@ -677,11 +687,18 @@ Select the Texture icon:<BR>
 Influence: Color = 0.8, alpha = 1.0 (the default), select checkbox Mirror = 0.3, select checkbox Normal = 0.05<BR>
 At the bottom of the Influence section there's a list under Bump Mapping of Metho [sic], choose "Best Quality".<BR>
 <P>
-<b>14) Lighting</b>: There is one predefined lightsource on the working area (which looks like a dot with two enclosing dotted circles). You'll usually have to zoom out to see it. You can right click to select it, or select the Lamp from the Scene tree menu, and move it around the screen by selecting the red, green, and blue arrows and dragging. Then, select the Lamp settings in the same menu bar where you found the camera symbol. It looks like a small sun with four arrows pointing away from it in different directions. Click it, and you can find all kinds of parameters that affect the lighting of your scene. For example, try exchanging the "point" type for "sun", and play with the "Energy" value. You can also change the color by clicking the color field above the Energy settings. You can add Lamps from the "Add" menu in the upper left.
+<b>10) Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the object list). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
 <P>
-<b>15) Render Size:</b> You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
+<b>11) Lighting</b>: There is one predefined lightsource on the working area (which looks like a dot with two enclosing dotted circles). You'll usually have to zoom out to see it. You can right click to select it, or select the Lamp from the object list. Move it around the screen by selecting the red, green, and blue arrows and dragging. Then, select the Lamp settings in the same menu bar where you found the camera symbol. It looks like a small sun with four arrows pointing away from it in different directions. Click it, and you can find all kinds of parameters that affect the lighting of your scene. For example, try exchanging the "Point" type for "Sun", and play with the "Energy" value. You can also change the color by clicking the color field above the Energy settings. You can add Lamps from the "Add" menu in the upper left.
 <P>
-<b>16) Upload</b> your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended)
+<b>12) Render Size:</b> You can also set several parameters of the Renderer by selecting the small photo camera icon in the menu bar where you also found the film camera, the lamp, etc. In the section "Dimensions", you can set the Resolution of the image and add a border, etc. In order to export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
+<P>
+<b>13) Upload</b> your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended)
+<P>
+Here's a typical result, made in a few minutes:
+<P>
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_hopper.jpg">
+
 </P>
 
 <P><H4 id="c4d">Cinema 4D</H4>
@@ -1733,8 +1750,6 @@ Hopper (#154)
 Find a bug? First, make sure you have the latest version installed, and check <a href="#troubleshooting">the troubleshooting section</a> and the list below. Still stuck? <a href="mailto:erich@acm.org">Send me an email</a> and I'll help you out. Fix a bug? You're my personal hero, and <a href="mailto:erich@acm.org">send me the code</a>.
 <UL>
 <LI>Superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, caused by internal tunnels. "Delete floating objects" currently does not remove these. The workaround is to use "fill in isolated tunnels", or to just let these separate little chunks print and pay a bit more for them. The real fix to add to the code is to search the whole model again for groups and delete the small groups.
-<LI>Sometimes the selected area is not cleared from the screen itself. This will happen when you select, scroll to a new place, select, then scroll back. Easy to fix: just switch lighting on and off, hit 'L' and 'L' again. Or, reload with 'R'.
-<LI>ZLIB: for some weird reason I need to link to two different versions of the ZLIB library. It's some problem with <a href="http://en.wikipedia.org/wiki/Name_mangling">name mangling</a>, but I don't know what. Things work fine, but this is dumb (on my part, I would guess). Help appreciated!
 </UL>
 
 <h2 id="versions">Version History</h2>
@@ -1796,6 +1811,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.07, 5/29/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV307.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac307.zip">Mac</a> - If you can’t use the right mouse button, holding down "Control" will make the left mouse button act as the right mouse. // New 1.8 blocks added: Andesite, Diorite, Granite, Slime, Iron Trapdoor. // Piston head now properly created as geometry. // Trapdoors properly render at top of block. // Fences and walls properly join with transparent blocks. // Out of memory conditions now flagged as errors.
 <LI><B>Version 4.00, 6/18/2014</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV400.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <b>64 bits</b>, at last! Mineways and TileMaker are now 64-bit executables. Now very large exports will not fail due to running out of memory. Use the *32.exe version if you can't run 64 bits for some reason. Programmer's notes: switched to all C++ and a single build directory and project. 64-bit Zlib static library from <a href="http://www.winimage.com/zLibDll/index.html">here</a>, wonderful LodePNG (a replacement for libpng) from <a href="http://lodev.org/lodepng/">here</a>. // Minor change: "Set terrain file" now starts in the directory where mineways.exe itself is located.
 <LI>Version 4.01, 6/20/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fixed importer so that upper height is set properly. // Increased size of progress bar, so that progress is more visible for huge exports. <I>(thanks to Adrian Cowherd for the suggestion.)</I>
+<LI>Version 4.02, 6/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added blender_mineways.py script to vastly simplify Blender import of Mineways models <I>(thanks to Wyatt Jameson and Nicky for this script)</I>. // Fixed extremely slow memory freeing of face records by replacing face allocation with my own pool system; large exports now proceed much faster. // Finally fixed the "two selections" bug, where if you made a selection and panned so it was offscreen, it wouldn't get cleared and could scroll back onto the screen, looking as if there were two selections.
 </UL>
 
 <h2 id="wishlist">Wishlist</h2>
@@ -1813,10 +1829,6 @@ This is my own wishlist, in order of interest; if you have a good idea, <a href=
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
 </UL>
 
-<p>
-That's it - have fun!
-
-<HR>
 <P><H2 id="offsite">Links</H2>
 Some links I commonly use.
 <UL>
@@ -1851,6 +1863,10 @@ Some links I commonly use.
 <LI>Things made at the Cambridge Science Festival and by <a href="http://partsandcrafts.org/">Parts &amp; Crafts</a> workshop participants are <a href="http://www.shapeways.com/shops/csf">here</a> on the Shapeways site.
 <LI><a href="http://vokselia.com">Our world's homepage</a>
 </UL>
+
+<p>
+That's it - have fun!
+<HR>
 
 <div id="teapotImgs">
 <a href="http://vokselia.com"><img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/teapot.gif"></a>

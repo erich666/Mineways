@@ -104,6 +104,14 @@ typedef struct FaceRecord {
     int uvIndex[4];
 } FaceRecord;
 
+#define FACE_RECORD_POOL_SIZE 10000
+
+typedef struct FaceRecordPool {
+	FaceRecord fr[FACE_RECORD_POOL_SIZE];
+	struct FaceRecordPool *pPrev;
+	int count;
+} FaceRecordPool;
+
 typedef struct SwatchComposite {
     int swatchLoc;
     int backgroundSwatchLoc;
@@ -193,6 +201,7 @@ typedef struct Model {
     int usesRGB;    // 1 if the RGB (only) texture is used and so should be output
     int usesRGBA;   // 1 if the RGBA texture is used
     int usesAlpha;   // 1 if the Alpha-only texture is used
+	FaceRecordPool *faceRecordPool;
 } Model;
 
 static Model gModel;
@@ -413,12 +422,13 @@ static int gFaceDirectionVector[6][3] =
 #define AREA_IN_CM2     (gModel.faceCount * gModel.scale * gModel.scale * METERS_TO_CM * METERS_TO_CM)
 
 // when should output be part of the progress bar? That is, 0.80 means 80% done when we start outputting the file
-#define PG_DB 0.05f
-#define PG_OUTPUT 0.10f
-#define PG_TEXTURE 0.45f
-#define PG_CLEANUP 0.5f
+// number is how far along we are when that part begins, approx.
+#define PG_MAKE_FACES 0.15f
+#define PG_OUTPUT 0.20f
+#define PG_TEXTURE 0.75f
+#define PG_CLEANUP 0.85f
 // leave some time for zipping files
-#define PG_END 0.70f
+#define PG_END 0.90f
 
 #define NO_INDEX_SET 0xffffffff
 
@@ -506,6 +516,7 @@ static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide );
 static void setDefaultUVs( Point2 uvs[3], int skip );
+static FaceRecord * allocFaceRecordFromPool();
 static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxTileGeometry( int boxIndex, int type, int swatchLoc, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
@@ -696,6 +707,10 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
 
+	gpCallback = &callback;
+	// initial "quick" progress just so progress bar moves a bit.
+	UPDATE_PROGRESS(0.20f*PG_MAKE_FACES);
+
 	if ( options->moreExportMemory )
 	{
 		// clear the cache before export - this lets us export larger worlds.
@@ -722,7 +737,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     gOptions = options;
     gOptions->totalBlocks = 0;
     gOptions->cost = 0.0f;
-    gpCallback = &callback;
     gOutputFileList = outputFileList;
 	gExportTexture = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
 
@@ -736,7 +750,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     spacesToUnderlines(gOutputFileRootClean);
     wcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar);
 
-    // first things very first: if full texturing is wanted, check if the texture is readable
+	// first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
         retCode |= readTerrainPNG(curDir,gModel.pInputTerrainImage,terrainFileName);
@@ -769,6 +783,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     gExportBillboards =
         //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
         gOptions->pEFD->chkExportAll;
+
+	UPDATE_PROGRESS(0.30f*PG_MAKE_FACES);
 
     // write texture, if needed
     if (gExportTexture)
@@ -820,6 +836,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
 	gMinorBlockCount = 0;
 
+	UPDATE_PROGRESS(0.60f*PG_MAKE_FACES);
+
     initializeWorldData( &worldBox, xmin, ymin, zmin, xmax, ymax, zmax );
 
     retCode |= populateBox(world, &worldBox);
@@ -829,13 +847,14 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         goto Exit;
     }
 
+	UPDATE_PROGRESS(0.70f*PG_MAKE_FACES);
 	retCode |=  initializeModelData();
     if ( retCode >= MW_BEGIN_ERRORS )
 	{
 		goto Exit;
 	}
 
-    UPDATE_PROGRESS(0.10f*PG_DB);
+    UPDATE_PROGRESS(0.80f*PG_MAKE_FACES);
 
     retCode |= filterBox();
     // always return the worst error
@@ -844,7 +863,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(0.80f*PG_DB);
+    UPDATE_PROGRESS(0.90f*PG_MAKE_FACES);
 
 
 	// at this point all data is read in and filtered. At this point check if we're outputting a
@@ -861,7 +880,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(PG_DB);
+    UPDATE_PROGRESS(PG_MAKE_FACES);
 
     // TODO idea: not sure it's needed, but we could provide a "melt" function, in which all objects of
     // a given ID are removed from the final model before output. This gives the user a way to connect
@@ -908,6 +927,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     Exit:
 
     // write out texture file, if any input data
+	// 45%
     UPDATE_PROGRESS(PG_TEXTURE);
 
 	// if there were major errors, don't bother
@@ -1083,6 +1103,8 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 				setColorPNGTile( gModel.pPNGtexture, col, row, gModel.swatchSize, color );
 			}
 
+			UPDATE_PROGRESS(PG_TEXTURE+0.05f);
+
 			// do we need three textures, or just the one RGBA texture?
 			if ( needDifferentTextures )
 			{
@@ -1147,12 +1169,15 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 		}
 	}
 
+	UPDATE_PROGRESS(PG_CLEANUP);
+
     freeModel( &gModel );
 
     if ( gBoxData )
         free(gBoxData);
     gBoxData = NULL;
 
+	// 90%
     UPDATE_PROGRESS(PG_END);
 
 	if ( gBadBlocksInModel )
@@ -1230,6 +1255,10 @@ static int initializeModelData()
 	{
 		return MW_WORLD_EXPORT_TOO_LARGE;
 	}
+
+	gModel.faceRecordPool = (FaceRecordPool *)malloc(sizeof(FaceRecordPool));
+	gModel.faceRecordPool->count = 0;
+	gModel.faceRecordPool->pPrev = NULL;
 
     VecScalar( gModel.billboardBounds.min, =,  999999);
     VecScalar( gModel.billboardBounds.max, =, -999999);
@@ -1724,7 +1753,8 @@ static int filterBox()
             }
         }
     }
-    UPDATE_PROGRESS(0.20f*PG_DB);
+	// 1%
+    UPDATE_PROGRESS(0.20f*PG_MAKE_FACES);
     if ( foundBlock == 0 )
         // everything got filtered out!
         return retCode|MW_NO_BLOCKS_FOUND;
@@ -1788,7 +1818,8 @@ static int filterBox()
                 checkAndRemoveBubbles();
             }
         }
-        UPDATE_PROGRESS(0.40f*PG_DB);
+		// 2%
+        UPDATE_PROGRESS(0.40f*PG_MAKE_FACES);
 
         // 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
         //    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
@@ -1826,7 +1857,8 @@ static int filterBox()
             // more non-manifold (touching) edges.
         } while ( foundTouching );
 
-        UPDATE_PROGRESS(0.70f*PG_DB);
+		// 3.5%
+        UPDATE_PROGRESS(0.70f*PG_MAKE_FACES);
 
 
         // 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
@@ -5300,6 +5332,19 @@ static void setDefaultUVs( Point2 uvs[3], int skip )
 	}
 }
 
+static FaceRecord * allocFaceRecordFromPool()
+{
+	if ( gModel.faceRecordPool->count >= FACE_RECORD_POOL_SIZE )
+	{
+		// allocate new pool
+		FaceRecordPool *pFRP = (FaceRecordPool *)malloc(sizeof(FaceRecordPool));
+		pFRP->count = 0;
+		pFRP->pPrev = gModel.faceRecordPool;
+		gModel.faceRecordPool = pFRP;
+	}
+	return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
+}
+
 static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
 	FaceRecord *face;
@@ -5316,7 +5361,8 @@ static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int sta
 		uvIndices[2] = saveTextureUV( swatchLoc, type, uvs[2][X], uvs[2][Y] );
 	}
 
-	face = (FaceRecord *)malloc(sizeof(FaceRecord));
+	face = allocFaceRecordFromPool();
+	//face = allocFaceRecordFromPool();
 	if ( face == NULL )
 	{
 		return retCode|MW_WORLD_EXPORT_TOO_LARGE;
@@ -5976,7 +6022,7 @@ static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int s
 	int retCode = MW_NO_ERROR;
 
 	// output each face
-	face = (FaceRecord *)malloc(sizeof(FaceRecord));
+	face = allocFaceRecordFromPool();
 	if ( face == NULL )
 	{
 		return retCode|MW_WORLD_EXPORT_TOO_LARGE;
@@ -6490,7 +6536,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         // torches are 4 sides facing out: don't output 8 sides
         if ( doubleSided || (i % 2 == 0))
         {
-            face = (FaceRecord *)malloc(sizeof(FaceRecord));
+            face = allocFaceRecordFromPool();
 			if ( face == NULL )
 			{
 				return retCode|MW_WORLD_EXPORT_TOO_LARGE;
@@ -8777,13 +8823,15 @@ static int generateBlockDataAndStatistics()
     }
 #endif
 
-    pgFaceStart = PG_DB+0.01f;
+    pgFaceStart = PG_MAKE_FACES+0.01f;
+	// 6%
     UPDATE_PROGRESS(pgFaceStart);
-    pgFaceOffset = PG_OUTPUT - PG_DB - 0.05f;   // save 0.04 for sorting
+    pgFaceOffset = PG_OUTPUT - PG_MAKE_FACES - 0.01f;   // save 0.01 for sorting
 
     // go through blocks and see which is solid; use solid blocks to generate faces
     for ( loc[X] = gSolidBox.min[X]; loc[X] <= gSolidBox.max[X]; loc[X]++ )
     {
+		// update on each row of X
         UPDATE_PROGRESS( pgFaceStart + pgFaceOffset*((float)(loc[X]-gSolidBox.min[X]+1)/(float)(gSolidBox.max[X]-gSolidBox.min[X]+1)));
         for ( loc[Z] = gSolidBox.min[Z]; loc[Z] <= gSolidBox.max[Z]; loc[Z]++ )
         {
@@ -9618,7 +9666,7 @@ static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int 
 	int specialUVindices[4];
 	int retCode = MW_NO_ERROR;
 
-    face = (FaceRecord *)malloc(sizeof(FaceRecord));
+    face = allocFaceRecordFromPool();
 
     // if  we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
@@ -11669,14 +11717,27 @@ static void freeModel(Model *pModel)
     }
     if ( pModel->faceList )
     {
-        int i;
-        for ( i = 0; i < pModel->faceCount; i++ )
-        {
-            if ( i % 1000 == 0 )
-                UPDATE_PROGRESS( PG_CLEANUP + 0.8f*(PG_END-PG_CLEANUP)*((float)i/(float)pModel->faceCount));
-            assert( pModel->faceList[i] );
-            free( pModel->faceList[i] );
-        }
+		FaceRecordPool *pPool = gModel.faceRecordPool;
+		int i = 0;
+		while (pPool)
+		{
+			UPDATE_PROGRESS( PG_CLEANUP + 0.9f*(PG_END-PG_CLEANUP)*((float)i/(float)pModel->faceCount));
+			i += FACE_RECORD_POOL_SIZE;
+			FaceRecordPool *pPrev = pPool->pPrev;
+			free( pPool );
+			pPool = pPrev;
+		}
+		gModel.faceRecordPool = NULL;
+		
+		// about a hundred times slower, without a pool:
+        //int i;
+        //for ( i = 0; i < pModel->faceCount; i++ )
+        //{
+        //    if ( i % 10000 == 0 )
+        //        UPDATE_PROGRESS( PG_CLEANUP + 0.9f*(PG_END-PG_CLEANUP)*((float)i/(float)pModel->faceCount));
+        //    assert( pModel->faceList[i] );
+        //    free( pModel->faceList[i] );
+        //}
         free(pModel->faceList);
         pModel->faceList = NULL;
         pModel->faceSize = 0;
@@ -13932,7 +13993,7 @@ static int writeSchematicBox()
 	blocks = block_ptr = (unsigned char *)malloc(totalSize);
 	blockData = blockData_ptr = (unsigned char *)malloc(totalSize);
 
-	progressStart = 0.80f*PG_DB;
+	progressStart = 0.80f*PG_MAKE_FACES;
 	progressOffset = PG_END - progressStart;
 
 	// go through blocks and see which is solid; use solid blocks to generate faces
