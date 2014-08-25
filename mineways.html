@@ -134,7 +134,7 @@ Mapping
 </H2>
 Double-click the mineways.exe to run the program. Here's basic map use:
 </p><ul>
-<li>Load a Minecraft world map with File | Open World. Only worlds where you have the file are available (e.g. single player, or worlds you've downloaded). If you put your maps in a non-standard location, use "Open..." instead and find your level.dat. If you can't load a world, it's almost always due to the first bug described <a href="#bugs">here</a>.
+<li>Load a Minecraft world map with File | Open World. Only worlds where you have the file are available (e.g. single player, or worlds you've downloaded). If you put your maps in a non-standard location, use "Open..." instead and find your level.dat. In Windows you can usually type in "%appdata%\.minecraft\saves" to get to your saved worlds. For Mac, you need to go to "~/Library/Application Support/minecraft/saves/". If you can't load a world, it's almost always due to the first bug described <a href="#bugs">here</a>.
 </li><li>Scroll around by dragging with the left mouse button, WASD keys, or arrow keys.
 </li><li>Zoom in on an area by the mouse scroll wheel, Page Up/Page Down keys, or Q/E keys.
 </li><li>Mouse over a block and look at the bottom of the screen to see its location and ID. (Note that a coordinate like "-76" means "-75 to -76"; "4" means "4 to 5"). "Y" is the height.
@@ -253,7 +253,7 @@ To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a
 
 <div class ="inliner">
   <p>Here are some of the texture pack terrainExt.png files distributed with Mineways, displayed with</p> 
-  <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>
+  <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D</a>
   <p>. Click on an image for the larger version.</p>
 </div>
 <div id="texturePacks">
@@ -286,7 +286,7 @@ To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a
   <div class="textureBox">
     <a href="http://realtimerendering.com/erich/minecraft/public/mineways/images/zen_sphax_pure_bd_craft.jpg">
     <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/thumb_zen_sphax_pure_bd_craft.jpg"></a>
-    <a href="http://www.minecraftforum.net/topic/376784-16x-32x-64x-128x-256x-512xmc12-sphax-purebdcraft-050211/">Sphax PureBDCraft</a>
+    <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a>
     <span>by Sphax84</span>
   </div>
 </div>
@@ -326,7 +326,7 @@ On the left, the basic 256x256 terrainExt.png file is used; on the right, the in
 <UL>
 <LI>Export separate objects: on by default, this option says each type of block - stone, logs, fences - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages.
 <LI>Material per object: on by default, each object is given a separate material. Turning this option off for some renderers makes for a simpler import conversion process, at the cost of having only one material.
-<LI><a id="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
+<LI><a id="full_material">SAP/G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
 </UL>
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
@@ -379,7 +379,7 @@ Currently even extremely thin objects, such as sign posts and single fence posts
 <a id="blocktestworld">
 If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
-Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D</a>:
+Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D</a>:
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/test_world.jpg">
 <P>
 The rest of the options mostly have to do with 3D printing, which follows.
@@ -615,7 +615,7 @@ Rendering Tips
   <h3 id="previewing">Previewing:</h3>
   <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer.<p><a href="http://meshlab.sourceforge.net/">MeshLab</a><p> is a good previewer models in any format Mineways produces.</p>
   <P>
-  For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
+  For rendering preview I recommend the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D viewer</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, loads <I>much</I> faster, and has screenshot and video capture built in (note: the viewer32.exe is the one that supports video capture). Downside: on weaker GPUs it can be slow. Unzip and double-click the register.bat file to associate it with OBJ files (or just do this manually, if you prefer). Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
   <P>
   <p>G3D on the OBJ rendering file:</p>
   <div>
@@ -860,7 +860,7 @@ Related Resources
 Here are some related (free) tools that are handy, collected in one spot:
 <UL>
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3d printing.
-<LI>The <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
+<LI>The <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
 <LI>The <a href="http://www.marcam.de/cms/viscam-view.83.en.html">VisCAM View</a> is good for viewing and checking STL files.
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> helps you convert, simplify, and smooth meshes, among a huge number of other operations.
 <LI><a href="http://blender.org">Blender</a> for rendering OBJ files.
@@ -1743,6 +1743,40 @@ Hopper (#154)
 </td>
 </tr>
 
+<tr>
+<td>
+Standing Banner (#176)
+</td>
+<td>
+<center>Reasonable geometry, no banner pattern</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Removed, too thin</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+Wall Banner (#177)
+</td>
+<td>
+<center>Reasonable geometry, no banner pattern</center>
+</td>
+<td>
+<center>Removed</center>
+</td>
+<td>
+<center>Made thicker, no banner pattern</center>
+</td>
+<td>
+</td>
+</tr>
+
 </TABLE>
 
 
@@ -1805,27 +1839,29 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft’s style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
 <LI>Version 3.02, 10/25/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV302.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool’s locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
-<LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%200/G3D-10.00-b0.0-viewer-win64.zip/download">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
+<LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
 <LI>Version 3.05, 1/1/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV305.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac305.zip">Mac</a> - Export "lesser" blocks more efficiently, removing many invisible polygons and so improving 3D print conversion. Added <a href="#importsettings">"Import Settings" feature</a>, which lets you read in a previously-exported Mineways file and match its export settings. Various bug fixes: proper export of "connect all edges", proper export of solid-color renderings, fixed some error messages to properly display.
 <LI>Version 3.06, 1/27/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV306.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added option under "Help" that minimizes the amount of memory used during export. Use this option if you're running out of memory on large exports. This is not on by default, as this option will make exports take a few seconds longer. // Share some common export settings (color, material, block size, etc.) among some related file formats. This is useful for when you export to both Shapeways and Sculpteo, for example. // Free the input TerrainExt.png file as soon as we're done with it. // Added automatic cache resizing and recovery for large map display.
 <LI>Version 3.07, 5/29/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV307.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac307.zip">Mac</a> - If you can’t use the right mouse button, holding down "Control" will make the left mouse button act as the right mouse. // New 1.8 blocks added: Andesite, Diorite, Granite, Slime, Iron Trapdoor. // Piston head now properly created as geometry. // Trapdoors properly render at top of block. // Fences and walls properly join with transparent blocks. // Out of memory conditions now flagged as errors.
 <LI><B>Version 4.00, 6/18/2014</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV400.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <b>64 bits</b>, at last! Mineways and TileMaker are now 64-bit executables. Now very large exports will not fail due to running out of memory. Use the *32.exe version if you can't run 64 bits for some reason. Programmer's notes: switched to all C++ and a single build directory and project. 64-bit Zlib static library from <a href="http://www.winimage.com/zLibDll/index.html">here</a>, wonderful LodePNG (a replacement for libpng) from <a href="http://lodev.org/lodepng/">here</a>. // Minor change: "Set terrain file" now starts in the directory where mineways.exe itself is located.
 <LI>Version 4.01, 6/20/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fixed importer so that upper height is set properly. // Increased size of progress bar, so that progress is more visible for huge exports. <I>(thanks to Adrian Cowherd for the suggestion.)</I>
-<LI>Version 4.02, 6/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added blender_mineways.py script to vastly simplify Blender import of Mineways models <I>(thanks to Wyatt Jameson and Nicky for this script)</I>. // Fixed extremely slow memory freeing of face records by replacing face allocation with my own pool system; large exports now proceed much faster. // Finally fixed the "two selections" bug, where if you made a selection and panned so it was offscreen, it wouldn't get cleared and could scroll back onto the screen, looking as if there were two selections.
+<LI>Version 4.02, 6/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac402.zip">Mac 32-bit only</a> - Added blender_mineways.py script to vastly simplify Blender import of Mineways models <I>(thanks to Wyatt Jameson and Nicky for this script)</I>. // Fixed extremely slow memory freeing of face records by replacing face allocation with my own pool system; large exports now proceed much faster. // Finally fixed the "two selections" bug, where if you made a selection and panned so it was offscreen, it wouldn't get cleared and could scroll back onto the screen, looking as if there were two selections.
+<LI>Version 4.03, 8/24/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV403.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac403.zip">Mac 32-bit only</a> - Added more 1.8 beta blocks, including prismarine, sea lantern blocks, banners (very minimal), red sandstone, wet sponges, coarse dirt, new wood fencegates, fences, and doors. Change block names to match <a href="http://minecraft.gamepedia.com/Data_values">Minecraft's names</a>. Added experimental <a href="https://www.shapeways.com/materials/full-color-Plastic">colored plastic material</a> and updated material costs and properties for Shapeways. Fixed wheat export for wheat near villages (was appearing as Netherrack); thanks to Duncan Alimchandani for reporting this bug. Fixed anvil rotation, better door texture borders, and other obsessive bug fixing. Improved "missing TerrainExt.png" warning for Mac users. Changed PNG exporter to optimize PNG file export, giving smaller files (note that older versions of G3D may not read these files, so <a href="http://sourceforge.net/projects/g3d/files/beta-g3d-cpp/10.00%20beta%202/">get the latest</a>). Allow TileMaker to convert the color black for a texture to mean an alpha of 0.0. Updated texture packs as possible.
 </UL>
 
 <h2 id="wishlist">Wishlist</h2>
 This is my own wishlist, in order of interest; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
+<LI>Biome support: get biome color and use it to change terrain's output color. Costs a fair bit of mucking about.
+<LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender -> Mineways script). But, individual textures would make mipmapping work. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render. Worth contemplating.
 <LI>Full "lesser" block merging: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does poorly - Shapeways messes up textures, Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
-<LI>Biome support: get biome color and use it to change terrain's output color.
 <LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Chest support: chests and other things (Ender portal) are simple blocks, they should use Minecraft's special textures. Big headache. <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#blocks">Other blocks</a> could also use more support, e.g. pistons, redstone wire, pumpkin and melon stems, farmland wetness.
 <LI>Command line control: useful for reusing settings. Not sure I can really do this for a Windows program...
 <LI>Better color selection: <a href="http://bugs.seancode.com/show_bug.cgi?id=13">this is a weakness</a> with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a> and the alpha. Really, using Qt would probably allow better color selection.
 <LI>Schematic file import: some players store their creations in <a href="http://minecraft.gamepedia.com/Schematic_File_Format">schematic files</a>. Currently you can use <a href="http://www.minecraftforum.net/topic/13807-mcedit-minecraft-world-editor-compatible-with-mc-beta-18/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
 <LI>Vines really should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching, but intervening properly is tricky.
-<LI>Head and sign support (among others), which means that <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity support</a> is needed.
+<LI>Head, sign, and banner support (among others), which means that <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity support</a> is needed.
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>.
 </UL>
 
@@ -1838,7 +1874,7 @@ Some links I commonly use.
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft</a> by Hickerydickery (up to Minecraft 1.2.3)
 <LI> <a href="http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x12-lb-photo-realism-12-update-322012/">LB Photorealism</a> (just the 64x64 - there are other sizes) by Scuttles (up to Minecraft 1.2.3)
-<LI> <a href="http://bdcraft.net">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84 (up to Minecraft 1.2.4)
+<LI> <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84 (up to Minecraft 1.2.4)
 </UL>
 <LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Download the latest for Mac OSX</a></b>. If you are using Minecraft 1.1 or older, download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac115.zip">Mineways v1.15 for Mac</a>. Ported to the Mac OS X platform by <a href="mailto:Psp@Psp-Networks.com">Psp4804</a> by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. See <a href="index.html#mac">the Mac guide</a>.
 <LI>Other platforms: Mineways works on Linux and the Mac under <a href="http://www.winehq.org/">Wine</a> - see link below (and I suspect it also works on the Mac using a <a href="http://lifehacker.com/5714966/five-best-virtual-machine-applications">virtual machine like VirtualBox</a> - let me know).

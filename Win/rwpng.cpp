@@ -87,8 +87,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 	unsigned int error = 1;	// 1 means didn't reach lodepng
 	if ( channels == 4 )
 	{
-		// 32 bit RGBA, the default - note, we could leave off the last arg, and lodepng
-		// will then find the best compact format (e.g. 8 bits), but that kills G3D.
+		// 32 bit RGBA, the default
 		error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
 	}
 	else if ( channels == 3 )

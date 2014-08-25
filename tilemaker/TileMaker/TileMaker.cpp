@@ -25,6 +25,7 @@ int findNextTile( wchar_t *tileName, int index );
 
 static void reportReadError( int rc, wchar_t *filename );
 
+static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
 static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src);
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile);
@@ -360,6 +361,10 @@ int wmain(int argc, wchar_t* argv[])
 				continue;
 			}
 		}
+		if ( gTiles[index].flags & SBIT_BLACK_ALPHA )
+		{
+			setBlackAlphaPNGTile( chosenTile, &tile[i] );
+		}
 		copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i]);
 		if ( verbose )
 			wprintf (L"File %s merged.\n", gTiles[index].filename);
@@ -425,6 +430,35 @@ static void reportReadError( int rc, wchar_t *filename )
 
 
 //================================ Image Manipulation ====================================
+
+// if color is black, set alpha to 0
+static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
+{
+	int row,col,src_start;
+	unsigned char *src_data;
+	int tileSize;
+
+	//tile matches destination tile size - copy
+	tileSize = src->width;
+
+	// which tile to use: get the bottommost
+	src_start = computeVerticalTileOffset( src, chosenTile );
+	src_data = &src->image_data[0] + ( src_start * src->width ) * 4;
+
+	for ( row = 0; row < tileSize; row++ )
+	{
+		for ( col = 0; col < tileSize; col++ )
+		{
+			// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
+			// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
+			if ( src_data[0] == 0 && src_data[1] == 0 && src_data[2] == 0 )
+			{
+				src_data[3] = 0;
+			}
+			src_data += 4;
+		}
+	}
+}
 
 static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src)
 {

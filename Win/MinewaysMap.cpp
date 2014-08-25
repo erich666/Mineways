@@ -444,8 +444,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 	bool isInside = ( bx >= gDirtyBoxMinX-1 && bx <= gDirtyBoxMaxX &&
 		bz >= gDirtyBoxMinZ-1 && bz <= gDirtyBoxMaxZ );
 
-
-	 // already rendered?
+	// already rendered?
     if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
     {
 		if (block->rendermissing // wait, the last render was incomplete
@@ -729,6 +728,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
 	case BLOCK_AD_LEAVES:
+	case BLOCK_SPONGE:
 		// uses 0-1
 		if ( dataVal < 2 )
 		{
@@ -739,15 +739,10 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_TALL_GRASS:
 	case BLOCK_SANDSTONE:
 	case BLOCK_HIDDEN_SILVERFISH:
+	case BLOCK_RED_SANDSTONE:
+	case BLOCK_PRISMARINE:
 		// uses 0-2
 		if ( dataVal < 3 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_ANVIL:
-		// uses 0-1,4-5,8-9
-		if ( !(dataVal & 0x2) && (dataVal < 10) )
 		{
 			addBlock = 1;
 		}
@@ -816,10 +811,16 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_QUARTZ_STAIRS:
 	case BLOCK_SNOW:
 	case BLOCK_FENCE_GATE:
+	case BLOCK_SPRUCE_FENCE_GATE:
+	case BLOCK_BIRCH_FENCE_GATE:
+	case BLOCK_JUNGLE_FENCE_GATE:
+	case BLOCK_DARK_OAK_FENCE_GATE:
+	case BLOCK_ACACIA_FENCE_GATE:
 	case BLOCK_FARMLAND:
 	case BLOCK_BREWING_STAND:
 	case BLOCK_ACACIA_WOOD_STAIRS:
 	case BLOCK_DARK_OAK_WOOD_STAIRS:
+	case BLOCK_RED_SANDSTONE_STAIRS:
 		// uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
 		if ( dataVal < 8 )
 		{
@@ -852,6 +853,15 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 
+	case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:
+	case BLOCK_RED_SANDSTONE_SLAB:
+		// uses 0 and 8
+		if ( dataVal == 0 || dataVal == 8 )
+		{
+			addBlock = 1;
+		}
+		break;
+
 	case BLOCK_HUGE_BROWN_MUSHROOM:
 	case BLOCK_HUGE_RED_MUSHROOM:
 		// uses 0-10
@@ -861,6 +871,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		}
 		break;
 	case BLOCK_FLOWER_POT:
+	case BLOCK_ANVIL:
 		// uses 0-11
 		if ( dataVal < 12 )
 		{
@@ -884,6 +895,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 	case BLOCK_STAINED_CLAY:
 	case BLOCK_CARPET:
 	case BLOCK_STAINED_GLASS:
+	case BLOCK_STANDING_BANNER:
 		// uses all bits, 0-15
 		addBlock = 1;
 		break;
@@ -1008,6 +1020,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		break;
 	case BLOCK_LADDER:
 	case BLOCK_WALL_SIGN:
+	case BLOCK_WALL_BANNER:
 		if ( dataVal >= 2 && dataVal <= 5 )
 		{
 			addBlock = 1;
@@ -1108,6 +1121,11 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		break;
 	case BLOCK_WOODEN_DOOR:
 	case BLOCK_IRON_DOOR:
+	case BLOCK_SPRUCE_DOOR:
+	case BLOCK_BIRCH_DOOR:
+	case BLOCK_JUNGLE_DOOR:
+	case BLOCK_DARK_OAK_DOOR:
+	case BLOCK_ACACIA_DOOR:
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
         block->data[(int)(bi/2)] = (unsigned char)((dataVal&0x7)<<((bi%2)*4));
@@ -1283,9 +1301,14 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		// uses bits 0-5 and 8-13
 		if ( (dataVal&0x7) < 6 )
 		{
-			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-			block->grid[bi] = BLOCK_GLASS_PANE;
-			// make it float above ground, to avoid asserts and to test
+			if ( (dataVal&0x7) != 1 )
+			{
+				// add glass so that when 3D printing it's not deleted;
+				// it will be deleted when pointing up.
+				bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+				block->grid[bi] = BLOCK_GLASS_PANE;
+			}
+			// make it float above ground, to avoid asserts and to test.
 			y++;
 			addBlock=1;
 		}
@@ -1304,6 +1327,11 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 		block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
 		break;
 	case BLOCK_FENCE:
+	case BLOCK_SPRUCE_FENCE:
+	case BLOCK_BIRCH_FENCE:
+	case BLOCK_JUNGLE_FENCE:
+	case BLOCK_DARK_OAK_FENCE:
+	case BLOCK_ACACIA_FENCE:
 	case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_IRON_BARS:
 	case BLOCK_GLASS_PANE:
@@ -1804,7 +1832,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         else if ( type >= 0 && type < NUM_BLOCKS && (cz <= -2 && cz >= -3) )
         {
 			int letterType = BLOCK_BLACK_WOOL;
-			if ( type >= NUM_BLOCK_SUPPORTED)
+			if ( type >= NUM_BLOCKS_STANDARD)
 			{
 				if ( type > BLOCK_BLACK_WOOL )
 					letterType = BLOCK_BEDROCK;
@@ -1829,7 +1857,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             testNumeral(block,type,blockHeight,-cz*2-1-3, letterType);
             if ( type+1 < NUM_BLOCKS )
             {
-				if ( type+1 >= NUM_BLOCK_SUPPORTED)
+				if ( type+1 >= NUM_BLOCKS_STANDARD)
 				{
 					if ( type+1 > BLOCK_BLACK_WOOL )
 						letterType = BLOCK_BEDROCK;

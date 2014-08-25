@@ -134,11 +134,11 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
 	{_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
 	{_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 23 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<6
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<6
     
 	{_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<8
-    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: find the default file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
+    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
     {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
 	{_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally, at least 16 pixels wide, and higher than it is wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
@@ -2457,7 +2457,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
                 const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
 
                 if (*updateProgress)
-                { (*updateProgress)(0.75f + 0.25f*(float)i/(float)outputFileList.count);}
+                { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
 
                 ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
 

@@ -695,16 +695,16 @@ static int coin_compare(const void* a, const void* b) {
   return wa > wb ? 1 : wa < wb ? -1 : 0;
 }
 
-static unsigned append_symbol_coins(Coin* coins, const unsigned* frequencies, unsigned numcodes, size_t sum)
+static unsigned append_symbol_coins(Coin* coins, const unsigned* frequencies, size_t numcodes, size_t sum)
 {
-  unsigned i;
+  size_t i;
   unsigned j = 0; /*index of present symbols*/
   for(i = 0; i < numcodes; i++)
   {
     if(frequencies[i] != 0) /*only include symbols that are present*/
     {
       coins[j].weight = frequencies[i] / (float)sum;
-      uivector_push_back(&coins[j].symbols, i);
+      uivector_push_back(&coins[j].symbols, (unsigned)i);
       j++;
     }
   }
@@ -719,8 +719,8 @@ unsigned lodepng_huffman_code_lengths(unsigned* lengths, const unsigned* frequen
   unsigned error = 0;
   Coin* coins; /*the coins of the currently calculated row*/
   Coin* prev_row; /*the previous row of coins*/
-  unsigned numcoins;
-  unsigned coinmem;
+  size_t numcoins;
+  size_t coinmem;
 
   if(numcodes == 0) return 80; /*error: a tree of 0 symbols is not supposed to be made*/
 
@@ -761,7 +761,7 @@ unsigned lodepng_huffman_code_lengths(unsigned* lengths, const unsigned* frequen
     /*Package-Merge algorithm represented by coin collector's problem
     For every symbol, maxbitlen coins will be created*/
 
-    coinmem = (unsigned int)(numpresent * 2); /*max amount of coins needed with the current algo*/
+    coinmem = numpresent * 2; /*max amount of coins needed with the current algo*/
     coins = (Coin*)lodepng_malloc(sizeof(Coin) * coinmem);
     prev_row = (Coin*)lodepng_malloc(sizeof(Coin) * coinmem);
     if(!coins || !prev_row)
@@ -774,15 +774,15 @@ unsigned lodepng_huffman_code_lengths(unsigned* lengths, const unsigned* frequen
     init_coins(prev_row, coinmem);
 
     /*first row, lowest denominator*/
-    error = append_symbol_coins(coins, frequencies, (unsigned int)numcodes, sum);
-    numcoins = (unsigned int)numpresent;
+    error = append_symbol_coins(coins, frequencies, numcodes, sum);
+    numcoins = numpresent;
     qsort(coins, numcoins, sizeof(Coin), coin_compare);
     if(!error)
     {
-      unsigned numprev = 0;
+      size_t numprev = 0;
       for(j = 1; j <= maxbitlen && !error; j++) /*each of the remaining rows*/
       {
-        unsigned tempnum;
+        size_t tempnum;
         Coin* tempcoins;
         /*swap prev_row and coins, and their amounts*/
         tempcoins = prev_row; prev_row = coins; coins = tempcoins;
@@ -804,8 +804,8 @@ unsigned lodepng_huffman_code_lengths(unsigned* lengths, const unsigned* frequen
         /*fill in all the original symbols again*/
         if(j < maxbitlen)
         {
-          error = append_symbol_coins(coins + numcoins, frequencies, (unsigned int)numcodes, sum);
-          numcoins += (unsigned int)numpresent;
+          error = append_symbol_coins(coins + numcoins, frequencies, numcodes, sum);
+          numcoins += numpresent;
         }
         qsort(coins, numcoins, sizeof(Coin), coin_compare);
       }
@@ -1446,7 +1446,8 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
                            const unsigned char* in, size_t inpos, size_t insize, unsigned windowsize,
                            unsigned minmatch, unsigned nicematch, unsigned lazymatching)
 {
-  unsigned pos, i, error = 0;
+  size_t pos;
+  unsigned i, error = 0;
   /*for large window lengths, assume the user wants no compression loss. Otherwise, max hash chain length speedup.*/
   unsigned maxchainlength = windowsize >= 8192 ? windowsize : windowsize / 8;
   unsigned maxlazymatch = windowsize >= 8192 ? MAX_SUPPORTED_DEFLATE_LENGTH : 64;
@@ -1454,13 +1455,14 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
   unsigned usezeros = 1; /*not sure if setting it to false for windowsize < 8192 is better or worse*/
   unsigned numzeros = 0;
 
-  unsigned offset; /*the offset represents the distance in LZ77 terminology*/
-  unsigned length;
+  size_t offset; /*the offset represents the distance in LZ77 terminology*/
+  size_t length;
   unsigned lazy = 0;
-  unsigned lazylength = 0, lazyoffset = 0;
+  size_t lazylength = 0, lazyoffset = 0;
   unsigned hashval;
-  unsigned current_offset, current_length;
-  unsigned prev_offset;
+  size_t current_offset;
+  unsigned current_length;
+  size_t prev_offset;
   const unsigned char *lastptr, *foreptr, *backptr;
   unsigned hashpos;
 
@@ -1469,7 +1471,7 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
 
   if(nicematch > MAX_SUPPORTED_DEFLATE_LENGTH) nicematch = MAX_SUPPORTED_DEFLATE_LENGTH;
 
-  for(pos = (unsigned int)inpos; pos < insize; pos++)
+  for(pos = inpos; pos < insize; pos++)
   {
     size_t wpos = pos & (windowsize - 1); /*position for in 'circular' hash buffers*/
     unsigned chainlength = 0;
@@ -1501,7 +1503,7 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
     for(;;)
     {
       if(chainlength++ >= maxchainlength) break;
-      current_offset = (hashpos <= (unsigned int)wpos) ? (unsigned int)wpos - hashpos : (unsigned int)wpos - hashpos + windowsize;
+      current_offset = hashpos <= wpos ? wpos - hashpos : wpos - hashpos + windowsize;
 
       if(current_offset < prev_offset) break; /*stop when went completely around the circular buffer*/
       prev_offset = current_offset;
@@ -4373,7 +4375,7 @@ static unsigned readChunk_tEXt(LodePNGInfo* info, const unsigned char* data, siz
 
   while(!error) /*not really a while loop, only used to break on error*/
   {
-    unsigned length, string2_begin;
+    size_t length, string2_begin;
 
     length = 0;
     while(length < chunkLength && data[length] != 0) length++;
@@ -4389,7 +4391,7 @@ static unsigned readChunk_tEXt(LodePNGInfo* info, const unsigned char* data, siz
 
     string2_begin = length + 1; /*skip keyword null terminator*/
 
-    length = (unsigned int)chunkLength < string2_begin ? 0 : (unsigned int)chunkLength - string2_begin;
+    length = chunkLength < string2_begin ? 0 : chunkLength - string2_begin;
     str = (char*)lodepng_malloc(length + 1);
     if(!str) CERROR_BREAK(error, 83); /*alloc fail*/
 
@@ -4414,7 +4416,7 @@ static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSetting
   unsigned error = 0;
   unsigned i;
 
-  unsigned length, string2_begin;
+  size_t length, string2_begin;
   char *key = 0;
   ucvector decoded;
 
@@ -4437,7 +4439,7 @@ static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSetting
     string2_begin = length + 2;
     if(string2_begin > chunkLength) CERROR_BREAK(error, 75); /*no null termination, corrupt?*/
 
-    length = (unsigned int)chunkLength - string2_begin;
+    length = chunkLength - string2_begin;
     /*will fail if zlib error, e.g. if length is too small*/
     error = zlib_decompress(&decoded.data, &decoded.size,
                             (unsigned char*)(&data[string2_begin]),
@@ -4461,9 +4463,10 @@ static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSetting
                                const unsigned char* data, size_t chunkLength)
 {
   unsigned error = 0;
-  unsigned i;
+  size_t i;
 
-  unsigned length, begin, compressed;
+  size_t length, begin;
+  unsigned char compressed;
   char *key = 0, *langtag = 0, *transkey = 0;
   ucvector decoded;
   ucvector_init(&decoded);
@@ -4517,7 +4520,7 @@ static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSetting
     /*read the actual text*/
     begin += length + 1;
 
-    length = (unsigned int)chunkLength < begin ? 0 : (unsigned int)chunkLength - begin;
+    length = chunkLength < begin ? 0 : chunkLength - begin;
 
     if(compressed)
     {
@@ -5302,7 +5305,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     size_t sum[5];
     ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest = 0;
-    unsigned type, bestType = 0;
+    unsigned char type, bestType = 0;
 
     for(type = 0; type < 5; type++)
     {
@@ -5317,7 +5320,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         /*try the 5 filter types*/
         for(type = 0; type < 5; type++)
         {
-          filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, (unsigned char)type);
+          filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
 
           /*calculate the sum of the result*/
           sum[type] = 0;
@@ -5348,7 +5351,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         prevline = &in[y * linebytes];
 
         /*now fill the out values*/
-        out[y * (linebytes + 1)] = (unsigned char)bestType; /*the first byte of a scanline will be the filter type*/
+        out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
         for(x = 0; x < linebytes; x++) out[y * (linebytes + 1) + 1 + x] = attempt[bestType].data[x];
       }
     }
@@ -5360,7 +5363,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     float sum[5];
     ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
     float smallest = 0;
-    unsigned type, bestType = 0;
+    unsigned char type, bestType = 0;
     unsigned count[256];
 
     for(type = 0; type < 5; type++)
@@ -5374,7 +5377,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       /*try the 5 filter types*/
       for(type = 0; type < 5; type++)
       {
-        filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, (unsigned char)type);
+        filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
         for(x = 0; x < 256; x++) count[x] = 0;
         for(x = 0; x < linebytes; x++) count[attempt[type].data[x]]++;
         count[type]++; /*the filter type itself is part of the scanline*/
@@ -5395,7 +5398,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
       prevline = &in[y * linebytes];
 
       /*now fill the out values*/
-      out[y * (linebytes + 1)] = (unsigned char)bestType; /*the first byte of a scanline will be the filter type*/
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x < linebytes; x++) out[y * (linebytes + 1) + 1 + x] = attempt[bestType].data[x];
     }
 
@@ -5407,9 +5410,9 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     {
       size_t outindex = (1 + linebytes) * y; /*the extra filterbyte added to each row*/
       size_t inindex = linebytes * y;
-      unsigned type = settings->predefined_filters[y];
-      out[outindex] = (unsigned char)type; /*filter type byte*/
-      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, (unsigned char)type);
+      unsigned char type = settings->predefined_filters[y];
+      out[outindex] = type; /*filter type byte*/
+      filterScanline(&out[outindex + 1], &in[inindex], prevline, linebytes, bytewidth, type);
       prevline = &in[inindex];
     }
   }
@@ -5421,7 +5424,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     size_t size[5];
     ucvector attempt[5]; /*five filtering attempts, one for each filter type*/
     size_t smallest = 0;
-    unsigned type = 0, bestType = 0;
+    unsigned char type, bestType = 0;
     unsigned char* dummy;
     LodePNGCompressSettings zlibsettings = settings->zlibsettings;
     /*use fixed tree on the attempts so that the tree is not adapted to the filtertype on purpose,
@@ -5442,10 +5445,10 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     {
       for(type = 0; type < 5; type++)
       {
-        unsigned testsize = (unsigned int)attempt[type].size;
+        size_t testsize = attempt[type].size;
         /*if(testsize > 8) testsize /= 8;*/ /*it already works good enough by testing a part of the row*/
 
-        filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, (unsigned char)type);
+        filterScanline(attempt[type].data, &in[y * linebytes], prevline, linebytes, bytewidth, type);
         size[type] = 0;
         dummy = 0;
         zlib_compress(&dummy, &size[type], attempt[type].data, testsize, &zlibsettings);
@@ -5458,7 +5461,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         }
       }
       prevline = &in[y * linebytes];
-      out[y * (linebytes + 1)] = (unsigned char)bestType; /*the first byte of a scanline will be the filter type*/
+      out[y * (linebytes + 1)] = bestType; /*the first byte of a scanline will be the filter type*/
       for(x = 0; x < linebytes; x++) out[y * (linebytes + 1) + 1 + x] = attempt[bestType].data[x];
     }
     for(type = 0; type < 5; type++) ucvector_cleanup(&attempt[type]);
@@ -5645,7 +5648,7 @@ returns 0 if the palette is opaque,
 returns 1 if the palette has a single color with alpha 0 ==> color key
 returns 2 if the palette is semi-translucent.
 */
-static unsigned getPaletteTranslucency(const unsigned char* palette, size_t palettesize)
+static size_t getPaletteTranslucency(const unsigned char* palette, size_t palettesize)
 {
   size_t i, key = 0;
   unsigned r = 0, g = 0, b = 0; /*the value of the color with alpha 0, so long as color keying is possible*/
@@ -5661,7 +5664,7 @@ static unsigned getPaletteTranslucency(const unsigned char* palette, size_t pale
     /*when key, no opaque RGB may have key's RGB*/
     else if(key && r == palette[i * 4 + 0] && g == palette[i * 4 + 1] && b == palette[i * 4 + 2]) return 2;
   }
-  return (unsigned int)key;
+  return key;
 }
 
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
@@ -5929,7 +5932,7 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
   settings->auto_convert = LAC_AUTO;
   // Mineways-specific change: I want RGBA or RGB format to output as-is. G3D doesn't understand
   // grayscale PNGs, for example. 3DS Max or other packages may expect specific format types.
-  settings->auto_convert = LAC_NO;
+  //settings->auto_convert = LAC_NO;
   settings->force_palette = 0;
   settings->predefined_filters = 0;
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS

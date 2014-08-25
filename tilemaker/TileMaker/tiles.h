@@ -16,6 +16,10 @@
 
 #define SBIT_DECAL				0x40
 
+// If set, the incoming .png's black pixels should be treated as having an alpha of 0.
+// Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
+#define SBIT_BLACK_ALPHA		0x8000
+
 // types of blocks: tiling, billboard, and sides (which tile only horizontally)
 #define SWATCH_REPEAT_ALL                   (SBIT_REPEAT_SIDES|SBIT_REPEAT_TOP_BOTTOM)
 #define SWATCH_REPEAT_SIDES_ELSE_CLAMP      (SBIT_REPEAT_SIDES|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
@@ -27,7 +31,7 @@
 
 
 // If this number changes, also change warning #6 in gPopupInfo in Mineways.cpp
-#define VERTICAL_TILES 23
+#define VERTICAL_TILES 24
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
 	int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -88,7 +92,7 @@ static struct {
 	{  2, 3, L"diamond_ore", SWATCH_REPEAT_ALL },
 	{  3, 3, L"redstone_ore", SWATCH_REPEAT_ALL },
 	{  4, 3, L"leaves_oak", SWATCH_REPEAT_ALL|SBIT_DECAL },
-	{  5, 3, L"leaves_oak_opaque", SWATCH_REPEAT_ALL },
+	{  5, 3, L"coarse_dirt", SWATCH_REPEAT_ALL },	// ADD-IN 1.8 - replaced leaves_oak_opaque
 	{  6, 3, L"stonebrick", SWATCH_REPEAT_ALL },
 	{  7, 3, L"deadbush", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  8, 3, L"fern", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
@@ -116,8 +120,8 @@ static struct {
 	{ 14, 4, L"mycelium_top", SWATCH_REPEAT_ALL },
 	{ 15, 4, L"sapling_birch", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  0, 5, L"torch_on", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
-	{  1, 5, L"door_wood_upper", SWATCH_REPEAT_ALL|SBIT_DECAL },
-	{  2, 5, L"door_iron_upper", SWATCH_REPEAT_ALL|SBIT_DECAL },
+	{  1, 5, L"door_wood_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },
+	{  2, 5, L"door_iron_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },
 	{  3, 5, L"ladder", SWATCH_REPEAT_ALL },
 	{  4, 5, L"trapdoor", SWATCH_REPEAT_ALL|SBIT_DECAL },
 	{  5, 5, L"iron_bars", SWATCH_REPEAT_ALL|SBIT_DECAL },
@@ -132,8 +136,8 @@ static struct {
 	{ 14, 5, L"wheat_stage_6", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{ 15, 5, L"wheat_stage_7", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  0, 6, L"lever", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
-	{  1, 6, L"door_wood_lower", SWATCH_REPEAT_ALL },
-	{  2, 6, L"door_iron_lower", SWATCH_REPEAT_ALL },
+	{  1, 6, L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+	{  2, 6, L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
 	{  3, 6, L"redstone_torch_on", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  4, 6, L"stonebrick_mossy", SWATCH_REPEAT_ALL },
 	{  5, 6, L"stonebrick_cracked", SWATCH_REPEAT_ALL },
@@ -168,7 +172,7 @@ static struct {
 	{  2, 8, L"wool_colored_pink", SWATCH_REPEAT_ALL },
 	{  3, 8, L"repeater_off", SWATCH_REPEAT_ALL },
 	{  4, 8, L"leaves_spruce", SWATCH_REPEAT_ALL|SBIT_DECAL },
-	{  5, 8, L"leaves_spruce_opaque", SWATCH_REPEAT_ALL },
+	{  5, 8, L"red_sandstone_bottom", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{  6, 8, L"bed_feet_top", SWATCH_CLAMP_ALL },
 	{  7, 8, L"bed_head_top", SWATCH_CLAMP_ALL },
 	{  8, 8, L"melon_side", SWATCH_REPEAT_ALL },
@@ -232,7 +236,7 @@ static struct {
 	{  2,12, L"wool_colored_magenta", SWATCH_REPEAT_ALL },
 	{  3,12, L"rail_detector", SWATCH_TILE_BOTTOM_AND_TOP|SBIT_DECAL },
 	{  4,12, L"leaves_jungle", SWATCH_REPEAT_ALL|SBIT_DECAL },
-	{  5,12, L"leaves_jungle_opaque", SWATCH_REPEAT_ALL },
+	{  5,12, L"red_sandstone_carved", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{  6,12, L"planks_spruce", SWATCH_REPEAT_ALL },
 	{  7,12, L"planks_jungle", SWATCH_REPEAT_ALL },
 	{  8,12, L"carrots_stage_0", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// also potatoes_stage_0 in basic game, but can be different in texture packs
@@ -257,7 +261,7 @@ static struct {
 	{ 11,13, L"MW_ENDER_CHEST_SIDE2", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
 	{ 12,13, L"MW_ENDER_CHEST_SIDE3", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
 	{ 13,13, L"leaves_birch", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN
-	{ 14,13, L"leaves_birch_opaque", SWATCH_REPEAT_ALL },	// ADD-IN
+	{ 14,13, L"red_sandstone_normal", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{ 15,13, L"water_still", SWATCH_REPEAT_ALL },
 	{  0,14, L"nether_brick", SWATCH_REPEAT_ALL },
 	{  1,14, L"wool_colored_silver", SWATCH_REPEAT_ALL },
@@ -351,9 +355,9 @@ static struct {
 	{  7,19, L"flower_oxeye_daisy", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  8,19, L"flower_paeonia", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// not used currently, but save for now.
 	{  9,19, L"leaves_acacia", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
-	{ 10,19, L"leaves_acacia_opaque", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 10,19, L"red_sandstone_smooth", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{ 11,19, L"leaves_big_oak", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
-	{ 12,19, L"leaves_big_oak_opaque", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
+	{ 12,19, L"red_sandstone_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{ 13,19, L"log_acacia_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
 	{ 14,19, L"log_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
 	{ 15,19, L"log_big_oak_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
@@ -399,12 +403,30 @@ static struct {
 	{  7,22, L"stone_diorite_smooth", SWATCH_REPEAT_ALL },
 	{  8,22, L"stone_granite", SWATCH_REPEAT_ALL },
 	{  9,22, L"stone_granite_smooth", SWATCH_REPEAT_ALL },
-	{ 10,22, L"", SWATCH_REPEAT_ALL },
-	{ 11,22, L"", SWATCH_REPEAT_ALL },
-	{ 12,22, L"", SWATCH_REPEAT_ALL },
-	{ 13,22, L"", SWATCH_REPEAT_ALL },
-	{ 14,22, L"", SWATCH_REPEAT_ALL },
-	{ 15,22, L"", SWATCH_REPEAT_ALL },
+	{ 10,22, L"prismarine_bricks", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{ 11,22, L"prismarine_dark", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{ 12,22, L"prismarine_rough", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{ 13,22, L"daylight_detector_inverted_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{ 14,22, L"sea_lantern", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{ 15,22, L"sponge_wet", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+	{  0,23, L"door_spruce_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	{  1,23, L"door_spruce_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	{  2,23, L"door_birch_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	{  3,23, L"door_birch_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	{  4,23, L"door_jungle_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },	// ADD-IN 1.8
+	{  5,23, L"door_jungle_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },	// ADD-IN 1.8
+	{  6,23, L"door_acacia_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },	// ADD-IN 1.8
+	{  7,23, L"door_acacia_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP|SBIT_DECAL },	// ADD-IN 1.8
+	{  8,23, L"door_dark_oak_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	{  9,23, L"door_dark_oak_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },	// ADD-IN 1.8
+	//{ 10,23, L"banner_upper", SWATCH_CLAMP_ALL|SBIT_BLACK_ALPHA },	// top of banner, squished down from 20 wide
+	//{ 11,23, L"banner_lower", SWATCH_CLAMP_ALL|SBIT_BLACK_ALPHA },	// bottom of banner, squished down from 20 wide
+	{ 10,23, L"MW_BANNER_UPPER", SWATCH_CLAMP_ALL },	// top of banner, squished down from 20 wide
+	{ 11,23, L"MW_BANNER_LOWER", SWATCH_CLAMP_ALL },	// bottom of banner, squished down from 20 wide
+	{ 12,23, L"", SWATCH_REPEAT_ALL },
+	{ 13,23, L"", SWATCH_REPEAT_ALL },
+	{ 14,23, L"", SWATCH_REPEAT_ALL },
+	{ 15,23, L"", SWATCH_REPEAT_ALL },
 };
 /*
 Loose ends:
