@@ -516,10 +516,11 @@ static int filterBox();
 static int computeFlatFlags( int boxIndex );
 static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
-static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide );
+static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide );
 static void setDefaultUVs( Point2 uvs[3], int skip );
 static FaceRecord * allocFaceRecordFromPool();
-static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
+static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
+static void saveBlockGeometry( int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxTileGeometry( int boxIndex, int type, int swatchLoc, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
@@ -2543,7 +2544,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int fatten = (gOptions->pEFD->chkFatten) ? 2 : 0;
 	int checkNeighbors;
 	int retCode = MW_NO_ERROR;
-	int transNeighbor;
+	int transNeighbor,boxIndexBelow;
 
 
     dataVal = gBoxData[boxIndex].data;
@@ -2644,14 +2645,54 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				return 0;
 			}
 
-			// it's sloping, so check if object below it is not air - use it if so, else return, which will flatten
+			// it's sloping, so check if object below it is not air
 			typeBelow = gBoxData[boxIndex-1].type;
 			if ( typeBelow == BLOCK_AIR )
 			{
-				gMinorBlockCount--;
-				return 0;
+				// air below, which means this rail's at the bottom level, descending.
+				// Since we have no idea what's below, then, we need to look at the
+				// track's neighbor for a material, as a guess.
+				// TODO: if we really wanted to, we could store the bottom level of stuff
+				// in the database, then clear it after this pass.
+				transNeighbor = boxIndex;
+				switch ( modDataVal )
+				{
+				case 2:
+					transNeighbor = DIRECTION_BLOCK_SIDE_HI_X;
+					break;
+				case 3:
+					transNeighbor = DIRECTION_BLOCK_SIDE_LO_X;
+					break;
+				case 4:
+					transNeighbor = DIRECTION_BLOCK_SIDE_LO_Z;
+					break;
+				case 5:
+					transNeighbor = DIRECTION_BLOCK_SIDE_HI_Z;
+					break;
+				default:
+					// huh?
+					assert(0);
+				}
+				boxIndexBelow = boxIndex+gFaceOffset[transNeighbor];
+				typeBelow = gBoxData[boxIndex+gFaceOffset[transNeighbor]].origType;
+				// make sure the block to the side is something valid for a rail to be on
+				if ( gBlockDefinitions[typeBelow].flags & BLF_WHOLE )
+				{
+					dataValBelow = gBoxData[boxIndexBelow].data;
+				}
+				else
+				{
+					// couldn't find the whole-block neighbor, how weird - just pick cobblestone
+					assert(0);
+					typeBelow = BLOCK_COBBLESTONE;
+					dataValBelow = 0;
+				}
 			}
-			dataValBelow = gBoxData[boxIndex-1].data;
+			else
+			{
+				boxIndexBelow = boxIndex-1;
+				dataValBelow = gBoxData[boxIndexBelow].data;
+			}
 
 			// brute force the four cases: always draw bottom of block as the thing, use top of block for decal,
 			// use sides for triangles. Really, we'll just use the top for everything for now (TODO), as it's kind of
@@ -2659,21 +2700,22 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			switch ( modDataVal )
 			{
 			case 2: // ascend east +x
-				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_X_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, boxIndexBelow, DIR_LO_X_BIT );
 				break;
 			case 3: // ascend west -x
-				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_X_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, boxIndexBelow, DIR_HI_X_BIT );
 				break;
 			case 4: // ascend north -z
-				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_HI_Z_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, boxIndexBelow, DIR_HI_Z_BIT );
 				break;
 			case 5: // ascend south +z
-				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, DIR_LO_Z_BIT );
+				retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, boxIndexBelow, DIR_LO_Z_BIT );
 				break;
 			default:
 				// it's a flat, so flatten
 				return(0);
 			}
+
 			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 		}
 		break;
@@ -5348,11 +5390,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     return 1;
 }
 
-static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int choppedSide )
+static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide )
 {
 	int swatchLoc;
 	int vindex[4];
-	int uvSlopeIndices[4], dummy[4];
+	int uvSlopeIndices[4];
 	Point2 uvs[3];
 	int i, startVertexIndex;
 	IPoint anchor;
@@ -5392,7 +5434,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 	// Make decal tile and put it here for swatchLoc - note we don't need the swatch loc itself, the uvSlopeIndices are all we need
 	if ( gExportTexture )
 	{
-		getSwatch( type, dataVal, DIRECTION_BLOCK_TOP, boxIndex-1, uvSlopeIndices );
+		getSwatch( type, dataVal, DIRECTION_BLOCK_TOP, boxIndexBelow, uvSlopeIndices );
 	}
 
 	switch ( choppedSide )
@@ -5405,23 +5447,24 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 		// So we then set index X == 0, Y == 1, Z == 0/1 should be set to have the Y value set to 0.0f
 		vertices[0x0|0x2|0x0][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
 		vertices[0x0|0x2|0x1][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
+
 		// bottom and side
-		saveBoxGeometry( boxIndex, typeBelow, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
+		saveBlockGeometry( boxIndex, typeBelow, dataValBelow, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
 
 		vindex[0] = 0x4;		// xmax, ymin, zmin
 		vindex[1] = 0x0;		// xmin, ymin, zmin
 		vindex[2] = 0x4|0x2;	// xmax, ymax, zmin
 		setDefaultUVs( uvs, 2 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex, swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x1;		    // xmin, ymin, zmax
 		vindex[1] = 0x1|0x4;		// xmax, ymin, zmax
 		vindex[2] = 0x1|0x4|0x2;	// xmax, ymax, zmax
 		setDefaultUVs( uvs, 3 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		break;
@@ -5433,23 +5476,24 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 		// So we then set index X == 1, Y == 1, Z == 0/1 should be set to have the Y value set to 0.0f
 		vertices[0x4|0x2|0x0][Y] -= 1.0f;	// xmax, ymax, zmin -> xmax, ymin, zmin
 		vertices[0x4|0x2|0x1][Y] -= 1.0f;	// xmax, ymax, zmax -> xmax, ymin, zmax
+
 		// bottom and side
-		saveBoxGeometry( boxIndex, typeBelow, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
+		saveBlockGeometry( boxIndex, typeBelow, dataValBelow, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
 
 		vindex[0] = 0x4;		// xmax, ymin, zmin
 		vindex[1] = 0x0;		// xmin, ymin, zmin
 		vindex[2] = 0x2;	    // xmin, ymax, zmin
 		setDefaultUVs( uvs, 3 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x1;		    // xmin, ymin, zmax
 		vindex[1] = 0x1|0x4;		// xmax, ymin, zmax
 		vindex[2] = 0x1|0x2;	    // xmin, ymax, zmax
 		setDefaultUVs( uvs, 2 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		break;
@@ -5461,23 +5505,24 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 		// So we then set index X == 0/1, Y == 1, Z == 0 should be set to have the Y value set to 0.0f
 		vertices[0x0|0x2|0x0][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
 		vertices[0x4|0x2|0x0][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
+
 		// bottom and side
-		saveBoxGeometry( boxIndex, typeBelow, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
+		saveBlockGeometry( boxIndex, typeBelow, dataValBelow, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
 
 		vindex[0] = 0x0;		// zmin, ymin, xmin
 		vindex[1] = 0x1;		// zmax, ymin, xmin
 		vindex[2] = 0x1|0x2;	// zmax, ymax, xmin
 		setDefaultUVs( uvs, 3 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
 		vindex[1] = 0x4;		    // zmin, ymin, xmax
 		vindex[2] = 0x4|0x1|0x2;	// zmax, ymax, xmax
 		setDefaultUVs( uvs, 2 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		break;
@@ -5489,23 +5534,24 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 		// So we then set index X == 0/1, Y == 1, Z == 1 should be set to have the Y value set to 0.0f
 		vertices[0x0|0x2|0x1][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
 		vertices[0x4|0x2|0x1][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
+
 		// bottom and side
-		saveBoxGeometry( boxIndex, typeBelow, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
+		saveBlockGeometry( boxIndex, typeBelow, dataValBelow, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,16, 0,16, 0,16 );
 
 		vindex[0] = 0x0;		// zmin, ymin, xmin
 		vindex[1] = 0x1;		// zmax, ymin, xmin
 		vindex[2] = 0x2;	    // zmin, ymax, xmin
 		setDefaultUVs( uvs, 2 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
 		vindex[1] = 0x4;		    // zmin, ymin, xmax
 		vindex[2] = 0x4|0x2;	    // zmin, ymax, xmax
 		setDefaultUVs( uvs, 3 );
-		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndex-1, dummy );
-		retCode |= saveTriangleFace( swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndexBelow, NULL );
+		retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
 		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
 		break;
@@ -5560,58 +5606,75 @@ static FaceRecord * allocFaceRecordFromPool()
 	return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
 
-static int saveTriangleFace( int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
+static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
 	FaceRecord *face;
 	int j;
 	int uvIndices[3];
 	int retCode = MW_NO_ERROR;
+	int rect[4];
 
-	// output each face
-	if ( gExportTexture )
+	if ( gUsingTransform || !findFaceDimensions( rect, faceDirection, 0, 16, 0, 16, 0, 16 ) ||
+		!lesserNeighborCoversFace(faceDirection, boxIndex, rect) )
 	{
-		// get the three UV texture vertices, stored by swatch type
-		uvIndices[0] = saveTextureUV( swatchLoc, type, uvs[0][X], uvs[0][Y] );
-		uvIndices[1] = saveTextureUV( swatchLoc, type, uvs[1][X], uvs[1][Y] );
-		uvIndices[2] = saveTextureUV( swatchLoc, type, uvs[2][X], uvs[2][Y] );
-	}
+		// output each face
+		if ( gExportTexture )
+		{
+			// get the three UV texture vertices, stored by swatch type
+			uvIndices[0] = saveTextureUV( swatchLoc, type, uvs[0][X], uvs[0][Y] );
+			uvIndices[1] = saveTextureUV( swatchLoc, type, uvs[1][X], uvs[1][Y] );
+			uvIndices[2] = saveTextureUV( swatchLoc, type, uvs[2][X], uvs[2][Y] );
+		}
 
-	face = allocFaceRecordFromPool();
-	//face = allocFaceRecordFromPool();
-	if ( face == NULL )
-	{
-		return retCode|MW_WORLD_EXPORT_TOO_LARGE;
-	}
+		face = allocFaceRecordFromPool();
+		//face = allocFaceRecordFromPool();
+		if ( face == NULL )
+		{
+			return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+		}
 
-	// if we sort, we want to keep faces in the order generated, which is
-	// generally cache-coherent (and also just easier to view in the file)
-	//face->faceIndex = firstFaceModifier( 0, gModel.faceCount );
-	// never a first face, we know how we're using it currently (as sides for rails, and these simply aren't the first)
-	face->faceIndex = gModel.faceCount;
-	face->type = type;
+		// if we sort, we want to keep faces in the order generated, which is
+		// generally cache-coherent (and also just easier to view in the file)
+		//face->faceIndex = firstFaceModifier( 0, gModel.faceCount );
+		// never a first face, we know how we're using it currently (as sides for rails, and these simply aren't the first)
+		face->faceIndex = gModel.faceCount;
+		face->type = type;
 
-	// always the same normal, which directly corresponds to the normals[] array in gModel
-	face->normalIndex = faceDirection;
+		// always the same normal, which directly corresponds to the normals[] array in gModel
+		face->normalIndex = faceDirection;
 
-	// get four face indices for the four corners of the face, and always create each
-	for ( j = 0; j < 3; j++ )
-	{
-		face->vertexIndex[j] = startVertexIndex + vindex[j];
+		// get four face indices for the four corners of the face, and always create each
+		for ( j = 0; j < 3; j++ )
+		{
+			face->vertexIndex[j] = startVertexIndex + vindex[j];
+			if (gExportTexture)
+				face->uvIndex[j] = uvIndices[j];
+		}
+		// double last point
+		face->vertexIndex[3] = face->vertexIndex[2];
 		if (gExportTexture)
-			face->uvIndex[j] = uvIndices[j];
+			face->uvIndex[3] = face->uvIndex[2];
+
+		// all set, so save it away
+		retCode |= checkFaceListSize();
+		if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
+		gModel.faceList[gModel.faceCount++] = face;
 	}
-	// double last point
-	face->vertexIndex[3] = face->vertexIndex[2];
-	if (gExportTexture)
-		face->uvIndex[3] = face->uvIndex[2];
-
-	// all set, so save it away
-	retCode |= checkFaceListSize();
-	if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
-
-	gModel.faceList[gModel.faceCount++] = face;
 
 	return retCode;
+}
+
+// save the proper faces for the given block type and data value
+static void saveBlockGeometry( int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
+{
+	int swatchLocSet[6];
+	int i;
+	for ( i = 0; i < 6; i++ )
+	{
+		swatchLocSet[i] = getSwatch(type,dataVal,i,0,NULL);
+	}
+	saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, 0, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
 }
 
 static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
@@ -10492,9 +10555,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 					break;
 				}
 			}
-			if ( angle != 0 )
+			if ( angle != 0 && uvIndices )
 				rotateIndices( localIndices, angle );
-			if ( flip )
+			if ( flip && uvIndices )
 				flipIndicesLeftRight( localIndices );
 			break;
 		case BLOCK_WOODEN_PLANKS:
@@ -10733,7 +10796,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // else continue through and rotate indices, it's on the ground
             case 1:
                 // vertical straight (plus sloping)
-                rotateIndices( localIndices, 90 );
+				if ( uvIndices )
+					rotateIndices( localIndices, 90 );
                 break;
 
             case 6:
@@ -10743,7 +10807,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // curved piece
                 assert(type == BLOCK_RAIL );
                 swatchLoc = SWATCH_INDEX( 0, 7 );
-                rotateIndices( localIndices, 90*(dataVal-6));
+				if ( uvIndices )
+					rotateIndices( localIndices, 90*(dataVal-6));
                 break;
             }
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
@@ -10821,11 +10886,13 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     break;
                 case 1:
                     swatchLoc = SWATCH_INDEX( xoff+xstart, 9 );
-                    flipIndicesLeftRight( localIndices );
+					if ( uvIndices )
+						flipIndicesLeftRight( localIndices );
                     break;
                 case 2:
                     swatchLoc = SWATCH_INDEX( xstart, 9 );
-                    flipIndicesLeftRight( localIndices );
+					if ( uvIndices )
+						flipIndicesLeftRight( localIndices );
                     break;
                 case 3:
                     swatchLoc = SWATCH_INDEX( xoff + xstart, 9 );
@@ -10845,22 +10912,25 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     // head
                     swatchLoc = SWATCH_INDEX( 7, 8 );
                 }
-                // rotate as needed (head and foot rotate the same)
-                switch ( dataVal & 0x3 )
-                {
-                case 0: // south
-                    rotateIndices( localIndices, 90 );
-                    break;
-                case 1: // west
-                    rotateIndices( localIndices, 180 );
-                    break;
-                case 2: // north
-                    rotateIndices( localIndices, 270 );
-                    break;
-                case 3: // east
-                    rotateIndices( localIndices, 0 );
-                    break;
-                }
+				if ( uvIndices )
+				{
+					// rotate as needed (head and foot rotate the same)
+					switch ( dataVal & 0x3 )
+					{
+					case 0: // south
+						rotateIndices( localIndices, 90 );
+						break;
+					case 1: // west
+						rotateIndices( localIndices, 180 );
+						break;
+					case 2: // north
+						rotateIndices( localIndices, 270 );
+						break;
+					case 3: // east
+						rotateIndices( localIndices, 0 );
+						break;
+					}
+				}
             }
             else
             {
@@ -10980,7 +11050,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             {
                 // side
                 swatchLoc = SWATCH_INDEX( 12, 6 );
-                rotateIndices( localIndices, angle );
+				if ( uvIndices )
+					rotateIndices( localIndices, angle );
             }
             break;
         case BLOCK_PISTON_HEAD:
@@ -11088,7 +11159,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			{
 				// side
 				swatchLoc = SWATCH_INDEX( 11, 6 );
-				rotateIndices( localIndices, angle );
+				if ( uvIndices )
+					rotateIndices( localIndices, angle );
 			}
 			break;
         case BLOCK_TNT:
@@ -11362,7 +11434,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 		case BLOCK_REDSTONE_REPEATER_OFF:
 		case BLOCK_REDSTONE_REPEATER_ON:
 			swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
-			rotateIndices( localIndices, 90*(dataVal&0x3));
+			if ( uvIndices )
+				rotateIndices( localIndices, 90*(dataVal&0x3));
 			break;
 		case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
 		case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
@@ -11372,7 +11445,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_ACTIVE) || (dataVal >= 8));
 				swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
 			}
-			rotateIndices( localIndices, 90*(dataVal&0x3));
+			if ( uvIndices )
+				rotateIndices( localIndices, 90*(dataVal&0x3));
 			break;
         case BLOCK_REDSTONE_WIRE:
             angle = 0;
@@ -11720,12 +11794,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				case DIRECTION_BLOCK_BOTTOM:
 				case DIRECTION_BLOCK_TOP:
 					swatchLoc = SWATCH_INDEX( 5,17 );
-					rotateIndices( localIndices, 90 );
+					if ( uvIndices )
+						rotateIndices( localIndices, 90 );
 					break;
 				case DIRECTION_BLOCK_SIDE_LO_Z:
 				case DIRECTION_BLOCK_SIDE_HI_Z:
 					swatchLoc = SWATCH_INDEX( 5,17 );
-					rotateIndices( localIndices, 90 );
+					if ( uvIndices )
+						rotateIndices( localIndices, 90 );
 					break;
 				case DIRECTION_BLOCK_SIDE_LO_X:
 				case DIRECTION_BLOCK_SIDE_HI_X:
@@ -11743,7 +11819,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				case DIRECTION_BLOCK_SIDE_LO_X:
 				case DIRECTION_BLOCK_SIDE_HI_X:
 					swatchLoc = SWATCH_INDEX( 5,17 );
-					rotateIndices( localIndices, 90 );
+					if ( uvIndices )
+						rotateIndices( localIndices, 90 );
 					break;
 				case DIRECTION_BLOCK_SIDE_LO_Z:
 				case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -11786,30 +11863,30 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
 
-    if ( gExportTexture )
+	if ( uvIndices && gExportTexture )
     {
 		int standardCorners[4];
         // get four UV texture vertices, based on type of block
         saveTextureCorners( swatchLoc, type, standardCorners );
 
-        // let the adjustments begin!
-        if ( faceDirection == DIRECTION_BLOCK_BOTTOM )
-        {
-            // -Y is unique: the textures are actually flipped! 2,1,4,3
-            uvIndices[0] = standardCorners[localIndices[1]];
-            uvIndices[1] = standardCorners[localIndices[0]];
-            uvIndices[2] = standardCorners[localIndices[3]];
-            uvIndices[3] = standardCorners[localIndices[2]];
-        }
-        else
-        {
-            // Normal case (note that pistons go through this, too, but we compensate
-            // earlier - easier than testing for this special case here)
-            uvIndices[0] = standardCorners[localIndices[0]];
-            uvIndices[1] = standardCorners[localIndices[1]];
-            uvIndices[2] = standardCorners[localIndices[2]];
-            uvIndices[3] = standardCorners[localIndices[3]];
-        }
+		// let the adjustments begin!
+		if ( faceDirection == DIRECTION_BLOCK_BOTTOM )
+		{
+			// -Y is unique: the textures are actually flipped! 2,1,4,3
+			uvIndices[0] = standardCorners[localIndices[1]];
+			uvIndices[1] = standardCorners[localIndices[0]];
+			uvIndices[2] = standardCorners[localIndices[3]];
+			uvIndices[3] = standardCorners[localIndices[2]];
+		}
+		else
+		{
+			// Normal case (note that pistons go through this, too, but we compensate
+			// earlier - easier than testing for this special case here)
+			uvIndices[0] = standardCorners[localIndices[0]];
+			uvIndices[1] = standardCorners[localIndices[1]];
+			uvIndices[2] = standardCorners[localIndices[2]];
+			uvIndices[3] = standardCorners[localIndices[3]];
+		}
     }
  
     return swatchLoc;
@@ -11821,8 +11898,7 @@ static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirec
 {
     // does library have type/backgroundType desired?
     SwatchComposite *pSwatch = gModel.swatchCompositeList;
-    int dummy[4];
-    int backgroundSwatchLoc = getSwatch( gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection, 0, dummy );
+    int backgroundSwatchLoc = getSwatch( gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection, 0, NULL );
 
     while ( pSwatch )
     {
@@ -13487,6 +13563,8 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
 
     FaceRecord *pFace;
     Point *vertex[4];
+	// Normally each face has two triangles; triangle faces have only one, so subtract the "extra faces"
+	// due to multiplying by two.
     unsigned int numTri = gModel.faceCount*2 - gModel.triangleCount;
 
     int colorBytes;
@@ -13545,7 +13623,7 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
         WERROR(PortaWrite(gModelFile, outputString, 80 ));
     }
 
-    // number of triangles in model, unsigned in
+    // number of triangles in model, unsigned int
     WERROR(PortaWrite(gModelFile, &numTri, 4 ));
 
     // write out the faces, it's just that simple

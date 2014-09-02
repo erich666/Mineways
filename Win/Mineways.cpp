@@ -1921,23 +1921,21 @@ static void worldPath(TCHAR *path)
 // I really have no idea what will work here, but let's give this a try. Does it work now?
 static void mcPathMac(TCHAR *path)
 {
-	char *home;
-	size_t len;
-	_dupenv_s( &home, &len, "HOME" );
-	if ( home != NULL )
-	{
-		MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,home,-1,path,MAX_PATH);
-		PathAppend(path,L"Library");
-		PathAppend(path,L"Application Support");
-		PathAppend(path,L"Minecraft");
-	}
-	else
+	//char *home;
+	//size_t len;
+	//_dupenv_s( &home, &len, "HOME" );
+	//if ( home != NULL )
+	//{
+	//	MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,home,-1,path,MAX_PATH);
+	//	PathAppend(path,L"Library");
+	//	PathAppend(path,L"Application Support");
+	//	PathAppend(path,L"Minecraft");
+	//}
+	//else
 	{
 		// try something crazy, I really don't know what the Mac wants... TODO! Need someone who knows...
-		wcscpy_s(path,MAX_PATH,L"~");
-		PathAppend(path,L"Library");
-		PathAppend(path,L"Application Support");
-		PathAppend(path,L"minecraft");
+		// ~/Library/Application Support/minecraft/saves/
+		wcscpy_s(path,MAX_PATH,L"~/Library/Application Support/minecraft/saves/*");
 	}
 }
 
@@ -1961,8 +1959,6 @@ static int loadWorldList(HMENU menu)
 	if ( hFind == INVALID_HANDLE_VALUE )
 	{
 		mcPathMac(path);
-		PathAppend(path,L"saves");
-		PathAppend(path,L"*");
 		hFind=FindFirstFile(path,&ffd);
 
 		if ( hFind == INVALID_HANDLE_VALUE )
