@@ -275,7 +275,7 @@ static int nbtFindElement(bfFile bf,char *name)
     }
 }
 
-int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight)
+int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome)
 {
 	int len,nsections;
 	//int found;
@@ -290,6 +290,13 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     bfseek(bf,len,SEEK_CUR); //skip name ()
     if (nbtFindElement(bf,"Level")!=10)
         return 0;
+
+	memset(biome, 0, 16*16);
+	if (nbtFindElement(bf,"Biomes"))
+	{
+		len=readDword(bf); //array length
+		bfread(bf,biome,len);
+	}
 
 	if (nbtFindElement(bf,"Sections")!= 9)
 		return 0;
@@ -346,13 +353,13 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 			len=readDword(bf); //array length
 			bfread(bf,buff+16*16*16*y,len);
 		}
-        else if (strcmp(thisName,"Data")==0)
-        {
-            //found++;
-            ret=1;
-            len=readDword(bf); //array length
-            bfread(bf,data+16*16*8*y,len);
-        }
+		else if (strcmp(thisName,"Data")==0)
+		{
+			//found++;
+			ret=1;
+			len=readDword(bf); //array length
+			bfread(bf,data+16*16*8*y,len);
+		}
 #ifndef C99
 		free(thisName);
 #endif

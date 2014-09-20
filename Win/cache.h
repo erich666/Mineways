@@ -41,6 +41,7 @@ typedef struct WorldBlock {
 
     unsigned char rendercache[16*16*4]; // bitmap of last render
     unsigned char heightmap[16*16]; // height of rendered block [x+z*16]
+	unsigned char biome[16*16];
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render

@@ -3066,7 +3066,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( checkNeighbors )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-				// is there a fence to the east?
+				// is there a stairs to the east?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -3076,7 +3076,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 					if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
 					{
 						// is the neighborDataVal ascending north or south?
-						if ( (neighborDataVal&0x3) == 2 )
+						if ( (neighborDataVal&0x3) == 2 )	// south
 						{
 							// final check: is other neighbor forcing continuation?
 							neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
@@ -3084,17 +3084,17 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 								(dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data) )
 							{
 								// only south part of step should be created
-								maxz = 8;
+								minz = 8;
 							}
 						}
-						else if ( (neighborDataVal&0x3) == 3 )
+						else if ( (neighborDataVal&0x3) == 3 )	// north
 						{
 							neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 							if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
 								(dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data) )
 							{
 								// only north part of step should be created
-								minz = 8;
+								maxz = 8;
 							}
 						}
 					}
@@ -3109,7 +3109,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( checkNeighbors )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-				// is there a fence to the east?
+				// is there a stairs to the east?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -3119,15 +3119,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 					if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
 					{
 						// is the neighborDataVal ascending north or south?
-						if ( (neighborDataVal&0x3) == 2 )
+						if ( (neighborDataVal&0x3) == 2 )	// south
 						{
 							// final check: is other neighbor forcing continuation?
 							neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 							if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
 								(dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data) )
 							{
-								// only south part of step should be created
-								maxz = 8;
+								// only north part of step should be created
+								minz = 8;
 							}
 						}
 						else if ( (neighborDataVal&0x3) == 3 )	// north
@@ -3136,8 +3136,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 							if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
 								(dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data) )
 							{
-								// only north part of step should be created
-								minz = 8;
+								// only south part of step should be created
+								maxz = 8;
 							}
 						}
 					}
@@ -3152,7 +3152,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( checkNeighbors )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-				// is there a fence to the east?
+				// is there a stair to the east?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -3194,7 +3194,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ( checkNeighbors )
 			{
 				neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-				// is there a fence to the east?
+				// is there a stair to the east?
 				if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
 				{
 					// get the data value and check it
@@ -6778,21 +6778,38 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 
 					faceCount += 2;
 
-					if ( inZdirection )
+					switch ( sideCount )
 					{
-						// z face
+					case 0:
+						// south face +Z
 						Vec3Scalar( vertexOffsets[billCount][0], =, 1,0,texelDist );
 						Vec3Scalar( vertexOffsets[billCount][1], =, 0,0,texelDist );
 						Vec3Scalar( vertexOffsets[billCount][2], =, 0,1,texelDist );
 						Vec3Scalar( vertexOffsets[billCount][3], =, 1,1,texelDist );
-					}
-					else
-					{
-						// x face
+						break;
+					case 1:
+						// west face -X
+						Vec3Scalar( vertexOffsets[billCount][0], =, texelDist,0,1 );
+						Vec3Scalar( vertexOffsets[billCount][1], =, texelDist,0,0 );
+						Vec3Scalar( vertexOffsets[billCount][2], =, texelDist,1,0 );
+						Vec3Scalar( vertexOffsets[billCount][3], =, texelDist,1,1 );
+						break;
+					case 2:
+						// north face -Z
+						Vec3Scalar( vertexOffsets[billCount][0], =, 0,0,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][1], =, 1,0,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][2], =, 1,1,texelDist );
+						Vec3Scalar( vertexOffsets[billCount][3], =, 0,1,texelDist );
+						break;
+					case 3:
+						// east face +X
 						Vec3Scalar( vertexOffsets[billCount][0], =, texelDist,0,0 );
 						Vec3Scalar( vertexOffsets[billCount][1], =, texelDist,0,1 );
 						Vec3Scalar( vertexOffsets[billCount][2], =, texelDist,1,1 );
 						Vec3Scalar( vertexOffsets[billCount][3], =, texelDist,1,0 );
+						break;
+					default:
+						assert(0);
 					}
 					billCount++;
 				}
@@ -12919,12 +12936,12 @@ static int createBaseMaterialTexture()
 
     // all the blocks that need premultiplication by a color.
     // See http://www.minecraftwiki.net/wiki/File:TerrainGuide.png
-#define MULT_TABLE_SIZE 24
+#define MULT_TABLE_SIZE 22
     static TypeTile multTable[MULT_TABLE_SIZE] = {
         { BLOCK_GRASS /* grass */, 0,0, {1.0f,1.0f,1.0f} },
-        { BLOCK_GRASS /* fancy grass? */, 6, 2, {1.0f,1.0f,1.0f} },
+        //{ BLOCK_GRASS /* fancy grass? */, 6, 2, {1.0f,1.0f,1.0f} }, // we don't use it
         { BLOCK_TALL_GRASS /* tall grass */, 7, 2, {1.0f,1.0f,1.0f} },
-        { BLOCK_GRASS /* grass? */, 8, 2, {1.0f,1.0f,1.0f} },
+        //{ BLOCK_GRASS /* grass? */, 8, 2, {1.0f,1.0f,1.0f} },
         { BLOCK_LEAVES /* leaves, fancy */, 4, 3, {1.0f,1.0f,1.0f} },
         { BLOCK_TALL_GRASS /* fern */, 8, 3, {1.0f,1.0f,1.0f} },
         { BLOCK_LILY_PAD /* lily pad */, 12, 4, {1.0f,1.0f,1.0f} },
@@ -12933,12 +12950,12 @@ static int createBaseMaterialTexture()
 		{ BLOCK_PUMPKIN_STEM /* pumpkin stem */, 15, 6, {1.0f,1.0f,1.0f} },
 		{ BLOCK_PUMPKIN_STEM /* pumpkin stem, matured */, 15, 7, {1.0f,1.0f,1.0f} }, /* TODO: probably want a different color, a yellow? */
         { BLOCK_VINES /* vines */, 15, 8, {1.0f,1.0f,1.0f} },
-        { BLOCK_LEAVES /* pine leaves fancy */, 4, 8, {1.0f,1.0f,1.0f} }, //{57.0f/89.0f,90.0f/116.0f,57.0f/59.0f} },
+        { BLOCK_LEAVES /* spruce leaves fancy */, 4, 8, {97.0f/119.0f,153.0f/171.0f,97.0f/47.0f} },
         { BLOCK_REDSTONE_WIRE /* redstone wire */, 4,10, {1.0f,1.0f,1.0f} },
         { BLOCK_REDSTONE_WIRE /* redstone wire */, 5,10, {1.0f,1.0f,1.0f} },
         { BLOCK_REDSTONE_TORCH_ON /* redstone */, 4,11, {1.0f,1.0f,1.0f} },	// manufactured redstone dot REDSTONE_WIRE_DOT
 		{ BLOCK_LEAVES /* jungle leaves, fancy */, 4,12, {1.0f,1.0f,1.0f} },
-		{ BLOCK_LEAVES /* birch leaves, fancy */, 13,13, {1.0f,1.0f,1.0f} },
+		{ BLOCK_LEAVES /* birch leaves, fancy */, 13,13, {128.0f/119.0f,167.0f/171.0f,86.0f/47.0f} },
 		{ BLOCK_DOUBLE_FLOWER /* double flower, tallgrass bottom */, 6,18, {1.0f,1.0f,1.0f} },
 		{ BLOCK_DOUBLE_FLOWER /* birch leaves, tallgrass top */, 7,18, {1.0f,1.0f,1.0f} },
 		{ BLOCK_DOUBLE_FLOWER /* birch leaves, fern bottom */, 8,18, {1.0f,1.0f,1.0f} },

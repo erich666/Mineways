@@ -69,6 +69,7 @@ static Options gOptions = {0,   // which world is visible
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
 static BOOL gSameWorld=FALSE;
+static BOOL gHoldSameWorld=FALSE;
 static wchar_t gSelectTerrain[MAX_PATH];				//path and file name to selected terrainExt.png file, if any
 static wchar_t gSelectTerrainDir[MAX_PATH];				//path (no file name) to selected terrainExt.png file, if any
 static wchar_t gImportFile[MAX_PATH];					//path to import file for settings
@@ -183,6 +184,7 @@ static int importSettings( wchar_t *importFile );
 static int readLineSet( FILE *fh, char lines[HEADER_LINES][120], int maxLine );
 static int readLine( FILE *fh, char *inputString, int stringLength );
 static int findLine( char *checkString, char lines[HEADER_LINES][120], int startLine, int maxLines );
+static void formTitle(wchar_t *world, wchar_t *title);
 
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
@@ -1127,6 +1129,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                 return 0;
             }
+			// because gSameWorld gets set to 1 by loadWorld()
+			if (!gHoldSameWorld)
+			{
+				wchar_t title[MAX_PATH];
+				formTitle(gWorld,title);
+				SetWindowTextW(hWnd,title);
+			}
 			EnableWindow(hwndSlider,TRUE);
 			EnableWindow(hwndLabel,TRUE);
 			EnableWindow(hwndInfoLabel,TRUE);
@@ -1217,6 +1226,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     return 0;
                 }
 			InitEnable:
+				// because gSameWorld gets set to 1 by loadWorld()
+				if (!gHoldSameWorld)
+				{
+					wchar_t title[MAX_PATH];
+					formTitle(gWorld,title);
+					SetWindowTextW(hWnd,title);
+				}
 				EnableWindow(hwndSlider,TRUE);
 				EnableWindow(hwndLabel,TRUE);
 				EnableWindow(hwndInfoLabel,TRUE);
@@ -1863,7 +1879,7 @@ static int loadWorld()
 	}
 	else
 	{
-		// Don't clear selection! It's a feature: you can export, then go modify your Minecraft
+		// Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
 		// world, then reload and carry on. TODO: document!
 		//gHighlightOn=FALSE;
 		//SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
@@ -1880,6 +1896,9 @@ static int loadWorld()
 		}
 		GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
 	}
+
+	// keep current state around, we use it to set new window title
+	gHoldSameWorld = gSameWorld;
 
     // if this is the first world you loaded, or not the same world as before (reload), set location to spawn.
     if ( !gSameWorld )
@@ -3306,4 +3325,26 @@ static int findLine( char *checkString, char lines[HEADER_LINES][120], int start
 		}
 	}
 	return -1;
+}
+
+static void formTitle(wchar_t *world, wchar_t *title)
+{
+	wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
+
+	if ( wcslen( world ) <= 0 )
+	{
+		wcscat_s( title, MAX_PATH-1, L"[Block Test World]" );
+	}
+	else
+	{
+		// find last "/" or "\", as possible
+		wchar_t *lastSplitBackslash = wcsrchr( world, '\\' )+1;
+		wchar_t *lastSplitSlash = wcsrchr( world, '/' )+1;
+		wchar_t *lastSplit = world;
+		if ( lastSplitBackslash > lastSplit )
+			lastSplit = lastSplitBackslash;
+		if ( lastSplitSlash > lastSplit )
+			lastSplit = lastSplitSlash;
+		wcscat_s( title, MAX_PATH-1, lastSplit );
+	}
 }

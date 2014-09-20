@@ -1881,7 +1881,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 	}
 	// end of test world, resume normal programming
 
-    if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light)) {
+    if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light, block->biome)) {
         // got block successfully
         // Major change: convert all wool found into colored wool. It's much easier
         // to simply change to a new block type, colored wool, than put special-case
