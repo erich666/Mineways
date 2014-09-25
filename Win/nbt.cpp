@@ -278,34 +278,42 @@ static int nbtFindElement(bfFile bf,char *name)
 int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome)
 {
 	int len,nsections;
+	int biome_save;
 	//int found;
 
 #ifndef C99
-    char *thisName;
+	char *thisName;
 #endif
 
-    //Level/Blocks
-    bfseek(bf,1,SEEK_CUR); //skip type
-    len=readWord(bf); //name length
-    bfseek(bf,len,SEEK_CUR); //skip name ()
-    if (nbtFindElement(bf,"Level")!=10)
-        return 0;
+	//Level/Blocks
+	bfseek(bf,1,SEEK_CUR); //skip type
+	len=readWord(bf); //name length
+	bfseek(bf,len,SEEK_CUR); //skip name ()
+	if (nbtFindElement(bf,"Level")!=10)
+		return 0;
 
+	// For some reason, on most maps the biome info is before the Sections;
+	// on others they're after. So, read biome data, then rewind to find Sections.
+	// Format info at http://wiki.vg/Map_Format, though don't trust order.
+	biome_save = *bf.offset;
 	memset(biome, 0, 16*16);
-	if (nbtFindElement(bf,"Biomes"))
+	if (nbtFindElement(bf,"Biomes")!=7)
+		return 0;
+
 	{
 		len=readDword(bf); //array length
 		bfread(bf,biome,len);
 	}
+	bfseek(bf,biome_save,SEEK_SET); //rewind to start of section
 
 	if (nbtFindElement(bf,"Sections")!= 9)
 		return 0;
 
 	{
-	  unsigned char type=0;
-	  bfread(bf,&type,1);
-	  if (type != 10)
-	    return 0;
+		unsigned char type=0;
+		bfread(bf,&type,1);
+		if (type != 10)
+			return 0;
 	}
 
 	memset(buff, 0, 16*16*256);
@@ -316,56 +324,56 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 
 	while (nsections--)
 	{	
-	    unsigned char y;
-	    int save = *bf.offset;
-	    if (nbtFindElement(bf,"Y")!=1) //which section is this?
-		return 0;
-	    bfread(bf,&y,1);
-	    bfseek(bf,save,SEEK_SET); //rewind to start of section
+		unsigned char y;
+		int save = *bf.offset;
+		if (nbtFindElement(bf,"Y")!=1) //which section is this?
+			return 0;
+		bfread(bf,&y,1);
+		bfseek(bf,save,SEEK_SET); //rewind to start of section
 
-	    //found=0;
-	    for (;;)
-	    {
-		int ret=0;
-		unsigned char type=0;
-		bfread(bf,&type,1);
-		if (type==0) 
-		    break;
-		len=readWord(bf);
+		//found=0;
+		for (;;)
+		{
+			int ret=0;
+			unsigned char type=0;
+			bfread(bf,&type,1);
+			if (type==0) 
+				break;
+			len=readWord(bf);
 #ifdef C99
-        char thisName[len+1];
+			char thisName[len+1];
 #else
-		thisName=(char *)malloc(len+1);
+			thisName=(char *)malloc(len+1);
 #endif
-		bfread(bf,thisName,len);
-		thisName[len]=0;
-		if (strcmp(thisName,"BlockLight")==0)
-		{
-			//found++;
-			ret=1;
-			len=readDword(bf); //array length
-			bfread(bf,blockLight+16*16*8*y,len);
-		}
-		if (strcmp(thisName,"Blocks")==0)
-		{
-			//found++;
-			ret=1;
-			len=readDword(bf); //array length
-			bfread(bf,buff+16*16*16*y,len);
-		}
-		else if (strcmp(thisName,"Data")==0)
-		{
-			//found++;
-			ret=1;
-			len=readDword(bf); //array length
-			bfread(bf,data+16*16*8*y,len);
-		}
+			bfread(bf,thisName,len);
+			thisName[len]=0;
+			if (strcmp(thisName,"BlockLight")==0)
+			{
+				//found++;
+				ret=1;
+				len=readDword(bf); //array length
+				bfread(bf,blockLight+16*16*8*y,len);
+			}
+			if (strcmp(thisName,"Blocks")==0)
+			{
+				//found++;
+				ret=1;
+				len=readDword(bf); //array length
+				bfread(bf,buff+16*16*16*y,len);
+			}
+			else if (strcmp(thisName,"Data")==0)
+			{
+				//found++;
+				ret=1;
+				len=readDword(bf); //array length
+				bfread(bf,data+16*16*8*y,len);
+			}
 #ifndef C99
-		free(thisName);
+			free(thisName);
 #endif
-		if (!ret)
-			skipType(bf,type);
-	    }
+			if (!ret)
+				skipType(bf,type);
+		}
 	}
 	return 1;
 }
