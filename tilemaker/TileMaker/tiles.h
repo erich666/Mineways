@@ -77,9 +77,9 @@ static struct {
 	{  3, 2, L"bookshelf", SWATCH_REPEAT_ALL }, // side - top and bottom are oak planks
 	{  4, 2, L"cobblestone_mossy", SWATCH_REPEAT_ALL },
 	{  5, 2, L"obsidian", SWATCH_REPEAT_ALL },
-	{  6, 2, L"MW_WORKSPACE1", SWATCH_REPEAT_SIDES_ELSE_CLAMP }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
+	{  6, 2, L"grass_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
 	{  7, 2, L"tallgrass", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
-	{  8, 2, L"MW_WORKSPACE2", SWATCH_REPEAT_ALL },	// we use it for temporary work - grass?? top grayscale, but we don't use it, nor does Mojang
+	{  8, 2, L"MW_WORKSPACE1", SWATCH_REPEAT_ALL },	// we use it for temporary work - grass?? top grayscale, but we don't use it, nor does Mojang
 	{  9, 2, L"MW_CHEST4", SWATCH_CLAMP_ALL }, // was beacon - taken by chest
 	{ 10, 2, L"MW_CHEST5", SWATCH_CLAMP_ALL },	// taken by chest
 	{ 11, 2, L"crafting_table_top", SWATCH_REPEAT_ALL },

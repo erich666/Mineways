@@ -122,6 +122,12 @@ static WORD gMinorVersion = 0;
 static WORD gBuildNumber = 0;
 static WORD gRevisionNumber = 0;
 
+static HCURSOR gArrowCursor = NULL;
+static HCURSOR gNsCursor = NULL;
+static HCURSOR gWeCursor = NULL;
+static HCURSOR gNeswCursor = NULL;
+static HCURSOR gNwseCursor = NULL;
+
 // Error codes - see ObjFileManip.h for error numbers, look for MW_NO_ERROR
 static struct {
     TCHAR *text;
@@ -167,8 +173,9 @@ static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBott
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
 static void draw();
+static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel);
-static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hwndStatus);
+static void updateStatus(int mx, int mz, int my, const char *blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void populateColorSchemes(HMENU menu);
 static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
@@ -234,8 +241,17 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	// One-time initialization for mapping and object export
 	// set the pcolors properly once. They'll change from color schemes.
-	SetExportPremultipliedColors();
 	SetMapPremultipliedColors();
+
+	// Set biome colors - TODO: add texture support, etc.
+	PrecomputeBiomeColors();
+
+	gArrowCursor = LoadCursor(NULL, IDC_ARROW);
+	gNsCursor = LoadCursor(NULL, IDC_SIZENS);
+	gWeCursor = LoadCursor(NULL, IDC_SIZEWE);
+	gNeswCursor = LoadCursor(NULL, IDC_SIZENESW);
+	gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
+
 
     // Main message loop:
     while (GetMessage(&msg, NULL, 0, 0))
@@ -352,7 +368,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     TCHAR path[MAX_PATH];
     TCHAR pathAndFile[MAX_PATH];
     OPENFILENAME ofn;
-    int mx,my,mz,type;
+    int mx,my,mz,type,dataVal,biome;
     static LPARAM holdlParam;
     int on, minx, miny, minz, maxx, maxy, maxz;
 	BOOL saveOK;
@@ -496,7 +512,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             
             // get mouse position in world space
             (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
             holdlParam=lParam;
 
             gStartHiX=mx;
@@ -557,7 +573,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     if ( mz <= minz + innerz )
                     {
-                        // in minx zone
+                        // in minz zone
                         startz = maxz;
                         endz = mz;
                     }
@@ -637,7 +653,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         gLockMouseX = gLockMouseZ = 0;
         int mx,mz;
         blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
         holdlParam=lParam;
         if ( my >= 0 && my <= MAP_MAX_HEIGHT )
         {
@@ -654,7 +670,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
 			enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
-            updateStatus(mx,mz,my,blockLabel,hwndStatus);
+            updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 
             validateItems(GetMenu(hWnd));
             draw();
@@ -678,7 +694,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             int mx,mz;
             blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
             holdlParam=lParam;
             if ( my >= 0 && my <= MAP_MAX_HEIGHT )
             {
@@ -689,7 +705,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
 				// Could set the target depth to whatever depth we're over. Helps Mac users without a middle mouse button.
                 //gTargetDepth = my;
-                updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
             }
 
             validateItems(GetMenu(hWnd));
@@ -804,6 +820,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_MOUSEMOVE:
         if (gLoaded)
         {
+			updateCursor( lParam, hdragging);
+			// is left-mouse button down and we're changing the viewed area?
             if (dragging)
             {
                 // mouse coordinate can now be negative
@@ -824,9 +842,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // for given mouse position and world center, determine
             // mx, mz, the world coordinates that the mouse is over,
             // and return the name of the block type it's over
+
+			// mask off highest bit (the negative) for mouse location
+			lParam &= 0x7fff7fff;
+
             blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
+                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
             holdlParam=lParam;
+			// is right mouse button down and we're dragging out a selection box?
             if (hdragging && gLoaded)
             {
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
@@ -842,13 +865,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     mx = maxx;
                 }
                 // update highlight end to this position
+#ifdef _DEBUG
+				wchar_t bufa[100];
+				swprintf( bufa, 100, L"selection box: x %d, y %d to x %d, y %d\n", gStartHiX, gStartHiZ, mx, mz );
+				OutputDebugStringW( bufa );
+#endif
                 SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
 				enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                 draw();
                 InvalidateRect(hWnd,NULL,FALSE);
                 UpdateWindow(hWnd);
             }
-            updateStatus(mx,mz,my,blockLabel,hwndStatus);
+            updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
         }
         break;
     case WM_KEYDOWN:
@@ -909,8 +937,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                         // holdlParam is just the last mouse position, so status bar is good.
                         blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-                        updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                        updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
                         draw();
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
@@ -925,8 +953,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
 					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-                    updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
                     draw();
                     InvalidateRect(hWnd,NULL,FALSE);
                     UpdateWindow(hWnd);
@@ -940,8 +968,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
 					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-                    updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
                     draw();
                     InvalidateRect(hWnd,NULL,FALSE);
                     UpdateWindow(hWnd);
@@ -1075,8 +1103,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
 		enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 		blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-		updateStatus(mx,mz,my,blockLabel,hwndStatus);
+			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+		updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 
         draw();
         InvalidateRect(hWnd,NULL,FALSE);
@@ -1317,10 +1345,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						gCurDepth = gpEFD->maxyVal;
 					//}
 					blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-						bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-					updateStatus(mx,mz,my,blockLabel,hwndStatus);
+						bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+					updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
 					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+
+					// make biome display match biome setting
+					if ( gpEFD->chkBiome )
+						// turn bit on
+						gOptions.worldType|=BIOMES;
+					else
+						// turn bit off
+						gOptions.worldType &= ~BIOMES;
+					CheckMenuItem(GetMenu(hWnd),IDM_VIEW_SHOWBIOMES,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
 
 					// redraw, as selection bounds will change
 					draw();
@@ -1331,8 +1368,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					MessageBox(
 						NULL,
 						( gpEFD->flags & EXPT_3DPRINT ) ?
-						_T("Previous settings for 3D printing imported.\nNote that the color scheme is not changed on import.") :
-							_T("Previous settings for rendering imported.\nNote that the color scheme is not changed on import."),
+						_T("Previous settings for 3D printing imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself.") :
+							_T("Previous settings for rendering imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself."),
 						_T("Informational"),
 						MB_OK|MB_ICONINFORMATION
 						);
@@ -1433,8 +1470,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         gTargetDepth = gpEFD->minyVal;
                     }
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-                    updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
 					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 }
@@ -1487,13 +1524,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 UpdateWindow(hWnd);
             }
             break;
-        case IDM_SHOWALLOBJECTS:
-            gOptions.worldType^=SHOWALL;
-            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
-            break;
+		case IDM_VIEW_SHOWBIOMES:
+			// toggles bit from its previous state
+			gOptions.worldType^=BIOMES;
+			CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
+			draw();
+			InvalidateRect(hWnd,NULL,TRUE);
+			UpdateWindow(hWnd);
+			break;
+		case IDM_SHOWALLOBJECTS:
+			gOptions.worldType^=SHOWALL;
+			CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
+			draw();
+			InvalidateRect(hWnd,NULL,TRUE);
+			UpdateWindow(hWnd);
+			break;
         case IDM_LIGHTING:
             gOptions.worldType^=LIGHTING;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&LIGHTING)?MF_CHECKED:MF_UNCHECKED);
@@ -1583,8 +1628,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             CloseAll();
             blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type);
-            updateStatus(mx,mz,my,blockLabel,hwndStatus);
+                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+            updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
             draw();
             InvalidateRect(hWnd,NULL,TRUE);
             UpdateWindow(hWnd);
@@ -1729,6 +1774,104 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+static void updateCursor( LPARAM lParam, BOOL hdragging)
+{
+	// change cursor to something special if highlighting an area and not currently creating that area
+	int mx,my,mz,type,dataVal,biome;
+	int on, minx, miny, minz, maxx, maxy, maxz;
+
+	BOOL cursorSet = FALSE;
+	if ( gHighlightOn && !hdragging )
+	{
+		//SetCapture(hWnd);
+
+		// get mouse position in world space
+		(void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+
+		// now to check the corners: is this location near any of them?
+		GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+
+		// see if we select on the selection border
+		// highlighting is on, check the corners: inside bounds of current selection?
+		if ( ( mx >= minx - SELECT_MARGIN/gCurScale ) && 
+			( mx <= maxx + SELECT_MARGIN/gCurScale ) &&
+			( mz >= minz - SELECT_MARGIN/gCurScale ) &&
+			( mz <= maxz + SELECT_MARGIN/gCurScale ) )
+		{
+			int xzone = 0;
+			int zzone = 0;
+			int innerx = (int)(SELECT_MARGIN/gCurScale);
+			int innerz = (int)(SELECT_MARGIN/gCurScale);
+			gAdjustingSelection = 1;
+
+			if ( innerx > maxx-minx )
+			{
+				innerx = (maxx-minx-1)/2;
+			}
+			if ( innerz > maxz-minz )
+			{
+				innerz = (maxz-minz-1)/2;
+			}
+
+			if ( mx <= minx + innerx )
+			{
+				// in minx zone
+				xzone = 1;
+			}
+			else if ( mx >= maxx - innerx )
+			{
+				// in maxx zone
+				xzone = 2;
+			}
+
+			if ( mz <= minz + innerz )
+			{
+				// in minz zone
+				zzone = 1;
+			}
+			else if ( mz >= maxz - innerz )
+			{
+				// in maxz zone
+				zzone = 2;
+			}
+
+			if ( xzone != 0 || zzone != 0 )
+			{
+				// OK, cursor will be set to something special
+				cursorSet = TRUE;
+				switch ( xzone*3 + zzone )
+				{
+				case 1: // zzone min
+				case 2: // zzone max
+					SetCursor( gNsCursor );
+					break;
+				case 3: // xzone min
+				case 6: // xzone max
+					SetCursor( gWeCursor );
+					break;
+				case 4: // xzone min, zzone min
+				case 8: // xzone max, zzone max
+					SetCursor( gNwseCursor );
+					break;
+				case 5: // xzone min, zzone max
+				case 7: // xzone max, zzone min
+					SetCursor( gNeswCursor );
+					break;
+				default:
+					assert(0);
+				}
+			}
+		}
+	}
+
+	if ( !cursorSet )
+	{
+		// default point
+		SetCursor( gArrowCursor );
+	}
+}
+
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 {
 	if (gOptions.worldType&HELL)
@@ -1758,10 +1901,24 @@ static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 	CheckMenuItem(GetMenu(hWnd),IDM_END,MF_UNCHECKED);
 }
 
-static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hwndStatus)
+static void updateStatus(int mx, int mz, int my, const char *blockLabel, int type, int dataVal, int biome, HWND hwndStatus)
 {
-    wchar_t buf[100];
-    // if mx, my or mz are crazy, print dashes
+	wchar_t buf[150];
+	char sbuftype[100];
+	char sbufbiome[100];
+
+	if ( gOptions.worldType & SHOWALL )
+		sprintf_s( sbuftype, 100, " (id %d:%d)", type, dataVal );
+	else
+		sbuftype[0] = '\0';
+
+	if ( (gOptions.worldType & BIOMES) && (biome >= 0) )
+		sprintf_s( sbufbiome, 100, " - %s biome", gBiomes[biome].name );
+	else
+		sbufbiome[0] = '\0';
+
+
+    // if my is out of bounds, print dashes
     if ( my < -1 || my >= MAP_MAX_HEIGHT+1 )
     {
 		//wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
@@ -1769,13 +1926,14 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, HWND hw
     }
     else
     {
+
         // In Nether, show corresponding overworld coordinates
         if ( gOptions.worldType&HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-			wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S",mx,mz,my,mx*8,mz*8,blockLabel);
+			wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S%S%S",mx,mz,my,mx*8,mz*8,blockLabel,sbuftype,sbufbiome);
         else
 			//wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-			wsprintf(buf,L"%d,%d; y=%d %S",mx,mz,my,blockLabel);
+			wsprintf(buf,L"%d,%d; y=%d %S%S%S",mx,mz,my,blockLabel,sbuftype,sbufbiome);
     }
     SendMessage(hwndStatus,SB_SETTEXT,0,(LPARAM)buf);
 }
@@ -1824,7 +1982,6 @@ static void useCustomColor(int wmId,HWND hWnd)
     else
         ColorManager::Init(&cs);
     SetMapPalette(cs.colors,256);
-    SetExportPalette(cs.colors,256);
     draw();
     InvalidateRect(hWnd,NULL,TRUE);
     UpdateWindow(hWnd);
@@ -2241,6 +2398,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
     int miny = gpEFD->minyVal;
     int maxy = gpEFD->maxyVal;
 
+	// affects default state of biome export, too.
+	gpEFD->chkBiome = ( gOptions.worldType & BIOMES ) ? TRUE : FALSE;
+
     setExportPrintData(gpEFD);
 
     if ( showDialog && !doExportPrint(hInst,hWnd) )
@@ -2424,6 +2584,11 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 		// this also allows us to use the faceIndex as a way of noting the start of a new group
 		gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
 		gOptions.exportFlags |= EXPT_GROUP_BY_BLOCK;
+	}
+
+	if ( gpEFD->chkBiome )
+	{
+		gOptions.exportFlags |= EXPT_BIOME;
 	}
 
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent
@@ -2643,6 +2808,7 @@ static void initializeExportDialogData()
 	gExportPrintData.chkExportAll = 0; 
 	gExportPrintData.chkFatten = 0; 
 	gExportPrintData.chkIndividualBlocks = 0;
+	gExportPrintData.chkBiome = 0;
 
     gExportPrintData.radioRotate0 = 1;
 
@@ -2894,7 +3060,7 @@ static int importSettings( wchar_t *importFile )
 	}
 
 	// units - well after 3D print output, so scan many lines
-	char string1[100], string2[100], string3[100];
+	char string1[100], string2[100], string3[100], string4[100];
 	lineNo = findLine( "# Units for the model vertex data itself:", lines, lineNo+1, 20 );
 	if ( lineNo >= 0)
 	{
@@ -3094,6 +3260,16 @@ static int importSettings( wchar_t *importFile )
 	}
 	// new feature - if missing, assume it's off, but don't fail
 
+	lineNo = findLine( "# Use biomes:", lines, 0, 40 );
+	if ( lineNo >= 0)
+	{
+		if ( !sscanf_s( lines[lineNo], "# Use biomes: %s", string1, _countof(string1) ) )
+			return MW_CANNOT_PARSE_IMPORT_FILE;
+
+		efd.chkBiome = ( string1[0] == 'Y');
+	}
+	// new feature - if missing, assume it's off, but don't fail
+
 	float floatVal = 0.0f;
 	lineNo = findLine( "# Rotate model", lines, 0, 40 );
 	if ( lineNo >= 0)
@@ -3126,20 +3302,66 @@ static int importSettings( wchar_t *importFile )
 			efd.radioScaleByBlock = 1;
 			efd.blockSizeVal[efd.fileType] = floatVal;
 		}
-		else if ( 2 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s material", &floatVal, string1, _countof(string1) ) )
-		{
-			efd.radioScaleByCost = 1;
-			efd.costVal = floatVal;
-		}
+		else
+			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+			if ( 5 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
+			{
+				if ( strcmp( string4, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string2 );
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string3 );
+				efd.radioScaleByCost = 1;
+				efd.costVal = floatVal;
+			}
+			else if ( 4 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
+			{
+				if ( strcmp( string3, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string2 );
+				efd.radioScaleByCost = 1;
+				efd.costVal = floatVal;
+			}
+			else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2) ) )
+			{
+				if ( strcmp( string2, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				efd.radioScaleByCost = 1;
+				efd.costVal = floatVal;
+			}
 		else if ( sscanf_s( lines[lineNo], "# Scale model by fitting to a height of %f cm", &floatVal ) )
 		{
 			efd.radioScaleToHeight = 1;
 			efd.modelHeightVal = floatVal;
 		}
-		else if ( sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s material", string1, _countof(string1) ) )
-		{
-			efd.radioScaleToMaterial = 1;
-		}
+		else
+			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+			if ( 4 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
+			{
+				if ( strcmp( string4, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string2 );
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string3 );
+				efd.radioScaleToMaterial = 1;
+			}
+			else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
+			{
+				if ( strcmp( string3, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				strcat_s( string1, _countof(string1), " " );
+				strcat_s( string1, _countof(string1), string2 );
+				efd.radioScaleToMaterial = 1;
+			}
+			else if ( 2 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2) ) )
+			{
+				if ( strcmp( string2, "material" ) != 0 )
+					return MW_CANNOT_PARSE_IMPORT_FILE;
+				efd.radioScaleToMaterial = 1;
+			}
 		else
 			return MW_CANNOT_PARSE_IMPORT_FILE;
 

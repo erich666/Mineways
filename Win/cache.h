@@ -30,13 +30,18 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+// For 64 bits we can increase the amount of map memory we can hold at one time considerably.
+#ifndef MINEWAYS_X64
 #define INITIAL_CACHE_SIZE 6000
+#else
+#define INITIAL_CACHE_SIZE 30000
+#endif
 
 typedef struct WorldBlock {
 	unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
 	// someday we'll need the top four bits field when > 256 blocks
 	// unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char data[16*16*128];  // half-byte additional data about each block (wool color, etc.)
+    unsigned char data[16*16*128];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
 	unsigned char light[16*16*128]; // half-byte lighting data
 
     unsigned char rendercache[16*16*4]; // bitmap of last render

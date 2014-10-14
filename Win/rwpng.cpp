@@ -72,6 +72,40 @@ void readpng_cleanup(int mode, progimage_info *im)
 	}
 }
 
+int readpngheader(progimage_info *im, wchar_t *filename)
+{
+	unsigned int width, height;
+	std::vector<unsigned char> buffer;
+	lodepng::load_file(buffer, filename);
+
+	LodePNGColorType colortype = LCT_RGBA;
+	unsigned bitdepth = 8;
+
+	LodePNGState state;
+	lodepng_state_init(&state);
+	state.info_raw.colortype = colortype;
+	state.info_raw.bitdepth = bitdepth;
+	/*reads header and resets other parameters in state->info_png*/
+	state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
+	unsigned int error = state.error;
+
+	lodepng_state_cleanup(&state);
+
+	//if there's an error, display it
+	if (error)
+	{
+		im->width = 0;
+		im->height = 0;
+		std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+		return (int)error;
+	}
+
+	im->width = (int)width;
+	im->height = (int)height;
+
+	return 0;
+}
+
 // from http://lodev.org/lodepng/example_encode.cpp
 
 //Encode from raw pixels to disk with a single function call

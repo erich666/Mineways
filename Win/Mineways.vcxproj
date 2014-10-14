@@ -158,6 +158,7 @@
     <None Include="teapot.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="biomes.h" />
     <ClInclude Include="blockInfo.h" />
     <ClInclude Include="cache.h" />
     <ClInclude Include="ColorSchemes.h" />
@@ -179,6 +180,8 @@
     <ClInclude Include="zlib.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="biomes.cpp" />
+    <ClCompile Include="blockInfo.cpp" />
     <ClCompile Include="cache.cpp" />
     <ClCompile Include="ColorSchemes.cpp" />
     <ClCompile Include="ExportPrint.cpp" />

@@ -172,12 +172,12 @@ void ColorManager::remove(int id)
 }
 unsigned int ColorManager::blockColor(int type)
 {
-	unsigned int color=gBlockDefinitions[type].color;
+	unsigned int color=gBlockDefinitions[type].read_color;
 	unsigned char r,g,b,a;
 	r=(unsigned char)(color>>16);
 	g=(unsigned char)(color>>8);
 	b=(unsigned char)(color);
-	float alpha=gBlockDefinitions[type].alpha;
+	float alpha=gBlockDefinitions[type].read_alpha;
 	// we used to unmultiply. Now we store the unmultiplied color in gBlockDefinitions
 	//r=(unsigned char)(r/alpha);
 	//g=(unsigned char)(g/alpha);

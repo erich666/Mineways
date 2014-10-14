@@ -32,6 +32,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Resource.h"
 #include "ExportPrint.h"
 
+#define IS_STL ((epd.fileType == FILE_TYPE_ASCII_STL)||(epd.fileType == FILE_TYPE_BINARY_MAGICS_STL)||(epd.fileType == FILE_TYPE_BINARY_VISCAM_STL))
 
 static int prevPhysMaterial;
 static int curPhysMaterial;
@@ -73,10 +74,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
     //char currentString[EP_FIELD_LENGTH];
     UNREFERENCED_PARAMETER(lParam);
 
+	static int focus = -1;
+
     switch (message)
     {
     case WM_INITDIALOG:
         {
+			focus = -1;
+
             // set them up
             sprintf_s(epd.minxString,EP_FIELD_LENGTH,"%d",epd.minxVal);
             sprintf_s(epd.minyString,EP_FIELD_LENGTH,"%d",epd.minyVal);
@@ -113,6 +118,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
 			CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
 			CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,epd.chkIndividualBlocks);
+			CheckDlgButton(hDlg,IDC_BIOME,epd.chkBiome);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -162,6 +168,12 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_SHOW_PARTS,debugAvailable?epd.chkShowParts:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_SHOW_WELDS,debugAvailable?epd.chkShowWelds:BST_INDETERMINATE);
 
+			// disallow biome color if full texture is off
+			CheckDlgButton(hDlg,IDC_BIOME,epd.radioExportFullTexture[epd.fileType]?epd.chkBiome:BST_INDETERMINATE);
+
+			// turn off individual blocks if STL - not supported
+			CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS, !IS_STL ? epd.chkIndividualBlocks:BST_INDETERMINATE);
+
             // When handling INITDIALOG message, send the combo box a message:
             for ( int i = 0; i < MTL_COST_TABLE_SIZE; i++ )
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_ADDSTRING, 0, (LPARAM)mtlCostTable[i].wname); 
@@ -176,6 +188,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
         }
         return (INT_PTR)TRUE;
     case WM_COMMAND:
+
         switch (LOWORD(wParam))
         {
         case IDC_FILL_BUBBLES:
@@ -332,9 +345,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 }
 
                 // if material output turned off, don't allow debug options
-                BOOL debugAvailable = !IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
+                BOOL colorAvailable = !IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
                     && (epd.fileType != FILE_TYPE_ASCII_STL);
-                if ( debugAvailable )
+                if ( colorAvailable )
                 {
                     // wipe out any indeterminates
                     if ( IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) == BST_INDETERMINATE )
@@ -350,24 +363,55 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                     CheckDlgButton(hDlg,IDC_SHOW_PARTS,BST_INDETERMINATE);
                     CheckDlgButton(hDlg,IDC_SHOW_WELDS,BST_INDETERMINATE);
                 }
+				// disallow biome color if not full texture
+				CheckDlgButton(hDlg,IDC_BIOME,IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES)?epd.chkBiome:BST_INDETERMINATE);
             }
             break;
-        case IDC_SHOW_PARTS:
-            {
-                UINT isInactive = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
-                    || (epd.fileType == FILE_TYPE_ASCII_STL);
-                if ( isInactive )
-                {
-                    CheckDlgButton(hDlg,IDC_SHOW_PARTS,BST_INDETERMINATE);
-                }
-                else
-                {
-                    UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) == BST_INDETERMINATE );
-                    if ( isIndeterminate )
-                        CheckDlgButton(hDlg,IDC_SHOW_PARTS,BST_UNCHECKED);
-                }
-            }
-            break;
+		case IDC_INDIVIDUAL_BLOCKS:
+			{
+				if ( IS_STL )
+				{
+					CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE );
+					if ( isIndeterminate )
+						CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,BST_UNCHECKED);
+				}
+			}
+			break;
+		case IDC_BIOME:
+			{
+				UINT isInactive = !IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
+				if ( isInactive )
+				{
+					CheckDlgButton(hDlg,IDC_BIOME,BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_BIOME) == BST_INDETERMINATE );
+					if ( isIndeterminate )
+						CheckDlgButton(hDlg,IDC_BIOME,BST_UNCHECKED);
+				}
+			}
+			break;
+		case IDC_SHOW_PARTS:
+			{
+				UINT isInactive = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
+					|| (epd.fileType == FILE_TYPE_ASCII_STL);
+				if ( isInactive )
+				{
+					CheckDlgButton(hDlg,IDC_SHOW_PARTS,BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) == BST_INDETERMINATE );
+					if ( isIndeterminate )
+						CheckDlgButton(hDlg,IDC_SHOW_PARTS,BST_UNCHECKED);
+				}
+			}
+			break;
 		case IDC_SHOW_WELDS:
 			{
 				UINT isInactive = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS) 
@@ -502,6 +546,93 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 				}
 			}
 			break;
+			
+		case IDC_MODEL_HEIGHT:
+			// a bit sleazy: if we get focus, then get that the box is changing, change radio button to that choice.
+			// There's probably a good way to do this, but I don't know it.
+			// The problem is EN_CHANGE happens when IDC_BLOCK_SIZE is first set, and we don't want to do this then
+			if ( HIWORD(wParam) == EN_SETFOCUS )
+			{
+				focus = IDC_MODEL_HEIGHT;
+			}
+			else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_MODEL_HEIGHT) )
+			{
+				epd.radioScaleByBlock = epd.radioScaleToMaterial = epd.radioScaleByCost = 0;
+				epd.radioScaleToHeight = 1;
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_HEIGHT,epd.radioScaleToHeight);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_MATERIAL,epd.radioScaleToMaterial);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_BLOCK,epd.radioScaleByBlock);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_COST,epd.radioScaleByCost);
+			}
+			break;
+
+		case IDC_BLOCK_SIZE:
+			// a bit sleazy: if we get focus, then get that the box is changing, change radio button to that choice.
+			// There's probably a good way to do this, but I don't know it.
+			// The problem is EN_CHANGE happens when IDC_BLOCK_SIZE is first set, and we don't want to do this then
+			if ( HIWORD(wParam) == EN_SETFOCUS )
+			{
+				focus = IDC_BLOCK_SIZE;
+			}
+			else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_BLOCK_SIZE) )
+			{
+				epd.radioScaleToHeight = epd.radioScaleToMaterial = epd.radioScaleByCost = 0;
+				epd.radioScaleByBlock = 1;
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_HEIGHT,epd.radioScaleToHeight);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_MATERIAL,epd.radioScaleToMaterial);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_BLOCK,epd.radioScaleByBlock);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_COST,epd.radioScaleByCost);
+			}
+			break;
+
+		case IDC_COST:
+			// a bit sleazy: if we get focus, then get that the box is changing, change radio button to that choice.
+			// There's probably a good way to do this, but I don't know it.
+			// The problem is EN_CHANGE happens when IDC_COST is first set, and we don't want to do this then
+			if ( HIWORD(wParam) == EN_SETFOCUS )
+			{
+				focus = IDC_COST;
+			}
+			else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_COST) )
+			{
+				epd.radioScaleToHeight = epd.radioScaleToMaterial = epd.radioScaleByBlock = 0;
+				epd.radioScaleByCost = 1;
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_HEIGHT,epd.radioScaleToHeight);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_TO_MATERIAL,epd.radioScaleToMaterial);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_BLOCK,epd.radioScaleByBlock);
+				CheckDlgButton(hDlg,IDC_RADIO_SCALE_BY_COST,epd.radioScaleByCost);
+			}
+			break;
+
+		case IDC_FLOAT_COUNT:
+			// a bit sleazy: if we get focus, then get that the box is changing, change check button to that choice.
+			// There's probably a good way to do this, but I don't know it.
+			// The problem is EN_CHANGE happens when IDC_FLOAT_COUNT is first set, and we don't want to do this then
+			if ( HIWORD(wParam) == EN_SETFOCUS )
+			{
+				focus = IDC_FLOAT_COUNT;
+			}
+			else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_FLOAT_COUNT) )
+			{
+				epd.chkDeleteFloaters = 1;
+				CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,epd.chkDeleteFloaters);
+			}
+			break;
+
+		case IDC_HOLLOW_THICKNESS:
+			// a bit sleazy: if we get focus, then get that the box is changing, change check button to that choice.
+			// There's probably a good way to do this, but I don't know it.
+			// The problem is EN_CHANGE happens when IDC_HOLLOW_THICKNESS is first set, and we don't want to do this then
+			if ( HIWORD(wParam) == EN_SETFOCUS )
+			{
+				focus = IDC_HOLLOW_THICKNESS;
+			}
+			else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_HOLLOW_THICKNESS) )
+			{
+				epd.chkHollow = 1;
+				CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow);
+			}
+			break;
 
         case IDOK:
             {
@@ -530,7 +661,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 				lepd.chkFatten = lepd.chkExportAll?IsDlgButtonChecked(hDlg,IDC_FATTEN) : 0;
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
 				lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
-				lepd.chkIndividualBlocks = IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
+				lepd.chkBiome = IsDlgButtonChecked(hDlg,IDC_BIOME);
 
                 lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);
                 lepd.radioRotate90 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_90);

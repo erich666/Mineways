@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __MINEWAYS_MAP_H__
 
 #include "blockInfo.h"
+#include "biomes.h"
 
 #ifndef WIN32
 #define __declspec(a)
@@ -38,41 +39,34 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __cdecl
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define CAVEMODE		0x01
-#define HIDEOBSCURED	0x02
-#define DEPTHSHADING	0x04
-#define LIGHTING		0x08
-#define HELL			0x10
-#define ENDER			0x20
-//#define SLIME			0x40
-#define SHOWALL         0x80
+#define CAVEMODE		0x0001
+#define HIDEOBSCURED	0x0002
+#define DEPTHSHADING	0x0004
+#define LIGHTING		0x0008
+#define HELL			0x0010
+#define ENDER			0x0020
+//#define SLIME			0x0040
+#define SHOWALL         0x0080
+#define BIOMES          0x0100
 
 typedef void (*ProgressCallback)(float progress);
 
-    __declspec(dllexport) void __cdecl SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz );
-    __declspec(dllexport) void __cdecl GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz );
-    __declspec(dllexport) void __cdecl DrawMap(const wchar_t *world,double cx,double cz,int y,int w,int h,double zoom,unsigned char *bits, Options opts, int hitsFound[3], ProgressCallback callback);
-    __declspec(dllexport) const char * __cdecl IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type);
-    __declspec(dllexport) void __cdecl CloseAll();
-    __declspec(dllexport) WorldBlock * __cdecl LoadBlock(wchar_t *directory,int bx,int bz);
-	__declspec(dllexport) void __cdecl ClearBlockReadCheck();
-	__declspec(dllexport) int __cdecl UnknownBlockRead();
-	__declspec(dllexport) void __cdecl CheckUnknownBlock( int check );
-	__declspec(dllexport) int __cdecl NeedToCheckUnknownBlock();
-	__declspec(dllexport) int __cdecl GetSpawn(const wchar_t *world,int *x,int *y,int *z);
-    __declspec(dllexport) int __cdecl GetFileVersion(const wchar_t *world,int *version);
-    __declspec(dllexport) void __cdecl GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
-    //__declspec(dllexport) void __cdecl GetRandomSeed(const wchar_t *world,long long* pseed);
-    
-    // palette should be in RGBA format, num colors in the palette
-	__declspec(dllexport) void __cdecl SetMapPremultipliedColors();
-	__declspec(dllexport) void __cdecl SetMapPalette(unsigned int *palette,int num);
-#ifdef __cplusplus
-}
-#endif
+void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz );
+void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz );
+void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,double zoom,unsigned char *bits, Options opts, int hitsFound[3], ProgressCallback callback);
+const char * IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type,int *dataVal,int *biome);
+void CloseAll();
+WorldBlock * LoadBlock(wchar_t *directory,int bx,int bz);
+void ClearBlockReadCheck();
+int UnknownBlockRead();
+void CheckUnknownBlock( int check );
+int NeedToCheckUnknownBlock();
+int GetSpawn(const wchar_t *world,int *x,int *y,int *z);
+int GetFileVersion(const wchar_t *world,int *version);
+void GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
+// palette should be in RGBA format, num colors in the palette
+void SetMapPremultipliedColors();
+void SetMapPalette(unsigned int *palette,int num);
+
 
 #endif

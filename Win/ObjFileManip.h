@@ -29,8 +29,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __OBJ_FILE_H__
 #define __OBJ_FILE_H__
 
-#include "blockInfo.h"
-
 #ifndef WIN32
 #define __declspec(a)
 #define dllexport 0
@@ -68,21 +66,27 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MW_NUM_CODES                                20
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-	__declspec(dllexport) void __cdecl ChangeCache( int size );
-	__declspec(dllexport) void __cdecl ClearCache();
+void ChangeCache( int size );
+void ClearCache();
 
-    __declspec(dllexport) int __cdecl SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
-        ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion );
+int SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
+	ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion );
 
-    // palette should be in RGBA format, num colors in the palette
-	__declspec(dllexport) void __cdecl SetExportPremultipliedColors();
-    __declspec(dllexport) void __cdecl SetExportPalette(unsigned int *palette,int num);
-#ifdef __cplusplus
-}
-#endif
+
+//
+//
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+//
+//	__declspec(dllexport) void __cdecl ChangeCache( int size );
+//	__declspec(dllexport) void __cdecl ClearCache();
+//
+//    __declspec(dllexport) int __cdecl SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
+//        ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion );
+//#ifdef __cplusplus
+//}
+//#endif
 
 #endif

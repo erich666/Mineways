@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Eric Haines
+Copyright (c) 2014, Eric Haines
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -25,22 +25,36 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef RWPNG_H
-#define RWPNG_H
+#ifndef __BIOMES_H__
+#define __BIOMES_H__
 
-#include "lodepng.h"
+#include <stdlib.h>
 
-typedef struct _progimage_info {
-	std::vector<unsigned char> image_data; //the raw pixels
-    int width;
-    int height;
-} progimage_info;
+void PrecomputeBiomeColors();
+int ComputeBiomeColor( int biome, int elevation, int isGrass );
+int BiomeSwampRiverColor( int color );
 
-int readpng(progimage_info *mainprog_ptr, wchar_t *filename);
-int readpngheader(progimage_info *im, wchar_t *filename);
-void readpng_cleanup(int free_image_data, progimage_info *mainprog_ptr);
 
-int writepng(progimage_info *mainprog_ptr, int channels, wchar_t *filename);
-void writepng_cleanup(progimage_info *mainprog_ptr);
+#define FOREST_BIOME				 4
+#define SWAMPLAND_BIOME				 6
+#define FOREST_HILLS_BIOME			18
+#define BIRCH_FOREST_BIOME			27
+#define BIRCH_FOREST_HILLS_BIOME	28
+#define ROOFED_FOREST_BIOME			29
+
+#define MESA_BIOME					37
+#define MESA_PLATEAU_F_BIOME		38
+#define MESA_PLATEAU_BIOME			39
+
+
+typedef struct Biome {
+	const char *name;
+	float temperature;
+	float rainfall;
+	unsigned int grass;	// r,g,b, NOT multiplied by alpha
+	unsigned int foliage;	// r,g,b, NOT multiplied by alpha
+} Biome;
+
+extern Biome gBiomes[];
 
 #endif
