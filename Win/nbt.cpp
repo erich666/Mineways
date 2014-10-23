@@ -6,11 +6,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -126,44 +126,44 @@ static void skipType(bfFile bf,int type)
     int len;
     switch (type)
     {
-        default:
-            break;
-        case 1: //byte
-            bfseek(bf,1,SEEK_CUR);
-            break;
-        case 2: //short
-            bfseek(bf,2,SEEK_CUR);
-            break;
-        case 3: //int
-            bfseek(bf,4,SEEK_CUR);
-            break;
-        case 4: //long
-            bfseek(bf,8,SEEK_CUR);
-            break;
-        case 5: //float
-            bfseek(bf,4,SEEK_CUR);
-            break;
-        case 6: //double
-            bfseek(bf,8,SEEK_CUR);
-            break;
-        case 7: //byte array
-            len=readDword(bf);
-            bfseek(bf,len,SEEK_CUR);
-            break;
-        case 8: //string
-            len=readWord(bf);
-            bfseek(bf,len,SEEK_CUR);
-            break;
-        case 9: //list
-            skipList(bf);
-            break;
-        case 10: //compound
-            skipCompound(bf);
-            break;
-		case 11: //int array
-			len=readDword(bf);
-			bfseek(bf,len*4,SEEK_CUR);
-			break;
+    default:
+        break;
+    case 1: //byte
+        bfseek(bf,1,SEEK_CUR);
+        break;
+    case 2: //short
+        bfseek(bf,2,SEEK_CUR);
+        break;
+    case 3: //int
+        bfseek(bf,4,SEEK_CUR);
+        break;
+    case 4: //long
+        bfseek(bf,8,SEEK_CUR);
+        break;
+    case 5: //float
+        bfseek(bf,4,SEEK_CUR);
+        break;
+    case 6: //double
+        bfseek(bf,8,SEEK_CUR);
+        break;
+    case 7: //byte array
+        len=readDword(bf);
+        bfseek(bf,len,SEEK_CUR);
+        break;
+    case 8: //string
+        len=readWord(bf);
+        bfseek(bf,len,SEEK_CUR);
+        break;
+    case 9: //list
+        skipList(bf);
+        break;
+    case 10: //compound
+        skipCompound(bf);
+        break;
+    case 11: //int array
+        len=readDword(bf);
+        bfseek(bf,len*4,SEEK_CUR);
+        break;
     }
 }
 static void skipList(bfFile bf)
@@ -174,55 +174,55 @@ static void skipList(bfFile bf)
     len=readDword(bf);
     switch (type)
     {
-        default:
-            break;
-        case 1: //byte
-            bfseek(bf,len,SEEK_CUR);
-            break;
-        case 2: //short
-            bfseek(bf,len*2,SEEK_CUR);
-            break;
-        case 3: //int
-            bfseek(bf,len*4,SEEK_CUR);
-            break;
-        case 4: //long
-            bfseek(bf,len*8,SEEK_CUR);
-            break;
-        case 5: //float
-            bfseek(bf,len*4,SEEK_CUR);
-            break;
-        case 6: //double
-            bfseek(bf,len*8,SEEK_CUR);
-            break;
-        case 7: //byte array
-            for (i=0;i<len;i++)
-            {
-                int slen=readDword(bf);
-                bfseek(bf,slen,SEEK_CUR);
-            }
-            break;
-        case 8: //string
-            for (i=0;i<len;i++)
-            {
-                int slen=readWord(bf);
-                bfseek(bf,slen,SEEK_CUR);
-            }
-            break;
-        case 9: //list
-            for (i=0;i<len;i++)
-                skipList(bf);
-            break;
-        case 10: //compound
-            for (i=0;i<len;i++)
-                skipCompound(bf);
-            break;
-		case 11: //int array
-			for (i=0;i<len;i++)
-			{
-				int slen=readDword(bf);
-				bfseek(bf,slen*4,SEEK_CUR);
-			}
-			break;
+    default:
+        break;
+    case 1: //byte
+        bfseek(bf,len,SEEK_CUR);
+        break;
+    case 2: //short
+        bfseek(bf,len*2,SEEK_CUR);
+        break;
+    case 3: //int
+        bfseek(bf,len*4,SEEK_CUR);
+        break;
+    case 4: //long
+        bfseek(bf,len*8,SEEK_CUR);
+        break;
+    case 5: //float
+        bfseek(bf,len*4,SEEK_CUR);
+        break;
+    case 6: //double
+        bfseek(bf,len*8,SEEK_CUR);
+        break;
+    case 7: //byte array
+        for (i=0;i<len;i++)
+        {
+            int slen=readDword(bf);
+            bfseek(bf,slen,SEEK_CUR);
+        }
+        break;
+    case 8: //string
+        for (i=0;i<len;i++)
+        {
+            int slen=readWord(bf);
+            bfseek(bf,slen,SEEK_CUR);
+        }
+        break;
+    case 9: //list
+        for (i=0;i<len;i++)
+            skipList(bf);
+        break;
+    case 10: //compound
+        for (i=0;i<len;i++)
+            skipCompound(bf);
+        break;
+    case 11: //int array
+        for (i=0;i<len;i++)
+        {
+            int slen=readDword(bf);
+            bfseek(bf,slen*4,SEEK_CUR);
+        }
+        break;
     }
 }
 static void skipCompound(bfFile bf)
@@ -277,105 +277,105 @@ static int nbtFindElement(bfFile bf,char *name)
 
 int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome)
 {
-	int len,nsections;
-	int biome_save;
-	//int found;
+    int len,nsections;
+    int biome_save;
+    //int found;
 
 #ifndef C99
-	char *thisName;
+    char *thisName;
 #endif
 
-	//Level/Blocks
-	bfseek(bf,1,SEEK_CUR); //skip type
-	len=readWord(bf); //name length
-	bfseek(bf,len,SEEK_CUR); //skip name ()
-	if (nbtFindElement(bf,"Level")!=10)
-		return 0;
+    //Level/Blocks
+    bfseek(bf,1,SEEK_CUR); //skip type
+    len=readWord(bf); //name length
+    bfseek(bf,len,SEEK_CUR); //skip name ()
+    if (nbtFindElement(bf,"Level")!=10)
+        return 0;
 
-	// For some reason, on most maps the biome info is before the Sections;
-	// on others they're after. So, read biome data, then rewind to find Sections.
-	// Format info at http://wiki.vg/Map_Format, though don't trust order.
-	biome_save = *bf.offset;
-	memset(biome, 0, 16*16);
-	if (nbtFindElement(bf,"Biomes")!=7)
-		return 0;
+    // For some reason, on most maps the biome info is before the Sections;
+    // on others they're after. So, read biome data, then rewind to find Sections.
+    // Format info at http://wiki.vg/Map_Format, though don't trust order.
+    biome_save = *bf.offset;
+    memset(biome, 0, 16*16);
+    if (nbtFindElement(bf,"Biomes")!=7)
+        return 0;
 
-	{
-		len=readDword(bf); //array length
-		bfread(bf,biome,len);
-	}
-	bfseek(bf,biome_save,SEEK_SET); //rewind to start of section
+    {
+        len=readDword(bf); //array length
+        bfread(bf,biome,len);
+    }
+    bfseek(bf,biome_save,SEEK_SET); //rewind to start of section
 
-	if (nbtFindElement(bf,"Sections")!= 9)
-		return 0;
+    if (nbtFindElement(bf,"Sections")!= 9)
+        return 0;
 
-	{
-		unsigned char type=0;
-		bfread(bf,&type,1);
-		if (type != 10)
-			return 0;
-	}
+    {
+        unsigned char type=0;
+        bfread(bf,&type,1);
+        if (type != 10)
+            return 0;
+    }
 
-	memset(buff, 0, 16*16*256);
-	memset(data, 0, 16*16*128);
-	memset(blockLight, 0, 16*16*128);
+    memset(buff, 0, 16*16*256);
+    memset(data, 0, 16*16*128);
+    memset(blockLight, 0, 16*16*128);
 
-	nsections=readDword(bf);
+    nsections=readDword(bf);
 
-	while (nsections--)
-	{	
-		unsigned char y;
-		int save = *bf.offset;
-		if (nbtFindElement(bf,"Y")!=1) //which section is this?
-			return 0;
-		bfread(bf,&y,1);
-		bfseek(bf,save,SEEK_SET); //rewind to start of section
+    while (nsections--)
+    {	
+        unsigned char y;
+        int save = *bf.offset;
+        if (nbtFindElement(bf,"Y")!=1) //which section is this?
+            return 0;
+        bfread(bf,&y,1);
+        bfseek(bf,save,SEEK_SET); //rewind to start of section
 
-		//found=0;
-		for (;;)
-		{
-			int ret=0;
-			unsigned char type=0;
-			bfread(bf,&type,1);
-			if (type==0) 
-				break;
-			len=readWord(bf);
+        //found=0;
+        for (;;)
+        {
+            int ret=0;
+            unsigned char type=0;
+            bfread(bf,&type,1);
+            if (type==0) 
+                break;
+            len=readWord(bf);
 #ifdef C99
-			char thisName[len+1];
+            char thisName[len+1];
 #else
-			thisName=(char *)malloc(len+1);
+            thisName=(char *)malloc(len+1);
 #endif
-			bfread(bf,thisName,len);
-			thisName[len]=0;
-			if (strcmp(thisName,"BlockLight")==0)
-			{
-				//found++;
-				ret=1;
-				len=readDword(bf); //array length
-				bfread(bf,blockLight+16*16*8*y,len);
-			}
-			if (strcmp(thisName,"Blocks")==0)
-			{
-				//found++;
-				ret=1;
-				len=readDword(bf); //array length
-				bfread(bf,buff+16*16*16*y,len);
-			}
-			else if (strcmp(thisName,"Data")==0)
-			{
-				//found++;
-				ret=1;
-				len=readDword(bf); //array length
-				bfread(bf,data+16*16*8*y,len);
-			}
+            bfread(bf,thisName,len);
+            thisName[len]=0;
+            if (strcmp(thisName,"BlockLight")==0)
+            {
+                //found++;
+                ret=1;
+                len=readDword(bf); //array length
+                bfread(bf,blockLight+16*16*8*y,len);
+            }
+            if (strcmp(thisName,"Blocks")==0)
+            {
+                //found++;
+                ret=1;
+                len=readDword(bf); //array length
+                bfread(bf,buff+16*16*16*y,len);
+            }
+            else if (strcmp(thisName,"Data")==0)
+            {
+                //found++;
+                ret=1;
+                len=readDword(bf); //array length
+                bfread(bf,data+16*16*8*y,len);
+            }
 #ifndef C99
-			free(thisName);
+            free(thisName);
 #endif
-			if (!ret)
-				skipType(bf,type);
-		}
-	}
-	return 1;
+            if (!ret)
+                skipType(bf,type);
+        }
+    }
+    return 1;
 }
 void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
 {

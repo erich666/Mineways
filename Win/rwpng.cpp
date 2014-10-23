@@ -6,11 +6,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -38,72 +38,72 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // return 0 on success
 int readpng(progimage_info *im, wchar_t *filename)
 {
-	// TODOTODO need to switch to wifstream, etc.
-	//char filename[MAX_PATH];
-	//dumb_wcharToChar(wfilename,filename);
+    // TODOTODO need to switch to wifstream, etc.
+    //char filename[MAX_PATH];
+    //dumb_wcharToChar(wfilename,filename);
 
-	//decode
-	unsigned int width, height;
-	unsigned int error = lodepng::decode(im->image_data, width, height, filename);
+    //decode
+    unsigned int width, height;
+    unsigned int error = lodepng::decode(im->image_data, width, height, filename);
 
-	//if there's an error, display it
-	if (error)
-	{
-		im->width = 0;
-		im->height = 0;
-		std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
-		return (int)error;
-	}
+    //if there's an error, display it
+    if (error)
+    {
+        im->width = 0;
+        im->height = 0;
+        std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        return (int)error;
+    }
 
-	im->width = (int)width;
-	im->height = (int)height;
+    im->width = (int)width;
+    im->height = (int)height;
 
-	//the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
+    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 
     return 0;
 }
 
 void readpng_cleanup(int mode, progimage_info *im)
 {
-	// was important back when libpng was in use
-	if ( mode == 1 )
-	{
-		im->image_data.clear();
-	}
+    // was important back when libpng was in use
+    if ( mode == 1 )
+    {
+        im->image_data.clear();
+    }
 }
 
 int readpngheader(progimage_info *im, wchar_t *filename)
 {
-	unsigned int width, height;
-	std::vector<unsigned char> buffer;
-	lodepng::load_file(buffer, filename);
+    unsigned int width, height;
+    std::vector<unsigned char> buffer;
+    lodepng::load_file(buffer, filename);
 
-	LodePNGColorType colortype = LCT_RGBA;
-	unsigned bitdepth = 8;
+    LodePNGColorType colortype = LCT_RGBA;
+    unsigned bitdepth = 8;
 
-	LodePNGState state;
-	lodepng_state_init(&state);
-	state.info_raw.colortype = colortype;
-	state.info_raw.bitdepth = bitdepth;
-	/*reads header and resets other parameters in state->info_png*/
-	state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
-	unsigned int error = state.error;
+    LodePNGState state;
+    lodepng_state_init(&state);
+    state.info_raw.colortype = colortype;
+    state.info_raw.bitdepth = bitdepth;
+    /*reads header and resets other parameters in state->info_png*/
+    state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
+    unsigned int error = state.error;
 
-	lodepng_state_cleanup(&state);
+    lodepng_state_cleanup(&state);
 
-	//if there's an error, display it
-	if (error)
-	{
-		im->width = 0;
-		im->height = 0;
-		std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
-		return (int)error;
-	}
+    //if there's an error, display it
+    if (error)
+    {
+        im->width = 0;
+        im->height = 0;
+        std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        return (int)error;
+    }
 
-	im->width = (int)width;
-	im->height = (int)height;
+    im->width = (int)width;
+    im->height = (int)height;
 
-	return 0;
+    return 0;
 }
 
 // from http://lodev.org/lodepng/example_encode.cpp
@@ -113,33 +113,33 @@ int readpngheader(progimage_info *im, wchar_t *filename)
 // return 0 on success
 int writepng(progimage_info *im, int channels, wchar_t *filename)
 {
-	// TODOTODO need to switch to wifstream, etc.
-	//char filename[MAX_PATH];
-	//dumb_wcharToChar(wfilename,filename);
+    // TODOTODO need to switch to wifstream, etc.
+    //char filename[MAX_PATH];
+    //dumb_wcharToChar(wfilename,filename);
 
-	//Encode the image, depending on type
-	unsigned int error = 1;	// 1 means didn't reach lodepng
-	if ( channels == 4 )
-	{
-		// 32 bit RGBA, the default
-		error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
-	}
-	else if ( channels == 3 )
-	{
-		// 24 bit RGB
-		error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
-	}
-	else
-	{
-		assert(0);
-	}
+    //Encode the image, depending on type
+    unsigned int error = 1;	// 1 means didn't reach lodepng
+    if ( channels == 4 )
+    {
+        // 32 bit RGBA, the default
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
+    }
+    else if ( channels == 3 )
+    {
+        // 24 bit RGB
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
+    }
+    else
+    {
+        assert(0);
+    }
 
-	//if there's an error, display it
-	if (error)
-	{
-		std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-		return (int)error;
-	}
+    //if there's an error, display it
+    if (error)
+    {
+        std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+        return (int)error;
+    }
 
     return 0;
 }
@@ -147,7 +147,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 
 void writepng_cleanup(progimage_info *im)
 {
-	im->image_data.clear();
+    im->image_data.clear();
 }
 
 

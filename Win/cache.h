@@ -1,17 +1,17 @@
 /*
 Copyright (c) 2010, Sean Kasun
-    Parts Copyright (c) 2010-2011, Ryan Hitchman
+Parts Copyright (c) 2010-2011, Ryan Hitchman
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -38,22 +38,22 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 typedef struct WorldBlock {
-	unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
-	// someday we'll need the top four bits field when > 256 blocks
-	// unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
+    unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
+    // someday we'll need the top four bits field when > 256 blocks
+    // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
     unsigned char data[16*16*128];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
-	unsigned char light[16*16*128]; // half-byte lighting data
+    unsigned char light[16*16*128]; // half-byte lighting data
 
     unsigned char rendercache[16*16*4]; // bitmap of last render
     unsigned char heightmap[16*16]; // height of rendered block [x+z*16]
-	unsigned char biome[16*16];
+    unsigned char biome[16*16];
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render
     int renderhilitID;	// the last selected area's ID tag
     char rendermissing;  // the z-offset of a block that was missing
-                        // when it was last rendered (for blocks on the
-                        // left edge of the map, this might be +1)
+    // when it was last rendered (for blocks on the
+    // left edge of the map, this might be +1)
     unsigned short colormap; //color map when this was rendered
 } WorldBlock;
 
@@ -63,16 +63,16 @@ void Cache_Add(int bx,int bz,void *data);
 void Cache_Empty();
 
 /* a simple malloc wrapper, based on the observation that a common
- * behavior pattern for Mineways when the cache is at max capacity
- * is something like:
- *
- * newBlock = malloc(sizeof(Block));
- * cacheAdd(newBlock)
- *  free(oldBlock) // same size
- *
- * Repeated over and over. Recycling the most recently freed block
- * prevents expensive reallocations.
- */
+* behavior pattern for Mineways when the cache is at max capacity
+* is something like:
+*
+* newBlock = malloc(sizeof(Block));
+* cacheAdd(newBlock)
+*  free(oldBlock) // same size
+*
+* Repeated over and over. Recycling the most recently freed block
+* prevents expensive reallocations.
+*/
 
 WorldBlock* block_alloc();           // allocate memory for a block
 void block_free(WorldBlock* block); // release memory for a block

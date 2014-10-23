@@ -6,7 +6,7 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -26,8 +26,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 Region File Format
 
 Concept: The minimum unit of storage on hard drives is 4KB. 90% of Minecraft
- chunks are smaller than 4KB. 99% are smaller than 8KB. Write a simple
- container to store chunks in single files in runs of 4KB sectors.
+chunks are smaller than 4KB. 99% are smaller than 8KB. Write a simple
+container to store chunks in single files in runs of 4KB sectors.
 
 Each region file represents a 32x32 group of chunks. The conversion from
 chunk number to region number is floor(coord / 32); a chunk at (30, -3)
@@ -81,22 +81,22 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 #ifdef WIN32
     DWORD br;
 #endif
-	static unsigned char *buf=NULL,*out=NULL;
+    static unsigned char *buf=NULL,*out=NULL;
 
     int sectorNumber, offset, chunkLength;
-    
+
     int status;
-	bfFile bf;
-	
+    bfFile bf;
+
     static z_stream strm;
     static int strm_initialized = 0;
 
-	if (buf==NULL)
-	{
-		// note that these will never get freed, but we just need this one.
-		buf=(unsigned char*)malloc(CHUNK_DEFLATE_MAX);
-		out=(unsigned char*)malloc(CHUNK_INFLATE_MAX);
-	}
+    if (buf==NULL)
+    {
+        // note that these will never get freed, but we just need this one.
+        buf=(unsigned char*)malloc(CHUNK_DEFLATE_MAX);
+        out=(unsigned char*)malloc(CHUNK_INFLATE_MAX);
+    }
 
     // open the region file - note we get the new mca 1.2 file type here!
     swprintf_s(filename,256,L"%sregion/r.%d.%d.mca",directory,cx>>5,cz>>5);
@@ -123,19 +123,19 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
     // read chunk in one shot
     // this is faster than reading the header and data separately
     RERROR(PortaRead(regionFile,buf, 4096 * sectorNumber));
-    
+
     chunkLength = (buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];
 
     // sanity check chunk size
     RERROR(chunkLength > sectorNumber * 4096 || chunkLength > CHUNK_DEFLATE_MAX);
-    
+
     // only handle zlib-compressed chunks (v2)
     RERROR(buf[4] != 2);
 
     PortaClose(regionFile);
 
     // decompress chunk
-    
+
 
     if (!strm_initialized) {
         // we re-use dynamically allocated memory

@@ -6,11 +6,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -133,16 +133,16 @@ void Cache_Add(int bx, int bz, void *data)
 
 void *Cache_Find(int bx,int bz)
 {
-	block_entry *entry;
+    block_entry *entry;
 
-	if (gBlockCache == NULL)
-		return NULL;
+    if (gBlockCache == NULL)
+        return NULL;
 
-	for (entry = gBlockCache[hash_coord(bx, bz)]; entry != NULL; entry = entry->next)
-		if (entry->x == bx && entry->z == bz)
-			return entry->data;
+    for (entry = gBlockCache[hash_coord(bx, bz)]; entry != NULL; entry = entry->next)
+        if (entry->x == bx && entry->z == bz)
+            return entry->data;
 
-	return NULL;
+    return NULL;
 }
 
 void Cache_Empty()
@@ -162,23 +162,23 @@ void Cache_Empty()
             entry = next;
         }
     }
-    
+
     free(gBlockCache);
     free(gCacheHistory);
     gBlockCache = NULL;
 }
 
 /* a simple malloc wrapper, based on the observation that a common
- * behavior pattern for Mineways when the cache is at max capacity
- * is something like:
- *
- * newBlock = malloc(sizeof(Block));
- * cacheAdd(newBlock)
- *  free(oldBlock) // same size
- *
- * Repeatedly. Recycling the old block can prevent the need for 
- * malloc and free.
- */
+** behavior pattern for Mineways when the cache is at max capacity
+** is something like:
+**
+** newBlock = malloc(sizeof(Block));
+** cacheAdd(newBlock)
+**  free(oldBlock) // same size
+**
+** Repeatedly. Recycling the old block can prevent the need for 
+** malloc and free.
+**/
 
 static WorldBlock* last_block = NULL;
 
@@ -197,6 +197,6 @@ void block_free(WorldBlock* block)
 {
     if (last_block != NULL)
         free(last_block);
-    
+
     last_block = block;
 }

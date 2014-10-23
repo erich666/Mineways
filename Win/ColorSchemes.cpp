@@ -7,11 +7,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -53,18 +53,18 @@ ColorManager::~ColorManager()
 
 void ColorManager::Init(ColorScheme *cs)
 {
-	int i;
+    int i;
     for (i=0;i<NUM_BLOCKS;i++)
     {
         cs->colors[i]=blockColor(i);
     }
-	for (int i=NUM_BLOCKS; i < 256; i++)
-	{
-		// fill the rest with almost-black; if we detect this color on loading
-		// a color scheme in a place that should have been a normal color, then
-		// we know the old color scheme is out of date and should be fixed on load.
-		cs->colors[i]=NO_COLOR_ENTRY;
-	}
+    for (int i=NUM_BLOCKS; i < 256; i++)
+    {
+        // fill the rest with almost-black; if we detect this color on loading
+        // a color scheme in a place that should have been a normal color, then
+        // we know the old color scheme is out of date and should be fixed on load.
+        cs->colors[i]=NO_COLOR_ENTRY;
+    }
 }
 void ColorManager::create(ColorScheme *cs)
 {
@@ -109,59 +109,58 @@ void ColorManager::load(ColorScheme *cs)
     DWORD csLen=sizeof(ColorScheme);
     RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
 
-	// find out how many entries are invalid and fix these by shifting up
-	int woolLoc = BLOCK_BLACK_WOOL;
-	// Find black wool entry (for backwards compatibility)
-	unsigned int color=blockColor(BLOCK_BLACK_WOOL);
+    // find out how many entries are invalid and fix these by shifting up
+    int endLoc = BLOCK_UNKNOWN;
+    // Find unknown block entry (for backwards compatibility)
+    unsigned int color=blockColor(BLOCK_UNKNOWN);
 
-	// go back through list until wool is found. Don't go back past say snow
-	while ( woolLoc > 78 && cs->colors[woolLoc] != color )
-	{
-		woolLoc--;
-	}
+    // go back through list until unknown block is found. Don't go back past say snow.
+    // ignore alpha, because that could get zero'ed.
+    while ( endLoc > BLOCK_SNOW && (cs->colors[endLoc] & 0xffffff00) != (color & 0xffffff00) )
+    {
+        endLoc--;
+    }
 
-	// woolLoc is the location of black wool in the saved color scheme
-	if ( woolLoc < BLOCK_BLACK_WOOL && woolLoc > 78 )
-	{
-		// Mind the gap! Move the 16 wools up some slots, fill in these slots
-		// with missing entries
-		int gap = BLOCK_BLACK_WOOL - woolLoc;
-		int i;
-		// set unknown block attribute, one past wool
-		cs->colors[NUM_BLOCKS-1] = blockColor(NUM_BLOCKS-1);
-		for ( i = 0; i > -16; i-- )
-		{
-			// correct black wool set to where black wool is currently, on back down
-			cs->colors[woolLoc+gap+i] = cs->colors[woolLoc+i];
-		}
-		for ( i = 0; i <= BLOCK_BLACK_WOOL; i++ )
-		{
-			// set where white wool was, on up, to missing color
-			cs->colors[woolLoc-15+i] = blockColor(woolLoc-15+i);
-		}
-		save(cs);
-	}
+    // endLoc is the location of the unknown block in the saved color scheme.
+    // Check if a correction is needed, i.e. new blocks have been added.
+    if ( endLoc < BLOCK_UNKNOWN && endLoc > BLOCK_SNOW )
+    {
+        // Mind the gap! Move the unknown block up some slots, fill in these slots
+        // with missing entries
+        int gap = BLOCK_UNKNOWN - endLoc;
+        int i;
+        // set unknown block attribute to whatever it was before
+        cs->colors[endLoc+gap] = cs->colors[endLoc];
+
+        // set "empty" blocks with new default data
+        for ( i = 0; i < gap; i++ )
+        {
+            // set where unknown block was, on up to end
+            cs->colors[endLoc+i] = blockColor(endLoc+i);
+        }
+        save(cs);
+    }
 }
 // Already has name and data fields, along with unique ID; just copy colors.
 // You should load the cs and csSource before calling to ensure they're the same size,
-// BLOCK_BLACK_WOOL
+// BLOCK_UNKNOWN
 void ColorManager::copy(ColorScheme *cs, ColorScheme *csSource)
 {
-	wchar_t keyname[50];
-	DWORD csLen=sizeof(ColorScheme);
+    wchar_t keyname[50];
+    DWORD csLen=sizeof(ColorScheme);
 
-	swprintf(keyname,50,L"scheme %d",cs->id);
-	RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
+    swprintf(keyname,50,L"scheme %d",cs->id);
+    RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)cs,&csLen);
 
-	swprintf(keyname,50,L"scheme %d",csSource->id);
-	RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)csSource,&csLen);
+    swprintf(keyname,50,L"scheme %d",csSource->id);
+    RegQueryValueEx(key,keyname,NULL,NULL,(LPBYTE)csSource,&csLen);
 
-	for ( int i = 0; i <= BLOCK_BLACK_WOOL; i++ )
-	{
-		// set where white wool was, on up, to missing color
-		cs->colors[i] = csSource->colors[i];
-	}
-	save(cs);
+    for ( int i = 0; i <= BLOCK_UNKNOWN; i++ )
+    {
+        // copy color
+        cs->colors[i] = csSource->colors[i];
+    }
+    save(cs);
 }
 
 void ColorManager::remove(int id)
@@ -172,20 +171,20 @@ void ColorManager::remove(int id)
 }
 unsigned int ColorManager::blockColor(int type)
 {
-	unsigned int color=gBlockDefinitions[type].read_color;
-	unsigned char r,g,b,a;
-	r=(unsigned char)(color>>16);
-	g=(unsigned char)(color>>8);
-	b=(unsigned char)(color);
-	float alpha=gBlockDefinitions[type].read_alpha;
-	// we used to unmultiply. Now we store the unmultiplied color in gBlockDefinitions
-	//r=(unsigned char)(r/alpha);
-	//g=(unsigned char)(g/alpha);
-	//b=(unsigned char)(b/alpha);
-	a=(unsigned char)(alpha*255);
-	color=(r<<24)|(g<<16)|(b<<8)|a;
+    unsigned int color=gBlockDefinitions[type].read_color;
+    unsigned char r,g,b,a;
+    r=(unsigned char)(color>>16);
+    g=(unsigned char)(color>>8);
+    b=(unsigned char)(color);
+    float alpha=gBlockDefinitions[type].read_alpha;
+    // we used to unmultiply. Now we store the unmultiplied color in gBlockDefinitions
+    //r=(unsigned char)(r/alpha);
+    //g=(unsigned char)(g/alpha);
+    //b=(unsigned char)(b/alpha);
+    a=(unsigned char)(alpha*255);
+    color=(r<<24)|(g<<16)|(b<<8)|a;
 
-	return color;
+    return color;
 }
 
 INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam);
@@ -254,44 +253,44 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
                 SendMessage(list,LB_SETCURSEL,item,0);
             }
             break;
-		case IDC_COPY:
-			{
-				// select the highlighted scheme
-				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
-				int item=(int)SendMessage(list,LB_GETCURSEL,0,0);
-				curCS.id=(int)SendMessage(list,LB_GETITEMDATA,item,0);
+        case IDC_COPY:
+            {
+                // select the highlighted scheme
+                list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+                int item=(int)SendMessage(list,LB_GETCURSEL,0,0);
+                curCS.id=(int)SendMessage(list,LB_GETITEMDATA,item,0);
 
-				ColorManager cm;
-				ColorScheme cs;
-				// this ensures the source is the proper size in blocks, same as the new one
-				cm.load(&curCS);
-				swprintf_s(cs.name,255,L"%ls %d",curCS.name, gLocalCountForNames);
-				gLocalCountForNames++;
-				// create the new one
-				cm.create(&cs);
-				// and copy it over
-				cm.copy(&cs,&curCS);
-				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
-				int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
-				SendMessage(list,LB_SETITEMDATA,pos,cs.id);
-				validateButtons(hDlg);
-			}
-			break;
-		case IDC_ADD:
-			{
-				ColorManager cm;
-				ColorScheme cs;
-				// goofy, all color schemes use the same name by default.
-				swprintf_s(cs.name,255,L"Color Scheme %d",gLocalCountForNames);
-				gLocalCountForNames++;
-				cm.create(&cs);
-				list=GetDlgItem(hDlg,IDC_SCHEMELIST);
-				int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
-				SendMessage(list,LB_SETITEMDATA,pos,cs.id);
-				validateButtons(hDlg);
-			}
-			break;
-break;
+                ColorManager cm;
+                ColorScheme cs;
+                // this ensures the source is the proper size in blocks, same as the new one
+                cm.load(&curCS);
+                swprintf_s(cs.name,255,L"%ls %d",curCS.name, gLocalCountForNames);
+                gLocalCountForNames++;
+                // create the new one
+                cm.create(&cs);
+                // and copy it over
+                cm.copy(&cs,&curCS);
+                list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+                int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+                SendMessage(list,LB_SETITEMDATA,pos,cs.id);
+                validateButtons(hDlg);
+            }
+            break;
+        case IDC_ADD:
+            {
+                ColorManager cm;
+                ColorScheme cs;
+                // goofy, all color schemes use the same name by default.
+                swprintf_s(cs.name,255,L"Color Scheme %d",gLocalCountForNames);
+                gLocalCountForNames++;
+                cm.create(&cs);
+                list=GetDlgItem(hDlg,IDC_SCHEMELIST);
+                int pos=(int)SendMessage(list,LB_ADDSTRING,0,(LPARAM)cs.name);
+                SendMessage(list,LB_SETITEMDATA,pos,cs.id);
+                validateButtons(hDlg);
+            }
+            break;
+            break;
         case IDC_REMOVE:
             {
                 ColorManager cm;
@@ -306,8 +305,8 @@ break;
                 validateButtons(hDlg);
             }
             break;
-		// There's no real cancel, it's the same as OK
-		case IDOK:
+            // There's no real cancel, it's the same as OK
+        case IDOK:
         case IDCANCEL:
             {
                 list=GetDlgItem(hDlg,IDC_SCHEMELIST);
@@ -333,21 +332,21 @@ break;
 }
 static void validateButtons(HWND hDlg)
 {
-	HWND edit=GetDlgItem(hDlg,IDC_EDIT);
-	HWND copy=GetDlgItem(hDlg,IDC_COPY);
+    HWND edit=GetDlgItem(hDlg,IDC_EDIT);
+    HWND copy=GetDlgItem(hDlg,IDC_COPY);
     HWND remove=GetDlgItem(hDlg,IDC_REMOVE);
     HWND list=GetDlgItem(hDlg,IDC_SCHEMELIST);
     int item=(int)SendMessage(list,LB_GETCURSEL,0,0);
     if (item==LB_ERR)
     {
-		EnableWindow(edit,FALSE);
-		EnableWindow(copy,FALSE);
+        EnableWindow(edit,FALSE);
+        EnableWindow(copy,FALSE);
         EnableWindow(remove,FALSE);
     }
     else
     {
-		EnableWindow(edit,TRUE);
-		EnableWindow(copy,TRUE);
+        EnableWindow(edit,TRUE);
+        EnableWindow(copy,TRUE);
         EnableWindow(remove,TRUE);
     }
 }
@@ -363,7 +362,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
     case WM_INITDIALOG:
         {
             SetDlgItemText(hDlg,IDC_SCHEMENAME,curCS.name);
-            
+
             HWND ctl=GetDlgItem(hDlg,IDC_CURCOLOR);
             EnableWindow(ctl,FALSE);
             ctl=GetDlgItem(hDlg,IDC_CURALPHA);
@@ -371,7 +370,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
 
             HWND lv=GetDlgItem(hDlg,IDC_COLORLIST);
             ListView_SetExtendedListViewStyle(lv,LVS_EX_FULLROWSELECT);
-            
+
             LVCOLUMN lvc;
             lvc.mask=LVCF_FMT|LVCF_WIDTH|LVCF_TEXT|LVCF_SUBITEM;
             for (int i=0;i<4;i++)
@@ -440,7 +439,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
                 swprintf(row,255,L"%d.",info->item.iItem);
                 break;
             case 1:
-                swprintf(row,255,L"%S",gBlockDefinitions[info->item.iItem].name);
+                swprintf(row,255,L"%S",gBlockDefinitions[info->item.iItem].name);	// char to wchar
                 break;
             case 2:
                 swprintf(row,255,L"#%06x",curCS.colors[info->item.iItem]>>8);

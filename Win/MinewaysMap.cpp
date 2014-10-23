@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2010, Sean Kasun
-    Parts Copyright (c) 2010, Ryan Hitchman
+Parts Copyright (c) 2010, Ryan Hitchman
 All rights reserved.
 Modified by Eric Haines, copyright (c) 2011.
 
@@ -8,11 +8,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -37,9 +37,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 
 static unsigned char* draw(const wchar_t *world,int bx,int bz,int topy,Options opts,
-        ProgressCallback callback,float percent,int *hitsFound);
+    ProgressCallback callback,float percent,int *hitsFound);
 static void blit(unsigned char *block,unsigned char *bits,int px,int py,
-        double zoom,int w,int h);
+    double zoom,int w,int h);
 static void initColors();
 
 static int gColorsInited=0;
@@ -176,21 +176,21 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,double zoom,unsigned char *bits,Options opts, int *hitsFound, ProgressCallback callback)
 {
     /* We're converting between coordinate systems, so this gets kinda ugly 
-     *
-     * X     -world x N  -screen y
-     * screen origin  |
-     *                |
-     *                |
-     *                |
-     *  +world z      |(cz,cx)   -world z
-     * W--------------+----------------E
-     *  -screen x     |          +screen x
-     *                |
-     *                | 
-     *                |
-     *      +world x  | +screen y
-     *                S
-     */
+    *
+    * X     -world x N  -screen y
+    * screen origin  |
+    *                |
+    *                |
+    *                |
+    *  +world z      |(cz,cx)   -world z
+    * W--------------+----------------E
+    *  -screen x     |          +screen x
+    *                |
+    *                | 
+    *                |
+    *      +world x  | +screen y
+    *                S
+    */
 
     // Yes, yes, -x is north under most of the Beta versions of Minecraft. Feel free to revise
     // the code to make -z to be north, for the release. If you add this, it should be an option,
@@ -206,23 +206,23 @@ void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,doubl
 
 
     // cx/cz is the center, so find the upper left corner from that
-	double startx=cx-(double)w/(2*zoom);
-	double startz=cz-(double)h/(2*zoom);
+    double startx=cx-(double)w/(2*zoom);
+    double startz=cz-(double)h/(2*zoom);
     // TODO: I suspect these want to be floors, not ints; int
     // rounds towards 0, floor takes -4.5 and goes to -5.
     int startxblock=(int)(startx/16);
     int startzblock=(int)(startz/16);
-	int shiftx=(int)((startx-startxblock*16)*zoom);
-	int shifty=(int)((startz-startzblock*16)*zoom);
+    int shiftx=(int)((startx-startxblock*16)*zoom);
+    int shifty=(int)((startz-startzblock*16)*zoom);
 
     if (shiftx<0)
     {
-		startxblock--;
+        startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-		startzblock--;
+        startzblock--;
         shifty+=blockScale;
     }
 
@@ -260,28 +260,47 @@ void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,doubl
 }
 
 static struct {
-	char *name;
+    char *name;
 } gExtraBlockNames[] = {
-	{ "Spruce Leaves" },
-	{ "Birch Leaves" },
-	{ "Jungle Leaves" },
-	{ "Dark Oak Leaves" },
-	{ "Blue Orchid" },	// flowers (poppies)
-	{ "Allium" },	// 5
-	{ "Azure Bluet" },
-	{ "Red Tulip" },
-	{ "Orange Tulip" },
-	{ "White Tulip" },
-	{ "Pink Tulip" },	// 10
-	{ "Oxeye Daisy" },
-	{ "Lilac" },	// tall flowers
-	{ "Double Tallgrass" },
-	{ "Large Fern" },
-	{ "Rose Bush" },	// 15
-	{ "Peony" },
-	{ "Dead Bush" },
-	{ "Tall Grass" },
-	{ "Fern" },
+    { "Spruce Leaves" },
+    { "Birch Leaves" },
+    { "Jungle Leaves" },
+    { "Dark Oak Leaves" },
+    { "Blue Orchid" },	// flowers (poppies)
+    { "Allium" },	// 5
+    { "Azure Bluet" },
+    { "Red Tulip" },
+    { "Orange Tulip" },
+    { "White Tulip" },
+    { "Pink Tulip" },	// 10
+    { "Oxeye Daisy" },
+    { "Lilac" },	// tall flowers
+    { "Double Tallgrass" },
+    { "Large Fern" },
+    { "Rose Bush" },	// 15
+    { "Peony" },
+    { "Dead Bush" },
+    { "Tall Grass" },
+    { "Fern" },
+    { "Spruce Wood Planks" },   // 20
+    { "Birch Wood Planks" },
+    { "Jungle Wood Planks" },
+    { "Acacia Wood Planks" },
+    { "Dark Oak Wood Planks" },
+    { "Granite" },              // 25
+    { "Polished Granite" },
+    { "Diorite" },
+    { "Polished Diorite" },
+    { "Andesite" },
+    { "Polished Andesite" },    // 30
+    { "Coarse Dirt" },
+    { "Podzol" },
+    { "Spruce Sapling" },
+    { "Birch Sapling" },
+    { "Jungle Sapling" },   // 35
+    { "Acacia Sapling" },
+    { "Dark Oak Sapling" },
+    { "Red Sand" },
 };
 
 #define STRING_SPRUCE_LEAVES	0
@@ -304,6 +323,25 @@ static struct {
 #define STRING_DEAD_BUSH		17
 #define STRING_TALL_GRASS		18
 #define STRING_FERN				19
+#define STRING_SPRUCE_WOOD_PLANKS	20
+#define STRING_BIRCH_WOOD_PLANKS	21
+#define STRING_JUNGLE_WOOD_PLANKS	22
+#define STRING_ACACIA_WOOD_PLANKS	23
+#define STRING_DARK_OAK_WOOD_PLANKS	24
+#define STRING_GRANITE              25
+#define STRING_POLISHED_GRANITE     26
+#define STRING_DIORITE              27
+#define STRING_POLISHED_DIORITE     28
+#define STRING_ANDESITE             29
+#define STRING_POLISHED_ANDESITE    30
+#define STRING_COARSE_DIRT          31   
+#define STRING_PODZOL               32
+#define STRING_SPRUCE_SAPLING	    33
+#define STRING_BIRCH_SAPLING	    34
+#define STRING_JUNGLE_SAPLING	    35
+#define STRING_ACACIA_SAPLING	    36
+#define STRING_DARK_OAK_SAPLING	    37
+#define STRING_RED_SAND     	    38
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -322,57 +360,57 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     WorldBlock *block;
     int x,y,z,px,py,xoff,zoff;
     int blockScale=(int)(16*zoom);
-    
+
     // cx/cz is the center, so find the upper left corner from that
-	double startx=cx-(double)w/(2*zoom);
-	double startz=cz-(double)h/(2*zoom);
+    double startx=cx-(double)w/(2*zoom);
+    double startz=cz-(double)h/(2*zoom);
     // TODO: I suspect these want to be floors, not ints; int
     // rounds towards 0, floor takes -4.5 and goes to -5.
     int startxblock=(int)(startx/16);
     int startzblock=(int)(startz/16);
-	int shiftx=(int)((startx-startxblock*16)*zoom);
-	int shifty=(int)((startz-startzblock*16)*zoom);
+    int shiftx=(int)((startx-startxblock*16)*zoom);
+    int shifty=(int)((startz-startzblock*16)*zoom);
     assert(cz < 10000);
     assert(cz > -10000);
 
-	// initialize to "not set"
-	*biome = -1;
-	*dataVal = 0;
+    // initialize to "not set"
+    *biome = -1;
+    *dataVal = 0;
 
     if (shiftx<0)
     {
-		startxblock--;
+        startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-		startzblock--;
+        startzblock--;
         shifty+=blockScale;
     }
 
-	// Adjust bx and by so they can be negative.
-	// Note that things are a bit weird with numbers here.
-	// I check if the mouse location is unreasonably high, which means
-	// that it's meant to be a negative number instead.
-	if ( bx > 0x7000 )
-		bx -= 0x8000;
-	if ( by > 0x7000 )
-		by -= 0x8000;
+    // Adjust bx and by so they can be negative.
+    // Note that things are a bit weird with numbers here.
+    // I check if the mouse location is unreasonably high, which means
+    // that it's meant to be a negative number instead.
+    if ( bx > 0x7000 )
+        bx -= 0x8000;
+    if ( by > 0x7000 )
+        by -= 0x8000;
 
     // if off window above
     // Sean's fix, but makes the screen go empty if I scroll off top of window
     //if (by<0) return "";
 
-	x=(bx+shiftx)/blockScale;
-	px=x*blockScale-shiftx;
-	z=(by+shifty)/blockScale;
-	py=z*blockScale-shifty;
+    x=(bx+shiftx)/blockScale;
+    px=x*blockScale-shiftx;
+    z=(by+shifty)/blockScale;
+    py=z*blockScale-shifty;
 
-	xoff=(int)((bx-px)/zoom);
-	zoff=(int)((by-py)/zoom);
+    xoff=(int)((bx-px)/zoom);
+    zoff=(int)((by-py)/zoom);
 
     *ox=(startxblock+x)*16+xoff;
-	*oz=(startzblock+z)*16+zoff;
+    *oz=(startzblock+z)*16+zoff;
 
     block=(WorldBlock *)Cache_Find(startxblock+x, startzblock+z);
 
@@ -385,7 +423,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
     y=block->heightmap[xoff+zoff*16];
     *oy=y;
-	*biome = block->biome[xoff+zoff*16];
+    *biome = block->biome[xoff+zoff*16];
 
     // Note that when "hide obscured" is on, blocks can be empty because
     // they were solid from the current level on down.
@@ -398,131 +436,217 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
     // there's a bug in the original code, sometimes xoff is negative.
     // For now, assert when I see it, and return empty - better than crashing.
-	// TODO - can this still happen?
+    // TODO - can this still happen?
     //assert( y+(zoff+xoff*16)*128 >= 0 );
     if ( y*256+zoff*16+xoff < 0 || y*256+zoff*16+xoff >= 65536) {
-		*type=BLOCK_AIR;
-		*biome = -1;
+        *type=BLOCK_AIR;
+        *biome = -1;
         return "(off map)";
     }
 
     *type = block->grid[xoff+zoff*16+y*256];
-	*dataVal = block->data[(xoff+zoff*16+y*256)/2];
-	if ( xoff & 0x01 )
-		*dataVal = (*dataVal) >> 4;
-	else
-		*dataVal &= 0xf;
+    *dataVal = block->data[(xoff+zoff*16+y*256)/2];
+    if ( xoff & 0x01 )
+        *dataVal = (*dataVal) >> 4;
+    else
+        *dataVal &= 0xf;
 
 
-	///////////////////////////////////
-	// give a better name if possible
-	switch ( *type )
-	{
-	case BLOCK_LEAVES:
-		switch ((*dataVal) & 0x3)
-		{
-		default:
-			break;
-		case 1:	// spruce
-			return gExtraBlockNames[STRING_SPRUCE_LEAVES].name;
-			break;
-		case 2:	// birch
-			return gExtraBlockNames[STRING_BIRCH_LEAVES].name;
-			break;
-		case 3:	// jungle
-			return gExtraBlockNames[STRING_JUNGLE_LEAVES].name;
-			break;
-		}
-		break;
+    ///////////////////////////////////
+    // give a better name if possible
+    switch ( *type )
+    {
+    case BLOCK_LEAVES:
+        switch ((*dataVal) & 0x3)
+        {
+        default:
+            break;
+        case 1:	// spruce
+            return gExtraBlockNames[STRING_SPRUCE_LEAVES].name;
+            break;
+        case 2:	// birch
+            return gExtraBlockNames[STRING_BIRCH_LEAVES].name;
+            break;
+        case 3:	// jungle
+            return gExtraBlockNames[STRING_JUNGLE_LEAVES].name;
+            break;
+        }
+        break;
 
-	case BLOCK_AD_LEAVES:
-		switch ((*dataVal) & 0x1)
-		{
-		default:
-			break;
-		case 1:	// dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_LEAVES].name;
-			break;
-		}
-		break;
+    case BLOCK_AD_LEAVES:
+        switch ((*dataVal) & 0x1)
+        {
+        default:
+            break;
+        case 1:	// dark oak
+            return gExtraBlockNames[STRING_DARK_OAK_LEAVES].name;
+            break;
+        }
+        break;
 
-	case BLOCK_TALL_GRASS:
-		switch ((*dataVal) & 0x3)
-		{
-		default:
-		case 0: // dead bush
-			return gExtraBlockNames[STRING_DEAD_BUSH].name;
-			break;
-		case 1:	// tall grass
-			return gExtraBlockNames[STRING_TALL_GRASS].name;
-			break;
-		case 2:	// fern
-			return gExtraBlockNames[STRING_FERN].name;
-			break;
-		}
-		break;
+    case BLOCK_TALL_GRASS:
+        switch ((*dataVal) & 0x3)
+        {
+        default:
+        case 0: // dead bush
+            return gExtraBlockNames[STRING_DEAD_BUSH].name;
+            break;
+        case 1:	// tall grass
+            return gExtraBlockNames[STRING_TALL_GRASS].name;
+            break;
+        case 2:	// fern
+            return gExtraBlockNames[STRING_FERN].name;
+            break;
+        }
+        break;
 
-	case BLOCK_POPPY:
-		switch ((*dataVal))
-		{
-		default:	// poppy
-			break;
-		case 1:	// blue orchid
-			return gExtraBlockNames[STRING_BLUE_ORCHID].name;
-			break;
-		case 2:	// allium
-			return gExtraBlockNames[STRING_ALLIUM].name;
-			break;
-		case 3:	// azure bluet
-			return gExtraBlockNames[STRING_AZURE_BLUET].name;
-			break;
-		case 4:	// red tulip
-			return gExtraBlockNames[STRING_RED_TULIP].name;
-			break;
-		case 5:	// orange tulip
-			return gExtraBlockNames[STRING_ORANGE_TULIP].name;
-			break;
-		case 6:	// white tulip
-			return gExtraBlockNames[STRING_WHITE_TULIP].name;
-			break;
-		case 7:	// pink tulip
-			return gExtraBlockNames[STRING_PINK_TULIP].name;
-			break;
-		case 8:	// oxeye daisy
-			return gExtraBlockNames[STRING_OXEYE_DAISY].name;
-			break;
-		}
-		break;
+    case BLOCK_POPPY:
+        switch ((*dataVal))
+        {
+        default:	// poppy
+            break;
+        case 1:	// blue orchid
+            return gExtraBlockNames[STRING_BLUE_ORCHID].name;
+            break;
+        case 2:	// allium
+            return gExtraBlockNames[STRING_ALLIUM].name;
+            break;
+        case 3:	// azure bluet
+            return gExtraBlockNames[STRING_AZURE_BLUET].name;
+            break;
+        case 4:	// red tulip
+            return gExtraBlockNames[STRING_RED_TULIP].name;
+            break;
+        case 5:	// orange tulip
+            return gExtraBlockNames[STRING_ORANGE_TULIP].name;
+            break;
+        case 6:	// white tulip
+            return gExtraBlockNames[STRING_WHITE_TULIP].name;
+            break;
+        case 7:	// pink tulip
+            return gExtraBlockNames[STRING_PINK_TULIP].name;
+            break;
+        case 8:	// oxeye daisy
+            return gExtraBlockNames[STRING_OXEYE_DAISY].name;
+            break;
+        }
+        break;
 
-	case BLOCK_DOUBLE_FLOWER:
-		// subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
-		*dataVal = block->data[(xoff+zoff*16+(y-1)*256)/2];
-		if ( xoff & 0x01 )
-			(*dataVal) = (*dataVal) >> 4;
-		else
-			(*dataVal) &= 0xf;
-		switch ((*dataVal))
-		{
-		default:	// sunflower
-			break;
-		case 1:	// lilac
-			return gExtraBlockNames[STRING_LILAC].name;
-			break;
-		case 2:	// double tallgrass
-			return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
-			break;
-		case 3:	// large fern
-			return gExtraBlockNames[STRING_LARGE_FERN].name;
-			break;
-		case 4:	// rose bush
-			return gExtraBlockNames[STRING_ROSE_BUSH].name;
-			break;
-		case 5:	// peony
-			return gExtraBlockNames[STRING_PEONY].name;
-			break;
-		}
-		break;
-	}
+    case BLOCK_DOUBLE_FLOWER:
+        // subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
+        *dataVal = block->data[(xoff+zoff*16+(y-1)*256)/2];
+        if ( xoff & 0x01 )
+            (*dataVal) = (*dataVal) >> 4;
+        else
+            (*dataVal) &= 0xf;
+        switch ((*dataVal))
+        {
+        default:	// sunflower
+            break;
+        case 1:	// lilac
+            return gExtraBlockNames[STRING_LILAC].name;
+            break;
+        case 2:	// double tallgrass
+            return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
+            break;
+        case 3:	// large fern
+            return gExtraBlockNames[STRING_LARGE_FERN].name;
+            break;
+        case 4:	// rose bush
+            return gExtraBlockNames[STRING_ROSE_BUSH].name;
+            break;
+        case 5:	// peony
+            return gExtraBlockNames[STRING_PEONY].name;
+            break;
+        }
+        break;
+
+    case BLOCK_WOODEN_PLANKS:
+        switch (*dataVal)
+        {
+        default:
+            break;
+        case 1:	// spruce
+            return gExtraBlockNames[STRING_SPRUCE_WOOD_PLANKS].name;
+            break;
+        case 2:	// birch
+            return gExtraBlockNames[STRING_BIRCH_WOOD_PLANKS].name;
+            break;
+        case 3:	// jungle
+            return gExtraBlockNames[STRING_JUNGLE_WOOD_PLANKS].name;
+            break;
+        case 4:	// acacia
+            return gExtraBlockNames[STRING_ACACIA_WOOD_PLANKS].name;
+            break;
+        case 5:	// dark oak
+            return gExtraBlockNames[STRING_DARK_OAK_WOOD_PLANKS].name;
+            break;
+        }
+        break;
+
+    case BLOCK_STONE:
+        switch (*dataVal)
+        {
+        default:
+            break;
+        case 1:
+            return gExtraBlockNames[STRING_GRANITE].name;
+            break;
+        case 2:
+            return gExtraBlockNames[STRING_POLISHED_GRANITE].name;
+            break;
+        case 3:
+            return gExtraBlockNames[STRING_DIORITE].name;
+            break;
+        case 4:
+            return gExtraBlockNames[STRING_POLISHED_DIORITE].name;
+            break;
+        case 5:
+            return gExtraBlockNames[STRING_ANDESITE].name;
+            break;
+        case 6:
+            return gExtraBlockNames[STRING_POLISHED_ANDESITE].name;
+            break;
+        }
+        break;
+
+    case BLOCK_DIRT:
+        switch (*dataVal)
+        {
+        default:
+            break;
+        case 1:
+            return gExtraBlockNames[STRING_COARSE_DIRT].name;
+            break;
+        case 2:
+            return gExtraBlockNames[STRING_PODZOL].name;
+            break;
+        }
+        break;
+
+    case BLOCK_SAPLING:
+        switch (*dataVal)
+        {
+        default:
+            break;
+        case 1:	// spruce
+            return gExtraBlockNames[STRING_SPRUCE_SAPLING].name;
+            break;
+        case 2:	// birch
+            return gExtraBlockNames[STRING_BIRCH_SAPLING].name;
+            break;
+        case 3:	// jungle
+            return gExtraBlockNames[STRING_JUNGLE_SAPLING].name;
+            break;
+        case 4:	// acacia
+            return gExtraBlockNames[STRING_ACACIA_SAPLING].name;
+            break;
+        case 5:	// dark oak
+            return gExtraBlockNames[STRING_DARK_OAK_SAPLING].name;
+            break;
+        }
+        break;
+    }
 
     return gBlockDefinitions[*type].name;
 }
@@ -567,705 +691,705 @@ void CloseAll()
 
 static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int voxel, unsigned char type, int light, char useBiome, char useElevation )
 {
-	unsigned int color = 0xFFFFFF;
-	unsigned int r,g,b;
-	unsigned char dataVal;
-	bool lightComputed = false;
-	float alpha;
-	bool alphaComputed = false;
-	int affectedByBiome = 0;
+    unsigned int color = 0xFFFFFF;
+    unsigned int r,g,b;
+    unsigned char dataVal;
+    bool lightComputed = false;
+    float alpha;
+    bool alphaComputed = false;
+    int affectedByBiome = 0;
 
-	switch (type)
-	{
-	case BLOCK_WOOL:
-	case BLOCK_CARPET:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch ( dataVal )
-		{
-			// I picked the color from the tile location 2 from the left, 3 down.
-		default:
-			assert(0);
-		case 0:
-			lightComputed = true;
-			//color = 0xEEEEEE;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:
-			color = 0xDA8248;
-			break;
-		case 2:
-			color = 0xBA5EC2;
-			break;
-		case 3:
-			color = 0x7B96CD;
-			break;
-		case 4:
-			color = 0xC1B52A;
-			break;
-		case 5:
-			color = 0x46BA3A;
-			break;
-		case 6:
-			color = 0xD597A7;
-			break;
-		case 7:
-			color = 0x434343;
-			break;
-		case 8:
-			color = 0xA6ACAC;
-			break;
-		case 9:
-			color = 0x307592;
-			break;
-		case 10:
-			color = 0x8643BF;
-			break;
-		case 11:
-			color = 0x2E3B97;
-			break;
-		case 12:
-			color = 0x53351F;
-			break;
-		case 13:
-			color = 0x384B1B;
-			break;
-		case 14:
-			color = 0xA23732;
-			break;
-		case 15:
-			color = 0x1D1818;
-			break;
-		}
-		break;
+    switch (type)
+    {
+    case BLOCK_WOOL:
+    case BLOCK_CARPET:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch ( dataVal )
+        {
+            // I picked the color from the tile location 2 from the left, 3 down.
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            //color = 0xEEEEEE;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:
+            color = 0xDA8248;
+            break;
+        case 2:
+            color = 0xBA5EC2;
+            break;
+        case 3:
+            color = 0x7B96CD;
+            break;
+        case 4:
+            color = 0xC1B52A;
+            break;
+        case 5:
+            color = 0x46BA3A;
+            break;
+        case 6:
+            color = 0xD597A7;
+            break;
+        case 7:
+            color = 0x434343;
+            break;
+        case 8:
+            color = 0xA6ACAC;
+            break;
+        case 9:
+            color = 0x307592;
+            break;
+        case 10:
+            color = 0x8643BF;
+            break;
+        case 11:
+            color = 0x2E3B97;
+            break;
+        case 12:
+            color = 0x53351F;
+            break;
+        case 13:
+            color = 0x384B1B;
+            break;
+        case 14:
+            color = 0xA23732;
+            break;
+        case 15:
+            color = 0x1D1818;
+            break;
+        }
+        break;
 
-	case BLOCK_STAINED_CLAY:
-		// from upper left corner
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch ( dataVal )
-		{
-			// I picked the color from the tile location 2 from the left, 3 down.
-		default:
-			assert(0);
-		case 0:
-			lightComputed = true;
-			//color = 0xCEAE9E;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:
-			color = 0x9D5021;
-			break;
-		case 2:
-			color = 0x925469;
-			break;
-		case 3:
-			color = 0x6D6987;
-			break;
-		case 4:
-			color = 0xB6801F;
-			break;
-		case 5:
-			color = 0x647230;
-			break;
-		case 6:
-			color = 0x9D4A4B;
-			break;
-		case 7:
-			color = 0x362621;
-			break;
-		case 8:
-			color = 0x84665D;
-			break;
-		case 9:
-			color = 0x535758;
-			break;
-		case 10:
-			color = 0x734253;
-			break;
-		case 11:
-			color = 0x473858;
-			break;
-		case 12:
-			color = 0x4A2F21;
-			break;
-		case 13:
-			color = 0x484F27;
-			break;
-		case 14:
-			color = 0x8B392B;
-			break;
-		case 15:
-			color = 0x21120D;
-			break;
-		}
-		break;
+    case BLOCK_STAINED_CLAY:
+        // from upper left corner
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch ( dataVal )
+        {
+            // I picked the color from the tile location 2 from the left, 3 down.
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            //color = 0xCEAE9E;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:
+            color = 0x9D5021;
+            break;
+        case 2:
+            color = 0x925469;
+            break;
+        case 3:
+            color = 0x6D6987;
+            break;
+        case 4:
+            color = 0xB6801F;
+            break;
+        case 5:
+            color = 0x647230;
+            break;
+        case 6:
+            color = 0x9D4A4B;
+            break;
+        case 7:
+            color = 0x362621;
+            break;
+        case 8:
+            color = 0x84665D;
+            break;
+        case 9:
+            color = 0x535758;
+            break;
+        case 10:
+            color = 0x734253;
+            break;
+        case 11:
+            color = 0x473858;
+            break;
+        case 12:
+            color = 0x4A2F21;
+            break;
+        case 13:
+            color = 0x484F27;
+            break;
+        case 14:
+            color = 0x8B392B;
+            break;
+        case 15:
+            color = 0x21120D;
+            break;
+        }
+        break;
 
-	case BLOCK_STAINED_GLASS:
-	case BLOCK_STAINED_GLASS_PANE:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch ( dataVal )
-		{
-			// from 2 down, 2 to the right, basically upper left inside the frame
-		default:
-			assert(0);
-		case 0:
-			lightComputed = true;
-			//color = 0xEFEFEF;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:
-			color = 0xDFBB9D;
-			break;
-		case 2:
-			color = 0xCFA7DF;
-			break;
-		case 3:
-			color = 0xB1C5DF;
-			break;
-		case 4:
-			color = 0xE3E39D;
-			break;
-		case 5:
-			color = 0xBBD995;
-			break;
-		case 6:
-			color = 0xE9BBCB;
-			break;
-		case 7:
-			color = 0xA7A7A7;
-			break;
-		case 8:
-			color = 0xC5C5C5;
-			break;
-		case 9:
-			color = 0xA7BBC5;
-			break;
-		case 10:
-			color = 0xBBA1CF;
-			break;
-		case 11:
-			color = 0x9DA7CF;
-			break;
-		case 12:
-			color = 0xB1A79D;
-			break;
-		case 13:
-			color = 0xB1BB9D;
-			break;
-		case 14:
-			color = 0xC59D9D;
-			break;
-		case 15:
-			color = 0x959595;
-			break;
-		}
-		// now premultiply by alpha
-		r=color>>16;
-		g=(color>>8)&0xff;
-		b=color&0xff;
-		alpha = gBlockDefinitions[type].alpha;
-		r=(unsigned char)(r*alpha);
-		g=(unsigned char)(g*alpha);
-		b=(unsigned char)(b*alpha);
+    case BLOCK_STAINED_GLASS:
+    case BLOCK_STAINED_GLASS_PANE:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch ( dataVal )
+        {
+            // from 2 down, 2 to the right, basically upper left inside the frame
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            //color = 0xEFEFEF;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:
+            color = 0xDFBB9D;
+            break;
+        case 2:
+            color = 0xCFA7DF;
+            break;
+        case 3:
+            color = 0xB1C5DF;
+            break;
+        case 4:
+            color = 0xE3E39D;
+            break;
+        case 5:
+            color = 0xBBD995;
+            break;
+        case 6:
+            color = 0xE9BBCB;
+            break;
+        case 7:
+            color = 0xA7A7A7;
+            break;
+        case 8:
+            color = 0xC5C5C5;
+            break;
+        case 9:
+            color = 0xA7BBC5;
+            break;
+        case 10:
+            color = 0xBBA1CF;
+            break;
+        case 11:
+            color = 0x9DA7CF;
+            break;
+        case 12:
+            color = 0xB1A79D;
+            break;
+        case 13:
+            color = 0xB1BB9D;
+            break;
+        case 14:
+            color = 0xC59D9D;
+            break;
+        case 15:
+            color = 0x959595;
+            break;
+        }
+        // now premultiply by alpha
+        r=color>>16;
+        g=(color>>8)&0xff;
+        b=color&0xff;
+        alpha = gBlockDefinitions[type].alpha;
+        r=(unsigned char)(r*alpha);
+        g=(unsigned char)(g*alpha);
+        b=(unsigned char)(b*alpha);
 
-		color=(r<<16)|(g<<8)|b;
+        color=(r<<16)|(g<<8)|b;
 
-		break;
+        break;
 
-	case BLOCK_WOODEN_PLANKS:
-	case BLOCK_WOODEN_DOUBLE_SLAB:
-	case BLOCK_WOODEN_SLAB:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
-		switch (dataVal & 0x7)
-		{
-		default:
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// spruce
-			color = 0x634C2B;
-			break;
-		case 2:	// birch
-			color = 0xC5B477;
-			break;
-		case 3:	// jungle
-			color = 0x9C6E47;
-			break;
-		case 4:	// acacia
-			color = 0xAA5A2F;
-			break;
-		case 5:	// dark oak
-			color = 0x3B260F;
-			break;
-		}
-		break;
+    case BLOCK_WOODEN_PLANKS:
+    case BLOCK_WOODEN_DOUBLE_SLAB:
+    case BLOCK_WOODEN_SLAB:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+        switch (dataVal & 0x7)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// spruce
+            color = 0x634C2B;
+            break;
+        case 2:	// birch
+            color = 0xC5B477;
+            break;
+        case 3:	// jungle
+            color = 0x9C6E47;
+            break;
+        case 4:	// acacia
+            color = 0xAA5A2F;
+            break;
+        case 5:	// dark oak
+            color = 0x3B260F;
+            break;
+        }
+        break;
 
-	case BLOCK_STONE:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal)
-		{
-		default:
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// granite
-			color = 0xA77562;
-			break;
-		case 2:	// polished granite
-			color = 0x946251;
-			break;
-		case 3:	// diorite
-			color = 0x9B9B9E;
-			break;
-		case 4:	// polished diorite
-			color = 0xC9C9CD;
-			break;
-		case 5:	// andesite
-			color = 0x7F7F83;
-			break;
-		case 6:	// polished andesite
-			color = 0x7F7F84;
-			break;
-		}
-		break;
+    case BLOCK_STONE:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// granite
+            color = 0xA77562;
+            break;
+        case 2:	// polished granite
+            color = 0x946251;
+            break;
+        case 3:	// diorite
+            color = 0x9B9B9E;
+            break;
+        case 4:	// polished diorite
+            color = 0xC9C9CD;
+            break;
+        case 5:	// andesite
+            color = 0x7F7F83;
+            break;
+        case 6:	// polished andesite
+            color = 0x7F7F84;
+            break;
+        }
+        break;
 
-	case BLOCK_SAND:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal)
-		{
-		default:
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// red sand
-			color = 0xA85420;
-			break;
-		}
-		break;
+    case BLOCK_SAND:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// red sand
+            color = 0xA85420;
+            break;
+        }
+        break;
 
-	case BLOCK_LOG:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal & 0x3)
-		{
-		default:
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// spruce
-			color = 0x291806;
-			break;
-		case 2:	// birch
-			color = 0xE2E8DF;
-			break;
-		case 3:	// jungle
-			color = 0x584419;
-			break;
-		}
-		break;
+    case BLOCK_LOG:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal & 0x3)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// spruce
+            color = 0x291806;
+            break;
+        case 2:	// birch
+            color = 0xE2E8DF;
+            break;
+        case 3:	// jungle
+            color = 0x584419;
+            break;
+        }
+        break;
 
-	case BLOCK_LEAVES:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal & 0x3)
-		{
-		default:
-		case 0:	// oak
-		case 3:	// jungle
-			// if the default color is in use, use something more visible
-			if ( gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color )
-			{
-				// NOTE: considerably darker than what is stored:
-				// the stored value is used to affect only the output color, not the map color.
-				// This oak leaf color (and jungle, below) makes the trees easier to pick out.
+    case BLOCK_LEAVES:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:	// oak
+        case 3:	// jungle
+            // if the default color is in use, use something more visible
+            if ( gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color )
+            {
+                // NOTE: considerably darker than what is stored:
+                // the stored value is used to affect only the output color, not the map color.
+                // This oak leaf color (and jungle, below) makes the trees easier to pick out.
 
-				// jungle and oak
-				color = dataVal ? 0x46AD19 : 0x3A7F1B ;
-			}
-			else
-			{
-				lightComputed = true;
-				color = gBlockColors[type*16+light];
-			}
-			affectedByBiome = 2;
-			break;
-		case 1:	// spruce
-			color = 0x3D623D;
-			break;
-		case 2:	// birch
-			color = 0x6B8D46;
-			break;
-		}
-		break;
+                // jungle and oak
+                color = dataVal ? 0x46AD19 : 0x3A7F1B ;
+            }
+            else
+            {
+                lightComputed = true;
+                color = gBlockColors[type*16+light];
+            }
+            affectedByBiome = 2;
+            break;
+        case 1:	// spruce
+            color = 0x3D623D;
+            break;
+        case 2:	// birch
+            color = 0x6B8D46;
+            break;
+        }
+        break;
 
-	case BLOCK_AD_LEAVES:
-		affectedByBiome = 2;
-		// if the default color is in use, use something more visible
-		if ( gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color )
-		{
-			// NOTE: considerably darker than what is stored:
-			// the stored value is used to affect only the output color, not the map color.
-			// This oak leaf color (and jungle, below) makes the trees easier to pick out.
+    case BLOCK_AD_LEAVES:
+        affectedByBiome = 2;
+        // if the default color is in use, use something more visible
+        if ( gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color )
+        {
+            // NOTE: considerably darker than what is stored:
+            // the stored value is used to affect only the output color, not the map color.
+            // This oak leaf color (and jungle, below) makes the trees easier to pick out.
 
-			// acacia and 
-			dataVal = block->data[voxel/2];
-			if ( voxel & 0x01 )
-				dataVal = dataVal >> 4;
-			else
-				dataVal &= 0xf;
-			// dark oak and acacia
-			color = dataVal ? 0x2C6F0F : 0x3D9A14 ;
-		}
-		else
-		{
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-		}
-		affectedByBiome = 2;
-		break;
+            // acacia and 
+            dataVal = block->data[voxel/2];
+            if ( voxel & 0x01 )
+                dataVal = dataVal >> 4;
+            else
+                dataVal &= 0xf;
+            // dark oak and acacia
+            color = dataVal ? 0x2C6F0F : 0x3D9A14 ;
+        }
+        else
+        {
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+        }
+        affectedByBiome = 2;
+        break;
 
-	case BLOCK_TALL_GRASS:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal & 0x3)
-		{
-		default:
-		case 0: // dead bush
-			color = 0x946428;
-			break;
-		case 1:	// tall grass
-		case 2:	// fern
-			// by default, color is used for grass and ferns, which are more common
-			affectedByBiome = 1;
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		}
-		break;
+    case BLOCK_TALL_GRASS:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0: // dead bush
+            color = 0x946428;
+            break;
+        case 1:	// tall grass
+        case 2:	// fern
+            // by default, color is used for grass and ferns, which are more common
+            affectedByBiome = 1;
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        }
+        break;
 
-	case BLOCK_GRASS:
-	case BLOCK_VINES:
-		affectedByBiome = 1;
-		lightComputed = true;
-		color = gBlockColors[type*16+light];
-		break;
+    case BLOCK_GRASS:
+    case BLOCK_VINES:
+        affectedByBiome = 1;
+        lightComputed = true;
+        color = gBlockColors[type*16+light];
+        break;
 
-	case BLOCK_AD_LOG:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal & 0x3)
-		{
-		default:	// acacia
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// dark oak
-			color = 0x342816;
-			break;
-		}
-		break;
+    case BLOCK_AD_LOG:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal & 0x3)
+        {
+        default:	// acacia
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// dark oak
+            color = 0x342816;
+            break;
+        }
+        break;
 
-	case BLOCK_DOUBLE_STONE_SLAB:
-	case BLOCK_STONE_SLAB:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		alphaComputed = true;
-		switch (dataVal)
-		{
-		default:
-		case 8:	// full stone
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// sandstone
-		case 9:	// full sandstone
-			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
-			break;
-		case 2:	// wooden
-			color = gBlockDefinitions[BLOCK_WOODEN_PLANKS].pcolor;
-			break;
-		case 3:	// cobblestone
-		case 11:	// cobblestone
-			color = gBlockDefinitions[BLOCK_COBBLESTONE].pcolor;
-			break;
-		case 4:	// bricks
-		case 12:	// bricks
-			color = gBlockDefinitions[BLOCK_BRICK].pcolor;
-			break;
-		case 5:	// stone brick
-		case 13:	// stone brick
-			color = gBlockDefinitions[BLOCK_STONE_BRICKS].pcolor;
-			break;
-		case 6:	// nether brick
-		case 14:	// nether brick
-			color = gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
-			break;
-		case 7:	// quartz
-		case 15:	// quartz
-			color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
-			break;
-		case 10:	// tile quartz or upper wooden slab
-			color = gBlockDefinitions[(type == BLOCK_DOUBLE_STONE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
-			break;
-		}
-		break;
+    case BLOCK_DOUBLE_STONE_SLAB:
+    case BLOCK_STONE_SLAB:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        alphaComputed = true;
+        switch (dataVal)
+        {
+        default:
+        case 8:	// full stone
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// sandstone
+        case 9:	// full sandstone
+            color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+            break;
+        case 2:	// wooden
+            color = gBlockDefinitions[BLOCK_WOODEN_PLANKS].pcolor;
+            break;
+        case 3:	// cobblestone
+        case 11:	// cobblestone
+            color = gBlockDefinitions[BLOCK_COBBLESTONE].pcolor;
+            break;
+        case 4:	// bricks
+        case 12:	// bricks
+            color = gBlockDefinitions[BLOCK_BRICK].pcolor;
+            break;
+        case 5:	// stone brick
+        case 13:	// stone brick
+            color = gBlockDefinitions[BLOCK_STONE_BRICKS].pcolor;
+            break;
+        case 6:	// nether brick
+        case 14:	// nether brick
+            color = gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
+            break;
+        case 7:	// quartz
+        case 15:	// quartz
+            color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+            break;
+        case 10:	// tile quartz or upper wooden slab
+            color = gBlockDefinitions[(type == BLOCK_DOUBLE_STONE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
+            break;
+        }
+        break;
 
-	case BLOCK_POPPY:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal)
-		{
-		default:	// poppy
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// blue orchid
-			color = 0x26ABF8;
-			break;
-		case 2:	// allium
-			color = 0xB562F8;
-			break;
-		case 3:	// azure bluet
-			color = 0xE1E7EF;
-			break;
-		case 4:	// red tulip
-			color = 0xC02905;
-			break;
-		case 5:	// orange tulip
-			color = 0xDE6E20;
-			break;
-		case 6:	// white tulip
-			color = 0xE4E4E4;
-			break;
-		case 7:	// pink tulip
-			color = 0xE7BBE7;
-			break;
-		case 8:	// oxeye daisy
-			color = 0xE7D941;
-			break;
-		}
-		break;
+    case BLOCK_POPPY:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:	// poppy
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// blue orchid
+            color = 0x26ABF8;
+            break;
+        case 2:	// allium
+            color = 0xB562F8;
+            break;
+        case 3:	// azure bluet
+            color = 0xE1E7EF;
+            break;
+        case 4:	// red tulip
+            color = 0xC02905;
+            break;
+        case 5:	// orange tulip
+            color = 0xDE6E20;
+            break;
+        case 6:	// white tulip
+            color = 0xE4E4E4;
+            break;
+        case 7:	// pink tulip
+            color = 0xE7BBE7;
+            break;
+        case 8:	// oxeye daisy
+            color = 0xE7D941;
+            break;
+        }
+        break;
 
-	case BLOCK_DOUBLE_FLOWER:
-		// subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
-		dataVal = block->data[(voxel-256)/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal)
-		{
-		default:
-		case 0:	// sunflower
-			color = 0xEAD31F;
-			break;
-		case 1:	// lilac
-			color = 0xB79ABB;
-			break;
-		case 2:	// double tallgrass
-			// we use color as the grass multiplier color
-			affectedByBiome = 1;
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 3:	// large fern
-			// we use color as the grass multiplier color
-			affectedByBiome = 1;
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 4:	// rose bush
-			color = 0xF4210B;
-			break;
-		case 5:	// peony
-			color = 0xE3BCF4;
-			break;
-		}
-		break;
+    case BLOCK_DOUBLE_FLOWER:
+        // subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
+        dataVal = block->data[(voxel-256)/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:
+        case 0:	// sunflower
+            color = 0xEAD31F;
+            break;
+        case 1:	// lilac
+            color = 0xB79ABB;
+            break;
+        case 2:	// double tallgrass
+            // we use color as the grass multiplier color
+            affectedByBiome = 1;
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 3:	// large fern
+            // we use color as the grass multiplier color
+            affectedByBiome = 1;
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 4:	// rose bush
+            color = 0xF4210B;
+            break;
+        case 5:	// peony
+            color = 0xE3BCF4;
+            break;
+        }
+        break;
 
-	case BLOCK_SPONGE:
-		dataVal = block->data[voxel/2];
-		if ( voxel & 0x01 )
-			dataVal = dataVal >> 4;
-		else
-			dataVal &= 0xf;
-		switch (dataVal)
-		{
-		default:	// sunflower
-			lightComputed = true;
-			color = gBlockColors[type*16+light];
-			break;
-		case 1:	// wet sponge
-			color = 0x999829;
-			break;
-		}
-		break;
+    case BLOCK_SPONGE:
+        dataVal = block->data[voxel/2];
+        if ( voxel & 0x01 )
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:	// sunflower
+            lightComputed = true;
+            color = gBlockColors[type*16+light];
+            break;
+        case 1:	// wet sponge
+            color = 0x999829;
+            break;
+        }
+        break;
 
-	case BLOCK_WATER:
-		color = gBlockDefinitions[BLOCK_WATER].color;
-		affectedByBiome = 3;	// by swamp only
-		break;
+    case BLOCK_WATER:
+        color = gBlockDefinitions[BLOCK_WATER].color;
+        affectedByBiome = 3;	// by swamp only
+        break;
 
-	case BLOCK_STATIONARY_WATER:
-		color = gBlockDefinitions[BLOCK_STATIONARY_WATER].color;
-		affectedByBiome = 3;
-		break;
+    case BLOCK_STATIONARY_WATER:
+        color = gBlockDefinitions[BLOCK_STATIONARY_WATER].color;
+        affectedByBiome = 3;
+        break;
 
-	default:
-		// Everything else
-		lightComputed = true;
-		color = gBlockColors[type*16+light];
-	}
+    default:
+        // Everything else
+        lightComputed = true;
+        color = gBlockColors[type*16+light];
+    }
 
-	// if biome affects color, then look up color and use it
-	if ( useBiome && affectedByBiome )
-	{
-		// get the biome
-		unsigned char biome = block->biome[voxel&0xff];	// x and z location
-		int elevation;
-		if ( useElevation )
-		{
-			elevation = max( 0, (voxel >> 8) - 64 );	// y location
-		}
-		else
-		{
-			// not used
-			elevation = 0;
-		}
-		
-		switch ( affectedByBiome )
-		{
-		default:
-		case 1:
-			// grass
-			// We'll have to compute the effect of light, alpha, etc.
-			// so turn on this flag.
-			lightComputed = false;
-			if ( elevation )
-			{
-				color = ComputeBiomeColor( biome, elevation, 1 );
-			}
-			else
-			{
-				color = gBiomes[biome].grass;
-			}
-			break;
-		case 2:
-			// trees
-			// We'll have to compute the effect of light, alpha, etc.
-			// so turn on this flag.
-			lightComputed = false;
-			if ( elevation )
-			{
-				color = ComputeBiomeColor( biome, elevation, 0 );
-			}
-			else
-			{
-				color = gBiomes[biome].foliage;
-			}
-			break;
-		case 3:
-			// water, in swamp
-			if ( (biome&0x7f) == SWAMPLAND_BIOME )
-			{
-				// We'll have to compute the effect of light, alpha, etc.
-				// so turn on this flag.
-				lightComputed = false;
-				color = BiomeSwampRiverColor( color );
-			}
-			else
-			{
-				// normal water color
-				lightComputed = true;
-				color = gBlockColors[type*16+light];
-			}
-			break;
-		}
-	}
+    // if biome affects color, then look up color and use it
+    if ( useBiome && affectedByBiome )
+    {
+        // get the biome
+        unsigned char biome = block->biome[voxel&0xff];	// x and z location
+        int elevation;
+        if ( useElevation )
+        {
+            elevation = max( 0, (voxel >> 8) - 64 );	// y location
+        }
+        else
+        {
+            // not used
+            elevation = 0;
+        }
 
-	// did we factor in the effect of the light? light == 15 means
-	// fully lit, so nothing further needs to be done.
-	if ( !lightComputed )
-	{
-		// alphaComputed is true if we got the color directly from the pcolor;
-		// in other words, alpha is already folded in. If not, we need to multiply by alpha.
-		// It is examined only when lightComputed is false; when lightComputed
-		// is true, alpha is already folded in.
-		if ( !alphaComputed && ( gBlockDefinitions[type].alpha != 1.0 ) )
-		{
-			r=(unsigned char)((color>>16)&0xff);
-			g=(unsigned char)((color>>8)&0xff);
-			b=(unsigned char)color&0xff;
-			alpha=gBlockDefinitions[type].alpha;
-			r=(unsigned char)(r*alpha); //premultiply alpha
-			g=(unsigned char)(g*alpha);
-			b=(unsigned char)(b*alpha);
-			color=(r<<16)|(g<<8)|b;
-		}
-		if (light != 15)
-		{
-			// compute effect of light
-			double y,u,v;
-			r=color>>16;
-			g=(color>>8)&0xff;
-			b=color&0xff;
-			//we'll use YUV to darken the blocks.. gives a nice even
-			//coloring
-			y=0.299*r+0.587*g+0.114*b;
-			u=(b-y)*0.565;
-			v=(r-y)*0.713;
+        switch ( affectedByBiome )
+        {
+        default:
+        case 1:
+            // grass
+            // We'll have to compute the effect of light, alpha, etc.
+            // so turn on this flag.
+            lightComputed = false;
+            if ( elevation )
+            {
+                color = ComputeBiomeColor( biome, elevation, 1 );
+            }
+            else
+            {
+                color = gBiomes[biome].grass;
+            }
+            break;
+        case 2:
+            // trees
+            // We'll have to compute the effect of light, alpha, etc.
+            // so turn on this flag.
+            lightComputed = false;
+            if ( elevation )
+            {
+                color = ComputeBiomeColor( biome, elevation, 0 );
+            }
+            else
+            {
+                color = gBiomes[biome].foliage;
+            }
+            break;
+        case 3:
+            // water, in swamp
+            if ( (biome&0x7f) == SWAMPLAND_BIOME )
+            {
+                // We'll have to compute the effect of light, alpha, etc.
+                // so turn on this flag.
+                lightComputed = false;
+                color = BiomeSwampRiverColor( color );
+            }
+            else
+            {
+                // normal water color
+                lightComputed = true;
+                color = gBlockColors[type*16+light];
+            }
+            break;
+        }
+    }
 
-			y*=(double)light/15.0;
-			r=(unsigned int)clamp(y+1.403*v,0,255);
-			g=(unsigned int)clamp(y-0.344*u-0.714*v,0,255);
-			b=(unsigned int)clamp(y+1.770*u,0,255);
-			color=(r<<16)|(g<<8)|b;
-		}
-	}
+    // did we factor in the effect of the light? light == 15 means
+    // fully lit, so nothing further needs to be done.
+    if ( !lightComputed )
+    {
+        // alphaComputed is true if we got the color directly from the pcolor;
+        // in other words, alpha is already folded in. If not, we need to multiply by alpha.
+        // It is examined only when lightComputed is false; when lightComputed
+        // is true, alpha is already folded in.
+        if ( !alphaComputed && ( gBlockDefinitions[type].alpha != 1.0 ) )
+        {
+            r=(unsigned char)((color>>16)&0xff);
+            g=(unsigned char)((color>>8)&0xff);
+            b=(unsigned char)color&0xff;
+            alpha=gBlockDefinitions[type].alpha;
+            r=(unsigned char)(r*alpha); //premultiply alpha
+            g=(unsigned char)(g*alpha);
+            b=(unsigned char)(b*alpha);
+            color=(r<<16)|(g<<8)|b;
+        }
+        if (light != 15)
+        {
+            // compute effect of light
+            double y,u,v;
+            r=color>>16;
+            g=(color>>8)&0xff;
+            b=color&0xff;
+            //we'll use YUV to darken the blocks.. gives a nice even
+            //coloring
+            y=0.299*r+0.587*g+0.114*b;
+            u=(b-y)*0.565;
+            v=(r-y)*0.713;
 
-	return color;
+            y*=(double)light/15.0;
+            r=(unsigned int)clamp(y+1.403*v,0,255);
+            g=(unsigned int)clamp(y-0.344*u-0.714*v,0,255);
+            b=(unsigned int)clamp(y+1.770*u,0,255);
+            color=(r<<16)|(g<<8)|b;
+        }
+    }
+
+    return color;
 }
 
 // Draw a block at chunk bx,bz
@@ -1276,7 +1400,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 {
     WorldBlock *block, *prevblock;
     int ofs=0,prevy,prevSely,blockSolid;
-	unsigned int voxel;
+    unsigned int voxel;
     //int hasSlime = 0;
     int x,z,i;
     unsigned int color, viewFilterFlags;
@@ -1286,16 +1410,16 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     char useBiome, useElevation, cavemode, showobscured, depthshading, lighting;
     unsigned char *bits;
 
-//    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
-//            hasSlime = isSlimeChunk(bx, bz);
+    //    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
+    //            hasSlime = isSlimeChunk(bx, bz);
 
-	useBiome=!!(opts.worldType&BIOMES);
+    useBiome=!!(opts.worldType&BIOMES);
     cavemode=!!(opts.worldType&CAVEMODE);
     showobscured=!(opts.worldType&HIDEOBSCURED);
     useElevation=!!(opts.worldType&DEPTHSHADING);
-	// use depthshading only if biome shading is off
-	//depthshading= !useBiome && useElevation;
-	depthshading= useElevation;
+    // use depthshading only if biome shading is off
+    //depthshading= !useBiome && useElevation;
+    depthshading= useElevation;
     lighting=!!(opts.worldType&LIGHTING);
     viewFilterFlags= BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |   // what's visible
         ((opts.worldType&SHOWALL)?(BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
@@ -1306,17 +1430,17 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     {
         wchar_t directory[256];
         wcsncpy_s(directory,256,world,255);
-        wcsncat_s(directory,256,L"/",1);
+        wcscat_s(directory,256,L"/");
         if (opts.worldType&HELL)
         {
-            wcsncat_s(directory,256,L"DIM-1/",6);
+            wcscat_s(directory,256,L"DIM-1/");
         }
         if (opts.worldType&ENDER)
         {
-            wcsncat_s(directory,256,L"DIM1/",5);
+            wcscat_s(directory,256,L"DIM1/");
         }
 
-		block=LoadBlock(directory,bx,bz);
+        block=LoadBlock(directory,bx,bz);
         if (block==NULL) //blank tile
             return gBlankTile;
 
@@ -1327,38 +1451,38 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         Cache_Add(bx,bz,block);
     }
 
-	// At this point the block is loaded.
+    // At this point the block is loaded.
 
-	// Is it inside highlighted area?
-	bool isInside = ( bx >= gDirtyBoxMinX-1 && bx <= gDirtyBoxMaxX &&
-		bz >= gDirtyBoxMinZ-1 && bz <= gDirtyBoxMaxZ );
+    // Is it inside highlighted area?
+    bool isInside = ( bx >= gDirtyBoxMinX-1 && bx <= gDirtyBoxMaxX &&
+        bz >= gDirtyBoxMinZ-1 && bz <= gDirtyBoxMaxZ );
 
-	// already rendered?
+    // already rendered?
     if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
     {
-		if (block->rendermissing // wait, the last render was incomplete
-			&& Cache_Find(bx, bz+block->rendermissing) != NULL) {
-				; // we can do a better render now that the missing block is loaded
-		} else {
-			// Yes, it's been rendered, but now we need to check if the highlight number is OK:
-			// If the area is inside the highlighted region, renderhilitID==gHighlightID.
-			// If the area is outside the hightlighted region, renderhilitID==0.
-			// Else the area should be redrawn.
-			// final check, is highlighting state OK?
-			if ( ((block->renderhilitID==gHighlightID) && isInside) ||
-				((block->renderhilitID==0) && !isInside) )
-			{
+        if (block->rendermissing // wait, the last render was incomplete
+            && Cache_Find(bx, bz+block->rendermissing) != NULL) {
+                ; // we can do a better render now that the missing block is loaded
+        } else {
+            // Yes, it's been rendered, but now we need to check if the highlight number is OK:
+            // If the area is inside the highlighted region, renderhilitID==gHighlightID.
+            // If the area is outside the hightlighted region, renderhilitID==0.
+            // Else the area should be redrawn.
+            // final check, is highlighting state OK?
+            if ( ((block->renderhilitID==gHighlightID) && isInside) ||
+                ((block->renderhilitID==0) && !isInside) )
+            {
                 // there's no need to re-render, use cached image already generated
                 return block->rendercache;
             }
-			// else re-render, to clean up previous highlight
+            // else re-render, to clean up previous highlight
         }
     }
 
     block->rendery=maxHeight;
     block->renderopts=opts.worldType;
-	// if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
-	// when we come back next time, the code above will note the rendering is OK.
+    // if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
+    // when we come back next time, the code above will note the rendering is OK.
     block->renderhilitID= isInside ? gHighlightID : 0;
     block->rendermissing=0;
     block->colormap=gColormap;
@@ -1375,22 +1499,22 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         prevblock = NULL; //block was rendered at a different y level, ignore
     }
     // x increases south, decreases north
-	for (z=0;z<16;z++)
+    for (z=0;z<16;z++)
     {
         if (prevblock!=NULL)
-			prevy = prevblock->heightmap[15+z*16];
+            prevy = prevblock->heightmap[15+z*16];
         else
             prevy=-1;
 
         // z increases (old) west, decreases (old) east
-		for (x=0;x<16;x++)
+        for (x=0;x<16;x++)
         {
             prevSely = -1;
 
             voxel=((maxHeight*16+z)*16+x);
             r=gEmptyR;
-			g=gEmptyG;
-			b=gEmptyB;
+            g=gEmptyG;
+            b=gEmptyB;
             // if we start at the top of the world, seenempty is set to 1 (there's air above), else 0
             // The idea here is that if you're delving into cave areas, "hide obscured" will treat all
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
@@ -1399,7 +1523,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             seenempty=(maxHeight==MAP_MAX_HEIGHT?1:0);
             alpha=0.0;
             // go from top down through all voxels, looking for the first one visible.
-			for (i=maxHeight;i>=0;i--,voxel-=16*16)
+            for (i=maxHeight;i>=0;i--,voxel-=16*16)
             {
                 type=block->grid[voxel];
                 // if block is air or something very small, note it's empty and continue to next voxel
@@ -1411,7 +1535,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                 }
 
                 // special selection height: we want to be able to select water
-				float currentAlpha = gBlockDefinitions[type].alpha;
+                float currentAlpha = gBlockDefinitions[type].alpha;
                 blockSolid = (type<NUM_BLOCKS_MAP) && (currentAlpha!=0.0);
                 if ((showobscured || seenempty) && blockSolid)
                     if (prevSely==-1) 
@@ -1430,10 +1554,10 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     int light=12;
                     if (lighting)
                     {
-						if (i < MAP_MAX_HEIGHT)
+                        if (i < MAP_MAX_HEIGHT)
                         {
-							light=block->light[voxel/2];
-							if (voxel&1) light>>=4;
+                            light=block->light[voxel/2];
+                            if (voxel&1) light>>=4;
                             light&=0xf;
                         } else
                         {
@@ -1448,17 +1572,17 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     else if (prevy>i)
                         light-=5;
                     light=clamp(light,1,15);
-					// Here is where the color of the block is retrieved.
-					// First we check if there's a special color for this block,
-					// such as for wool, stained clay, carpet, etc. If not, then
-					// we can look the quick lookup value from the table.
-					color = checkSpecialBlockColor( block, voxel, type, light, useBiome, useElevation );
+                    // Here is where the color of the block is retrieved.
+                    // First we check if there's a special color for this block,
+                    // such as for wool, stained clay, carpet, etc. If not, then
+                    // we can look the quick lookup value from the table.
+                    color = checkSpecialBlockColor( block, voxel, type, light, useBiome, useElevation );
 
                     if (alpha==0.0)
                     {
-						// if no accumulated alpha, simply substitute the values into place;
-						// note that semi-transparent values already have their alpha multiplied in,
-						// as the 
+                        // if no accumulated alpha, simply substitute the values into place;
+                        // note that semi-transparent values already have their alpha multiplied in,
+                        // as the 
                         alpha=currentAlpha;
                         r=(unsigned char)(color>>16);
                         g=(unsigned char)((color>>8)&0xff);
@@ -1466,44 +1590,44 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     }
                     else
                     {
-						// Else need to blend in this color with the previous.
-						// This is an "under" operation, putting the new color under the previous
-						// accumulated alpha
+                        // Else need to blend in this color with the previous.
+                        // This is an "under" operation, putting the new color under the previous
+                        // accumulated alpha
                         r+=(unsigned char)((1.0-alpha)*(color>>16));
                         g+=(unsigned char)((1.0-alpha)*((color>>8)&0xff));
                         b+=(unsigned char)((1.0-alpha)*(color&0xff));
                         alpha+=currentAlpha*(1.0-alpha);
                     }
                     // if the current block is solid, finish.
-					if (currentAlpha==1.0)
-						break;
+                    if (currentAlpha==1.0)
+                        break;
                 }
             }
 
             prevy=i;
 
-			if (depthshading) // darken deeper blocks
-			{
-				// 50 kicks up the minimum darkness returned, so that it's not black.
-				// Note that setting the upper height of the selection box affects this view.
-				int num=prevy+50-(256-maxHeight)/5;
-				int denom=maxHeight+50-(256-maxHeight)/5;
+            if (depthshading) // darken deeper blocks
+            {
+                // 50 kicks up the minimum darkness returned, so that it's not black.
+                // Note that setting the upper height of the selection box affects this view.
+                int num=prevy+50-(256-maxHeight)/5;
+                int denom=maxHeight+50-(256-maxHeight)/5;
 
-				r=(unsigned char)(r*num/denom);
-				g=(unsigned char)(g*num/denom);
-				b=(unsigned char)(b*num/denom);
-			}
+                r=(unsigned char)(r*num/denom);
+                g=(unsigned char)(g*num/denom);
+                b=(unsigned char)(b*num/denom);
+            }
 
-			//if (depthshading) // add contours on natural blocks
-			//{
-			//	if ( prevy % 5 == 0 )
-			//	{
-			//		alpha = 0.7;
-			//		r=(unsigned char)(255.0 * alpha + r*(1.0 - alpha));
-			//		g=(unsigned char)(255.0 * alpha + g*(1.0 - alpha));
-			//		b=(unsigned char)(255.0 * alpha + b*(1.0 - alpha));
-			//	}
-			//}
+            //if (depthshading) // add contours on natural blocks
+            //{
+            //	if ( prevy % 5 == 0 )
+            //	{
+            //		alpha = 0.7;
+            //		r=(unsigned char)(255.0 * alpha + r*(1.0 - alpha));
+            //		g=(unsigned char)(255.0 * alpha + g*(1.0 - alpha));
+            //		b=(unsigned char)(255.0 * alpha + b*(1.0 - alpha));
+            //	}
+            //}
 
             //if(hasSlime > 0){
             //    // before 1.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
@@ -1523,11 +1647,11 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                 type=block->grid[voxel];
 
                 if (type==BLOCK_LEAVES || type==BLOCK_LOG || type==BLOCK_AD_LEAVES || type==BLOCK_AD_LOG ) //special case surface trees
-					for (; i>=1; i--,voxel-=16*16,type=block->grid[voxel])
+                    for (; i>=1; i--,voxel-=16*16,type=block->grid[voxel])
                         if (!(type==BLOCK_LOG||type==BLOCK_LEAVES||type==BLOCK_AD_LEAVES||type==BLOCK_AD_LOG||type==BLOCK_AIR))
                             break; // skip leaves, wood, air
 
-				for (;i>=1;i--,voxel-=16*16)
+                for (;i>=1;i--,voxel-=16*16)
                 {
                     type=block->grid[voxel];
                     if (type==BLOCK_AIR)
@@ -1548,13 +1672,13 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             if ( gBoxHighlightUsed ) {
                 // make selected area slightly red, if at right heightmap range
                 if ( bx*16 + x >= gBoxMinX && bx*16 + x <= gBoxMaxX &&
-                     bz*16 + z >= gBoxMinZ && bz*16 + z <= gBoxMaxZ )
+                    bz*16 + z >= gBoxMinZ && bz*16 + z <= gBoxMaxZ )
                 {
-					// test and save minimum height found
-					if ( prevSely >= 0 && prevSely < hitsFound[3] )
-					{
-						hitsFound[3] = prevSely;
-					}
+                    // test and save minimum height found
+                    if ( prevSely >= 0 && prevSely < hitsFound[3] )
+                    {
+                        hitsFound[3] = prevSely;
+                    }
 
                     // in bounds, is the height good?
                     if ( prevSely >= gBoxMinY && prevSely <= gBoxMaxY )
@@ -1617,892 +1741,892 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 }
 
 #define BLOCK_INDEX(x,topy,z) (  ((topy)*256)+ \
-	((z)*16) + \
-	(x)  )
+    ((z)*16) + \
+    (x)  )
 
 // generate test blocks for test world
 void testBlock( WorldBlock *block, int type, int y, int dataVal )
 {
-	int bi = 0;
-	int trimVal;
-	int addBlock = 0;
+    int bi = 0;
+    int trimVal;
+    int addBlock = 0;
 
-	switch ( type )
-	{
-	default:
-		if ( dataVal == 0 )
-		{
-			//block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_SAND:
-	case BLOCK_WOODEN_PRESSURE_PLATE:
-	case BLOCK_STONE_PRESSURE_PLATE:
-	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
-	case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
-	case BLOCK_AD_LEAVES:
-	case BLOCK_SPONGE:
-		// uses 0-1
-		if ( dataVal < 2 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_DIRT:
-	case BLOCK_TALL_GRASS:
-	case BLOCK_SANDSTONE:
-	case BLOCK_HIDDEN_SILVERFISH:
-	case BLOCK_RED_SANDSTONE:
-	case BLOCK_PRISMARINE:
-		// uses 0-2
-		if ( dataVal < 3 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_LEAVES:
-	case BLOCK_NETHER_WART:
-	case BLOCK_PUMPKIN:
-	case BLOCK_JACK_O_LANTERN:
-	case BLOCK_STONE_BRICKS:
-	case BLOCK_CAULDRON:
-		// uses 0-3
-		if ( dataVal < 4 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_HEAD:	// TODO!
-	case BLOCK_QUARTZ_BLOCK:
-		// uses 0-4
-		if ( dataVal < 5 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_WOODEN_PLANKS:
-	case BLOCK_WOODEN_DOUBLE_SLAB:
-	case BLOCK_SAPLING:
-	case BLOCK_CAKE:
-		// uses 0-5
-		if ( dataVal < 6 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_DOUBLE_FLOWER:
-		// uses 0-5, put flower head above it
-		if ( dataVal < 6 )
-		{
-			addBlock = 1;
-			// add flower above
-			bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
-			block->grid[bi] = BLOCK_DOUBLE_FLOWER;
-			// shift up the data val by 4 if on the odd value location
-			// not entirely sure about this number, but 10 seems to be the norm
-			block->data[(int)(bi/2)] |= (unsigned char)(10<<((bi%2)*4));
-		}
-		break;
-	case BLOCK_STONE:
-		// uses 0-6
-		if ( dataVal < 7 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_PUMPKIN_STEM:
-	case BLOCK_MELON_STEM:
-	case BLOCK_OAK_WOOD_STAIRS:
-	case BLOCK_COBBLESTONE_STAIRS:
-	case BLOCK_BRICK_STAIRS:
-	case BLOCK_STONE_BRICK_STAIRS:
-	case BLOCK_NETHER_BRICK_STAIRS:
-	case BLOCK_SANDSTONE_STAIRS:
-	case BLOCK_SPRUCE_WOOD_STAIRS:
-	case BLOCK_BIRCH_WOOD_STAIRS:
-	case BLOCK_JUNGLE_WOOD_STAIRS:
-	case BLOCK_QUARTZ_STAIRS:
-	case BLOCK_SNOW:
-	case BLOCK_FENCE_GATE:
-	case BLOCK_SPRUCE_FENCE_GATE:
-	case BLOCK_BIRCH_FENCE_GATE:
-	case BLOCK_JUNGLE_FENCE_GATE:
-	case BLOCK_DARK_OAK_FENCE_GATE:
-	case BLOCK_ACACIA_FENCE_GATE:
-	case BLOCK_FARMLAND:
-	case BLOCK_BREWING_STAND:
-	case BLOCK_ACACIA_WOOD_STAIRS:
-	case BLOCK_DARK_OAK_WOOD_STAIRS:
-	case BLOCK_RED_SANDSTONE_STAIRS:
-		// uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
-		if ( dataVal < 8 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_CROPS:
-	case BLOCK_CARROTS:
-	case BLOCK_POTATOES:
-		// uses 0-7, put farmland beneath it
-		if ( dataVal < 8 )
-		{
-			addBlock = 1;
-			// add farmland underneath
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
-		}
-		break;
-	case BLOCK_POPPY:
-		// uses 0-8
-		if ( dataVal < 9 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_DOUBLE_STONE_SLAB:
-		// uses 0-9, F (15)
-		if ( dataVal < 10 || dataVal == 15 )
-		{
-			addBlock = 1;
-		}
-		break;
+    switch ( type )
+    {
+    default:
+        if ( dataVal == 0 )
+        {
+            //block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_SAND:
+    case BLOCK_WOODEN_PRESSURE_PLATE:
+    case BLOCK_STONE_PRESSURE_PLATE:
+    case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
+    case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+    case BLOCK_AD_LEAVES:
+    case BLOCK_SPONGE:
+        // uses 0-1
+        if ( dataVal < 2 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_DIRT:
+    case BLOCK_TALL_GRASS:
+    case BLOCK_SANDSTONE:
+    case BLOCK_HIDDEN_SILVERFISH:
+    case BLOCK_RED_SANDSTONE:
+    case BLOCK_PRISMARINE:
+        // uses 0-2
+        if ( dataVal < 3 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_LEAVES:
+    case BLOCK_NETHER_WART:
+    case BLOCK_PUMPKIN:
+    case BLOCK_JACK_O_LANTERN:
+    case BLOCK_STONE_BRICKS:
+    case BLOCK_CAULDRON:
+        // uses 0-3
+        if ( dataVal < 4 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_HEAD:	// TODO!
+    case BLOCK_QUARTZ_BLOCK:
+        // uses 0-4
+        if ( dataVal < 5 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_WOODEN_PLANKS:
+    case BLOCK_WOODEN_DOUBLE_SLAB:
+    case BLOCK_SAPLING:
+    case BLOCK_CAKE:
+        // uses 0-5
+        if ( dataVal < 6 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_DOUBLE_FLOWER:
+        // uses 0-5, put flower head above it
+        if ( dataVal < 6 )
+        {
+            addBlock = 1;
+            // add flower above
+            bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+            block->grid[bi] = BLOCK_DOUBLE_FLOWER;
+            // shift up the data val by 4 if on the odd value location
+            // not entirely sure about this number, but 10 seems to be the norm
+            block->data[(int)(bi/2)] |= (unsigned char)(10<<((bi%2)*4));
+        }
+        break;
+    case BLOCK_STONE:
+        // uses 0-6
+        if ( dataVal < 7 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_PUMPKIN_STEM:
+    case BLOCK_MELON_STEM:
+    case BLOCK_OAK_WOOD_STAIRS:
+    case BLOCK_COBBLESTONE_STAIRS:
+    case BLOCK_BRICK_STAIRS:
+    case BLOCK_STONE_BRICK_STAIRS:
+    case BLOCK_NETHER_BRICK_STAIRS:
+    case BLOCK_SANDSTONE_STAIRS:
+    case BLOCK_SPRUCE_WOOD_STAIRS:
+    case BLOCK_BIRCH_WOOD_STAIRS:
+    case BLOCK_JUNGLE_WOOD_STAIRS:
+    case BLOCK_QUARTZ_STAIRS:
+    case BLOCK_SNOW:
+    case BLOCK_FENCE_GATE:
+    case BLOCK_SPRUCE_FENCE_GATE:
+    case BLOCK_BIRCH_FENCE_GATE:
+    case BLOCK_JUNGLE_FENCE_GATE:
+    case BLOCK_DARK_OAK_FENCE_GATE:
+    case BLOCK_ACACIA_FENCE_GATE:
+    case BLOCK_FARMLAND:
+    case BLOCK_BREWING_STAND:
+    case BLOCK_ACACIA_WOOD_STAIRS:
+    case BLOCK_DARK_OAK_WOOD_STAIRS:
+    case BLOCK_RED_SANDSTONE_STAIRS:
+        // uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
+        if ( dataVal < 8 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_CROPS:
+    case BLOCK_CARROTS:
+    case BLOCK_POTATOES:
+        // uses 0-7, put farmland beneath it
+        if ( dataVal < 8 )
+        {
+            addBlock = 1;
+            // add farmland underneath
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
+        }
+        break;
+    case BLOCK_POPPY:
+        // uses 0-8
+        if ( dataVal < 9 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_DOUBLE_STONE_SLAB:
+        // uses 0-9, F (15)
+        if ( dataVal < 10 || dataVal == 15 )
+        {
+            addBlock = 1;
+        }
+        break;
 
-	case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:
-	case BLOCK_RED_SANDSTONE_SLAB:
-		// uses 0 and 8
-		if ( dataVal == 0 || dataVal == 8 )
-		{
-			addBlock = 1;
-		}
-		break;
+    case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:
+    case BLOCK_RED_SANDSTONE_SLAB:
+        // uses 0 and 8
+        if ( dataVal == 0 || dataVal == 8 )
+        {
+            addBlock = 1;
+        }
+        break;
 
-	case BLOCK_HUGE_BROWN_MUSHROOM:
-	case BLOCK_HUGE_RED_MUSHROOM:
-		// uses 0-10
-		if ( dataVal < 11 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_FLOWER_POT:
-	case BLOCK_ANVIL:
-		// uses 0-11
-		if ( dataVal < 12 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_AD_LOG:
-		// uses 0 and 1 for low bits
-		if ( (dataVal & 0x3) < 2 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_LOG:	// really just 12, but we pay attention to directionless
-	case BLOCK_STONE_SLAB:
-	case BLOCK_SIGN_POST:
-	case BLOCK_REDSTONE_REPEATER_OFF:
-	case BLOCK_REDSTONE_REPEATER_ON:
-	case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-	case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
-	case BLOCK_STAINED_CLAY:
-	case BLOCK_CARPET:
-	case BLOCK_STAINED_GLASS:
-	case BLOCK_STANDING_BANNER:
-	case BLOCK_WOOL:
-		// uses all bits, 0-15
-		addBlock = 1;
-		break;
-	case BLOCK_WATER:
-	case BLOCK_STATIONARY_WATER:
-	case BLOCK_LAVA:
-	case BLOCK_STATIONARY_LAVA:
-		// uses 0-8, with 8 giving one above
-		if ( dataVal <= 8 )
-		{
-			addBlock = 1;
+    case BLOCK_HUGE_BROWN_MUSHROOM:
+    case BLOCK_HUGE_RED_MUSHROOM:
+        // uses 0-10
+        if ( dataVal < 11 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_FLOWER_POT:
+    case BLOCK_ANVIL:
+        // uses 0-11
+        if ( dataVal < 12 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_AD_LOG:
+        // uses 0 and 1 for low bits
+        if ( (dataVal & 0x3) < 2 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_LOG:	// really just 12, but we pay attention to directionless
+    case BLOCK_STONE_SLAB:
+    case BLOCK_SIGN_POST:
+    case BLOCK_REDSTONE_REPEATER_OFF:
+    case BLOCK_REDSTONE_REPEATER_ON:
+    case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+    case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+    case BLOCK_STAINED_CLAY:
+    case BLOCK_CARPET:
+    case BLOCK_STAINED_GLASS:
+    case BLOCK_STANDING_BANNER:
+    case BLOCK_WOOL:
+        // uses all bits, 0-15
+        addBlock = 1;
+        break;
+    case BLOCK_WATER:
+    case BLOCK_STATIONARY_WATER:
+    case BLOCK_LAVA:
+    case BLOCK_STATIONARY_LAVA:
+        // uses 0-8, with 8 giving one above
+        if ( dataVal <= 8 )
+        {
+            addBlock = 1;
 
-			if ( dataVal == 8 )
-			{
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
-			}
-			else if ( dataVal > 0 )
-			{
-				int x = type % 2;
-				int z = !x;
-				block->grid[BLOCK_INDEX(x+4+(type%2)*8,y,z+4+(dataVal%2)*8)] = (unsigned char)type;
-			}
-		}
-		break;
-	case BLOCK_FURNACE:
-	case BLOCK_BURNING_FURNACE:
-	case BLOCK_ENDER_CHEST:
-		// uses 2-5
-		if ( dataVal >= 2 && dataVal <= 5 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_DISPENSER:
-	case BLOCK_DROPPER:
-		if ( dataVal <= 5 )
-		{
-			addBlock = 1;
-			switch ( dataVal )
-			{
-			case 0:
-			case 1:
-				// make the block itself be up by two, so we can examine its top and bottom
-				bi = BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-				addBlock = 0;
-				break;
-			}
-		}
-		break;
+            if ( dataVal == 8 )
+            {
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+            }
+            else if ( dataVal > 0 )
+            {
+                int x = type % 2;
+                int z = !x;
+                block->grid[BLOCK_INDEX(x+4+(type%2)*8,y,z+4+(dataVal%2)*8)] = (unsigned char)type;
+            }
+        }
+        break;
+    case BLOCK_FURNACE:
+    case BLOCK_BURNING_FURNACE:
+    case BLOCK_ENDER_CHEST:
+        // uses 2-5
+        if ( dataVal >= 2 && dataVal <= 5 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_DISPENSER:
+    case BLOCK_DROPPER:
+        if ( dataVal <= 5 )
+        {
+            addBlock = 1;
+            switch ( dataVal )
+            {
+            case 0:
+            case 1:
+                // make the block itself be up by two, so we can examine its top and bottom
+                bi = BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+                addBlock = 0;
+                break;
+            }
+        }
+        break;
 
-	case BLOCK_HOPPER:
-		// uses 0,1, 2-5
-		if ( dataVal <= 5 )
-		{
-			addBlock = 1;
-			switch ( dataVal )
-			{
-			case 0:
-				// make the block itself be up by two, so we can examine its top and bottom
-				bi = BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-				addBlock = 0;
-				break;
-			case 1:
-				// put block above
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 2:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 3:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 4:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 5:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			}
-		}
-		break;
-
-	case BLOCK_TORCH:
-	case BLOCK_REDSTONE_TORCH_OFF:
-	case BLOCK_REDSTONE_TORCH_ON:
-		if ( dataVal >= 1 && dataVal <= 5 )
-		{
-			addBlock = 1;
-			switch ( dataVal )
-			{
-			case 1:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 2:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 3:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 4:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			default:
-				// do nothing - on ground
-				break;
-			}
-		}
-		break;
-	case BLOCK_LADDER:
-	case BLOCK_WALL_SIGN:
-	case BLOCK_WALL_BANNER:
-		if ( dataVal >= 2 && dataVal <= 5 )
-		{
-			addBlock = 1;
-			switch ( dataVal )
-			{
-			case 2:
-                // put block to south
-                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 3:
+    case BLOCK_HOPPER:
+        // uses 0,1, 2-5
+        if ( dataVal <= 5 )
+        {
+            addBlock = 1;
+            switch ( dataVal )
+            {
+            case 0:
+                // make the block itself be up by two, so we can examine its top and bottom
+                bi = BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+                addBlock = 0;
+                break;
+            case 1:
+                // put block above
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 2:
                 // put block to north
                 block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 4:
-                // put block to east
-                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 5:
+                break;
+            case 3:
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 4:
                 // put block to west
                 block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			}
-		}
-		break;
-	case BLOCK_RAIL:
-		if ( dataVal >= 6 && dataVal <= 9 )
-		{
-			addBlock = 1;
-			break;
-		}
-		// test if too high - if so, ignore
-		else if ( dataVal > 9 )
-		{
-			break;
-		} // else:
-		// falls through on 0 through 5, since these are handled below for all rails
-	case BLOCK_POWERED_RAIL:
-	case BLOCK_DETECTOR_RAIL:
-	case BLOCK_ACTIVATOR_RAIL:
-		trimVal = dataVal & 0x7;
-		if ( trimVal <= 5 )
-		{
-			addBlock = 1;
-			switch ( trimVal )
-			{
-			case 2:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 3:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 4:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			case 5:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-				break;
-			default:
-				// do nothing - on ground
-				break;
-			}
-		}
-		break;
-	case BLOCK_LEVER:
-		trimVal = dataVal & 0x7;
-		addBlock = 1;
-		switch ( dataVal & 0x7 )
-		{
-		case 1:
-			// put block to west
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 2:
-			// put block to east
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 3:
-			// put block to north
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 4:
-			// put block to south
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 7:
-		case 0:
-			// put block above
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		default:
-			// do nothing - on ground
-			break;
-		}
-		break;
-	case BLOCK_WOODEN_DOOR:
-	case BLOCK_IRON_DOOR:
-	case BLOCK_SPRUCE_DOOR:
-	case BLOCK_BIRCH_DOOR:
-	case BLOCK_JUNGLE_DOOR:
-	case BLOCK_DARK_OAK_DOOR:
-	case BLOCK_ACACIA_DOOR:
+                break;
+            case 5:
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            }
+        }
+        break;
+
+    case BLOCK_TORCH:
+    case BLOCK_REDSTONE_TORCH_OFF:
+    case BLOCK_REDSTONE_TORCH_ON:
+        if ( dataVal >= 1 && dataVal <= 5 )
+        {
+            addBlock = 1;
+            switch ( dataVal )
+            {
+            case 1:
+                // put block to west
+                block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 2:
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            default:
+                // do nothing - on ground
+                break;
+            }
+        }
+        break;
+    case BLOCK_LADDER:
+    case BLOCK_WALL_SIGN:
+    case BLOCK_WALL_BANNER:
+        if ( dataVal >= 2 && dataVal <= 5 )
+        {
+            addBlock = 1;
+            switch ( dataVal )
+            {
+            case 2:
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 5:
+                // put block to west
+                block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            }
+        }
+        break;
+    case BLOCK_RAIL:
+        if ( dataVal >= 6 && dataVal <= 9 )
+        {
+            addBlock = 1;
+            break;
+        }
+        // test if too high - if so, ignore
+        else if ( dataVal > 9 )
+        {
+            break;
+        } // else:
+        // falls through on 0 through 5, since these are handled below for all rails
+    case BLOCK_POWERED_RAIL:
+    case BLOCK_DETECTOR_RAIL:
+    case BLOCK_ACTIVATOR_RAIL:
+        trimVal = dataVal & 0x7;
+        if ( trimVal <= 5 )
+        {
+            addBlock = 1;
+            switch ( trimVal )
+            {
+            case 2:
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to west
+                block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to north
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            case 5:
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+                break;
+            default:
+                // do nothing - on ground
+                break;
+            }
+        }
+        break;
+    case BLOCK_LEVER:
+        trimVal = dataVal & 0x7;
+        addBlock = 1;
+        switch ( dataVal & 0x7 )
+        {
+        case 1:
+            // put block to west
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 2:
+            // put block to east
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 3:
+            // put block to north
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 4:
+            // put block to south
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 7:
+        case 0:
+            // put block above
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        default:
+            // do nothing - on ground
+            break;
+        }
+        break;
+    case BLOCK_WOODEN_DOOR:
+    case BLOCK_IRON_DOOR:
+    case BLOCK_SPRUCE_DOOR:
+    case BLOCK_BIRCH_DOOR:
+    case BLOCK_JUNGLE_DOOR:
+    case BLOCK_DARK_OAK_DOOR:
+    case BLOCK_ACACIA_DOOR:
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
         block->data[(int)(bi/2)] = (unsigned char)((dataVal&0x7)<<((bi%2)*4));
-		if ( dataVal < 8 )
-		{
-			bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			block->data[(int)(bi/2)] = (unsigned char)(8<<((bi%2)*4));
-		}
-		else
-		{
-			// other direction door (for double doors)
-			bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			block->data[(int)(bi/2)] = (unsigned char)(9<<((bi%2)*4));
-		}
-		break;
-	case BLOCK_BED:
-		if ( dataVal < 8 )
-		{
-			addBlock = 1;
-			switch ( dataVal & 0x3 )
-			{
-			case 0:
-				// put head to south
-				bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
-				break;
-			case 1:
-				// put head to west
-				bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
-				break;
-			case 2:
-				// put head to north
-				bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
-				break;
-			case 3:
-				// put head to east
-				bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
-				block->grid[bi] = (unsigned char)type;
-				// shift up the data val by 4 if on the odd value location
-				block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
-				break;
-			}
-		}
-		break;
-	case BLOCK_STONE_BUTTON:
-	case BLOCK_WOODEN_BUTTON:
-		trimVal = dataVal & 0x7;
-		if ( trimVal >= 1 && trimVal <= 4 )
-		{
-			addBlock = 1;
-			switch ( trimVal )
-			{
-			case 1:
-				// put block to west
-				block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
-				break;
-			case 2:
-				// put block to east
-				block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
-				break;
-			case 3:
-				// put block to north
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
-				break;
-			case 4:
-				// put block to south
-				block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
-				break;
-			}
-		}
-		break;
-	case BLOCK_WOODEN_SLAB:
-		trimVal = dataVal & 0x7;
-		if ( trimVal < 6 )
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_TRAPDOOR:
-	case BLOCK_IRON_TRAPDOOR:
-		addBlock = 1;
+        if ( dataVal < 8 )
+        {
+            bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[(int)(bi/2)] = (unsigned char)(8<<((bi%2)*4));
+        }
+        else
+        {
+            // other direction door (for double doors)
+            bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[(int)(bi/2)] = (unsigned char)(9<<((bi%2)*4));
+        }
+        break;
+    case BLOCK_BED:
+        if ( dataVal < 8 )
+        {
+            addBlock = 1;
+            switch ( dataVal & 0x3 )
+            {
+            case 0:
+                // put head to south
+                bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+                break;
+            case 1:
+                // put head to west
+                bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+                break;
+            case 2:
+                // put head to north
+                bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+                break;
+            case 3:
+                // put head to east
+                bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+                block->grid[bi] = (unsigned char)type;
+                // shift up the data val by 4 if on the odd value location
+                block->data[(int)(bi/2)] |= (unsigned char)((dataVal|0x8)<<((bi%2)*4));
+                break;
+            }
+        }
+        break;
+    case BLOCK_STONE_BUTTON:
+    case BLOCK_WOODEN_BUTTON:
+        trimVal = dataVal & 0x7;
+        if ( trimVal >= 1 && trimVal <= 4 )
+        {
+            addBlock = 1;
+            switch ( trimVal )
+            {
+            case 1:
+                // put block to west
+                block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
+                break;
+            case 2:
+                // put block to east
+                block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
+                break;
+            case 4:
+                // put block to south
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
+                break;
+            }
+        }
+        break;
+    case BLOCK_WOODEN_SLAB:
+        trimVal = dataVal & 0x7;
+        if ( trimVal < 6 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_TRAPDOOR:
+    case BLOCK_IRON_TRAPDOOR:
+        addBlock = 1;
 
-		trimVal = dataVal & 0x3;
-		switch ( trimVal )
-		{
-		case 3:
-			// put block to west
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 2:
-			// put block to east
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 1:
-			// put block to north
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		case 0:
-			// put block to south
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-			break;
-		}
-		break;
-	case BLOCK_PISTON:
-	case BLOCK_STICKY_PISTON:
-		trimVal = dataVal & 0x7;
-		if ( trimVal < 6 )
-		{
-			int bx = 0;
-			int by = 0;
-			int bz = 0;
-			addBlock = 1;
+        trimVal = dataVal & 0x3;
+        switch ( trimVal )
+        {
+        case 3:
+            // put block to west
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 2:
+            // put block to east
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 1:
+            // put block to north
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        case 0:
+            // put block to south
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+            break;
+        }
+        break;
+    case BLOCK_PISTON:
+    case BLOCK_STICKY_PISTON:
+        trimVal = dataVal & 0x7;
+        if ( trimVal < 6 )
+        {
+            int bx = 0;
+            int by = 0;
+            int bz = 0;
+            addBlock = 1;
 
-			// is piston extended?
-			if ( dataVal & 0x8 )
-			{
-				switch ( trimVal )
-				{
-				case 0: // pointing down
-					bx = 4+(type%2)*8;
-					by = y;
-					bz = 4+(dataVal%2)*8;
-					// increase y by 1 so piston is one block higher
-					y++;
-					break;
-				case 1: // pointing up
-					bx = 4+(type%2)*8;
-					by = y+1;
-					bz = 4+(dataVal%2)*8;
-					break;
-				case 2: // pointing north
-					bx = 4+(type%2)*8;
-					by = y;
-					bz = 3+(dataVal%2)*8;
-					break;
-				case 3: // pointing south
-					bx = 4+(type%2)*8;
-					by = y;
-					bz = 5+(dataVal%2)*8;
-					break;
-				case 4: // pointing west
-					bx = 3+(type%2)*8;
-					by = y;
-					bz = 4+(dataVal%2)*8;
-					break;
-				case 5: // pointing east
-					bx = 5+(type%2)*8;
-					by = y;
-					bz = 4+(dataVal%2)*8;
-					break;
-				default:
-					assert(0);
-					break;
-				}
-				bi = BLOCK_INDEX(bx,by,bz);
-				block->grid[bi] = BLOCK_PISTON_HEAD;
-				// sticky or not, plus direction
-				block->data[(int)(bi/2)] |= (unsigned char)((trimVal | ((type == BLOCK_STICKY_PISTON) ? 0x8 : 0x0))<<((bi%2)*4));
-			}
-		}
-		break;
-	case BLOCK_PISTON_HEAD:
-		// uses bits 0-5 and 8-13
-		if ( (dataVal&0x7) < 6 )
-		{
-			if ( (dataVal&0x7) != 1 )
-			{
-				// add glass so that when 3D printing it's not deleted;
-				// it will be deleted when pointing up.
-				bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-				block->grid[bi] = BLOCK_GLASS_PANE;
-			}
-			// make it float above ground, to avoid asserts and to test.
-			y++;
-			addBlock=1;
-		}
-		break;
-	case BLOCK_VINES:
-		// uses all bits, 0-15
-		// TODO: really should place vines on the sides and under stuff, but this is a pain
-		if ( dataVal > 0 )
-		{
-			addBlock=1;
-		}
-		bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
-		block->grid[bi] = (unsigned char)type;
-		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+            // is piston extended?
+            if ( dataVal & 0x8 )
+            {
+                switch ( trimVal )
+                {
+                case 0: // pointing down
+                    bx = 4+(type%2)*8;
+                    by = y;
+                    bz = 4+(dataVal%2)*8;
+                    // increase y by 1 so piston is one block higher
+                    y++;
+                    break;
+                case 1: // pointing up
+                    bx = 4+(type%2)*8;
+                    by = y+1;
+                    bz = 4+(dataVal%2)*8;
+                    break;
+                case 2: // pointing north
+                    bx = 4+(type%2)*8;
+                    by = y;
+                    bz = 3+(dataVal%2)*8;
+                    break;
+                case 3: // pointing south
+                    bx = 4+(type%2)*8;
+                    by = y;
+                    bz = 5+(dataVal%2)*8;
+                    break;
+                case 4: // pointing west
+                    bx = 3+(type%2)*8;
+                    by = y;
+                    bz = 4+(dataVal%2)*8;
+                    break;
+                case 5: // pointing east
+                    bx = 5+(type%2)*8;
+                    by = y;
+                    bz = 4+(dataVal%2)*8;
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+                bi = BLOCK_INDEX(bx,by,bz);
+                block->grid[bi] = BLOCK_PISTON_HEAD;
+                // sticky or not, plus direction
+                block->data[(int)(bi/2)] |= (unsigned char)((trimVal | ((type == BLOCK_STICKY_PISTON) ? 0x8 : 0x0))<<((bi%2)*4));
+            }
+        }
+        break;
+    case BLOCK_PISTON_HEAD:
+        // uses bits 0-5 and 8-13
+        if ( (dataVal&0x7) < 6 )
+        {
+            if ( (dataVal&0x7) != 1 )
+            {
+                // add glass so that when 3D printing it's not deleted;
+                // it will be deleted when pointing up.
+                bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+                block->grid[bi] = BLOCK_GLASS_PANE;
+            }
+            // make it float above ground, to avoid asserts and to test.
+            y++;
+            addBlock=1;
+        }
+        break;
+    case BLOCK_VINES:
+        // uses all bits, 0-15
+        // TODO: really should place vines on the sides and under stuff, but this is a pain
+        if ( dataVal > 0 )
+        {
+            addBlock=1;
+        }
+        bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+        block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 
-		block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
-		break;
-	case BLOCK_FENCE:
-	case BLOCK_SPRUCE_FENCE:
-	case BLOCK_BIRCH_FENCE:
-	case BLOCK_JUNGLE_FENCE:
-	case BLOCK_DARK_OAK_FENCE:
-	case BLOCK_ACACIA_FENCE:
-	case BLOCK_NETHER_BRICK_FENCE:
+        block->grid[BLOCK_INDEX(4+(type%2)*8,y+2,4+(dataVal%2)*8)] = BLOCK_STONE;
+        break;
+    case BLOCK_FENCE:
+    case BLOCK_SPRUCE_FENCE:
+    case BLOCK_BIRCH_FENCE:
+    case BLOCK_JUNGLE_FENCE:
+    case BLOCK_DARK_OAK_FENCE:
+    case BLOCK_ACACIA_FENCE:
+    case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_IRON_BARS:
-	case BLOCK_GLASS_PANE:
-		// this one is specialized: dataVal just says where to put neighbors, NSEW
-		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-		block->grid[bi] = (unsigned char)type;
-
-		if ( dataVal & 0x1 )
-		{
-			// put block to north
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x2 )
-		{
-			// put block to east
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x4 )
-		{
-			// put block to south
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x8 )
-		{
-			// put block to west
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		break;
-	case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
-		// this one is specialized: dataVal just says where to put neighbors, NSEW
-		// *and* what color to use
-		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-		block->grid[bi] = (unsigned char)type;
-		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-
-		if ( dataVal & 0x1 )
-		{
-			// alternate between wall and mossy wall - we set mossy wall if odd
-			block->data[(int)(bi/2)] |= (unsigned char)(0x1<<((bi%2)*4));
-
-			// put block to north
-			bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-		}
-		if ( dataVal & 0x2 )
-		{
-			// put block to east
-			bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-		}
-		if ( dataVal & 0x4 )
-		{
-			// put block to south
-			bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-		}
-		if ( dataVal & 0x8 )
-		{
-			// put block to west
-			bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-		}
-		break;
-	case BLOCK_COBBLESTONE_WALL:
+    case BLOCK_GLASS_PANE:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
 
         if ( dataVal & 0x1 )
         {
-			// alternate between wall and mossy wall - we set mossy wall if odd
-			block->data[(int)(bi/2)] |= (unsigned char)(0x1<<((bi%2)*4));
-
             // put block to north
- 			bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = (unsigned char)type;
         }
         if ( dataVal & 0x2 )
         {
             // put block to east
-			bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
         }
         if ( dataVal & 0x4 )
         {
             // put block to south
-			bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = (unsigned char)type;
         }
         if ( dataVal & 0x8 )
         {
             // put block to west
-			bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// alternate between wall and mossy wall
-			block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
         }
         break;
-	case BLOCK_REDSTONE_WIRE:
-		// this one is specialized: dataVal just says where to put neighbors, NSEW
-		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-		block->grid[bi] = (unsigned char)type;
+    case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
+        // this one is specialized: dataVal just says where to put neighbors, NSEW
+        // *and* what color to use
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+        block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
 
-		if ( dataVal & 0x1 )
-		{
-			// put block to north
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,3+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x2 )
-		{
-			// put block to east
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x4 )
-		{
-			// put block to south
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,5+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		if ( dataVal & 0x8 )
-		{
-			// put block to west, redstone atop it
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
-		}
-		break;
-	case BLOCK_CACTUS:
-		// put on sand
-		if ( dataVal == 0 )
-		{
-			addBlock = 1;
-			// put sand below
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_SAND;
-		}
-		break;
-	case BLOCK_CHEST:
-	case BLOCK_TRAPPED_CHEST:
-		// uses 2-5, we add an extra chest on 0x8
-		trimVal = dataVal & 0x7;
-		if ( trimVal >= 2 && trimVal <= 5 )
-		{
-			// Note that we use trimVal here, different than the norm
-			bi = BLOCK_INDEX(4+(type%2)*8,y,4+(trimVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// shift up the data val by 4 if on the odd value location
-			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
-		}
-		// double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
-		// - locked chests (April Fool's joke) don't really have doubles, but whatever
-		switch ( dataVal )
-		{
-		case 0x8|2:
-		case 0x8|3:
-			// north/south, so put one to west (-1 X)
-			bi = BLOCK_INDEX(3+(type%2)*8,y,4+(trimVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// shift up the data val by 4 if on the odd value location
-			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
-			break;
-		case 0x8|4:
-		case 0x8|5:
-			// west/east, so put one to north (-1 Z)
-			bi = BLOCK_INDEX(4+(type%2)*8,y,3+(trimVal%2)*8);
-			block->grid[bi] = (unsigned char)type;
-			// shift up the data val by 4 if on the odd value location
-			block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
-			break;
-		default:
-			break;
-		}
-		break;
-	case BLOCK_LILY_PAD:
-		if ( dataVal == 0 )
-		{
-			int wrow, wcol;
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
-			for ( wrow = 3; wrow <= 5; wrow++ )
-				for ( wcol = 3; wcol <= 5; wcol++ )
-					block->grid[BLOCK_INDEX(wrow+(type%2)*8,y-1,wcol+(dataVal%2)*8)] = BLOCK_STATIONARY_WATER;
-		}
-		break;
-	case BLOCK_COCOA_PLANT:
-		if ( dataVal < 12 )
-		{
-			addBlock = 1;
-			switch ( dataVal & 0x3 )
-			{
-			case 0:
-				// put block to south
-				bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
-				break;
-			case 1:
-				// put block to west
-				bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
-				break;
-			case 2:
-				// put block to north
-				bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
-				break;
-			case 3:
-				// put block to east
-				bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
-				break;
-			}
-			block->grid[bi] = BLOCK_LOG;
-			block->data[(int)(bi/2)] |= 3<<((bi%2)*4);	// jungle
-		}
-		break;
-	case BLOCK_TRIPWIRE_HOOK:
-		addBlock = 1;
-		switch ( dataVal & 0x3 )
-		{
-		case 0:
-			// put block to north
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
-			break;
-		case 1:
-			// put block to east
-			block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
-			break;
-		case 2:
-			// put block to south
-			block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
-			break;
-		case 3:
-			// put block to west
-			block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
-			break;
-		}
-		break;
-	}
+        if ( dataVal & 0x1 )
+        {
+            // alternate between wall and mossy wall - we set mossy wall if odd
+            block->data[(int)(bi/2)] |= (unsigned char)(0x1<<((bi%2)*4));
 
-	// if we want to do a normal sort of thing
-	if ( addBlock )
-	{
-		bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
-		block->grid[bi] = (unsigned char)type;
-		// shift up the data val by 4 if on the odd value location
-		block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
-	}
+            // put block to north
+            bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        }
+        if ( dataVal & 0x2 )
+        {
+            // put block to east
+            bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        }
+        if ( dataVal & 0x4 )
+        {
+            // put block to south
+            bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        }
+        if ( dataVal & 0x8 )
+        {
+            // put block to west
+            bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        }
+        break;
+    case BLOCK_COBBLESTONE_WALL:
+        // this one is specialized: dataVal just says where to put neighbors, NSEW
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+
+        if ( dataVal & 0x1 )
+        {
+            // alternate between wall and mossy wall - we set mossy wall if odd
+            block->data[(int)(bi/2)] |= (unsigned char)(0x1<<((bi%2)*4));
+
+            // put block to north
+            bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+        }
+        if ( dataVal & 0x2 )
+        {
+            // put block to east
+            bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+        }
+        if ( dataVal & 0x4 )
+        {
+            // put block to south
+            bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+        }
+        if ( dataVal & 0x8 )
+        {
+            // put block to west
+            bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // alternate between wall and mossy wall
+            block->data[(int)(bi/2)] |= (unsigned char)((dataVal%2)<<((bi%2)*4));
+        }
+        break;
+    case BLOCK_REDSTONE_WIRE:
+        // this one is specialized: dataVal just says where to put neighbors, NSEW
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+
+        if ( dataVal & 0x1 )
+        {
+            // put block to north
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,3+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x2 )
+        {
+            // put block to east
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x4 )
+        {
+            // put block to south
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,5+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        if ( dataVal & 0x8 )
+        {
+            // put block to west, redstone atop it
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+        }
+        break;
+    case BLOCK_CACTUS:
+        // put on sand
+        if ( dataVal == 0 )
+        {
+            addBlock = 1;
+            // put sand below
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_SAND;
+        }
+        break;
+    case BLOCK_CHEST:
+    case BLOCK_TRAPPED_CHEST:
+        // uses 2-5, we add an extra chest on 0x8
+        trimVal = dataVal & 0x7;
+        if ( trimVal >= 2 && trimVal <= 5 )
+        {
+            // Note that we use trimVal here, different than the norm
+            bi = BLOCK_INDEX(4+(type%2)*8,y,4+(trimVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // shift up the data val by 4 if on the odd value location
+            block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+        }
+        // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
+        // - locked chests (April Fool's joke) don't really have doubles, but whatever
+        switch ( dataVal )
+        {
+        case 0x8|2:
+        case 0x8|3:
+            // north/south, so put one to west (-1 X)
+            bi = BLOCK_INDEX(3+(type%2)*8,y,4+(trimVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // shift up the data val by 4 if on the odd value location
+            block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+            break;
+        case 0x8|4:
+        case 0x8|5:
+            // west/east, so put one to north (-1 Z)
+            bi = BLOCK_INDEX(4+(type%2)*8,y,3+(trimVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // shift up the data val by 4 if on the odd value location
+            block->data[(int)(bi/2)] |= (unsigned char)(trimVal<<((bi%2)*4));
+            break;
+        default:
+            break;
+        }
+        break;
+    case BLOCK_LILY_PAD:
+        if ( dataVal == 0 )
+        {
+            int wrow, wcol;
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+            for ( wrow = 3; wrow <= 5; wrow++ )
+                for ( wcol = 3; wcol <= 5; wcol++ )
+                    block->grid[BLOCK_INDEX(wrow+(type%2)*8,y-1,wcol+(dataVal%2)*8)] = BLOCK_STATIONARY_WATER;
+        }
+        break;
+    case BLOCK_COCOA_PLANT:
+        if ( dataVal < 12 )
+        {
+            addBlock = 1;
+            switch ( dataVal & 0x3 )
+            {
+            case 0:
+                // put block to south
+                bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+                break;
+            case 1:
+                // put block to west
+                bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+                break;
+            case 2:
+                // put block to north
+                bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+                break;
+            case 3:
+                // put block to east
+                bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+                break;
+            }
+            block->grid[bi] = BLOCK_LOG;
+            block->data[(int)(bi/2)] |= 3<<((bi%2)*4);	// jungle
+        }
+        break;
+    case BLOCK_TRIPWIRE_HOOK:
+        addBlock = 1;
+        switch ( dataVal & 0x3 )
+        {
+        case 0:
+            // put block to north
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            break;
+        case 1:
+            // put block to east
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            break;
+        case 2:
+            // put block to south
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            break;
+        case 3:
+            // put block to west
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            break;
+        }
+        break;
+    }
+
+    // if we want to do a normal sort of thing
+    if ( addBlock )
+    {
+        bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
+        block->grid[bi] = (unsigned char)type;
+        // shift up the data val by 4 if on the odd value location
+        block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+    }
 }
 
 void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outType )
@@ -2672,49 +2796,50 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 {
     WorldBlock *block=block_alloc();
 
-	// out of memory? If so, clear cache and cross fingers
-	if ( block == NULL )
-	{
-		Cache_Empty();
-		block=block_alloc();
-	}
+    // out of memory? If so, clear cache and cross fingers
+    if ( block == NULL )
+    {
+        Cache_Empty();
+        block=block_alloc();
+    }
     block->rendery = -1; // force redraw
 
-	if ( directory[0] == (wchar_t)'/' )
-	{
-		int type = cx*2;
-		// if directory starts with /, this is [Block Test World], a synthetic test world
-		// made by the testBlock() method.
-		int x, z;
-		int grassHeight = 62;
-		int blockHeight = 63;
+    if ( directory[0] == (wchar_t)'/' )
+    {
+        int type = cx*2;
+        // if directory starts with /, this is [Block Test World], a synthetic test world
+        // made by the testBlock() method.
+        int x, z;
+        int grassHeight = 62;
+        int blockHeight = 63;
 
-		memset(block->grid, 0, 16*16*256);
-		memset(block->data, 0, 16*16*128);
-		memset(block->light, 0xff, 16*16*128);
-		block->renderhilitID = 0;
+        memset(block->grid, 0, 16*16*256);
+        memset(block->data, 0, 16*16*128);
+        memset(block->biome, 1, 16*16);
+        memset(block->light, 0xff, 16*16*128);
+        block->renderhilitID = 0;
 
-		if ( type >= 0 && type < NUM_BLOCKS_MAP && cz >= 0 && cz < 8)
-		{
-			// grass base
-			for ( x = 0; x < 16; x++ )
-			{
-				for ( z = 0; z < 16; z++ )
-				{
-					block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
-				}
-			}
+        if ( type >= 0 && type < NUM_BLOCKS_MAP && cz >= 0 && cz < 8)
+        {
+            // grass base
+            for ( x = 0; x < 16; x++ )
+            {
+                for ( z = 0; z < 16; z++ )
+                {
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
+                }
+            }
 
-			// blocks
-			testBlock(block,type,blockHeight,cz*2);
-			testBlock(block,type,blockHeight,cz*2+1);
-			if ( type+1 < NUM_BLOCKS_MAP )
-			{
-				testBlock(block,type+1,blockHeight,cz*2);
-				testBlock(block,type+1,blockHeight,cz*2+1);
-			}
-			return block;
-		}
+            // blocks
+            testBlock(block,type,blockHeight,cz*2);
+            testBlock(block,type,blockHeight,cz*2+1);
+            if ( type+1 < NUM_BLOCKS_MAP )
+            {
+                testBlock(block,type+1,blockHeight,cz*2);
+                testBlock(block,type+1,blockHeight,cz*2+1);
+            }
+            return block;
+        }
         // tick marks
         else if ( type >= 0 && type < NUM_BLOCKS_MAP && (cz == -1 || cz == 8) )
         {
@@ -2746,12 +2871,12 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         // numbers (yes, I'm insane)
         else if ( type >= 0 && type < NUM_BLOCKS_MAP && (cz <= -2 && cz >= -3) )
         {
-			int letterType = BLOCK_OBSIDIAN;
-			if ( type >= NUM_BLOCKS_MAP)
-			{
-				// for unknown block, put a different font
-				letterType = BLOCK_LAVA;
-			}
+            int letterType = BLOCK_OBSIDIAN;
+            if ( type >= NUM_BLOCKS_MAP)
+            {
+                // for unknown block, put a different font
+                letterType = BLOCK_LAVA;
+            }
 
             // white wool
             for ( x = 0; x < 16; x++ )
@@ -2766,22 +2891,22 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             testNumeral(block,type,blockHeight,-cz*2-1-3, letterType);
             if ( type+1 < NUM_BLOCKS_MAP )
             {
-				if ( type+1 >= NUM_BLOCKS_STANDARD)
-				{
-					letterType = BLOCK_LAVA;
-				}
+                if ( type+1 >= NUM_BLOCKS_STANDARD)
+                {
+                    letterType = BLOCK_LAVA;
+                }
                 testNumeral(block,type+1,blockHeight,-cz*2-3, letterType);
                 testNumeral(block,type+1,blockHeight,-cz*2-1-3, letterType);
             }
             return block;
         }
-		else
-		{
-			block_free(block);
-			return NULL;
-		}
-	}
-	// end of test world, resume normal programming
+        else
+        {
+            block_free(block);
+            return NULL;
+        }
+    }
+    // end of test world, resume normal programming
 
     if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light, block->biome)) {
         // got block successfully
@@ -2790,7 +2915,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         unsigned char *pBlockID = block->grid;
         for ( i = 0; i < 16*16*256; i++, pBlockID++ )
         {
-			// old "change wool to a higher number" code. Color now changed during mapping.
+            // old "change wool to a higher number" code. Color now changed during mapping.
             //if ( *pBlockID == BLOCK_WOOL)
             //{
             //    // convert to new block
@@ -2801,20 +2926,20 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             //        woolVal &= 0xf;
             //    *pBlockID = (unsigned char)(NUM_BLOCKS_STANDARD + woolVal);
             //}
-			//else 
-			if ( *pBlockID >= NUM_BLOCKS_STANDARD )
-			{
-				// some new version of Minecraft, block ID is unrecognized;
-				// turn this block into stone. dataVal will be ignored.
-				// flag assert only once
-				assert( (gUnknownBlock == 1 ) || (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
-				*pBlockID = BLOCK_UNKNOWN;
-				// note that we always clean up bad blocks;
-				// whether we flag that a bad block was found is optional.
-				// This gets turned off once the user has been warned, once, that his map has some funky data.
-				if ( gPerformUnknownBlockCheck )
-					gUnknownBlock = 1;
-			}
+            //else 
+            if ( *pBlockID >= NUM_BLOCKS_STANDARD )
+            {
+                // some new version of Minecraft, block ID is unrecognized;
+                // turn this block into stone. dataVal will be ignored.
+                // flag assert only once
+                assert( (gUnknownBlock == 1 ) || (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
+                *pBlockID = BLOCK_UNKNOWN;
+                // note that we always clean up bad blocks;
+                // whether we flag that a bad block was found is optional.
+                // This gets turned off once the user has been warned, once, that his map has some funky data.
+                if ( gPerformUnknownBlockCheck )
+                    gUnknownBlock = 1;
+            }
         }
         return block;
     }
@@ -2826,58 +2951,58 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
 // Clear that an unknown block was encountered. Good to do when loading a new world.
 void ClearBlockReadCheck()
 {
-	gUnknownBlock = 0;
+    gUnknownBlock = 0;
 }
 
 // was an unknown block found during mapping? Will be set true only if CheckUnknownBlock is true (which it is by default)
 int UnknownBlockRead()
 {
-	return gUnknownBlock;
+    return gUnknownBlock;
 }
 
 // should we check for unknown blocks? If turned off, we won't assert and won't flag (but will still clean up) any unknown blocks found.
 // Normally always on, could turn it off for debugging situations.
 void CheckUnknownBlock( int check )
 {
-	gPerformUnknownBlockCheck = check;
+    gPerformUnknownBlockCheck = check;
 }
 
 // should not be needed, but there's some timing thread weirdness
 int NeedToCheckUnknownBlock()
 {
-	return gPerformUnknownBlockCheck;
+    return gPerformUnknownBlockCheck;
 }
 
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 {
-	bfFile bf;
-	wchar_t filename[256];
-	wcsncpy_s(filename,256,world,255);
-	wcsncat_s(filename,256,L"/level.dat",10);
-	bf=newNBT(filename);
-	if ( bf.gz == 0x0 ) return 1;
-	nbtGetSpawn(bf,x,y,z);
-	nbtClose(bf);
-	return 0;
+    bfFile bf;
+    wchar_t filename[256];
+    wcsncpy_s(filename,256,world,255);
+    wcscat_s(filename,256,L"/level.dat");
+    bf=newNBT(filename);
+    if ( bf.gz == 0x0 ) return 1;
+    nbtGetSpawn(bf,x,y,z);
+    nbtClose(bf);
+    return 0;
 }
 int GetFileVersion(const wchar_t *world,int *version)
 {
-	bfFile bf;
-	wchar_t filename[256];
-	wcsncpy_s(filename,256,world,255);
-	wcsncat_s(filename,256,L"/level.dat",10);
-	bf=newNBT(filename);
-	if ( bf.gz == 0x0 ) return 1;
-	nbtGetFileVersion(bf,version);
-	nbtClose(bf);
-	return 0;
+    bfFile bf;
+    wchar_t filename[256];
+    wcsncpy_s(filename,256,world,255);
+    wcscat_s(filename,256,L"/level.dat");
+    bf=newNBT(filename);
+    if ( bf.gz == 0x0 ) return 1;
+    nbtGetFileVersion(bf,version);
+    nbtClose(bf);
+    return 0;
 }
 //void GetRandomSeed(const wchar_t *world,long long *seed)
 //{
 //    bfFile bf;
 //    wchar_t filename[256];
 //    wcsncpy_s(filename,256,world,255);
-//    wcsncat_s(filename,256,L"/level.dat",10);
+//    wcscat_s(filename,256,L"/level.dat");
 //    bf=newNBT(filename);
 //    nbtGetRandomSeed(bf,seed);
 //    gMapSeed = *seed;
@@ -2889,7 +3014,7 @@ void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
     bfFile bf;
     wchar_t filename[256];
     wcsncpy_s(filename,256,world,255);
-    wcsncat_s(filename,256,L"/level.dat",10);
+    wcscat_s(filename,256,L"/level.dat");
     bf=newNBT(filename);
     nbtGetPlayer(bf,px,py,pz);
     nbtClose(bf);
@@ -2898,24 +3023,27 @@ void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
 //Sets the pcolor, the premultiplied colors, as these are a pain to precompute and put in the table.
 void SetMapPremultipliedColors()
 {
-	unsigned int color;
-	unsigned char r,g,b;
-	unsigned char ra,ga,ba;
-	float a;
-	int i;
+    unsigned int color;
+    unsigned char r,g,b;
+    unsigned char ra,ga,ba;
+    float a;
+    int i;
 
-	for (i=0;i<NUM_BLOCKS;i++)
-	{
-		color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
-		r=(unsigned char)((color>>16)&0xff);
-		g=(unsigned char)((color>>8)&0xff);
-		b=(unsigned char)color&0xff;
-		a= gBlockDefinitions[i].alpha = gBlockDefinitions[i].read_alpha;
-		ra=(unsigned char)(r*a); //premultiply alpha
-		ga=(unsigned char)(g*a);
-		ba=(unsigned char)(b*a);
-		gBlockDefinitions[i].pcolor=(ra<<16)|(ga<<8)|ba;
-	}
+    for (i=0;i<NUM_BLOCKS;i++)
+    {
+        color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
+        r=(unsigned char)((color>>16)&0xff);
+        g=(unsigned char)((color>>8)&0xff);
+        b=(unsigned char)color&0xff;
+        a= gBlockDefinitions[i].alpha = gBlockDefinitions[i].read_alpha;
+        ra=(unsigned char)(r*a); //premultiply alpha
+        ga=(unsigned char)(g*a);
+        ba=(unsigned char)(b*a);
+        gBlockDefinitions[i].pcolor=(ra<<16)|(ga<<8)|ba;
+
+        // reality check: every block except the first one (air) should have *some* sort of "it exists" flag set for it.
+        assert( gBlockDefinitions[i].flags & BLF_CLASS_SET );
+    }
 }
 
 //Sets the colors used.
@@ -2926,7 +3054,7 @@ void SetMapPalette(unsigned int *palette,int num)
     unsigned char ra,ga,ba;
     float a;
     int i;
-    
+
     gColormap++;
     for (i=0;i<num;i++)
     {
@@ -2976,13 +3104,13 @@ static void initColors()
         }
     }
 
-	// set the Empty color, for initialization
-	gEmptyR = (unsigned char)(gBlockColors[15]>>16);
-	gEmptyG = (unsigned char)((gBlockColors[15]>>8)&0xff);
-	gEmptyB = (unsigned char)(gBlockColors[15]&0xff);
+    // set the Empty color, for initialization
+    gEmptyR = (unsigned char)(gBlockColors[15]>>16);
+    gEmptyG = (unsigned char)((gBlockColors[15]>>8)&0xff);
+    gEmptyB = (unsigned char)(gBlockColors[15]&0xff);
 
     // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
-	// TODO - could be influenced by unknown color, if desired.
+    // TODO - could be influenced by unknown color, if desired.
 
     for (rx = 0; rx < 16; ++rx)
     {

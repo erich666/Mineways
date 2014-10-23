@@ -7,11 +7,11 @@ Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 * Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
+list of conditions and the following disclaimer.
 
 * Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -64,7 +64,7 @@ static Options gOptions = {0,   // which world is visible
     BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP | BLF_FLATSIDE,   // what's exportable (really, set on output)
     0x0,
     0,  // start with low memory
-	INITIAL_CACHE_SIZE,	// cache size
+    INITIAL_CACHE_SIZE,	// cache size
     NULL};
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
@@ -103,6 +103,7 @@ static ExportFileData *gpEFD;
 static int gOverworldHideStatus=0x0;
 
 static wchar_t gCurrentDirectory[MAX_PATH];
+static wchar_t gWorldPath[MAX_PATH];
 
 // low, inside, high for selection area, fourth value is minimum height found below selection box
 static int gHitsFound[4];
@@ -139,23 +140,23 @@ static struct {
     {_T("Warning: sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<1
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
-	{_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
-	{_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
+    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
     {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<6
-    
-	{_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
+
+    {_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<8
     {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
     {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
-	{_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally, at least 16 pixels wide, and higher than it is wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
-	{_T("Error: the incoming terrainExt.png file image is too large."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13
-	{_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<14
-	{_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
-	{_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<16
-	{_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
-	{_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. Sorry, I'm working on it!"), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<18
-	{_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
+    {_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally, at least 16 pixels wide, and higher than it is wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
+    {_T("Error: the incoming terrainExt.png file image is too large."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13
+    {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<14
+    {_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
+    {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<16
+    {_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
+    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. Sorry, I'm working on it!"), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<18
+    {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
 };
 
 // Number of lines to read from the header - don't want to go too far
@@ -167,8 +168,8 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static int loadWorld();
-static void worldPath(TCHAR *path);
-static void mcPathMac(TCHAR *path);
+static int setWorldPath(TCHAR *path);
+//static void homePathMac(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
@@ -195,15 +196,17 @@ static void formTitle(wchar_t *world, wchar_t *title);
 
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPTSTR    lpCmdLine,
-                     int       nCmdShow)
+    HINSTANCE hPrevInstance,
+    LPTSTR    lpCmdLine,
+    int       nCmdShow)
 {
     GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
+
     // assume terrainExt.png is in .exe's directory to start
     wcscpy_s(gSelectTerrainDir, MAX_PATH, gCurrentDirectory);
     wcscpy_s(gSelectTerrain, MAX_PATH, gCurrentDirectory);
     wcscat_s(gSelectTerrain, MAX_PATH - wcslen(gSelectTerrain), L"\\terrainExt.png");
+
     gImportFile[0] = (wchar_t)0;
 
     UNREFERENCED_PARAMETER(hPrevInstance);
@@ -227,30 +230,30 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
     hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
 
-	// get version info
-	GetAppVersion( _T("mineways.exe"), &gMajorVersion, &gMinorVersion, &gBuildNumber, &gRevisionNumber );
+    // get version info
+    GetAppVersion( _T("mineways.exe"), &gMajorVersion, &gMinorVersion, &gBuildNumber, &gRevisionNumber );
 
-	// Being ignorant, I don't know where this tidbit would go, to set the version number into the About box: TODO
-	//{
-	//	TCHAR strVersion[100];
-	//	swprintf(strVersion,100,_T("V%hu.%hu"),gMajorVersion,gMinorVersion);
-	//	HWND hWndAppStatic = GetDlgItem (hDlg,IDC_STATIC_VERSION);
-	//	if (hWndAppStatic)
-	//		SetWindowText(hWndAppStatic,strVersion);
-	//}
+    // Being ignorant, I don't know where this tidbit would go, to set the version number into the About box: TODO
+    //{
+    //	TCHAR strVersion[100];
+    //	swprintf(strVersion,100,_T("V%hu.%hu"),gMajorVersion,gMinorVersion);
+    //	HWND hWndAppStatic = GetDlgItem (hDlg,IDC_STATIC_VERSION);
+    //	if (hWndAppStatic)
+    //		SetWindowText(hWndAppStatic,strVersion);
+    //}
 
-	// One-time initialization for mapping and object export
-	// set the pcolors properly once. They'll change from color schemes.
-	SetMapPremultipliedColors();
+    // One-time initialization for mapping and object export
+    // set the pcolors properly once. They'll change from color schemes.
+    SetMapPremultipliedColors();
 
-	// Set biome colors - TODO: add texture support, etc.
-	PrecomputeBiomeColors();
+    // Set biome colors - TODO: add texture support, etc.
+    PrecomputeBiomeColors();
 
-	gArrowCursor = LoadCursor(NULL, IDC_ARROW);
-	gNsCursor = LoadCursor(NULL, IDC_SIZENS);
-	gWeCursor = LoadCursor(NULL, IDC_SIZEWE);
-	gNeswCursor = LoadCursor(NULL, IDC_SIZENESW);
-	gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
+    gArrowCursor = LoadCursor(NULL, IDC_ARROW);
+    gNsCursor = LoadCursor(NULL, IDC_SIZENS);
+    gWeCursor = LoadCursor(NULL, IDC_SIZEWE);
+    gNeswCursor = LoadCursor(NULL, IDC_SIZENESW);
+    gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
 
 
     // Main message loop:
@@ -314,22 +317,22 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   HWND hWnd;
+    HWND hWnd;
 
-   hInst = hInstance; // Store instance handle in our global variable
+    hInst = hInstance; // Store instance handle in our global variable
 
-   hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, 480, 582, NULL, NULL, hInstance, NULL);
+    hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, 480, 582, NULL, NULL, hInstance, NULL);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
+    if (!hWnd)
+    {
+        return FALSE;
+    }
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
 
-   return TRUE;
+    return TRUE;
 }
 
 //
@@ -371,14 +374,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     int mx,my,mz,type,dataVal,biome;
     static LPARAM holdlParam;
     int on, minx, miny, minz, maxx, maxy, maxz;
-	BOOL saveOK;
+    BOOL saveOK;
 
     // Show message
-#ifdef _DEBUG
-    wchar_t buf[100];
-    swprintf( buf, 100, L"Message: %u\n", message);
-    OutputDebugStringW( buf );
-#endif
+//#ifdef _DEBUG
+//    wchar_t buf[100];
+//    swprintf( buf, 100, L"Message: %u\n", message);
+//    OutputDebugStringW( buf );
+//#endif
 
     switch (message)
     {
@@ -386,10 +389,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         validateItems(GetMenu(hWnd));
         if ( loadWorldList(GetMenu(hWnd)) )
-		{
-			MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
-				_T("Warning"), MB_OK|MB_ICONWARNING);
-		}
+        {
+            MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+                _T("Warning"), MB_OK|MB_ICONWARNING);
+        }
         populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
 
@@ -399,58 +402,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ice.dwICC=ICC_BAR_CLASSES;
         InitCommonControlsEx(&ice);
         GetClientRect(hWnd,&rect);
-		hwndSlider=CreateWindowEx(
-			0,TRACKBAR_CLASS,L"Trackbar Control",
-			WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-			SLIDER_LEFT,0,rect.right-rect.left-40-SLIDER_LEFT,30,
-			hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
-		SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
-		SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
-		EnableWindow(hwndSlider,FALSE);
+        hwndSlider=CreateWindowEx(
+            0,TRACKBAR_CLASS,L"Trackbar Control",
+            WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+            SLIDER_LEFT,0,rect.right-rect.left-40-SLIDER_LEFT,30,
+            hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
+        SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
+        SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
+        EnableWindow(hwndSlider,FALSE);
 
-		hwndLabel=CreateWindowEx(
-			0,L"STATIC",NULL,
-			WS_CHILD | WS_VISIBLE | ES_RIGHT,
-			rect.right-40,5,30,20,
-			hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
-		SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
-		EnableWindow(hwndLabel,FALSE);
+        hwndLabel=CreateWindowEx(
+            0,L"STATIC",NULL,
+            WS_CHILD | WS_VISIBLE | ES_RIGHT,
+            rect.right-40,5,30,20,
+            hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
+        SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
+        EnableWindow(hwndLabel,FALSE);
 
-		hwndBottomSlider=CreateWindowEx(
-			0,TRACKBAR_CLASS,L"Trackbar Control",
-			WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-			SLIDER_LEFT,30,rect.right-rect.left-40-SLIDER_LEFT,30,
-			hWnd,(HMENU)ID_LAYERBOTTOMSLIDER,NULL,NULL);
-		SendMessage(hwndBottomSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
-		SendMessage(hwndBottomSlider,TBM_SETPAGESIZE,0,10);
-		EnableWindow(hwndBottomSlider,FALSE);
+        hwndBottomSlider=CreateWindowEx(
+            0,TRACKBAR_CLASS,L"Trackbar Control",
+            WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+            SLIDER_LEFT,30,rect.right-rect.left-40-SLIDER_LEFT,30,
+            hWnd,(HMENU)ID_LAYERBOTTOMSLIDER,NULL,NULL);
+        SendMessage(hwndBottomSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
+        SendMessage(hwndBottomSlider,TBM_SETPAGESIZE,0,10);
+        EnableWindow(hwndBottomSlider,FALSE);
 
-		hwndBottomLabel=CreateWindowEx(
-			0,L"STATIC",NULL,
-			WS_CHILD | WS_VISIBLE | ES_RIGHT,
-			rect.right-40,35,30,20,
-			hWnd,(HMENU)ID_LAYERBOTTOMLABEL,NULL,NULL);
-		SetWindowText(hwndBottomLabel,SEA_LEVEL_STRING);
-		EnableWindow(hwndBottomLabel,FALSE);
+        hwndBottomLabel=CreateWindowEx(
+            0,L"STATIC",NULL,
+            WS_CHILD | WS_VISIBLE | ES_RIGHT,
+            rect.right-40,35,30,20,
+            hWnd,(HMENU)ID_LAYERBOTTOMLABEL,NULL,NULL);
+        SetWindowText(hwndBottomLabel,SEA_LEVEL_STRING);
+        EnableWindow(hwndBottomLabel,FALSE);
 
-		setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
 
-		// label to left
-		hwndInfoLabel=CreateWindowEx(
-			0,L"STATIC",NULL,
-			WS_CHILD | WS_VISIBLE | ES_LEFT,
-			5,5,SLIDER_LEFT,20,
-			hWnd,(HMENU)ID_LAYERINFOLABEL,NULL,NULL);
-		SetWindowText(hwndInfoLabel,L"Max height");
-		EnableWindow(hwndInfoLabel,FALSE);
+        // label to left
+        hwndInfoLabel=CreateWindowEx(
+            0,L"STATIC",NULL,
+            WS_CHILD | WS_VISIBLE | ES_LEFT,
+            5,5,SLIDER_LEFT,20,
+            hWnd,(HMENU)ID_LAYERINFOLABEL,NULL,NULL);
+        SetWindowText(hwndInfoLabel,L"Max height");
+        EnableWindow(hwndInfoLabel,FALSE);
 
-		hwndInfoBottomLabel=CreateWindowEx(
-			0,L"STATIC",NULL,
-			WS_CHILD | WS_VISIBLE | ES_LEFT,
-			5,35,SLIDER_LEFT,20,
-			hWnd,(HMENU)ID_LAYERINFOBOTTOMLABEL,NULL,NULL);
-		SetWindowText(hwndInfoBottomLabel,L"Lower depth");
-		EnableWindow(hwndInfoBottomLabel,FALSE);
+        hwndInfoBottomLabel=CreateWindowEx(
+            0,L"STATIC",NULL,
+            WS_CHILD | WS_VISIBLE | ES_LEFT,
+            5,35,SLIDER_LEFT,20,
+            hWnd,(HMENU)ID_LAYERINFOBOTTOMLABEL,NULL,NULL);
+        SetWindowText(hwndInfoBottomLabel,L"Lower depth");
+        EnableWindow(hwndInfoBottomLabel,FALSE);
 
         hwndStatus=CreateWindowEx(
             0,STATUSCLASSNAME,NULL,
@@ -458,18 +461,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             -100,-100,10,10,
             hWnd,(HMENU)ID_STATUSBAR,NULL,NULL);
         {
-        int parts[]={300,-1};
-        RECT rect;
-        SendMessage(hwndStatus,SB_SETPARTS,2,(LPARAM)parts);
+            int parts[]={300,-1};
+            RECT rect;
+            SendMessage(hwndStatus,SB_SETPARTS,2,(LPARAM)parts);
 
-        progressBar=CreateWindowEx(
-            0,PROGRESS_CLASS,NULL,
-            WS_CHILD | WS_VISIBLE,
-            0,0,10,10,hwndStatus,(HMENU)ID_PROGRESS,NULL,NULL);
-        SendMessage(hwndStatus,SB_GETRECT,1,(LPARAM)&rect);
-        MoveWindow(progressBar,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,TRUE);
-        SendMessage(progressBar,PBM_SETSTEP,(WPARAM)5,0);
-        SendMessage(progressBar,PBM_SETPOS,0,0);
+            progressBar=CreateWindowEx(
+                0,PROGRESS_CLASS,NULL,
+                WS_CHILD | WS_VISIBLE,
+                0,0,10,10,hwndStatus,(HMENU)ID_PROGRESS,NULL,NULL);
+            SendMessage(hwndStatus,SB_GETRECT,1,(LPARAM)&rect);
+            MoveWindow(progressBar,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,TRUE);
+            SendMessage(progressBar,PBM_SETSTEP,(WPARAM)5,0);
+            SendMessage(progressBar,PBM_SETPOS,0,0);
         }
 
         rect.top+=MAIN_WINDOW_TOP;	// add in two sliders, 30 each
@@ -485,13 +488,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bitmap=CreateDIBSection(NULL,&bmi,DIB_RGB_COLORS,(void **)&map,NULL,0);
         break;
     case WM_LBUTTONDOWN:
-		// if control key is held down, consider left-click to be a right-click,
-		// i.e. for selection
-		if ( GetKeyState(VK_CONTROL) < 0 )
-		{
-			gLeftIsRight = TRUE;
-			goto RButtonDown;
-		}
+        // if control key is held down, consider left-click to be a right-click,
+        // i.e. for selection
+        if ( GetKeyState(VK_CONTROL) < 0 )
+        {
+            gLeftIsRight = TRUE;
+            goto RButtonDown;
+        }
         dragging=TRUE;
         hdragging=FALSE;// just in case
         SetFocus(hWnd);
@@ -500,7 +503,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         oldY=HIWORD(lParam);
         break;
     case WM_RBUTTONDOWN:
-		RButtonDown:
+RButtonDown:
         gAdjustingSelection = 0;
         if (gLoaded)
         {
@@ -509,7 +512,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             dragging=FALSE;// just in case
             SetFocus(hWnd);
             SetCapture(hWnd);
-            
+
             // get mouse position in world space
             (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                 bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
@@ -605,16 +608,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         gStartHiZ = startz;
                         mz = endz;
                     }
-#ifdef _DEBUG
-                    wchar_t bufa[100];
-                    swprintf( bufa, 100, L"startx %d, endx %d, startz %d, endz %d\n", startx, endx, startz, endz );
-                    OutputDebugStringW( bufa );
-#endif
+//#ifdef _DEBUG
+//                    wchar_t bufa[100];
+//                    swprintf( bufa, 100, L"startx %d, endx %d, startz %d, endz %d\n", startx, endx, startz, endz );
+//                    OutputDebugStringW( bufa );
+//#endif
                 }
             }
 
             SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
-			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             validateItems(GetMenu(hWnd));
             draw();
             InvalidateRect(hWnd,NULL,FALSE);
@@ -634,14 +637,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_LBUTTONUP:
-		// if control key was held down on mouse down, consider left-click to be a right-click,
-		// i.e. for selection
-		if ( gLeftIsRight )
-		{
-			// turn off latch
-			gLeftIsRight = FALSE;
-			goto RButtonUp;
-		}
+        // if control key was held down on mouse down, consider left-click to be a right-click,
+        // i.e. for selection
+        if ( gLeftIsRight )
+        {
+            // turn off latch
+            gLeftIsRight = FALSE;
+            goto RButtonUp;
+        }
         dragging=FALSE;
         hdragging=FALSE;	// just in case
         ReleaseCapture();
@@ -665,10 +668,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gTargetDepth = my;
             gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);   // should never happen that a flattop is at 0, but just in case
             // also set highlight state to new depths
-			setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-			enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+            enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
             updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 
@@ -679,18 +682,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_RBUTTONUP:
-		RButtonUp:
+RButtonUp:
         dragging=FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
         ReleaseCapture();
-        
+
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
         if ( minx == maxx && minz == maxz && !hdragging )
         {
             // if mouse up in same place as mouse down, turn selection off - who exports one cube column?
             gHighlightOn=FALSE;
             SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
             int mx,mz;
             blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
@@ -703,7 +706,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     my--;
                 }
-				// Could set the target depth to whatever depth we're over. Helps Mac users without a middle mouse button.
+                // Could set the target depth to whatever depth we're over. Helps Mac users without a middle mouse button.
                 //gTargetDepth = my;
                 updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
             }
@@ -715,7 +718,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else
         {
-			hdragging=FALSE;
+            hdragging=FALSE;
             // Area selected.
             // Check if this selection is not an adjustment
             if ( !gAdjustingSelection )
@@ -743,11 +746,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         MessageBox( NULL, msgString,
                             _T("Informational"), MB_OK|MB_ICONINFORMATION);
                         gTargetDepth = gHitsFound[3];
-						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                         // update target depth
                         SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-						enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                        enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                         draw();
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
@@ -760,59 +763,59 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 // else, test if there's something in both volumes and offer to adjust.
                 else if ( gAutocorrectDepth &&
-					      ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
-					       ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
+                    ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
+                    ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
                 {
                     // send warning
                     int retval;
                     wchar_t msgString[1024];
                     // send warning, set to min height found, then redo!
-					if ( gHitsFound[3] < gTargetDepth )
-					{
-						if ( gFullLow )
-						{
-							gFullLow = 0;
-							swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-								gTargetDepth, gHitsFound[3] );
-						}
-						else
-						{
-							swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-								gTargetDepth, gHitsFound[3] );
-						}
-					}
-					else
-					{
-						if ( gFullLow )
-						{
-							gFullLow = 0;
-							swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
-								gTargetDepth, gHitsFound[3] );
-						}
-						else
-						{
-							swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
-								gTargetDepth, gHitsFound[3] );
-						}
-					}
+                    if ( gHitsFound[3] < gTargetDepth )
+                    {
+                        if ( gFullLow )
+                        {
+                            gFullLow = 0;
+                            swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
+                                gTargetDepth, gHitsFound[3] );
+                        }
+                        else
+                        {
+                            swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
+                                gTargetDepth, gHitsFound[3] );
+                        }
+                    }
+                    else
+                    {
+                        if ( gFullLow )
+                        {
+                            gFullLow = 0;
+                            swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+                                gTargetDepth, gHitsFound[3] );
+                        }
+                        else
+                        {
+                            swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+                                gTargetDepth, gHitsFound[3] );
+                        }
+                    }
                     retval = MessageBox( NULL, msgString,
                         _T("Informational"), MB_YESNOCANCEL|MB_ICONINFORMATION|MB_DEFBUTTON1);
                     if ( retval == IDYES )
                     {
                         gTargetDepth = gHitsFound[3];
-						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                         // update target depth
                         SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-						enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                        enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                         draw();
                         InvalidateRect(hWnd,NULL,FALSE);
                         UpdateWindow(hWnd);
                     }
-					else if ( retval == IDCANCEL )
-					{
-						gAutocorrectDepth = 0;
-					}
+                    else if ( retval == IDCANCEL )
+                    {
+                        gAutocorrectDepth = 0;
+                    }
                 }
             }
         }
@@ -820,8 +823,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_MOUSEMOVE:
         if (gLoaded)
         {
-			updateCursor( lParam, hdragging);
-			// is left-mouse button down and we're changing the viewed area?
+            updateCursor( lParam, hdragging);
+            // is left-mouse button down and we're changing the viewed area?
             if (dragging)
             {
                 // mouse coordinate can now be negative
@@ -843,13 +846,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // mx, mz, the world coordinates that the mouse is over,
             // and return the name of the block type it's over
 
-			// mask off highest bit (the negative) for mouse location
-			lParam &= 0x7fff7fff;
+            // mask off highest bit (the negative) for mouse location
+            lParam &= 0x7fff7fff;
 
             blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
             holdlParam=lParam;
-			// is right mouse button down and we're dragging out a selection box?
+            // is right mouse button down and we're dragging out a selection box?
             if (hdragging && gLoaded)
             {
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
@@ -865,13 +868,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     mx = maxx;
                 }
                 // update highlight end to this position
-#ifdef _DEBUG
-				wchar_t bufa[100];
-				swprintf( bufa, 100, L"selection box: x %d, y %d to x %d, y %d\n", gStartHiX, gStartHiZ, mx, mz );
-				OutputDebugStringW( bufa );
-#endif
+//#ifdef _DEBUG
+//                wchar_t bufa[100];
+//                swprintf( bufa, 100, L"selection box: x %d, y %d to x %d, y %d\n", gStartHiX, gStartHiZ, mx, mz );
+//                OutputDebugStringW( bufa );
+//#endif
                 SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
-				enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
                 draw();
                 InvalidateRect(hWnd,NULL,FALSE);
                 UpdateWindow(hWnd);
@@ -880,231 +883,231 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_KEYDOWN:
-            // Check if control key is not being held down. If so,
-            // ignore this keypress and assume the .rc file has
-            // emitted a corresponding message. Else control+S will
-            // have the effect of saving and scrolling the map.
-            if ( gLoaded && GetKeyState(VK_CONTROL) >= 0 )
+        // Check if control key is not being held down. If so,
+        // ignore this keypress and assume the .rc file has
+        // emitted a corresponding message. Else control+S will
+        // have the effect of saving and scrolling the map.
+        if ( gLoaded && GetKeyState(VK_CONTROL) >= 0 )
+        {
+//#ifdef _DEBUG
+//            wchar_t outputString[256];
+//            swprintf_s(outputString,256,L"key: %d\n",wParam);
+//            OutputDebugString( outputString );
+//#endif
+
+            BOOL changed=FALSE;
+            switch (wParam)
             {
-#ifdef _DEBUG
-                wchar_t outputString[256];
-                swprintf_s(outputString,256,L"key: %d\n",wParam);
-                OutputDebugString( outputString );
-#endif
-
-                BOOL changed=FALSE;
-                switch (wParam)
-                {
-                case VK_UP:
-                case 'W':
-                    moving|=1;
-                    break;
-                case VK_DOWN:
-                case 'S':
-                    moving|=2;
-                    break;
-                case VK_LEFT:
-                case 'A':
-                    moving|=4;
-                    break;
-                case VK_RIGHT:
-                case 'D':
-                    moving|=8;
-                    break;
-                case VK_PRIOR:
-                case 'E':
-                    gCurScale+=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
-                    if (gCurScale>MAXZOOM)
-                        gCurScale=MAXZOOM;
-                    changed=TRUE;
-                    break;
-                case VK_NEXT:
-                case 'Q':
-                    gCurScale-=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
-                    if (gCurScale<MINZOOM)
-                        gCurScale=MINZOOM;
-                    changed=TRUE;
-                    break;
-                // bottom: set depth to save down to (or up to)
-                case 'B':
-                    gTargetDepth = gCurDepth;
-                    {
-                        // also set highlight state to new depths
-						setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-                        SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-						enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-
-                        // holdlParam is just the last mouse position, so status bar is good.
-                        blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                        updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                        draw();
-                        InvalidateRect(hWnd,NULL,FALSE);
-                        UpdateWindow(hWnd);
-                    }
-                    break;
-                // increment target depth by one
-                case VK_OEM_4:    // [
-                    gTargetDepth++;
-                    gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
-					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-                    SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                    draw();
-                    InvalidateRect(hWnd,NULL,FALSE);
-                    UpdateWindow(hWnd);
-                    break;
-                // decrement target depth by one
-                case VK_OEM_6:    // ]
-                    gTargetDepth--;
-                    gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
-					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-                    SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-					enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                    draw();
-                    InvalidateRect(hWnd,NULL,FALSE);
-                    UpdateWindow(hWnd);
-                    break;
-                case VK_OEM_PERIOD:
-                case '.':
-                case '>':
-                    if (gCurDepth>0)
-                    {
-                        gCurDepth--;
-                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    }
-                    break;
-                case VK_OEM_COMMA:
-                case ',':
-                case '<':
-                    if (gCurDepth<MAP_MAX_HEIGHT)
-                    {
-                        gCurDepth++;
-                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    }
-                    break;
-                case '0':
-                    gCurDepth=0;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '1':
-                    gCurDepth=10;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '2':
-                    gCurDepth=20;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '3':
-                    gCurDepth=30;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '4':
-                    gCurDepth=40;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '5':
-                    gCurDepth=51;	// bottom dirt layer of deep lakes
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '6':
-                    gCurDepth=SEA_LEVEL;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '7':
-                    gCurDepth=85;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '8':
-                    gCurDepth=106;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case '9':
-                    gCurDepth=MAP_MAX_HEIGHT;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    break;
-                case VK_HOME:
+            case VK_UP:
+            case 'W':
+                moving|=1;
+                break;
+            case VK_DOWN:
+            case 'S':
+                moving|=2;
+                break;
+            case VK_LEFT:
+            case 'A':
+                moving|=4;
+                break;
+            case VK_RIGHT:
+            case 'D':
+                moving|=8;
+                break;
+            case VK_PRIOR:
+            case 'E':
+                gCurScale+=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
+                if (gCurScale>MAXZOOM)
                     gCurScale=MAXZOOM;
-                    changed=TRUE;
-                    break;
-                case VK_END:
+                changed=TRUE;
+                break;
+            case VK_NEXT:
+            case 'Q':
+                gCurScale-=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
+                if (gCurScale<MINZOOM)
                     gCurScale=MINZOOM;
-                    changed=TRUE;
-                    break;
-                default:
-                    // unknown key, don't move
-                    moving=0;
-                    break;
-                }
-                if (moving!=0)
+                changed=TRUE;
+                break;
+                // bottom: set depth to save down to (or up to)
+            case 'B':
+                gTargetDepth = gCurDepth;
                 {
-                    if (moving&1) //up
-                        gCurZ-=10.0/gCurScale;
-                    if (moving&2) //down
-                        gCurZ+=10.0/gCurScale;
-                    if (moving&4) //left
-                        gCurX-=10.0/gCurScale;
-                    if (moving&8) //right
-                        gCurX+=10.0/gCurScale;
-                    changed=TRUE;
-                }
-                if (changed)
-                {
+                    // also set highlight state to new depths
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+                    SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+                    enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+
+                    // holdlParam is just the last mouse position, so status bar is good.
+                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
                     draw();
                     InvalidateRect(hWnd,NULL,FALSE);
                     UpdateWindow(hWnd);
                 }
+                break;
+                // increment target depth by one
+            case VK_OEM_4:    // [
+                gTargetDepth++;
+                gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+                SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+                enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
+                draw();
+                InvalidateRect(hWnd,NULL,FALSE);
+                UpdateWindow(hWnd);
+                break;
+                // decrement target depth by one
+            case VK_OEM_6:    // ]
+                gTargetDepth--;
+                gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+                SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+                enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
+                draw();
+                InvalidateRect(hWnd,NULL,FALSE);
+                UpdateWindow(hWnd);
+                break;
+            case VK_OEM_PERIOD:
+            case '.':
+            case '>':
+                if (gCurDepth>0)
+                {
+                    gCurDepth--;
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                }
+                break;
+            case VK_OEM_COMMA:
+            case ',':
+            case '<':
+                if (gCurDepth<MAP_MAX_HEIGHT)
+                {
+                    gCurDepth++;
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                }
+                break;
+            case '0':
+                gCurDepth=0;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '1':
+                gCurDepth=10;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '2':
+                gCurDepth=20;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '3':
+                gCurDepth=30;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '4':
+                gCurDepth=40;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '5':
+                gCurDepth=51;	// bottom dirt layer of deep lakes
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '6':
+                gCurDepth=SEA_LEVEL;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '7':
+                gCurDepth=85;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '8':
+                gCurDepth=106;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case '9':
+                gCurDepth=MAP_MAX_HEIGHT;
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                break;
+            case VK_HOME:
+                gCurScale=MAXZOOM;
+                changed=TRUE;
+                break;
+            case VK_END:
+                gCurScale=MINZOOM;
+                changed=TRUE;
+                break;
+            default:
+                // unknown key, don't move
+                moving=0;
+                break;
             }
+            if (moving!=0)
+            {
+                if (moving&1) //up
+                    gCurZ-=10.0/gCurScale;
+                if (moving&2) //down
+                    gCurZ+=10.0/gCurScale;
+                if (moving&4) //left
+                    gCurX-=10.0/gCurScale;
+                if (moving&8) //right
+                    gCurX+=10.0/gCurScale;
+                changed=TRUE;
+            }
+            if (changed)
+            {
+                draw();
+                InvalidateRect(hWnd,NULL,FALSE);
+                UpdateWindow(hWnd);
+            }
+        }
         break;
     case WM_KEYUP:
         switch (wParam)
         {
-            case VK_UP:
-            case 'W':
-                moving&=~1;
-                break;
-            case VK_DOWN:
-            case 'S':
-                moving&=~2;
-                break;
-            case VK_LEFT:
-            case 'A':
-                moving&=~4;
-                break;
-            case VK_RIGHT:
-            case 'D':
-                moving&=~8;
-                break;
+        case VK_UP:
+        case 'W':
+            moving&=~1;
+            break;
+        case VK_DOWN:
+        case 'S':
+            moving&=~2;
+            break;
+        case VK_LEFT:
+        case 'A':
+            moving&=~4;
+            break;
+        case VK_RIGHT:
+        case 'D':
+            moving&=~8;
+            break;
         }
         break;
     case WM_HSCROLL:
-		pos=(DWORD)SendMessage(hwndSlider,TBM_GETPOS,0,0);
-		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
-		SetWindowText(hwndLabel,text);
-		gCurDepth=MAP_MAX_HEIGHT-pos;
+        pos=(DWORD)SendMessage(hwndSlider,TBM_GETPOS,0,0);
+        _itow_s(MAP_MAX_HEIGHT-pos,text,10);
+        SetWindowText(hwndLabel,text);
+        gCurDepth=MAP_MAX_HEIGHT-pos;
 
-		pos=(DWORD)SendMessage(hwndBottomSlider,TBM_GETPOS,0,0);
-		_itow_s(MAP_MAX_HEIGHT-pos,text,10);
-		SetWindowText(hwndBottomLabel,text);
-		gTargetDepth=MAP_MAX_HEIGHT-pos;
+        pos=(DWORD)SendMessage(hwndBottomSlider,TBM_GETPOS,0,0);
+        _itow_s(MAP_MAX_HEIGHT-pos,text,10);
+        SetWindowText(hwndBottomLabel,text);
+        gTargetDepth=MAP_MAX_HEIGHT-pos;
 
         syncCurrentHighlightDepth();
 
-		GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-		SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-		enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-		blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-		updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
+        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+        SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+        enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+        blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+        updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 
         draw();
         InvalidateRect(hWnd,NULL,FALSE);
@@ -1126,52 +1129,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (wmId>=IDM_CUSTOMCOLOR && wmId<IDM_CUSTOMCOLOR+1000)
             useCustomColor(wmId,hWnd);
 
-		// load world
+        // load world
         if (wmId>IDM_WORLD && wmId<IDM_WORLD+999)
         {
-			int loadErr;
+            int loadErr;
             //convert path to utf8
             //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorld,MAX_PATH,NULL,NULL);
             gSameWorld = (wcscmp(gWorld,worlds[wmId-IDM_WORLD])==0);
             wcscpy_s(gWorld,MAX_PATH,worlds[wmId-IDM_WORLD]);
-			// if this is not the same world, switch back to the aboveground view.
-			// TODO: this code is repeated, should really be a subroutine.
-			if (!gSameWorld)
-			{
-				gotoSurface( hWnd, hwndSlider, hwndLabel);
-			}
-			loadErr = loadWorld();
+            // if this is not the same world, switch back to the aboveground view.
+            // TODO: this code is repeated, should really be a subroutine.
+            if (!gSameWorld)
+            {
+                gotoSurface( hWnd, hwndSlider, hwndLabel);
+            }
+            loadErr = loadWorld();
             if ( loadErr )
             {
                 // world not loaded properly
-				if ( loadErr == 2 )
-				{
-					MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
-						_T("Read error"), MB_OK|MB_ICONERROR);
-				}
-				else
-				{
-					MessageBox( NULL, _T("Error: cannot read world."),
-						_T("Read error"), MB_OK|MB_ICONERROR);
-				}
+                if ( loadErr == 2 )
+                {
+                    MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+                        _T("Read error"), MB_OK|MB_ICONERROR);
+                }
+                else
+                {
+                    MessageBox( NULL, _T("Error: cannot read world."),
+                        _T("Read error"), MB_OK|MB_ICONERROR);
+                }
 
                 return 0;
             }
-			// because gSameWorld gets set to 1 by loadWorld()
-			if (!gHoldSameWorld)
-			{
-				wchar_t title[MAX_PATH];
-				formTitle(gWorld,title);
-				SetWindowTextW(hWnd,title);
-			}
-			EnableWindow(hwndSlider,TRUE);
-			EnableWindow(hwndLabel,TRUE);
-			EnableWindow(hwndInfoLabel,TRUE);
-			EnableWindow(hwndBottomSlider,TRUE);
-			EnableWindow(hwndBottomLabel,TRUE);
+            // because gSameWorld gets set to 1 by loadWorld()
+            if (!gHoldSameWorld)
+            {
+                wchar_t title[MAX_PATH];
+                formTitle(gWorld,title);
+                SetWindowTextW(hWnd,title);
+            }
+            EnableWindow(hwndSlider,TRUE);
+            EnableWindow(hwndLabel,TRUE);
+            EnableWindow(hwndInfoLabel,TRUE);
+            EnableWindow(hwndBottomSlider,TRUE);
+            EnableWindow(hwndBottomLabel,TRUE);
             InvalidateRect(hWnd,NULL,TRUE);
-			setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-			setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
             UpdateWindow(hWnd);
             validateItems(GetMenu(hWnd));
         }
@@ -1209,18 +1212,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_CLOSE:
             DestroyWindow(hWnd);
             break;
-		case IDM_TEST_WORLD:
-			gWorld[0] = 0;
-			gSameWorld = 0;
-			gotoSurface( hWnd, hwndSlider, hwndLabel);
-			loadWorld();
-			goto InitEnable;
-		case IDM_WORLD:
+        case IDM_TEST_WORLD:
+            gWorld[0] = 0;
+            gSameWorld = 0;
+            gotoSurface( hWnd, hwndSlider, hwndLabel);
+            loadWorld();
+            goto InitEnable;
+        case IDM_WORLD:
         case IDM_OPEN:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-			wcscpy_s(path,MAX_PATH,gWorld);
+            wcscpy_s(path,MAX_PATH,gWorld);
             ofn.lpstrFile=path;
             //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
@@ -1238,13 +1241,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 gSameWorld = (wcscmp(gWorld,path)==0);
                 wcscpy_s(gWorld,MAX_PATH,path);
 
-				// if this is not the same world, switch back to the aboveground view.
-				if (!gSameWorld)
-				{
-					gotoSurface( hWnd, hwndSlider, hwndLabel);
-				}
+                // if this is not the same world, switch back to the aboveground view.
+                if (!gSameWorld)
+                {
+                    gotoSurface( hWnd, hwndSlider, hwndLabel);
+                }
 
-				UpdateWindow(hWnd);
+                UpdateWindow(hWnd);
                 if ( loadWorld() )
                 {
                     // world not loaded properly
@@ -1253,22 +1256,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     return 0;
                 }
-			InitEnable:
-				// because gSameWorld gets set to 1 by loadWorld()
-				if (!gHoldSameWorld)
-				{
-					wchar_t title[MAX_PATH];
-					formTitle(gWorld,title);
-					SetWindowTextW(hWnd,title);
-				}
-				EnableWindow(hwndSlider,TRUE);
-				EnableWindow(hwndLabel,TRUE);
-				EnableWindow(hwndInfoLabel,TRUE);
-				EnableWindow(hwndBottomSlider,TRUE);
-				EnableWindow(hwndBottomLabel,TRUE);
+InitEnable:
+                // because gSameWorld gets set to 1 by loadWorld()
+                if (!gHoldSameWorld)
+                {
+                    wchar_t title[MAX_PATH];
+                    formTitle(gWorld,title);
+                    SetWindowTextW(hWnd,title);
+                }
+                EnableWindow(hwndSlider,TRUE);
+                EnableWindow(hwndLabel,TRUE);
+                EnableWindow(hwndInfoLabel,TRUE);
+                EnableWindow(hwndBottomSlider,TRUE);
+                EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
-				setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-				setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 UpdateWindow(hWnd);
             }
             break;
@@ -1276,7 +1279,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-			wcscpy_s(pathAndFile,MAX_PATH,gSelectTerrain);
+            wcscpy_s(pathAndFile,MAX_PATH,gSelectTerrain);
             ofn.lpstrFile = pathAndFile;
             //path[0]=0;
             ofn.nMaxFile=MAX_PATH;
@@ -1294,186 +1297,186 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 wcscpy_s(gSelectTerrainDir, MAX_PATH, path);
             }
             break;
-		case ID_FILE_IMPORTSETTINGS:
-			ZeroMemory(&ofn,sizeof(OPENFILENAME));
-			ofn.lStructSize=sizeof(OPENFILENAME);
-			ofn.hwndOwner=hWnd;
-			wcscpy_s(path,MAX_PATH,gImportFile);
-			ofn.lpstrFile=path;
-			//path[0]=0;
-			ofn.nMaxFile=MAX_PATH;
-			ofn.lpstrFilter=L"All files (*.obj;*.txt;*.wrl)\0*.obj;*.txt;*.wrl\0Wavefront OBJ (*.obj)\0*.obj\0Summary text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-			ofn.nFilterIndex=1;
-			ofn.lpstrFileTitle=NULL;
-			ofn.nMaxFileTitle=0;
-			ofn.lpstrInitialDir=NULL;
-			ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-			if (GetOpenFileName(&ofn)==TRUE)
-			{
-				// copy file name, since it definitely appears to exist.
-				wcscpy_s(gImportFile,MAX_PATH,path);
-				int retVal = importSettings( gImportFile );
-				if ( MW_NO_ERROR != retVal )
-				{
-					// error, so warn.
-					PopupErrorDialogs( retVal );
-				}
-				else
-				{
-					// cross-over any values that are semi-shared to other file formats
-					copyOverExportPrintData( gpEFD );
-
-					gCurX=(gpEFD->minxVal+gpEFD->maxxVal)/2;
-					gCurZ=(gpEFD->minzVal+gpEFD->maxzVal)/2;
-
-					if ( gHighlightOn )
-					{
-						// reload world in order to clear out any previous selection displayed.
-						loadWorld();
-					}
-
-					gHighlightOn = true;
-					SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
-					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-					// put target (bottom) depth to new depth set, if any
-					gTargetDepth = gpEFD->minyVal;
-					// adjust maximum height up, but not down. We export the maximum height at which
-					// something is found, when normally this height is *set* to 255.
-					// On second thought, no: if someone is importing an underground area, they want the height.
-					//if ( gCurDepth < gpEFD->maxyVal )
-					//{
-						gCurDepth = gpEFD->maxyVal;
-					//}
-					blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-						bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-					updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-
-					// make biome display match biome setting
-					if ( gpEFD->chkBiome )
-						// turn bit on
-						gOptions.worldType|=BIOMES;
-					else
-						// turn bit off
-						gOptions.worldType &= ~BIOMES;
-					CheckMenuItem(GetMenu(hWnd),IDM_VIEW_SHOWBIOMES,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
-
-					// redraw, as selection bounds will change
-					draw();
-					InvalidateRect(hWnd,NULL,FALSE);
-					UpdateWindow(hWnd);
-
-					// and note which import was done
-					MessageBox(
-						NULL,
-						( gpEFD->flags & EXPT_3DPRINT ) ?
-						_T("Previous settings for 3D printing imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself.") :
-							_T("Previous settings for rendering imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself."),
-						_T("Informational"),
-						MB_OK|MB_ICONINFORMATION
-						);
-				}
-			}
-			break;
-        case IDM_FILE_PRINTOBJ:
-		case IDM_FILE_SAVEOBJ:
-		case IDM_FILE_SCHEMATIC:
-			if ( !gHighlightOn )
-			{
-				// we keep the export options ungrayed now so that they're selectable when the world is loaded
-				MessageBox( NULL, _T("Click and drag with your right mouse button to select an area to export."),
-					_T("Informational"), MB_OK|MB_ICONINFORMATION);
-				break;
-			}
-			switch ( wmId )
-			{
-			case IDM_FILE_SAVEOBJ:
-				gPrintModel = 0;
-				break;
-			case IDM_FILE_PRINTOBJ:
-				gPrintModel = 1;
-				break;
-			case IDM_FILE_SCHEMATIC:
-				gPrintModel = 2;
-				break;
-			default:
-				assert(0);
-				gPrintModel = 0;
-			}
-			{
-				if ( gPrintModel == 2 )
-				{
-					// schematic
-					ZeroMemory(&ofn,sizeof(OPENFILENAME));
-					ofn.lStructSize=sizeof(OPENFILENAME);
-					ofn.hwndOwner=hWnd;
-					ofn.lpstrFile=gExportPath;
-					//gExportPath[0]=0;
-					ofn.nMaxFile=MAX_PATH;
-					ofn.lpstrFilter= L"Schematic file (*.schematic)\0*.schematic\0";
-					ofn.nFilterIndex= 1;
-					ofn.lpstrFileTitle=NULL;
-					ofn.nMaxFileTitle=0;
-					ofn.lpstrInitialDir=NULL;
-					ofn.lpstrTitle= L"Save Model to Schematic File";
-					ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-					saveOK = GetSaveFileName(&ofn);
-
-					gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
-				}
-				else
-				{
-					// print model or render model - quite similar
-					ZeroMemory(&ofn,sizeof(OPENFILENAME));
-					ofn.lStructSize=sizeof(OPENFILENAME);
-					ofn.hwndOwner=hWnd;
-					ofn.lpstrFile=gExportPath;
-					//gExportPath[0]=0;
-					ofn.nMaxFile=MAX_PATH;
-					ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-												   L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-					ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
-					ofn.lpstrFileTitle=NULL;
-					ofn.nMaxFileTitle=0;
-					ofn.lpstrInitialDir=NULL;
-					ofn.lpstrTitle=gPrintModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
-					ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-					saveOK = GetSaveFileName(&ofn);
-					// save file type selected, no matter what (even on cancel); we
-					// always set it because even if someone cancels a save, he probably still
-					// wanted the file type chosen.
-					if ( gPrintModel )
-					{
-						gExportPrintData.fileType = ofn.nFilterIndex-1;
-					}
-					else
-					{
-						gExportViewData.fileType = ofn.nFilterIndex-1;
-					}
-				}
-                if ( saveOK )
+        case ID_FILE_IMPORTSETTINGS:
+            ZeroMemory(&ofn,sizeof(OPENFILENAME));
+            ofn.lStructSize=sizeof(OPENFILENAME);
+            ofn.hwndOwner=hWnd;
+            wcscpy_s(path,MAX_PATH,gImportFile);
+            ofn.lpstrFile=path;
+            //path[0]=0;
+            ofn.nMaxFile=MAX_PATH;
+            ofn.lpstrFilter=L"All files (*.obj;*.txt;*.wrl)\0*.obj;*.txt;*.wrl\0Wavefront OBJ (*.obj)\0*.obj\0Summary text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+            ofn.nFilterIndex=1;
+            ofn.lpstrFileTitle=NULL;
+            ofn.nMaxFileTitle=0;
+            ofn.lpstrInitialDir=NULL;
+            ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            if (GetOpenFileName(&ofn)==TRUE)
+            {
+                // copy file name, since it definitely appears to exist.
+                wcscpy_s(gImportFile,MAX_PATH,path);
+                int retVal = importSettings( gImportFile );
+                if ( MW_NO_ERROR != retVal )
                 {
-					// if we got this far, then previous export is off, and we also want to ask for dialog.
-					gExported=0;
+                    // error, so warn.
+                    PopupErrorDialogs( retVal );
+                }
+                else
+                {
+                    // cross-over any values that are semi-shared to other file formats
+                    copyOverExportPrintData( gpEFD );
 
-		case IDM_FILE_REPEATPREVIOUSEXPORT:
-                    gExported = saveObjFile(hWnd,gExportPath,gPrintModel,gSelectTerrain,!gExported);
+                    gCurX=(gpEFD->minxVal+gpEFD->maxxVal)/2;
+                    gCurZ=(gpEFD->minzVal+gpEFD->maxzVal)/2;
 
-                    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
-					enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                    // put target depth to new depth set, if any
-                    if ( gTargetDepth != gpEFD->maxyVal )
+                    if ( gHighlightOn )
                     {
-                        gTargetDepth = gpEFD->minyVal;
+                        // reload world in order to clear out any previous selection displayed.
+                        loadWorld();
                     }
+
+                    gHighlightOn = true;
+                    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
+                    enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                    // put target (bottom) depth to new depth set, if any
+                    gTargetDepth = gpEFD->minyVal;
+                    // adjust maximum height up, but not down. We export the maximum height at which
+                    // something is found, when normally this height is *set* to 255.
+                    // On second thought, no: if someone is importing an underground area, they want the height.
+                    //if ( gCurDepth < gpEFD->maxyVal )
+                    //{
+                    gCurDepth = gpEFD->maxyVal;
+                    //}
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
                     updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-					setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+
+                    // make biome display match biome setting
+                    if ( gpEFD->chkBiome )
+                        // turn bit on
+                        gOptions.worldType|=BIOMES;
+                    else
+                        // turn bit off
+                        gOptions.worldType &= ~BIOMES;
+                    CheckMenuItem(GetMenu(hWnd),IDM_VIEW_SHOWBIOMES,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
+
+                    // redraw, as selection bounds will change
+                    draw();
+                    InvalidateRect(hWnd,NULL,FALSE);
+                    UpdateWindow(hWnd);
+
+                    // and note which import was done
+                    MessageBox(
+                        NULL,
+                        ( gpEFD->flags & EXPT_3DPRINT ) ?
+                        _T("Previous settings for 3D printing imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself.") :
+                    _T("Previous settings for rendering imported. The top of the selection box is set as exported; use the top slider to adjust it. Note that the color scheme is not changed on import; you must choose this yourself."),
+                        _T("Informational"),
+                        MB_OK|MB_ICONINFORMATION
+                        );
+                }
+            }
+            break;
+        case IDM_FILE_PRINTOBJ:
+        case IDM_FILE_SAVEOBJ:
+        case IDM_FILE_SCHEMATIC:
+            if ( !gHighlightOn )
+            {
+                // we keep the export options ungrayed now so that they're selectable when the world is loaded
+                MessageBox( NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                    _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                break;
+            }
+            switch ( wmId )
+            {
+            case IDM_FILE_SAVEOBJ:
+                gPrintModel = 0;
+                break;
+            case IDM_FILE_PRINTOBJ:
+                gPrintModel = 1;
+                break;
+            case IDM_FILE_SCHEMATIC:
+                gPrintModel = 2;
+                break;
+            default:
+                assert(0);
+                gPrintModel = 0;
+            }
+            {
+                if ( gPrintModel == 2 )
+                {
+                    // schematic
+                    ZeroMemory(&ofn,sizeof(OPENFILENAME));
+                    ofn.lStructSize=sizeof(OPENFILENAME);
+                    ofn.hwndOwner=hWnd;
+                    ofn.lpstrFile=gExportPath;
+                    //gExportPath[0]=0;
+                    ofn.nMaxFile=MAX_PATH;
+                    ofn.lpstrFilter= L"Schematic file (*.schematic)\0*.schematic\0";
+                    ofn.nFilterIndex= 1;
+                    ofn.lpstrFileTitle=NULL;
+                    ofn.nMaxFileTitle=0;
+                    ofn.lpstrInitialDir=NULL;
+                    ofn.lpstrTitle= L"Save Model to Schematic File";
+                    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                    saveOK = GetSaveFileName(&ofn);
+
+                    gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+                }
+                else
+                {
+                    // print model or render model - quite similar
+                    ZeroMemory(&ofn,sizeof(OPENFILENAME));
+                    ofn.lStructSize=sizeof(OPENFILENAME);
+                    ofn.hwndOwner=hWnd;
+                    ofn.lpstrFile=gExportPath;
+                    //gExportPath[0]=0;
+                    ofn.nMaxFile=MAX_PATH;
+                    ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+                        L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+                    ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
+                    ofn.lpstrFileTitle=NULL;
+                    ofn.nMaxFileTitle=0;
+                    ofn.lpstrInitialDir=NULL;
+                    ofn.lpstrTitle=gPrintModel ? L"Save Model for 3D Printing" :  L"Save Model for Rendering";
+                    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                    saveOK = GetSaveFileName(&ofn);
+                    // save file type selected, no matter what (even on cancel); we
+                    // always set it because even if someone cancels a save, he probably still
+                    // wanted the file type chosen.
+                    if ( gPrintModel )
+                    {
+                        gExportPrintData.fileType = ofn.nFilterIndex-1;
+                    }
+                    else
+                    {
+                        gExportViewData.fileType = ofn.nFilterIndex-1;
+                    }
+                }
+                if ( saveOK )
+                {
+                    // if we got this far, then previous export is off, and we also want to ask for dialog.
+                    gExported=0;
+
+            case IDM_FILE_REPEATPREVIOUSEXPORT:
+                gExported = saveObjFile(hWnd,gExportPath,gPrintModel,gSelectTerrain,!gExported);
+
+                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
+                enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                // put target depth to new depth set, if any
+                if ( gTargetDepth != gpEFD->maxyVal )
+                {
+                    gTargetDepth = gpEFD->minyVal;
+                }
+                blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 }
             }
             break;
@@ -1502,13 +1505,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             UpdateWindow(hWnd);
             break;
         case IDM_VIEW_JUMPTOMODEL: // F4
-			if ( !gHighlightOn )
-			{
-				// we keep the jump option ungrayed now so that it's selectable when the world is loaded
-				MessageBox( NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
-					_T("Informational"), MB_OK|MB_ICONINFORMATION);
-				break;
-			}
+            if ( !gHighlightOn )
+            {
+                // we keep the jump option ungrayed now so that it's selectable when the world is loaded
+                MessageBox( NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
+                    _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                break;
+            }
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             if ( on )
             {
@@ -1524,21 +1527,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 UpdateWindow(hWnd);
             }
             break;
-		case IDM_VIEW_SHOWBIOMES:
-			// toggles bit from its previous state
-			gOptions.worldType^=BIOMES;
-			CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
-			draw();
-			InvalidateRect(hWnd,NULL,TRUE);
-			UpdateWindow(hWnd);
-			break;
-		case IDM_SHOWALLOBJECTS:
-			gOptions.worldType^=SHOWALL;
-			CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
-			draw();
-			InvalidateRect(hWnd,NULL,TRUE);
-			UpdateWindow(hWnd);
-			break;
+        case IDM_VIEW_SHOWBIOMES:
+            // toggles bit from its previous state
+            gOptions.worldType^=BIOMES;
+            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
+            draw();
+            InvalidateRect(hWnd,NULL,TRUE);
+            UpdateWindow(hWnd);
+            break;
+        case IDM_SHOWALLOBJECTS:
+            gOptions.worldType^=SHOWALL;
+            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
+            draw();
+            InvalidateRect(hWnd,NULL,TRUE);
+            UpdateWindow(hWnd);
+            break;
         case IDM_LIGHTING:
             gOptions.worldType^=LIGHTING;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&LIGHTING)?MF_CHECKED:MF_UNCHECKED);
@@ -1579,14 +1582,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     return 0;
                 }
-				EnableWindow(hwndSlider,TRUE);
-				EnableWindow(hwndLabel,TRUE);
-				EnableWindow(hwndInfoLabel,TRUE);
-				EnableWindow(hwndBottomSlider,TRUE);
-				EnableWindow(hwndBottomLabel,TRUE);
+                EnableWindow(hwndSlider,TRUE);
+                EnableWindow(hwndLabel,TRUE);
+                EnableWindow(hwndInfoLabel,TRUE);
+                EnableWindow(hwndBottomSlider,TRUE);
+                EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
-				setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-				setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
                 UpdateWindow(hWnd);
             }
             break;
@@ -1595,7 +1598,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // clear selection when you switch worlds
             gHighlightOn=FALSE;
             SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-			enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             // change scale as needed
             if (gOptions.worldType&HELL)
             {
@@ -1605,7 +1608,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if ( gCurDepth == MAP_MAX_HEIGHT )
                 {
                     gCurDepth = 126;
-					setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
                 }
                 gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
                 gOptions.worldType |= HIDEOBSCURED;
@@ -1616,8 +1619,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             else
             {
-				// back to the overworld
-				gotoSurface( hWnd, hwndSlider, hwndLabel);
+                // back to the overworld
+                gotoSurface( hWnd, hwndSlider, hwndLabel);
             }
             CheckMenuItem(GetMenu(hWnd),IDM_OBSCURED,(gOptions.worldType&HIDEOBSCURED)?MF_CHECKED:MF_UNCHECKED);
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&HELL)?MF_CHECKED:MF_UNCHECKED);
@@ -1641,19 +1644,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 if (gOptions.worldType&HELL)
                 {
-					// get out of hell zoom
+                    // get out of hell zoom
                     gCurX*=8.0;
                     gCurZ*=8.0;
-					// and undo other hell stuff
-					if ( gCurDepth == 126 )
-					{
-						gCurDepth = MAP_MAX_HEIGHT;
-						setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-					}
-					// turn off obscured, then restore overworld's obscured status
-					gOptions.worldType &= ~HIDEOBSCURED;
-					gOptions.worldType |= gOverworldHideStatus;
-					// uncheck hell menu item
+                    // and undo other hell stuff
+                    if ( gCurDepth == 126 )
+                    {
+                        gCurDepth = MAP_MAX_HEIGHT;
+                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    }
+                    // turn off obscured, then restore overworld's obscured status
+                    gOptions.worldType &= ~HIDEOBSCURED;
+                    gOptions.worldType |= gOverworldHideStatus;
+                    // uncheck hell menu item
                     CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
                     gOptions.worldType&=~HELL;
                 }
@@ -1698,14 +1701,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_SIZING: //window resizing
         GetClientRect(hWnd,&rect);
-		SetWindowPos(hwndSlider,NULL,0,0,
-			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
-		SetWindowPos(hwndBottomSlider,NULL,0,30,
-			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
-		SetWindowPos(hwndLabel,NULL,rect.right-40,5,
-			30,20,SWP_NOACTIVATE);
-		SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
-			30,20,SWP_NOACTIVATE);
+        SetWindowPos(hwndSlider,NULL,0,0,
+            rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomSlider,NULL,0,30,
+            rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndLabel,NULL,rect.right-40,5,
+            30,20,SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
+            30,20,SWP_NOACTIVATE);
 
         break;
     case WM_SIZE: //resize window
@@ -1714,14 +1717,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         MoveWindow(progressBar,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,TRUE);
 
         GetClientRect(hWnd,&rect);
-		SetWindowPos(hwndSlider,NULL,0,0,
-			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
-		SetWindowPos(hwndBottomSlider,NULL,0,30,
-			rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndSlider,NULL,0,0,
+            rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomSlider,NULL,0,30,
+            rect.right-rect.left-40-SLIDER_LEFT,30,SWP_NOMOVE|SWP_NOZORDER | SWP_NOACTIVATE);
         SetWindowPos(hwndLabel,NULL,rect.right-40,5,
             30,20,SWP_NOACTIVATE);
-		SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
-			30,20,SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomLabel,NULL,rect.right-40,35,
+            30,20,SWP_NOACTIVATE);
         rect.top+=MAIN_WINDOW_TOP;
         rect.bottom-=23;
         bitWidth=rect.right-rect.left;
@@ -1734,195 +1737,197 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (hdcMem!=NULL)
             SelectObject(hdcMem,bitmap);
 
-		// On resize, figure out a better hash table size for cache, if needed.
-		if ( (rect.bottom-rect.top) * (rect.right-rect.left) > 256 * gOptions.currentCacheSize )
-		{
-			// make new cache twice the size of the screen's needs, should be enough I hope.
-			gOptions.currentCacheSize = 2 * (rect.bottom-rect.top) * (rect.right-rect.left) / 256;
-			ChangeCache( gOptions.currentCacheSize );
-		}
-			//InvalidateRect(hWnd,NULL,TRUE);
-			//UpdateWindow(hWnd);
+        // On resize, figure out a better hash table size for cache, if needed.
+        if ( (rect.bottom-rect.top) * (rect.right-rect.left) > 256 * gOptions.currentCacheSize )
+        {
+            // make new cache twice the size of the screen's needs, should be enough I hope.
+            gOptions.currentCacheSize = 2 * (rect.bottom-rect.top) * (rect.right-rect.left) / 256;
+            ChangeCache( gOptions.currentCacheSize );
+        }
+        //InvalidateRect(hWnd,NULL,TRUE);
+        //UpdateWindow(hWnd);
         draw();
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
-    // This helps with the "mouse up outside the window" problem, where if you mouse
-    // up while dragging and you're outside the frame, the mouse will get stuck in
-    // dragging mode as the mouse up event won't get generated.
-    // This fix does *not* help when you're still inside the frame but are in the
-    // status strip or the height slider - it still happens there.
-    //case WM_NCMOUSEMOVE:
-    //	dragging=FALSE;
-    //	hdragging=FALSE;
-    //	break;
+        // This helps with the "mouse up outside the window" problem, where if you mouse
+        // up while dragging and you're outside the frame, the mouse will get stuck in
+        // dragging mode as the mouse up event won't get generated.
+        // This fix does *not* help when you're still inside the frame but are in the
+        // status strip or the height slider - it still happens there.
+        //case WM_NCMOUSEMOVE:
+        //	dragging=FALSE;
+        //	hdragging=FALSE;
+        //	break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
 
-	if ( UnknownBlockRead() && NeedToCheckUnknownBlock() )
-	{
-		// flag this just the first time found, then turn off error and don't check again for this world
-		CheckUnknownBlock( false );
-		ClearBlockReadCheck();
+    if ( UnknownBlockRead() && NeedToCheckUnknownBlock() )
+    {
+        // flag this just the first time found, then turn off error and don't check again for this world
+        CheckUnknownBlock( false );
+        ClearBlockReadCheck();
 
-		MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
-			_T("Read error"), MB_OK|MB_ICONERROR);
-	}
+        MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
+            _T("Read error"), MB_OK|MB_ICONERROR);
+    }
 
     return 0;
 }
 
 static void updateCursor( LPARAM lParam, BOOL hdragging)
 {
-	// change cursor to something special if highlighting an area and not currently creating that area
-	int mx,my,mz,type,dataVal,biome;
-	int on, minx, miny, minz, maxx, maxy, maxz;
+    // change cursor to something special if highlighting an area and not currently creating that area
+    int mx,my,mz,type,dataVal,biome;
+    int on, minx, miny, minz, maxx, maxy, maxz;
 
-	BOOL cursorSet = FALSE;
-	if ( gHighlightOn && !hdragging )
-	{
-		//SetCapture(hWnd);
+    BOOL cursorSet = FALSE;
+    if ( gHighlightOn && !hdragging )
+    {
+        //SetCapture(hWnd);
 
-		// get mouse position in world space
-		(void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+        // get mouse position in world space
+        (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
+            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
 
-		// now to check the corners: is this location near any of them?
-		GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+        // now to check the corners: is this location near any of them?
+        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
 
-		// see if we select on the selection border
-		// highlighting is on, check the corners: inside bounds of current selection?
-		if ( ( mx >= minx - SELECT_MARGIN/gCurScale ) && 
-			( mx <= maxx + SELECT_MARGIN/gCurScale ) &&
-			( mz >= minz - SELECT_MARGIN/gCurScale ) &&
-			( mz <= maxz + SELECT_MARGIN/gCurScale ) )
-		{
-			int xzone = 0;
-			int zzone = 0;
-			int innerx = (int)(SELECT_MARGIN/gCurScale);
-			int innerz = (int)(SELECT_MARGIN/gCurScale);
-			gAdjustingSelection = 1;
+        // see if we select on the selection border
+        // highlighting is on, check the corners: inside bounds of current selection?
+        if ( ( mx >= minx - SELECT_MARGIN/gCurScale ) && 
+            ( mx <= maxx + SELECT_MARGIN/gCurScale ) &&
+            ( mz >= minz - SELECT_MARGIN/gCurScale ) &&
+            ( mz <= maxz + SELECT_MARGIN/gCurScale ) )
+        {
+            int xzone = 0;
+            int zzone = 0;
+            int innerx = (int)(SELECT_MARGIN/gCurScale);
+            int innerz = (int)(SELECT_MARGIN/gCurScale);
+            gAdjustingSelection = 1;
 
-			if ( innerx > maxx-minx )
-			{
-				innerx = (maxx-minx-1)/2;
-			}
-			if ( innerz > maxz-minz )
-			{
-				innerz = (maxz-minz-1)/2;
-			}
+            if ( innerx > maxx-minx )
+            {
+                innerx = (maxx-minx-1)/2;
+            }
+            if ( innerz > maxz-minz )
+            {
+                innerz = (maxz-minz-1)/2;
+            }
 
-			if ( mx <= minx + innerx )
-			{
-				// in minx zone
-				xzone = 1;
-			}
-			else if ( mx >= maxx - innerx )
-			{
-				// in maxx zone
-				xzone = 2;
-			}
+            if ( mx <= minx + innerx )
+            {
+                // in minx zone
+                xzone = 1;
+            }
+            else if ( mx >= maxx - innerx )
+            {
+                // in maxx zone
+                xzone = 2;
+            }
 
-			if ( mz <= minz + innerz )
-			{
-				// in minz zone
-				zzone = 1;
-			}
-			else if ( mz >= maxz - innerz )
-			{
-				// in maxz zone
-				zzone = 2;
-			}
+            if ( mz <= minz + innerz )
+            {
+                // in minz zone
+                zzone = 1;
+            }
+            else if ( mz >= maxz - innerz )
+            {
+                // in maxz zone
+                zzone = 2;
+            }
 
-			if ( xzone != 0 || zzone != 0 )
-			{
-				// OK, cursor will be set to something special
-				cursorSet = TRUE;
-				switch ( xzone*3 + zzone )
-				{
-				case 1: // zzone min
-				case 2: // zzone max
-					SetCursor( gNsCursor );
-					break;
-				case 3: // xzone min
-				case 6: // xzone max
-					SetCursor( gWeCursor );
-					break;
-				case 4: // xzone min, zzone min
-				case 8: // xzone max, zzone max
-					SetCursor( gNwseCursor );
-					break;
-				case 5: // xzone min, zzone max
-				case 7: // xzone max, zzone min
-					SetCursor( gNeswCursor );
-					break;
-				default:
-					assert(0);
-				}
-			}
-		}
-	}
+            if ( xzone != 0 || zzone != 0 )
+            {
+                // OK, cursor will be set to something special
+                cursorSet = TRUE;
+                switch ( xzone*3 + zzone )
+                {
+                case 1: // zzone min
+                case 2: // zzone max
+                    SetCursor( gNsCursor );
+                    break;
+                case 3: // xzone min
+                case 6: // xzone max
+                    SetCursor( gWeCursor );
+                    break;
+                case 4: // xzone min, zzone min
+                case 8: // xzone max, zzone max
+                    SetCursor( gNwseCursor );
+                    break;
+                case 5: // xzone min, zzone max
+                case 7: // xzone max, zzone min
+                    SetCursor( gNeswCursor );
+                    break;
+                default:
+                    assert(0);
+                }
+            }
+        }
+    }
 
-	if ( !cursorSet )
-	{
-		// default point
-		SetCursor( gArrowCursor );
-	}
+    if ( !cursorSet )
+    {
+        // default point
+        SetCursor( gArrowCursor );
+    }
 }
 
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 {
-	if (gOptions.worldType&HELL)
-	{
-		// get out of hell zoom
-		gCurX*=8.0;
-		gCurZ*=8.0;
-		// and undo other hell stuff
-		if ( gCurDepth == 126 )
-		{
-			gCurDepth = MAP_MAX_HEIGHT;
-			setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-		}
-		// turn off obscured, then restore overworld's obscured status
-		gOptions.worldType &= ~HIDEOBSCURED;
-		gOptions.worldType |= gOverworldHideStatus;
-		// uncheck hell menu item
-		CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
-		gOptions.worldType&=~HELL;
+    if (gOptions.worldType&HELL)
+    {
+        // get out of hell zoom
+        gCurX*=8.0;
+        gCurZ*=8.0;
+        // and undo other hell stuff
+        if ( gCurDepth == 126 )
+        {
+            gCurDepth = MAP_MAX_HEIGHT;
+            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+        }
+        // turn off obscured, then restore overworld's obscured status
+        gOptions.worldType &= ~HIDEOBSCURED;
+        gOptions.worldType |= gOverworldHideStatus;
+        // uncheck hell menu item
+        CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
+        gOptions.worldType&=~HELL;
 
-		// semi-useful, I'm not sure: zoom out when going back
-		//gCurScale /= 8.0;
-		//gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
-	}
-	// Ender is easy, just turn it off 
-	gOptions.worldType&=~ENDER;
-	CheckMenuItem(GetMenu(hWnd),IDM_END,MF_UNCHECKED);
+        // semi-useful, I'm not sure: zoom out when going back
+        //gCurScale /= 8.0;
+        //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+    }
+    // Ender is easy, just turn it off 
+    gOptions.worldType&=~ENDER;
+    CheckMenuItem(GetMenu(hWnd),IDM_END,MF_UNCHECKED);
 }
 
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, int type, int dataVal, int biome, HWND hwndStatus)
 {
-	wchar_t buf[150];
-	char sbuftype[100];
-	char sbufbiome[100];
+    wchar_t buf[150];
+    char sbuftype[100];
+    char sbufbiome[100];
 
-	if ( gOptions.worldType & SHOWALL )
-		sprintf_s( sbuftype, 100, " (id %d:%d)", type, dataVal );
-	else
-		sbuftype[0] = '\0';
+    // always show all information - it's fine
+    //if ( gOptions.worldType & SHOWALL )
+        sprintf_s( sbuftype, 100, " (id %d:%d)", type, dataVal );
+    //else
+    //    sbuftype[0] = '\0';
 
-	if ( (gOptions.worldType & BIOMES) && (biome >= 0) )
-		sprintf_s( sbufbiome, 100, " - %s biome", gBiomes[biome].name );
-	else
-		sbufbiome[0] = '\0';
+    //if ( (gOptions.worldType & BIOMES) && (biome >= 0) )
+    if ( biome >= 0 )
+        sprintf_s( sbufbiome, 100, " - %s biome", gBiomes[biome].name );
+    else
+        sbufbiome[0] = '\0';
 
 
     // if my is out of bounds, print dashes
     if ( my < -1 || my >= MAP_MAX_HEIGHT+1 )
     {
-		//wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
-		wsprintf(buf,L"%S",blockLabel);
+        //wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
+        wsprintf(buf,L"%S",blockLabel);	// char to wchar
     }
     else
     {
@@ -1930,10 +1935,10 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if ( gOptions.worldType&HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-			wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S%S%S",mx,mz,my,mx*8,mz*8,blockLabel,sbuftype,sbufbiome);
+            wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S%S%S",mx,mz,my,mx*8,mz*8,blockLabel,sbuftype,sbufbiome);	// char to wchar
         else
-			//wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-			wsprintf(buf,L"%d,%d; y=%d %S%S%S",mx,mz,my,blockLabel,sbuftype,sbufbiome);
+            //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
+            wsprintf(buf,L"%d,%d; y=%d %S%S%S",mx,mz,my,blockLabel,sbuftype,sbufbiome);	// char to wchar
     }
     SendMessage(hwndStatus,SB_SETTEXT,0,(LPARAM)buf);
 }
@@ -2026,36 +2031,36 @@ static void draw()
 // return 1 if world could not be loaded
 static int loadWorld()
 {
-	int version;
+    int version;
     CloseAll();
 
-	if ( gWorld[0] == 0 )
-	{
-		// load test world
-		gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-	}
-	else
-	{
-		// Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
-		// world, then reload and carry on. TODO: document!
-		//gHighlightOn=FALSE;
-		//SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
-		if ( GetFileVersion(gWorld,&version) != 0 ) {
-			return 1;
-		}
-		if ( version < 19133 )
-		{
-			// world is old
-			return 2;
-		}
-		if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
-			return 1;
-		}
-		GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
-	}
+    if ( gWorld[0] == 0 )
+    {
+        // load test world
+        gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+    }
+    else
+    {
+        // Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
+        // world, then reload and carry on. TODO: document!
+        //gHighlightOn=FALSE;
+        //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+        if ( GetFileVersion(gWorld,&version) != 0 ) {
+            return 1;
+        }
+        if ( version < 19133 )
+        {
+            // world is old
+            return 2;
+        }
+        if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
+            return 1;
+        }
+        GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
+    }
 
-	// keep current state around, we use it to set new window title
-	gHoldSameWorld = gSameWorld;
+    // keep current state around, we use it to set new window title
+    gHoldSameWorld = gSameWorld;
 
     // if this is the first world you loaded, or not the same world as before (reload), set location to spawn.
     if ( !gSameWorld )
@@ -2066,15 +2071,15 @@ static int loadWorld()
         // zoom out when loading a new world, since location's reset.
         gCurScale=MINZOOM;
 
-		gCurDepth = MAP_MAX_HEIGHT;
-		gTargetDepth = MIN_OVERWORLD_DEPTH;
-		gHighlightOn=FALSE;
-		SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
-		// turn on error checking for this new world, to warn of unknown blocks
-		CheckUnknownBlock( true );
-		// just to be safe, make sure flag is cleared for read check.
-		ClearBlockReadCheck();
-	}
+        gCurDepth = MAP_MAX_HEIGHT;
+        gTargetDepth = MIN_OVERWORLD_DEPTH;
+        gHighlightOn=FALSE;
+        SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+        // turn on error checking for this new world, to warn of unknown blocks
+        CheckUnknownBlock( true );
+        // just to be safe, make sure flag is cleared for read check.
+        ClearBlockReadCheck();
+    }
     gLoaded=TRUE;
     draw();
     return 0;
@@ -2087,123 +2092,212 @@ static int loadWorld()
 //	PathAppend(path,L"bin");
 //}
 
-static void worldPath(TCHAR *path)
+static int setWorldPath(TCHAR *path)
 {
-	SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
-	PathAppend(path,L".minecraft");
-	PathAppend(path,L"saves");
+    // try the normal Windows location
+    SHGetFolderPath(NULL,CSIDL_APPDATA,NULL,0,path);
+    PathAppend(path,L".minecraft");
+    PathAppend(path,L"saves");
+
+    if ( PathFileExists( path ) )
+        return 1;
+
+    // try Mac path
+    TCHAR newPath[MAX_PATH];
+    wcscpy_s(path, MAX_PATH, L"./Library/Application Support/minecraft/saves");
+
+    wchar_t msgString[1024];
+
+    for ( int i = 0; i < 8; i++ )
+    {
+        if ( gDebug )
+        {
+            swprintf_s(msgString,1024,L"Try path %s", path );
+            MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+        }
+
+        if ( PathFileExists( path ) )
+        {
+            // convert path to absolute path
+            wcscpy_s(newPath, MAX_PATH, path);
+            TCHAR *ret_code = _wfullpath( path, newPath, MAX_PATH );
+            if ( gDebug )
+            {
+                swprintf_s(msgString,1024,L"Found! Ret code %s, Converted path to %s", (ret_code ? L"OK": L"NULL"), path );
+                MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+            }
+            return i+2;
+        }
+
+        wcscpy_s(newPath, MAX_PATH, L"./.");
+        wcscat_s(newPath, MAX_PATH, path);
+        wcscpy_s(path, MAX_PATH, newPath);
+    }
+
+    // failed
+    if ( gDebug )
+    {
+        MessageBox( NULL, L"Failed to find path", _T("Informational"), MB_OK|MB_ICONINFORMATION);
+    }
+    return 0;
 }
 
-// I really have no idea what will work here, but let's give this a try. Does it work now?
-static void mcPathMac(TCHAR *path)
-{
-	//char *home;
-	//size_t len;
-	//_dupenv_s( &home, &len, "HOME" );
-	//if ( home != NULL )
-	//{
-	//	MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,home,-1,path,MAX_PATH);
-	//	PathAppend(path,L"Library");
-	//	PathAppend(path,L"Application Support");
-	//	PathAppend(path,L"Minecraft");
-	//}
-	//else
-	{
-		// try something crazy, I really don't know what the Mac wants... TODO! Need someone who knows...
-		// ~/Library/Application Support/minecraft/saves/
-		wcscpy_s(path,MAX_PATH,L"~/Library/Application Support/minecraft/saves/*");
-	}
-}
+
+// Gives the user's home directory on Mac, i.e., /users/eric, using the HOME environment variable
+//static void homePathMac(TCHAR *path)
+//{
+//	wchar_t *home;
+//	size_t len;
+//	path[0] = 0x0;	// return empty string on failure
+//
+//	_wdupenv_s( &home, &len, L"HOME" );
+//	// just to test a real env variable: _wdupenv_s( &home, &len, L"DXSDK_DIR" );
+//	if ( home != NULL )
+//	{
+//		wcscpy_s(path,MAX_PATH,home);
+//		//PathAppend(path,L"Library");
+//		//PathAppend(path,L"Application Support");
+//		//PathAppend(path,L"minecraft");
+//		//PathAppend(path,L"saves");
+//		free(home);
+//	}
+//	//else
+//	//{
+//	//	// try something crazy, I really don't know what the Mac wants... TODO! Need someone who knows...
+//	//	// ~/Library/Application Support/minecraft/saves/
+//	//	wcscpy_s(path,MAX_PATH,L"~/Library/Application Support/minecraft/saves/*");
+//	//}
+//}
 
 static int loadWorldList(HMENU menu)
 {
-	int oldVersionDetected = 0;
+    int oldVersionDetected = 0;
     MENUITEMINFO info;
     info.cbSize=sizeof(MENUITEMINFO);
     info.fMask=MIIM_FTYPE|MIIM_ID|MIIM_STRING|MIIM_DATA;
     info.fType=MFT_STRING;
-    TCHAR path[MAX_PATH];
+    TCHAR saveFilesPath[MAX_PATH];
     HANDLE hFind;
     WIN32_FIND_DATA ffd;
     int numWorlds=1;
 
-    worldPath(path);
-    PathAppend(path,L"*");
-    hFind=FindFirstFile(path,&ffd);
+    // uncomment to pop up dialogs about progress
+    //gDebug = true;
 
-	// did we find the directory at all?
-	if ( hFind == INVALID_HANDLE_VALUE )
-	{
-		mcPathMac(path);
-		hFind=FindFirstFile(path,&ffd);
+    int retCode = setWorldPath(gWorldPath);
 
-		if ( hFind == INVALID_HANDLE_VALUE )
-		{
-			MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at ~/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-				_T("Informational"), MB_OK|MB_ICONINFORMATION);
-			return 0;
-		}
-	}
+    if ( retCode == 0 )
+    {
+        MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+            _T("Informational"), MB_OK|MB_ICONINFORMATION);
+        return 0;
+    }
+    wcscpy_s(saveFilesPath,MAX_PATH,gWorldPath);
+
+    wchar_t msgString[1024];
+
+    if ( gDebug )
+    {
+        swprintf_s(msgString,1024,L"Found Minecraft saves directory successfully, on attempt %d", retCode );
+        MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+    }
+
+    wcscat_s(saveFilesPath,MAX_PATH,L"/*");
+    hFind=FindFirstFile(saveFilesPath,&ffd);
+
+    // did we find the directory at all?
+    if ( hFind == INVALID_HANDLE_VALUE )
+    {
+        if ( gDebug )
+        {
+            swprintf_s(msgString,1024,L"Strange, saves search found nothing, %s", saveFilesPath );
+            MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+        }
+        MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+            _T("Informational"), MB_OK|MB_ICONINFORMATION);
+        return 0;
+    }
 
     do
     {
         if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
         {
+            if ( gDebug )
+            {
+                swprintf_s(msgString,1024,L"Found world save directory %s", ffd.cFileName );
+                MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+            }
+
             if (ffd.cFileName[0]!='.')
             {
-				// test if world is in Anvil format
-				int version;
-				TCHAR testAnvil[MAX_PATH];
-				worldPath(testAnvil);
-				PathAppend(testAnvil,ffd.cFileName);
-				if ( GetFileVersion(testAnvil,&version) != 0 )
-				{
-					// unreadable world, for some reason - couldn't even read version
-					continue;
-				}
+                // test if world is in Anvil format
+                int version;
+                TCHAR testAnvil[MAX_PATH];
+                wcscpy_s(testAnvil, MAX_PATH, gWorldPath);
+                wcscat_s(testAnvil, MAX_PATH, L"/");
+                wcscat_s(testAnvil, MAX_PATH, ffd.cFileName);
+
+                if ( gDebug )
+                {
+                    swprintf_s(msgString,1024,L"Trying file %s", testAnvil );
+                    MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                }
+
+                if ( GetFileVersion(testAnvil,&version) != 0 )
+                {
+                    // unreadable world, for some reason - couldn't even read version
+                    continue;
+                }
+
+                if ( gDebug )
+                {
+                    swprintf_s(msgString,1024,L"Succeeded with file %s", testAnvil );
+                    MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                }
 
                 info.wID=IDM_WORLD+numWorlds;
                 info.cch=(UINT)wcslen(ffd.cFileName);
                 info.dwTypeData=ffd.cFileName;
                 info.dwItemData=numWorlds;
-				// if version is pre-Anvil, show world but gray it out
-				if (version < 19133)
-				{
-					oldVersionDetected = 1;
-					// gray it out
-					info.fMask |= MIIM_STATE;
-					info.fState = MFS_DISABLED;
-				}
-				else
-				{
-					//info.fMask |= MIIM_STATE;
-					info.fState = 0x0; // MFS_CHECKED;
-				}
+                // if version is pre-Anvil, show world but gray it out
+                if (version < 19133)
+                {
+                    oldVersionDetected = 1;
+                    // gray it out
+                    info.fMask |= MIIM_STATE;
+                    info.fState = MFS_DISABLED;
+                }
+                else
+                {
+                    //info.fMask |= MIIM_STATE;
+                    info.fState = 0x0; // MFS_CHECKED;
+                }
                 InsertMenuItem(menu,IDM_TEST_WORLD,FALSE,&info);
                 worlds[numWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
-                worldPath(worlds[numWorlds]);
-                PathAppend(worlds[numWorlds],ffd.cFileName);
+                wcscpy_s(worlds[numWorlds], MAX_PATH, testAnvil);
+                // was: setWorldPath(worlds[numWorlds]);
+                //PathAppend(worlds[numWorlds],ffd.cFileName);
                 numWorlds++;
             }
         }
     } while (FindNextFile(hFind,&ffd)!=0);
-	return oldVersionDetected;
+    return oldVersionDetected;
 }
 
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel )
 {
-	if ( state != gBottomControlEnabled )
-	{
-		gBottomControlEnabled = state;
-		// Currently only the label "Lower depth" is affected by selection;
-		// in this way the depth can be modified even if selection is not on. The problem with an inactive
-		// slider is that the map window underneath is then active instead, and you'll drag the map.
-		//EnableWindow(hwndBottomSlider,state);
-		//EnableWindow(hwndBottomLabel,state);
-		hwndBottomSlider;
-		hwndBottomLabel;
-		EnableWindow(hwndInfoBottomLabel,state);
-	}
+    if ( state != gBottomControlEnabled )
+    {
+        gBottomControlEnabled = state;
+        // Currently only the label "Lower depth" is affected by selection;
+        // in this way the depth can be modified even if selection is not on. The problem with an inactive
+        // slider is that the map window underneath is then active instead, and you'll drag the map.
+        //EnableWindow(hwndBottomSlider,state);
+        //EnableWindow(hwndBottomLabel,state);
+        hwndBottomSlider;
+        hwndBottomLabel;
+        EnableWindow(hwndInfoBottomLabel,state);
+    }
 }
 
 
@@ -2215,48 +2309,48 @@ static void validateItems(HMENU menu)
     {
         EnableMenuItem(menu,IDM_JUMPSPAWN,MF_ENABLED);
         EnableMenuItem(menu,IDM_JUMPPLAYER,MF_ENABLED);
-		// more correct is to gray if nothing is selected, but people don't know how to ungray
-		//EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,gHighlightOn?MF_ENABLED:MF_DISABLED);
-		//EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-		//EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-		EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
-		EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_ENABLED);
-		EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
-		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
-		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
+        // more correct is to gray if nothing is selected, but people don't know how to ungray
+        //EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,gHighlightOn?MF_ENABLED:MF_DISABLED);
+        //EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
+        //EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
+        EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
+        EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_ENABLED);
+        EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
+        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
+        EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
     }
     else
     {
         EnableMenuItem(menu,IDM_JUMPSPAWN,MF_DISABLED);
         EnableMenuItem(menu,IDM_JUMPPLAYER,MF_DISABLED);
-		EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_DISABLED);
+        EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_DISABLED);
         EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_DISABLED);
-		EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
-		EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_DISABLED);
+        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
+        EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_DISABLED);
         EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_DISABLED);
     }
-	// has a save been done?
-	if (gExported)
-	{
-		EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_ENABLED);
-	}
-	else
-	{
-		EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_DISABLED);
-	}
+    // has a save been done?
+    if (gExported)
+    {
+        EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_ENABLED);
+    }
+    else
+    {
+        EnableMenuItem(menu,IDM_FILE_REPEATPREVIOUSEXPORT,MF_DISABLED);
+    }
 }
 
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth )
 {
-	syncCurrentHighlightDepth();
+    syncCurrentHighlightDepth();
 
-	wchar_t text[4];
-	SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-depth);
-	_itow_s(depth,text,10);
-	SetWindowText(hwndLabel,text);
-	draw();
-	InvalidateRect(hWnd,NULL,FALSE);
-	UpdateWindow(hWnd);
+    wchar_t text[4];
+    SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-depth);
+    _itow_s(depth,text,10);
+    SetWindowText(hwndLabel,text);
+    draw();
+    InvalidateRect(hWnd,NULL,FALSE);
+    UpdateWindow(hWnd);
 }
 
 static void syncCurrentHighlightDepth()
@@ -2281,82 +2375,82 @@ static void syncCurrentHighlightDepth()
 // specific to the service, e.g. Z is up, and unit type used, so these are not copied.
 static void copyOverExportPrintData( ExportFileData *pEFD )
 {
-	// Whatever is set for OBJ should be set for VRML, and vice versa,
-	// so that Sculpteo and Shapeways can both be exported off a single setting, set once.
-	// Similarly, do this for all the STL.
-	int source = pEFD->fileType;
-	int dest[2];
-	int count = 0;
-	int service = 0;
+    // Whatever is set for OBJ should be set for VRML, and vice versa,
+    // so that Sculpteo and Shapeways can both be exported off a single setting, set once.
+    // Similarly, do this for all the STL.
+    int source = pEFD->fileType;
+    int dest[2];
+    int count = 0;
+    int service = 0;
 
-	switch ( source )
-	{
-	case FILE_TYPE_WAVEFRONT_ABS_OBJ:
-		dest[0] = FILE_TYPE_WAVEFRONT_REL_OBJ;
-		dest[1] = FILE_TYPE_VRML2;
-		count = 2;
-		service = 1;
-		break;
-	case FILE_TYPE_WAVEFRONT_REL_OBJ:
-		dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-		dest[1] = FILE_TYPE_VRML2;
-		count = 2;
-		service = 1;
-		break;
-	case FILE_TYPE_VRML2:
-		dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-		dest[1] = FILE_TYPE_WAVEFRONT_REL_OBJ;
-		count = 2;
-		service = 1;
-		break;
+    switch ( source )
+    {
+    case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+        dest[0] = FILE_TYPE_WAVEFRONT_REL_OBJ;
+        dest[1] = FILE_TYPE_VRML2;
+        count = 2;
+        service = 1;
+        break;
+    case FILE_TYPE_WAVEFRONT_REL_OBJ:
+        dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+        dest[1] = FILE_TYPE_VRML2;
+        count = 2;
+        service = 1;
+        break;
+    case FILE_TYPE_VRML2:
+        dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+        dest[1] = FILE_TYPE_WAVEFRONT_REL_OBJ;
+        count = 2;
+        service = 1;
+        break;
 
-	case FILE_TYPE_BINARY_MAGICS_STL:
-		dest[0] = FILE_TYPE_BINARY_VISCAM_STL;
-		dest[1] = FILE_TYPE_ASCII_STL;
-		count = 2;
-		break;
-	case FILE_TYPE_BINARY_VISCAM_STL:
-		dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
-		dest[1] = FILE_TYPE_ASCII_STL;
-		count = 2;
-		break;
-	case FILE_TYPE_ASCII_STL:
-		dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
-		dest[1] = FILE_TYPE_BINARY_VISCAM_STL;
-		count = 2;
-		break;
-	default:
-		// unknown, don't copy
-		assert(0);
-		return;
-	}
-	
-	// copy!
-	for ( int i = 0; i < count; i++ )
-	{
-		pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
-		pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
-		pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
-		pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+    case FILE_TYPE_BINARY_MAGICS_STL:
+        dest[0] = FILE_TYPE_BINARY_VISCAM_STL;
+        dest[1] = FILE_TYPE_ASCII_STL;
+        count = 2;
+        break;
+    case FILE_TYPE_BINARY_VISCAM_STL:
+        dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
+        dest[1] = FILE_TYPE_ASCII_STL;
+        count = 2;
+        break;
+    case FILE_TYPE_ASCII_STL:
+        dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
+        dest[1] = FILE_TYPE_BINARY_VISCAM_STL;
+        count = 2;
+        break;
+    default:
+        // unknown, don't copy
+        assert(0);
+        return;
+    }
 
-		// don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
-		if ( service == 0 )
-			pEFD->chkMakeZUp[dest[i]] = pEFD->chkMakeZUp[source];
+    // copy!
+    for ( int i = 0; i < count; i++ )
+    {
+        pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
+        pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
+        pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
+        pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
 
-		pEFD->blockSizeVal[dest[i]] = pEFD->blockSizeVal[source];
+        // don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
+        if ( service == 0 )
+            pEFD->chkMakeZUp[dest[i]] = pEFD->chkMakeZUp[source];
 
-		// don't do, as this seems file type specific: chkCreateZip[FILE_TYPE_TOTAL];
-		// don't do, as this seems file type specific: chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
+        pEFD->blockSizeVal[dest[i]] = pEFD->blockSizeVal[source];
 
-		pEFD->hollowThicknessVal[dest[i]] = pEFD->hollowThicknessVal[source];
+        // don't do, as this seems file type specific: chkCreateZip[FILE_TYPE_TOTAL];
+        // don't do, as this seems file type specific: chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
 
-		// don't do, as Sculpteo sandstone stats are different than Shapeways':
-		if ( service == 0 )
-			pEFD->comboPhysicalMaterial[dest[i]] = pEFD->comboPhysicalMaterial[source];
-		// for service, don't do, as Sculpteo and Shapeways use centimeters vs. millimeters
-		if ( service == 0 )
-			pEFD->comboModelUnits[dest[i]] = pEFD->comboModelUnits[source];
-	}
+        pEFD->hollowThicknessVal[dest[i]] = pEFD->hollowThicknessVal[source];
+
+        // don't do, as Sculpteo sandstone stats are different than Shapeways':
+        if ( service == 0 )
+            pEFD->comboPhysicalMaterial[dest[i]] = pEFD->comboPhysicalMaterial[source];
+        // for service, don't do, as Sculpteo and Shapeways use centimeters vs. millimeters
+        if ( service == 0 )
+            pEFD->comboModelUnits[dest[i]] = pEFD->comboModelUnits[source];
+    }
 }
 
 // returns number of files written on successful export, 0 files otherwise.
@@ -2365,25 +2459,25 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
     int on;
     int retCode = 0;
 
-	if ( printModel == 2 )
-	{
-		// schematic file - treat sort of like a render
-		gpEFD = &gExportSchematicData;
-		gOptions.exportFlags = 0x0;
-		gpEFD->flags = 0x0;
-	}
-	else if ( printModel == 1 )
+    if ( printModel == 2 )
     {
-		// print
+        // schematic file - treat sort of like a render
+        gpEFD = &gExportSchematicData;
+        gOptions.exportFlags = 0x0;
+        gpEFD->flags = 0x0;
+    }
+    else if ( printModel == 1 )
+    {
+        // print
         gpEFD = &gExportPrintData;
         gOptions.exportFlags = EXPT_3DPRINT;
-		gpEFD->flags = EXPT_3DPRINT;
+        gpEFD->flags = EXPT_3DPRINT;
     }
     else
     {
         gpEFD = &gExportViewData;
         gOptions.exportFlags = 0x0;
-		gpEFD->flags = 0x0;
+        gpEFD->flags = 0x0;
     }
     gOptions.pEFD = gpEFD;
 
@@ -2398,8 +2492,8 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
     int miny = gpEFD->minyVal;
     int maxy = gpEFD->maxyVal;
 
-	// affects default state of biome export, too.
-	gpEFD->chkBiome = ( gOptions.worldType & BIOMES ) ? TRUE : FALSE;
+    // affects default state of biome export, too.
+    gpEFD->chkBiome = ( gOptions.worldType & BIOMES ) ? TRUE : FALSE;
 
     setExportPrintData(gpEFD);
 
@@ -2411,7 +2505,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
     getExportPrintData(gpEFD);
 
-	copyOverExportPrintData(gpEFD);
+    copyOverExportPrintData(gpEFD);
 
     // if user changed depths
     if ( miny != gpEFD->minyVal || maxy != gpEFD->maxyVal )
@@ -2485,38 +2579,38 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         (gpEFD->chkShowWelds ? EXPT_DEBUG_SHOW_WELDS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE : 0x0);
 
 
-	// set OBJ group and material output state
-	if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-	{
-		if ( gpEFD->chkMultipleObjects )
-		{
-			// note, can get overridden by EXPT_GROUP_BY_BLOCK being on.
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
+    // set OBJ group and material output state
+    if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+    {
+        if ( gpEFD->chkMultipleObjects )
+        {
+            // note, can get overridden by EXPT_GROUP_BY_BLOCK being on.
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
 
-			if ( gpEFD->chkMaterialPerType )
-			{
-				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE;
+            if ( gpEFD->chkMaterialPerType )
+            {
+                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE;
 
-				if ( gpEFD->chkG3DMaterial )
-				{
-					gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
-					if ( gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_TEXTURE_SWATCHES))
-					{
-						// G3D - use only if textures are on.
-						gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
-					}
-				}
-			}
-		}
-		// if in debugging mode, force groups and material type
+                if ( gpEFD->chkG3DMaterial )
+                {
+                    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+                    if ( gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_TEXTURE_SWATCHES))
+                    {
+                        // G3D - use only if textures are on.
+                        gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
+                    }
+                }
+            }
+        }
+        // if in debugging mode, force groups and material type
 
-		// check if we're exporting relative coordinates
-		if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-		{
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
-		}
-	}
-	// STL files never need grouping by material, and certainly don't export textures
+        // check if we're exporting relative coordinates
+        if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+        {
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
+        }
+    }
+    // STL files never need grouping by material, and certainly don't export textures
     else if ( gpEFD->fileType == FILE_TYPE_ASCII_STL )
     {
         int unsupportedCodes = (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_GROUP_BY_MATERIAL|
@@ -2553,43 +2647,43 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         // we never have to group by material for STL, as there are no material groups.
         gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
     }
-	else if ( gpEFD->fileType == FILE_TYPE_VRML2 )
-	{
-		// are we outputting color textures?
-		if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
-		{
-			if ( gOptions.exportFlags & EXPT_3DPRINT)
-			{
-				// if printing, we don't need to group by material, as it can be one huge pile of data
-				gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
-			}
-			// else if we're outputting for rendering, VRML then outputs grouped by material, unless it's a single material output
-			// (in which case this flag isn't turned on anyway).
-		}
-	}
-	else if ( gpEFD->fileType == FILE_TYPE_SCHEMATIC )
-	{
-		// really, ignore all options for Schematic - set how you want, but they'll all be ignored except rotation around the Y axis.
-		gOptions.exportFlags &= 0x0;
-	}
-	else
-	{
-		// unknown file type?
-		assert(0);
-	}
+    else if ( gpEFD->fileType == FILE_TYPE_VRML2 )
+    {
+        // are we outputting color textures?
+        if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE )
+        {
+            if ( gOptions.exportFlags & EXPT_3DPRINT)
+            {
+                // if printing, we don't need to group by material, as it can be one huge pile of data
+                gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+            }
+            // else if we're outputting for rendering, VRML then outputs grouped by material, unless it's a single material output
+            // (in which case this flag isn't turned on anyway).
+        }
+    }
+    else if ( gpEFD->fileType == FILE_TYPE_SCHEMATIC )
+    {
+        // really, ignore all options for Schematic - set how you want, but they'll all be ignored except rotation around the Y axis.
+        gOptions.exportFlags &= 0x0;
+    }
+    else
+    {
+        // unknown file type?
+        assert(0);
+    }
 
-	// if individual blocks are to be exported, we group by cube, not by material, so turn that off
-	if ( gpEFD->chkIndividualBlocks )
-	{
-		// this also allows us to use the faceIndex as a way of noting the start of a new group
-		gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
-		gOptions.exportFlags |= EXPT_GROUP_BY_BLOCK;
-	}
+    // if individual blocks are to be exported, we group by cube, not by material, so turn that off
+    if ( gpEFD->chkIndividualBlocks )
+    {
+        // this also allows us to use the faceIndex as a way of noting the start of a new group
+        gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;
+        gOptions.exportFlags |= EXPT_GROUP_BY_BLOCK;
+    }
 
-	if ( gpEFD->chkBiome )
-	{
-		gOptions.exportFlags |= EXPT_BIOME;
-	}
+    if ( gpEFD->chkBiome )
+    {
+        gOptions.exportFlags |= EXPT_BIOME;
+    }
 
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent
     // (and full textures would just be confusing for debug, anyway)
@@ -2600,8 +2694,8 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
             gOptions.exportFlags &= ~EXPT_OUTPUT_TEXTURE_IMAGES;
             gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_SWATCHES;
         }
-		// we don't want to group by block for debugging
-		gOptions.exportFlags &= ~EXPT_GROUP_BY_BLOCK;
+        // we don't want to group by block for debugging
+        gOptions.exportFlags &= ~EXPT_GROUP_BY_BLOCK;
     }
 
     // OK, all set, let's go!
@@ -2613,14 +2707,14 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         InvalidateRect(hWnd,NULL,FALSE);
         UpdateWindow(hWnd);
 
-		// TODO!!! Check that minecraft.jar exists in the right place
+        // TODO!!! Check that minecraft.jar exists in the right place
 
         int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
             updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion );
 
-		// note how many files were output
-		retCode = outputFileList.count;
+        // note how many files were output
+        retCode = outputFileList.count;
 
         // zip it up - test that there's something to zip, in case of errors. Note that the first
         // file saved in ObjManip.c is the one used as the zip file's name.
@@ -2641,11 +2735,11 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
                 ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
 
-				// delete model files if not needed
-				if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
-				{
-					DeleteFile(outputFileList.name[i]);
-				}
+                // delete model files if not needed
+                if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
+                {
+                    DeleteFile(outputFileList.name[i]);
+                }
             }
             CloseZip(hz);
         }
@@ -2661,7 +2755,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
             swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is $ %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                 gOptions.cost,
                 gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
-				gOptions.block_mm, gOptions.block_inch,
+                gOptions.block_mm, gOptions.block_inch,
                 gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1], 
                 gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1], 
                 gOptions.totalBlocks );
@@ -2675,7 +2769,7 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
         if ( errCode != MW_NO_ERROR )
         {
-			PopupErrorDialogs( errCode );
+            PopupErrorDialogs( errCode );
         }
     }
 
@@ -2684,63 +2778,63 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
 static void PopupErrorDialogs( int errCode )
 {
-	// pop up all errors flagged
-	for ( int errNo = MW_NUM_CODES-1; errNo >= 0; errNo-- )
-	{
-		if ( (1<<errNo) & errCode )
-		{
-			//int msgboxID = 
-			MessageBox(
-				NULL,
-				gPopupInfo[errNo+1].text,
-				gPopupInfo[errNo+1].caption,
-				gPopupInfo[errNo+1].type
-				);
+    // pop up all errors flagged
+    for ( int errNo = MW_NUM_CODES-1; errNo >= 0; errNo-- )
+    {
+        if ( (1<<errNo) & errCode )
+        {
+            //int msgboxID = 
+            MessageBox(
+                NULL,
+                gPopupInfo[errNo+1].text,
+                gPopupInfo[errNo+1].caption,
+                gPopupInfo[errNo+1].type
+                );
 
-			//switch (msgboxID)
-			//{
-			//case IDCANCEL:
-			//    break;
-			//case IDTRYAGAIN:
-			//    break;
-			//case IDCONTINUE:
-			//    break;
+            //switch (msgboxID)
+            //{
+            //case IDCANCEL:
+            //    break;
+            //case IDTRYAGAIN:
+            //    break;
+            //case IDCONTINUE:
+            //    break;
 
-			//}
-		}
-	}
+            //}
+        }
+    }
 }
 
 static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber )
 {
-	DWORD dwHandle, dwLen;
-	UINT BufLen;
-	LPTSTR lpData;
-	VS_FIXEDFILEINFO *pFileInfo;
-	dwLen = GetFileVersionInfoSize( LibName, &dwHandle );
-	if (!dwLen) 
-		return FALSE;
+    DWORD dwHandle, dwLen;
+    UINT BufLen;
+    LPTSTR lpData;
+    VS_FIXEDFILEINFO *pFileInfo;
+    dwLen = GetFileVersionInfoSize( LibName, &dwHandle );
+    if (!dwLen) 
+        return FALSE;
 
-	lpData = (LPTSTR) malloc (dwLen);
-	if (!lpData) 
-		return FALSE;
+    lpData = (LPTSTR) malloc (dwLen);
+    if (!lpData) 
+        return FALSE;
 
-	if( !GetFileVersionInfo( LibName, dwHandle, dwLen, lpData ) )
-	{
-		free (lpData);
-		return FALSE;
-	}
-	if( VerQueryValue( lpData, _T("\\"), (LPVOID *) &pFileInfo, (PUINT)&BufLen ) ) 
-	{
-		*MajorVersion = HIWORD(pFileInfo->dwFileVersionMS);
-		*MinorVersion = LOWORD(pFileInfo->dwFileVersionMS);
-		*BuildNumber = HIWORD(pFileInfo->dwFileVersionLS);
-		*RevisionNumber = LOWORD(pFileInfo->dwFileVersionLS);
-		free (lpData);
-		return TRUE;
-	}
-	free (lpData);
-	return FALSE;
+    if( !GetFileVersionInfo( LibName, dwHandle, dwLen, lpData ) )
+    {
+        free (lpData);
+        return FALSE;
+    }
+    if( VerQueryValue( lpData, _T("\\"), (LPVOID *) &pFileInfo, (PUINT)&BufLen ) ) 
+    {
+        *MajorVersion = HIWORD(pFileInfo->dwFileVersionMS);
+        *MinorVersion = LOWORD(pFileInfo->dwFileVersionMS);
+        *BuildNumber = HIWORD(pFileInfo->dwFileVersionLS);
+        *RevisionNumber = LOWORD(pFileInfo->dwFileVersionLS);
+        free (lpData);
+        return TRUE;
+    }
+    free (lpData);
+    return FALSE;
 }
 
 // yes, this it totally lame, copying code from MinewaysMap
@@ -2772,8 +2866,8 @@ static const wchar_t *removePath( const wchar_t *src )
     (a)[FILE_TYPE_BINARY_MAGICS_STL] = (v2);    \
     (a)[FILE_TYPE_BINARY_VISCAM_STL] = (v3);    \
     (a)[FILE_TYPE_ASCII_STL] = (v4);    \
-	(a)[FILE_TYPE_VRML2] = (v5);	\
-	(a)[FILE_TYPE_SCHEMATIC] = (v6);
+    (a)[FILE_TYPE_VRML2] = (v5);	\
+    (a)[FILE_TYPE_SCHEMATIC] = (v6);
 
 static void initializeExportDialogData()
 {
@@ -2783,13 +2877,13 @@ static void initializeExportDialogData()
     // turn stuff on
     gExportPrintData.fileType = FILE_TYPE_VRML2;
 
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         1, 1, 0, 0, 0, 1, 0);
-	// I used to set the last value to 0, meaning only the zip would be created. The idea
-	// was that the naive user would then only have the zip, and so couldn't screw up
-	// when uploading the model file. But this setting is a pain if you want to preview
-	// the model file, you have to always remember to check the box so you can get the
-	// preview files. So, now it's off.
-	INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateZip,         1, 1, 0, 0, 0, 1, 0);
+    // I used to set the last value to 0, meaning only the zip would be created. The idea
+    // was that the naive user would then only have the zip, and so couldn't screw up
+    // when uploading the model file. But this setting is a pain if you want to preview
+    // the model file, you have to always remember to check the box so you can get the
+    // preview files. So, now it's off.
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
 
     // OBJ and VRML have color, depending...
     // order: OBJ, BSTL, ASTL, VRML
@@ -2802,26 +2896,26 @@ static void initializeExportDialogData()
     gExportPrintData.chkMergeFlattop = 1;
     // Shapeways imports VRML files and displays them with Y up, that is, it
     // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
-	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
+    // STL uses Z is up, even though i.materialise's previewer shows Y is up.
     INIT_ALL_FILE_TYPES( gExportPrintData.chkMakeZUp, 1, 1, 1, 1, 1, 0, 0);  
     gExportPrintData.chkCenterModel = 1;
-	gExportPrintData.chkExportAll = 0; 
-	gExportPrintData.chkFatten = 0; 
-	gExportPrintData.chkIndividualBlocks = 0;
-	gExportPrintData.chkBiome = 0;
+    gExportPrintData.chkExportAll = 0; 
+    gExportPrintData.chkFatten = 0; 
+    gExportPrintData.chkIndividualBlocks = 0;
+    gExportPrintData.chkBiome = 0;
 
     gExportPrintData.radioRotate0 = 1;
 
     gExportPrintData.radioScaleByBlock = 1;
     gExportPrintData.modelHeightVal = 5.0f;    // 5 cm target height
     INIT_ALL_FILE_TYPES( gExportPrintData.blockSizeVal,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
-		METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
     gExportPrintData.costVal = 25.00f;
 
     gExportPrintData.chkSealEntrances = 0; // left off by default: useful, but the user should want to do this
@@ -2833,32 +2927,32 @@ static void initializeExportDialogData()
     gExportPrintData.chkConnectAllEdges = 0;
     gExportPrintData.chkDeleteFloaters = 1;
     gExportPrintData.chkHollow = 1;
-	gExportPrintData.chkSuperHollow = 1;
-	gExportPrintData.chkMeltSnow = 0;
+    gExportPrintData.chkSuperHollow = 1;
+    gExportPrintData.chkMeltSnow = 0;
 
-	gExportPrintData.chkShowParts = 0;
-	gExportPrintData.chkShowWelds = 0;
+    gExportPrintData.chkShowParts = 0;
+    gExportPrintData.chkShowWelds = 0;
 
-	gExportPrintData.chkMultipleObjects = 1;
-	gExportPrintData.chkMaterialPerType = 1;
-	// we want a neutral material for printing (the rest is not all that important), as the SAP Viewer needs this
-	gExportPrintData.chkG3DMaterial = 1;
+    gExportPrintData.chkMultipleObjects = 1;
+    gExportPrintData.chkMaterialPerType = 1;
+    // we want a neutral material for printing (the rest is not all that important), as the SAP Viewer needs this
+    gExportPrintData.chkG3DMaterial = 1;
 
     gExportPrintData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES( gExportPrintData.hollowThicknessVal,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
-		METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * mtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
 
     // materials selected
     INIT_ALL_FILE_TYPES( gExportPrintData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
     INIT_ALL_FILE_TYPES( gExportPrintData.comboModelUnits,UNITS_CENTIMETER,UNITS_CENTIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER);
- 
+
 
     //////////////////////////////////////////////////////
     // copy view data from print, and change what's needed
@@ -2868,8 +2962,8 @@ static void initializeExportDialogData()
     gExportViewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 
     // don't really need to create a zip for rendering output
-	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateZip,         0, 0, 0, 0, 0, 0, 0);
-	INIT_ALL_FILE_TYPES( gExportViewData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES( gExportViewData.chkCreateZip,         0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES( gExportViewData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
 
     INIT_ALL_FILE_TYPES( gExportViewData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0, 1);  
     INIT_ALL_FILE_TYPES( gExportViewData.radioExportMtlColors,    0, 0, 1, 1, 0, 0, 0);  
@@ -2877,7 +2971,7 @@ static void initializeExportDialogData()
     INIT_ALL_FILE_TYPES( gExportViewData.radioExportFullTexture,  1, 1, 0, 0, 0, 1, 0);  
 
     gExportViewData.chkExportAll = 1; 
-	// for renderers, assume Y is up, which is the norm
+    // for renderers, assume Y is up, which is the norm
     INIT_ALL_FILE_TYPES( gExportViewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0);  
 
     gExportViewData.modelHeightVal = 1000.0f;    // 10 cm - view doesn't need a minimum, really
@@ -2886,8 +2980,8 @@ static void initializeExportDialogData()
         100.0f,
         100.0f,
         100.0f,
-		100.0f,
-		100.0f,
+        100.0f,
+        100.0f,
         100.0f);
     gExportViewData.costVal = 25.00f;
 
@@ -2900,20 +2994,20 @@ static void initializeExportDialogData()
     gExportViewData.chkDeleteFloaters = 0;
     gExportViewData.chkHollow = 0;
     gExportViewData.chkSuperHollow = 0;
-	// G3D material off by default for rendering
-	gExportViewData.chkG3DMaterial = 0;
+    // G3D material off by default for rendering
+    gExportViewData.chkG3DMaterial = 0;
 
     gExportViewData.floaterCountVal = 16;
     // irrelevant for viewing
     INIT_ALL_FILE_TYPES( gExportViewData.hollowThicknessVal, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f, 10.0f );    // 10 mm
-	INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES( gExportViewData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     INIT_ALL_FILE_TYPES( gExportViewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
 
-	// copy schematic data - a little goofy, but there it is
-	gExportSchematicData = gExportViewData;
-	gExportSchematicData.chkMergeFlattop = 0;
-	// TODO someday allow getting rid of floaters, that would be cool.
-	//gExportSchematicData.chkDeleteFloaters = 1;
+    // copy schematic data - a little goofy, but there it is
+    gExportSchematicData = gExportViewData;
+    gExportSchematicData.chkMergeFlattop = 0;
+    // TODO someday allow getting rid of floaters, that would be cool.
+    //gExportSchematicData.chkDeleteFloaters = 1;
 }
 
 // Message handler for about box.
@@ -2939,634 +3033,634 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 static int importSettings( wchar_t *importFile )
 {
-	// read header, as written by writeStatistics(), and get export settings from it
-
-	//char inputString[256];
-	int worldBox[6];
-	char c;
-
-	FILE *fh;
-	errno_t err = _wfopen_s( &fh, importFile, L"rt" );
-
-	if (err != 0) {
-		return MW_CANNOT_READ_IMPORT_FILE;
-	}
-
-	char lines[HEADER_LINES][120];
-
-	int numLines = readLineSet( fh, lines, HEADER_LINES );
-
-	fclose( fh );
-
-	if ( numLines == 0 )
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	// find size
-	int lineNo = findLine( "# Selection location min to max:", lines, 0, 10 );
-	if ( lineNo >= 0)
-	{
-		// found selection, parse it
-		if ( 6 != sscanf_s( lines[lineNo], "# Selection location min to max: %d, %d, %d to %d, %d, %d", 
-			&worldBox[0], &worldBox[1], &worldBox[2],
-			&worldBox[3], &worldBox[4], &worldBox[5] ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-	{
-		// old format, and need to not pass in lineNo (which is -1)
-		lineNo = findLine( "# Selection location:", lines, 0, 30 );
-		if ( lineNo >= 0)
-		{
-			// found selection, parse it
-			if ( 6 != sscanf_s( lines[lineNo], "# Selection location: %d, %d, %d to %d, %d, %d", 
-				&worldBox[0], &worldBox[1], &worldBox[2],
-				&worldBox[3], &worldBox[4], &worldBox[5] ) )
-				return MW_CANNOT_PARSE_IMPORT_FILE;
-		}
-		else
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-
-	// note we restart the search here, because old style output had this bit earlier
-	lineNo = findLine( "# Created for ", lines, 0, 20 );
-	if ( lineNo >= 0)
-	{
-		// found selection, parse it
-		if ( !sscanf_s( lines[lineNo], "# Created for %c", &c, sizeof(char) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	ExportFileData efd;
-	ExportFileData *pSaveEFD;
-	// 3d print or render?
-	if ( c == '3' )
-	{
-		efd = gExportPrintData;
-		pSaveEFD = &gExportPrintData;
-		efd.flags = EXPT_3DPRINT;
-	}
-	else
-	{
-		efd = gExportViewData;
-		pSaveEFD = &gExportViewData;
-		efd.flags = 0x0;
-	}
-	// file type - if not found, abort;
-	// older files don't have this info
-	if ( strstr( lines[lineNo], "Wavefront OBJ absolute indices" ) )
-	{
-		efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-	}
-	else if ( strstr( lines[lineNo], "Wavefront OBJ relative indices" ) )
-	{
-		efd.fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
-	}
-	else if ( strstr( lines[lineNo], "Binary STL iMaterialise" ) )
-	{
-		efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
-	}
-	else if ( strstr( lines[lineNo], "Binary STL VisCAM" ) )
-	{
-		efd.fileType = FILE_TYPE_BINARY_VISCAM_STL;
-	}
-	else if ( strstr( lines[lineNo], "ASCII STL" ) )
-	{
-		efd.fileType = FILE_TYPE_ASCII_STL;
-	}
-	else if ( strstr( lines[lineNo], "VRML 2.0" ) )
-	{
-		efd.fileType = FILE_TYPE_VRML2;
-	}
-	else
-	{
-		// can't figure it out from the file (old-style), so figure it out
-		// from the file name itself.
-		if ( wcsstr( importFile, L".obj" ) )
-		{
-			efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-		}
-		else if ( wcsstr( importFile, L".txt" ) )
-		{
-			efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
-		}
-		else if ( wcsstr( importFile, L".wrl" ) )
-		{
-			efd.fileType = FILE_TYPE_VRML2;
-		}
-		else
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-
-	// units - well after 3D print output, so scan many lines
-	char string1[100], string2[100], string3[100], string4[100];
-	lineNo = findLine( "# Units for the model vertex data itself:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		// found selection, parse it
-		if ( !sscanf_s( lines[lineNo], "# Units for the model vertex data itself: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	int i;
-	for ( i = 0; i < MODELS_UNITS_TABLE_SIZE; i++ )
-	{
-		if ( strcmp( unitTypeTable[i].name, string1 ) == 0 )
-		{
-			efd.comboModelUnits[efd.fileType] = i;
-			break;
-		}
-	}
-	// units found?
-	if ( i >= 4 )
-	{
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-
-	lineNo = findLine( "# File type:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		// found selection, parse it
-		if ( !sscanf_s( lines[lineNo], "# File type: Export %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	char *outputTypeString[] = {
-		"no", // "Export no materials",
-		"solid", // "Export solid material colors only (no textures)",
-		"richer", // "Export richer color textures",
-		"full", // "Export full color texture patterns"
-	};
-	for ( i = 0; i < 4; i++ )
-	{
-		if ( strcmp( outputTypeString[i], string1 ) == 0 )
-		{
-			break;
-		}
-	}
-
-	efd.radioExportNoMaterials[efd.fileType] = 0;
-	efd.radioExportMtlColors[efd.fileType] = 0;
-	efd.radioExportSolidTexture[efd.fileType] = 0;
-	efd.radioExportFullTexture[efd.fileType] = 0;
-	switch ( i )
-	{
-	case 0:
-		efd.radioExportNoMaterials[efd.fileType] = 1;
-		break;
-	case 1:
-		efd.radioExportMtlColors[efd.fileType] = 1;
-		break;
-	case 2:
-		efd.radioExportSolidTexture[efd.fileType] = 1;
-		break;
-	case 3:
-		efd.radioExportFullTexture[efd.fileType] = 1;
-		break;
-	default:
-	case 4:
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-
-	// set material options if using OBJ
-	if ( ( efd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( efd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ) )
-	{
-		lineNo = findLine( "# Export separate objects:", lines, lineNo+1, 20 );
-		if ( lineNo >= 0)
-		{
-			if ( !sscanf_s( lines[lineNo], "# Export separate objects: %s", string1, _countof(string1) ) )
-				return MW_CANNOT_PARSE_IMPORT_FILE;
-
-			efd.chkMultipleObjects = ( string1[0] == 'Y');
-
-			if ( efd.chkMultipleObjects )
-			{
-				lineNo = findLine( "#  Material per object:", lines, lineNo+1, 20 );
-				if ( lineNo >= 0)
-				{
-					if ( !sscanf_s( lines[lineNo], "#  Material per object: %s", string1, _countof(string1) ) )
-						return MW_CANNOT_PARSE_IMPORT_FILE;
-				}
-				else
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-
-				efd.chkMaterialPerType = ( string1[0] == 'Y');
-
-				if ( efd.chkMaterialPerType )
-				{
-					lineNo = findLine( "#   G3D full material:", lines, lineNo+1, 20 );
-					if ( lineNo >= 0)
-					{
-						if ( !sscanf_s( lines[lineNo], "#   G3D full material: %s", string1, _countof(string1) ) )
-							return MW_CANNOT_PARSE_IMPORT_FILE;
-					}
-					else
-						return MW_CANNOT_PARSE_IMPORT_FILE;
-
-					efd.chkG3DMaterial = ( string1[0] == 'Y');
-				}
-			}
-		}
-		// else if not found, that's OK, this is a newer feature; set defaults
-		else
-		{
-			efd.chkMultipleObjects = 1;
-			efd.chkMaterialPerType = 1;
-		}
-	}
-
-	lineNo = findLine( "# Make Z the up", lines, 0, 40 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Make Z the up direction instead of Y: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-
-		efd.chkMakeZUp[efd.fileType] = ( string1[0] == 'Y');
-	}
-	else
-	{
-		// unfortunately the old code had a bug and it always said YES, even when not set.
-		// So we leave this value untouched and move on.
-		/*
-		lineNo = findLine( "# Make Z direction up:", lines, 0, 40 );
-		if ( lineNo >= 0)
-		{
-			if ( !sscanf_s( lines[lineNo], "# Make Z direction up: %s", string1, _countof(string1) ) )
-				return MW_CANNOT_PARSE_IMPORT_FILE;
-		}
-		else
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-		*/
-	}
-
-
-	lineNo = findLine( "# Center model:", lines, 0, 40 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Center model: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkCenterModel = ( string1[0] == 'Y');
-
-
-	lineNo = findLine( "# Export lesser blocks:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Export lesser blocks: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-
-		efd.chkExportAll = ( string1[0] == 'Y');
-
-		if ( efd.chkExportAll )
-		{
-			lineNo = findLine( "# Fatten lesser blocks:", lines, lineNo+1, 20 );
-			if ( lineNo >= 0)
-			{
-				if ( !sscanf_s( lines[lineNo], "# Fatten lesser blocks: %s", string1, _countof(string1) ) )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-			}
-			else
-				return MW_CANNOT_PARSE_IMPORT_FILE;
-
-			efd.chkFatten = ( string1[0] == 'Y');
-		}
-	}
-	// this is a newer feature, so if we don't find it, continue on
-	else
-	{
-		// if rendering, set this to be on
-		if ( !(efd.flags & EXPT_3DPRINT) )
-		{
-			efd.chkExportAll = 1;
-		}
-	}
-
-
-	lineNo = findLine( "# Individual blocks:", lines, 0, 40 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Individual blocks: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-
-		efd.chkIndividualBlocks = ( string1[0] == 'Y');
-	}
-	// new feature - if missing, assume it's off, but don't fail
-
-	lineNo = findLine( "# Use biomes:", lines, 0, 40 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Use biomes: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-
-		efd.chkBiome = ( string1[0] == 'Y');
-	}
-	// new feature - if missing, assume it's off, but don't fail
-
-	float floatVal = 0.0f;
-	lineNo = findLine( "# Rotate model", lines, 0, 40 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Rotate model %f degrees", &floatVal ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.radioRotate0 = efd.radioRotate90 = efd.radioRotate180 = efd.radioRotate270 = 0;
-
-	efd.radioRotate0 = ( floatVal == 0.0f );
-	efd.radioRotate90 = ( floatVal == 90.0f );
-	efd.radioRotate180 = ( floatVal == 180.0f );
-	efd.radioRotate270 = ( floatVal == 270.0f );
-
-	// just in case
-	if ( !( efd.radioRotate90 || efd.radioRotate180 || efd.radioRotate270) )
-		efd.radioRotate0 = 1;
-
-
-	lineNo = findLine( "# Scale model by ", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		efd.radioScaleByBlock = efd.radioScaleByCost = efd.radioScaleToHeight = efd.radioScaleToMaterial = 0;
-
-		if ( sscanf_s( lines[lineNo], "# Scale model by making each block %f mm high", &floatVal ) )
-		{
-			efd.radioScaleByBlock = 1;
-			efd.blockSizeVal[efd.fileType] = floatVal;
-		}
-		else
-			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-			if ( 5 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
-			{
-				if ( strcmp( string4, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string2 );
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string3 );
-				efd.radioScaleByCost = 1;
-				efd.costVal = floatVal;
-			}
-			else if ( 4 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
-			{
-				if ( strcmp( string3, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string2 );
-				efd.radioScaleByCost = 1;
-				efd.costVal = floatVal;
-			}
-			else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2) ) )
-			{
-				if ( strcmp( string2, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				efd.radioScaleByCost = 1;
-				efd.costVal = floatVal;
-			}
-		else if ( sscanf_s( lines[lineNo], "# Scale model by fitting to a height of %f cm", &floatVal ) )
-		{
-			efd.radioScaleToHeight = 1;
-			efd.modelHeightVal = floatVal;
-		}
-		else
-			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-			if ( 4 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
-			{
-				if ( strcmp( string4, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string2 );
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string3 );
-				efd.radioScaleToMaterial = 1;
-			}
-			else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
-			{
-				if ( strcmp( string3, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				strcat_s( string1, _countof(string1), " " );
-				strcat_s( string1, _countof(string1), string2 );
-				efd.radioScaleToMaterial = 1;
-			}
-			else if ( 2 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2) ) )
-			{
-				if ( strcmp( string2, "material" ) != 0 )
-					return MW_CANNOT_PARSE_IMPORT_FILE;
-				efd.radioScaleToMaterial = 1;
-			}
-		else
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-
-		// if by cost or by material, need to set the material type.
-		if ( efd.radioScaleByCost || efd.radioScaleToMaterial )
-		{
-			for ( i = 0; i < MTL_COST_TABLE_SIZE; i++ )
-			{
-				if ( strcmp( string1, mtlCostTable[i].name ) == 0 )
-				{
-					break;
-				}
-			}
-			if ( i >= MTL_COST_TABLE_SIZE )
-				return MW_CANNOT_PARSE_IMPORT_FILE;
-
-			efd.comboPhysicalMaterial[efd.fileType] = i;
-		}
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	lineNo = findLine( "#   Fill air bubbles:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( 3 != sscanf_s( lines[lineNo], "#   Fill air bubbles: %s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
-			string1, _countof(string1),
-			string2, _countof(string2),
-			string3, _countof(string3)
-			) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkFillBubbles = ( string1[0] == 'Y');
-	efd.chkSealEntrances = ( string2[0] == 'Y');
-	efd.chkSealSideTunnels = ( string3[0] == 'Y');
-
-
-	lineNo = findLine( "#   Connect parts sharing an edge:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( 3 != sscanf_s( lines[lineNo], "#   Connect parts sharing an edge: %s Connect corner tips: %s Weld all shared edges: %s",
-			string1, _countof(string1),
-			string2, _countof(string2),
-			string3, _countof(string3)
-			) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkConnectParts = ( string1[0] == 'Y');
-	efd.chkConnectCornerTips = ( string2[0] == 'Y');
-	efd.chkConnectAllEdges = ( string3[0] == 'Y');
-
-
-	int intVal = 0;
-	lineNo = findLine( "#   Delete floating objects:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( 2 != sscanf_s( lines[lineNo], "#   Delete floating objects: trees and parts smaller than %d blocks: %s",
-			&intVal,
-			string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkDeleteFloaters = ( string1[0] == 'Y');
-	efd.floaterCountVal = intVal;
-
-
-	lineNo = findLine( "#   Hollow out bottom of model", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( 3 != sscanf_s( lines[lineNo], "#   Hollow out bottom of model, making the walls %f mm thick: %s Superhollow: %s",
-			&floatVal,
-			string1, _countof(string1),
-			string2, _countof(string2)
-			) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.hollowThicknessVal[efd.fileType] = floatVal;
-	efd.chkHollow = ( string1[0] == 'Y');
-	efd.chkSuperHollow = ( string2[0] == 'Y');
-
-
-	lineNo = findLine( "# Melt snow blocks:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "# Melt snow blocks: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkMeltSnow = ( string1[0] == 'Y');
-
-
-	lineNo = findLine( "#   Debug: show separate parts as colors:", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "#   Debug: show separate parts as colors: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkShowParts = ( string1[0] == 'Y');
-
-
-	lineNo = findLine( "#   Debug: show weld blocks", lines, lineNo+1, 20 );
-	if ( lineNo >= 0)
-	{
-		if ( !sscanf_s( lines[lineNo], "#   Debug: show weld blocks in bright colors: %s", string1, _countof(string1) ) )
-			return MW_CANNOT_PARSE_IMPORT_FILE;
-	}
-	else
-		return MW_CANNOT_PARSE_IMPORT_FILE;
-
-	efd.chkShowWelds = ( string1[0] == 'Y');
-
-
-	// survived, so copy data read in over
-	*pSaveEFD = efd;
-	pSaveEFD->minxVal = worldBox[0];
-	pSaveEFD->minyVal = worldBox[1];
-	pSaveEFD->minzVal = worldBox[2];
-	pSaveEFD->maxxVal = worldBox[3];
-	pSaveEFD->maxyVal = worldBox[4];
-	pSaveEFD->maxzVal = worldBox[5];
-
-	gpEFD = pSaveEFD;
-
-	return MW_NO_ERROR;
+    // read header, as written by writeStatistics(), and get export settings from it
+
+    //char inputString[256];
+    int worldBox[6];
+    char c;
+
+    FILE *fh;
+    errno_t err = _wfopen_s( &fh, importFile, L"rt" );
+
+    if (err != 0) {
+        return MW_CANNOT_READ_IMPORT_FILE;
+    }
+
+    char lines[HEADER_LINES][120];
+
+    int numLines = readLineSet( fh, lines, HEADER_LINES );
+
+    fclose( fh );
+
+    if ( numLines == 0 )
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    // find size
+    int lineNo = findLine( "# Selection location min to max:", lines, 0, 10 );
+    if ( lineNo >= 0)
+    {
+        // found selection, parse it
+        if ( 6 != sscanf_s( lines[lineNo], "# Selection location min to max: %d, %d, %d to %d, %d, %d", 
+            &worldBox[0], &worldBox[1], &worldBox[2],
+            &worldBox[3], &worldBox[4], &worldBox[5] ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+    {
+        // old format, and need to not pass in lineNo (which is -1)
+        lineNo = findLine( "# Selection location:", lines, 0, 30 );
+        if ( lineNo >= 0)
+        {
+            // found selection, parse it
+            if ( 6 != sscanf_s( lines[lineNo], "# Selection location: %d, %d, %d to %d, %d, %d", 
+                &worldBox[0], &worldBox[1], &worldBox[2],
+                &worldBox[3], &worldBox[4], &worldBox[5] ) )
+                return MW_CANNOT_PARSE_IMPORT_FILE;
+        }
+        else
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+
+    // note we restart the search here, because old style output had this bit earlier
+    lineNo = findLine( "# Created for ", lines, 0, 20 );
+    if ( lineNo >= 0)
+    {
+        // found selection, parse it
+        if ( !sscanf_s( lines[lineNo], "# Created for %c", &c, sizeof(char) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    ExportFileData efd;
+    ExportFileData *pSaveEFD;
+    // 3d print or render?
+    if ( c == '3' )
+    {
+        efd = gExportPrintData;
+        pSaveEFD = &gExportPrintData;
+        efd.flags = EXPT_3DPRINT;
+    }
+    else
+    {
+        efd = gExportViewData;
+        pSaveEFD = &gExportViewData;
+        efd.flags = 0x0;
+    }
+    // file type - if not found, abort;
+    // older files don't have this info
+    if ( strstr( lines[lineNo], "Wavefront OBJ absolute indices" ) )
+    {
+        efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+    }
+    else if ( strstr( lines[lineNo], "Wavefront OBJ relative indices" ) )
+    {
+        efd.fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
+    }
+    else if ( strstr( lines[lineNo], "Binary STL iMaterialise" ) )
+    {
+        efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
+    }
+    else if ( strstr( lines[lineNo], "Binary STL VisCAM" ) )
+    {
+        efd.fileType = FILE_TYPE_BINARY_VISCAM_STL;
+    }
+    else if ( strstr( lines[lineNo], "ASCII STL" ) )
+    {
+        efd.fileType = FILE_TYPE_ASCII_STL;
+    }
+    else if ( strstr( lines[lineNo], "VRML 2.0" ) )
+    {
+        efd.fileType = FILE_TYPE_VRML2;
+    }
+    else
+    {
+        // can't figure it out from the file (old-style), so figure it out
+        // from the file name itself.
+        if ( wcsstr( importFile, L".obj" ) )
+        {
+            efd.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+        }
+        else if ( wcsstr( importFile, L".txt" ) )
+        {
+            efd.fileType = FILE_TYPE_BINARY_MAGICS_STL;
+        }
+        else if ( wcsstr( importFile, L".wrl" ) )
+        {
+            efd.fileType = FILE_TYPE_VRML2;
+        }
+        else
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+
+    // units - well after 3D print output, so scan many lines
+    char string1[100], string2[100], string3[100], string4[100];
+    lineNo = findLine( "# Units for the model vertex data itself:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        // found selection, parse it
+        if ( !sscanf_s( lines[lineNo], "# Units for the model vertex data itself: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    int i;
+    for ( i = 0; i < MODELS_UNITS_TABLE_SIZE; i++ )
+    {
+        if ( strcmp( gUnitTypeTable[i].name, string1 ) == 0 )
+        {
+            efd.comboModelUnits[efd.fileType] = i;
+            break;
+        }
+    }
+    // units found?
+    if ( i >= 4 )
+    {
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+
+    lineNo = findLine( "# File type:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        // found selection, parse it
+        if ( !sscanf_s( lines[lineNo], "# File type: Export %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    char *outputTypeString[] = {
+        "no", // "Export no materials",
+        "solid", // "Export solid material colors only (no textures)",
+        "richer", // "Export richer color textures",
+        "full", // "Export full color texture patterns"
+    };
+    for ( i = 0; i < 4; i++ )
+    {
+        if ( strcmp( outputTypeString[i], string1 ) == 0 )
+        {
+            break;
+        }
+    }
+
+    efd.radioExportNoMaterials[efd.fileType] = 0;
+    efd.radioExportMtlColors[efd.fileType] = 0;
+    efd.radioExportSolidTexture[efd.fileType] = 0;
+    efd.radioExportFullTexture[efd.fileType] = 0;
+    switch ( i )
+    {
+    case 0:
+        efd.radioExportNoMaterials[efd.fileType] = 1;
+        break;
+    case 1:
+        efd.radioExportMtlColors[efd.fileType] = 1;
+        break;
+    case 2:
+        efd.radioExportSolidTexture[efd.fileType] = 1;
+        break;
+    case 3:
+        efd.radioExportFullTexture[efd.fileType] = 1;
+        break;
+    default:
+    case 4:
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+
+    // set material options if using OBJ
+    if ( ( efd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( efd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ) )
+    {
+        lineNo = findLine( "# Export separate objects:", lines, lineNo+1, 20 );
+        if ( lineNo >= 0)
+        {
+            if ( !sscanf_s( lines[lineNo], "# Export separate objects: %s", string1, _countof(string1) ) )
+                return MW_CANNOT_PARSE_IMPORT_FILE;
+
+            efd.chkMultipleObjects = ( string1[0] == 'Y');
+
+            if ( efd.chkMultipleObjects )
+            {
+                lineNo = findLine( "#  Material per object:", lines, lineNo+1, 20 );
+                if ( lineNo >= 0)
+                {
+                    if ( !sscanf_s( lines[lineNo], "#  Material per object: %s", string1, _countof(string1) ) )
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+                }
+                else
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+
+                efd.chkMaterialPerType = ( string1[0] == 'Y');
+
+                if ( efd.chkMaterialPerType )
+                {
+                    lineNo = findLine( "#   G3D full material:", lines, lineNo+1, 20 );
+                    if ( lineNo >= 0)
+                    {
+                        if ( !sscanf_s( lines[lineNo], "#   G3D full material: %s", string1, _countof(string1) ) )
+                            return MW_CANNOT_PARSE_IMPORT_FILE;
+                    }
+                    else
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+                    efd.chkG3DMaterial = ( string1[0] == 'Y');
+                }
+            }
+        }
+        // else if not found, that's OK, this is a newer feature; set defaults
+        else
+        {
+            efd.chkMultipleObjects = 1;
+            efd.chkMaterialPerType = 1;
+        }
+    }
+
+    lineNo = findLine( "# Make Z the up", lines, 0, 40 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Make Z the up direction instead of Y: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+
+        efd.chkMakeZUp[efd.fileType] = ( string1[0] == 'Y');
+    }
+    else
+    {
+        // unfortunately the old code had a bug and it always said YES, even when not set.
+        // So we leave this value untouched and move on.
+        /*
+        lineNo = findLine( "# Make Z direction up:", lines, 0, 40 );
+        if ( lineNo >= 0)
+        {
+        if ( !sscanf_s( lines[lineNo], "# Make Z direction up: %s", string1, _countof(string1) ) )
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+        }
+        else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+        */
+    }
+
+
+    lineNo = findLine( "# Center model:", lines, 0, 40 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Center model: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkCenterModel = ( string1[0] == 'Y');
+
+
+    lineNo = findLine( "# Export lesser blocks:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Export lesser blocks: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+
+        efd.chkExportAll = ( string1[0] == 'Y');
+
+        if ( efd.chkExportAll )
+        {
+            lineNo = findLine( "# Fatten lesser blocks:", lines, lineNo+1, 20 );
+            if ( lineNo >= 0)
+            {
+                if ( !sscanf_s( lines[lineNo], "# Fatten lesser blocks: %s", string1, _countof(string1) ) )
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+            }
+            else
+                return MW_CANNOT_PARSE_IMPORT_FILE;
+
+            efd.chkFatten = ( string1[0] == 'Y');
+        }
+    }
+    // this is a newer feature, so if we don't find it, continue on
+    else
+    {
+        // if rendering, set this to be on
+        if ( !(efd.flags & EXPT_3DPRINT) )
+        {
+            efd.chkExportAll = 1;
+        }
+    }
+
+
+    lineNo = findLine( "# Individual blocks:", lines, 0, 40 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Individual blocks: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+
+        efd.chkIndividualBlocks = ( string1[0] == 'Y');
+    }
+    // new feature - if missing, assume it's off, but don't fail
+
+    lineNo = findLine( "# Use biomes:", lines, 0, 40 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Use biomes: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+
+        efd.chkBiome = ( string1[0] == 'Y');
+    }
+    // new feature - if missing, assume it's off, but don't fail
+
+    float floatVal = 0.0f;
+    lineNo = findLine( "# Rotate model", lines, 0, 40 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Rotate model %f degrees", &floatVal ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.radioRotate0 = efd.radioRotate90 = efd.radioRotate180 = efd.radioRotate270 = 0;
+
+    efd.radioRotate0 = ( floatVal == 0.0f );
+    efd.radioRotate90 = ( floatVal == 90.0f );
+    efd.radioRotate180 = ( floatVal == 180.0f );
+    efd.radioRotate270 = ( floatVal == 270.0f );
+
+    // just in case
+    if ( !( efd.radioRotate90 || efd.radioRotate180 || efd.radioRotate270) )
+        efd.radioRotate0 = 1;
+
+
+    lineNo = findLine( "# Scale model by ", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        efd.radioScaleByBlock = efd.radioScaleByCost = efd.radioScaleToHeight = efd.radioScaleToMaterial = 0;
+
+        if ( sscanf_s( lines[lineNo], "# Scale model by making each block %f mm high", &floatVal ) )
+        {
+            efd.radioScaleByBlock = 1;
+            efd.blockSizeVal[efd.fileType] = floatVal;
+        }
+        else
+            // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+            if ( 5 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
+            {
+                if ( strcmp( string4, "material" ) != 0 )
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+                strcat_s( string1, _countof(string1), " " );
+                strcat_s( string1, _countof(string1), string2 );
+                strcat_s( string1, _countof(string1), " " );
+                strcat_s( string1, _countof(string1), string3 );
+                efd.radioScaleByCost = 1;
+                efd.costVal = floatVal;
+            }
+            else if ( 4 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
+            {
+                if ( strcmp( string3, "material" ) != 0 )
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+                strcat_s( string1, _countof(string1), " " );
+                strcat_s( string1, _countof(string1), string2 );
+                efd.radioScaleByCost = 1;
+                efd.costVal = floatVal;
+            }
+            else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2) ) )
+            {
+                if ( strcmp( string2, "material" ) != 0 )
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+                efd.radioScaleByCost = 1;
+                efd.costVal = floatVal;
+            }
+            else if ( sscanf_s( lines[lineNo], "# Scale model by fitting to a height of %f cm", &floatVal ) )
+            {
+                efd.radioScaleToHeight = 1;
+                efd.modelHeightVal = floatVal;
+            }
+            else
+                // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+                if ( 4 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4) ) )
+                {
+                    if ( strcmp( string4, "material" ) != 0 )
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+                    strcat_s( string1, _countof(string1), " " );
+                    strcat_s( string1, _countof(string1), string2 );
+                    strcat_s( string1, _countof(string1), " " );
+                    strcat_s( string1, _countof(string1), string3 );
+                    efd.radioScaleToMaterial = 1;
+                }
+                else if ( 3 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3) ) )
+                {
+                    if ( strcmp( string3, "material" ) != 0 )
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+                    strcat_s( string1, _countof(string1), " " );
+                    strcat_s( string1, _countof(string1), string2 );
+                    efd.radioScaleToMaterial = 1;
+                }
+                else if ( 2 == sscanf_s( lines[lineNo], "# Scale model by using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2) ) )
+                {
+                    if ( strcmp( string2, "material" ) != 0 )
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+                    efd.radioScaleToMaterial = 1;
+                }
+                else
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+
+                // if by cost or by material, need to set the material type.
+                if ( efd.radioScaleByCost || efd.radioScaleToMaterial )
+                {
+                    for ( i = 0; i < MTL_COST_TABLE_SIZE; i++ )
+                    {
+                        if ( strcmp( string1, gMtlCostTable[i].name ) == 0 )
+                        {
+                            break;
+                        }
+                    }
+                    if ( i >= MTL_COST_TABLE_SIZE )
+                        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+                    efd.comboPhysicalMaterial[efd.fileType] = i;
+                }
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    lineNo = findLine( "#   Fill air bubbles:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( 3 != sscanf_s( lines[lineNo], "#   Fill air bubbles: %s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
+            string1, _countof(string1),
+            string2, _countof(string2),
+            string3, _countof(string3)
+            ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkFillBubbles = ( string1[0] == 'Y');
+    efd.chkSealEntrances = ( string2[0] == 'Y');
+    efd.chkSealSideTunnels = ( string3[0] == 'Y');
+
+
+    lineNo = findLine( "#   Connect parts sharing an edge:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( 3 != sscanf_s( lines[lineNo], "#   Connect parts sharing an edge: %s Connect corner tips: %s Weld all shared edges: %s",
+            string1, _countof(string1),
+            string2, _countof(string2),
+            string3, _countof(string3)
+            ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkConnectParts = ( string1[0] == 'Y');
+    efd.chkConnectCornerTips = ( string2[0] == 'Y');
+    efd.chkConnectAllEdges = ( string3[0] == 'Y');
+
+
+    int intVal = 0;
+    lineNo = findLine( "#   Delete floating objects:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( 2 != sscanf_s( lines[lineNo], "#   Delete floating objects: trees and parts smaller than %d blocks: %s",
+            &intVal,
+            string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkDeleteFloaters = ( string1[0] == 'Y');
+    efd.floaterCountVal = intVal;
+
+
+    lineNo = findLine( "#   Hollow out bottom of model", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( 3 != sscanf_s( lines[lineNo], "#   Hollow out bottom of model, making the walls %f mm thick: %s Superhollow: %s",
+            &floatVal,
+            string1, _countof(string1),
+            string2, _countof(string2)
+            ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.hollowThicknessVal[efd.fileType] = floatVal;
+    efd.chkHollow = ( string1[0] == 'Y');
+    efd.chkSuperHollow = ( string2[0] == 'Y');
+
+
+    lineNo = findLine( "# Melt snow blocks:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "# Melt snow blocks: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkMeltSnow = ( string1[0] == 'Y');
+
+
+    lineNo = findLine( "#   Debug: show separate parts as colors:", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "#   Debug: show separate parts as colors: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkShowParts = ( string1[0] == 'Y');
+
+
+    lineNo = findLine( "#   Debug: show weld blocks", lines, lineNo+1, 20 );
+    if ( lineNo >= 0)
+    {
+        if ( !sscanf_s( lines[lineNo], "#   Debug: show weld blocks in bright colors: %s", string1, _countof(string1) ) )
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    else
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+
+    efd.chkShowWelds = ( string1[0] == 'Y');
+
+
+    // survived, so copy data read in over
+    *pSaveEFD = efd;
+    pSaveEFD->minxVal = worldBox[0];
+    pSaveEFD->minyVal = worldBox[1];
+    pSaveEFD->minzVal = worldBox[2];
+    pSaveEFD->maxxVal = worldBox[3];
+    pSaveEFD->maxyVal = worldBox[4];
+    pSaveEFD->maxzVal = worldBox[5];
+
+    gpEFD = pSaveEFD;
+
+    return MW_NO_ERROR;
 }
 
 // read line, includes \n at end.
 static int readLineSet( FILE *fh, char lines[HEADER_LINES][120], int maxLine )
 {
-	int lineNum = 0;
-	int pos;
-	do {
-		pos = readLine( fh, lines[lineNum++], 120 );
-	} while ( (pos > 0) && ( lineNum < maxLine ) );
-	return lineNum;
+    int lineNum = 0;
+    int pos;
+    do {
+        pos = readLine( fh, lines[lineNum++], 120 );
+    } while ( (pos > 0) && ( lineNum < maxLine ) );
+    return lineNum;
 }
 
 // read line, includes \n at end.
 static int readLine( FILE *fh, char *inputString, int stringLength )
 {
-	int pos = 0;
-	int c;
-	do {
-		c = fgetc(fh);
-		if (c != EOF) inputString[pos++] = (char)c;
-		// line too long?
-		if (pos >= stringLength - 1)
-		{
-			inputString[stringLength-1] = '\0';
-			return ( c != EOF ) ? pos : -1;
-		}
-	} while (c != EOF && c != '\n');
-	inputString[pos] = '\0';
+    int pos = 0;
+    int c;
+    do {
+        c = fgetc(fh);
+        if (c != EOF) inputString[pos++] = (char)c;
+        // line too long?
+        if (pos >= stringLength - 1)
+        {
+            inputString[stringLength-1] = '\0';
+            return ( c != EOF ) ? pos : -1;
+        }
+    } while (c != EOF && c != '\n');
+    inputString[pos] = '\0';
 
-	return ( c != EOF) ? pos : -1;
+    return ( c != EOF) ? pos : -1;
 }
 
 // return line number if checkString is found in the next maxLines of the file.
 static int findLine( char *checkString, char lines[HEADER_LINES][120], int startLine, int maxLines )
 {
-	int trueMaxLines = ( startLine+maxLines >= HEADER_LINES ) ? HEADER_LINES : startLine+maxLines;
-	for ( int i=startLine; i < trueMaxLines; i++ )
-	{
-		if ( strstr( lines[i], checkString ) != NULL )
-		{
-			return i;
-		}
-	}
-	return -1;
+    int trueMaxLines = ( startLine+maxLines >= HEADER_LINES ) ? HEADER_LINES : startLine+maxLines;
+    for ( int i=startLine; i < trueMaxLines; i++ )
+    {
+        if ( strstr( lines[i], checkString ) != NULL )
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 static void formTitle(wchar_t *world, wchar_t *title)
 {
-	wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
+    wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
 
-	if ( wcslen( world ) <= 0 )
-	{
-		wcscat_s( title, MAX_PATH-1, L"[Block Test World]" );
-	}
-	else
-	{
-		// find last "/" or "\", as possible
-		wchar_t *lastSplitBackslash = wcsrchr( world, '\\' )+1;
-		wchar_t *lastSplitSlash = wcsrchr( world, '/' )+1;
-		wchar_t *lastSplit = world;
-		if ( lastSplitBackslash > lastSplit )
-			lastSplit = lastSplitBackslash;
-		if ( lastSplitSlash > lastSplit )
-			lastSplit = lastSplitSlash;
-		wcscat_s( title, MAX_PATH-1, lastSplit );
-	}
+    if ( wcslen( world ) <= 0 )
+    {
+        wcscat_s( title, MAX_PATH-1, L"[Block Test World]" );
+    }
+    else
+    {
+        // find last "/" or "\", as possible
+        wchar_t *lastSplitBackslash = wcsrchr( world, '\\' )+1;
+        wchar_t *lastSplitSlash = wcsrchr( world, '/' )+1;
+        wchar_t *lastSplit = world;
+        if ( lastSplitBackslash > lastSplit )
+            lastSplit = lastSplitBackslash;
+        if ( lastSplitSlash > lastSplit )
+            lastSplit = lastSplitSlash;
+        wcscat_s( title, MAX_PATH-1, lastSplit );
+    }
 }
