@@ -260,6 +260,8 @@ static Options *gOptions;
 static FileList *gOutputFileList;
 
 static int gExportTexture=0;
+// whether we're outputting a print or render
+static int gPrint3D=0;
 
 static int gPhysMtl;
 
@@ -537,7 +539,7 @@ static void saveBoxReuseGeometry( int boxIndex, int type, int swatchLoc, int fac
 static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
 static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ );
-static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4] );
+static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, int rect[4] );
 static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRect[4] );
 static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
@@ -588,9 +590,9 @@ static int faceIdCompare( void *context, const void *str1, const void *str2);
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
 static int checkAndCreateFaces( int boxIndex, IPoint loc );
-static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex );
-static int neighborCoversFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
-static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int view3D );
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
+static int neighborMayCoverFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
+static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, int view3D );
 static int isFluidBlockFull( int type, int boxIndex );
 static int cornerHeights( int type, int boxIndex, float heights[4] );
 static float computeUpperCornerHeight( int type, int boxIndex, int x, int z );
@@ -715,42 +717,46 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     //    DWORD br;
     //#endif
 
+
     IBox worldBox;
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
 
+    // set up a bunch of globals
     gpCallback = &callback;
     // initial "quick" progress just so progress bar moves a bit.
     UPDATE_PROGRESS(0.20f*PG_MAKE_FACES);
 
-    if ( options->moreExportMemory )
-    {
-        // clear the cache before export - this lets us export larger worlds.
-        // This could be made optional, but map reload is pretty fast, so let's always do this.
-        ClearCache();
-    }
-
     gMajorVersion = majorVersion;
     gMinorVersion = minorVersion;
-
-    // we might someday reload when reading the data that will actually be exported;
-    // Right now, any bad data encountered will flag the problem.
-    //ClearBlockReadCheck();
-    gBadBlocksInModel = 0;
 
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
     memset(&gModel,0,sizeof(Model));
-    gModel.pInputTerrainImage = new progimage_info();
-
-    // reset random number seed
-    myseedrand(12345);
-
     gOptions = options;
     gOptions->totalBlocks = 0;
     gOptions->cost = 0.0f;
-    gOutputFileList = outputFileList;
+
     gExportTexture = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
+
+    gPrint3D = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
+    gModel.pInputTerrainImage = NULL;
+
+    // Billboards and true geometry to be output?
+    // True only if we're exporting all geometry.
+    // Must be set now, as this influences whether we stretch textures.
+    gExportBillboards =
+        //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+        gOptions->pEFD->chkExportAll;
+
+    gPhysMtl = gOptions->pEFD->comboPhysicalMaterial[gOptions->pEFD->fileType];
+
+    gUnitsScale = gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].unitsPerMeter;
+
+    gBoxData = NULL;
+    gBiome = NULL;
+
+    gMinorBlockCount = 0;
 
     // get path name and root of output file name as separate globals. Also have a
     // "clean" (no extended characters, spaces turns to _) version of the output name, for the files
@@ -762,9 +768,35 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     spacesToUnderlines(gOutputFileRootClean);
     wcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar);
 
+
+    // start exporting for real
+
+    if ( options->moreExportMemory )
+    {
+        // clear the cache before export - this lets us export larger worlds.
+        // This could be made optional, but map reload is pretty fast, so let's always do this.
+        ClearCache();
+    }
+
+    // we might someday reload when reading the data that will actually be exported;
+    // Right now, any bad data encountered will flag the problem.
+    //ClearBlockReadCheck();
+    gBadBlocksInModel = 0;
+
+    // reset random number seed
+    myseedrand(12345);
+
+    gOutputFileList = outputFileList;
+
+    UPDATE_PROGRESS(0.30f*PG_MAKE_FACES);
+
     // first things very first: if full texturing is wanted, check if the texture is readable
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
     {
+        gModel.pInputTerrainImage = new progimage_info();
+
+        // note that any failure in readTerrainPNG will cause the "sub-error code" (in the shifted bits MW_NUM_CODES)
+        // to give a value > MW_BEGIN_ERRORS. This is fine, as any read PNG error is a real error.
         retCode |= readTerrainPNG(curDir,gModel.pInputTerrainImage,terrainFileName);
         if ( retCode >= MW_BEGIN_ERRORS )
         {
@@ -788,24 +820,6 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
             retCode |= MW_NOT_ENOUGH_ROWS;
         }
     }
-
-    // Billboards and true geometry to be output?
-    // True only if we're exporting all geometry.
-    // Must be set now, as this influences whether we stretch textures.
-    gExportBillboards =
-        //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
-        gOptions->pEFD->chkExportAll;
-
-    UPDATE_PROGRESS(0.30f*PG_MAKE_FACES);
-
-    gPhysMtl = gOptions->pEFD->comboPhysicalMaterial[gOptions->pEFD->fileType];
-
-    gUnitsScale = gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].unitsPerMeter;
-
-    gBoxData = NULL;
-    gBiome = NULL;
-
-    gMinorBlockCount = 0;
 
     UPDATE_PROGRESS(0.40f*PG_MAKE_FACES);
 
@@ -927,6 +941,9 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     case FILE_TYPE_VRML2:
         retCode |= writeVRML2Box( world, &worldBox );
         break;
+    //case FILE_TYPE_SETTINGS:
+        //retCode |= writeSettings( world, &worldBox );
+        //break;
     default:
         assert(0);
         break;
@@ -1051,10 +1068,10 @@ Exit:
 
                 // fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
                 // For printing we also then composite over other backgrounds as the defaults.
-                faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+                faTableCount = gPrint3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
                 // start at solid rendering vs. leave it transparent for true cutaway rendering;
                 // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
-                for ( i = ( (gOptions->exportFlags & EXPT_3DPRINT) || !gOptions->pEFD->chkExportAll ) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++ )
+                for ( i = ( gPrint3D || !gOptions->pEFD->chkExportAll ) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++ )
                 {
                     compositePNGSwatches( gModel.pPNGtexture,
                         faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
@@ -1062,7 +1079,7 @@ Exit:
                 }
 
                 // final swatch cleanup if textures are used and we're doing 3D printing
-                if ( gOptions->exportFlags & EXPT_3DPRINT )
+                if ( gPrint3D )
                 {
 
 
@@ -1143,7 +1160,7 @@ Exit:
                     rc = writepng(gModel.pPNGtexture,4,textureRGBA);
                     addOutputFilenameToList(textureRGBA);
                     assert(rc == 0);
-                    retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
                 if ( gModel.usesRGB )
@@ -1151,7 +1168,7 @@ Exit:
                     // output RGB version
                     rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureRGB);
                     assert(rc == 0);
-                    retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
                 if ( gModel.usesAlpha )
@@ -1161,7 +1178,7 @@ Exit:
                     rc = writepng(gModel.pPNGtexture,4,textureAlpha);
                     addOutputFilenameToList(textureAlpha);
                     assert(rc == 0);
-                    retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
             }
             else
@@ -1169,7 +1186,7 @@ Exit:
                 // just the one (VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
                 wchar_t textureFileName[MAX_PATH];
                 concatFileName3(textureFileName,gOutputFilePath,gOutputFileRootClean,L".png");
-                if ( (gOptions->exportFlags & EXPT_3DPRINT) && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
+                if ( gPrint3D && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
                 {
                     rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureFileName);
                 }
@@ -1179,7 +1196,7 @@ Exit:
                     addOutputFilenameToList(textureFileName);
                 }
                 assert(rc == 0);
-                retCode |= rc ? MW_CANNOT_CREATE_FILE : MW_NO_ERROR;
+                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
             }
 
             writepng_cleanup(gModel.pPNGtexture);
@@ -1330,33 +1347,25 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     // file should be in same directory as .exe, sort of
     wchar_t defaultTerrainFileName[MAX_PATH];
     int rc=0;
-    int tryDefault=1;
     static int markTiles = 0;	// to put R on each tile for debugging, set to 1
     int row, col;
 
     if ( wcslen(selectedTerrainFileName) > 0 )
     {
         rc = readpng(pII,selectedTerrainFileName);
-
-        // did we open the PNG successfully?
-        if ( rc == 0 )
-        {
-            // yes, so don't open default
-            tryDefault=0;
-        }
+        if ( rc )
+            return (MW_CANNOT_READ_SELECTED_TERRAIN_FILE|(rc<<MW_NUM_CODES));
     }
-
-    if ( tryDefault )
+    else
     {
         concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
         rc = readpng(pII,defaultTerrainFileName);
+        if ( rc )
+            return (MW_CANNOT_READ_DEFAULT_TERRAIN_FILE|(rc<<MW_NUM_CODES));
     }
 
-    if ( rc )
-        return MW_CANNOT_READ_IMAGE_FILE;
-
     if ( pII->width > pII->height )
-        return MW_IMAGE_WRONG_WIDTH;
+        return MW_NEED_16_ROWS;
 
     // is width >= 16 and evenly dividable by 16?
     if ( (pII->width < 16) || ((pII->width % 16) > 0) )
@@ -1728,7 +1737,7 @@ static int filterBox()
         }
     }
     // what should we output? Only 3D bits (no billboards) if printing or if textures are off
-    if ( (gOptions->exportFlags & EXPT_3DPRINT) || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+    if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
     {
         outputFlags = BLF_3D_BIT;
     }
@@ -2307,7 +2316,7 @@ static int computeFlatFlags( int boxIndex )
         // the rules: vines can cover up to four sides, or if no bits set, top of overhanging block.
         // The overhanging block stops side faces from appearing, essentially.
         // If billboarding is on and we're not printing, then we've already exported everything else of the vine, so remove it.
-        if ( gBoxData[boxIndex].data == 0 || ( gExportBillboards && !(gOptions->exportFlags & EXPT_3DPRINT)) )
+        if ( gBoxData[boxIndex].data == 0 || ( gExportBillboards && !gPrint3D) )
         {
             // top face, flatten to bottom of block above, if the neighbor exists. If it doesn't,
             // something odd is going on (this shouldn't happen).
@@ -2579,12 +2588,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     float xrot, yrot, zrot;
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
-    int printing = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
     // how much to add to dimension when fattening
     int fatten = (gOptions->pEFD->chkFatten) ? 2 : 0;
-    int checkNeighbors;
     int retCode = MW_NO_ERROR;
     int transNeighbor,boxIndexBelow;
+    int groupByBlock;
+    int waterHeight;
 
 
     dataVal = gBoxData[boxIndex].data;
@@ -2626,7 +2635,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
     case BLOCK_ACTIVATOR_RAIL:
-        if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
             return saveBillboardFaces( boxIndex, type, BB_RAILS );
         }
@@ -2686,7 +2695,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
 
             // it's sloping, so check if object below it is not air
-            typeBelow = gBoxData[boxIndex-1].type;
+            typeBelow = gBoxData[boxIndex-1].origType;
             if ( typeBelow == BLOCK_AIR )
             {
                 // air below, which means this rail's at the bottom level, descending.
@@ -2776,6 +2785,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_DARK_OAK_FENCE:
     case BLOCK_ACACIA_FENCE:
     case BLOCK_NETHER_BRICK_FENCE:
+        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if ( fatten )
         {
@@ -2834,32 +2844,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
+                // - if we're doing 3D printing, neighbor type must exactly match for the face to be removed
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,8-hasPost*4,  0,13,  5,11 );
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 5,11,  0,13,  0,8-hasPost*4 );
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
                 firstFace = 0;
             }
         }
@@ -2879,38 +2890,39 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,6-fatten, 6,9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,6-fatten, 12,15,  7-fatten,9+fatten );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,6-fatten, 6,9,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,6-fatten, 12,15,  7-fatten,9+fatten );
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 6,9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 12,15,  7-fatten,9+fatten );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 6,9,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 12,15,  7-fatten,9+fatten );
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 7-fatten,9+fatten, 6,9,  0,6-fatten );
-                saveBoxGeometry( boxIndex, type, 0, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15,  0,6-fatten );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 7-fatten,9+fatten, 6,9,  0,6-fatten );
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 7-fatten,9+fatten, 12,15,  0,6-fatten );
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 6,9,  10+fatten,16 );
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15,  10+fatten,16 );
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 6,9,  10+fatten,16 );
+                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15,  10+fatten,16 );
             }
         }
         break;
 
     case BLOCK_COBBLESTONE_WALL:
+        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
         // which posts are needed: NSEW. Brute-force it.
 
         // TODO: get more subtle, like glass panes, and generate only the faces needed. Right now there's overlap at corners, for example.
@@ -2982,32 +2994,32 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_X_BIT)|DIR_HI_X_BIT, 0,8-hasPost*4,  0,13,  5,11 );
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,8-hasPost*4,  0,13,  5,11 );
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
         if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_X_BIT|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
         if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (transNeighbor?0x0:DIR_LO_Z_BIT)|DIR_HI_Z_BIT, 5,11,  0,13,  0,8-hasPost*4 );
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 5,11,  0,13,  0,8-hasPost*4 );
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
         if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, DIR_LO_Z_BIT|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
             firstFace = 0;
         }
         break;
@@ -3017,8 +3029,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
         // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
-        if ( printing &&
-            ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+        if ( gPrint3D &&
+            ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) )
         {
             gMinorBlockCount--;
             return 0;
@@ -3037,8 +3049,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_CARPET:
         // if printing and the location below the carpet is empty, then don't make carpet (it'll be too thin)
-        if ( printing &&
-            ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+        if ( gPrint3D &&
+            ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) )
         {
             gMinorBlockCount--;
             return 0;
@@ -3063,10 +3075,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_DARK_OAK_WOOD_STAIRS:
     case BLOCK_QUARTZ_STAIRS:
     case BLOCK_RED_SANDSTONE_STAIRS:
-        // now that 1.4 is out, this is set to true so that neighboring stairs will be affected
-        checkNeighbors = 1;
-        // first output the small block, which is determined by direction,
-        // then output the slab, which we can share with the slab output
+
+        // set up textures
         switch ( type )
         {
         default:
@@ -3096,214 +3106,287 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             break;
         }
 
-        // The bottom 2 bits is direction of step.
-        switch (dataVal & 0x3)
         {
-        default:    // make compiler happy
-        case 0: // ascending east
-            minx = 8;
-            maxx = 16;
-            minz = 0;
-            maxz = 16;
-            if ( checkNeighbors )
+            // The stairs block has a full level (a full slab) on one level. Our task is to find which of
+            // the four boxes are filled on the other level: it could be 1, 2, or 3. Normal stairs have
+            // 2 filled, but as they get next to other stairs, they can change, losing or adding a block.
+            // The rules are as follows:
+            // If the neighbor stair behind our stair block turns to left or right compared to the stair,
+            // then subtract the block not touched by the neighboring stair, but only if there is no
+            // neighbor stair to the left or right with the same orientation.
+            // Else, if the neighbor stair in front of our stair block turns left or right, then add
+            // a block to left or right, but only if there is no neighbor stair to the right or left
+            // (note the reversal from the subtraction case) with the same orientation.
+            // Else, the stair block remains as is.
+            //
+            // This is mostly table-driven.
+            // The mask bits are as follows
+            //
+            //        lo hi
+            //    lo   0  1
+            //    hi   2  3
+            //
+            // The value sets the 1<<bit in the mask. So, bits 2 and 3 would give 4 + 8 = 12.
+            // Table is oriented along world lines, and recall that North is -Z, East is +X.
+            typedef struct StairsTable {
+                unsigned int mask;  // which of the four blocks is set
+                int backDir;
+                unsigned int behind[4];
+                int sideDir[4];     // which side neighbor is important for overcoming the subtractive effect of the stair behind
+                unsigned int front[4];
+            } StairsTable;
+            const StairsTable stairs[4]={
+                { 10, DIRECTION_BLOCK_SIDE_HI_X,  {0,0,8,2}, {0,0,DIRECTION_BLOCK_SIDE_LO_Z,DIRECTION_BLOCK_SIDE_HI_Z}, {0,0,14,11} },
+                {  5, DIRECTION_BLOCK_SIDE_LO_X,  {0,0,4,1}, {0,0,DIRECTION_BLOCK_SIDE_LO_Z,DIRECTION_BLOCK_SIDE_HI_Z}, {0,0,13,7} },
+                { 12, DIRECTION_BLOCK_SIDE_HI_Z,  {8,4,0,0}, {DIRECTION_BLOCK_SIDE_LO_X,DIRECTION_BLOCK_SIDE_HI_X,0,0}, {14,13,0,0} },
+                {  3, DIRECTION_BLOCK_SIDE_LO_Z,  {2,1,0,0}, {DIRECTION_BLOCK_SIDE_LO_X,DIRECTION_BLOCK_SIDE_HI_X,0,0}, {11,7,0,0} }
+            };
+
+            // The bottom 2 bits is direction of step.
+            int stepDir = (dataVal & 0x3);
+            int stepLevel = (dataVal & 0x4);
+            unsigned int stepMask = stairs[stepDir].mask;
+            bool sideNeighbor;
+            unsigned int newMask;
+
+            int neighborIndex = boxIndex+gFaceOffset[stairs[stepDir].backDir];
+            neighborType = gBoxData[neighborIndex].origType;
+            // is there a stairs behind us that subtracted a block?
+            bool subtractedBlock = false;
+            if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
             {
-                neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-                // is there a stairs to the east?
+                // get the data value and check it
+                neighborDataVal = gBoxData[neighborIndex].data;
+
+                // first, are slabs on same level?
+                if ( (neighborDataVal & 0x4) == stepLevel )
+                {
+                    // On the same level. Is neighbor value one of the values that can affect this block?
+                    newMask = stairs[stepDir].behind[(neighborDataVal & 0x3)];
+                    if ( newMask != 0x0 )
+                    {
+                        // The behind value indeed affects the step. Now we need to check if the corresponding
+                        // neighbor to the side is a stairs, at the same level, and has the same orientation.
+                        // If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
+                        // the step's upper step "in place" without subtraction.
+                        sideNeighbor = false;
+                        neighborIndex = boxIndex+gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
+                        assert( neighborIndex != boxIndex );
+                        neighborType = gBoxData[neighborIndex].origType;
+                        // is there a stairs to the key side of us?
+                        if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
+                        {
+                            // get the data value and check it
+                            neighborDataVal = gBoxData[neighborIndex].data;
+
+                            // first, are slabs on same level?
+                            if ( (neighborDataVal & 0x4) == stepLevel )
+                            {
+                                // On the same level. Is neighbor value the same as the block's value, i.e. are the
+                                // stairs facing the same direction?
+                                if ( (neighborDataVal & 0x3) == stepDir )
+                                {
+                                    // so, this stairs hold the stair step in place, no subtraction.
+                                    sideNeighbor = true;
+                                }
+                            }
+                        }
+
+                        if ( !sideNeighbor )
+                        {
+                            // No side neighbor holding the step in place, so set this as the new mask, and we're done;
+                            // subtraction takes precedence over addition.
+                            stepMask = newMask;
+                            subtractedBlock = true;
+                        }
+                    }
+                }
+            }
+
+            // if a subtraction didn't happen, then we can test for an addition
+            if ( !subtractedBlock )
+            {
+                // now check the neighbor in front, in a similar manner.
+                neighborIndex = boxIndex+gFaceOffset[(stairs[stepDir].backDir+3)%6];
+                neighborType = gBoxData[neighborIndex].origType;
+                // is there a stairs in front of us?
                 if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
                 {
                     // get the data value and check it
-                    neighborDataVal = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data;
+                    neighborDataVal = gBoxData[neighborIndex].data;
 
                     // first, are slabs on same level?
-                    if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
+                    if ( (neighborDataVal & 0x4) == stepLevel )
                     {
-                        // is the neighborDataVal ascending north or south?
-                        if ( (neighborDataVal&0x3) == 2 )	// south
+                        // On the same level. Is neighbor value one of the values that can affect this block?
+                        newMask = stairs[stepDir].front[(neighborDataVal & 0x3)];
+                        if ( newMask != 0x0 )
                         {
-                            // final check: is other neighbor forcing continuation?
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data) )
+                            // The front value indeed affects the step. Now we need to check if the corresponding
+                            // neighbor to the side is a stairs, at the same level, and has the same orientation.
+                            // If so, we ignore addition, else allow it. Basically, steps next to steps keep
+                            // the step's upper step "in place" without addition.
+                            sideNeighbor = false;
+                            neighborIndex = boxIndex+gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)]+3)%6];
+                            assert( neighborIndex != boxIndex );
+                            neighborType = gBoxData[neighborIndex].origType;
+                            // is there a stairs to the key side of us?
+                            if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
                             {
-                                // only south part of step should be created
-                                minz = 8;
+                                // get the data value and check it
+                                neighborDataVal = gBoxData[neighborIndex].data;
+
+                                // first, are slabs on same level?
+                                if ( (neighborDataVal & 0x4) == stepLevel )
+                                {
+                                    // On the same level. Is neighbor value the same as the block's value, i.e. are the
+                                    // stairs facing the same direction?
+                                    if ( (neighborDataVal & 0x3) == stepDir )
+                                    {
+                                        // so, this stairs hold the stair step in place, no subtraction.
+                                        sideNeighbor = true;
+                                    }
+                                }
                             }
-                        }
-                        else if ( (neighborDataVal&0x3) == 3 )	// north
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data) )
+
+                            if ( !sideNeighbor )
                             {
-                                // only north part of step should be created
-                                maxz = 8;
+                                // No side neighbor holding the step in place, so set this as the new mask, and we're done;
+                                // subtraction takes precedence over addition.
+                                stepMask = newMask;
                             }
                         }
                     }
                 }
             }
-            break;
-        case 1: // ascending west
-            minx = 0;
-            maxx = 8;
-            minz = 0;
-            maxz = 16;
-            if ( checkNeighbors )
+
+            // We now have the mask in stepMask of what blocks to output.
+
+            // Use the level bit for creating the slab itself
+            // The 0x4 bit is about whether the bottom of the stairs is in the top half or bottom half (used to always be bottom half).
+            // See http://www.minecraftwiki.net/wiki/Block_ids#Stairs
+            if ( stepLevel )
             {
-                neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-                // is there a stairs to the east?
-                if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                {
-                    // get the data value and check it
-                    neighborDataVal = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data;
-
-                    // first, are slabs on same level?
-                    if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
-                    {
-                        // is the neighborDataVal ascending north or south?
-                        if ( (neighborDataVal&0x3) == 2 )	// south
-                        {
-                            // final check: is other neighbor forcing continuation?
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data) )
-                            {
-                                // only north part of step should be created
-                                minz = 8;
-                            }
-                        }
-                        else if ( (neighborDataVal&0x3) == 3 )	// north
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data) )
-                            {
-                                // only south part of step should be created
-                                maxz = 8;
-                            }
-                        }
-                    }
-                }
+                // upper slab
+                miny = 8;
+                maxy = 16;
             }
-            break;
-        case 2: // ascending south
-            minx = 0;
-            maxx = 16;
-            minz = 8;
-            maxz = 16;
-            if ( checkNeighbors )
+            else
             {
-                neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-                // is there a stair to the east?
-                if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                {
-                    // get the data value and check it
-                    neighborDataVal = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data;
-
-                    // first, are slabs on same level?
-                    if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
-                    {
-                        // is the neighborDataVal ascending east or west?
-                        if ( (neighborDataVal&0x3) == 0 )
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data) )
-                            {
-                                // only west part of step should be created
-                                minx = 8;
-                            }
-                        }
-                        else if ( (neighborDataVal&0x3) == 1 )
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data) )
-                            {
-                                // only east part of step should be created
-                                maxx = 8;
-                            }
-                        }
-                    }
-                }
+                // lower slab
+                miny = 0;
+                maxy = 8;
             }
-            break;
-        case 3: // ascending north
-            minx = 0;
-            maxx = 16;
-            minz = 0;
-            maxz = 8;
-            if ( checkNeighbors )
+            saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
+
+            // Now create the larger 2x1 box, if found
+            minx = minz = 0;
+            maxx = maxz = 16;
+            assert( (stepMask != 0) && (stepMask != 0xff) );
+            bool outputStep = false;
+            if ( (stepMask & 0x3) == 0x3 )
             {
-                neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-                // is there a stair to the east?
-                if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                {
-                    // get the data value and check it
-                    neighborDataVal = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data;
-
-                    // first, are slabs on same level?
-                    if ( (neighborDataVal & 0x4) == (dataVal & 0x4) )
-                    {
-                        // is the neighborDataVal ascending east or west?
-                        if ( (neighborDataVal&0x3) == 0 )
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data) )
-                            {
-                                // only west part of step should be created
-                                minx = 8;
-                            }
-                        }
-                        else if ( (neighborDataVal&0x3) == 1 )
-                        {
-                            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-                            if ( !(gBlockDefinitions[neighborType].flags & BLF_STAIRS) ||
-                                (dataVal != gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data) )
-                            {
-                                // only east part of step should be created
-                                maxx = 8;
-                            }
-                        }
-                    }
-                }
+                // north step covered
+                outputStep = true;
+                maxz = 8;
+                stepMask &= ~0x3;
             }
-            break;
-        }
-        // The 0x4 bit is about whether the bottom of the stairs is in the top half or bottom half (used to always be bottom half).
-        // See http://www.minecraftwiki.net/wiki/Block_ids#Stairs
-        // First create the step (the small box)
-        if ( dataVal & 0x4 )
-        {
-            // lower step (stairs is upside down)
-            miny = 0;
-            maxy = 8;
-            faceMask = DIR_TOP_BIT;
-        }
-        else
-        {
-            // upper step
-            miny = 8;
-            maxy = 16;
-            faceMask = DIR_BOTTOM_BIT;
-        }
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+            else if ( (stepMask & 0xC) == 0xC )
+            {
+                // south step covered
+                outputStep = true;
+                minz = 8;
+                stepMask &= ~0xC;
+            }
+            else if ( (stepMask & 0x5) == 0x5 )
+            {
+                // west step covered
+                outputStep = true;
+                maxx = 8;
+                stepMask &= ~0x5;
+            }
+            else if ( (stepMask & 0xA) == 0xA )
+            {
+                // east step covered
+                outputStep = true;
+                minx = 8;
+                stepMask &= ~0xA;
+            }
 
-        // Use this bit again for creating the slab itself
-        if ( dataVal & 0x4 )
-        {
-            // upper slab
-            miny = 8;
-            maxy = 16;
+            if ( outputStep )
+            {
+                if ( stepLevel )
+                {
+                    // lower step (stairs is upside down)
+                    miny = 0;
+                    maxy = 8;
+                    // if 3D printing, we output all faces of the small step, as this step needs to be watertight
+                    faceMask = gPrint3D ? 0x0 : DIR_TOP_BIT;
+                }
+                else
+                {
+                    // upper step
+                    miny = 8;
+                    maxy = 16;
+                    // if 3D printing, we output all faces of the small step, as this step needs to be watertight
+                    faceMask = gPrint3D ? 0x0 : DIR_BOTTOM_BIT;
+                }
+                saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+            }
+
+            // anything left? output that little box
+            if ( stepMask != 0x0 )
+            {
+                // TODO: we could get mad fancy here: we could check the direction of the 2x1 step (if it exists at all) and mask another side face from this little
+                // box if we wanted to do so. A lot of work...
+                if ( stepLevel )
+                {
+                    // lower step (stairs is upside down)
+                    miny = 0;
+                    maxy = 8;
+                    // if 3D printing, we output all faces of the small step, as this step needs to be watertight
+                    faceMask = gPrint3D ? 0x0 : DIR_TOP_BIT;
+                }
+                else
+                {
+                    // upper step
+                    miny = 8;
+                    maxy = 16;
+                    // if 3D printing, we output all faces of the small step, as this step needs to be watertight
+                    faceMask = gPrint3D ? 0x0 : DIR_BOTTOM_BIT;
+                }
+                minx = minz = 0;
+                maxx = maxz = 16;
+                switch ( stepMask )
+                {
+                case 0x1:
+                    // upper left (remember that upper is negative direction)
+                    maxx = 8;
+                    maxz = 8;
+                    break;
+                case 0x2:
+                    // upper right
+                    minx = 8;
+                    maxz = 8;
+                    break;
+                case 0x4:
+                    // lower left
+                    maxx = 8;
+                    minz = 8;
+                    break;
+                case 0x8:
+                    // lower right
+                    minx = 8;
+                    minz = 8;
+                    break;
+                default:
+                    // should never get here
+                    assert(0);
+                }
+                saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+            }
         }
-        else
-        {
-            // lower slab
-            miny = 0;
-            maxy = 8;
-        }
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0, 0,16, miny,maxy, 0,16);
+
         break;
 
     case BLOCK_STONE_SLAB:
@@ -3474,7 +3557,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateToOriginMtx(mtx, boxIndex);
         // this moves block up so that bottom of sign is at Y=0
         // also move a bit away from wall if we're not doing 3d printing
-        translateMtx(mtx, 0.0f, 0.5f, printing ? 0.0f : -0.25f/16.0f);
+        translateMtx(mtx, 0.0f, 0.5f, gPrint3D ? 0.0f : -0.25f/16.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         scaleMtx(mtx, 1.0f, 8.0f/12.0f, 1.0f);
         // undo translation
@@ -3505,7 +3588,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
 
-        if ( printing ) 
+        if ( gPrint3D ) 
         {
             // 3d printing
 
@@ -3582,7 +3665,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_TRAPDOOR:
     case BLOCK_IRON_TRAPDOOR:
         // On second thought, in testing it worked fine.
-        //if ( printing && !(dataVal & 0x4) )
+        //if ( gPrint3D && !(dataVal & 0x4) )
         //{
         //	// if printing, and door is down, check if there's air below.
         //	// if so, don't print it! Too thin.
@@ -3635,7 +3718,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_LOG].txrX, gBlockDefinitions[BLOCK_LOG].txrY );
         sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
         gUsingTransform = 1;
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, DIR_TOP_BIT, 0, 7-fatten,9+fatten, 0,14, 7-fatten,9+fatten);
+        // if printing, seal the top of the post
+        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7-fatten,9+fatten, 0,14, 7-fatten,9+fatten);
         gUsingTransform = 0;
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
@@ -3824,8 +3908,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_SNOW:
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
-        if ( printing &&
-            ( gBoxData[boxIndex-1].type == BLOCK_AIR ) )
+        if ( gPrint3D &&
+            ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) )
         {
             gMinorBlockCount--;
             return 0;
@@ -3853,7 +3937,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_FARMLAND:
-        if ( printing )
+        if ( gPrint3D )
         {
             // if we're print, and there is something above this farmland, don't shift the farmland down (it would just make a gap)
             if ( gBoxData[boxIndex+1].origType != BLOCK_AIR )
@@ -3887,24 +3971,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 if ( dataVal & 0x2 )
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16,  6, 9,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16, 12,15,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16,  6, 9, 14-fatten,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT, 9,16, 12,15, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15, 14-fatten,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14,16, 9,12, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12, 14-fatten,16 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7,  6, 9,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7, 12,15,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7,  6, 9, 14-fatten,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_X_BIT, 0,7, 12,15, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15, 14-fatten,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,2, 9,12, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12, 14-fatten,16 );
                 }
             }
             else
@@ -3915,24 +3999,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 if ( dataVal & 0x2 )	// north
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 0, 2+fatten,  6, 9,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 0, 2+fatten, 12,15,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 14-fatten,16,  6, 9, 0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_HI_Z_BIT, 14-fatten,16, 12,15, 0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten,  6, 9,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten, 12,15,  0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16,  6, 9, 0,7 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16, 12,15, 0,7 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2+fatten, 9,12, 0,2 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14-fatten,16, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 0,2 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT,  0, 2+fatten,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT,  0, 2+fatten, 12,15, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT, 14-fatten,16,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT, 14-fatten,16, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16, 12,15, 9,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT,  0, 2+fatten, 9,12, 14,16 );
-                    saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 14-fatten,16, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 14,16 );
                 }
             }
         }
@@ -3945,10 +4029,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 1, 0x0, 7-fatten,9+fatten, 5,16,  0, 2);
                 saveBoxGeometry( boxIndex, type, 0, 0x0, 7-fatten,9+fatten, 5,16, 14,16);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten,  6, 9, 2,14 );
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT, 7-fatten,9+fatten, 12,15, 2,14 );
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten,  6, 9, 2,14 );
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15, 2,14 );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 7-fatten,9+fatten, 9,12, 6,10 );
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 7-fatten,9+fatten, 9,12, 6,10 );
             }
             else
             {
@@ -3956,10 +4040,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7-fatten,9+fatten);
                 saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7-fatten,9+fatten);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14,  6, 9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, DIR_LO_X_BIT|DIR_HI_X_BIT, 2,14, 12,15,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14,  6, 9,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14, 12,15,  7-fatten,9+fatten );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 9,12,  7-fatten,9+fatten);
+                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 9,12,  7-fatten,9+fatten);
             }
         }
         break;
@@ -3973,51 +4057,49 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         case 0:
             // small
             swatchLoc += 2;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,  11,15,  7,12,  11,15);
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4,  12,16,  12,16);
+            // note all six sides are used, but with different texture coordinates
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  11,15,  7,12,  11,15);
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT,  1,5,  7,12,  1,5);
+            // top and bottom
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,4,  0,4,  0,4);
             shiftVal = 5;
             break;
         case 1:
             // medium
             swatchLoc++;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0,  9,15,  5,12,  9,15);
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6,  10,16,  10,16);
+            // note all six sides are used, but with different texture coordinates
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  9,15,  5,12,  9,15);
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT,  1,7,  5,12,  1,7);
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,6,  0,6, 0,6);
             shiftVal = 4;
             break;
         case 2:
         default:
             // large
             // already right swatch
+            // note all six sides are used, but with different texture coordinates
             // sides:
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT, 0, 7,15, 3,12, 7,15);
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 7,15, 3,12, 7,15);
+            // it should really be 3,12, but Minecraft has a bug where their sides are wrong and are 3,10
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT,  1,9,  3,10,  1,9);
             // top and bottom:
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,7, 9,16, 9,16);
+            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,7, 0,7, 0,7);
             shiftVal = 3;
             break;
         }
         // -X (west) is the "base" position for the cocoa plant pod
         identityMtx(mtx);
         // push fruit against tree if printing
-        translateMtx(mtx, (float)printing/16.0f, 0.0f, (float)-shiftVal/16.0f);
+        translateMtx(mtx, (float)gPrint3D/16.0f, 0.0f, (float)-shiftVal/16.0f);
         transformVertices(8,mtx);
 
         bitAdd = 8;
 
         // add stem if not printing and images in use
-        if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
-            // tricky kludge here: bottom and top faces make a matching piece. Then need to rotate and translate it into position.
-            // This was done before I has FLIP_X_VERTICALLY, etc. which would have been much easier to use
-            // stem:
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0,  DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 12,16, 8,8, 12,16);
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, 0.0f, 4.0f/16.0f);
-            rotateMtx(mtx, -90.0f, 0.0f, 0.0f);
-            // undo translation
-            translateMtx(mtx, 0.0f, 16.0f/16.0f, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(8,mtx);
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0,  DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 12,16, 12,16, 8,8);
+            // transform the stem and the block, below, so add in these vertices
             bitAdd = 16;
         }
 
@@ -4051,24 +4133,35 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_CAULDRON:
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        // if printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom
+        waterHeight = gPrint3D ? (6+dataVal*3) : 6;
         // outsides and bottom
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 1, DIR_TOP_BIT, 0, 0, 16, 0, 16, 0, 16 );
         // top as 4 small faces, and corresponding inside faces
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
-            14, 16, 6, 16, 0, 16 );	// top and lo_x
+            14, 16, waterHeight, 16, 2, 14 );	// top and lo_x
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
-            0, 2, 6, 16, 0, 16 );	// top and hi_x
+            0, 2, waterHeight, 16, 2, 14 );	// top and hi_x
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
-            2, 14, 6, 16, 14, 16 );	// top and lo_z
+            2, 14, waterHeight, 16, 14, 16 );	// top and lo_z
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
-            2, 14, 6, 16, 0, 2 );	// top and hi_z
+            2, 14, waterHeight, 16, 0, 2 );	// top and hi_z
+        // four tiny corners, just tops
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            0, 2, 16, 16, 0, 2 );	// top
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            0, 2, 16, 16, 14, 16 );	// top
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            14, 16, 16, 16, 0, 2 );	// top
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            14, 16, 16, 16, 14, 16 );	// top
         // inside bottom
         // outside bottom
-        if ( !printing || (dataVal == 0x0) )
+        if ( !gPrint3D || (dataVal == 0x0) )
         {
             // show inside bottom if rendering OR printing and cauldron is empty
             // outside bottom - only when not printing, as otherwise it's invisible and not needed
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(printing?DIR_BOTTOM_BIT:0x0), 0, 
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(gPrint3D?DIR_BOTTOM_BIT:0x0), 0, 
                 0, 16, 3, 6, 0, 16 );
         }
 
@@ -4076,21 +4169,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // water level
             saveBoxGeometry( boxIndex, BLOCK_STATIONARY_WATER, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 
-                2, 14, 3, 6+dataVal*3, 2, 14 );
+                2, 14, 6+dataVal*3, 6+dataVal*3, 2, 14 );
         }
 
         break;
 
     case BLOCK_DRAGON_EGG:
         // top to bottom
-        saveBoxGeometry( boxIndex, type, 1, DIR_BOTTOM_BIT, 6,10, 15,16, 6,10);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT, 5,11, 14,15, 5,11);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT, 4,12, 13,14, 4,12);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT, 3,13, 11,13, 3,13);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT, 2,14,  8,11, 2,14);
+        saveBoxGeometry( boxIndex, type, 1, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 6,10, 15,16, 6,10);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 5,11, 14,15, 5,11);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 13,14, 4,12);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 3,13, 11,13, 3,13);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 2,14,  8,11, 2,14);
         saveBoxGeometry( boxIndex, type, 0, 0x0, 1,15, 3,8, 1,15);
-        saveBoxGeometry( boxIndex, type, 0, DIR_TOP_BIT, 2,14, 1,3, 2,14);
-        saveBoxGeometry( boxIndex, type, 0, DIR_TOP_BIT, 5,11, 0,1, 5,11);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 2,14, 1,3, 2,14);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 5,11, 0,1, 5,11);
         break;
 
     case BLOCK_ANVIL:
@@ -4116,8 +4209,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 
             3,13, 10,16, 0,16 );
         saveBoxGeometry( boxIndex, type, 0, 0x0, 3,13, 10,16, 0,16);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT, 6,10, 5,10, 4,12);
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT, 4,12, 4,5, 3,13);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 5,10, 4,12);
+        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 4,5, 3,13);
         saveBoxGeometry( boxIndex, type, 0, 0x0, 2,14, 0,4, 2,14);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -4135,16 +4228,17 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_FLOWER_POT:
+        // note that in version 1.7 on flower pots rely on the tile entity to give the data value. Pots before then have the value.
         useInsidesAndBottom = (dataVal != 9);	// cactus
         firstFace = 1;
 
-        if ( printing || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
             // printing or not using images: only geometry we can add is a cactus
             if ( dataVal == 9 )
             {
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
-                saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, firstFace, DIR_BOTTOM_BIT, 0, 6,10, 6,16, 6,10 );
+                saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6,10, 6,16, 6,10 );
                 firstFace = 0;
             }
         }
@@ -4202,7 +4296,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 typeB = BLOCK_BROWN_MUSHROOM;
                 break;
             case 9:
-                // cactus
+                // cactus (note we're definitely not 3D printing, so no face test)
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
                 saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, firstFace, DIR_BOTTOM_BIT, 0, 6,10, 6,16, 6,10 );
                 firstFace = 0;
@@ -4257,6 +4351,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             6,10,  4,6,  10,11 );
         saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_Z_BIT),
             6,10,  4,6,  5,6 );
+        // corners
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+            5,6,  4,6,  5,6 );
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+            5,6,  4,6,  10,11 );
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+            10,11,  4,6,  5,6 );
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+            10,11,  4,6,  5,6 );
 
         // inside bottom
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_DIRT].txrX, gBlockDefinitions[BLOCK_DIRT].txrY );
@@ -4276,8 +4379,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX( 7,9 );
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 7,9 );
             swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX( 7,8 );
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX( 5,9 );  // should normally get removed by neighbor tester code
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX( 8,9 );
-            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+            // Note: for rendering we might print an open-ended bed - could test neighbor to see if other half of bed is there.
+            // For 3D printing we can't risk it, so cap the middle of the bed.
+            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_LO_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
                 0,16, 0,9, 0,16 );
         }
         else
@@ -4286,7 +4392,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 6,9 );
             swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX( 6,8 );
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX( 5,9 );
-            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX( 8,9 );  // should normally get removed by neighbor tester code
+            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_HI_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
                 0,16, 0,9, 0,16 );
         }
         gUsingTransform = 0;
@@ -4300,20 +4407,22 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // add bottom at bottom, just in case bed is open to world
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
-            (printing? 0:3),9, 0,16);
+            (gPrint3D? 0:3),(gPrint3D? 0:3), 0,16);
         break;
 
     case BLOCK_CACTUS:
         // are top and bottom needed?
+        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
+
         faceMask = 0x0;
-        if ( gBoxData[boxIndex+1].origType == BLOCK_CACTUS )
+        if ( (gBoxData[boxIndex+1].origType == BLOCK_CACTUS) && !groupByBlock )
             faceMask |= DIR_TOP_BIT;
-        if ( gBoxData[boxIndex-1].origType == BLOCK_CACTUS )
+        if ( (gBoxData[boxIndex-1].origType == BLOCK_CACTUS) && !groupByBlock )
             faceMask |= DIR_BOTTOM_BIT;
         // remember that this gives the top of the block:
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // for textured rendering, make a billboard-like object, for printing or solid rendering, pull in the edges
-        if ( printing || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
         }
@@ -4381,7 +4490,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
-        if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
             // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
             // matter, because no one ever sees the bottom of a repeater.
@@ -4428,7 +4537,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(8,mtx);
-            if ( !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+            if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
             {
                 // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
                 // matter, because no one ever sees the bottom of a repeater.
@@ -4472,7 +4581,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_BEACON:
         saveBoxGeometry( boxIndex, BLOCK_GLASS, 1, 0x0, 0,16, 0,16, 0,16);
-        if (!printing)
+        if (!gPrint3D)
         {
             // chewy interior
             saveBoxGeometry( boxIndex, BLOCK_BEACON, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
@@ -4482,7 +4591,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_SLIME:
         saveBoxGeometry( boxIndex, BLOCK_SLIME, 1, 0x0, 0,16, 0,16, 0,16);
-        if (!printing)
+        if (!gPrint3D)
         {
             // tasty slime center
             saveBoxGeometry( boxIndex, BLOCK_SLIME, 0, 0x0, 3,13, 3,13, 3,13);
@@ -4490,6 +4599,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_BREWING_STAND:
+        // brewing stand exports as an ugly block for 3D printing - too delicate to print. Check that we're not printing
+        assert( !gPrint3D );
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // post
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0,  7,  9,  0, 14,  7,  9 );
@@ -4541,8 +4652,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f );
         transformVertices(littleTotalVertexCount,mtx);
 
-        // add lever
-        saveBoxGeometry( boxIndex, BLOCK_LEVER, 0, DIR_BOTTOM_BIT|DIR_TOP_BIT,  7,9,  0,10,  7,9);
+        // add lever - always mask top face, which is output above. Use bottom face if 3D printing, to make object watertight.
+        // That said, levers are not currently exported when 3D printing, but just in case we ever do...
+        saveBoxGeometry( boxIndex, BLOCK_LEVER, 0, (gPrint3D ? 0x0 : DIR_BOTTOM_BIT)|DIR_TOP_BIT,  7,9,  0,10,  7,9);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -4678,8 +4790,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         gUsingTransform = 1;
         // side of piston body:
         swatchLoc = SWATCH_INDEX( 12, 6 );
-        // form the piston itself sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD)?DIR_HI_X_BIT:0x0)|DIR_LO_X_BIT,  0,4,   12,16,  0,4 );
+        // form the piston itself sideways, just the small connecting bit, then we rotate upwards
+        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD)?DIR_HI_X_BIT:0x0)|(gPrint3D ? 0x0 : DIR_LO_X_BIT),  0,4,   12,16,  0,4 );
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
         identityMtx(mtx);
@@ -4758,7 +4870,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // side of piston body:
         swatchLoc = SWATCH_INDEX( 12, 6 );
         // form the piston itself sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)|DIR_HI_X_BIT,  4,16,   12,16,  0,4 );
+        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)||(gPrint3D ? 0x0 : DIR_HI_X_BIT),  4,16,   12,16,  0,4 );
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
         identityMtx(mtx);
@@ -4785,7 +4897,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // outsides and bottom
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0,16,  10,16,  0,16 );
         // next level down outsides and bottom
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, DIR_TOP_BIT, 0, 4,12,   4,10,  4,12 );
+        saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 4,12,   4,10,  4,12 );
         // bottom level cube - move to position based on dataVal
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = (dataVal > 1);
@@ -4827,16 +4939,27 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // top as 4 small faces, and corresponding inside faces
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
-                14, 16,  10+printing*2, 16,   0, 16 );
+                14, 16,  10+gPrint3D*2, 16,   2, 14 );
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
-                0,  2,  10+printing*2, 16,   0, 16 );
+                0,  2,  10+gPrint3D*2, 16,   2, 14 );
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
-                2, 14,  10+printing*2, 16,  14, 16 );
+                2, 14,  10+gPrint3D*2, 16,  14, 16 );
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
-                2, 14,  10+printing*2, 16,   0,  2 );
+                2, 14,  10+gPrint3D*2, 16,   0,  2 );
+
+            // top corners
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+                0,  2,  16, 16,  0,  2 );
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+                0,  2, 16, 16,  14, 16 );
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+                14, 16, 16, 16,  0,  2 );
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+                14, 16, 16, 16, 14, 16 );
+
             // inside bottom
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc-2, swatchLoc-2, swatchLoc-2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
-                2, 14,  10+printing*2, 10+printing*2,   2, 14 );
+                2, 14,  10+gPrint3D*2, 10+gPrint3D*2,   2, 14 );
         }
         break;
 
@@ -4915,6 +5038,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             tbFaceMask |= DIR_TOP_BIT;
         }
 
+        // after all that, if we're 3D printing details (and so need a perfect seal) or if we're doing per-block output, then output all faces
+        if ( gPrint3D || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
+        {
+            faceMask = tbFaceMask = 0x0;
+        }
+
         // make everything an edge, substitute in as needed.
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc;
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc;
@@ -4923,7 +5052,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-        if ( (type == BLOCK_IRON_BARS) && !printing && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( (type == BLOCK_IRON_BARS) && !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
             // for rendering iron bars, we just need one side of each wall - easier
             switch (filled)
@@ -5432,7 +5561,43 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     return 1;
 }
+/* ===========================
+ * Code structure for output of blocks:
 
+ Partial blocks:
+
+ saveBoxTileGeometry
+ saveBoxGeometry
+   saveBoxMultitileGeometry
+   saveBoxReuseGeometry
+     saveBoxAlltileGeometry
+       (face saved if block is transformed, as we don't know where it really is)
+       !findFaceDimensions - face saved if face doesn't touch voxel face (side)
+       !lesserNeighborCoversRectangle - or, face saved if it touches but isn't properly covered
+           (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
+         lesserBlockCoversWholeFace
+         getFaceRect - gets partial neighbor's face rect (for a few blocks) for testing for coverage
+       then saveBoxFace - indeed, really do it
+
+
+ Solid blocks:
+
+ checkAndCreateFaces - called for all solid blocks (water and lava are 'solid' but treated specially)
+   checkMakeFace
+     neighborMayCoverFace
+       lesserBlockCoversWholeFace - check if lesser block fully covers particular face (since it's a block)
+    OR (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
+   if lava or water, save special with heights
+
+
+ Triangles (sides of sloping rails):
+
+ saveTriangleGeometry
+   saveTriangleFace
+     !findFaceDimensions - face saved if face doesn't touch voxel face (side)
+     !lesserNeighborCoversRectangle - or, face saved if it touches but isn't properly covered
+         (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
+*/
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide )
 {
     int swatchLoc;
@@ -5649,6 +5814,7 @@ static FaceRecord * allocFaceRecordFromPool()
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
 
+// Output the face of triangle slope element
 static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
     FaceRecord *face;
@@ -5657,10 +5823,17 @@ static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDire
     int retCode = MW_NO_ERROR;
     int rect[4];
 
-    if ( gUsingTransform || !findFaceDimensions( rect, faceDirection, 0, 16, 0, 16, 0, 16 ) ||
-        !lesserNeighborCoversFace(faceDirection, boxIndex, rect) )
+    // If we're doing a 3D print, we must always output the triangle - we don't currently
+    // check for an exact neighbor match (which is going to very rare anyway).
+    // Or, if we're using a transform, we can't know about face coverage so must output it.
+    // Or, if the face is not touching the voxel's face, it must be output (note - for this
+    // method, the face *always* touches the voxel's face, since it's a full block, but
+    // it's still good to test, as it sets rect and also this method may someday change).
+    // Or, if a lesser neighbor doesn't cover this face fully, then output it.
+    if ( gPrint3D || gUsingTransform || !findFaceDimensions( rect, faceDirection, 0, 16, 0, 16, 0, 16 ) ||
+        !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect) )
     {
-        // output each face
+        // output the triangle
         if ( gExportTexture )
         {
             // get the three UV texture vertices, stored by swatch type
@@ -5686,14 +5859,14 @@ static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDire
         // always the same normal, which directly corresponds to the normals[] array in gModel
         face->normalIndex = gUsingTransform ? COMPUTE_NORMAL : faceDirection;
 
-        // get four face indices for the four corners of the face, and always create each
+        // get three face indices for the three corners of the triangular face, and always create each
         for ( j = 0; j < 3; j++ )
         {
             face->vertexIndex[j] = startVertexIndex + vindex[j];
             if (gExportTexture)
                 face->uvIndex[j] = uvIndices[j];
         }
-        // double last point
+        // double last point - we normally store four points in face records, so this tips us off that it's a triangle
         face->vertexIndex[3] = face->vertexIndex[2];
         if (gExportTexture)
             face->uvIndex[3] = face->uvIndex[2];
@@ -5849,7 +6022,7 @@ static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], 
             // or it touches the voxel's face and its neighbor doesn't cover the geometry in rect,
             // then output the face. Whew!
             if ( gUsingTransform || !findFaceDimensions( rect, faceDirection, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ ) ||
-                !lesserNeighborCoversFace(faceDirection, boxIndex, rect) )
+                !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect) )
             {
 
                 int reverseLoop = 0;
@@ -6018,8 +6191,8 @@ static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], 
     return retCode;
 }
 
-// find if face has anything bordering in given direction, and get the dimensions found.
-// Return 0 if nothing found on face
+// find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
+// Return 0 if the face is not against the voxel (and so cannot possibly be culled).
 static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int maxPixX, int minPixY, int maxPixY, int minPixZ, int maxPixZ )
 {
     switch ( faceDirection )
@@ -6078,27 +6251,35 @@ static int findFaceDimensions( int rect[4], int faceDirection, int minPixX, int 
     return 1;
 }
 
-// it is assumed lesser block is on, as that's the only one that calls this method
-static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4] )
+// Test if lesser neighbor covers rectangle defining this lesser block's face that touches the voxel.
+// It is assumed lesser block is on, as that's the only one that calls this method.
+static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, int rect[4] )
 {
     int type, neighborType, neighborBoxIndex;
     int neighborRect[4];
-    int view3D;
 
     if ( gOptions->exportFlags & EXPT_GROUP_BY_BLOCK )
     {
-        // full block output, so return false
+        // mode where every block is output regardless of neighbors, so return false
         return 0;
     }
 
     // check for easy case: if neighbor is a full block, neighbor covers all, so return 1
+    // (or, for printing, return 1 if the block being covered exactly matches)
     type = gBoxData[boxIndex].type;
     neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
     neighborType = gBoxData[neighborBoxIndex].type;
     if ( gBlockDefinitions[neighborType].flags & BLF_WHOLE )
     {
         // special cases for viewing (rendering), having to do with semitransparency or cutouts
-        if ( !(gOptions->exportFlags & EXPT_3DPRINT) )
+        if ( gPrint3D )
+        {
+            // hide only if the incoming rectangle is exactly filling the space;
+            // we want to removing only exact matches so that the 3D print slicer works correctly (I hope...)
+            if ( rect[0] != 0 || rect[1] != 16 || rect[2] != 0 || rect[3] != 16 )
+                return 0;
+        }
+        else
         {
             // check if the neighbor is semitransparent (glass, water, etc.)
             if (gBlockDefinitions[neighborType].alpha < 1.0f)
@@ -6137,74 +6318,126 @@ static int lesserNeighborCoversFace( int faceDirection, int boxIndex, int rect[4
                 }
             }
         }
-        // it's a whole block, opaque, so hide stuff with it.
-        return 1;
-    }
-    // check if lesser block fully covers face
-    view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
-    if ( lesserBlockCoversFace( faceDirection, neighborBoxIndex, view3D ) )
-    {
-        // whole face covered, so we can quit now
         return 1;
     }
 
-    // check if lesser block covers the rectangle passed in
-    if ( getFaceRect( (faceDirection+3)%6, neighborBoxIndex, view3D, neighborRect ) )
+    // check if neighboring lesser block fully covers face.
+    if ( gPrint3D )
     {
-        // see if our rectangle is inside neighborRect
-        if ( ( rect[0] >= neighborRect[0] ) &&
-            ( rect[1] <= neighborRect[1] ) &&
-            ( rect[2] >= neighborRect[2] ) &&
-            ( rect[3] <= neighborRect[3] ) )
+        // We're 3d printing; in this case, delete only if an exact removal is possible.
+        // Bounds of lesser block itself must exactly match full face to even do this test
+        if ( ( rect[0] == 0 ) &&
+            ( rect[1] == 16 ) &&
+            ( rect[2] == 0 ) &&
+            ( rect[3] == 16 ) )
         {
-            // inside, so is covered.
+            // lesser block covers full face - does its neighbor?
+            if ( lesserBlockCoversWholeFace( faceDirection, neighborBoxIndex, !gPrint3D ) )
+            {
+                // exactly match, so can be removed.
+                return 1;
+            }
+            else
+            {
+                // doesn't exactly match, so can quit
+                return 0;
+            }
+        }
+        // else lesser block covers partial, so should continue testing with partial
+    }
+    else
+    {
+        // rendering, so test if neighbor fully covers face
+        if ( lesserBlockCoversWholeFace( faceDirection, neighborBoxIndex, !gPrint3D ) )
+        {
+            // fully covered, so done
             return 1;
+        }
+    }
+
+    // full face check fails; check if neighboring lesser block covers the rectangle passed in
+    if ( getFaceRect( (faceDirection+3)%6, neighborBoxIndex, !gPrint3D, neighborRect ) )
+    {
+        if ( gPrint3D )
+        {
+            // We're 3d printing; in this case, delete only if an exact removal is possible.
+            // Bounds must exactly match.
+            if ( ( rect[0] == neighborRect[0] ) &&
+                ( rect[1] == neighborRect[1] ) &&
+                ( rect[2] == neighborRect[2] ) &&
+                ( rect[3] == neighborRect[3] ) )
+            {
+                // exactly match, so can be removed.
+                return 1;
+            }
+        }
+        else
+        {
+            // 3D rendering - we're happy to delete any hidden faces we can
+            // see if our rectangle is inside neighborRect
+            if ( ( rect[0] >= neighborRect[0] ) &&
+                ( rect[1] <= neighborRect[1] ) &&
+                ( rect[2] >= neighborRect[2] ) &&
+                ( rect[3] <= neighborRect[3] ) )
+            {
+                // inside, so is covered.
+                return 1;
+            }
         }
     }
 
     return 0;
 }
 
-// Find partial rectangle covered by face. You should first call lesserBlockCoversFace
-// to check full face coverage (easy out), then this for partial coverage, ONLY.
+// Find partial rectangle covered by face. You should first call lesserBlockCoversWholeFace
+// to check full face coverage (easy out), then this for partial coverage, ONLY. It will not
+// test for full coverage.
 // faceDirection is relative to the neighbor itself.
+// Exact is set to 1 (true) if the face rect being returned is precisely covering the area, not
+// covering more than that.
 static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRect[4] )
 {
-    // we have partial blocks possible. Check if neighbor's original type exists at all
-    int origType = gBoxData[boxIndex].origType;
-    // not air?
-    if ( origType > BLOCK_AIR )
+    // Do this test only for sides, not top or bottom.
+    // TODO:
+    // Note how non-comprehensive this method is right now; many objects' face bounds are not precisely
+    // computed.
+    if ( ( faceDirection != DIRECTION_BLOCK_BOTTOM ) &&
+        ( faceDirection != DIRECTION_BLOCK_TOP ) )
     {
-        int dataVal = gBoxData[boxIndex].data;
-        int setBottom = 0;
-        int setTop = 0;
-        // a minor block exists, so check its coverage given the face direction
-        switch ( origType )
+        // we have partial blocks possible. Check if neighbor's original type exists at all
+        int origType = gBoxData[boxIndex].origType;
+        // not air?
+        if ( origType > BLOCK_AIR )
         {
-        case BLOCK_OAK_WOOD_STAIRS:
-        case BLOCK_COBBLESTONE_STAIRS:
-        case BLOCK_BRICK_STAIRS:
-        case BLOCK_STONE_BRICK_STAIRS:
-        case BLOCK_NETHER_BRICK_STAIRS:
-        case BLOCK_SANDSTONE_STAIRS:
-        case BLOCK_SPRUCE_WOOD_STAIRS:
-        case BLOCK_BIRCH_WOOD_STAIRS:
-        case BLOCK_JUNGLE_WOOD_STAIRS:
-        case BLOCK_ACACIA_WOOD_STAIRS:
-        case BLOCK_DARK_OAK_WOOD_STAIRS:
-        case BLOCK_QUARTZ_STAIRS:
-        case BLOCK_RED_SANDSTONE_STAIRS:
-            // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
-            // Returning the little block, which can further be trimmed to a cube, is a PAIN.
-            // This does mean the little stair block sides won't be deleted. Ah well.
-        case BLOCK_STONE_SLAB:
-        case BLOCK_WOODEN_SLAB:
-            // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
-            // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
-            if ( ( faceDirection != DIRECTION_BLOCK_BOTTOM ) &&
-                ( faceDirection != DIRECTION_BLOCK_TOP ) )
+            int dataVal = gBoxData[boxIndex].data;
+            int setBottom = 0;
+            // The idea here is that setTop is set
+            int setTop = 0;
+            // a minor block exists, so check its coverage given the face direction
+            switch ( origType )
             {
-                // sides
+            case BLOCK_STONE_SLAB:
+            case BLOCK_WOODEN_SLAB:
+
+            case BLOCK_OAK_WOOD_STAIRS:
+            case BLOCK_COBBLESTONE_STAIRS:
+            case BLOCK_BRICK_STAIRS:
+            case BLOCK_STONE_BRICK_STAIRS:
+            case BLOCK_NETHER_BRICK_STAIRS:
+            case BLOCK_SANDSTONE_STAIRS:
+            case BLOCK_SPRUCE_WOOD_STAIRS:
+            case BLOCK_BIRCH_WOOD_STAIRS:
+            case BLOCK_JUNGLE_WOOD_STAIRS:
+            case BLOCK_ACACIA_WOOD_STAIRS:
+            case BLOCK_DARK_OAK_WOOD_STAIRS:
+            case BLOCK_QUARTZ_STAIRS:
+            case BLOCK_RED_SANDSTONE_STAIRS:
+                // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
+                // Returning the little block, which can further be trimmed to a cube, is a PAIN.
+                // This does mean the little stair block sides won't be deleted. Ah well.
+                // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+                // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+                
                 if ( dataVal & 0x8 )
                 {
                     // upper slab
@@ -6217,78 +6450,77 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRec
                     setBottom = 0;
                     setTop = 8;
                 }
+                break;
+
+            case BLOCK_BED:
+                setTop = 9;
+                if ( view3D )
+                {
+                    // when rendering, we can see under the bed
+                    setBottom = 3;
+                }
+                break;
+
+            case BLOCK_CARPET:
+                setTop = 1;
+                break;
+
+            case BLOCK_END_PORTAL_FRAME:
+                setTop = 13;
+                break;
+
+            case BLOCK_FARMLAND:
+                setTop = 15;
+                break;
+
+            case BLOCK_SNOW:
+                setTop = 2 * (1 + (dataVal&0x7));
+                break;
+
+            case BLOCK_CAULDRON:
+                setTop = 16;
+                if ( view3D )
+                {
+                    // can see between legs when rendering
+                    setBottom = 3;
+                }
+                break;
+
+            case BLOCK_REDSTONE_REPEATER_OFF:
+            case BLOCK_REDSTONE_REPEATER_ON:
+            case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
+            case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+                // annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear each other...
+                setTop = 2;
+                break;
+
+            case BLOCK_DAYLIGHT_SENSOR:
+            case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+                setTop = 6;
+                break;
+
+            case BLOCK_HOPPER:
+                // blocks bottom
+                setTop = 16;
+                setBottom = 10;
+                break;
+
+            case BLOCK_TRAPDOOR:
+            case BLOCK_IRON_TRAPDOOR:
+                if ( !(dataVal & 0x4) )
+                {
+                    // trapdoor is flat on ground
+                    setTop = 3;
+                }
+                break;
+
+            default:
+                // not in list, so won't cover anything
+                break;
             }
-            break;
 
-        case BLOCK_BED:
-            setTop = 9;
-            if ( view3D )
-            {
-                setBottom = 3;
-            }
-            break;
-
-        case BLOCK_CARPET:
-            setTop = 1;
-            break;
-
-        case BLOCK_END_PORTAL_FRAME:
-            setTop = 13;
-            break;
-
-        case BLOCK_FARMLAND:
-            setTop = 15;
-            break;
-
-        case BLOCK_SNOW:
-            setTop = 2 * (1 + (dataVal&0x7));
-            break;
-
-        case BLOCK_CAULDRON:
-            setTop = 16;
-            if ( view3D )
-            {
-                setBottom = 3;
-            }
-            break;
-
-        case BLOCK_REDSTONE_REPEATER_OFF:
-        case BLOCK_REDSTONE_REPEATER_ON:
-        case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-        case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
-            // annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear each other...
-            setTop = 2;
-            break;
-
-        case BLOCK_DAYLIGHT_SENSOR:
-        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
-            setTop = 6;
-            break;
-
-        case BLOCK_HOPPER:
-            // blocks bottom
-            setTop = 16;
-            setBottom = 10;
-            break;
-
-        case BLOCK_TRAPDOOR:
-        case BLOCK_IRON_TRAPDOOR:
-            if ( !(dataVal & 0x4) )
-            {
-                // trapdoor is flat on ground
-                setTop = 3;
-            }
-            break;
-
-        default:
-            // not in list, so won't cover anything
-            break;
-        }
-
-        if ( setTop )
-        {
-            if ( ( faceDirection != DIRECTION_BLOCK_BOTTOM ) &&
-                ( faceDirection != DIRECTION_BLOCK_TOP ) )
+            // did we find any side bounds? setTop is 0 if none are set
+            if ( setTop > 0 )
             {
                 // sides
                 faceRect[0] = 0;
@@ -6300,7 +6532,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRec
         }
     }
 
-    // no rectangle found - done
+    // no side-bounds used, or rectangle found - done
     return 0;
 }
 
@@ -6402,7 +6634,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
 
-    assert(!(gOptions->exportFlags & EXPT_3DPRINT));
+    assert(!gPrint3D);
 
     swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
@@ -8762,6 +8994,54 @@ static int determineScaleAndHollowAndMelt()
     return MW_NO_ERROR;
 }
 
+// this gives the vertical 
+static float computeMachineVolume()
+{
+    int x,y,z,boxIndex;
+    int blockSum = 0;
+    for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
+    {
+        for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
+        {
+            int minSolid = 999;
+            int maxSolid = -999;
+            // check the 3x3 in the column for its max and min heights
+            for ( int xi = -1; xi <= 1; xi++ )
+            {
+                for ( int zi = -1; zi <= 1; zi++ )
+                {
+                    boxIndex = BOX_INDEX(x+xi,gSolidBox.min[Y],z+zi);
+                    for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
+                    {
+                        // The melting option melts away snow built as supports or whatever
+                        if ( gBoxData[boxIndex].origType != BLOCK_AIR )
+                        {
+                            if ( y < minSolid )
+                            {
+                                minSolid = y;
+                            }
+                            if ( y > maxSolid )
+                            {
+                                maxSolid = y;
+                            }
+                        }
+                    }
+                }
+            }
+            if ( minSolid <= maxSolid )
+            {
+                // add in difference in blocks
+                blockSum += maxSolid - minSolid + 1;
+            }
+        }
+    }
+    // add in a top and bottom layer of about 0.5 mm - assumes blocks are around 1 mm.
+    return (float)blockSum + 0.25f*(gFilledBoxSize[X] * gFilledBoxSize[Z]);
+    // Possible addition: can't quite add the 0.5 mm fraction around the surface, but we can add a little.
+    // The 0.25 assumes blocks are 1 mm high, which is probably about right for plastic. Also assumes object fills space...
+    // + 0.25f*(gFilledBoxSize[X] * gFilledBoxSize[Z]) + 0.5f*(gFilledBoxSize[X] * gFilledBoxSize[Y]) + 0.5f*(gFilledBoxSize[Y] * gFilledBoxSize[Z]);
+}
+
 // find model scale, given cost
 static void scaleByCost()
 {
@@ -8778,7 +9058,17 @@ static void scaleByCost()
     assert(materialBudget > 0.0f);
 
     // compute volume for materials that have a machine bed volume cost
-    float volumeBlockCount = gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z];
+    float volumeBlockCount = 0.0f;
+    if ( gMtlCostTable[gPhysMtl].costPerMachineCC )
+    {
+        volumeBlockCount = computeMachineVolume();
+        float maxVolume = gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z];
+        if ( volumeBlockCount > maxVolume )
+        {
+            assert(volumeBlockCount <= maxVolume);
+            volumeBlockCount = maxVolume;
+        }
+    }
 
     // how much money we can spend on each block?
     // Think of it this way: what the cost 
@@ -9209,7 +9499,8 @@ static int generateBlockDataAndStatistics()
     UPDATE_PROGRESS(pgFaceStart);
     pgFaceOffset = PG_OUTPUT - PG_MAKE_FACES - 0.01f;   // save 0.01 for sorting
 
-    // go through blocks and see which is solid; use solid blocks to generate faces
+    // At this point all partial blocks have been output, and their type set to BLOCK_AIR. Now output the fully solid blocks.
+    // Go through blocks and see which is solid; output these solid blocks.
     for ( loc[X] = gSolidBox.min[X]; loc[X] <= gSolidBox.max[X]; loc[X]++ )
     {
         // update on each row of X
@@ -9366,13 +9657,12 @@ static void rotateLocation( Point pt )
     }
 }
 
-// check if a solid block (assumed) is next to something that causes a face to be created
+// check if a solid block is next to something that causes a face to be created
 static int checkAndCreateFaces( int boxIndex, IPoint loc )
 {
     int faceDirection;
     int neighborType;
     int type = gBoxData[boxIndex].type;
-    int view3D = !(gOptions->exportFlags & EXPT_3DPRINT);
     int computeHeights = 1;
     int isFullBlock = 0;	// to make compiler happy
     float heights[4];
@@ -9387,20 +9677,21 @@ static int checkAndCreateFaces( int boxIndex, IPoint loc )
     {
         int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
         neighborType = gBoxData[neighborBoxIndex].type;
-        // if neighbor is air, or if we're outputting a model for viewing
+
+        // If neighbor is air, or if we're outputting a model for viewing
         // (not printing) and it is transparent and our object is not transparent,
         // then output a face. This latter condition gives lakes bottoms.
         // TODO: do we care if two transparent objects are touching each other? (Ice & water?)
         // Right now water and ice touching will generate no faces, which I think is fine.
         // so, create a face?
-        if ( checkMakeFace( type, neighborType, view3D, testPartial, faceDirection, boxIndex, neighborBoxIndex ) )
+        if ( checkMakeFace( type, neighborType, !gPrint3D, testPartial, faceDirection, neighborBoxIndex ) )
         {
             // Air (or water, or portal) found next to solid block: time to write it out.
             // First write out any vertices that are needed (this may do nothing, if they're
             // already written out by previous faces doing output of the same vertices).
 
             // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block.
-            if ( ( view3D || gOptions->pEFD->chkExportAll ) && 
+            if ( ( !gPrint3D || testPartial ) && 
                 (type>=BLOCK_WATER) && (type<=BLOCK_STATIONARY_LAVA) &&
                 (faceDirection != DIRECTION_BLOCK_BOTTOM ) )
             {
@@ -9443,6 +9734,7 @@ SaveFullBlock:
     return retCode;
 }
 
+// Called for lava and water faces, and for 
 // Assumes the following: billboards and lesser stuff has been output and their blocks made into air -
 //   this then means that if any neighbor is found, it must be a full block and so will cover the face.
 // Check if we should make a face: return 1 if face should be output
@@ -9450,18 +9742,28 @@ SaveFullBlock:
 // neighborType is neighboring type,
 // faceDirection is which way things connect
 // boxIndex and neighborBoxIndex is real locations, in case more info is needed
-static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex )
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex )
 {
-    // if neighboring face does not cover block type fully, or if individual (i.e., all) blocks are being output as separate entities, then output the face
-    if ( !neighborCoversFace( neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
+    // Our whole goal here is to determine if this face is visible. For most solid
+    // blocks, if the neighbor covers the face and is not semitransparent, then the block
+    // face is hidden and can be discarded instead of output.
+
+    // if neighboring face does not cover block type fully, or if individual (i.e., all) blocks are being output as separate entities, then output the face.
+    if ( !neighborMayCoverFace( neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) )
     {
-        // exposed to air and so fully visible, or exporting all blocks, or neighbor doesn't cover face, so display
+        // Face is visible for sure, it is not fully covered by the neighbor, so return.
+        // A return value of 0 means our block is exposed to air and so is fully visible or neighbor is not a full block and doesn't cover face,
+        // or exporting all blocks, so display. Note that just because a neighbor does cover a full block we still do more tests below.
         return 1;
     }
 
-    // do additional testing for the case where neighbors are 'full size' but may be transparent or fluids
+    // At this point we know that the neighbor *could* cover the face - it's been found to fully cover the face geometrically, now we have to test its properties.
+    // Lesser blocks really do fully cover the face, that's known at this point, it's just the full blocks that are questionable
+
+    // Do additional testing for the case where neighbors are 'full size' but may be transparent or fluids
     if (neighborType > BLOCK_AIR)
     {
+        // neighbor is indeed a full block so needs further testing.
         // special cases for viewing (rendering), having to do with semitransparency or cutouts
         if ( view3D )
         {
@@ -9472,7 +9774,13 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 // type - including ice on water, glass next to water, etc. - then output face
                 if ( neighborType != type )
                 {
-                    return 1;
+                    // special check: if water next to stationary water, or (rare, semitransparent) lava next to stationary lava, that doesn't
+                    // make a face
+                    if ( ( type < BLOCK_WATER ) || ( type > BLOCK_STATIONARY_LAVA ) || !sameFluid(type, neighborType) )
+                    {
+                        // semitransparent neighbor of a different type reveals face.
+                        return 1;
+                    }
                 }
             }
             // look for blocks with cutouts next to them - only for rendering
@@ -9502,37 +9810,54 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 }
             }
         }
+    }
 
-        // final, crazy check for when the neighbor is lava or water, when outputting fluid levels.
-        // Do test if we're rendering, or if all "lesser" blocks are output for printing.
-        if ( view3D || testPartial )
+    // Checks for when the neighbor or the block itself is lava or water, when outputting fluid levels.
+    // Do test if we're rendering, or if all "lesser" blocks are output for printing.
+    // Under these circumstances, for water and lava, a few special tests must be done.
+    if ( view3D || testPartial )
+    {
+        // Check fluids.
+        // Is our block a fluid?
+        if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
         {
-            // Check fluids.
-            // Is neighbor a fluid?
-            if ( neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA )
-            {
-                // if so, does the neighbor NOT have the same fluid type?
-                // And is not above us? (If above us, then it clearly borders and covers)
-                // And is not full? (If full, then it clearly fully borders)
-                if ( !sameFluid(neighborType, type) && faceDirection != DIRECTION_BLOCK_TOP && !isFluidBlockFull( neighborType, neighborBoxIndex ))
+            //// Check if rendering
+            //if ( view3D )
+            //{
+                // At this point we know that the face is "covered" by the neighbor in some way.
+                // Side and bottom block faces should not be output. All that's left is the top.
+                // For rendering, if we're not outputting full blocks and the top of the fluid is
+                // a partial thing and doesn't fill the block, then definitely output it.
+                if ( testPartial && (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType) )
                 {
-                    // This block borders a lava or water block, so output face. Will be a waste for a few situations:
-                    // lava block fully fills its volume (in which case no face should have been output)
-                    // 3D printing and water block fully fills its volume (but we're exporting lesser blocks, so this should be safe).
-                    // TODO:
-                    // We *could* do a further check of heights in advance and if they're both 1.0 for this particular side face, then don't output face.
-                    // Tricksy, and more coding.
+                    // output the top face, as the fluid block doesn't fill its volume.
                     return 1;
                 }
-            }
-            // Are we a fluid?
-            if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
+            //}
+            //else
+            //{
+            //    assert( testPartial );
+            //    // we're 3D printing and we're outputting partial, so we want to output all liquid faces
+            //    // so that the fluid volume is watertight (as it were...). In this case we simply need to
+            //    // test neighbors: if it isn't the same fluid, then the face must be output.
+            //    if ( !sameFluid(type, neighborType) )
+            //    {
+            //        return 1;
+            //    }
+            //}
+        }
+        // Faces that are left to test at this point: full block faces, and partial faces for rendered fluids.
+        // These are assumed to be fully hidden by the neighbor *unless* the neighbor is lava or water, in which case
+        // additional testing is needed.
+        if ( neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA )
+        {
+            // If the neighbor is water/lava, and this block is *not* water/lava, and this block face is not a TOP (which is
+            // always covered), and partial rendering is happening, and the neighbor block is not full, then the neighbor
+            // is not guaranteed to cover this block (the water/lava level might not be high enough, or it's a top), so output it.
+            if ( !sameFluid(neighborType, type) )
             {
-                // We're a fluid, check if we're filled by looking above.
-                // If the top face of a fluid is being output, if the thing above the fluid is not the same fluid, then
-                // this fluid block is irregular (not full height) for sure and so should be output. This rule can be
-                // wrong in extremely rare circumstances, like the four corners still being 1.0.
-                if ( (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType) && !isFluidBlockFull( type, boxIndex ) )
+                // neighbor is e.g. lava, this block is not, and the lava block is not full (though lava will always cover the top)
+                if ( ( faceDirection != DIRECTION_BLOCK_TOP) && testPartial && !isFluidBlockFull( neighborType, neighborBoxIndex ))
                 {
                     return 1;
                 }
@@ -9540,31 +9865,39 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
         }
     }
 
-    // don't make the face
+    // don't make the face, it appears to be fully covered by its neighbor
     return 0;
 }
 
-// Used only for printing, and for when partial blocks were output. Check if the partial face would cover this face.
-// TODO: use incoming type and box index (data) to know how much of face is used
-static int neighborCoversFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex )
+// For testing full blocks (along with water and lava)
+// Check if the neighbor is a full block, or if the partial face would cover this entire full block face.
+static int neighborMayCoverFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex )
 {
-    // If the neighbor is real at this point (not a partial block), then it WILL cover the face, barring transparency.
-    // That is, it's a full block
+    // If the neighbor type is defined at this point (not a partial block, which are set to zero at this point),
+    // then it WILL cover the face, barring transparency or it being lava or water.
     if ( neighborType > BLOCK_AIR )
     {
+        // neighbor is a full block of some sort.
+        // note that this is only a quick check - if the neighbor does cover the face, we may still decide to output
+        // the face because the neighbor is water, semitransparent, etc.
         return 1;
     }
-    // else, see if partial objects are being output. If not, we're done here with geometric coverage, as it's only blocks or air.
+    // else, covered by air or a partial block;
+    // see if partial objects are being output. If not, we're done here with geometric coverage, as it's only blocks or air.
     else if ( !testPartial )
     {
-        // not doing a partial 3D print test, only blocks, so just output the face as it's covered by air
+        // outputting only blocks, there are no partials, so the face is definitely visible, since it's covered by air
         return 0;
     }
-
-    return lesserBlockCoversFace( faceDirection, neighborBoxIndex, view3D );
+    else
+    {
+        // neighbor is a partial block, return 1 if it fully covers the face
+        return lesserBlockCoversWholeFace( faceDirection, neighborBoxIndex, view3D );
+    }
 }
 
-static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int view3D )
+// check if lesser block neighboring this face fully covers (0-16) this face's contents
+static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, int view3D )
 {
     // we have partial blocks possible. Check if neighbor's original type exists at all
     int origType = gBoxData[neighborBoxIndex].origType;
@@ -9641,6 +9974,7 @@ static int lesserBlockCoversFace( int faceDirection, int neighborBoxIndex, int v
             // top
             if ( !view3D )
             {
+                // only the print version actually covers the top of the neighboring block
                 return (faceDirection == DIRECTION_BLOCK_TOP);
             }
             break;
@@ -9895,6 +10229,7 @@ static float getFluidHeightPercent( int dataVal )
     return (float)(dataVal + 1) / 9.0f;
 }
 
+// note: fluidType must be known to be either lava or water type
 static int sameFluid( int fluidType, int type )
 {
     if ( (fluidType == BLOCK_WATER) || (fluidType == BLOCK_STATIONARY_WATER) )
@@ -10781,7 +11116,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_LEAVES:
             // if we're using print export, go with the non-fancy leaves (not transparent)
-            // was, when we had opaque leaves: col = ( gOptions->exportFlags & EXPT_3DPRINT ) ? 5 : 4;
+            // was, when we had opaque leaves: col = gPrint3D ? 5 : 4;
             switch ( dataVal & 0x3 )
             {
             default:
@@ -12969,7 +13304,7 @@ static int writeOBJMtlFile()
         // output a single material
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
         {
-            if ( gOptions->exportFlags & EXPT_3DPRINT )
+            if ( gPrint3D )
             {
                 gModel.usesRGB = 1;
             }
@@ -13042,7 +13377,11 @@ static int writeOBJMtlFile()
             spacesToUnderlinesChar(mtlName);
 
             // if we want a neutral material, set to white
-            if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
+            // was: if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
+            // In fact, texture should be multiplied by color, according to the spec: http://paulbourke.net/dataformats/mtl/
+            // So use a white color if we're outputting a texture, since it could get multiplied. This
+            // will make Blender previewing look all-white, but people should turn on texturing anyway.
+            if (gOptions->exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_TEXTURE_SWATCHES))
             {
                 fRed = fGreen = fBlue = 1.0f;
             }
@@ -13062,9 +13401,9 @@ static int writeOBJMtlFile()
             // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
             // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
             // do not support textures (e.g. Blender).
-            //alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
+            //alpha = ( gPrint3D || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
             // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-            // alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
+            // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
             alpha = gBlockDefinitions[type].alpha;
             if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
             {
@@ -13078,7 +13417,7 @@ static int writeOBJMtlFile()
                     alpha = 1.0f;
                 }
             }
-            else if ( gOptions->exportFlags & EXPT_3DPRINT )
+            else if ( gPrint3D )
             {
                 // for 3d printing, alpha is always 1.0
                 alpha = 1.0f;
@@ -13103,7 +13442,7 @@ static int writeOBJMtlFile()
             }
 
             // export map_d only if CUTOUTS.
-            if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) )
+            if (!gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) )
             {
                 // cutouts or alpha
                 gModel.usesRGBA = 1;
@@ -13124,7 +13463,7 @@ static int writeOBJMtlFile()
                 }
                 mapdString[0] = '\0';
             }
-            if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
+            if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
             {
                 // emitter: for G3D, make it 2x as bright to get bloom effect
                 if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
@@ -13536,7 +13875,7 @@ static int createBaseMaterialTexture()
             bleedPNGSwatch( mainprog, SWATCH_INDEX( 10, 11 ), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 255 );
 
             // for printing only:
-            if ( gOptions->exportFlags & EXPT_3DPRINT )
+            if ( gPrint3D )
             {
                 // cactus side
                 bleedPNGSwatch( mainprog, SWATCH_INDEX( 6, 4 ), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 255 );
@@ -13551,7 +13890,7 @@ static int createBaseMaterialTexture()
         // for rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
         // better fringes when bilinear interpolation is done. This interpolation should be off normally, but things like previewers
         // such as G3D, and Blender, have problems in this area. Done only for those things rendered with decals. A few extra are done.
-        if ( !(gOptions->exportFlags & EXPT_3DPRINT) && gOptions->pEFD->chkG3DMaterial )
+        if ( !gPrint3D && gOptions->pEFD->chkG3DMaterial )
         {
             for ( i = 0; i < TOTAL_TILES; i++ )
             {
@@ -13684,7 +14023,7 @@ static int createBaseMaterialTexture()
                 SWATCH_INDEX( gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ),	// texture to blend
                 BLOCK_WATER,	// solid to blend
                 gBlockDefinitions[BLOCK_WATER].alpha,	// how to blend the two (lower alpha will use the solid color less)
-                (gOptions->exportFlags & EXPT_3DPRINT) ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );	// alpha to always assign and use
+                gPrint3D ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );	// alpha to always assign and use
         }
         else
         {
@@ -13910,7 +14249,7 @@ static int createBaseMaterialTexture()
 
         //      // fill in all alphas that 3D export wants filled; always fill in cactus, cake, and bed fringes, for example;
         //// For printing we also then composite over other backgrounds as the defaults.
-        //      faTableCount = ( gOptions->exportFlags & EXPT_3DPRINT ) ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+        //      faTableCount = gPrint3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
         //      for ( i = 0; i < faTableCount; i++ )
         //      {
         //          compositePNGSwatches( mainprog,
@@ -13921,7 +14260,7 @@ static int createBaseMaterialTexture()
         // for print, all tiles must not have any alphas;
         // we used to strip these away, but now we simply don't output the alpha channel and just export RGB,
         // so no longer need to do this process.
-        //if ( gOptions->exportFlags & EXPT_3DPRINT )
+        //if ( gPrint3D )
         //{
         //    // finally, go through all alphas: if alpha is < 1, composite the texture onto its corresponding type (solid) block
         //    for ( i = 0; i < NUM_BLOCKS; i++ )
@@ -14339,7 +14678,7 @@ static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
         }
         sprintf_s( outputString, 256, shapeString, 
             mtlName,
-            ( gOptions->exportFlags & EXPT_3DPRINT ) ? "TRUE" : "FALSE",
+            gPrint3D ? "TRUE" : "FALSE",
             firstShape ? "DEF" : "USE",
             firstShape ? " Coordinate" : "" );
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -14542,9 +14881,9 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
     // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
     // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
     // do not support textures (e.g. Blender).
-    //alpha = ( (gOptions->exportFlags & EXPT_3DPRINT) || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
+    //alpha = ( gPrint3D || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
     // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-    // alpha = (gOptions->exportFlags & EXPT_3DPRINT) ? 1.0f : gBlockDefinitions[type].alpha;
+    // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
     alpha = gBlockDefinitions[type].alpha;
     if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
     {
@@ -14558,7 +14897,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
             alpha = 1.0f;
         }
     }
-    else if ( gOptions->exportFlags & EXPT_3DPRINT )
+    else if ( gPrint3D )
     {
         // for 3d printing, alpha is always 1.0
         alpha = 1.0f;
@@ -14579,7 +14918,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
         tfString[0] = '\0';
     }
 
-    if (!(gOptions->exportFlags & EXPT_3DPRINT) && (gBlockDefinitions[type].flags & BLF_EMITTER) )
+    if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
     {
         // emitter
         sprintf_s(keString,256,"          emissiveColor %g %g %g\n", fRed*ke, fGreen*ke, fBlue*ke );
@@ -15065,10 +15404,10 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         assert(0);
         break;
     }
-    sprintf_s(outputString,256,"# Created for %s - %s\n", (gOptions->exportFlags & EXPT_3DPRINT) ? "3D printing" : "Viewing", formatString );
+    sprintf_s(outputString,256,"# Created for %s - %s\n", gPrint3D ? "3D printing" : "Viewing", formatString );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-    if ( gOptions->exportFlags & EXPT_3DPRINT )
+    if ( gPrint3D )
     {
         char warningString[256];
         int isSculpteo = ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ );
@@ -15113,7 +15452,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     sprintf_s(outputString,256,"# Units for the model vertex data itself: %s\n", gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].name );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
-    if ( gOptions->exportFlags & EXPT_3DPRINT )
+    if ( gPrint3D )
     {
         float area, volume, sumOfDimensions;
         char errorString[256];
@@ -15300,8 +15639,8 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
     sprintf_s(outputString,256,"#   Hollow out bottom of model, making the walls %g mm thick: %s; Superhollow: %s\n",
         gOptions->pEFD->hollowThicknessVal[gOptions->pEFD->fileType],
-        (gOptions->pEFD->chkHollow ? "YES" : "no"),
-        (gOptions->pEFD->chkSuperHollow ? "YES" : "no"));
+        (gOptions->pEFD->chkHollow[gOptions->pEFD->fileType] ? "YES" : "no"),
+        (gOptions->pEFD->chkSuperHollow[gOptions->pEFD->fileType] ? "YES" : "no"));
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     sprintf_s(outputString,256,"# Melt snow blocks: %s\n", gOptions->pEFD->chkMeltSnow ? "YES" : "no" );
@@ -15391,12 +15730,12 @@ static int finalModelChecks()
 
     // go from most to least serious
     // were there multiple groups? are we 3D printing? and are we not using the "lesser" option?
-    if ( gSolidGroups > 1 && (gOptions->exportFlags & EXPT_3DPRINT) && !gOptions->pEFD->chkExportAll )
+    if ( gSolidGroups > 1 && gPrint3D && !gOptions->pEFD->chkExportAll )
     {
         // we care only if exporting to 3D print, without lesser.
         retCode |= MW_MULTIPLE_GROUPS_FOUND;
     }
-    if ( gOptions->exportFlags & EXPT_3DPRINT )
+    if ( gPrint3D )
     {
         float inCM = gModel.scale * METERS_TO_CM;
         // check that dimensions are not too large
@@ -15409,7 +15748,9 @@ static int finalModelChecks()
         // check dimension sum for material output
         // Really needed only for colored sandstone: http://www.shapeways.com/design-rules/full_color_sandstone
         if ( (gFilledBoxSize[X]+gFilledBoxSize[Y]+gFilledBoxSize[Z]) < gMtlCostTable[gPhysMtl].minDimensionSum*METERS_TO_MM) {
-            retCode |= MW_SUM_OF_DIMENSIONS_IS_LOW;
+            // give this error only if exporting to a Shapeways type of file
+            if ( gOptions->pEFD->fileType == FILE_TYPE_VRML2 )
+                retCode |= MW_SUM_OF_DIMENSIONS_IS_LOW;
         }
         if ( gModel.scale < gMtlCostTable[gPhysMtl].minWall )
         {
@@ -15431,9 +15772,15 @@ static float computeMaterialCost( int printMaterialType, float blockEdgeSize, in
 {
     // as a guess, take the minor blocks number, i.e. those printed as partial blocks such as steps, and divide by two.
     float ccmMaterial = (float)pow((double)(blockEdgeSize*METERS_TO_CM),3.0)*((float)numBlocks + (float)numMinorBlocks/2.0f);
+
     // compute volume for materials that have a machine bed volume cost
-    float volumeBlockCount = gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z];
-    float ccmMachine = (float)pow((double)(blockEdgeSize*METERS_TO_CM),3.0)*volumeBlockCount;
+    float ccmMachine = 0.0f;
+    if ( gMtlCostTable[gPhysMtl].costPerMachineCC )
+    {
+        float volumeBlockCount = computeMachineVolume();
+        assert( volumeBlockCount <= gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z] );
+        ccmMachine = (float)pow((double)(blockEdgeSize*METERS_TO_CM),3.0)*volumeBlockCount;
+    }
 
     return ( gMtlCostTable[printMaterialType].costHandling + 
         gMtlCostTable[printMaterialType].costPerMachineCC * ccmMachine +

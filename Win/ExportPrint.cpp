@@ -142,8 +142,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,epd.chkConnectParts?epd.chkConnectCornerTips:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,epd.chkConnectParts?epd.chkConnectAllEdges:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,epd.chkDeleteFloaters);
-            CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow);
-            CheckDlgButton(hDlg,IDC_SUPER_HOLLOW,epd.chkHollow?epd.chkSuperHollow:BST_INDETERMINATE);
+            CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow[epd.fileType]);
+            CheckDlgButton(hDlg,IDC_SUPER_HOLLOW,epd.chkHollow[epd.fileType]?epd.chkSuperHollow[epd.fileType]:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_MELT_SNOW,epd.chkMeltSnow);
 
             SetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,epd.floaterCountString);
@@ -273,7 +273,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             {
                 UINT isHollowChecked = IsDlgButtonChecked(hDlg,IDC_HOLLOW);
                 // if hollow turned on, then default setting for superhollow is on
-                CheckDlgButton(hDlg,IDC_SUPER_HOLLOW,isHollowChecked?epd.chkSuperHollow:BST_INDETERMINATE);
+                CheckDlgButton(hDlg,IDC_SUPER_HOLLOW,isHollowChecked?epd.chkSuperHollow[epd.fileType]:BST_INDETERMINATE);
             }
             break;
         case IDC_SUPER_HOLLOW:
@@ -629,8 +629,8 @@ ChangeMaterial:
             }
             else if ( (HIWORD(wParam) == EN_CHANGE) && (focus == IDC_HOLLOW_THICKNESS) )
             {
-                epd.chkHollow = 1;
-                CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow);
+                epd.chkHollow[epd.fileType] = 1;
+                CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow[epd.fileType]);
             }
             break;
 
@@ -690,9 +690,9 @@ ChangeMaterial:
 
                 lepd.chkDeleteFloaters = IsDlgButtonChecked(hDlg,IDC_DELETE_FLOATERS);
 
-                lepd.chkHollow = IsDlgButtonChecked(hDlg,IDC_HOLLOW);
+                lepd.chkHollow[epd.fileType] = IsDlgButtonChecked(hDlg,IDC_HOLLOW);
                 // if hollow is off, superhollow is off
-                lepd.chkSuperHollow = lepd.chkHollow ? IsDlgButtonChecked(hDlg,IDC_SUPER_HOLLOW) : 0;
+                lepd.chkSuperHollow[epd.fileType] = lepd.chkHollow[epd.fileType] ? IsDlgButtonChecked(hDlg,IDC_SUPER_HOLLOW) : 0;
 
                 lepd.chkMeltSnow = IsDlgButtonChecked(hDlg,IDC_MELT_SNOW);
 
@@ -783,7 +783,7 @@ ChangeMaterial:
                     return (INT_PTR)FALSE;
                 }
 
-                if ( lepd.chkHollow && lepd.hollowThicknessVal[epd.fileType] < 0.0 )
+                if ( lepd.chkHollow[epd.fileType] && lepd.hollowThicknessVal[epd.fileType] < 0.0 )
                 {
                     MessageBox(NULL,
                         _T("Hollow thickness value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK|MB_ICONERROR);

@@ -2906,7 +2906,8 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             return NULL;
         }
     }
-    // end of test world, resume normal programming
+    // end of test world (and all paths return something), resume normal programming
+    assert( directory[0] != (wchar_t)'/' );
 
     if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light, block->biome)) {
         // got block successfully

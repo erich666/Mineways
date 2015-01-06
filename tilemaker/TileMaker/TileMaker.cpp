@@ -20,8 +20,9 @@
 #define TILE_PATH	L"blocks"
 #define OUTPUT_FILENAME L"terrainExt.png"
 
-int findTile( wchar_t *tileName );
-int findNextTile( wchar_t *tileName, int index );
+int findTile( wchar_t *tileName, int alternate );
+int findNextTile( wchar_t *tileName, int index, int alternate );
+int findUnneededTile( wchar_t *tileName );
 
 static void reportReadError( int rc, wchar_t *filename );
 
@@ -69,6 +70,7 @@ int wmain(int argc, wchar_t* argv[])
 	int onlyreplace = 0;
 	int verbose = 0;
 	int checkmissing = 0;
+    int alternate = 0;
 
 	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME );
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
@@ -128,11 +130,16 @@ int wmain(int argc, wchar_t* argv[])
 			// in the tile directory. This lets people know what tiles they need to add.
 			checkmissing = 1;
 		}
-		else if ( wcscmp(argv[argLoc],L"-v") == 0 )
-		{
-			// verbose: tell when normal things happen
-			verbose = 1;
-		}
+        else if ( wcscmp(argv[argLoc],L"-a") == 0 )
+        {
+            // alternate: use names such as "blockIron" when "iron_block" is not found
+            alternate = 1;
+        }
+        else if ( wcscmp(argv[argLoc],L"-v") == 0 )
+        {
+            // verbose: tell when normal things happen
+            verbose = 1;
+        }
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
@@ -146,7 +153,8 @@ int wmain(int argc, wchar_t* argv[])
 			wprintf( L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
 			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
-			wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
+            wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
+            wprintf( L"  -a - include alternate texture names when files are not found.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 			return 1;
 		}
@@ -230,10 +238,12 @@ int wmain(int argc, wchar_t* argv[])
 					int index;
 					// remove .png suffix
 					tileName[len-4] = 0x0;
-					index = findTile(tileName);
+					index = findTile(tileName, alternate);
 					if ( index < 0 )
 					{
-						wprintf (L"NOTE: %s is ignored by TileMaker, as Mineways does not use it.\n", ffd.cFileName);
+                        // see if tile is on unneeded list
+                        if ( findUnneededTile( ffd.cFileName ) < 0 )
+						    wprintf (L"WARNING: %s is a tile name that TileMaker does not understand. Perhaps you need to rename it?\nSee https://github.com/erich666/Mineways/blob/master/tilemaker/TileMaker/tiles.h for the image file names used.\n", ffd.cFileName);
 					}
 
 					while ( index >= 0 )
@@ -278,7 +288,7 @@ int wmain(int argc, wchar_t* argv[])
 						//	// unknown format
 						//	_tprintf (TEXT("WARNING: file %s not used because unsupported bit depth %d and color type %d\n"), ffd.cFileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
 						//}
-						index = findNextTile(tileName, index);
+						index = findNextTile(tileName, index, alternate);
 					}
 				}
 			} while (FindNextFile(hFind,&ffd)!=0);
@@ -384,7 +394,7 @@ int wmain(int argc, wchar_t* argv[])
 	return 0;
 }
 
-int findTile( wchar_t *tileName )
+int findTile( wchar_t *tileName, int alternate )
 {
 	int i;
 
@@ -392,21 +402,43 @@ int findTile( wchar_t *tileName )
 	{
 		if ( wcscmp(tileName, gTiles[i].filename) == 0 )
 			return i;
+        if ( alternate && wcscmp(tileName, gTiles[i].altFilename) == 0 )
+            return i;
 	}
 	return -1;
 }
 
-int findNextTile( wchar_t *tileName, int index )
+int findNextTile( wchar_t *tileName, int index, int alternate )
 {
 	int i;
 
 	for ( i = index+1; i < TOTAL_TILES; i++ )
 	{
-		if ( wcscmp(tileName, gTiles[i].filename) == 0 )
-			return i;
+        if ( wcscmp(tileName, gTiles[i].filename) == 0 )
+            return i;
+        if ( alternate && wcscmp(tileName, gTiles[i].altFilename) == 0 )
+            return i;
 	}
 	return -1;
 }
+
+int findUnneededTile( wchar_t *tileName )
+{
+    int i = 0;
+    size_t inlen = wcslen( tileName );
+    TCHAR tileRoot[1000];
+    wcscpy_s( tileRoot, 999, tileName );
+    // trim off .png suffix
+    tileRoot[inlen-4] = (TCHAR)0;
+    while ( wcslen(gUnneeded[i]) > 0 )
+    {
+        if ( wcscmp(tileRoot, gUnneeded[i]) == 0 )
+            return i;
+        i++;
+    }
+    return -1;
+}
+
 
 //====================== statics ==========================
 

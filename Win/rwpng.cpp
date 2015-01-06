@@ -51,7 +51,7 @@ int readpng(progimage_info *im, wchar_t *filename)
     {
         im->width = 0;
         im->height = 0;
-        std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        //std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
         return (int)error;
     }
 
@@ -96,7 +96,7 @@ int readpngheader(progimage_info *im, wchar_t *filename)
     {
         im->width = 0;
         im->height = 0;
-        std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        //std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
         return (int)error;
     }
 
@@ -137,7 +137,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     //if there's an error, display it
     if (error)
     {
-        std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+        //std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
         return (int)error;
     }
 

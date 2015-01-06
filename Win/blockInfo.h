@@ -107,7 +107,8 @@ typedef struct MaterialCost {
     float costDiscountCCMLevel; // first X cubic centimeters are at normal price; above this is half price - DEPRECATED, not used
     // cost minimum is a guess, doesn't include handling TODO
     float costMinimum;
-    float costPerMachineCC;   // cost per cubic centimeter of "bed space" in the machine, for white & flexible etc.
+    // see https://www.shapeways.com/blog/archives/18174-how-much-does-it-cost-when-you-3d-print-a-thousand-different-parts-all-at-once.html
+    float costPerMachineCC;   // cost per cubic centimeter of "machine space" in the machine, for white & flexible etc.
     float maxSize[3];
 } MaterialCost;
 
@@ -299,8 +300,8 @@ typedef struct ExportFileData
     UINT chkConnectCornerTips;
     UINT chkConnectAllEdges;
     UINT chkDeleteFloaters;
-    UINT chkHollow;
-    UINT chkSuperHollow;
+    UINT chkHollow[FILE_TYPE_TOTAL];
+    UINT chkSuperHollow[FILE_TYPE_TOTAL];
     UINT chkMeltSnow;
 
     char floaterCountString[EP_FIELD_LENGTH];

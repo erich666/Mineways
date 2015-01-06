@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "ColorSchemes.h"
 #include "ExportPrint.h"
 #include "XZip.h"
+#include "lodepng.h"
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -146,17 +147,20 @@ static struct {
 
     {_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<8
-    {_T("Error: no terrainExt.png file found.\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 9
-    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
-    {_T("Error writing to export file; partial file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
-    {_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally, at least 16 pixels wide, and higher than it is wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
-    {_T("Error: the incoming terrainExt.png file image is too large."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13
-    {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<14
-    {_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
-    {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<16
-    {_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
-    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. Sorry, I'm working on it!"), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<18
+    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<9
+    {_T("Error: cannot write to export file"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<10
+    {_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<11
+    {_T("Error: the incoming terrainExt.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<12
+    {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK|MB_ICONERROR},	// <<13 MW_DIMENSION_TOO_LARGE
+    {_T("Error: cannot read import file."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<14
+    {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
+    {_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<16
+    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
     {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
+
+    {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
+    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
+    {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<21
 };
 
 // Number of lines to read from the header - don't want to go too far
@@ -1582,6 +1586,11 @@ InitEnable:
 
                     return 0;
                 }
+                // reload world list, too, so that new worlds added since now appear.
+                // Ignore any errors (non-Anvil), since these were already reported.
+                // TODO: I couldn't figure out how to remove the existing world list,
+                // so this call just adds more and more copies of the original world list.
+                //loadWorldList(GetMenu(hWnd));
                 EnableWindow(hwndSlider,TRUE);
                 EnableWindow(hwndLabel,TRUE);
                 EnableWindow(hwndInfoLabel,TRUE);
@@ -2108,7 +2117,8 @@ static int setWorldPath(TCHAR *path)
 
     wchar_t msgString[1024];
 
-    for ( int i = 0; i < 8; i++ )
+    // keep on trying and trying...
+    for ( int i = 0; i < 15; i++ )
     {
         if ( gDebug )
         {
@@ -2571,8 +2581,8 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         (gpEFD->chkConnectAllEdges ? (EXPT_CONNECT_PARTS|EXPT_CONNECT_ALL_EDGES) : 0x0) |
         (gpEFD->chkDeleteFloaters ? EXPT_DELETE_FLOATING_OBJECTS : 0x0) |
 
-        (gpEFD->chkHollow ? EXPT_HOLLOW_BOTTOM : 0x0) |
-        ((gpEFD->chkHollow && gpEFD->chkSuperHollow) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0) |
+        (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
+        ((gpEFD->chkHollow[gpEFD->fileType] && gpEFD->chkSuperHollow[gpEFD->fileType]) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0) |
 
         // materials are forced on if using debugging mode - just an internal override, doesn't need to happen in dialog.
         (gpEFD->chkShowParts ? EXPT_DEBUG_SHOW_GROUPS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE : 0x0) |
@@ -2707,8 +2717,6 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
         InvalidateRect(hWnd,NULL,FALSE);
         UpdateWindow(hWnd);
 
-        // TODO!!! Check that minecraft.jar exists in the right place
-
         int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
             updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion );
@@ -2748,7 +2756,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
 
 
         // output stats, if printing and there *are* stats
-        if ( gShowPrintStats && (printModel==1) && gOptions.cost > 0.0f && outputFileList.count > 0 )
+        if ( gShowPrintStats && (printModel==1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
+            // is Shapeways or Sculpteo file type?
+            (gOptions.pEFD->fileType == FILE_TYPE_VRML2 || gOptions.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gOptions.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
         {
             int retval;
             wchar_t msgString[2000];
@@ -2783,13 +2793,33 @@ static void PopupErrorDialogs( int errCode )
     {
         if ( (1<<errNo) & errCode )
         {
-            //int msgboxID = 
-            MessageBox(
-                NULL,
-                gPopupInfo[errNo+1].text,
-                gPopupInfo[errNo+1].caption,
-                gPopupInfo[errNo+1].type
-                );
+            // check if it's a PNG error
+            if ( (1<<errNo) >= MW_BEGIN_PNG_ERRORS )
+            {
+                // PNG errors have extra information, i.e., what the PNG error string is.
+                TCHAR errString[1000],wcString[1000];
+                int pngError = (errCode>>MW_NUM_CODES);
+                size_t newsize = strlen(lodepng_error_text(pngError))+1;
+                size_t convertedChars = 0;
+                mbstowcs_s(&convertedChars, wcString, newsize, lodepng_error_text(pngError), _TRUNCATE);
+                wsprintf( errString, gPopupInfo[errNo+1].text, wcString );
+                MessageBox(
+                    NULL,
+                    errString,
+                    gPopupInfo[errNo+1].caption,
+                    gPopupInfo[errNo+1].type
+                    );
+            }
+            else
+            {
+                //int msgboxID = 
+                MessageBox(
+                    NULL,
+                    gPopupInfo[errNo+1].text,
+                    gPopupInfo[errNo+1].caption,
+                    gPopupInfo[errNo+1].type
+                    );
+            }
 
             //switch (msgboxID)
             //{
@@ -2926,8 +2956,6 @@ static void initializeExportDialogData()
     // it's actually better to start with manifold off and see if there are lots of groups.
     gExportPrintData.chkConnectAllEdges = 0;
     gExportPrintData.chkDeleteFloaters = 1;
-    gExportPrintData.chkHollow = 1;
-    gExportPrintData.chkSuperHollow = 1;
     gExportPrintData.chkMeltSnow = 0;
 
     gExportPrintData.chkShowParts = 0;
@@ -2939,6 +2967,8 @@ static void initializeExportDialogData()
     gExportPrintData.chkG3DMaterial = 1;
 
     gExportPrintData.floaterCountVal = 16;
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkHollow, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES( gExportPrintData.chkSuperHollow, 1, 1, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES( gExportPrintData.hollowThicknessVal,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
@@ -2992,8 +3022,8 @@ static void initializeExportDialogData()
     gExportViewData.chkConnectCornerTips = 0;
     gExportViewData.chkConnectAllEdges = 0;
     gExportViewData.chkDeleteFloaters = 0;
-    gExportViewData.chkHollow = 0;
-    gExportViewData.chkSuperHollow = 0;
+    INIT_ALL_FILE_TYPES( gExportViewData.chkHollow, 0,0,0,0,0,0,0);
+    INIT_ALL_FILE_TYPES( gExportViewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
     gExportViewData.chkG3DMaterial = 0;
 
@@ -3544,8 +3574,8 @@ static int importSettings( wchar_t *importFile )
         return MW_CANNOT_PARSE_IMPORT_FILE;
 
     efd.hollowThicknessVal[efd.fileType] = floatVal;
-    efd.chkHollow = ( string1[0] == 'Y');
-    efd.chkSuperHollow = ( string2[0] == 'Y');
+    efd.chkHollow[efd.fileType] = ( string1[0] == 'Y');
+    efd.chkSuperHollow[efd.fileType] = ( string2[0] == 'Y');
 
 
     lineNo = findLine( "# Melt snow blocks:", lines, lineNo+1, 20 );

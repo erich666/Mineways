@@ -567,7 +567,7 @@ TileMaker -?
 on the command line.
 <PRE>
 TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
-        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]
+        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-a] [-v]
 </PRE>
 <P>
   -i terrainBase.png - image containing the base set of terrain blocks
@@ -598,6 +598,9 @@ TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
 <P>
   -m - to report all missing tiles, ones that Mineways uses but were not in
     the tiles directory. This option is a way of finding if there are any images you can still add to the "blocks" directory. For example, if "nether_brick.png" is reported missing, you know that "blocks" doesn't have this image and that Mineways will use it. This merely means that the default terrainBase.png texture will be used instead.
+<P>
+  -a - include alternate texture names when files are not found. These alternate
+    names can be found <a href="https://github.com/erich666/Mineways/blob/master/tilemaker/TileMaker/tiles.h">in tiles.h</a>, alternate names of textures sometimes found in block texture directories.
 <P>
   -v - verbose, explain everything going on. Default: display only warnings.
 
@@ -1693,7 +1696,7 @@ Flower Pot (#140)
 <center>Pot geometry, and only cactus made in 1.6.4 or earlier</center>
 </td>
 <td>
-Acacia and dark oak not identifiable by Mineways currently. Pots made in 1.7 will not have any contents.
+Acacia and dark oak not identifiable by Mineways currently. Pots made in 1.7 will not have any contents, as they rely on tile entities for the contents, not supported by Mineways.
 </td>
 </tr>
 
@@ -1873,8 +1876,8 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 </UL>
 <LI>Internal cleanups: removed extra fake wool block types, removed duplicate block definition data structures, increased map block cache size 5x for the 64-bit version, general C++ification of code from C.
 </UL>
-<LI>Upcoming: Version 4.08, 10/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV408.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac408.zip">Mac 32-bit only</a> - Major Mac version fix: worlds and terrainExt.png texture file is now found properly. Wall banners now display (with no pattern or color). Added normal per vertex for OBJ and fixed it for STL output, so that the GLC Player can display models better. Fixed vine and anvil normals. More object names are now displayed. Fixed color schemes so that old color schemes update properly to 1.8 format. Minor fixes to a few biome temperatures. Converted code's tabs to spaces for easier Github viewing.
-</UL>
+<LI>Version 4.08, 10/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV408.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac408.zip">Mac 32-bit only</a> - Major Mac version fix: worlds and terrainExt.png texture file is now found properly. Wall banners now display (with no pattern or color). Added normal per vertex for OBJ and fixed it for STL output, so that the GLC Player can display models better. Fixed vine and anvil normals. More object names are now displayed. Fixed color schemes so that old color schemes update properly to 1.8 format. Minor fixes to a few biome temperatures. Converted code's tabs to spaces for easier Github viewing.
+<LI>Version 4.09, 1/6/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV409.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac409.zip">Mac 32-bit only</a> - Fixed stairs output to obey all Minecraft rules (<i>thanks to James Ward for reporting this</i>). Fixed carpets, snow, and other thin covers to export properly as lesser blocks for 3D printing (<i>thanks to Justin F. for reporting this</i>). Fixed output of cocoa plant pods. Made objects all watertight when exporting using the lesser blocks option. Made the individual blocks option work for all blocks. Hollowing is now off by default for STL export, as home printers usually don't want to use this operation. Changed OBJ material output to use a white color when a texture is output, since these two elements are multiplied together for GLC display. Improved error messages, especially for reading PNGs. Updated to Shapeways' new cost scheme for white plastic prints; mine is an approximation of their complex algorithm, but gets fairly close. Synced to latest Shapeways constraint data. Added popular block texture names as alternate tile names to TileMaker by using the '-a' option, and give better diagnostics about unrecognized tile names.</UL>
 
 <h2 id="wishlist">Wishlist</h2>
 This is my own wishlist, in order of interest; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
