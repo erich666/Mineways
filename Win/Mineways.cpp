@@ -142,7 +142,7 @@ static struct {
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods.\n\nYou can download the latest version of Mineways from mineways.com."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
     {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<6
 
     {_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
@@ -1779,7 +1779,7 @@ InitEnable:
         CheckUnknownBlock( false );
         ClearBlockReadCheck();
 
-        MessageBox( NULL, _T("Warning: unknown block types encountered. You may have an out-of-date version of Mineways. Note that Mineways supports only standard blocks. Check http://mineways.com to see if there is a newer version of Mineways that will read these block types."),
+        MessageBox( NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
             _T("Read error"), MB_OK|MB_ICONERROR);
     }
 
@@ -2051,7 +2051,7 @@ static int loadWorld()
     else
     {
         // Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
-        // world, then reload and carry on. TODO: document!
+        // world, then reload and carry on.
         //gHighlightOn=FALSE;
         //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
         if ( GetFileVersion(gWorld,&version) != 0 ) {

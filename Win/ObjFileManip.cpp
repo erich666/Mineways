@@ -210,6 +210,7 @@ typedef struct Model {
     int usesRGBA;   // 1 if the RGBA texture is used
     int usesAlpha;   // 1 if the Alpha-only texture is used
     FaceRecordPool *faceRecordPool;
+    bool alreadyAskedForComposite;
 } Model;
 
 static Model gModel;
@@ -12451,14 +12452,30 @@ static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirec
 {
     // does library have type/backgroundType desired?
     SwatchComposite *pSwatch = gModel.swatchCompositeList;
-    int backgroundSwatchLoc = getSwatch( gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection, backgroundIndex, NULL );
+    int backgroundSwatchLoc;
+    if ( gModel.alreadyAskedForComposite )
+    {
+        // The data coming in is probably modded and invalid. To avoid an infinite regression (getCompositeSwatch calling itself),
+        // we pull the plug and give back cobblestone, end of story. We should also flag an error, but that's not done -
+        // the user's already been warned his data's bad.
+        backgroundSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY );
+    }
+    else
+    {
+        gModel.alreadyAskedForComposite = true;
+        backgroundSwatchLoc = getSwatch( gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection, backgroundIndex, NULL );
+    }
 
     while ( pSwatch )
     {
         if ( (pSwatch->swatchLoc == swatchLoc) && 
             (pSwatch->angle == angle) &&
             (pSwatch->backgroundSwatchLoc == backgroundSwatchLoc) )
+        {
+            // done with reentry check, we have something valid
+            gModel.alreadyAskedForComposite = false;
             return pSwatch->compositeSwatchLoc;
+        }
 
         pSwatch = pSwatch->next;
     }
@@ -12479,6 +12496,9 @@ static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirec
         assert(0);  // you need to create a default type/backgroundType swatch for this type
         return 0;
     }
+
+    // done with reentry check
+    gModel.alreadyAskedForComposite = false;
 
     // make it
     return createCompositeSwatch( swatchLoc, backgroundSwatchLoc, angle );

@@ -382,14 +382,32 @@ void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
     int len;
     *x=*y=*z=0;
     //Data/SpawnX
+    // don't really need this first seek to beginning of file
+    //bfseek(bf,0,SEEK_SET);
     bfseek(bf,1,SEEK_CUR); //skip type
     len=readWord(bf); //name length
     bfseek(bf,len,SEEK_CUR); //skip name ()
     if (nbtFindElement(bf,"Data")!=10) return;
     if (nbtFindElement(bf,"SpawnX")!=3) return;
     *x=readDword(bf);
+
+    // Annoyingly, SpawnY can come before SpawnX, so we need to re-find each time.
+    // For some reason, seeking to a stored offset does not work.
+    // So we seek to beginning of file and find "Data" again.
+    bfseek(bf,0,SEEK_SET);
+    bfseek(bf,1,SEEK_CUR); //skip type
+    len=readWord(bf); //name length
+    bfseek(bf,len,SEEK_CUR); //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return;
     if (nbtFindElement(bf,"SpawnY")!=3) return;
     *y=readDword(bf);
+
+    // We seek to beginning of file and find "Data" again.
+    bfseek(bf,0,SEEK_SET);
+    bfseek(bf,1,SEEK_CUR); //skip type
+    len=readWord(bf); //name length
+    bfseek(bf,len,SEEK_CUR); //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return;
     if (nbtFindElement(bf,"SpawnZ")!=3) return;
     *z=readDword(bf);
 }
