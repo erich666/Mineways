@@ -158,8 +158,10 @@ static struct {
     {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
     {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
 
-    {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/osxmineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
+    // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
+    // {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
+    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
+    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
     {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<21
 };
 
@@ -2683,7 +2685,9 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
     }
 
     // if individual blocks are to be exported, we group by cube, not by material, so turn that off
-    if ( gpEFD->chkIndividualBlocks )
+    // (explicitly check for one, to avoid any accidents with indeterminate "2" value being set.)
+    assert( ( gpEFD->chkIndividualBlocks == 0 ) || ( gpEFD->chkIndividualBlocks == 1 ) );
+    if ( gpEFD->chkIndividualBlocks == 1 )
     {
         // this also allows us to use the faceIndex as a way of noting the start of a new group
         gOptions.exportFlags &= ~EXPT_GROUP_BY_MATERIAL;

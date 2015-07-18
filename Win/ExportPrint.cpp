@@ -661,7 +661,8 @@ ChangeMaterial:
                 lepd.chkFatten = lepd.chkExportAll?IsDlgButtonChecked(hDlg,IDC_FATTEN) : 0;
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
                 lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
-                lepd.chkIndividualBlocks = IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
+                // STL should not be used with individual blocks, so turn it off
+                lepd.chkIndividualBlocks = !IS_STL ? IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS) : 0;
                 lepd.chkBiome = IsDlgButtonChecked(hDlg,IDC_BIOME);
 
                 lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);

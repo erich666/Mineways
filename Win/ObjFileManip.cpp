@@ -1359,6 +1359,8 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *
     }
     else
     {
+        // really, we shouldn't ever hit this branch, as the terrain file name is now always set
+        // at the start.
         concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
         rc = readpng(pII,defaultTerrainFileName);
         if ( rc )
