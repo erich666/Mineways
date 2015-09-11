@@ -160,8 +160,8 @@ static struct {
 
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
     // {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
+    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe. Don't run Mineways from the .zip file - unzip the .zip. If you moved mineways.exe, go find terrainExt.png (or download Mineways again) and move it to the same location.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
+    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease put the terrainExt.png file in the same directory as mineways.exe. Don't run Mineways from the .zip file - unzip the .zip. If you moved mineways.exe, go find terrainExt.png (or download Mineways again) and move it to the same location.\n\nMac users: select the menu item 'File -> Set Terrain File' and choose the TerrainExt.png file in Downloads/mineways."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
     {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<21
 };
 

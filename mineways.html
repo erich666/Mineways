@@ -542,7 +542,9 @@ With "Import Settings", under the File menu, you can read any Mineways output fi
 <H3 id="tilemaker">
 TileMaker
 </H3>
-TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.6.4". If you unzip the Minecraft jar file there, e.g. 1.6.4.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
+TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note: currently the program works only on the PC.</B> If you figure out a way to run it on the Mac for free (not through <a href="http://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator"</a>, which should work but costs money), let me know.
+<P>
+Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.6.4". If you unzip the Minecraft jar file there, e.g. 1.6.4.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 You can instead use other versions of any of these images. For example, you could download a <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">texture pack</a> - one made for version 1.6 or later (before that version a different format is used, but older texture packs can be converted with a little work). Note that the <a href="http://minecraft.gamepedia.com/Texture_pack#List_of_texture_packs">Minepedia listing</a> often doesn't have the latest version supported; go to the pack's site itself.
 <P>
@@ -552,7 +554,7 @@ To use these blocks in Mineways instead of the defaults, you make your own terra
 <P>
 With terrainBase.png and "blocks" in place in the same directory, run the TileMaker by double-clicking on it.
 <P>
-What TileMaker does by default is pretty simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), then writes out this new image as terrainExt.png. You then can use this terrainExt.png in Mineways by using the "File -> Select Terrain File (terrainExt.png)" command. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size.
+What TileMaker does by default is pretty simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), then writes out this new image as terrainExt.png. You then can use this terrainExt.png in Mineways by using the "File | Select Terrain File (terrainExt.png)" command. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size.
 <P>
 There are many options available for doing more elaborate operations, but you need to run TileMaker from the  <a href="http://www.bleepingcomputer.com/tutorials/windows-command-prompt-introduction/">command line</a>. In the command line you use "cd" to go to the directory where the TileMaker.exe file is located, then do something like this:
 <PRE>
@@ -626,69 +628,99 @@ Rendering Tips
   </div>
 </div>
 <P><H4 id="blender">Blender</H4></a>
-Here's a quick beginner tutorial from Alexander Boden, who's just learning Blender himself, along with ideas by Milenco Mulder and others; if you have anything to add, let me know. This is for <a href="http://www.blender.org/">Blender version 2.70a</a>. Just to warn you, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, or <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
+Here's a quick beginner tutorial from Alexander Boden, along with ideas by Milenco Mulder and others; if you have anything to add, let me know. This is for <a href="http://www.blender.org/">Blender version 2.75a</a>. Alternative Minecraft exporters for Blender include <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
 </P>
 <P>
 There is some additional information on Blender and Mineways in <a href="http://www.minecraftforum.net/topic/1037751-how-to-import-minecraft-worlds-into-blender/">this</a>, <a href="http://blenderartists.org/forum/showthread.php?240821-Mineways-export-Minecraft-data-to-an-OBJ-file-for-Blender-import">this</a> and <a href="http://blenderartists.org/forum/showthread.php?237105-Mineblend-Blender-importer-add-on-for-Minecraft-worlds&p=2015414#post2015414">this</a> thread. There are a number of add-ons for Blender with Minecraft, e.g. <a href="http://www.minecraftforum.net/topic/464707-blender-258-minecraft-rigs/page__hl__%20mineways">these rigs</a>, which can give you models that Mineways itself currently does not export.
 <P>
-<b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File -> Export Model for Rendering" from the menu.
+<b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File | Export Model for Rendering" from the menu.
 </P>
 <P>
-<b>2) "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You can just click "OK" in the dialog with the export settings. However, to make life much easier, you could uncheck the "Material per object" checkbox in the OBJ file export options. Doing so will save you a fair bit of time when fixing individual materials in the steps below, though at the expense of not having a separate material per object (you could always assign a new material if needed, I assume - I don't know Blender that well...).
+<b>2) "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You can simply click "OK" in the dialog with the export settings.
 </P>
 <P>
-<b>3) Open Blender 2.61</b> and click anywhere on the screen to make the splash screen disappear. Then, click on the cube in the middle of the scene, hit "x" (or "delete"), and then "Enter". This deletes the cube.
+<b>3) Open Blender 2.75a</b> and click anywhere on the screen to make the splash screen disappear. Then press "x" (or "delete"), and then "Enter". This deletes the default cube on the screen.
 </P>
 <P>
-<b>4) Import the model:</b> select "File -> Import -> Wavefront (.obj)" from the menu. Search and select the right file (the .obj file) and click "Import OBJ".
+<b>4) Import the model:</b> select "File | Import | Wavefront (.obj)" from the menu. Search and select for your Mineways export file (the .obj file) and click "Import OBJ" (or just double-click the file name itself). Wait a bit.
 </P>
 <P>
-If you cannot select Wavefront from the Import dialog, you have to activate this file format first from the settings menu.  Select "File -> User Preferences", activate the "Addons" tab, and scroll down in the list until you find "Import-Export: Wavefront OBJ format)". Just activate the checkbox at this entry, dismiss the settings dialog and try importing again.
+If you cannot select Wavefront from the Import dialog, you have to activate this file format first from the settings menu.  Select "File | User Preferences", activate the "Addons" tab, and scroll down in the list until you find "Import-Export: Wavefront OBJ format)". Just activate the checkbox at this entry, dismiss the settings dialog and try importing again.
 </P>
 <P>
-<b>5) Resizing:</b> The model we have just imported is probably small. Move the cursor to the center of the screen, hit "s", and move the mouse until you have the right size, then click the left mouse button to save the size. You may have to move in a different direction if the model is flipped upside down.
+<b>5) Turn on textured display:</b> near the bottom of the viewport, above the animation timeline, is "View Select Add Object" etc. Just to the right of "Object Mode" is a shaded white sphere. Click on it and pick "Texture". You should now see the model as textured.
 </P>
 <P>
-<b>6) Turn on textured display:</b> near the bottom of the window, above the animation timeline, is "View Select Object" etc. Just to the right of "Object Mode" is a solid white sphere. Click on it and pick "Texture". You should now see the model as textured. Alternate method (and I don't understand how it's different): click the "n" key and a menu should appear to the right, the view properties menu (sometimes this hotkey is flaky - you can also find the Properties menu at the bottom of the View menu; look for the View menu in the lower left of the screen). Near the bottom is "Display". Open this menu by clicking on the arrow to the left of the word "Display". Near the bottom it says "Textured Solid" - click this box. Just above, for "Shading:", you can select "GLSL" for faster rendering. Click "n" again to dismiss this menu.
+<b>6) Resizing:</b> The model we have just imported is probably small on the screen. There are two solutions: one is to use the mouse scroll wheel to zoom in and out - this changes the camera's location. Alternatively, move the cursor to the center of the screen, hit "s", and move the mouse until you have the right size, then click the left mouse button to save the size. This second method changes the size of the model itself, which you might not want to do.
+</P>
 <P>
-<b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render -> Render Image" from the menu and have a look. The lighting and view is probably not so great, and the background is a boring grey. So next you will want to position the camera and set the lighting and background.
+<b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render | Render Image" from the menu and have a look.
 <P>
-<b>8) Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view. If you always want your current view to show what is rendered, while in interactive mode select "View" (in the lower left), "Properties", and under the View area select "Lock Camera to View".
-<P>
-If you found the right angle and perspective for your camera, you can fine tune a couple of parameters in the camera menu. This can be found by first selecting the Camera object from the list of objects in the upper right, then clicking the small film-camera (not the photo camera) symbol just below the list of objects, towards the right. When you click it, a section called "lens" should appear. You can set the "Shift" of the X and Y axis, as well as the focal length of the camera.
-<P>
-<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_camera.jpg">
-<P>
-If you are happy with your results, you can select "Image -> Save as Image" from the menu near the left bottom of the screen, or hit F3.
-<P>
-<B>9) Material Conversion:</B> You'll probably notice a few problems, though: transparent objects aren't, flowers and torches are on billboards, etc. At this point you have two choices: easy and hard. The easy route is to use a script provided with the Mineways distribution as of 4.02: <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>. Here are the steps for using it, once you've loaded a model, as above (or you can follow the videos by <a href="http://www.youtube.com/watch?v=X41QQqCib3A&t=6m29s">Nicky</a> or <a href="http://www.youtube.com/watch?v=hb906Xzh7dQ&t=1m36s">Wyatt</a>):
+<B>8) Material Conversion:</B>Material Conversion: You'll probably notice a few problems with the render: transparent objects aren't transparent, flowers and torches are on billboards, etc. At this point you have three choices: easy, easy, and hard. The easy routes are to use one of two scripts provided with the Mineways distribution: <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>, or <a href="https://github.com/erich666/Mineways/blob/master/cycles_mineways.py">cycles_mineways.py</a>, created by Jonathan Edelman.
+
 <UL>
-<LI>To the right of the "Help" menu in the upper left, click on the "keys" icon next to the word "Default" and pick "Scripting".
-<LI>At the bottom of the gray window you'll see a menu "Text"; click it and select "Open Text Block". Go to the directory where "blender_mineways.py" is and select it. You should now see some text in the gray window.
-<LI>To apply this script, click on the "Run Script" button at the bottom right of the text window.
-</UL>
-If you want to see that the script did something, from the upper left select "Window" and "Toggle System Console". If you don't have a "Window" menu item between "Render" and "Help", you have an older version of Blender and should consider updating. This menu item pops up a console window. It isn't critical to see this window, but gives you a warm and fuzzy feeling that the script has worked.
+<LI>
+<b>blender_mineways.py method:</b> (or see videos by <a href="http://www.youtube.com/watch?v=X41QQqCib3A&t=6m29s">Nicky</a> or <a href="http://www.youtube.com/watch?v=hb906Xzh7dQ&t=1m36s">Wyatt</a>).
 <P>
-If you do use the script, skip the next few steps - they're done for you - and go to step #10 for more about using Blender. If the script isn't working for you or you'd rather do a lot of work by hand, what follows are the step-by-step instructions for setting each material.
+To the right of the "Help" menu in the upper left, click on the "keys" icon next to the word "Default" and pick "Scripting".
 <P>
-<I>9a) Fixing transparency:</I> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
+At the bottom of the gray window you'll see a menu "Text"; click it and select "Open Text Block". Go to the directory where "blender_mineways.py" is and select it. You should now see some text in the gray window.
+<P>
+To apply this script, click on the "Run Script" button at the bottom right of the text window.
+<P>
+If you want to see that the script did something, from the upper left select "Window" and "Toggle System Console". If you don't have a "Window" menu item between "Render" and "Help", you have an older version of Blender and should consider updating. This menu item pops up a console window showing what the script did. It isn't critical to see this window, but gives you a warm and fuzzy feeling that the script has worked. Hit F12 to see the result.
+<LI>
+<b>cycles_mineways.py method:</b>
+Cycles is a high-quality renderer for Blender. To use Cycles instead of Blender's default renderer, simply click on "Blender Render" in the middle of the top edge of the application and choose "Cycles Render".
+<P>
+To use the cycles_mineways.py script, first edit the script in a text editor. You need to change just one word, the PREFIX value listed in the CONSTANTS section, around line 36. Change "sampler" to whatever your save file name is. For example, if your export file is castle.obj, then change the line to this:
+<PRE>
+PREFIX="castle"
+</PRE>
+Save the file.
+Alternately, you could save your model to sampler.obj, as that's the name used in cycles_mineways.py.
+<P>
+At this point you then do exactly the same procedure as described for blender_mineways.py above, but loading this cycles_mineways.py script instead. Hit F12 to see the result.
+<P>
+Note: this script is in development, so please do contribute and make it better! Water, for example, needs work.
+<LI>
+<b>manual method:</b>
+If either script is not working for you or you'd rather do a lot of work by hand, what follows are the step-by-step instructions for setting each material manually.
+<P>
+<I>Fixing transparency:</I> Flowers, torches, glass, etc. will look bad. Look in the upper right at the Scene tree area. Select the first mesh in the list, then pick the Textures icon from the list below, then pick the "Show Material Textures" icon from the set of three icons below that:
 <P id="blenderImgs">
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr.jpg">
+<P>
+If only a Kd texture is listed, go to the next mesh in the Scene tree at the top (by clicking on it). If there is also a D texture (outlined in green above), uncheck the box for this texture. 
+<P>
 <img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr2.jpg">
 <P>
-If only a Kd texture is listed, go to the next mesh in the Scene tree at the top (by clicking on it). If there is also a D texture (outlined in green above), uncheck the box for this texture. Then click on the texture just above the "D" texture, it starts with "Kd". Once selected, scroll down to the "Influence" section and open it up. Under "Diffuse:" check the "Alpha: 1.000" box to enable it. Now cutouts should display correctly when rendered (but will still look bad in the interactive scene). You will need to do this for every mesh, unless you exported just one material as I suggested at the start, in which case you're done!
+Then click on the texture just above the "D" texture, it starts with "Kd". Once selected, scroll down to the "Influence" section and open it up. Under "Diffuse:" check the "Alpha: 1.000" box to enable it.
 <P>
-<i>9b) Fixing shadows:</i> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_txr_influence.jpg">
 <P>
-<i>9c) Blocky textures:</i> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I> You may also find that turning off MIP Map", above "Interpolation", can help avoid line artifacts between distant grass blocks. However, mipmapping is useful to avoid crawlies during animation.
+Now cutouts should display correctly when rendered (but will still look bad in the interactive scene). You will need to do this for every mesh, unless you exported just one material as I suggested at the start, in which case you're done!
 <P>
-<i>9d) Water:</i> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder: Select the Material icon:<BR>
+<i>Fixing shadows:</i> Now for <i>every</I> mesh select the Material icon (to the left of the Textures icon), and under "Shadow" at the bottom you need to click "receive transparent". Again, if you exported just one material, editing one mesh will change this material for all meshes.
+<P>
+<i>Blocky textures:</i> If you want the blocky look for textures, select the mesh, select the Texture icon, and under Image Sampling uncheck the "Interpolation" box. Just below the "Interpolation" box you'll see a number of filter types, "EWA" by default. Select "Box". As usual, you'll need to do this for every texture. <I>(Hats off to Richard Remmelink for figuring this out.)</I> You may also find that turning off MIP Map", above "Interpolation", can help avoid line artifacts between distant grass blocks. However, mipmapping is useful to avoid crawlies during animation.
+<P>
+<i>Water:</i> this often looks a little weak by default, you can make it better (you'll need to have a separate material for the water). Select the water by right-clicking on it in the scene. This from Milenco Mulder:<BR>
+Select the Material icon:<BR>
 Transparency: Fresnel = 2, Blend = 1.25 (the default)<BR>
 Optional is to select "Raytrace" and IOR = 1.33, though ray tracing appears to sometimes create artifacts<BR>
 Mirror: check this checkbox, then Fresnel = 2, Blend = 1.25 (the default), Gloss = 0.96<BR>
 Select the Texture icon:<BR>
 Influence: Color = 0.8, alpha = 1.0 (the default), select checkbox Mirror = 0.3, select checkbox Normal = 0.05<BR>
 At the bottom of the Influence section there's a list under Bump Mapping of Metho [sic], choose "Best Quality".<BR>
+</UL>
+<P>
+<b>9) Camera:</b> Go back to the interactive view by hitting "F11". Move your view around with the middle mouse button. You can rotate by dragging with middle-mouse, or hold down shift and you'll pan, or hold down control and you'll dolly. Once you like the view, click Control-Alt-Numpad 0 to set the camera to your view. If you always want your current view to show what is rendered, while in interactive mode select "View" (in the lower left), "Properties", and under the View area select "Lock Camera to View".
+If you found the right angle and perspective for your camera, you can fine tune a couple of parameters in the camera menu. This can be found by first selecting the Camera object from the list of objects in the upper right, then clicking the small film-camera (not the photo camera) symbol just below the list of objects, towards the right. When you click it, a section called "lens" should appear. You can set the "Shift" of the X and Y axis, as well as the focal length of the camera.
+<P>
+<img src="http://realtimerendering.com/erich/minecraft/public/mineways/images/blender_camera.jpg">
+<P>
+If you are happy with your results, you can select "Image | Save as Image" from the menu near the left bottom of the screen, or hit F3.
 <P>
 <b>10) Ambient lighting:</b> In order to achieve a more even lighting of your scene, select the "world" icon in the menu bar where you also found the camera and the lamp settings (i.e., just below the object list). Turn on the "Ambient Occlusion" checkbox in the parameter list below. Play with the "Factor" value in this section, I like something between 0.25-0.5. In this menu, you can also set the background of your scene in the "World" section. Pick the "Real Sky" option and set horizon and zenith colors as you wish.
 <P>
@@ -1879,7 +1911,8 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 4.08, 10/22/2014 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV408.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac408.zip">Mac 32-bit only</a> - Major Mac version fix: worlds and terrainExt.png texture file is now found properly. Wall banners now display (with no pattern or color). Added normal per vertex for OBJ and fixed it for STL output, so that the GLC Player can display models better. Fixed vine and anvil normals. More object names are now displayed. Fixed color schemes so that old color schemes update properly to 1.8 format. Minor fixes to a few biome temperatures. Converted code's tabs to spaces for easier Github viewing.
 <LI>Version 4.09, 1/6/2015 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV409.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac409.zip">Mac 32-bit only</a> - Fixed stairs output to obey all Minecraft rules (<i>thanks to James Ward for reporting this</i>). Fixed carpets, snow, and other thin covers to export properly as lesser blocks for 3D printing (<i>thanks to Justin F. for reporting this</i>). Fixed output of cocoa plant pods. Made objects all watertight when exporting using the lesser blocks option. Made the individual blocks option work for all blocks. Hollowing is now off by default for STL export, as home printers usually don't want to use this operation. Changed OBJ material output to use a white color when a texture is output, since these two elements are multiplied together for GLC display. Improved error messages, especially for reading PNGs. Updated to Shapeways' new cost scheme for white plastic prints; mine is an approximation of their complex algorithm, but gets fairly close. Synced to latest Shapeways constraint data. Added popular block texture names as alternate tile names to TileMaker by using the '-a' option, and give better diagnostics about unrecognized tile names.
 <LI>Version 4.10, 5/22/2015 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV410.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fixed initial view for some worlds, where spawn point was not being read in correctly (<I>thanks to Bob Irving for reporting this</i>). Fixed code to avoid infinite loop when modded world data is encountered (<I>thanks to Julian Drawdy for reporting this</i>).
-<LI>Version 4.11, 7/18/2015 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV411.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Fixed serious bug in STL export, where "individual blocks" was always being flagged as on; this causes uploaded models to look "skeletal." Improve Mac error for unassigned terrainExt.png file, explaining what to do next.
+<LI>Version 4.11, 7/18/2015 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV411.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac411.zip">Mac 32-bit only</a> - Fixed serious bug in STL export, where "individual blocks" was always being flagged as on; this causes uploaded models to look "skeletal." Improve Mac error for unassigned terrainExt.png file, explaining what to do next.
+<LI>Version 4.12, 9/10/2015 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV412.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added cycles_mineways.py script to set materials for Blender's Cycles renderer (thanks to Jonathan Edelman for this script), and updated documentation. Improved water export for printing, so that surface is manifold. Lengthened the "unassigned terrainExt.png" error message yet again, to help people out.
 
 </UL>
 
@@ -1888,7 +1921,7 @@ This is my own wishlist, in order of interest; if you have a good idea, <a href=
 <UL>
 <LI>Biome support: get biome color and use it to change terrain's output color. 50% done, as the biome at the center of the export can be used. The hard part is blending (and saving all the resulting textures) at biome margins.
 <LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
-<LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender -> Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render. Worth contemplating.
+<LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render. Worth contemplating.
 <LI>Head, sign, and banner support (among others), which means that <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity support</a> is needed.
 <LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks a breeze, as well as letting users make their own custom block descriptions.
 <LI>Full "lesser" block merging: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together. Some software does poorly - Shapeways messes up textures, Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.

@@ -6268,7 +6268,7 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, int r
     }
 
     // check for easy case: if neighbor is a full block, neighbor covers all, so return 1
-    // (or, for printing, return 1 if the block being covered exactly matches)
+    // (or, for printing, return 1 if the block being covered *exactly* matches)
     type = gBoxData[boxIndex].type;
     neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
     neighborType = gBoxData[neighborBoxIndex].type;
@@ -9824,9 +9824,9 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
         // Is our block a fluid?
         if ( type >= BLOCK_WATER && type <= BLOCK_STATIONARY_LAVA )
         {
-            //// Check if rendering
-            //if ( view3D )
-            //{
+            // Check if rendering
+            if ( view3D )
+            {
                 // At this point we know that the face is "covered" by the neighbor in some way.
                 // Side and bottom block faces should not be output. All that's left is the top.
                 // For rendering, if we're not outputting full blocks and the top of the fluid is
@@ -9836,18 +9836,18 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                     // output the top face, as the fluid block doesn't fill its volume.
                     return 1;
                 }
-            //}
-            //else
-            //{
-            //    assert( testPartial );
-            //    // we're 3D printing and we're outputting partial, so we want to output all liquid faces
-            //    // so that the fluid volume is watertight (as it were...). In this case we simply need to
-            //    // test neighbors: if it isn't the same fluid, then the face must be output.
-            //    if ( !sameFluid(type, neighborType) )
-            //    {
-            //        return 1;
-            //    }
-            //}
+            }
+            else
+            {
+                assert( testPartial );
+                // we're 3D printing and we're outputting partial, so we want to output all liquid faces
+                // so that the fluid volume is watertight (as it were...). In this case we simply need to
+                // test neighbors: if it isn't the same fluid, then the face must be output.
+                if ( !sameFluid(type, neighborType) )
+                {
+                    return 1;
+                }
+            }
         }
         // Faces that are left to test at this point: full block faces, and partial faces for rendered fluids.
         // These are assumed to be fully hidden by the neighbor *unless* the neighbor is lava or water, in which case
