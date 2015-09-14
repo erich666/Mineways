@@ -1,6 +1,6 @@
 # Cycles Mineways setup
 # Created by Jonathan Edelman
-# Version 1.1.1, 9/13/15
+# Version 1.1.2, 9/13/15
 # Copyright © 2015 Jonathan Edelman
 # Please send suggestions or report bugs at jonathanedelman@mail.com
 # This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation under version 3 of the License.
