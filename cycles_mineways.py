@@ -56,12 +56,12 @@ TIME_OF_DAY=float(12.00)
 #Decide if  lava is animated
 LAVA_ANIMATION=False
 
-#List of transparent blocks
-transparentBlocks=["Acacia_Door","Acacia_Leaves","Activator_Rail","Bed","Birch_Door","Brewing_Stand","Brown_Mushroom","Cactus","Carrot","Cauldron","Cobweb","Cocoa","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jungle_Door","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Powered_Rail","Pumpkin_Stem","Rail","Red_Mushroom","Redstone_Comparator_(off)","Redstone_Repeater_(off)","Redstone_Torch_(off)","Spruce_Door","Stained_Glass","Sugar_Cane","Sunflower","Trapdoor","Vines","Wheat","Wooden_Door"]
-#List of light emitting blocks
-lightBlocks=["End Rod","End_Portal","Ender_Chest","Flowing_Lava","Glowstone","Jack_o'Lantern","Nether_Portal","Redstone_Lamp_(on)","Sea_Lantern","Stationary_Lava"]
-#List of light emitting and transparent block
-lightTransparentBlocks=["Beacon","Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Repeater_(on)","Redstone_Torch_(on)","Torch"]
+#List of transparent blocks; old names for blocks are at the end of the list
+transparentBlocks=["Acacia_Door","Acacia_Leaves","Activator_Rail","Bed","Birch_Door","Brewing_Stand","Brown_Mushroom","Cactus","Carrot","Cauldron","Cobweb","Cocoa","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jungle_Door","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Powered_Rail","Pumpkin_Stem","Rail","Red_Mushroom","Redstone_Comparator_(off)","Redstone_Repeater_(off)","Redstone_Torch_(off)","Spruce_Door","Stained_Glass","Sugar_Cane","Sunflower","Trapdoor","Vines","Wheat","Wooden_Door","Acacia/Dark_Oak_Leaves","Carrots","Crops","Large_Flower","Leaves","Potatoes","Repeater_(off)","Sapling","Tall_Grass"]
+#List of light emitting blocks; old names for blocks are at the end of the list
+lightBlocks=["End_Rod","End_Portal","Ender_Chest","Glowstone","Jack_o'Lantern","Lava","Nether_Portal","Redstone_Lamp_(on)","Sea_Lantern","Stationary_Lava","Flowing_Lava"]
+#List of light emitting and transparent block; old name for repeater block is at the end of the list
+lightTransparentBlocks=["Beacon","Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Repeater_(on)","Redstone_Torch_(on)","Torch","Repeater_(on)"]
 
 
 #SHADERS
