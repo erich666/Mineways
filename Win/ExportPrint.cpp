@@ -508,7 +508,7 @@ ChangeMaterial:
             // if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
             if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_CHECKED && (epd.flags & EXPT_3DPRINT))
             {
-                MessageBox( NULL, _T("Warning: this checkbox allows very small features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - are very likely to snap off during manufacture. Fattened versions of these objects are used by default, but even these can easily break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Basically: be careful!"),
+                MessageBox( NULL, _T("Warning: this checkbox allows very small features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - are very likely to snap off during manufacture. Fattened versions of these objects are used by default, but even these can easily break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have T-vertices and other elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with netfabb basic or other software. No guarantees!"),
                     _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 CheckDlgButton(hDlg,IDC_FATTEN,BST_CHECKED);
                 CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_UNCHECKED);

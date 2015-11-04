@@ -34,6 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "ObjFileManip.h"
 #include "nbt.h"
 #include "region.h"
+#include "terrainExtData.h"
 
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 // Windows Header Files:

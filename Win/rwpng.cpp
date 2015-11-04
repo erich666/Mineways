@@ -65,7 +65,7 @@ int readpng(progimage_info *im, wchar_t *filename)
 
 void readpng_cleanup(int mode, progimage_info *im)
 {
-    // was important back when libpng was in use
+    // mode was important back when libpng was in use
     if ( mode == 1 )
     {
         im->image_data.clear();

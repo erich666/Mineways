@@ -662,7 +662,9 @@ static int tileIsOpaque(progimage_info *src, int col, int row);
 static void setColorPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info *dst, int swatchIndex, float startStretch);
 static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int tileSize, progimage_info *src, int src_x, int src_y);
+#ifdef _DEBUG
 static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize );
+#endif
 static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned int value);
 static void addNoisePNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a, float noise );
 static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a );
@@ -1343,55 +1345,134 @@ static int initializeModelData()
     return MW_NO_ERROR;
 }
 
-static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *selectedTerrainFileName )
+static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t *selectedTerrainFileName )
 {
     // file should be in same directory as .exe, sort of
     wchar_t defaultTerrainFileName[MAX_PATH];
     int rc=0;
-    static int markTiles = 0;	// to put R on each tile for debugging, set to 1
-    int row, col;
 
     if ( wcslen(selectedTerrainFileName) > 0 )
     {
-        rc = readpng(pII,selectedTerrainFileName);
-        if ( rc )
-            return (MW_CANNOT_READ_SELECTED_TERRAIN_FILE|(rc<<MW_NUM_CODES));
+        rc = readpng(pITI,selectedTerrainFileName);
     }
     else
     {
-        // really, we shouldn't ever hit this branch, as the terrain file name is now always set
-        // at the start.
+        // Really, we shouldn't ever hit this branch, as the terrain file name is now always set
+        // at the start. Left just in case...
         concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
-        rc = readpng(pII,defaultTerrainFileName);
-        if ( rc )
-            return (MW_CANNOT_READ_DEFAULT_TERRAIN_FILE|(rc<<MW_NUM_CODES));
+        rc = readpng(pITI,defaultTerrainFileName);
     }
 
-    if ( pII->width > pII->height )
+    // test if terrainExt.png file does not exist
+    if ( rc == 48 )
+    {
+        //FILE DOESN'T EXIST - read memory file, setting all fields
+        pITI->width = gTerrainExtWidth;
+        pITI->height = gTerrainExtHeight;
+        pITI->image_data.insert(pITI->image_data.end(), &gTerrainExt[0], &gTerrainExt[gTerrainExtWidth*gTerrainExtHeight*4]);
+    }
+    else if ( rc )
+    {
+        // Some other error, so we need to quit. We *could* read the internal memory terrainExt.png instead,
+        // but that would hide any problems encountered with the terrainExt.png that does exist but is invalid. 
+        return (MW_CANNOT_READ_SELECTED_TERRAIN_FILE|(rc<<MW_NUM_CODES));
+    }
+
+    if ( pITI->width > pITI->height )
         return MW_NEED_16_ROWS;
 
     // is width >= 16 and evenly dividable by 16?
-    if ( (pII->width < 16) || ((pII->width % 16) > 0) )
+    if ( (pITI->width < 16) || ((pITI->width % 16) > 0) )
         return MW_IMAGE_WRONG_WIDTH;
 
     // check that height is divisible by tile size
-    if ( (pII->height % (pII->width / 16)) != 0 )
+    if ( (pITI->height % (pITI->width / 16)) != 0 )
         return MW_IMAGE_WRONG_WIDTH;
 
     gModel.tileSize = gModel.pInputTerrainImage->width/16;
     // note vertical tile limit for texture. We will save all these tiles away.
     gModel.verticalTiles = gModel.pInputTerrainImage->height/gModel.tileSize;
 
+#ifdef _DEBUG
+    static int markTiles = 0;	// to put R on each tile for debugging, set to 1
     if ( markTiles )
     {
+        int row, col;
         for ( row = 0; row < gModel.verticalTiles; row++ )
         {
             for ( col = 0; col < 16; col++ )
             {
-                drawPNGTileLetterR( pII, row, col, pII->width/16 );
+                drawPNGTileLetterR( pITI, row, col, pITI->width/16 );
             }
         }
     }
+
+    // If true, dump terrainExt.png file to code files terrainExt.h and terrainExt.cpp.
+    // Meant to run once whenever a new TerrainExt.png is made.
+    static bool outputPNG = false;
+    if (outputPNG)
+    {
+#ifdef WIN32
+        DWORD br;
+#endif
+        char outputString[MAX_PATH];
+        int size = 4 * pITI->width * pITI->height;
+
+        wchar_t codeFileNameWithSuffix[MAX_PATH];
+        concatFileName3(codeFileNameWithSuffix,gOutputFilePath,gOutputFileRoot,L".h");
+
+        // create the Wavefront OBJ file
+        //DeleteFile(codeFileNameWithSuffix);
+        static PORTAFILE outFile=PortaCreate(codeFileNameWithSuffix);
+        if (outFile != INVALID_HANDLE_VALUE)
+        {
+            sprintf_s(outputString,256,"#ifndef __TERRAINEXTDATA_H__\n#define __TERRAINEXTDATA_H__\n\n" );
+            WERROR(PortaWrite(outFile, outputString, strlen(outputString) ));
+            sprintf_s(outputString,256,"extern int gTerrainExtWidth;\nextern int gTerrainExtHeight;\nextern unsigned char gTerrainExt[%d];\n\n#endif\n", size );
+            WERROR(PortaWrite(outFile, outputString, strlen(outputString) ));
+            PortaClose(outFile);
+
+            concatFileName3(codeFileNameWithSuffix,gOutputFilePath,gOutputFileRoot,L".cpp");
+            static PORTAFILE outFile=PortaCreate(codeFileNameWithSuffix);
+            if (outFile != INVALID_HANDLE_VALUE)
+            {
+                sprintf_s(outputString,256,"#include \"stdafx.h\"\n\nint gTerrainExtWidth = %d;\nint gTerrainExtHeight = %d;\n\nunsigned char gTerrainExt[] = {\n", pITI->width, pITI->height );
+                WERROR(PortaWrite(outFile, outputString, strlen(outputString) ));
+
+                // dump the data
+                for ( int i = 0; i < size/16; i++ )
+                {
+                    unsigned char *p = &pITI->image_data[i*16];
+                    if ( i < (size/16)-1 )
+                    {
+                        // comma at end
+                        sprintf_s(outputString,256,"%d,%d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d,\n",
+                            *p, *(p+1), *(p+2), *(p+3),
+                            *(p+4), *(p+5), *(p+6), *(p+7),
+                            *(p+8), *(p+9), *(p+10), *(p+11),
+                            *(p+12), *(p+13), *(p+14), *(p+15)
+                            );
+                    }
+                    else
+                    {
+                        // no comma, since it's the last line.
+                        sprintf_s(outputString,256,"%d,%d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d, %d,%d,%d,%d\n",
+                            *p, *(p+1), *(p+2), *(p+3),
+                            *(p+4), *(p+5), *(p+6), *(p+7),
+                            *(p+8), *(p+9), *(p+10), *(p+11),
+                            *(p+12), *(p+13), *(p+14), *(p+15)
+                            );
+                    }
+                    WERROR(PortaWrite(outFile, outputString, strlen(outputString) ));
+                }
+
+                sprintf_s(outputString,256,"};\n" );
+                WERROR(PortaWrite(outFile, outputString, strlen(outputString) ));
+                PortaClose(outFile);
+            }
+        }
+    }
+#endif
 
     return MW_NO_ERROR;
 }
@@ -4162,10 +4243,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // outside bottom
         if ( !gPrint3D || (dataVal == 0x0) )
         {
-            // show inside bottom if rendering OR printing and cauldron is empty
-            // outside bottom - only when not printing, as otherwise it's invisible and not needed
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(gPrint3D?DIR_BOTTOM_BIT:0x0), 0, 
-                0, 16, 3, 6, 0, 16 );
+            // show smaller inside bottom if cauldron is empty
+            saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+                2, 14, 3, 6, 2, 14 );
+
+            if ( !gPrint3D ) {
+                // outside bottom, above the cutout legs - only when not printing, as otherwise it's invisible and not needed
+                saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 
+                    0, 16, 3, 6, 0, 16 );
+            }
         }
 
         if ( dataVal > 0 && dataVal < 4 )
@@ -4343,26 +4429,27 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
         }
 
-        // outsides
+        // the four outside walls
         saveBoxGeometry( boxIndex, type, firstFace, DIR_TOP_BIT|DIR_BOTTOM_BIT, 5,11, 0,6, 5,11 );
-        // top as 4 small faces, and corresponding inside faces
+
+        // 4 top edge faces and insides, if visible
         saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
-            10,11,  4,6,  5,11 );
+            10,11,  4,6,   6,10 );
         saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_X_BIT),
-            5,6,  4,6,  5,11 );
+            5,6,    4,6,   6,10 );
         saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_Z_BIT),
-            6,10,  4,6,  10,11 );
+            6,10,   4,6,  10,11 );
         saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_Z_BIT),
-            6,10,  4,6,  5,6 );
-        // corners
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+            6,10,   4,6,   5,6 );
+        // top corners
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             5,6,  4,6,  5,6 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             5,6,  4,6,  10,11 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             10,11,  4,6,  5,6 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
-            10,11,  4,6,  5,6 );
+        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
+            10,11,  4,6, 10,11 );
 
         // inside bottom
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_DIRT].txrX, gBlockDefinitions[BLOCK_DIRT].txrY );
@@ -15977,6 +16064,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int tileSize,
     copyPNGArea(dst, dst_x*tileSize, dst_y*tileSize, tileSize, tileSize, src, src_x*tileSize, src_y*tileSize );
 }
 
+#ifdef _DEBUG
 static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize )
 {
     int row[12] = {1,1,1,2,2,3,3,3,4,4,5,5};
@@ -15989,6 +16077,8 @@ static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize 
         *di = 0xffff00ff;
     }
 }
+#endif
+
 static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned int value)
 {
     int row, col;

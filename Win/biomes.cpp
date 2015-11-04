@@ -30,6 +30,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "biomes.h"
 
 Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
+    //    ID    Name             Temperature, rainfall, grass, foliage colors
+    //                                                  - note: the colors here are just placeholders, they are computed in the program
     { /*   0 */ "Ocean",					0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain
     { /*   1 */ "Plains",					0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*   2 */ "Desert",					2.0f, 0.0f, 0x92BD59, 0x77AB2F },
@@ -157,7 +159,7 @@ Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
     { /* 124 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 125 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 126 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-    { /* 127 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /* 127 */ "The Void",            		0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 128 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 129 */ "Sunflower Plains",			0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 130 */ "Desert M",					2.0f, 0.0f, 0x92BD59, 0x77AB2F },
@@ -309,6 +311,7 @@ static BiomeCorner foliageCorners[3] =
     {  26, 191,  0 }	// upper left
 };
 
+// NOTE: elevation is number of meters above a height of 64. If elevation is < 64, pass in 0.
 int BiomeColor( float temperature, float rainfall, int elevation, BiomeCorner corners[3] )
 {
     // get UVs
@@ -360,7 +363,7 @@ void PrecomputeBiomeColors()
 }
 
 // elevation == 0 means for precomputed colors and for elevation off
-// or 64 high or below.
+// or 64 high or below. 
 int ComputeBiomeColor( int biome, int elevation, int isGrass )
 {
     int color;
