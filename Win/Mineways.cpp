@@ -191,7 +191,6 @@ static void syncCurrentHighlightDepth();
 static void copyOverExportPrintData( ExportFileData *pEFD );
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog );
 static void PopupErrorDialogs( int errCode );
-static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber );
 static const wchar_t *removePath( const wchar_t *src );
 static void initializeExportDialogData();
 static int importSettings( wchar_t *importFile );
@@ -199,6 +198,7 @@ static int readLineSet( FILE *fh, char lines[HEADER_LINES][120], int maxLine );
 static int readLine( FILE *fh, char *inputString, int stringLength );
 static int findLine( char *checkString, char lines[HEADER_LINES][120], int startLine, int maxLines );
 static void formTitle(wchar_t *world, wchar_t *title);
+//static void checkUpdate( HINSTANCE hInstance );
 
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
@@ -237,16 +237,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
 
     // get version info
-    GetAppVersion( _T("mineways.exe"), &gMajorVersion, &gMinorVersion, &gBuildNumber, &gRevisionNumber );
-
-    // Being ignorant, I don't know where this tidbit would go, to set the version number into the About box: TODO
-    //{
-    //	TCHAR strVersion[100];
-    //	swprintf(strVersion,100,_T("V%hu.%hu"),gMajorVersion,gMinorVersion);
-    //	HWND hWndAppStatic = GetDlgItem (hDlg,IDC_STATIC_VERSION);
-    //	if (hWndAppStatic)
-    //		SetWindowText(hWndAppStatic,strVersion);
-    //}
+    gMajorVersion = MINEWAYS_MAJOR_VERSION;
+    gMinorVersion = MINEWAYS_MINOR_VERSION;
 
     // One-time initialization for mapping and object export
     // set the pcolors properly once. They'll change from color schemes.
@@ -1542,6 +1534,9 @@ InitEnable:
             UpdateWindow(hWnd);
             break;
         case IDM_SHOWALLOBJECTS:
+            // TODO: super-minor bug: if mouse does not move when you turn all objects on, the
+            // status bar will continue to list the object there before toggling, e.g. if a wall
+            // sign was shown and you toggle Show All Objects off, the wall sign status will still be there.
             gOptions.worldType^=SHOWALL;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
             draw();
@@ -2839,38 +2834,6 @@ static void PopupErrorDialogs( int errCode )
     }
 }
 
-static BOOL GetAppVersion( TCHAR *LibName, WORD *MajorVersion, WORD *MinorVersion, WORD *BuildNumber, WORD *RevisionNumber )
-{
-    DWORD dwHandle, dwLen;
-    UINT BufLen;
-    LPTSTR lpData;
-    VS_FIXEDFILEINFO *pFileInfo;
-    dwLen = GetFileVersionInfoSize( LibName, &dwHandle );
-    if (!dwLen) 
-        return FALSE;
-
-    lpData = (LPTSTR) malloc (dwLen);
-    if (!lpData) 
-        return FALSE;
-
-    if( !GetFileVersionInfo( LibName, dwHandle, dwLen, lpData ) )
-    {
-        free (lpData);
-        return FALSE;
-    }
-    if( VerQueryValue( lpData, _T("\\"), (LPVOID *) &pFileInfo, (PUINT)&BufLen ) ) 
-    {
-        *MajorVersion = HIWORD(pFileInfo->dwFileVersionMS);
-        *MinorVersion = LOWORD(pFileInfo->dwFileVersionMS);
-        *BuildNumber = HIWORD(pFileInfo->dwFileVersionLS);
-        *RevisionNumber = LOWORD(pFileInfo->dwFileVersionLS);
-        free (lpData);
-        return TRUE;
-    }
-    free (lpData);
-    return FALSE;
-}
-
 // yes, this it totally lame, copying code from MinewaysMap
 static const wchar_t *removePath( const wchar_t *src )
 {
@@ -2937,6 +2900,8 @@ static void initializeExportDialogData()
     gExportPrintData.chkFatten = 0; 
     gExportPrintData.chkIndividualBlocks = 0;
     gExportPrintData.chkBiome = 0;
+    gExportPrintData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
+    gExportPrintData.chkLeavesSolid = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold 
 
     gExportPrintData.radioRotate0 = 1;
 
@@ -3030,6 +2995,8 @@ static void initializeExportDialogData()
     INIT_ALL_FILE_TYPES( gExportViewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
     gExportViewData.chkG3DMaterial = 0;
+    gExportViewData.chkBlockFacesAtBorders = 1;
+    gExportViewData.chkLeavesSolid = 0;
 
     gExportViewData.floaterCountVal = 16;
     // irrelevant for viewing
@@ -3377,6 +3344,29 @@ static int importSettings( wchar_t *importFile )
         }
     }
 
+    // these next two are read in only if we're rendering; avoid reading in if 3D printing
+    if ( !(efd.flags & EXPT_3DPRINT) )
+    {
+        lineNo = findLine( "# Make tree leaves solid:", lines, 0, 40 );
+        if ( lineNo >= 0)
+        {
+            if ( !sscanf_s( lines[lineNo], "# Make tree leaves solid: %s", string1, _countof(string1) ) )
+                return MW_CANNOT_PARSE_IMPORT_FILE;
+
+            efd.chkLeavesSolid = ( string1[0] == 'Y');
+        }
+        // new feature - if missing, assume it's off, but don't fail
+
+        lineNo = findLine( "# Create block faces at the borders:", lines, 0, 40 );
+        if ( lineNo >= 0)
+        {
+            if ( !sscanf_s( lines[lineNo], "# Create block faces at the borders: %s", string1, _countof(string1) ) )
+                return MW_CANNOT_PARSE_IMPORT_FILE;
+
+            efd.chkBlockFacesAtBorders = ( string1[0] == 'Y');
+        }
+        // new feature - if missing, assume it's off, but don't fail
+    }
 
     lineNo = findLine( "# Individual blocks:", lines, 0, 40 );
     if ( lineNo >= 0)
@@ -3698,3 +3688,64 @@ static void formTitle(wchar_t *world, wchar_t *title)
         wcscat_s( title, MAX_PATH-1, lastSplit );
     }
 }
+
+// internet check - sadly, does not link under x64. See stdafx.h for includes and for link errors
+// The update.txt file consists of this line:
+// 4 14 http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html
+// version, version sub, and URL for where to update
+//static void checkUpdate(HINSTANCE /*hInstance*/)
+/*
+{
+    // We could just check this once a week or similar, but nah, check every time and let the user know.
+    // For more elaborate controls, see http://www.codeproject.com/Articles/5415/Simple-update-check-function
+    // This code is derived from that code, which didn't work with wchar_t.
+
+    // get versions from file on website, compare with:
+    HINTERNET hInet = InternetOpen(_T("Update search"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, NULL);
+    HINTERNET hUrl = InternetOpenUrl(hInet, _T("http://www.realtimerendering.com/erich/minecraft/public/mineways/update.txt"), NULL, (DWORD)-1L,
+        INTERNET_FLAG_RELOAD | INTERNET_FLAG_PRAGMA_NOCACHE |
+        INTERNET_FLAG_NO_CACHE_WRITE |WININET_API_FLAG_ASYNC, NULL);
+
+    if (hUrl)
+    {
+        //wchar_t szBuffer[512];
+        char szBuffer[512];
+        DWORD dwRead;
+        if (InternetReadFile(hUrl, szBuffer, sizeof(szBuffer), &dwRead))
+        {
+            if (dwRead > 0)
+            {
+                // end the string
+                szBuffer[dwRead] = 0;
+                // we currently don't use the URL read in - it's normally the download location.
+                char url[512];
+                int major, minor;
+                int found = sscanf_s(szBuffer,"%d %d %s",&major,&minor,url,_countof(url));
+                if ( found == 3 )
+                {
+                    if ( major > gMajorVersion || (major == gMajorVersion && minor > gMinorVersion) )
+                    {
+                        wchar_t msgString[1024];
+                        swprintf_s( msgString, 1024, L"You currently use version %d.%d of this program. A newer version %d.%d is available at http://mineways.com.",
+                                (int)gMajorVersion, (int)gMinorVersion, major, minor );
+                        MessageBox( NULL, msgString,
+                            _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                        // Note: we could send the user to http://mineways.com, but then the program could be binary modified to send them to another site.
+                        // Keep it simple, just warn them.
+                    }
+                    //else
+                    //MsgUpdateNotAvailable(dwMS, dwLS);
+                }
+            }
+            //else
+                //MsgUpdateNoCheck(dwMS, dwLS);
+
+        }
+        InternetCloseHandle(hUrl);
+    }
+    else
+        //MsgUpdateNoCheck(dwMS, dwLS);
+
+    InternetCloseHandle(hInet);
+}
+*/

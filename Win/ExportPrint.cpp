@@ -112,13 +112,30 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES,epd.radioExportSolidTexture[epd.fileType]);
             CheckDlgButton(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES,epd.radioExportFullTexture[epd.fileType]);
 
+            // OBJ options: gray out if OBJ not in use
+            if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+            {
+                CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,epd.chkMultipleObjects);
+                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMultipleObjects?epd.chkMaterialPerType:BST_INDETERMINATE);
+                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,(epd.chkMultipleObjects && epd.chkMaterialPerType)?epd.chkG3DMaterial:BST_INDETERMINATE);
+            }
+            else
+            {
+                CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_INDETERMINATE);
+                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
+                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
+            }
+
             //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
-            CheckDlgButton(hDlg,IDC_EXPORT_ALL,epd.chkExportAll);
-            CheckDlgButton(hDlg,IDC_FATTEN,epd.chkExportAll?epd.chkFatten:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
             CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
-            CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,epd.chkIndividualBlocks);
-            CheckDlgButton(hDlg,IDC_BIOME,epd.chkBiome);
+            // these next two options are only available for rendering
+            CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkLeavesSolid);
+            CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkBlockFacesAtBorders);
+            // disallow biome color if full texture is off
+            CheckDlgButton(hDlg,IDC_BIOME,epd.radioExportFullTexture[epd.fileType]?epd.chkBiome:BST_INDETERMINATE);
+            // turn off individual blocks if 3D printing - you never want to do this
+            CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkIndividualBlocks);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -141,38 +158,22 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_CONNECT_PARTS,epd.chkConnectParts);
             CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,epd.chkConnectParts?epd.chkConnectCornerTips:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,epd.chkConnectParts?epd.chkConnectAllEdges:BST_INDETERMINATE);
+
             CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,epd.chkDeleteFloaters);
             CheckDlgButton(hDlg,IDC_HOLLOW,epd.chkHollow[epd.fileType]);
             CheckDlgButton(hDlg,IDC_SUPER_HOLLOW,epd.chkHollow[epd.fileType]?epd.chkSuperHollow[epd.fileType]:BST_INDETERMINATE);
-            CheckDlgButton(hDlg,IDC_MELT_SNOW,epd.chkMeltSnow);
-
             SetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,epd.floaterCountString);
             SetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,epd.hollowThicknessString);
 
-            // OBJ options: gray out if OBJ not in use
-            if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-            {
-                CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,epd.chkMultipleObjects);
-                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMultipleObjects?epd.chkMaterialPerType:BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,(epd.chkMultipleObjects && epd.chkMaterialPerType)?epd.chkG3DMaterial:BST_INDETERMINATE);
-            }
-            else
-            {
-                CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
-            }
+            CheckDlgButton(hDlg,IDC_MELT_SNOW,epd.chkMeltSnow);
+
+            CheckDlgButton(hDlg,IDC_EXPORT_ALL,epd.chkExportAll);
+            CheckDlgButton(hDlg,IDC_FATTEN,epd.chkExportAll?epd.chkFatten:BST_INDETERMINATE);
 
             BOOL debugAvailable = !epd.radioExportNoMaterials[epd.fileType] && (epd.fileType != FILE_TYPE_ASCII_STL) && (epd.fileType != FILE_TYPE_SCHEMATIC);
 
             CheckDlgButton(hDlg,IDC_SHOW_PARTS,debugAvailable?epd.chkShowParts:BST_INDETERMINATE);
             CheckDlgButton(hDlg,IDC_SHOW_WELDS,debugAvailable?epd.chkShowWelds:BST_INDETERMINATE);
-
-            // disallow biome color if full texture is off
-            CheckDlgButton(hDlg,IDC_BIOME,epd.radioExportFullTexture[epd.fileType]?epd.chkBiome:BST_INDETERMINATE);
-
-            // turn off individual blocks if STL - not supported
-            CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS, !IS_STL ? epd.chkIndividualBlocks:BST_INDETERMINATE);
 
             // When handling INITDIALOG message, send the combo box a message:
             for ( int i = 0; i < MTL_COST_TABLE_SIZE; i++ )
@@ -369,7 +370,7 @@ ChangeMaterial:
             break;
         case IDC_INDIVIDUAL_BLOCKS:
             {
-                if ( IS_STL )
+                if ( epd.flags & EXPT_3DPRINT )
                 {
                     CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,BST_INDETERMINATE);
                 }
@@ -531,6 +532,35 @@ ChangeMaterial:
                     CheckDlgButton(hDlg,IDC_FATTEN,BST_INDETERMINATE);
             }
             break;
+
+        case IDC_TREE_LEAVES_SOLID:
+            // the indeterminate state is only for when the option is not available (i.e., 3d printing)
+            if ( epd.flags & EXPT_3DPRINT )
+            {
+                CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,BST_INDETERMINATE);
+            }
+            else
+            {
+                UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_TREE_LEAVES_SOLID) == BST_INDETERMINATE );
+                if ( isIndeterminate )
+                    CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,BST_UNCHECKED);
+            }
+            break;
+
+        case IDC_BLOCKS_AT_BORDERS:
+            // the indeterminate state is only for when the option is not available (i.e., 3d printing)
+            if ( epd.flags & EXPT_3DPRINT )
+            {
+                CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,BST_INDETERMINATE);
+            }
+            else
+            {
+                UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_BLOCKS_AT_BORDERS) == BST_INDETERMINATE );
+                if ( isIndeterminate )
+                    CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,BST_UNCHECKED);
+            }
+            break;
+
         case IDC_FATTEN:
             {
                 UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
@@ -656,14 +686,33 @@ ChangeMaterial:
                 lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES);
                 lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
 
+                // OBJ options
+                if ( lepd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || lepd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
+                {
+                    lepd.chkMultipleObjects = IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS);
+                    // if filling bubbles is off, sealing entrances does nothing at all
+                    if ( lepd.chkMultipleObjects )
+                    {
+                        // set value only if value above is "unlocked"
+                        lepd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
+                        if ( lepd.chkMaterialPerType )
+                        {
+                            // set value only if value above is "unlocked"
+                            lepd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
+                        }
+                    }
+                }
+
                 //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
-                lepd.chkExportAll = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
-                lepd.chkFatten = lepd.chkExportAll?IsDlgButtonChecked(hDlg,IDC_FATTEN) : 0;
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
                 lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
-                // STL should not be used with individual blocks, so turn it off
-                lepd.chkIndividualBlocks = !IS_STL ? IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS) : 0;
+
+                // solid leaves and faces at borders always true for 3D printing.
+                lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1: IsDlgButtonChecked(hDlg,IDC_TREE_LEAVES_SOLID);
+                lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1: IsDlgButtonChecked(hDlg,IDC_BLOCKS_AT_BORDERS);
                 lepd.chkBiome = IsDlgButtonChecked(hDlg,IDC_BIOME);
+                // 3D printing should never use this option.
+                lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0: IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
 
                 lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);
                 lepd.radioRotate90 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_90);
@@ -700,29 +749,15 @@ ChangeMaterial:
                 GetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,lepd.floaterCountString,EP_FIELD_LENGTH);
                 GetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,lepd.hollowThicknessString,EP_FIELD_LENGTH);
 
+                lepd.chkExportAll = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
+                lepd.chkFatten = lepd.chkExportAll?IsDlgButtonChecked(hDlg,IDC_FATTEN) : 0;
+
                 BOOL debugAvailable = !lepd.radioExportNoMaterials[lepd.fileType] && (lepd.fileType != FILE_TYPE_ASCII_STL);
                 lepd.chkShowParts = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_PARTS) : 0;
                 lepd.chkShowWelds = debugAvailable ? IsDlgButtonChecked(hDlg,IDC_SHOW_WELDS) : 0;
 
                 lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
                 lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);
-
-                // OBJ options
-                if ( lepd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || lepd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-                {
-                    lepd.chkMultipleObjects = IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS);
-                    // if filling bubbles is off, sealing entrances does nothing at all
-                    if ( lepd.chkMultipleObjects )
-                    {
-                        // set value only if value above is "unlocked"
-                        lepd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
-                        if ( lepd.chkMaterialPerType )
-                        {
-                            // set value only if value above is "unlocked"
-                            lepd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
-                        }
-                    }
-                }
 
                 int nc;
                 nc = sscanf_s(lepd.minxString,"%d",&lepd.minxVal);

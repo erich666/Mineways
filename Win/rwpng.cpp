@@ -38,7 +38,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // return 0 on success
 int readpng(progimage_info *im, wchar_t *filename)
 {
-    // TODOTODO need to switch to wifstream, etc.
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
 
@@ -113,7 +112,6 @@ int readpngheader(progimage_info *im, wchar_t *filename)
 // return 0 on success
 int writepng(progimage_info *im, int channels, wchar_t *filename)
 {
-    // TODOTODO need to switch to wifstream, etc.
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
 

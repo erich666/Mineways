@@ -290,8 +290,10 @@ typedef struct ExportFileData
     UINT chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
 
     UINT chkCenterModel;
-    UINT chkIndividualBlocks;
+    UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
+    UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
     UINT chkBiome;
+    UINT chkIndividualBlocks;
 
     UINT chkFillBubbles;
     UINT chkSealEntrances;

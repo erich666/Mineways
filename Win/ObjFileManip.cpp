@@ -51,10 +51,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // so figure out the normal at the end of the run.
 #define COMPUTE_NORMAL  -1
 
-// To build the code the old way, which took up a lot more memory but maybe
-// solves some problems people with Macs have running Mineways under Wine
-//#define OLD_BUILD
-
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
 static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
@@ -70,8 +66,8 @@ typedef struct BoxCell {
     int group;	// for 3D printing, what connected group a block is part of
     unsigned char type;
     unsigned char origType;
-    unsigned char flatFlags;	// top face's type, for "merged" snow, redstone, etc. in cell above
-    unsigned char data;     // extra data for block (wool color, etc.)
+    unsigned char flatFlags;	// pointer to which origType to use for face output, for "merged" snow, redstone, etc. in cell above
+    unsigned char data;     // extra data for block (wool color, etc.); note that four top bits are not used
 } BoxCell;
 
 typedef struct BoxGroup 
@@ -512,16 +508,23 @@ typedef struct TouchRecord {
 #define PNG_RGBA_SUFFIX L"-RGBA"
 #define PNG_ALPHA_SUFFIX L"-Alpha"
 
+// For clearing border blocks
+#define EDIT_MODE_CLEAR_TYPE                    0
+#define EDIT_MODE_CLEAR_ALL                     1
+#define EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES      2
+
+
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax );
 static int initializeModelData();
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
 static int populateBox(const wchar_t *world, IBox *box);
-#ifndef OLD_BUILD
 static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox );
-#endif
 static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
+static void modifySides( int editMode );
+static void modifySlab(int by, int editMode);
+static void editBlock( int x, int y, int z, int editMode );
 
 static int filterBox();
 static int computeFlatFlags( int boxIndex );
@@ -672,7 +675,8 @@ static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, uns
 //static void fillZeroAlphasPNGSwatch(progimage_info *dst, int destSwatch, int sourceSwatch, int swatchSize, int swatchesPerRow );
 static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize );
 static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatch, float blend, unsigned char alpha );
-static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned int alpha );
+static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha );
+static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid );
 static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename);
 static void convertAlphaToGrayscale( progimage_info *dst );
@@ -720,6 +724,14 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     //    DWORD br;
     //#endif
 
+    // * Read the texture for the materials.
+    // * populateBox:
+    //  ** Read through the chunks once, only the data within the box specified. Keep track of the "solid box", the bounds where objects actually exist.
+    //  ** Allocate and clear the "air box", which includes the solid box plus a 1 cell border for ease of neighbor testing.
+    //  ** Read through the chunks again, this time increasing the solid box by 1 in X and Z for rendering if not boxing off, and 1 in Y for all.
+    // * Create output texture image data array.
+    // * filterBox: output all minor geometry objects that are not full blocks. Billboards, small geometry, and snow and wires are flattened onto the face below. The "type" of these is all set to be empty immediately after they're processed, so origType is used if we want to find if anything was in the cell.
+    //  ** Fill, connect, hollow, melt: various operations to add or subtract blocks, mostly needed for 3D printing.
 
     IBox worldBox;
     int retCode = MW_NO_ERROR;
@@ -828,6 +840,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     initializeWorldData( &worldBox, xmin, ymin, zmin, xmax, ymax, zmax );
 
+    // note that worldBox will come back with the "solid" bounds, of where data was actually found
     retCode |= populateBox(world, &worldBox);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
@@ -890,6 +903,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     UPDATE_PROGRESS(0.60f*PG_MAKE_FACES);
 
+    // process all billboards and "minor geometry"
     retCode |= filterBox();
     // always return the worst error
     if ( retCode >= MW_BEGIN_ERRORS )
@@ -1482,6 +1496,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     int startxblock, startzblock;
     int endxblock, endzblock;
     int blockX, blockZ;
+    IBox originalWorldBox = *worldBox;
 
     // grab the data block needed, with a border of "air", 0, around the set
     startxblock=(int)floor((float)worldBox->min[X]/16.0f);
@@ -1493,8 +1508,8 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     VecScalar( gSolidWorldBox.min, =,  999999 );
     VecScalar( gSolidWorldBox.max, =, -999999 );
 
-#ifndef OLD_BUILD
-    // we now extract twice: first time is just to get bounds of solid stuff
+    // We now extract twice: first time is just to get bounds of solid stuff we'll actually output.
+    // Results of this first pass are put in gSolidWorldBox.
     for ( blockX=startxblock; blockX<=endxblock; blockX++ )
     {
         //UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
@@ -1519,7 +1534,6 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
 
     // have to reinitialize to get right globals for gSolidWorldBox.
     initializeWorldData( worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z] );
-#endif
 
     gBoxData = (BoxCell*)malloc(gBoxSizeXYZ*sizeof(BoxCell));
     if ( gBoxData == NULL )
@@ -1527,7 +1541,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
         return MW_WORLD_EXPORT_TOO_LARGE;
     }
 
-    // set all values to "air"
+    // set all values to "air", 0, etc.
     memset(gBoxData,0x0,gBoxSizeXYZ*sizeof(BoxCell));
 
     if ( gOptions->exportFlags & EXPT_BIOME )
@@ -1538,20 +1552,70 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
 
-        // set all values to "plains"
+        // set all biome values to "plains"
         memset(gBiome,0x1,gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
     }
 
     // Now actually copy the relevant data over to the newly-allocated box data grid.
-    // x increases (old) south (now east), decreases north (now west)
-    for ( blockX=startxblock; blockX<=endxblock; blockX++ )
+    // x increases east, decreases west.
+
+    int edgestartxblock=(int)floor(((float)worldBox->min[X]-1)/16.0f);
+    int edgestartzblock=(int)floor(((float)worldBox->min[Z]-1)/16.0f);
+    int edgeendxblock=(int)floor(((float)worldBox->max[X]+1)/16.0f);
+    int edgeendzblock=(int)floor(((float)worldBox->max[Z]+1)/16.0f);
+
+    // If we are not generating borders (where everything outside is "air"), expand out by 1
+    // for what we read from the data files. Later on we will set these border blocks so that
+    // only the original type is set, with the regular type being air.
+    IBox edgeWorldBox = *worldBox;
+    if ( !gOptions->pEFD->chkBlockFacesAtBorders )
     {
-        //UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
-        // z increases west, decreases east
-        for ( blockZ=startzblock; blockZ<=endzblock; blockZ++ )
+        // These are useful for knowing which faces to output for "no sides and bottom" mode.
+        assert(!gPrint3D);
+
+        // The test: we've shrunk the worldBox (copied to edgeWorldBox) to the solid stuff in the scene.
+        // If the solid stuff border is at the original world box bounds, then there may be stuff 1 block
+        // outside the scene. So, expand the volume to be read in by 1.
+        if ( originalWorldBox.min[X] == gSolidWorldBox.min[X] )
         {
-            // this method also sets gSolidWorldBox for OLD_BUILD
-            extractChunk(world,blockX,blockZ,worldBox);
+            edgeWorldBox.min[X]--;
+        }
+        if ( originalWorldBox.max[X] == gSolidWorldBox.max[X] )
+        {
+            edgeWorldBox.max[X]++;
+        }
+        if ( originalWorldBox.min[Z] == gSolidWorldBox.min[Z] )
+        {
+            edgeWorldBox.min[Z]--;
+        }
+        if ( originalWorldBox.max[Z] == gSolidWorldBox.max[Z] )
+        {
+            edgeWorldBox.max[Z]++;
+        }
+    }
+
+    // Here we actually always read in the upper and lower edge blocks in Y, even though we won't output them.
+    // It is useful to know what is above or below a block because of how neighbors can affect 2-high objects,
+    // such as doors and sunflowers. See http://minecraft.gamepedia.com/Data_values#Door for example.
+    // if we're not at the lower limit, and there's actually some solid stuff on that bottom level, get the stuff below
+    if ( edgeWorldBox.min[Y] > 0 && ( originalWorldBox.min[Y] == gSolidWorldBox.min[Y] ) )
+    {
+        edgeWorldBox.min[Y]--;
+    }
+    // if we not at the upper limit, get the stuff above
+    if ( edgeWorldBox.max[Y] < 255 && ( originalWorldBox.max[Y] == gSolidWorldBox.max[Y] ))
+    {
+        edgeWorldBox.max[Y]++;
+    }
+    // Later in this method we clear all these blocks, leaving only the original type, if we do generate faces at the borders.
+
+    for ( blockX=edgestartxblock; blockX<=edgeendxblock; blockX++ )
+    {
+        //UPDATE_PROGRESS( 0.1f*(blockX-edgestartxblock+1)/(edgeendxblock-edgestartxblock+1) );
+        // z increases south, decreases north
+        for ( blockZ=edgestartzblock; blockZ<=edgeendzblock; blockZ++ )
+        {
+            extractChunk(world,blockX,blockZ,&edgeWorldBox);
 
             // done with reading chunk for export, so free memory
             if ( gOptions->moreExportMemory )
@@ -1560,14 +1624,6 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
             }
         }
     }
-
-#ifdef OLD_BUILD
-    if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
-    {
-        // nothing to do: there is nothing in the box
-        return MW_NO_BLOCKS_FOUND;
-    }
-#endif
 
     // done with reading chunk for export, so free memory.
     // should all be freed, but just in case...
@@ -1585,10 +1641,17 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     Vec2Op( gAirBox.max, =,  1 + gSolidBox.max );
     assert( (gAirBox.min[Y] >= 0) && (gAirBox.max[Y] < gBoxSize[Y]) );
 
+    if ( gPrint3D )
+    {
+        // Clear slabs' type data, so that snow covering will not export if there is air below it.
+        // Original types are left set so that minor objects can export properly.
+        modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_TYPE);
+        modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_TYPE);
+    }
+
     return MW_NO_ERROR;
 }
 
-#ifndef OLD_BUILD
 // test relevant part of a given chunk to find its size
 static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox )
 {
@@ -1652,18 +1715,24 @@ static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox
                 // add to vertical bounds.
                 if ( blockID > BLOCK_AIR )
                 {
-                    IPoint loc;
-                    Vec3Scalar( loc, =, x,y,z );
-                    addBounds(loc,&gSolidWorldBox);
+                    // Also check that object is not culled out because it's filtered (see filterBox).
+                    int flags = gBlockDefinitions[blockID].flags;
+
+                    // check if it's something not to be filtered out: in the output list and alpha > 0
+                    if ( (flags & gOptions->saveFilterFlags) &&
+                        (gBlockDefinitions[blockID].alpha > 0.0) ) {
+                            IPoint loc;
+                            Vec3Scalar( loc, =, x,y,z );
+                            addBounds(loc,&gSolidWorldBox);
+                    }
                 }
             }
         }
     }
 }
-#endif
 
 // copy relevant part of a given chunk to the box data grid
-static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
+static void extractChunk(const wchar_t *world, int bx, int bz, IBox *edgeWorldBox )
 {
     int chunkX, chunkZ;
 
@@ -1707,18 +1776,18 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
     chunkX = bx * 16;
     chunkZ = bz * 16;
 
-    loopXmin = max(worldBox->min[X],chunkX);
-    loopZmin = max(worldBox->min[Z],chunkZ);
+    loopXmin = max(edgeWorldBox->min[X],chunkX);
+    loopZmin = max(edgeWorldBox->min[Z],chunkZ);
 
-    loopXmax = min(worldBox->max[X],chunkX+15);
-    loopZmax = min(worldBox->max[Z],chunkZ+15);
+    loopXmax = min(edgeWorldBox->max[X],chunkX+15);
+    loopZmax = min(edgeWorldBox->max[Z],chunkZ+15);
 
     int useBiomes = ( gOptions->exportFlags & EXPT_BIOME );
 
     for ( x = loopXmin; x <= loopXmax; x++ ) {
         for ( z = loopZmin; z <= loopZmax; z++ ) {
-            boxIndex = WORLD_TO_BOX_INDEX(x,worldBox->min[Y],z);
-            chunkIndex = CHUNK_INDEX(bx,bz,x,worldBox->min[Y],z);
+            boxIndex = WORLD_TO_BOX_INDEX(x,edgeWorldBox->min[Y],z);
+            chunkIndex = CHUNK_INDEX(bx,bz,x,edgeWorldBox->min[Y],z);
             if (useBiomes)
             {
                 // X and Z location index is stored in the low-order bits; mask off Y location
@@ -1726,7 +1795,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                 gBiome[biomeIdx] = block->biome[chunkIndex&0xff];
             }
 
-            for ( y = worldBox->min[Y]; y <= worldBox->max[Y]; y++, boxIndex++ ) {
+            for ( y = edgeWorldBox->min[Y]; y <= edgeWorldBox->max[Y]; y++, boxIndex++ ) {
                 // Get the extra values (orientation, type) for the blocks
                 unsigned char dataVal = block->data[chunkIndex/2];
                 if ( chunkIndex & 0x01 )
@@ -1739,21 +1808,7 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
-#ifdef OLD_BUILD
-                if ( blockID > BLOCK_AIR )
-                {
-                    IPoint loc;
-                    Vec3Scalar( loc, =, x,y,z );
-                    addBounds(loc,&gSolidWorldBox);
 
-                    // special: if it's a wire, clear the data value. We use this later for
-                    // how the wires actually connect to each other.
-                    if ( blockID == BLOCK_REDSTONE_WIRE )
-                    {
-                        gBoxData[boxIndex].data = 0x0;
-                    }
-                }
-#else
                 // get bounds on y searches:
                 // search for air, and if not found then
                 // add to vertical bounds.
@@ -1775,10 +1830,73 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *worldBox )
                 {
                     gBadBlocksInModel++;
                 }
-                //}
-#endif
             }
         }
+    }
+}
+
+static void modifySides( int editMode )
+{
+    // do X min and max sides first
+    for ( int x = gAirBox.min[X]; x <= gAirBox.max[X]; x += gAirBox.max[X]-gAirBox.min[X] )
+    {
+        for ( int z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z++ )
+        {
+            for ( int y = gAirBox.min[Y]; y <= gAirBox.max[Y]; y++ )
+            {
+                editBlock( x, y, z, editMode );
+            }
+        }
+    }
+    // now clear Z faces; note we don't have to clear vertical edges so can move X in by 1.
+    for ( int x = gAirBox.min[X]+1; x < gAirBox.max[X]; x++ )
+    {
+        for ( int z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z += gAirBox.max[Z]-gAirBox.min[Z] )
+        {
+            for ( int y = gAirBox.min[Y]; y <= gAirBox.max[Y]; y++ )
+            {
+                editBlock( x, y, z, editMode );
+            }
+        }
+    }
+}
+
+static void modifySlab( int y, int editMode )
+{
+    for ( int x = gAirBox.min[X]; x <= gAirBox.max[X]; x++ )
+    {
+        for ( int z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z++ )
+        {
+            editBlock( x, y, z, editMode );
+        }
+    }
+}
+
+static void editBlock( int x, int y, int z, int editMode )
+{
+    int boxIndex = BOX_INDEX(x,y,z);
+
+    switch ( editMode )
+    {
+    case EDIT_MODE_CLEAR_TYPE:
+        gBoxData[boxIndex].type = BLOCK_AIR;
+        break;
+    case EDIT_MODE_CLEAR_ALL:
+        gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
+        // just to be safe, probably not necessary, but do it anyway:
+        gBoxData[boxIndex].data = 0x0;
+        break;
+    case EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES:
+        // if type is an entrance, clear it fully: done so seed propagation along borders happens properly
+        if ( gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE )
+        {
+            gBoxData[boxIndex].origType = BLOCK_AIR;
+        }
+        gBoxData[boxIndex].type = BLOCK_AIR;
+        break;
+    default:
+        assert(0);
+        break;
     }
 }
 
@@ -1895,6 +2013,10 @@ static int filterBox()
         // everything got filtered out!
         return retCode|MW_NO_BLOCKS_FOUND;
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // Filling, connecting, hollowing, melting.
+    //
     // If we'd doing 3D printing, there are lots of things to worry about. Here are some:
     // 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
     //    the unsolidified material inside can be removed. Fix by filling in these "bubbles".
@@ -1913,9 +2035,29 @@ static int filterBox()
 
     gSolidGroups = gAirGroups = 0;
 
+    if ( gOptions->pEFD->chkBlockFacesAtBorders )
+    {
+        // Clear slabs (sides are not set, so we don't need to clear them). We don't need the slab data for here on in
+        // if borders are being output.
+        modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_ALL);
+        modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_ALL);
+    }
+
     // do we need groups and neighbors?
     if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS|EXPT_DEBUG_SHOW_GROUPS) )
     {
+        // If we're modifying blocks, we need to stash the border blocks away and clear them.
+        if ( !gOptions->pEFD->chkBlockFacesAtBorders )
+        {
+            // not putting borders in final output, so need to do two things:
+            // The types in the borders must all be cleared. The original type should be left intact for output, *except*:
+            // any entrance blocks need to be fully cleared so that they don't mess with the seed propagation process.
+            // This is the only use of "originalType" during this block editing process below.
+            modifySides(EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+            modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+            modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+        }
+
         int foundTouching = 0;
         gGroupListSize = 200;
         gGroupList = (BoxGroup *)malloc(gGroupListSize*sizeof(BoxGroup));
@@ -2968,8 +3110,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // since we erase "billboard" objects as we go, we need to test against origType.
             // Note that if a render export chops through a fence, the fence will not join.
-            // TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
-            // this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
@@ -3013,8 +3153,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // since we erase "billboard" objects as we go, we need to test against origType.
         // Note that if a render export chops through a fence, the fence will not join.
-        // TODO: perhaps the origType of all of the "one removed" blocks should be put in the data on import? In
-        // this way redstone and fences and so on will connect with neighbors (which themselves are not output) properly.
         swatchLoc = ( dataVal == 0x1 ) ? SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY ) :
             SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
 
@@ -3991,9 +4129,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break;
 
     case BLOCK_SNOW:
-        // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin)
+        // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin).
+        // This should only happen if the snow is at the lowest level, which means that the object below would
+        // not exist. In this case, we check "type" and not "origType", as origType may well exist due to reading it in.
         if ( gPrint3D &&
-            ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) )
+            ( ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) || (gBoxData[boxIndex-1].type == BLOCK_AIR) ) )
         {
             gMinorBlockCount--;
             return 0;
@@ -6399,15 +6539,12 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, int r
                     !((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
                     !((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)) )
                 {
-                    // anything neighboring a leaf block should be created, since leaves can be seen through. This does
-                    // include other leaf blocks. Do similar for iron bars and vines, but neighbors that are also iron bars
-                    // or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
-                    // TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
-                    // add as a composite, like ladder pretty much.
+                    // neighbor does not cover face, so output the face by returning 0
                     return 0;
                 }
             }
         }
+        // neighbor covers face, as it's whole, not semitransparent, and not a cutout, so don't output the face by returning 1
         return 1;
     }
 
@@ -7891,6 +8028,7 @@ static void findNeighboringGroups( IBox *bounds, int groupID, int *neighborGroup
     int x,y,z;
     int boxIndex, faceDirection;
 
+    // if you hit this assert, the bounds for the group is too large (overlaps the exterior).
     assert(bounds->min[X]>0);
     assert(bounds->min[Y]>0);
     assert(bounds->min[Z]>0);
@@ -9048,7 +9186,7 @@ static int determineScaleAndHollowAndMelt()
     // now compute how many blocks are needed for a minimally-thick wall
     gWallBlockThickness = (int)(ceil(gMtlCostTable[gPhysMtl].minWall/gModel.scale));
 
-    // 5) Wasted material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
+    // Remove unneeded material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
     //    bottom up. Option: delete a block at the base if it has neighboring blocks in all 8 positions on this level
     //    and all 9 positions on the level above. This may be overconservative in some cases, but is safe. Mark all
     //    these positions, working up the object, then delete.
@@ -9864,7 +10002,7 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 // type - including ice on water, glass next to water, etc. - then output face
                 if ( neighborType != type )
                 {
-                    // special check: if water next to stationary water, or (rare, semitransparent) lava next to stationary lava, that doesn't
+                    // special check: if water next to stationary water, or (rare, user-defined semitransparent) lava next to stationary lava, that doesn't
                     // make a face
                     if ( ( type < BLOCK_WATER ) || ( type > BLOCK_STATIONARY_LAVA ) || !sameFluid(type, neighborType) )
                     {
@@ -9877,6 +10015,12 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
             if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
                 (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
             {
+                // Special case: if leaves are neighbors and "make leaves solid" is on, then don't output face.
+                if ( gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[neighborType].flags & BLF_LEAF_PART) )
+                {
+                    // "solid" leaves to minimize output, don't output adjoining leaves.
+                    return 0;
+                }
                 //(neighborType == BLOCK_LEAVES) ||
                 //(neighborType == BLOCK_SUGAR_CANE) ||
                 //(neighborType == BLOCK_CROPS) ||
@@ -9886,6 +10030,8 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 //((neighborType == BLOCK_IRON_BARS) && (type != BLOCK_IRON_BARS)) ||
                 //((neighborType == BLOCK_VINES) && (type != BLOCK_VINES) ) )
 
+                // Exporting textures, and neighbor has cutouts. If the block is glass and the neighbor is glass, or both are vines, or both are iron bars, then
+                // we know the objects are "joined" and don't need a face between them. Otherwise, return 1, that the face should be output.
                 if ( !((neighborType == BLOCK_GLASS || neighborType == BLOCK_STAINED_GLASS) && (type == BLOCK_GLASS || type == BLOCK_STAINED_GLASS_PANE)) &&
                     !((neighborType == BLOCK_GLASS_PANE || neighborType == BLOCK_STAINED_GLASS_PANE) && (type == BLOCK_GLASS_PANE || type == BLOCK_STAINED_GLASS_PANE)) &&
                     !((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
@@ -9896,7 +10042,14 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                     // or vines don't generate faces in between (since we're faking bars & vines by putting them on blocks).
                     // TODO if vines actually border some solid surface, vs. hanging down, they should get flatsided:
                     // add as a composite, like ladder pretty much.
+
+                    // neighbor does not cover face, so output it.
                     return 1;
+                }
+                else
+                {
+                    // don't output face: adjoining glass or panes will attach to one another; same with vines and bars.
+                    return 0;
                 }
             }
         }
@@ -10252,11 +10405,19 @@ static float computeUpperCornerHeight( int type, int boxIndex, int x, int z )
     float heightSum = 0.0f;
     int weight = 0;
 
+    IPoint loc;
+    boxIndexToLoc(loc, boxIndex);
+
     for ( i = 0; i < 4; i++ )
     {
+        // Because we can now look at the corners of "border" blocks, we might access a block
+        // off the edge of the border. Don't allow that! Clamp, instead. Doesn't matter along the
+        // borders if the "on border" neighbor height is wrong.
         int offx = x-1 + (i >> 1);
+        int x = clamp( loc[X]+offx, gAirBox.min[X], gAirBox.max[X] );
         int offz = z-1 + (i%2);
-        neighbor[i] = boxIndex + gBoxSizeYZ*offx + gBoxSize[Y]*offz;
+        int z = clamp( loc[Z]+offz, gAirBox.min[Z], gAirBox.max[Z] );
+        neighbor[i] = BOX_INDEX(x, loc[Y], z);
         // walk through neighbor above this corner
         if ( sameFluid(type, gBoxData[neighbor[i] + 1].type) )
             return 1.0f;
@@ -11877,7 +12038,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                         swatchLoc = SWATCH_INDEX( 9, 3 );
                     }
                 }
-                // TODOTODOTODO: we still haven't fixed chest tops - should be a separate tile or two, shoved into tiles.h
+                // TODO: we still haven't fixed chest tops - should be a separate tile or two, shoved into tiles.h
                 //else if ( faceDirection == DIRECTION_BLOCK_TOP  || faceDirection == DIRECTION_BLOCK_BOTTOM ) // top or bottom
                 break;
             case 4: // west
@@ -13551,7 +13712,8 @@ static int writeOBJMtlFile()
             }
 
             // export map_d only if CUTOUTS.
-            if (!gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) )
+            if (!gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) 
+                && !( gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART) ) )
             {
                 // cutouts or alpha
                 gModel.usesRGBA = 1;
@@ -13734,7 +13896,7 @@ CompositeSwatchPreset compositeTable[COMPOSITE_TABLE_SIZE] =
     { SWATCH_INDEX( 3, 5 ), /* BLOCK_LADDER */ SWATCH_INDEX( 1, 0 ) }, // ladder over stone
     { SWATCH_INDEX( 3, 11 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // powered rail over stone
     { SWATCH_INDEX( 3, 10 ), /* BLOCK_POWERED_RAIL */ SWATCH_INDEX( 1, 0 ) }, // unpowered rail over stone
-    { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone - TODOTODO add BLOCK_ACTIVATOR_RAIL, and add activated vs. non-activated
+    { SWATCH_INDEX( 3, 12 ), /* BLOCK_DETECTOR_RAIL */ SWATCH_INDEX( 1, 0 ) }, // detector rail over stone - TODO add BLOCK_ACTIVATOR_RAIL, and add activated vs. non-activated
     { SWATCH_INDEX( 3, 6 ), /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
     { RS_TORCH_TOP_ON, /* BLOCK_REDSTONE_TORCH_ON */ SWATCH_INDEX( 1, 0 ) }, // redstone torch on over stone
     { SWATCH_INDEX( 3, 7 ), /* BLOCK_REDSTONE_TORCH_OFF */ SWATCH_INDEX( 1, 0 ) }, // redstone torch off over stone
@@ -13953,8 +14115,11 @@ static int createBaseMaterialTexture()
             }
         }
 
-        // now that copy has happened, bleed outwards. This is done when we're using exact geometry for objects,
-        // and so only part of the tile is actually used. Its fringe wants to then be the same color.
+        // Now that copy has happened, bleed outwards. This is done when we're using exact geometry for objects,
+        // and so only part of the tile is actually used. Its fringe wants to then be the same color, so that interpolation
+        // between texels looks better. The problem is that most renderers do not perform interpolation well; they
+        // interpolate unassociated PNG samples, when they should interpolate premultiplied colors. I can't fix that from
+        // my side of things, but by bleeding the edges of cutouts outwards I can lessen the problem.
         // Bleed these tiles here.
         if ( gOptions->pEFD->chkExportAll )
         {
@@ -13996,14 +14161,25 @@ static int createBaseMaterialTexture()
             }
         }
 
-        // for rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
-        // better fringes when bilinear interpolation is done. This interpolation should be off normally, but things like previewers
-        // such as G3D, and Blender, have problems in this area. Done only for those things rendered with decals. A few extra are done.
-        if ( !gPrint3D && gOptions->pEFD->chkG3DMaterial )
+        // For rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
+        // better fringes when bilinear interpolation is done (it's a flaw of the PNG format, that it uses unassociated alphas).
+        // This interpolation should be off normally, but things like previewers such as G3D, and Blender, have problems in this area.
+        // Done only for those things rendered with decals. A few extra are done; a waste, but not a big time sink normally.
+        // Note, we used to bleed only for gOptions->pEFD->chkG3DMaterial, but this option is off by default and bleeding always looks
+        // better (IMO), so always put bleeding on. We don't bleed for printing because decal cutout objects are not created with
+        // cutouts, and some decals are used as-is, e.g. wheat, to print on sides of blocks. In other words, if we could see the black
+        // fringe for the decal when 3D printing, then bleeding should not be done.
+        if ( !gPrint3D )
         {
             for ( i = 0; i < TOTAL_TILES; i++ )
             {
-                if ( gTiles[i].flags & SBIT_DECAL )
+                // If leaves are to be made solid and so should have alphas all equal to 1.0.
+                if ( gOptions->pEFD->chkLeavesSolid && ( gTiles[i].flags & SBIT_LEAVES ) )
+                {
+                    // set all alphas in tile to 1.0.
+                    setAlphaPNGSwatch( mainprog, SWATCH_INDEX( gTiles[i].txrX, gTiles[i].txrY ), gModel.swatchSize, gModel.swatchesPerRow, 255 );
+                }
+                else if ( gTiles[i].flags & SBIT_DECAL )
                 {
                     bleedPNGSwatch( mainprog, SWATCH_INDEX( gTiles[i].txrX, gTiles[i].txrY ), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0 );
                 }
@@ -14191,7 +14367,7 @@ static int createBaseMaterialTexture()
         int waterColor = 0xffffff;
 
         // Is biome in use? If so, write out biome textures, now that we actually have the biome data.
-        // TODOTODO Right now we just use the biome at the center of the export area.
+        // TODO Right now we just use the biome at the center of the export area.
         int useBiome = gOptions->exportFlags & EXPT_BIOME;
         if ( useBiome )
         {
@@ -15683,6 +15859,16 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
 
+    // options only available when rendering.
+    if ( !gPrint3D )
+    {
+        sprintf_s(outputString,256,"# Make tree leaves solid: %s\n", gOptions->pEFD->chkLeavesSolid ? "YES" : "no" );
+        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
+        sprintf_s(outputString,256,"# Create block faces at the borders: %s\n", gOptions->pEFD->chkBlockFacesAtBorders ? "YES" : "no" );
+        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+    }
+
     sprintf_s(outputString,256,"# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
@@ -16273,7 +16459,7 @@ static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatc
 }
 
 // for transparent pixels, read from four neighbors and take average of all that exist. Second pass then marks these transparent pixels as opaque
-static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned int alpha )
+static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha )
 {
     int tileSize16 = (swatchSize-2)/16;
 
@@ -16416,6 +16602,32 @@ static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xma
     }
 }
 
+static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha )
+{
+    // these are swatch locations in index form (not yet multiplied by swatch size itself)
+    int dcol = dstSwatch % swatchesPerRow;
+    int drow = dstSwatch / swatchesPerRow;
+    // upper left corner, starting location
+    unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + drow*swatchSize*dst->width + dcol*swatchSize;
+
+    int row,col;
+    unsigned char dr,dg,db,da;
+    unsigned int *cdsti;
+
+    for ( row = 0; row < swatchSize; row++ )
+    {
+        int offset = row*dst->width;
+        cdsti = dsti + offset;
+        for ( col = 0; col < swatchSize; col++ )
+        {
+            GET_PNG_TEXEL( dr,dg,db,da, *cdsti );
+            da = alpha;
+            SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
+            cdsti++;
+        }
+    }
+}
+
 
 static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid )
 {
@@ -16532,7 +16744,10 @@ static void convertAlphaToGrayscale( progimage_info *dst )
             unsigned int value = *di;
             unsigned char dr,dg,db,da;
             GET_PNG_TEXEL(dr,dg,db,da, value);	// dr, dg, db unused
-            SET_PNG_TEXEL(*di, da, da, da, 255);
+            // we set ALL the values to the luminance. Sketchfab, by default, uses the alpha
+            // channel from the alpha map, not luminance. So, set them all. I'm not sure if
+            // this will affect Maya, MAX, Blender, or Cinema4D - need to test.
+            SET_PNG_TEXEL(*di, da, da, da, da);
             di++;
         }
     }
@@ -16719,7 +16934,7 @@ static void wcharToChar( const wchar_t *inWString, char *outString )
             {
                 // put some sort of string in for the converted string, so that at least
                 // the user will have something to work from.
-                strcpy_s(outString,MAX_PATH,"mwExport");
+                strcpy_s(outString,MAX_PATH,"[Block Test World]");
             }
             return;
         }

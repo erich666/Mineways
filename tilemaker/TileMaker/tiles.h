@@ -16,6 +16,9 @@
 
 #define SBIT_DECAL				0x40
 
+// special bit: if the tile is a leaf tile, Mineways itself can optionally 
+#define SBIT_LEAVES				0x80
+
 // If set, the incoming .png's black pixels should be treated as having an alpha of 0.
 // Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
 #define SBIT_BLACK_ALPHA		0x8000
@@ -65,7 +68,7 @@ static struct {
 	{  6, 1, L"iron_block", L"blockIron", SWATCH_REPEAT_ALL },
 	{  7, 1, L"gold_block", L"blockGold", SWATCH_REPEAT_ALL },
 	{  8, 1, L"diamond_block", L"", SWATCH_REPEAT_ALL },
-	{  9, 1, L"MW_CHEST1", L"", SWATCH_CLAMP_ALL },	// was emerald - taken by chest - TODOTODO we should make these tiles and include them. Give them better names! (e.g. MW_CHEST_LEFT_FRONT)
+	{  9, 1, L"MW_CHEST1", L"", SWATCH_CLAMP_ALL },	// was emerald - taken by chest - TODO we should make these tiles and include them. Give them better names! (e.g. MW_CHEST_LEFT_FRONT)
 	{ 10, 1, L"MW_CHEST2", L"", SWATCH_CLAMP_ALL },	// taken by chest
 	{ 11, 1, L"MW_CHEST3", L"", SWATCH_CLAMP_ALL },	// taken by chest
 	{ 12, 1, L"mushroom_red", L"", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
@@ -92,7 +95,7 @@ static struct {
 	{  1, 3, L"glass", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },
 	{  2, 3, L"diamond_ore", L"oreDiamond", SWATCH_REPEAT_ALL },
 	{  3, 3, L"redstone_ore", L"oreRedstone", SWATCH_REPEAT_ALL },
-	{  4, 3, L"leaves_oak", L"leaves", SWATCH_REPEAT_ALL|SBIT_DECAL },
+	{  4, 3, L"leaves_oak", L"leaves", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },
 	{  5, 3, L"coarse_dirt", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8 - replaced leaves_oak_opaque
 	{  6, 3, L"stonebrick", L"", SWATCH_REPEAT_ALL },
 	{  7, 3, L"deadbush", L"", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
@@ -172,7 +175,7 @@ static struct {
 	{  1, 8, L"wool_colored_red", L"cloth_14", SWATCH_REPEAT_ALL },
 	{  2, 8, L"wool_colored_pink", L"cloth_6", SWATCH_REPEAT_ALL },
 	{  3, 8, L"repeater_off", L"", SWATCH_REPEAT_ALL },
-	{  4, 8, L"leaves_spruce", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },
+	{  4, 8, L"leaves_spruce", L"", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },
 	{  5, 8, L"red_sandstone_bottom", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{  6, 8, L"bed_feet_top", L"", SWATCH_CLAMP_ALL },
 	{  7, 8, L"bed_head_top", L"", SWATCH_CLAMP_ALL },
@@ -236,7 +239,7 @@ static struct {
 	{  1,12, L"wool_colored_purple", L"cloth_10", SWATCH_REPEAT_ALL },
 	{  2,12, L"wool_colored_magenta", L"cloth_2", SWATCH_REPEAT_ALL },
 	{  3,12, L"rail_detector", L"detectorRail", SWATCH_TILE_BOTTOM_AND_TOP|SBIT_DECAL },
-	{  4,12, L"leaves_jungle", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },
+	{  4,12, L"leaves_jungle", L"", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },
 	{  5,12, L"red_sandstone_carved", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{  6,12, L"planks_spruce", L"", SWATCH_REPEAT_ALL },
 	{  7,12, L"planks_jungle", L"", SWATCH_REPEAT_ALL },
@@ -261,7 +264,7 @@ static struct {
 	{ 10,13, L"MW_ENDER_CHEST_SIDE1", L"", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
 	{ 11,13, L"MW_ENDER_CHEST_SIDE2", L"", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
 	{ 12,13, L"MW_ENDER_CHEST_SIDE3", L"", SWATCH_REPEAT_ALL },	// was unused, ender chest moved to here
-	{ 13,13, L"leaves_birch", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN
+	{ 13,13, L"leaves_birch", L"", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },	// ADD-IN
 	{ 14,13, L"red_sandstone_normal", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{ 15,13, L"water_still", L"", SWATCH_REPEAT_ALL },
 	{  0,14, L"nether_brick", L"netherBrick", SWATCH_REPEAT_ALL },
@@ -355,9 +358,9 @@ static struct {
 	{  6,19, L"flower_tulip_pink", L"", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  7,19, L"flower_oxeye_daisy", L"", SBIT_CLAMP_BOTTOM|SBIT_DECAL },
 	{  8,19, L"flower_paeonia", L"", SBIT_CLAMP_BOTTOM|SBIT_DECAL },	// not used currently, but save for now.
-	{  9,19, L"leaves_acacia", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
+	{  9,19, L"leaves_acacia", L"", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },	// ADD-IN 1.7.2
 	{ 10,19, L"red_sandstone_smooth", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-	{ 11,19, L"leaves_big_oak", L"", SWATCH_REPEAT_ALL|SBIT_DECAL },	// ADD-IN 1.7.2
+	{ 11,19, L"leaves_big_oak", L"", SWATCH_REPEAT_ALL|SBIT_DECAL|SBIT_LEAVES },	// ADD-IN 1.7.2
 	{ 12,19, L"red_sandstone_top", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
 	{ 13,19, L"log_acacia_top", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
 	{ 14,19, L"log_big_oak", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2

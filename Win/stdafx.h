@@ -28,6 +28,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+// For internet update, sadly does not link under x64:
+// 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __wargv
+// 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __argc
+// also needs an "#ifndef IDC_STATIC" bit in resource.h,
+// also needs to link the wininet.lib library.
+//#include <afxwin.h>
+//#include <afxinet.h>
 #include "targetver.h"
 #include "cache.h"
 #include "MinewaysMap.h"
@@ -49,6 +56,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdlib.h>
 
+#define MINEWAYS_MAJOR_VERSION 4
+#define MINEWAYS_MINOR_VERSION 14
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))

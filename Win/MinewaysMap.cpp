@@ -1578,9 +1578,10 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     // we can look the quick lookup value from the table.
                     color = checkSpecialBlockColor( block, voxel, type, light, useBiome, useElevation );
 
+                    // is this the first block encountered?
                     if (alpha==0.0)
                     {
-                        // if no accumulated alpha, simply substitute the values into place;
+                        // yes; since there's no accumulated alpha, simply substitute the values into place;
                         // note that semi-transparent values already have their alpha multiplied in,
                         // as the 
                         alpha=currentAlpha;
@@ -1598,12 +1599,13 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                         b+=(unsigned char)((1.0-alpha)*(color&0xff));
                         alpha+=currentAlpha*(1.0-alpha);
                     }
-                    // if the current block is solid, finish.
+                    // if the block's color is now solid, finish.
                     if (currentAlpha==1.0)
                         break;
                 }
             }
 
+            // The solid location (or none at all, in which case -1 is set) is saved here.
             prevy=i;
 
             if (depthshading) // darken deeper blocks
@@ -1744,7 +1746,12 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     ((z)*16) + \
     (x)  )
 
-// generate test blocks for test world
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Generate test blocks for test world.
+// testBlock checks to see whether this block and data value exists and should be output,
+// and whether any neighboring blocks should be output for testing. Sometimes the data value is
+// used as a guide for where to put neighbors instead of as a data value, so that testing is more thorough.
 void testBlock( WorldBlock *block, int type, int y, int dataVal )
 {
     int bi = 0;
@@ -2626,6 +2633,16 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         block->grid[bi] = (unsigned char)type;
         // shift up the data val by 4 if on the odd value location
         block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        static bool extraBlock = false;
+        if ( extraBlock )
+        {
+            // optional: put neighbor to south, so we can test for what happens at borders when splitting occurs;
+            // note: this will generate two assertions with pistons. Ignore them.
+            bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            // shift up the data val by 4 if on the odd value location
+            block->data[(int)(bi/2)] |= (unsigned char)(dataVal<<((bi%2)*4));
+        }
     }
 }
 
@@ -2809,7 +2826,8 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
-        int x, z;
+        int x, y, z;
+        int bedrockHeight = 60;
         int grassHeight = 62;
         int blockHeight = 63;
 
@@ -2826,11 +2844,15 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             {
                 for ( z = 0; z < 16; z++ )
                 {
+                    // make the grass two blocks thick, and then "impenetrable" below, for test border code
+                    block->grid[BLOCK_INDEX(x,bedrockHeight,z)] = BLOCK_BEDROCK;
+                    for ( y = bedrockHeight+1; y < grassHeight; y++ )
+                        block->grid[BLOCK_INDEX(x,y,z)] = BLOCK_DIRT;
                     block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
                 }
             }
 
-            // blocks
+            // blocks: each 16x16 area has 4 blocks, every 8 spaces, so we call this to get 4 blocks.
             testBlock(block,type,blockHeight,cz*2);
             testBlock(block,type,blockHeight,cz*2+1);
             if ( type+1 < NUM_BLOCKS_MAP )
