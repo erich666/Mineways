@@ -1,6 +1,8 @@
-This is the license for Minutor, from this site: https://github.com/mrkite/minutor/blob/master/debian/copyright
+This is the license for Minutor, from this site:
+https://github.com/mrkite/minutor/blob/master/debian/copyright
 
-This same license applies to Mineways, with the difference being that Eric Haines <erich@acm.org> is the author and the work is Copyright (c) 2011 Eric Haines.
+This same license applies to Mineways, with the difference being that Eric Haines
+<erich@acm.org> is the author and the work is Copyright (c) 2011 Eric Haines.
 
 Here is the original minutor license:
 
