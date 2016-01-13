@@ -29,3 +29,8 @@ Open Mineways.sln in Visual C++, switch the target to Release and x64, compile t
 Sorry, other platforms are not directly supported, though Mineways runs fine under [WINE](http://www.winehq.org/) and we also provide a Mac-specific version.
 
 If you want to work on the mapping part of this program on another platform, see [Minutor](http://seancode.com/minutor/), which *is* supported on Mac and Linux.
+
+License
+-------------
+
+Mineways uses the same [license](license.txt) as Minutor.
