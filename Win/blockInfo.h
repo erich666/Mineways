@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __BLOCKINFO_H__
 
 #include <stdlib.h>
+#include <string>
 
 typedef unsigned int    UINT;
 
@@ -236,6 +237,18 @@ extern UnitType gUnitTypeTable[];
 
 #define FILE_TYPE_TOTAL         7
 
+typedef struct PublishSkfbData
+{
+    // Sketchfab
+    char skfbApiToken[33];
+    char skfbName[49];
+    char skfbDescription[1025];
+    char skfbTags[256];
+    bool skfbPrivate;
+    char skfbPassword[25];
+    bool skfbDraft;
+    std::string skfbFilePath;
+} PublishSkfbData;
 
 typedef struct ExportFileData
 {

@@ -164,14 +164,14 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
             MultiByteToWideChar(CP_UTF8, NULL, skfbPbdata.skfbName, -1, tempName, SKFB_NAME_LIMIT + 1);
             MultiByteToWideChar(CP_UTF8, NULL, skfbPbdata.skfbPassword, -1, tempPassword, SKFB_PASSWORD_LIMIT + 1);
 
-            SetDlgItemTextA(hDlg,IDC_SKFB_API_TOKEN,skfbPbdata.skfbApiToken);
+            SetDlgItemTextA(hDlg,IDC_API_TOKEN,skfbPbdata.skfbApiToken);
             SetDlgItemTextW(hDlg,IDC_SKFB_NAME,tempName);
             SetDlgItemTextW(hDlg,IDC_SKFB_PASSWORDFIELD,tempPassword);
 
             CheckDlgButton(hDlg,IDC_SKFB_DRAFT,(skfbPbdata.skfbDraft == false));
             CheckDlgButton(hDlg,IDC_SKFB_PRIVATE,skfbPbdata.skfbPrivate);
             Edit_LimitText(GetDlgItem(hDlg, IDC_SKFB_NAME), SKFB_NAME_LIMIT);
-            Edit_LimitText(GetDlgItem(hDlg, IDC_SKFB_API_TOKEN), SKFB_TOKEN_LIMIT);
+            Edit_LimitText(GetDlgItem(hDlg, IDC_API_TOKEN), SKFB_TOKEN_LIMIT);
             Edit_LimitText(GetDlgItem(hDlg, IDC_SKFB_DESC), SKFB_DESC_LIMIT);
             Edit_LimitText(GetDlgItem(hDlg, IDC_SKFB_PASSWORDFIELD), SKFB_PASSWORD_LIMIT);
             EnableWindow(GetDlgItem(hDlg, IDC_SKFB_PASSWORDFIELD), IsDlgButtonChecked(hDlg, IDC_SKFB_PRIVATE));
@@ -195,7 +195,7 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
             {
                 PublishSkfbData lepd = skfbPbdata;
                 // We should not have non UTF8 characters here
-                GetDlgItemTextA(hDlg, IDC_SKFB_API_TOKEN, lepd.skfbApiToken, SKFB_TOKEN_LIMIT + 1);
+                GetDlgItemTextA(hDlg, IDC_API_TOKEN, lepd.skfbApiToken, SKFB_TOKEN_LIMIT + 1);
 
                 // Temporary wide char to be converted to UTF8
                 wchar_t tempName[SKFB_NAME_LIMIT + 1];
