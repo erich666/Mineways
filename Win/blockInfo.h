@@ -220,6 +220,8 @@ extern UnitType gUnitTypeTable[];
 
 // use biomes for export
 #define EXPT_BIOME							0x2000000
+// Sketchfab export (to export only RGBA texture)
+#define EXPT_SKFB							0x4000000
 
 #define EP_FIELD_LENGTH 20
 

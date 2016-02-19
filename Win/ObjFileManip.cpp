@@ -14038,17 +14038,35 @@ static int writeOBJMtlFile()
                 && !( gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART) ) )
             {
                 // cutouts or alpha
-                gModel.usesRGBA = 1;
-                gModel.usesAlpha = 1;
-                typeTextureFileName = textureRGBA;
-                sprintf_s(mapdString,256,"map_d %s\n", textureAlpha );
+                if ((gOptions->exportFlags & EXPT_SKFB))
+                {
+                    gModel.usesRGBA = 1;
+                    gModel.usesAlpha = 0;
+                    typeTextureFileName = textureRGBA;
+                    sprintf_s(mapdString,256,"map_d %s\n", typeTextureFileName );
+                }
+                else
+                {
+                    gModel.usesRGBA = 1;
+                    gModel.usesAlpha = 1;
+                    typeTextureFileName = textureRGBA;
+                    sprintf_s(mapdString,256,"map_d %s\n", textureAlpha );
+                }
             }
             else
             {
-                gModel.usesRGB = 1;
                 if ( gExportTexture )
                 {
-                    typeTextureFileName = textureRGB;
+                    if (gOptions->exportFlags & EXPT_SKFB)
+                    {
+                        gModel.usesRGBA = 1;
+                        typeTextureFileName = textureRGBA;
+                    }
+                    else
+                    {
+                        gModel.usesRGB = 1;
+                        typeTextureFileName = textureRGB;
+                    }
                 }
                 else
                 {

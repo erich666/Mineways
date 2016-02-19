@@ -2550,7 +2550,7 @@ int publishToSketchfab( HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileNam
         BLF_FLATSIDE | BLF_3D_BIT;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
-    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_GROUP_BY_MATERIAL;
+    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_GROUP_BY_MATERIAL | EXPT_SKFB;
 
     gOptions.exportFlags |=
         (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
