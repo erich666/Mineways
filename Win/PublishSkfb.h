@@ -46,6 +46,7 @@ static std::pair<bool, std::string> lastResponse;
 static HWND uploadWindow;
 static int goPublish;
 
+void deleteFile();
 void getPublishSkfbData(PublishSkfbData *pEpd);
 void setPublishSkfbData(PublishSkfbData *pEpd);
 int uploadToSketchfab(HINSTANCE hInst,HWND hWnd);
@@ -54,6 +55,17 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
 INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam);
 HANDLE uploadThreadHandle = NULL;
 
+LPCWSTR stringToLpwstr(std::string input)
+{
+    wchar_t* wideString = new wchar_t[4096];
+    MultiByteToWideChar(CP_ACP, 0, input.c_str(), (int)(input.size() + 1), wideString, 4096);
+    return wideString;
+}
+
+void deleteFile()
+{
+	DeleteFile(stringToLpwstr(skfbPbdata.skfbFilePath));
+}
 
 void getPublishSkfbData(PublishSkfbData *pSkfbpd)
 {

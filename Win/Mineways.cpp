@@ -640,7 +640,9 @@ RButtonDown:
 //#endif
                 }
             }
-
+            // Reset Sketchfab path so that we rewrite obj/mtl/PNG + zip when publishing
+            deleteFile();
+            gSkfbPData.skfbFilePath = "";
             SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
             enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             validateItems(GetMenu(hWnd));
@@ -1204,6 +1206,7 @@ RButtonUp:
             }
             break;
         case IDM_CLOSE:
+            deleteFile();
             DestroyWindow(hWnd);
             break;
         case IDM_TEST_WORLD:
@@ -2573,50 +2576,53 @@ int publishToSketchfab( HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileNam
         UpdateWindow(hWnd);
         gpEFD->radioScaleToHeight = 1;
         gpEFD->radioScaleByCost = 0;
+        gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
+        // if skfbFilePath is empty, that means that it has not been created yet or selection has changed
+        if (skfbPData->skfbFilePath.empty()){
+            int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
+                gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
+                updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion);
 
-        int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
-            gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-            updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion);
+            wchar_t wcZip[MAX_PATH];
+            LPTSTR tempdir = new TCHAR[MAX_PATH];
 
-        wchar_t wcZip[MAX_PATH];
-        LPTSTR tempdir = new TCHAR[MAX_PATH];
+            // Write zip in temp directory
+            GetTempPath(MAX_PATH, tempdir);
+            swprintf_s(wcZip, MAX_PATH, L"%s\\%s.zip", tempdir, outputFileList.name[0]);
+            DeleteFile(wcZip);
 
-        // Write zip in temp directory
-        GetTempPath(MAX_PATH, tempdir);
-        swprintf_s(wcZip, MAX_PATH, L"%s\\%s.zip", tempdir, outputFileList.name[0]);
-        DeleteFile(wcZip);
+            HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
+            for ( int i = 0; i < outputFileList.count; i++ )
+            {
+                const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
 
-        HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
-        for ( int i = 0; i < outputFileList.count; i++ )
-        {
-            const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
+                if (*updateProgress)
+                { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
+
+                ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
+
+                // delete model files if not needed
+                if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
+                {
+                    DeleteFile(outputFileList.name[i]);
+                }
+            }
+            CloseZip(hz);
 
             if (*updateProgress)
-            { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
+                (*updateProgress)(1.0f);
 
-            ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
-
-            // delete model files if not needed
-            if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
+            if ( errCode != MW_NO_ERROR )
             {
-                DeleteFile(outputFileList.name[i]);
+                PopupErrorDialogs( errCode );
             }
+
+            // Set filepath to skfb data
+            std::wstring file(wcZip);
+            std::string filepath(file.begin(), file.end());
+            skfbPData->skfbFilePath = filepath;
+            setPublishSkfbData(skfbPData);
         }
-        CloseZip(hz);
-
-        if (*updateProgress)
-            (*updateProgress)(1.0f);
-
-        if ( errCode != MW_NO_ERROR )
-        {
-            PopupErrorDialogs( errCode );
-        }
-
-        // Set filepath to skfb data
-        std::wstring file(wcZip);
-        std::string filepath(file.begin(), file.end());
-        skfbPData->skfbFilePath = filepath;
-        setPublishSkfbData(skfbPData);
 
         uploadToSketchfab(hInst, hWnd);
     }
