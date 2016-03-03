@@ -1212,6 +1212,7 @@ RButtonUp:
         case IDM_TEST_WORLD:
             gWorld[0] = 0;
             gSameWorld = 0;
+            sprintf_s(gSkfbPData.skfbName, "TestWorld");
             gotoSurface( hWnd, hwndSlider, hwndLabel);
             loadWorld();
             goto InitEnable;
@@ -2588,7 +2589,15 @@ int publishToSketchfab( HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileNam
 
             // Write zip in temp directory
             GetTempPath(MAX_PATH, tempdir);
-            swprintf_s(wcZip, MAX_PATH, L"%s\\%s.zip", tempdir, outputFileList.name[0]);
+
+            // OSX workaround since tempdir will not be ok
+            // TODO: find a better way to detect OSX + Wine vs Windows
+            if ( !PathFileExists(tempdir) )
+            {
+                swprintf_s(tempdir, MAX_PATH, L"\\tmp\\");
+            }
+
+            swprintf_s(wcZip, MAX_PATH, L"%s%s.zip", tempdir, outputFileList.name[0]);
             DeleteFile(wcZip);
 
             HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
@@ -2625,6 +2634,8 @@ int publishToSketchfab( HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileNam
         }
 
         uploadToSketchfab(hInst, hWnd);
+        if (*updateProgress)
+            (*updateProgress)(0.0f);
     }
 
     return retCode;
