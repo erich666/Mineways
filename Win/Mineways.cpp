@@ -1480,6 +1480,13 @@ InitEnable:
             }
             break;
         case IDM_PUBLISH_SKFB:
+            if ( !gHighlightOn )
+            {
+                // we keep the export options ungrayed now so that they're selectable when the world is loaded
+                MessageBox( NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                    _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                break;
+            }
             // Force it to be an rendering export: Relative obj
             gPrintModel=0;
             gExportViewData.fileType=FILE_TYPE_WAVEFRONT_REL_OBJ;
