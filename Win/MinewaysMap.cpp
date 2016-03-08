@@ -1399,7 +1399,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Options opts,ProgressCallback callback,float percent,int *hitsFound)
 {
     WorldBlock *block, *prevblock;
-    int ofs=0,prevy,prevSely,blockSolid;
+    int ofs=0,prevy,prevSely,blockSolid,saveHeight;
     unsigned int voxel;
     //int hasSlime = 0;
     int x,z,i;
@@ -1407,7 +1407,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     unsigned char type, r, g, b, seenempty;
     double alpha, blend;
 
-    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting;
+    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, showAll;
     unsigned char *bits;
 
     //    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
@@ -1417,12 +1417,13 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
     cavemode=!!(opts.worldType&CAVEMODE);
     showobscured=!(opts.worldType&HIDEOBSCURED);
     useElevation=!!(opts.worldType&DEPTHSHADING);
+    showAll=!!(opts.worldType&SHOWALL);
     // use depthshading only if biome shading is off
     //depthshading= !useBiome && useElevation;
     depthshading= useElevation;
     lighting=!!(opts.worldType&LIGHTING);
     viewFilterFlags= BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |   // what's visible
-        ((opts.worldType&SHOWALL)?(BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
+        (showAll?(BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
 
     block=(WorldBlock *)Cache_Find(bx,bz);
 
@@ -1498,18 +1499,21 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         block->rendermissing=1; //note improperly rendered block to west
         prevblock = NULL; //block was rendered at a different y level, ignore
     }
-    // x increases south, decreases north
+    // z increases south, decreases north
     for (z=0;z<16;z++)
     {
+        // prevy is the height of the block to the left (west) of the current block, for shadowing.
+        // Note it is set to the previous y height for the loop below.
         if (prevblock!=NULL)
             prevy = prevblock->heightmap[15+z*16];
         else
             prevy=-1;
 
-        // z increases (old) west, decreases (old) east
+        // x increases west, decreases east
         for (x=0;x<16;x++)
         {
             prevSely = -1;
+            saveHeight = 0;
 
             voxel=((maxHeight*16+z)*16+x);
             r=gEmptyR;
@@ -1536,7 +1540,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 
                 // special selection height: we want to be able to select water
                 float currentAlpha = gBlockDefinitions[type].alpha;
-                blockSolid = (type<NUM_BLOCKS_MAP) && (currentAlpha!=0.0);
+                blockSolid = (currentAlpha!=0.0); // ((type<NUM_BLOCKS_MAP) || (type ==255)) && 
                 if ((showobscured || seenempty) && blockSolid)
                     if (prevSely==-1) 
                         prevSely=i;
@@ -1564,12 +1568,12 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                             light = 0;
                         }
                     }
-                    // if it's the first voxel visible, note this depth.
-                    if (prevy==-1) 
-                        prevy=i;
-                    else if (prevy<i)
+                    // if it's the first voxel visible (i.e., there was no block at all to the west), note this depth.
+                    if (prevy==-1)
+                         prevy=i;
+                    else if (prevy<i)   // fully lit on west side of block?
                         light+=2;
-                    else if (prevy>i)
+                    else if (prevy>i)   // in shadow?
                         light-=5;
                     light=clamp(light,1,15);
                     // Here is where the color of the block is retrieved.
@@ -1582,8 +1586,8 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                     if (alpha==0.0)
                     {
                         // yes; since there's no accumulated alpha, simply substitute the values into place;
-                        // note that semi-transparent values already have their alpha multiplied in,
-                        // as the 
+                        // note that semi-transparent values already have their alpha multiplied in.
+                        saveHeight = i;
                         alpha=currentAlpha;
                         r=(unsigned char)(color>>16);
                         g=(unsigned char)((color>>8)&0xff);
@@ -1606,7 +1610,11 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             }
 
             // The solid location (or none at all, in which case -1 is set) is saved here.
-            prevy=i;
+            // If everything is visible, then the height map will store the highest object found,
+            // transparent or solid. This will tend to darken the water, since it will now "shadow"
+            // itself. Note that prevy is used in the methods below, but for showAll it's good to have
+            // this higher height for these purposes.
+            prevy=showAll ? saveHeight:i;
 
             if (depthshading) // darken deeper blocks
             {
@@ -1643,9 +1651,10 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             //    }
             //}
 
-            if (cavemode)
+            if (cavemode && prevy >= 0)
             {
                 seenempty=0;
+                assert(voxel>=0);
                 type=block->grid[voxel];
 
                 if (type==BLOCK_LEAVES || type==BLOCK_LOG || type==BLOCK_AD_LEAVES || type==BLOCK_AD_LOG ) //special case surface trees
@@ -1661,7 +1670,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                         seenempty=1;
                         continue;
                     }
-                    if (seenempty && type<NUM_BLOCKS_MAP && gBlockDefinitions[type].alpha!=0.0)
+                    if (seenempty && gBlockDefinitions[type].alpha!=0.0) // ((type<NUM_BLOCKS_MAP) || (type ==255)) &&
                     {
                         r=(unsigned char)(r*(prevy-i+10)/138);
                         g=(unsigned char)(g*(prevy-i+10)/138);
@@ -1736,6 +1745,8 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             bits[ofs++]=b;
             bits[ofs++]=0xff;
 
+            // heightmap determines what value is displayed on status and for shadowing. If "show all" is on,
+            // save any semi-visible thing, else save the first solid thing (or possibly nothing == 0).
             block->heightmap[x+z*16] = (unsigned char)prevy;
         }
     }
@@ -1798,6 +1809,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_JACK_O_LANTERN:
     case BLOCK_STONE_BRICKS:
     case BLOCK_CAULDRON:
+    case BLOCK_FROSTED_ICE:
+    case BLOCK_STRUCTURE_BLOCK:
         // uses 0-3
         if ( dataVal < 4 )
         {
@@ -1816,10 +1829,17 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_SAPLING:
     case BLOCK_CAKE:
+    case BLOCK_END_ROD:
+    case BLOCK_CHORUS_FLOWER:
         // uses 0-5
         if ( dataVal < 6 )
         {
             addBlock = 1;
+            // for just chorus flower, put endstone below
+            if ( type == BLOCK_CHORUS_FLOWER )
+            {
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_END_STONE;
+            }
         }
         break;
     case BLOCK_DOUBLE_FLOWER:
@@ -1866,7 +1886,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_ACACIA_WOOD_STAIRS:
     case BLOCK_DARK_OAK_WOOD_STAIRS:
     case BLOCK_RED_SANDSTONE_STAIRS:
-        // uses 0-7 - we could someday add more, in order to show the "step block trim" feature of week 39
+    case BLOCK_PURPUR_STAIRS:
+        // uses 0-7 - we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if ( dataVal < 8 )
         {
             addBlock = 1;
@@ -1877,6 +1898,15 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_POTATOES:
         // uses 0-7, put farmland beneath it
         if ( dataVal < 8 )
+        {
+            addBlock = 1;
+            // add farmland underneath
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
+        }
+        break;
+    case BLOCK_BEETROOT_SEEDS:
+        // uses 0-3, put farmland beneath it
+        if ( dataVal < 4 )
         {
             addBlock = 1;
             // add farmland underneath
@@ -1900,7 +1930,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 
     case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:
     case BLOCK_RED_SANDSTONE_SLAB:
-        // uses 0 and 8
+    case BLOCK_PURPUR_SLAB:
+        // uses 0 and 8 - normal and smooth, for redstone double slab; bottom & top for slabs
         if ( dataVal == 0 || dataVal == 8 )
         {
             addBlock = 1;
@@ -2229,11 +2260,15 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_STONE_BUTTON:
     case BLOCK_WOODEN_BUTTON:
         trimVal = dataVal & 0x7;
-        if ( trimVal >= 1 && trimVal <= 4 )
+        if ( trimVal <= 5 )
         {
             addBlock = 1;
             switch ( trimVal )
             {
+            case 0:
+                // put block above
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
+                break;
             case 1:
                 // put block to west
                 block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
@@ -2250,6 +2285,9 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
                 // put block to south
                 block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
                 break;
+            case 5:
+                // put block below
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_OBSIDIAN;
             }
         }
         break;
@@ -2381,9 +2419,24 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
+    case BLOCK_CHORUS_PLANT:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
+
+        // put block above, too, for every fifth one, just to see it's working
+        if ( (dataVal % 5) == 4 )
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+
+        // for just chorus plant, put endstone below
+        if ( type == BLOCK_CHORUS_PLANT )
+        {
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_END_STONE;
+            // half the time put chorus flower above, instead
+            if ( dataVal & 0x1 ) {
+                block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = BLOCK_CHORUS_FLOWER;
+            }
+        }
 
         if ( dataVal & 0x1 )
         {
@@ -2453,6 +2506,10 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
+
+        // put block above, too, for every seventh one, just to see it's working
+        if ( (dataVal % 7) == 5 )
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
 
         if ( dataVal & 0x1 )
         {
@@ -2624,6 +2681,14 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
             break;
         }
         break;
+
+    case BLOCK_HAY:
+    case BLOCK_PURPUR_PILLAR:
+        // uses 0,4,8
+        if ( (dataVal == 0) || (dataVal == 4) || (dataVal == 8) ) {
+            addBlock = 1;
+        }
+
     }
 
     // if we want to do a normal sort of thing
@@ -2659,7 +2724,7 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
         i--;
     }
     numeral = shiftedNumeral % 10;
-    if ( type < NUM_BLOCKS_MAP && shiftedNumeral > 0 )
+    if ( (type < NUM_BLOCKS_DEFINED) && shiftedNumeral > 0 )
     {
         int dots[50][2];
         int doti = 0;
@@ -2837,7 +2902,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         memset(block->light, 0xff, 16*16*128);
         block->renderhilitID = 0;
 
-        if ( type >= 0 && type < NUM_BLOCKS_MAP && cz >= 0 && cz < 8)
+        if ( type >= 0 && type < NUM_BLOCKS_DEFINED && cz >= 0 && cz < 8)
         {
             // grass base
             for ( x = 0; x < 16; x++ )
@@ -2855,7 +2920,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             // blocks: each 16x16 area has 4 blocks, every 8 spaces, so we call this to get 4 blocks.
             testBlock(block,type,blockHeight,cz*2);
             testBlock(block,type,blockHeight,cz*2+1);
-            if ( type+1 < NUM_BLOCKS_MAP )
+            if ( type+1 < NUM_BLOCKS_DEFINED )
             {
                 testBlock(block,type+1,blockHeight,cz*2);
                 testBlock(block,type+1,blockHeight,cz*2+1);
@@ -2863,7 +2928,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             return block;
         }
         // tick marks
-        else if ( type >= 0 && type < NUM_BLOCKS_MAP && (cz == -1 || cz == 8) )
+        else if ( type >= 0 && type < NUM_BLOCKS_DEFINED && (cz == -1 || cz == 8) )
         {
             int i, j;
 
@@ -2881,7 +2946,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             {
                 if ( ((type+i) % 10) == 0 )
                 {
-                    if ( type+i < NUM_BLOCKS_MAP )
+                    if ( type+i < NUM_BLOCKS_DEFINED )
                     {
                         for ( j = 0; j <= (int)(cx/8); j++ )
                             block->grid[BLOCK_INDEX(4+(i%2)*8,grassHeight,j)] = (((type+i)%50) == 0) ? (unsigned char)BLOCK_WATER : (unsigned char)BLOCK_LAVA;
@@ -2891,10 +2956,10 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             return block;
         }
         // numbers (yes, I'm insane)
-        else if ( type >= 0 && type < NUM_BLOCKS_MAP && (cz <= -2 && cz >= -3) )
+        else if ( type >= 0 && type < NUM_BLOCKS_DEFINED && (cz <= -2 && cz >= -3) )
         {
             int letterType = BLOCK_OBSIDIAN;
-            if ( type >= NUM_BLOCKS_MAP)
+            if ( (type >= NUM_BLOCKS_STANDARD) && (type != BLOCK_STRUCTURE_BLOCK) )
             {
                 // for unknown block, put a different font
                 letterType = BLOCK_LAVA;
@@ -2911,9 +2976,12 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             // blocks
             testNumeral(block,type,blockHeight,-cz*2-3, letterType);
             testNumeral(block,type,blockHeight,-cz*2-1-3, letterType);
-            if ( type+1 < NUM_BLOCKS_MAP )
+
+            // second number on 16x16 tile
+            letterType = BLOCK_OBSIDIAN;
+            if ( type+1 < NUM_BLOCKS_DEFINED )
             {
-                if ( type+1 >= NUM_BLOCKS_STANDARD)
+                if ( (type+1 >= NUM_BLOCKS_STANDARD) && (type+1 != BLOCK_STRUCTURE_BLOCK) )
                 {
                     letterType = BLOCK_LAVA;
                 }
@@ -2938,24 +3006,12 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
         unsigned char *pBlockID = block->grid;
         for ( i = 0; i < 16*16*256; i++, pBlockID++ )
         {
-            // old "change wool to a higher number" code. Color now changed during mapping.
-            //if ( *pBlockID == BLOCK_WOOL)
-            //{
-            //    // convert to new block
-            //    int woolVal = block->data[i/2];
-            //    if ( i & 0x01 )
-            //        woolVal = woolVal >> 4;
-            //    else
-            //        woolVal &= 0xf;
-            //    *pBlockID = (unsigned char)(NUM_BLOCKS_STANDARD + woolVal);
-            //}
-            //else 
-            if ( *pBlockID >= NUM_BLOCKS_STANDARD )
+            if ( (*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK) )
             {
                 // some new version of Minecraft, block ID is unrecognized;
                 // turn this block into stone. dataVal will be ignored.
                 // flag assert only once
-                assert( (gUnknownBlock == 1 ) || (*pBlockID < NUM_BLOCKS_STANDARD) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
+                assert( (gUnknownBlock == 1 ) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
                 *pBlockID = BLOCK_UNKNOWN;
                 // note that we always clean up bad blocks;
                 // whether we flag that a bad block was found is optional.
@@ -3052,7 +3108,7 @@ void SetMapPremultipliedColors()
     float a;
     int i;
 
-    for (i=0;i<NUM_BLOCKS;i++)
+    for (i=0;i<NUM_BLOCKS_DEFINED;i++)
     {
         color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
         r=(unsigned char)((color>>16)&0xff);
@@ -3104,7 +3160,7 @@ static void initColors()
     int rx, ry;
 
     gColorsInited=1;
-    for (i=0;i<NUM_BLOCKS_MAP;i++)
+    for (i=0;i<NUM_BLOCKS_DEFINED;i++)
     {
         color=gBlockDefinitions[i].pcolor;
         r=color>>16;

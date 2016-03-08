@@ -31,6 +31,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile);
 static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y );
+static void makeSolidTile(progimage_info *dst, int chosenTile, int solid);
 
 static void copyPNGArea(progimage_info *dst, progimage_info *src);
 
@@ -71,6 +72,8 @@ int wmain(int argc, wchar_t* argv[])
 	int verbose = 0;
 	int checkmissing = 0;
     int alternate = 0;
+    int solid = 0;
+    int solidcutout = 0;
 
 	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME );
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
@@ -135,6 +138,16 @@ int wmain(int argc, wchar_t* argv[])
             // alternate: use names such as "blockIron" when "iron_block" is not found
             alternate = 1;
         }
+        else if ( wcscmp(argv[argLoc],L"-s") == 0 )
+        {
+            // solid: take the average color of the incoming tile and output this solid color
+            solid = 1;
+        }
+        else if ( wcscmp(argv[argLoc],L"-S") == 0 )
+        {
+            // solid cutout: as above, but preserve the cutout transparent areas
+            solidcutout = 1;
+        }
         else if ( wcscmp(argv[argLoc],L"-v") == 0 )
         {
             // verbose: tell when normal things happen
@@ -155,6 +168,8 @@ int wmain(int argc, wchar_t* argv[])
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
             wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
             wprintf( L"  -a - include alternate texture names when files are not found.\n");
+            wprintf( L"  -s - take the average color of the incoming tile and output this solid color.\n");
+            wprintf( L"  -S - as above, but preserve the cutout transparent areas.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 			return 1;
 		}
@@ -379,6 +394,15 @@ int wmain(int argc, wchar_t* argv[])
 		if ( verbose )
 			wprintf (L"File %s merged.\n", gTiles[index].filename);
 	}
+
+    // if solid is desired, blend final result and replace in-place
+    if ( solid || solidcutout )
+    {
+        for ( i = 0; i < TOTAL_TILES; i++ )
+        {
+            makeSolidTile(destination_ptr, i, solid );
+        }
+    }
 
 	// write out the result
 	rc = writepng(destination_ptr, 4, terrainExtOutput);
@@ -782,3 +806,71 @@ static void copyPNGArea(progimage_info *dst, progimage_info *src)
 		}
 	}
 }
+
+static void makeSolidTile(progimage_info *dst, int chosenTile, int solid)
+{
+    int row,col,dst_offset;
+    unsigned char* dst_data;
+
+    unsigned char color[4];
+    double dcolor[4];
+    double sum_color[3],sum;
+    int tileSize;
+
+    tileSize = dst->width / 16;
+
+    dst_offset = ((chosenTile % 16)*tileSize + (int)(chosenTile/16)*tileSize*dst->width)*4;
+
+    sum_color[0] = sum_color[1] = sum_color[2] = sum = 0;
+
+    for ( row = 0; row < tileSize; row++ )
+    {
+        dst_data = &dst->image_data[0] + dst_offset + row*dst->width*4;
+        for ( col = 0; col < tileSize; col++ )
+        {
+            // linearize; really we should use sRGB conversions, but this is close enough
+            dcolor[0] = pow(*dst_data++/255.0,2.2);
+            dcolor[1] = pow(*dst_data++/255.0,2.2);
+            dcolor[2] = pow(*dst_data++/255.0,2.2);
+            dcolor[3] = *dst_data++/255.0;
+            sum_color[0] += dcolor[0]*dcolor[3];
+            sum_color[1] += dcolor[1]*dcolor[3];
+            sum_color[2] += dcolor[2]*dcolor[3];
+            sum += dcolor[3];
+        }
+    }
+    if ( sum > 0 ) {
+        // gamma correct and then unassociate for PNG storage
+        color[0] = (unsigned char)(0.5 + 255.0 * pow((sum_color[0] / sum),1/2.2));
+        color[1] = (unsigned char)(0.5 + 255.0 * pow((sum_color[1] / sum),1/2.2));
+        color[2] = (unsigned char)(0.5 + 255.0 * pow((sum_color[2] / sum),1/2.2));
+        color[3] = 255;
+        for ( row = 0; row < tileSize; row++ )
+        {
+            dst_data = &dst->image_data[0] + dst_offset + row*dst->width*4;
+            for ( col = 0; col < tileSize; col++ )
+            {
+                // if we want solid blocks (not cutouts), or we do want solid cutouts
+                // and the alpha is not fully transparent, then save new color.
+                if ( solid || (dst_data[3] == 255) ) {
+                    // solid, or cutout is fully opaque
+                    *dst_data++ = color[0];
+                    *dst_data++ = color[1];
+                    *dst_data++ = color[2];
+                    *dst_data++ = color[3];
+                } else if ( !solid || (dst_data[3] != 255) ) {
+                    // cutout mode, and partial alpha
+                    *dst_data++ = color[0];
+                    *dst_data++ = color[1];
+                    *dst_data++ = color[2];
+                    // don't touch alpha, leave it unassociated
+                    dst_data++;
+                } else {
+                    // skip pixel, as it's fully transparent
+                    dst_data += 4;
+                }
+            }
+        }
+    }
+}
+

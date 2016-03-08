@@ -1,8 +1,7 @@
 # Cycles Mineways setup
-# Created by Jonathan Edelman
-# Version 1.1.2, 9/13/15
-# Copyright © 2015 Jonathan Edelman
-# Please send suggestions or report bugs at jonathanedelman@mail.com
+# Version 1.2.0, 1/25/16
+# Copyright © 2016 Jonathan Edelman
+# Please send suggestions or report bugs at jonathanedelman@mail.com or discuss at https://github.com/JMY1000/CyclesMineways/
 # This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation under version 3 of the License.
 # This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -43,30 +42,38 @@
 
 #The prefix of the texture files it uses
 PREFIX=""
-#If this is true, the script will request a scene to work with; otherwise, it will use all scenes
-USER_INPUT_SCENE=False
+#If this list has scenes, the script only use those scenes to work with;
+#otherwise, it will use all scenes
+#example: USER_INPUT_SCENE = ["scene","scene2","randomScene123"]
+USER_INPUT_SCENE=[]
 #Cloud state, either True or False
 CLOUD_STATE=False
 #Changing the number here changes what water shader will be used, 0 to use the normal shader, 1 to use a partially transparent but still only textured shader, 2 for a choppy shader, 3 for a wavy shader
-WATER_SHADER_TYPE=int(1)
+WATER_SHADER_TYPE=1
 #Changing the number here changes the type of sky shader used, 0 for no shader
-SKY_SHADER_TYPE=int(0)
+SKY_SHADER_TYPE=0
 #Time of day–note that the decimal is not in minutes, and is a fraction (ex. 12:30 is 12.50)
-TIME_OF_DAY=float(12.00)
+TIME_OF_DAY=12.00
 #Decide if  lava is animated
 LAVA_ANIMATION=False
+#Use virtual displacement (changes normals for illusion of roughness) for wooden plank blocks
+#NOTE: this currently only works for oak wood planks
+DISPLACE_WOOD=False
 
-#List of transparent blocks; old names for blocks are at the end of the list
-transparentBlocks=["Acacia_Door","Acacia_Leaves","Activator_Rail","Bed","Birch_Door","Brewing_Stand","Brown_Mushroom","Cactus","Carrot","Cauldron","Cobweb","Cocoa","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jungle_Door","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Powered_Rail","Pumpkin_Stem","Rail","Red_Mushroom","Redstone_Comparator_(off)","Redstone_Repeater_(off)","Redstone_Torch_(off)","Spruce_Door","Stained_Glass","Sugar_Cane","Sunflower","Trapdoor","Vines","Wheat","Wooden_Door","Acacia/Dark_Oak_Leaves","Carrots","Crops","Large_Flower","Leaves","Potatoes","Repeater_(off)","Sapling","Tall_Grass"]
-#List of light emitting blocks; old names for blocks are at the end of the list
-lightBlocks=["End_Rod","End_Portal","Ender_Chest","Glowstone","Jack_o'Lantern","Lava","Nether_Portal","Redstone_Lamp_(on)","Sea_Lantern","Stationary_Lava","Flowing_Lava"]
-#List of light emitting and transparent block; old name for repeater block is at the end of the list
-lightTransparentBlocks=["Beacon","Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Repeater_(on)","Redstone_Torch_(on)","Torch","Repeater_(on)"]
+#List of transparent blocks
+transparentBlocks=["Acacia_Leaves","Dark_Oak_Leaves","Acacia_Door","Activator_Rail","Beacon","Bed","Birch_Door","Brewing_Stand","Brown_Mushroom","Cactus","Carrot","Carrots","Cauldron","Cobweb",
+    "Cocoa","Crops","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jungle_Door","Large_Flower",
+    "Leaves","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Potatoes","Powered_Rail","Powered_Rail_(off)","Pumpkin_Stem","Rail","Red_Mushroom",
+    "Redstone_Comparator_(off)","Redstone_Torch_(off)","Repeater_(off)","Sapling","Spruce_Door","Stained_Glass","Sugar_Cane","Sunflower","Tall_Grass","Trapdoor","Vines","Wheat","Wooden_Door"]
+#List of light emitting blocks
+lightBlocks=["End_Portal","Redstone_Lamp_(on)","Glowstone","Stationary_Lava","Flowing_Lava"]
+#List of light emitting and transparent block
+lightTransparentBlocks=["Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Torch_(on)","Repeater_(on)","Torch"]
 
 
 #SHADERS
 
-def Normal_Shader(material):
+def Normal_Shader(material,rgba_image):
     #Make the material use nodes
     material.use_nodes=True
     #Set the variable node_tree to be the material's node tree and variable nodes to be the node tree's nodes
@@ -84,9 +91,10 @@ def Normal_Shader(material):
     #Create the diffuse node
     diffuse_node=nodes.new('ShaderNodeBsdfDiffuse')
     diffuse_node.location=(0,300)
+    diffuse_node.inputs[1].default_value=0.3 # sets diffuse to 0.3 for all normal blocks
     #Create the rgba node
     rgba_node=nodes.new('ShaderNodeTexImage')
-    rgba_node.image = bpy.data.images[PREFIX+"-RGBA.png"]
+    rgba_node.image = rgba_image
     rgba_node.interpolation=('Closest')
     rgba_node.location=(-300,300)
     rgba_node.label = "RGBA"
@@ -114,7 +122,7 @@ def Transparent_Shader(material):
     mix_node.location=(0,300)
     #Create the diffuse node
     diffuse_node=nodes.new('ShaderNodeBsdfDiffuse')
-    diffuse_node.location=(-300,300)
+    diffuse_node.location=(-300,400)
     #Create the transparent node
     transparent_node=nodes.new('ShaderNodeBsdfTransparent')
     transparent_node.location=(-300,0)
@@ -125,15 +133,16 @@ def Transparent_Shader(material):
     rgba_node.location=(-600,300)
     rgba_node.label = "RGBA"
     #Create the alpha node
-    alpha_node=nodes.new('ShaderNodeTexImage')
-    alpha_node.image = bpy.data.images[PREFIX+"-Alpha.png"]
-    alpha_node.interpolation=('Closest')
-    alpha_node.location=(-600,0)
-    alpha_node.label = "Alpha"
+    #alpha_node=nodes.new('ShaderNodeTexImage')
+    #alpha_node.image = bpy.data.images[PREFIX+"-Alpha.png"]
+    #alpha_node.interpolation=('Closest')
+    #alpha_node.location=(-600,0)
+    #alpha_node.label = "Alpha"
     #Link the nodes
     links=node_tree.links
     link=links.new(rgba_node.outputs["Color"],diffuse_node.inputs["Color"])
-    link=links.new(alpha_node.outputs["Color"],mix_node.inputs["Fac"])
+    link=links.new(rgba_node.outputs["Alpha"],mix_node.inputs["Fac"])
+    #link=links.new(alpha_node.outputs["Color"],mix_node.inputs["Fac"])
     link=links.new(transparent_node.outputs["BSDF"],mix_node.inputs[1])
     link=links.new(diffuse_node.outputs["BSDF"],mix_node.inputs[2])
     link=links.new(mix_node.outputs["Shader"],output_node.inputs["Surface"])
@@ -152,20 +161,44 @@ def Light_Emiting_Shader(material):
     #diffuse_node=nodes.get('ShaderNodeBsdfDiffuse')
     #Create the output node
     output_node=nodes.new('ShaderNodeOutputMaterial')
-    output_node.location=(300,300)
-    #Create the emission node
-    emission_node=nodes.new('ShaderNodeEmission')
-    emission_node.location=(0,300)
+    output_node.location=(600,300)
+    #Create the diffuse deciding mix node
+    diffuse_mix_node=nodes.new('ShaderNodeMixShader')
+    diffuse_mix_node.location=(300,300)
+    #Create the Light Path Node
+    light_path_node=nodes.new('ShaderNodeLightPath')
+    light_path_node.location=(0,600)
+    #Create the diffuse emission
+    indirect_emission_node=nodes.new('ShaderNodeEmission')
+    indirect_emission_node.location=(0,100)
+    #Create the Light Falloff node for indirect emission
+    light_falloff_node=nodes.new('ShaderNodeLightFalloff')
+    light_falloff_node.location=(-300,0)
+    light_falloff_node.inputs[0].default_value=5000 #sets strength of light
+    light_falloff_node.inputs[1].default_value=0.05 #sets smooth level of light
+    #Create the HSV node to brighten the light
+    hsv_node=nodes.new('ShaderNodeHueSaturation')
+    hsv_node.location=(-300,200)
+    hsv_node.inputs["Value"].default_value=3 # brightens the color for better lighting
+    #Create the direct emission node
+    direct_emission_node=nodes.new('ShaderNodeEmission')
+    direct_emission_node.location=(0,300)
     #Create the rgba node
     rgba_node=nodes.new('ShaderNodeTexImage')
     rgba_node.image = bpy.data.images[PREFIX+"-RGBA.png"]
     rgba_node.interpolation=('Closest')
-    rgba_node.location=(-300,300)
+    rgba_node.location=(-600,300)
     rgba_node.label = "RGBA"
     #Link the nodes
     links=node_tree.links
-    link=links.new(rgba_node.outputs["Color"],emission_node.inputs["Color"])
-    link=links.new(emission_node.outputs["Emission"],output_node.inputs["Surface"])
+    link=links.new(rgba_node.outputs["Color"],direct_emission_node.inputs["Color"])
+    link=links.new(rgba_node.outputs["Color"],hsv_node.inputs["Color"])
+    link=links.new(hsv_node.outputs["Color"],indirect_emission_node.inputs["Color"])
+    link=links.new(light_falloff_node.outputs[1],indirect_emission_node.inputs[1]) #connects linear output to emission strength
+    link=links.new(indirect_emission_node.outputs["Emission"],diffuse_mix_node.inputs[2])
+    link=links.new(direct_emission_node.outputs["Emission"],diffuse_mix_node.inputs[1])
+    link=links.new(light_path_node.outputs[2],diffuse_mix_node.inputs["Fac"]) #links "is diffuse ray" to factor of mix node
+    link=links.new(diffuse_mix_node.outputs["Shader"],output_node.inputs["Surface"])
     if (material==bpy.data.materials.get("Stationary_Lava") or material==bpy.data.materials.get("Flowing_Lava")) and LAVA_ANIMATION==True:
         pass
     
@@ -188,7 +221,7 @@ def Transparent_Emiting_Shader(material):
     mix_node.location=(0,300)
     #Create the diffuse node
     emission_node=nodes.new('ShaderNodeEmission')
-    emission_node.location=(-300,300)
+    emission_node.location=(-300,400)
     #Create the transparent node
     transparent_node=nodes.new('ShaderNodeBsdfTransparent')
     transparent_node.location=(-300,0)
@@ -199,15 +232,16 @@ def Transparent_Emiting_Shader(material):
     rgba_node.location=(-600,300)
     rgba_node.label = "RGBA"
     #Create the alpha node
-    alpha_node=nodes.new('ShaderNodeTexImage')
-    alpha_node.image = bpy.data.images[PREFIX+"-Alpha.png"]
-    alpha_node.interpolation=('Closest')
-    alpha_node.location=(-600,0)
-    alpha_node.label = "Alpha"
+    #alpha_node=nodes.new('ShaderNodeTexImage')
+    #alpha_node.image = bpy.data.images[PREFIX+"-Alpha.png"]
+    #alpha_node.interpolation=('Closest')
+    #alpha_node.location=(-600,0)
+    #alpha_node.label = "Alpha"
     #Link the nodes
     links=node_tree.links
     link=links.new(rgba_node.outputs["Color"],emission_node.inputs["Color"])
-    link=links.new(alpha_node.outputs["Color"],mix_node.inputs["Fac"])
+    link=links.new(rgba_node.outputs["Alpha"],mix_node.inputs["Fac"])
+    #link=links.new(alpha_node.outputs["Color"],mix_node.inputs["Fac"])
     link=links.new(transparent_node.outputs["BSDF"],mix_node.inputs[1])
     link=links.new(emission_node.outputs["Emission"],mix_node.inputs[2])
     link=links.new(mix_node.outputs["Shader"],output_node.inputs["Surface"])
@@ -487,13 +521,18 @@ def Sky_Day_Shader(world):
     #Add the background node
     background_node=nodes.new('ShaderNodeBackground')
     background_node.location=(0,300)
+    #Add the color correct node
+    HSV_node=nodes.new('ShaderNodeHueSaturation')
+    HSV_node.inputs["Value"].default_value=1.6 #Corrects the color value to be the same as Minecraft's sky
+    HSV_node.location=(-300,300)
     #Add the sky texture node
     sky_node=nodes.new('ShaderNodeTexSky')
-    sky_node.location=(-300,300)
+    sky_node.location=(-600,300)
     #Link the nodes
     links=node_tree.links
     link=links.new(background_node.outputs["Background"],output_node.inputs["Surface"])
-    link=links.new(sky_node.outputs["Color"],background_node.inputs["Color"])
+    link=links.new(sky_node.outputs["Color"],HSV_node.inputs["Color"])
+    link=links.new(HSV_node.outputs["Color"],background_node.inputs["Color"])
     
 
 def Sky_Night_Shader(world):
@@ -506,7 +545,17 @@ def Sky_Night_Shader(world):
         nodes.remove(eachNode)
     #Add the output node
     output_node=nodes.new('ShaderNodeOutputWorld')
-    output_node.location=(300,300)
+    output_node.location=(600,300)
+    #Add solid color background for diffuse textures
+    solid_background_node=nodes.new('ShaderNodeBackground')
+    solid_background_node.location=(0,150)
+    solid_background_node.inputs["Color"].default_value=(0.1,0.1,0.1,1)
+    #Add Light Path Node to make sure solid colour is only used for diffuse shaders
+    light_path_node=nodes.new('ShaderNodeLightPath')
+    light_path_node.location=(0,600)
+    #Add mix shader to add the diffuse-only background
+    diffuse_mixer_node=nodes.new('ShaderNodeMixShader')
+    diffuse_mixer_node.location=(300,300)
     #Add the mix node
     mix_node=nodes.new('ShaderNodeMixShader')
     mix_node.location=(0,300)
@@ -573,7 +622,11 @@ def Sky_Night_Shader(world):
     texture_coordinate_node.location=(-2700,300)
     #Link the nodes
     links=node_tree.links
-    link=links.new(mix_node.outputs["Shader"],output_node.inputs["Surface"])
+    link=links.new(diffuse_mixer_node.outputs["Shader"],output_node.inputs["Surface"])
+    link=links.new(mix_node.outputs["Shader"],diffuse_mixer_node.inputs[1])
+    link=links.new(solid_background_node.outputs["Background"],diffuse_mixer_node.inputs[2])
+    link=links.new(light_path_node.outputs[2],diffuse_mixer_node.inputs[0]) # connects "Is Diffuse Ray" to factor
+    #link=links.new(mix_node.outputs["Shader"],output_node.inputs["Surface"])
     link=links.new(background_node.outputs["Background"],mix_node.inputs[1])
     link=links.new(background_node_two.outputs["Background"],mix_node.inputs[2])
     link=links.new(colorramp_node.outputs["Color"],background_node.inputs["Color"])
@@ -595,74 +648,184 @@ def Sun_Shader():
     pass
 
 
+def Wood_Displacement_Texture(material,rgba_image):
+    #Make the material use nodes
+    material.use_nodes=True
+    #Set the variable node_tree to be the material's node tree and variable nodes to be the node tree's nodes
+    node_tree=material.node_tree
+    nodes=material.node_tree.nodes
+    #Remove the old nodes
+    for eachNode in nodes:
+        nodes.remove(eachNode)
+    #commented out alt versions
+    #node_tree=bpy.data.materials[material].node_tree
+    #diffuse_node=nodes.get('ShaderNodeBsdfDiffuse')
+    #Create the output node
+    output_node=nodes.new('ShaderNodeOutputMaterial')
+    output_node.location=(300,300)
+    #Create the diffuse node
+    diffuse_node=nodes.new('ShaderNodeBsdfDiffuse')
+    diffuse_node.location=(0,300)
+    diffuse_node.inputs[1].default_value=0.3 # sets diffuse to 0.3
+    #Create the rgba node
+    rgba_node=nodes.new('ShaderNodeTexImage')
+    rgba_node.image = rgba_image
+    rgba_node.interpolation=('Closest')
+    rgba_node.location=(-300,300)
+    rgba_node.label = "RGBA"
+    
+    #Create displacement node tree
+    
+    #Create magic node 1
+    magic_node_one=nodes.new('ShaderNodeTexMagic')
+    magic_node_one.location=(-900,200)
+    magic_node_one.turbulence_depth=6 #sets depth to 6
+    magic_node_one.inputs[1].default_value=5 #sets scale to 5
+    magic_node_one.inputs[2].default_value=10 #sets distortion to 10
+    
+    #Create magic node 2
+    magic_node_two=nodes.new('ShaderNodeTexMagic')
+    magic_node_two.location=(-900,0)
+    magic_node_two.turbulence_depth=5 #sets depth to 5
+    magic_node_two.inputs[1].default_value=3.3 #sets scale to 3.3
+    magic_node_two.inputs[2].default_value=2.7 #sets distortion to 2.7
+    
+    #Create Add node
+    #Connects to magic node 1 and 2
+    math_add_node_one=nodes.new('ShaderNodeMath')
+    math_add_node_one.location=(-600,0)
+    math_add_node_one.operation="ADD"
+    
+    #Create noise texture
+    noise_node=nodes.new('ShaderNodeTexNoise')
+    noise_node.location=(-900,-200)
+    noise_node.inputs[1].default_value=6.9 #sets scale to 6.9
+    noise_node.inputs[2].default_value=5 #set detail to 5
+    noise_node.inputs[3].default_value=8 #sets distortion to 8
+    
+    #Create multiply
+    #Connects to noise and 5
+    math_multiply_node=nodes.new('ShaderNodeMath')
+    math_multiply_node.location=(-600,-200)
+    math_multiply_node.operation="MULTIPLY"
+    math_multiply_node.inputs[1].default_value=5 #sets multiply value to 5
+    
+    #Create 2nd Add node
+    #Connects to Add node and multiply node
+    math_add_node_two=nodes.new('ShaderNodeMath')
+    math_add_node_two.operation="ADD"
+    math_add_node_two.location=(-300,0)
+    
+    
+    #Create Divide node
+    #Connect from 2nd add node and input [1] to 10
+    #Connects to materials output
+    math_divide_node=nodes.new('ShaderNodeMath')
+    math_divide_node.location=(0,150)
+    math_divide_node.operation="DIVIDE"
+    math_divide_node.inputs[1].default_value=10
+    
+    #Link the nodes
+    links=node_tree.links
+    #link surface modifiers
+    link=links.new(rgba_node.outputs["Color"],diffuse_node.inputs["Color"])
+    link=links.new(diffuse_node.outputs["BSDF"],output_node.inputs["Surface"])
+    #link displacement modifiers
+    link=links.new(magic_node_one.outputs["Fac"],math_add_node_one.inputs[0])
+    link=links.new(magic_node_two.outputs["Fac"],math_add_node_one.inputs[1])
+    link=links.new(math_add_node_one.outputs[0],math_add_node_two.inputs[0])
+    link=links.new(noise_node.outputs["Fac"],math_multiply_node.inputs[0])
+    link=links.new(math_multiply_node.outputs[0],math_add_node_two.inputs[1])
+    link=links.new(math_add_node_two.outputs[0],math_divide_node.inputs[0])
+    link=links.new(math_divide_node.outputs[0],output_node.inputs["Displacement"])
+
+
 #MAIN
 
 def main():
-      
+    
+    print("Main started")
+
     #packing all the files into one .blend 
+    print("Packing files")
     bpy.ops.file.pack_all()
     print("Files packed")
     
     
     #Setting the render engine to Cycles
-    if USER_INPUT_SCENE==True:
-        #get the scene to use
-        scene=input("Please enter the scene you would like to use (default \"Scene\"): ")
-        if scene=="":
-            scene = "Scene"
-        #Set the render engine to Cycles
-        bpy.data.scenes[scene].render.engine='CYCLES'
-    else:
+    if len(USER_INPUT_SCENE)==0:
         for scene in bpy.data.scenes:
             scene.render.engine = 'CYCLES'
-    print("Render engine set to Cycles")
+    else:
+        for w in USER_INPUT_SCENE:
+            #Set the render engine to Cycles
+            bpy.data.scenes[w].render.engine='CYCLES'
+    print("Render engine set to Cycles for selected scenes")
             
     
     try:
-        bpy.data.images[PREFIX+"-RGBA.png"]
+        texture_rgba_image = bpy.data.images[PREFIX+"-RGBA.png"]
     except:
-        print("ERROR! PREFIX INVALID")
+        print("Cannot find image. PREFIX is invalid.")
+        return
     
-    
+    print("Setting up textures")
     #for every material
     for material in bpy.data.materials:
-        #print that the material is now being worked on
-        print("Started  "+str(material.name))
-        #if the material is transparent use a special shader
-        if any(material==bpy.data.materials.get(transparentBlock) for transparentBlock in transparentBlocks):
-            Transparent_Shader(material)
-        #if the material is a light emmitting block use a special shader
-        elif any(material==bpy.data.materials.get(lightBlock) for lightBlock in lightBlocks):
-            Light_Emiting_Shader(material)
-        #if the material is a light emmitting transparent block use a special shader
-        elif any(material==bpy.data.materials.get(lightTransparentBlocks) for lightTransparentBlocks in lightTransparentBlocks):
-            Transparent_Emiting_Shader(material)
-        #if the material is stationary water, use a special shader
-        elif material==bpy.data.materials.get("Stationary_Water"):
-            if WATER_SHADER_TYPE==0:
-                Normal_Shader(material)
-            elif WATER_SHADER_TYPE==1:
-                Stationary_Water_Shader_1(material)
-            elif WATER_SHADER_TYPE==2:
-                Stationary_Water_Shader_2(material)
-            elif WATER_SHADER_TYPE==3:
-                Stationary_Water_Shader_3(material)
-            else:
-                print("ERROR! COULD NOT SET UP WATER")
-        #if the material is flowing water, use a special shader
-        elif material==bpy.data.materials.get("Flowing_Water"):
-            pass
-        #if the material is slime, use a special shader
-        elif material==bpy.data.materials.get("Slime"):
-            Slime_Shader(material)
-        #if the material is ice, use a special shader
-        elif material==bpy.data.materials.get("Ice"):
-            Ice_Shader(material)
-        #else use a normal shader
-        else:
-            Normal_Shader(material)
-        #print the material has finished
-        print("Finished "+str(material.name))
+        if material.active_texture:
+            if len(material.active_texture.name)>=2:
+                if (material.active_texture.name[0:2]=="Kd"):
+                    material_suffix = material.name[material.name.rfind("."):len(material.name)] # gets the .001 .002 .003 ... of the material
+                    try:
+                        int(material_suffix[1:])
+                    except:
+                        material_suffix=""
+                    #if the material is transparent use a special shader
+                    if any(material==bpy.data.materials.get(transparentBlock+material_suffix) for transparentBlock in transparentBlocks):
+                        print(material.name+" is transparent.")
+                        Transparent_Shader(material)
+                    #if the material is a light emmitting block use a special shader
+                    elif any(material==bpy.data.materials.get(lightBlock+material_suffix) for lightBlock in lightBlocks):
+                        print(material.name+" is light block.")
+                        Light_Emiting_Shader(material)
+                    #if the material is a light emmitting transparent block use a special shader
+                    elif any(material==bpy.data.materials.get(lightTransparentBlocks+material_suffix) for lightTransparentBlocks in lightTransparentBlocks):
+                        print(material.name+" is transparent light block.")
+                        Transparent_Emiting_Shader(material)
+                    #if the material is stationary water, use a special shader
+                    elif material==bpy.data.materials.get("Stationary_Water"+material_suffix):
+                        print(material.name+" is water.")
+                        if WATER_SHADER_TYPE==0:
+                            Normal_Shader(material)
+                        elif WATER_SHADER_TYPE==1:
+                            Stationary_Water_Shader_1(material)
+                        elif WATER_SHADER_TYPE==2:
+                            Stationary_Water_Shader_2(material)
+                        elif WATER_SHADER_TYPE==3:
+                            Stationary_Water_Shader_3(material)
+                        else:
+                            print("ERROR! COULD NOT SET UP WATER")
+                    #if the material is flowing water, use a special shader
+                    elif material==bpy.data.materials.get("Flowing_Water"+material_suffix):
+                        print(material.name+" is flowing water.")
+                        pass
+                    #if the material is slime, use a special shader
+                    elif material==bpy.data.materials.get("Slime"+material_suffix):
+                        print(material.name+" is slime.")
+                        Slime_Shader(material)
+                    #if the material is ice, use a special shader
+                    elif material==bpy.data.materials.get("Ice"+material_suffix):
+                        print(material.name+" is ice.")
+                        Ice_Shader(material)
+                    #if the material is wood and DISPLACE_WOOD is True
+                    elif (material==bpy.data.materials.get("Oak_Wood_Planks"+material_suffix))and(DISPLACE_WOOD):
+                        print(material.name+" is displaced wooden planks.")
+                        Wood_Displacement_Texture(material,texture_rgba_image)
+                    #else use a normal shader
+                    else:
+                        print(material.name+" is normal.")
+                        Normal_Shader(material,texture_rgba_image)
+    print("Finished setting up materials")
         
     #Set up the sky
     print("Started shading sky")
@@ -681,13 +844,32 @@ def main():
     print("Started shading sun")
     Sun_Shader()
     print("Sun shaded")
+    
+    #Remove unnecessary textures
+    print("Removing unnecessary textures")
+    for img in bpy.data.images:
+        try:
+            suffix = img.name.rfind(".")
+            int(img.name[suffix+1:])
+            print("Texture "+img.name+" removed for being a duplicate.")
+            img.user_clear()
+            bpy.data.images.remove(img)
+        except:
+            if (img.name==PREFIX+"-Alpha.png") or (img.name==PREFIX+"-RGB.png"):
+                print("Texture "+img.name+" removed for being redundant")
+                img.user_clear()
+                bpy.data.images.remove(img)
+            else:
+                print("Texture "+img.name+" was not removed.")
+    print("Finished removing unnecessary textures")
 
 
 
-print("Started")
+print("\nStarted Cycles Mineways import script.\n")
     
     
 #importing the Blender Python library
 import bpy
-print("Libraries imported")        
+print("Libraries imported")
 main()
+print("\nCycles Mineways has finished.\n")

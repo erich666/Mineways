@@ -54,6 +54,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MAIN_WINDOW_TOP (30+30)
 #define SLIDER_LEFT	90
 
+// should probably be a subroutine, but too many variables...
+#define REDRAW_ALL  draw();\
+                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,\
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);\
+                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);\
+                    InvalidateRect(hWnd,NULL,TRUE);\
+                    UpdateWindow(hWnd);
+
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -186,7 +194,7 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, int typ
 static void populateColorSchemes(HMENU menu);
 static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
-static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth );
+static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bool update );
 static void syncCurrentHighlightDepth();
 static void copyOverExportPrintData( ExportFileData *pEFD );
 static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, BOOL showDialog );
@@ -333,6 +341,20 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
+
+wchar_t* stripWorldName(wchar_t* worldPath)
+{
+    // find last "/" or "\", as possible
+    wchar_t *lastSplitBackslash = wcsrchr( worldPath, '\\' )+1;
+    wchar_t *lastSplitSlash = wcsrchr( worldPath, '/' )+1;
+    wchar_t *lastSplit = worldPath;
+    if ( lastSplitBackslash > lastSplit )
+        lastSplit = lastSplitBackslash;
+    if ( lastSplitSlash > lastSplit )
+        lastSplit = lastSplitSlash;
+
+    return lastSplit;
+}
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -434,7 +456,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowText(hwndBottomLabel,SEA_LEVEL_STRING);
         EnableWindow(hwndBottomLabel,FALSE);
 
-        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
 
         // label to left
         hwndInfoLabel=CreateWindowEx(
@@ -666,7 +688,7 @@ RButtonDown:
             gTargetDepth = my;
             gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);   // should never happen that a flattop is at 0, but just in case
             // also set highlight state to new depths
-            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
             SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
             enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
@@ -686,134 +708,104 @@ RButtonUp:
         ReleaseCapture();
 
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-        if ( minx == maxx && minz == maxz && !hdragging )
-        {
-            // if mouse up in same place as mouse down, turn selection off - who exports one cube column?
-            gHighlightOn=FALSE;
-            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
 
-            int mx,mz;
-            blockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-            holdlParam=lParam;
-            if ( my >= 0 && my <= MAP_MAX_HEIGHT )
-            {
-                // special test: if type is a flattop, then select the location one lower for export
-                if ( (gBlockDefinitions[type].flags&BLF_FLATTOP) && (my>0) )
-                {
-                    my--;
-                }
-                // Could set the target depth to whatever depth we're over. Helps Mac users without a middle mouse button.
-                //gTargetDepth = my;
-                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-            }
-
-            validateItems(GetMenu(hWnd));
-            draw();
-            InvalidateRect(hWnd,NULL,FALSE);
-            UpdateWindow(hWnd);
-        }
-        else
+        hdragging=FALSE;
+        // Area selected.
+        // Check if this selection is not an adjustment
+        if ( !gAdjustingSelection )
         {
-            hdragging=FALSE;
-            // Area selected.
-            // Check if this selection is not an adjustment
-            if ( !gAdjustingSelection )
+            // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
+            // there's nothing in the actual selection volume.
+            if ( gHitsFound[0] && !gHitsFound[1] )
             {
-                // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
-                // there's nothing in the actual selection volume.
-                if ( gHitsFound[0] && !gHitsFound[1] )
+                // make sure there's some lower depth to use to replace current target depth
+                if ( gHitsFound[3] < gTargetDepth )
                 {
-                    // make sure there's some lower depth to use to replace current target depth
-                    if ( gHitsFound[3] < gTargetDepth )
-                    {
-                        wchar_t msgString[1024];
-                        // send warning, set to min height found, then redo!
-                        if ( gFullLow )
-                        {
-                            gFullLow = 0;
-                            swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
-                        else
-                        {
-                            swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
-                        MessageBox( NULL, msgString,
-                            _T("Informational"), MB_OK|MB_ICONINFORMATION);
-                        gTargetDepth = gHitsFound[3];
-                        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-                        // update target depth
-                        SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-                        enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                        draw();
-                        InvalidateRect(hWnd,NULL,FALSE);
-                        UpdateWindow(hWnd);
-                    }
-                    else
-                    {
-                        // funny: target depth is lower than min height in lower section, which
-                        // means lower section not really set. Don't do any warning, I guess.
-                    }
-                }
-                // else, test if there's something in both volumes and offer to adjust.
-                else if ( gAutocorrectDepth &&
-                    ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
-                    ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
-                {
-                    // send warning
-                    int retval;
                     wchar_t msgString[1024];
                     // send warning, set to min height found, then redo!
-                    if ( gHitsFound[3] < gTargetDepth )
+                    if ( gFullLow )
                     {
-                        if ( gFullLow )
-                        {
-                            gFullLow = 0;
-                            swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
-                        else
-                        {
-                            swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
+                        gFullLow = 0;
+                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
+                            gTargetDepth, gHitsFound[3] );
                     }
                     else
                     {
-                        if ( gFullLow )
-                        {
-                            gFullLow = 0;
-                            swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
-                        else
-                        {
-                            swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
-                                gTargetDepth, gHitsFound[3] );
-                        }
+                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
+                            gTargetDepth, gHitsFound[3] );
                     }
-                    retval = MessageBox( NULL, msgString,
-                        _T("Informational"), MB_YESNOCANCEL|MB_ICONINFORMATION|MB_DEFBUTTON1);
-                    if ( retval == IDYES )
+                    MessageBox( NULL, msgString,
+                        _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                    gTargetDepth = gHitsFound[3];
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
+                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+                    // update target depth
+                    SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+                    enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                    draw();
+                    InvalidateRect(hWnd,NULL,FALSE);
+                    UpdateWindow(hWnd);
+                }
+                else
+                {
+                    // funny: target depth is lower than min height in lower section, which
+                    // means lower section not really set. Don't do any warning, I guess.
+                }
+            }
+            // else, test if there's something in both volumes and offer to adjust.
+            else if ( gAutocorrectDepth &&
+                ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
+                ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
+            {
+                // send warning
+                int retval;
+                wchar_t msgString[1024];
+                // send warning, set to min height found, then redo!
+                if ( gHitsFound[3] < gTargetDepth )
+                {
+                    if ( gFullLow )
                     {
-                        gTargetDepth = gHitsFound[3];
-                        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
-                        // update target depth
-                        SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
-                        enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                        draw();
-                        InvalidateRect(hWnd,NULL,FALSE);
-                        UpdateWindow(hWnd);
+                        gFullLow = 0;
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
+                            gTargetDepth, gHitsFound[3] );
                     }
-                    else if ( retval == IDCANCEL )
+                    else
                     {
-                        gAutocorrectDepth = 0;
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
+                            gTargetDepth, gHitsFound[3] );
                     }
+                }
+                else
+                {
+                    if ( gFullLow )
+                    {
+                        gFullLow = 0;
+                        swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+                            gTargetDepth, gHitsFound[3] );
+                    }
+                    else
+                    {
+                        swprintf_s(msgString,1024,L"The current selection lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
+                            gTargetDepth, gHitsFound[3] );
+                    }
+                }
+                retval = MessageBox( NULL, msgString,
+                    _T("Informational"), MB_YESNOCANCEL|MB_ICONINFORMATION|MB_DEFBUTTON1);
+                if ( retval == IDYES )
+                {
+                    gTargetDepth = gHitsFound[3];
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
+                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
+                    // update target depth
+                    SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
+                    enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+                    draw();
+                    InvalidateRect(hWnd,NULL,FALSE);
+                    UpdateWindow(hWnd);
+                }
+                else if ( retval == IDCANCEL )
+                {
+                    gAutocorrectDepth = 0;
                 }
             }
         }
@@ -931,49 +923,32 @@ RButtonUp:
                 gTargetDepth = gCurDepth;
                 {
                     // also set highlight state to new depths
-                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-
-                    // holdlParam is just the last mouse position, so status bar is good.
-                    blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                    updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                    draw();
-                    InvalidateRect(hWnd,NULL,FALSE);
-                    UpdateWindow(hWnd);
+                    REDRAW_ALL;
                 }
                 break;
                 // increment target depth by one
             case VK_OEM_4:    // [
                 gTargetDepth++;
                 gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                 SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                 enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                draw();
-                InvalidateRect(hWnd,NULL,FALSE);
-                UpdateWindow(hWnd);
+                REDRAW_ALL;
                 break;
                 // decrement target depth by one
             case VK_OEM_6:    // ]
                 gTargetDepth--;
                 gTargetDepth = clamp(gTargetDepth,0,MAP_MAX_HEIGHT);
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                 SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                 enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-                updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                draw();
-                InvalidateRect(hWnd,NULL,FALSE);
-                UpdateWindow(hWnd);
+                REDRAW_ALL;
                 break;
             case VK_OEM_PERIOD:
             case '.':
@@ -981,8 +956,9 @@ RButtonUp:
                 if (gCurDepth>0)
                 {
                     gCurDepth--;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                 }
+                REDRAW_ALL;
                 break;
             case VK_OEM_COMMA:
             case ',':
@@ -990,48 +966,59 @@ RButtonUp:
                 if (gCurDepth<MAP_MAX_HEIGHT)
                 {
                     gCurDepth++;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                 }
+                REDRAW_ALL;
                 break;
             case '0':
                 gCurDepth=0;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '1':
                 gCurDepth=10;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '2':
                 gCurDepth=20;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '3':
                 gCurDepth=30;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '4':
                 gCurDepth=40;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '5':
                 gCurDepth=51;	// bottom dirt layer of deep lakes
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '6':
                 gCurDepth=SEA_LEVEL;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '7':
                 gCurDepth=85;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '8':
                 gCurDepth=106;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case '9':
                 gCurDepth=MAP_MAX_HEIGHT;
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                REDRAW_ALL;
                 break;
             case VK_HOME:
                 gCurScale=MAXZOOM;
@@ -1039,6 +1026,11 @@ RButtonUp:
                 break;
             case VK_END:
                 gCurScale=MINZOOM;
+                changed=TRUE;
+                break;
+            case VK_ESCAPE:
+                gHighlightOn=FALSE;
+                SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
                 changed=TRUE;
                 break;
             default:
@@ -1060,9 +1052,7 @@ RButtonUp:
             }
             if (changed)
             {
-                draw();
-                InvalidateRect(hWnd,NULL,FALSE);
-                UpdateWindow(hWnd);
+                REDRAW_ALL;
             }
         }
         break;
@@ -1103,11 +1093,11 @@ RButtonUp:
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
         SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
         enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+        draw();
         blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
             bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
         updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
 
-        draw();
         InvalidateRect(hWnd,NULL,FALSE);
         SetFocus(hWnd);
         UpdateWindow(hWnd);
@@ -1171,9 +1161,8 @@ RButtonUp:
             EnableWindow(hwndBottomSlider,TRUE);
             EnableWindow(hwndBottomLabel,TRUE);
             InvalidateRect(hWnd,NULL,TRUE);
-            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-            UpdateWindow(hWnd);
+            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+            setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
             validateItems(GetMenu(hWnd));
         }
         switch (wmId)
@@ -1218,19 +1207,21 @@ RButtonUp:
             goto InitEnable;
         case IDM_WORLD:
         case IDM_OPEN:
-            ZeroMemory(&ofn,sizeof(OPENFILENAME));
-            ofn.lStructSize=sizeof(OPENFILENAME);
-            ofn.hwndOwner=hWnd;
-            wcscpy_s(path,MAX_PATH,gWorld);
-            ofn.lpstrFile=path;
-            //path[0]=0;
-            ofn.nMaxFile=MAX_PATH;
-            ofn.lpstrFilter=L"Minecraft World (level.dat)\0level.dat\0";
-            ofn.nFilterIndex=1;
-            ofn.lpstrFileTitle=NULL;
-            ofn.nMaxFileTitle=0;
-            ofn.lpstrInitialDir=NULL;
-            ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            ZeroMemory(&ofn, sizeof(ofn));
+            ofn.lStructSize = sizeof(ofn);
+            ofn.hwndOwner = hWnd;
+            ofn.lpstrFile = path;
+            // Set lpstrFile[0] to '\0' so that GetOpenFileName does not 
+            // use the contents of szFile to initialize itself.
+            ofn.lpstrFile[0] = '\0';
+            ofn.nMaxFile = sizeof(path);
+            ofn.lpstrFilter = L"Minecraft World (level.dat)\0level.dat\0";
+            ofn.nFilterIndex = 1;
+            ofn.lpstrFileTitle = NULL;
+            ofn.nMaxFileTitle = 0;
+            ofn.lpstrInitialDir = NULL;
+            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
             if (GetOpenFileName(&ofn)==TRUE)
             {
                 PathRemoveFileSpec(path);
@@ -1268,9 +1259,8 @@ InitEnable:
                 EnableWindow(hwndBottomSlider,TRUE);
                 EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                UpdateWindow(hWnd);
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
             }
             break;
         case IDM_FILE_SELECTTERRAIN:
@@ -1348,8 +1338,8 @@ InitEnable:
                     blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
                     updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                    setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
 
                     // make biome display match biome setting
                     if ( gpEFD->chkBiome )
@@ -1473,9 +1463,9 @@ InitEnable:
                 blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
                     bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
                 updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                }
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
+                }   // matches to "if ( saveOK )"
             }
             break;
         case IDM_JUMPSPAWN:
@@ -1486,9 +1476,7 @@ InitEnable:
                 gCurX/=8.0;
                 gCurZ/=8.0;
             }
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_JUMPPLAYER:
             gCurX=gPlayerX;
@@ -1498,9 +1486,7 @@ InitEnable:
                 gCurX/=8.0;
                 gCurZ/=8.0;
             }
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_VIEW_JUMPTOMODEL: // F4
             if ( !gHighlightOn )
@@ -1520,18 +1506,14 @@ InitEnable:
                     gCurX/=8.0;
                     gCurZ/=8.0;
                 }
-                draw();
-                InvalidateRect(hWnd,NULL,TRUE);
-                UpdateWindow(hWnd);
+                REDRAW_ALL;
             }
             break;
         case IDM_VIEW_SHOWBIOMES:
             // toggles bit from its previous state
             gOptions.worldType^=BIOMES;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&BIOMES)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_SHOWALLOBJECTS:
             // TODO: super-minor bug: if mouse does not move when you turn all objects on, the
@@ -1539,37 +1521,27 @@ InitEnable:
             // sign was shown and you toggle Show All Objects off, the wall sign status will still be there.
             gOptions.worldType^=SHOWALL;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_LIGHTING:
             gOptions.worldType^=LIGHTING;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&LIGHTING)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_CAVEMODE:
             gOptions.worldType^=CAVEMODE;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&CAVEMODE)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_OBSCURED:
             gOptions.worldType^=HIDEOBSCURED;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&HIDEOBSCURED)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_DEPTH:
             gOptions.worldType^=DEPTHSHADING;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&DEPTHSHADING)?MF_CHECKED:MF_UNCHECKED);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            REDRAW_ALL;
             break;
         case IDM_RELOAD_WORLD:
             // reload world, if loaded
@@ -1594,27 +1566,23 @@ InitEnable:
                 EnableWindow(hwndBottomSlider,TRUE);
                 EnableWindow(hwndBottomLabel,TRUE);
                 InvalidateRect(hWnd,NULL,TRUE);
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth );
-                UpdateWindow(hWnd);
+                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
+                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
             }
             break;
         case IDM_HELL:
-            gOptions.worldType^=HELL;
-            // clear selection when you switch worlds
-            gHighlightOn=FALSE;
-            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-            // change scale as needed
-            if (gOptions.worldType&HELL)
+            if (!(gOptions.worldType&HELL))
             {
-                gCurX/=8.0;
-                gCurZ/=8.0;
+                gOptions.worldType |= HELL;
+                gOptions.worldType &= ~ENDER;
+                // change scale as needed
+                gCurX /= 8.0;
+                gCurZ /= 8.0;
                 // it's useless to view Nether from MAP_MAX_HEIGHT
                 if ( gCurDepth == MAP_MAX_HEIGHT )
                 {
                     gCurDepth = 126;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                 }
                 gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
                 gOptions.worldType |= HIDEOBSCURED;
@@ -1636,18 +1604,20 @@ InitEnable:
                 gOptions.worldType&=~ENDER;
             }
             CloseAll();
-            blockLabel=IDBlock(LOWORD(holdlParam),HIWORD(holdlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
-            updateStatus(mx,mz,my,blockLabel,type,dataVal,biome,hwndStatus);
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            // clear selection when you switch worlds
+            gHighlightOn=FALSE;
+            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
+            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+
+            REDRAW_ALL;
+
             break;
         case IDM_END:
-            gOptions.worldType^=ENDER;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&ENDER)?MF_CHECKED:MF_UNCHECKED);
-            if (gOptions.worldType&ENDER)
+            if (!(gOptions.worldType&ENDER))
             {
+                // entering Ender, turn off hell if need be
+                gOptions.worldType |= ENDER;
                 if (gOptions.worldType&HELL)
                 {
                     // get out of hell zoom
@@ -1657,20 +1627,28 @@ InitEnable:
                     if ( gCurDepth == 126 )
                     {
                         gCurDepth = MAP_MAX_HEIGHT;
-                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                     }
                     // turn off obscured, then restore overworld's obscured status
                     gOptions.worldType &= ~HIDEOBSCURED;
                     gOptions.worldType |= gOverworldHideStatus;
                     // uncheck hell menu item
                     CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
-                    gOptions.worldType&=~HELL;
+                    gOptions.worldType &= ~HELL;
                 }
             }
+            else
+            {
+                // exiting Ender, go back to overworld
+                gotoSurface( hWnd, hwndSlider, hwndLabel);
+            }
             CloseAll();
-            draw();
-            InvalidateRect(hWnd,NULL,TRUE);
-            UpdateWindow(hWnd);
+            // clear selection when you switch worlds
+            gHighlightOn=FALSE;
+            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
+            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+
+            REDRAW_ALL;
             break;
         case IDM_HELP_GIVEMEMOREMEMORY:
             // If you go full screen, you'll want more memory, if your computer can handle it.
@@ -1742,6 +1720,12 @@ InitEnable:
         bitmap=CreateDIBSection(NULL,&bmi,DIB_RGB_COLORS,(void **)&map,NULL,0);
         if (hdcMem!=NULL)
             SelectObject(hdcMem,bitmap);
+
+        // increase size of status bar if possible, so that biome information gets displayed
+        {
+            int parts[]={max(300,bitWidth*2/3),-1};
+            SendMessage(hwndStatus,SB_SETPARTS,2,(LPARAM)parts);
+        }
 
         // On resize, figure out a better hash table size for cache, if needed.
         if ( (rect.bottom-rect.top) * (rect.right-rect.left) > 256 * gOptions.currentCacheSize )
@@ -1881,6 +1865,7 @@ static void updateCursor( LPARAM lParam, BOOL hdragging)
     }
 }
 
+// Note: don't change worldType before calling this method - it sets worldType to overworld itself.
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 {
     if (gOptions.worldType&HELL)
@@ -1892,7 +1877,7 @@ static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
         if ( gCurDepth == 126 )
         {
             gCurDepth = MAP_MAX_HEIGHT;
-            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth );
+            setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
         }
         // turn off obscured, then restore overworld's obscured status
         gOptions.worldType &= ~HIDEOBSCURED;
@@ -2110,8 +2095,18 @@ static int setWorldPath(TCHAR *path)
 
     // try Mac path
     TCHAR newPath[MAX_PATH];
-    wcscpy_s(path, MAX_PATH, L"./Library/Application Support/minecraft/saves");
+    // Workaround for OSX minecraft worlds path
+    // Get the username and check in user's Library directory
+    wchar_t user[1024];
+    DWORD username_len = 1025;
+    GetUserName(user, &username_len);
+    swprintf_s(path, MAX_PATH, L"Z:\\Users\\%s\\Library\\Application Support\\minecraft\\saves", user);
 
+    if ( PathFileExists( path ) )
+        return 1;
+
+    // Back to the old method. Not sure if we should keep this. TODOTODO 1.9 - also, should it be backslashes here?
+    wcscpy_s(path, MAX_PATH, L"./Library/Application Support/minecraft/saves");
     wchar_t msgString[1024];
 
     // keep on trying and trying...
@@ -2347,7 +2342,7 @@ static void validateItems(HMENU menu)
     }
 }
 
-static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth )
+static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bool update )
 {
     syncCurrentHighlightDepth();
 
@@ -2355,9 +2350,12 @@ static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth )
     SendMessage(hwndSlider,TBM_SETPOS,1,MAP_MAX_HEIGHT-depth);
     _itow_s(depth,text,10);
     SetWindowText(hwndLabel,text);
-    draw();
-    InvalidateRect(hWnd,NULL,FALSE);
-    UpdateWindow(hWnd);
+    if ( update )
+    {
+        draw();
+        InvalidateRect(hWnd,NULL,FALSE);
+        UpdateWindow(hWnd);
+    }
 }
 
 static void syncCurrentHighlightDepth()
@@ -2389,6 +2387,8 @@ static void copyOverExportPrintData( ExportFileData *pEFD )
     int dest[2];
     int count = 0;
     int service = 0;
+    int copyMtl[2];
+    copyMtl[0] = copyMtl[1] = 1;
 
     switch ( source )
     {
@@ -2414,16 +2414,22 @@ static void copyOverExportPrintData( ExportFileData *pEFD )
     case FILE_TYPE_BINARY_MAGICS_STL:
         dest[0] = FILE_TYPE_BINARY_VISCAM_STL;
         dest[1] = FILE_TYPE_ASCII_STL;
+        // do not copy the setting from color binary to no-color ascii
+        copyMtl[1] = 0;
         count = 2;
         break;
     case FILE_TYPE_BINARY_VISCAM_STL:
         dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
         dest[1] = FILE_TYPE_ASCII_STL;
+        // do not copy the setting from color binary to no-color ascii
+        copyMtl[1] = 0;
         count = 2;
         break;
     case FILE_TYPE_ASCII_STL:
         dest[0] = FILE_TYPE_BINARY_MAGICS_STL;
         dest[1] = FILE_TYPE_BINARY_VISCAM_STL;
+        // do not copy the setting from no-color ascii to color binary
+        copyMtl[0] = copyMtl[1] = 0;
         count = 2;
         break;
     default:
@@ -2435,10 +2441,13 @@ static void copyOverExportPrintData( ExportFileData *pEFD )
     // copy!
     for ( int i = 0; i < count; i++ )
     {
-        pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
-        pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
-        pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
-        pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+        if ( copyMtl[i] )
+        {
+            pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
+            pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
+            pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
+            pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+        }
 
         // don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
         if ( service == 0 )
@@ -2500,7 +2509,8 @@ static int saveObjFile( HWND hWnd, wchar_t *objFileName, int printModel, wchar_t
     int maxy = gpEFD->maxyVal;
 
     // affects default state of biome export, too.
-    gpEFD->chkBiome = ( gOptions.worldType & BIOMES ) ? TRUE : FALSE;
+    // Actually, this is a bad idea: show the checkbox or the biome display control biome output? I think the checkbox should.
+    //gpEFD->chkBiome = ( gOptions.worldType & BIOMES ) ? TRUE : FALSE;
 
     setExportPrintData(gpEFD);
 
@@ -2883,7 +2893,7 @@ static void initializeExportDialogData()
     INIT_ALL_FILE_TYPES( gExportPrintData.chkCreateModelFiles,  1, 1, 1, 1, 1, 1, 1);
 
     // OBJ and VRML have color, depending...
-    // order: OBJ, BSTL, ASTL, VRML
+    // order: Sculpteo OBJ, relative OBJ, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML
     INIT_ALL_FILE_TYPES( gExportPrintData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0, 1);
     // might as well export color with OBJ and binary STL - nice for previewing
     INIT_ALL_FILE_TYPES( gExportPrintData.radioExportMtlColors,    0, 0, 1, 1, 0, 0, 0);  
@@ -3677,15 +3687,7 @@ static void formTitle(wchar_t *world, wchar_t *title)
     }
     else
     {
-        // find last "/" or "\", as possible
-        wchar_t *lastSplitBackslash = wcsrchr( world, '\\' )+1;
-        wchar_t *lastSplitSlash = wcsrchr( world, '/' )+1;
-        wchar_t *lastSplit = world;
-        if ( lastSplitBackslash > lastSplit )
-            lastSplit = lastSplitBackslash;
-        if ( lastSplitSlash > lastSplit )
-            lastSplit = lastSplitSlash;
-        wcscat_s( title, MAX_PATH-1, lastSplit );
+       wcscat_s( title, MAX_PATH-1, stripWorldName(world) );
     }
 }
 

@@ -72,10 +72,10 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /*   5 */ "Oak Wood Planks",        0x9C8149, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//05
     { /*   6 */ "Oak Sapling",            0x7b9a29, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 0, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	//06
     { /*   7 */ "Bedrock",                0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//07
-    { /*   8 */ "Water",                  0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  15,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//08
-    { /*   9 */ "Stationary Water",       0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  /* same as above - change? TODO */ 15,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//09
-    { /*  10 */ "Lava",                   0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,15, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},	//0a
-    { /*  11 */ "Stationary Lava",        0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* same as above - change? TODO */ 15,15, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},	//0b
+    { /*   8 */ "Water",                  0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  15,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//08
+    { /*   9 */ "Stationary Water",       0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  /* same as above - change? TODO */ 15,13, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},	//09
+    { /*  10 */ "Lava",                   0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,15, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},	//0a
+    { /*  11 */ "Stationary Lava",        0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* same as above - change? TODO */ 15,15, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},	//0b
     { /*  12 */ "Sand",                   0xDCD0A6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//0c/12
     { /*  13 */ "Gravel",                 0x857b7b, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//0d
     { /*  14 */ "Gold Ore",               0xfcee4b, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//0e
@@ -117,9 +117,9 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /*  49 */ "Obsidian",               0x1b1729, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5, 2, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//31
     { /*  50 */ "Torch",                  0xfcfc00, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 5, BLF_MIDDLER|BLF_FLATSIDE|BLF_SMALL_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//32/50 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
     { /*  51 */ "Fire",                   0xfca100, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* somewhat bogus */ 15, 1, BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_EMITTER|BLF_DNE_FLUID},	//33/51 - no billboard, sadly BLF_CUTOUTS
-    { /*  52 */ "Monster Spawner",        0x254254, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 4, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//34 - TODO: not quite whole
+    { /*  52 */ "Monster Spawner",        0x254254, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 4, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	//34
     { /*  53 */ "Oak Wood Stairs",        0x9e804f, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//35
-    { /*  54 */ "Chest",                  0xa06f23, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE},	//36 (10,1) side; (11,1) front - TODO: in release it's not whole
+    { /*  54 */ "Chest",                  0xa06f23, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 1, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},	//36 (10,1) side; (11,1) front
     { /*  55 */ "Redstone Wire",          0xd60000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 10, BLF_FLATTOP|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID|BLF_CONNECTS_REDSTONE},	//37
     { /*  56 */ "Diamond Ore",            0x5decf5, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 3, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//38
     { /*  57 */ "Block of Diamond",       0x7fe3df, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//39
@@ -186,7 +186,7 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 116 */ "Enchantment Table",      0xa6701a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE},   //74 6,11 side, 7,11 under - TODO: not really whole TODO: NEED BETTER COLORS HERE ON DOWN (let Sean do it?)
     { /* 117 */ "Brewing Stand",          0x77692e, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 13, 9, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_CUTOUTS},   //75 13,8 base - no BLF_IMAGE_TEXTURE
     { /* 118 */ "Cauldron",               0x3b3b3b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10, 8, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //76 - 10,8 top (inside's better), 10,9 side, 11,9 feet TODO: not really whole
-    { /* 119 */ "End Portal",             0x0c0b0b, 0.7f,   0xff7711, 0xff7711, 0.12345f,    /* bogus */ 14, 0, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},   //77 - not really whole, no real texture, make it a portal
+    { /* 119 */ "End Portal",             0x0c0b0b, 0.7f,   0xff7711, 0xff7711, 0.12345f,   8,11, BLF_PANE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},   //77 - not really whole, no real texture, make it a portal
     { /* 120 */ "End Portal Block",       0x3e6c60, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //78 15,9 side, 15,10 bottom
     { /* 121 */ "End Stone",              0xdadca6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   //79
     { /* 122 */ "Dragon Egg",             0x1b1729, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,10, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    //7A - not really whole
@@ -205,7 +205,7 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 134 */ "Spruce Wood Stairs",     0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,12, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //86
     { /* 135 */ "Birch Wood Stairs",      0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,13, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //87
     { /* 136 */ "Jungle Wood Stairs",     0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,12, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //88
-    { /* 137 */ "Command Block",          0xD6A17E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//89 - TODO: is this really a fence neighbor?
+    { /* 137 */ "Command Block",          0xB28B79, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	//89
     { /* 138 */ "Beacon",                 0x9CF2ED, 0.800f, 0xff7711, 0xff7711, 0.12345f,  11,14, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_EMITTER},	//8A/138 - it's a whole block sorta, it doesn't attach to fences or block wires
     { /* 139 */ "Cobblestone Wall",       0x828282, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 1, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //8B
     { /* 140 */ "Flower Pot",             0x7C4536, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,11, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},   //8C
@@ -235,7 +235,7 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 163 */ "Acacia Wood Stairs",     0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //A3
     { /* 164 */ "Dark Oak Wood Stairs",   0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},    //A4/164
     { /* 165 */ "Slime Block",            0x787878, 0.500f, 0xff7711, 0xff7711, 0.12345f,   3,22, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_TRANSPARENT|BLF_FENCE_NEIGHBOR},	// A5/165 - 1.8
-    { /* 166 */ "Barrier",                0x000000, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, BLF_NONE},	// A6/166 - 1.8
+    { /* 166 */ "Barrier",                0xE30000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  14,25, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_CUTOUTS},	// A6/166 - 1.8 - to make visible, set alpha to 1.0
     { /* 167 */ "Iron Trapdoor",          0xC0C0C0, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,22, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_FLATSIDE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	// A7/167 - 1.8
     { /* 168 */ "Prismarine",             0x5A9B95, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,22, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// 1.8 add
     { /* 169 */ "Sea Lantern",            0xD3DBD3, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,22, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_EMITTER},   //59
@@ -244,7 +244,7 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 172 */ "Hardened Clay",          0x945A41, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,17, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AC/172
     { /* 173 */ "Block of Coal",          0x191919, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AD/173
     // 1.7
-    { /* 174 */ "Packed Ice",             0x7dacfe, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,17, BLF_WHOLE|BLF_IMAGE_TEXTURE},	// AE/174 - like ice, but not transparent
+    { /* 174 */ "Packed Ice",             0x7dacfe, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,17, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// AE/174 - like ice, but not transparent, and a fence neighbor
     { /* 175 */ "Sunflower",    /*output*/0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,18, BLF_FLATTOP|BLF_BILLBOARD|BLF_CUTOUTS|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},	// AF/175 - note color is used to multiply grayscale textures, so don't change it
     { /* 176 */ "Standing Banner",        0x9C9C9C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY},	// assumed to be like signs in properties, but cannot 3D print (too darn thin)
     { /* 177 */ "Wall Banner",            0x9C9C9C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, BLF_SMALL_MIDDLER|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	// BLF_FLATSIDE removed - too tricky to do, since it spans two block, here and below TODO
@@ -268,25 +268,63 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 195 */ "Jungle Door",            0xB2825E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5,23, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
     { /* 196 */ "Acacia Door",            0xB16640, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,23, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
     { /* 197 */ "Dark Oak Door",          0x51341A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9,23, BLF_MIDDLER|BLF_IMAGE_TEXTURE|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},	// yes, for this one dark oak really does go after acacia
+    { /* 198 */ "End Rod",                0xE0CFD0, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,23, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY|BLF_IMAGE_TEXTURE|BLF_DNE_FLUID},
+    { /* 199 */ "Chorus Plant",           0x654765, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,23, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
+    { /* 200 */ "Chorus Flower",          0x937E93, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,23, BLF_ALMOST_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
+    { /* 201 */ "Purpur Block",           0xA77BA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 202 */ "Purpur Pillar",          0xAC82AC, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 203 */ "Purpur Stairs",          0xA77BA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,24, BLF_STAIRS|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 204 */ "Purpur Double Slab",     0xA77BA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 205 */ "Purpur Slab",            0xA77BA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,24, BLF_HALF|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 206 */ "End Bricks",             0xE2E8AC, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 207 */ "Beetroot Seeds",         0x6D7F44, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,24, BLF_BILLBOARD|BLF_IMAGE_TEXTURE|BLF_CUTOUTS|BLF_DNE_FLUID},
+    { /* 208 */ "Grass Path",             0x977E48, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 209 */ "End Gateway",            0x1A1828, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 210 */ "Repeating Command Block",0x8577B2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,24, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 211 */ "Chain Command Block",    0x8AA59A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,25, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
+    { /* 212 */ "Frosted Ice",            0x81AFFF, 0.613f, 0xff7711, 0xff7711, 0.12345f,   6,25, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_TRANSPARENT},
     // special
-    { /* 198 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR}	// same as bedrock
-    // These colors are now used just for group debug, where each group gets a different color. When I revamp the swatch output system, this should
-    // get deleted and swatch colors used will get stored directly.
-    //{"White Wool",             0xDDDDDD, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},   // admittedly a repeat
-    //   {"Orange Wool",            0xEA8037, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Magenta Wool",           0xBF49CA, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,12, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Light Blue Wool",        0x6689D3, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Yellow Wool",            0xC1B41C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Lime Wool",              0x3ABD2E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Pink Wool",              0xD9829A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Gray Wool",              0x434343, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Light Gray Wool",        0x9DA4A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,14, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Cyan Wool",              0x277494, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,13, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Purple Wool",            0x8031C6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,12, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Blue Wool",              0x263399, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,11, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Brown Wool",             0x56331B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,10, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Green Wool",             0x374D18, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 9, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //   {"Red Wool",               0xA32C28, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},
-    //{"Black Wool",             0x1B1717, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 7, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR}
-    // someday may want to add entries for stained clay and carpet TODO
+    { /* 213 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 214 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 215 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 216 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 217 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 218 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 219 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 220 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 221 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 222 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 223 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 224 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 225 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 226 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 227 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 228 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 229 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 230 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 231 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 232 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 233 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 234 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 235 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 236 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 237 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 238 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 239 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 240 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 241 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 242 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 243 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 244 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 245 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 246 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 247 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 248 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 249 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 250 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 251 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 252 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 253 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 254 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 255 */ "Structure Block",        0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,25, BLF_WHOLE|BLF_IMAGE_TEXTURE|BLF_FENCE_NEIGHBOR}
 };
