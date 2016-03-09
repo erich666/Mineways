@@ -12,6 +12,7 @@ typedef std::map<std::string, std::string> attributes;
 struct ProgressbarUpdater {
     CURL *curl;
     HWND progressBar;
+    bool cancel;
 };
 
 // Taken from https://curl.haxx.se/libcurl/c/progressfunc.html
@@ -22,11 +23,12 @@ int progress_callback(void *clientp,
 
     UNREFERENCED_PARAMETER(dltotal);
     UNREFERENCED_PARAMETER(dlnow);
-    // Hack to smooth the progress bar
-
     struct ProgressbarUpdater *myp = (struct ProgressbarUpdater *)clientp;
-    double curtime = 0;
 
+    if(myp->cancel)
+        return 1;
+
+    double curtime = 0;
     curl_easy_getinfo(myp->curl, CURLINFO_TOTAL_TIME, &curtime);
 
     curl_off_t total_percen = 0;
@@ -45,7 +47,13 @@ static size_t WriteMemoryCallback(char *contents, size_t size, size_t nmemb, voi
 }
 
 class SketchfabV2Uploader {
+private:
+    struct ProgressbarUpdater prog;
 public:
+    void abort()
+    {
+        prog.cancel=true;
+    }
     std::pair<bool, std::string> upload(HWND progressBar,
                                         const std::string& token,
                                         const std::string& filepath,
@@ -90,7 +98,6 @@ public:
                                      HWND progressBar=NULL)
     {
         CURL *curl;
-        struct ProgressbarUpdater prog;
         CURLcode res;
         long http_code;
         std::string response;
@@ -132,6 +139,7 @@ public:
     if (curl) {
         prog.curl = curl;
         prog.progressBar = progressBar;
+        prog.cancel = false;
 
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
@@ -142,9 +150,14 @@ public:
         curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &prog);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 900L);
         curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
-            return std::pair<int, std::string>(1, "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ");
+            // Upload has been cancelled
+            if(prog.cancel)
+                return std::pair<int, std::string>(1, "{\"detail\":\" Canceled by the user\" } ");
+            else
+                return std::pair<int, std::string>(1, "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ");
         }
         else {
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);

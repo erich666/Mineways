@@ -54,6 +54,7 @@ int doPublishSkfb(HINSTANCE hInst,HWND hWnd);
 INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam);
 INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam);
 HANDLE uploadThreadHandle = NULL;
+SketchfabV2Uploader* uploader;
 
 LPCWSTR stringToLpwstr(std::string input)
 {
@@ -96,8 +97,8 @@ int doPublishSkfb(HINSTANCE hInst,HWND hWnd)
 DWORD WINAPI thread_func(LPVOID lpParameter)
 {
     UNREFERENCED_PARAMETER(lpParameter);
-    SketchfabV2Uploader uploader;
-    lastResponse = uploader.upload(uploadWindow, skfbPbdata.skfbApiToken, skfbPbdata.skfbFilePath, skfbPbdata.skfbName, skfbPbdata.skfbDescription, skfbPbdata.skfbTags, skfbPbdata.skfbDraft, skfbPbdata.skfbPrivate, skfbPbdata.skfbPassword);
+    uploader = new SketchfabV2Uploader();
+    lastResponse = uploader->upload(uploadWindow, skfbPbdata.skfbApiToken, skfbPbdata.skfbFilePath, skfbPbdata.skfbName, skfbPbdata.skfbDescription, skfbPbdata.skfbTags, skfbPbdata.skfbDraft, skfbPbdata.skfbPrivate, skfbPbdata.skfbPassword);
     SendMessage(uploadWindow, SIGNAL_UPLOAD_FINISHED, 100, 0);
     return 0;
 }
@@ -138,6 +139,7 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
             errorMessageStr.c_str(),
                 L"Upload failed",
                 MB_OKCANCEL | MB_ICONERROR);
+            delete uploader;
         }
 
         EndDialog(hDlg, (INT_PTR)TRUE);
@@ -148,12 +150,8 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
         switch (LOWORD(wParam))
         {
             case IDC_SKFB_UPLOAD_CANCEL:
-                // Terminate thread
-                TerminateThread(uploadThreadHandle, 1);
-                EndDialog(hDlg, (INT_PTR)FALSE);
-                MessageBox(NULL,
-                    _T("Upload cancelled by the user"), _T("Upload interrupted"), MB_OK | MB_ICONERROR);
-                return (INT_PTR)FALSE;
+                // Ask curl to stop upload
+                uploader->abort();
             }
             break;
     }
