@@ -115,6 +115,8 @@ static int gOverworldHideStatus=0x0;
 
 static wchar_t gCurrentDirectory[MAX_PATH];
 static wchar_t gWorldPath[MAX_PATH];
+LPTSTR filepath = new TCHAR[MAX_PATH];
+LPTSTR tempdir = new TCHAR[MAX_PATH];
 
 // low, inside, high for selection area, fourth value is minimum height found below selection box
 static int gHitsFound[4];
@@ -1156,12 +1158,12 @@ RButtonUp:
                 return 0;
             }
 
-            sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorld));
             // because gSameWorld gets set to 1 by loadWorld()
             if (!gHoldSameWorld)
             {
                 wchar_t title[MAX_PATH];
                 formTitle(gWorld,title);
+                sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorld));
                 SetWindowTextW(hWnd,title);
             }
             EnableWindow(hwndSlider,TRUE);
@@ -1262,6 +1264,7 @@ InitEnable:
                 {
                     wchar_t title[MAX_PATH];
                     formTitle(gWorld,title);
+                    sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorld));
                     SetWindowTextW(hWnd,title);
                 }
                 EnableWindow(hwndSlider,TRUE);
@@ -1502,7 +1505,17 @@ InitEnable:
             ofn.lpstrInitialDir=NULL;
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-            publishToSketchfab(hWnd,L"Mineways2Skfb",gSelectTerrain);
+            // Write zip in temp directory
+            GetTempPath(MAX_PATH, tempdir);
+
+            // OSX workaround since tempdir will not be ok
+            // TODO: find a better way to detect OSX + Wine vs Windows
+            if ( !PathFileExists(tempdir) )
+            {
+                swprintf_s(tempdir, MAX_PATH, L"\\tmp\\");
+            }
+            swprintf_s(filepath, MAX_PATH, L"%sMineways2Skfb", tempdir);
+            publishToSketchfab(hWnd, filepath, gSelectTerrain);
             break;
         case IDM_JUMPSPAWN:
             gCurX=gSpawnX;
@@ -2592,19 +2605,8 @@ int publishToSketchfab( HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileNam
                 updateProgress, terrainFileName, &outputFileList, (int)gMajorVersion, (int)gMinorVersion);
 
             wchar_t wcZip[MAX_PATH];
-            LPTSTR tempdir = new TCHAR[MAX_PATH];
 
-            // Write zip in temp directory
-            GetTempPath(MAX_PATH, tempdir);
-
-            // OSX workaround since tempdir will not be ok
-            // TODO: find a better way to detect OSX + Wine vs Windows
-            if ( !PathFileExists(tempdir) )
-            {
-                swprintf_s(tempdir, MAX_PATH, L"\\tmp\\");
-            }
-
-            swprintf_s(wcZip, MAX_PATH, L"%s%s.zip", tempdir, outputFileList.name[0]);
+            swprintf_s(wcZip, MAX_PATH, L"%s.zip", outputFileList.name[0]);
             DeleteFile(wcZip);
 
             HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
