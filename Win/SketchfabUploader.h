@@ -8,7 +8,6 @@
 #define SKETCHFAB_MODELS_API SKETCHFAB_SERVER "/v2/models"
 
 typedef std::map<std::string, std::string> attributes;
-curl_off_t firstStep = -1;
 
 struct ProgressbarUpdater {
     CURL *curl;
@@ -24,8 +23,6 @@ int progress_callback(void *clientp,
     UNREFERENCED_PARAMETER(dltotal);
     UNREFERENCED_PARAMETER(dlnow);
     // Hack to smooth the progress bar
-    if(firstStep == -1 && ulnow > 1000)
-        firstStep = ulnow;
 
     struct ProgressbarUpdater *myp = (struct ProgressbarUpdater *)clientp;
     double curtime = 0;
@@ -33,10 +30,8 @@ int progress_callback(void *clientp,
     curl_easy_getinfo(myp->curl, CURLINFO_TOTAL_TIME, &curtime);
 
     curl_off_t total_percen = 0;
-    if(ultotal > CURL_OFF_T_C(1)) {
-        total_percen = (ulnow - firstStep) / ((ultotal - firstStep)/ CURL_OFF_T_C(100));
-        // Hacking the value to get smoother upload progress
-        total_percen = (total_percen - 50) * 2;
+    if(ultotal > CURL_OFF_T_C(100)) {
+        total_percen = ulnow / (ultotal / CURL_OFF_T_C(100));
     }
 
     SendMessage(myp->progressBar, PBM_SETPOS, (WPARAM)float(total_percen), 0);
@@ -146,7 +141,7 @@ public:
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
         curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &prog);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 900L);
-        curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
         res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
             return std::pair<int, std::string>(1, "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ");
