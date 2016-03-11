@@ -121,7 +121,7 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
             int retcode= MessageBox(NULL,
                 _T("Your model has been uploaded. Click OK to view it on Sketchfab"),
                 _T("Upload successful"),
-                MB_OKCANCEL | MB_ICONINFORMATION);
+                MB_OKCANCEL | MB_ICONINFORMATION | MB_TOPMOST);
 
             if(retcode == IDOK)
             {
@@ -136,9 +136,10 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
             MultiByteToWideChar(CP_ACP, 0, lastResponse.second.c_str(), (int)(lastResponse.second.size() + 1), &errorMessage[0], (int)(errorMessage.size()));
             std::wstring errorMessageStr(&errorMessage[0]);
             MessageBox(NULL,
-            errorMessageStr.c_str(),
+                errorMessageStr.c_str(),
                 L"Upload failed",
-                MB_OKCANCEL | MB_ICONERROR);
+                MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
+
             delete uploader;
         }
 
