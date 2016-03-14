@@ -13,3 +13,10 @@ Win\*.lib
 Win\*.vcxproj
 Win\teapot.ico
 Win\terrainExt.png
+Win\sketchfab_banner.bmp
+dependencies\curl\include\*
+dependencies\curl\lib\win32\*
+dependencies\curl\lib\win64\*
+dependencies\openssl\lib\win32\*
+dependencies\openssl\lib\win64\*
+dependencies\picojson\*
