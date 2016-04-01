@@ -915,13 +915,17 @@ RButtonUp:
                 break;
             case VK_PRIOR:
             case 'E':
-                gCurScale+=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
+            case VK_ADD:
+            case VK_OEM_PLUS:
+               gCurScale+=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
                 if (gCurScale>MAXZOOM)
                     gCurScale=MAXZOOM;
                 changed=TRUE;
                 break;
             case VK_NEXT:
             case 'Q':
+            case VK_SUBTRACT:
+            case VK_OEM_MINUS:
                 gCurScale-=0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
                 if (gCurScale<MINZOOM)
                     gCurScale=MINZOOM;
@@ -1253,7 +1257,7 @@ RButtonUp:
                 if ( loadWorld() )
                 {
                     // world not loaded properly
-                    MessageBox( NULL, _T("Error: cannot read world."),
+                    MessageBox( NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
                         _T("Read error"), MB_OK|MB_ICONERROR);
 
                     return 0;
@@ -2284,6 +2288,7 @@ static int loadWorldList(HMENU menu)
                 // test if world is in Anvil format
                 int version;
                 TCHAR testAnvil[MAX_PATH];
+                char levelName[MAX_PATH];
                 wcscpy_s(testAnvil, MAX_PATH, gWorldPath);
                 wcscat_s(testAnvil, MAX_PATH, L"/");
                 wcscat_s(testAnvil, MAX_PATH, ffd.cFileName);
@@ -2294,9 +2299,9 @@ static int loadWorldList(HMENU menu)
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
-                if ( GetFileVersion(testAnvil,&version) != 0 )
+                if ( ( GetFileVersion(testAnvil,&version) != 0 ) || ( GetLevelName(testAnvil,levelName) != 0 ) )
                 {
-                    // unreadable world, for some reason - couldn't even read version
+                    // unreadable world, for some reason - couldn't read version and LevelName
                     continue;
                 }
 
@@ -2307,8 +2312,14 @@ static int loadWorldList(HMENU menu)
                 }
 
                 info.wID=IDM_WORLD+numWorlds;
-                info.cch=(UINT)wcslen(ffd.cFileName);
-                info.dwTypeData=ffd.cFileName;
+
+                // display the "given name" followed by / the world folder name; both can be useful
+                TCHAR worldIDString[MAX_PATH], wLevelName[MAX_PATH];
+                MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,levelName,-1,wLevelName,MAX_PATH);
+                wsprintf(worldIDString,L"%s\t/ %s", wLevelName, ffd.cFileName);
+
+                info.cch=(UINT)wcslen(worldIDString);
+                info.dwTypeData=worldIDString;
                 info.dwItemData=numWorlds;
                 // if version is pre-Anvil, show world but gray it out
                 if (version < 19133)

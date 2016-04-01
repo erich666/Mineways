@@ -5,7 +5,7 @@
 
 **http://mineways.com**
 
-[Visit the project homepage](http://mineways.com) for documentation links, credits, etc.
+[Visit the project homepage](http://mineways.com) for executables for PC and Mac, documentation links, credits, etc.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
 There are different major versions of Mineways. You usually want the latest version; version 1.15 can be used on older worlds.

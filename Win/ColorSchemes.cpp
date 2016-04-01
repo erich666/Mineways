@@ -512,6 +512,18 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
                 ListView_RedrawItems(lv,0,NUM_BLOCKS-1);
             }
             break;
+        case IDC_HIDE_TREE_BLOCKS:
+            {
+                // set tree-related blocks zero. Useful for removing trees from large terrain prints (trees are hard to print well).
+                curCS.colors[BLOCK_LOG] &= ~0xff;
+                curCS.colors[BLOCK_AD_LOG] &= ~0xff;
+                curCS.colors[BLOCK_LEAVES] &= ~0xff;
+                curCS.colors[BLOCK_AD_LEAVES] &= ~0xff;
+
+                HWND lv=GetDlgItem(hDlg,IDC_COLORLIST);
+                ListView_RedrawItems(lv,0,NUM_BLOCKS-1);
+            }
+            break;
         case IDCANCEL:
         case IDOK:
             {

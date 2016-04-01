@@ -414,6 +414,7 @@ void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
 
 void nbtGetFileVersion(bfFile bf, int *version)
 {
+    *version = 0x0; // initialize
     int len;
     //Data/version
     bfseek(bf,1,SEEK_CUR); //skip type
@@ -422,6 +423,22 @@ void nbtGetFileVersion(bfFile bf, int *version)
     if (nbtFindElement(bf,"Data")!=10) return;
     if (nbtFindElement(bf,"version")!=3) return;
     *version=readDword(bf);
+}
+
+void nbtGetLevelName(bfFile bf, char *levelName)
+{
+    *levelName = '\0'; // initialize to empty string
+    int len;
+    //Data/levelName
+    bfseek(bf,1,SEEK_CUR); //skip type
+    len=readWord(bf); //name length
+    bfseek(bf,len,SEEK_CUR); //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return;
+    // 8 means a string
+    if (nbtFindElement(bf,"LevelName")!=8) return;
+    len=readWord(bf);
+    bfread(bf,levelName,len);
+    levelName[len]=0;
 }
 
 //void nbtGetRandomSeed(bfFile bf,long long *seed)

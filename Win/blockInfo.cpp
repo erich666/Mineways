@@ -47,9 +47,9 @@ MaterialCost gMtlCostTable[MTL_COST_TABLE_SIZE]={
     { L"Silver",             "silver",             0.8f*MM_TO_METERS, 3.4f*MM_TO_METERS,  45.0f, 28.0f,    999.0f, 99999.0f, 45.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
     { L"Steel",              "steel",              1.0f*MM_TO_METERS, 27.0f*MM_TO_METERS, 6.00f, 5.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,      76.2f,39.3f,39.3f },
     // old model, based on surface area: { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
-    // I haven't figured out Sculpteo's cost model. Prices tend to be 50% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
+    // I haven't figured out Sculpteo's cost model. Prices tend to be 20% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
     // With full-sized rectangular blocks, the costPerCCM is more like 1.05
-    { L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               2.55f, 1.375f,   999.0f, 99999.0f,  2.55f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
+    { L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               3.00f, 1.20f*0.75f,   999.0f, 99999.0f,  3.00f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
 };
 
 UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
