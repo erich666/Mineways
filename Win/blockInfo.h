@@ -382,10 +382,6 @@ typedef struct Options {
 // absolute max the 2x2 * 16x16 space of swatches could have (without borders)
 #define NUM_MAX_SWATCHES (4*16*16)
 
-// row & column to swatch location
-#define SWATCH_XY_TO_INDEX(x,y) (NUM_BLOCKS + (y)*16 + (x))
-
-
 
 
 // fills whole block
@@ -424,25 +420,26 @@ typedef struct Options {
 // is an entrance of some sort, for sealing off building interiors
 #define BLF_ENTRANCE        0x8000
 // export image texture for this object, as it makes sense - almost everything has this property (i.e. has a texture tile)
-#define BLF_IMAGE_TEXTURE   0x10000
+// actually, now everything has this property, so it's eliminated
+//#define BLF_IMAGE_TEXTURE   0x10000
 // this object emits light
-#define BLF_EMITTER         0x20000
+#define BLF_EMITTER         0x10000
 // this object attaches to fences; note that fences do not have this property themselves, so that nether & regular fence won't attach
-#define BLF_FENCE_NEIGHBOR	0x40000
+#define BLF_FENCE_NEIGHBOR	0x20000
 // this object outputs its true geometry (not just a block) for rendering
-#define BLF_TRUE_GEOMETRY	0x80000
+#define BLF_TRUE_GEOMETRY	0x40000
 // this object outputs its special non-full-block geometry for 3D printing, if the printer can glue together the bits.
 // Slightly different than TRUE_GEOMETRY in that things that are just too thin don't have this bit set.
-#define BLF_3D_BIT          0x100000
+#define BLF_3D_BIT          0x80000
 // this object is a 3D bit, and this bit is set if it can actually glue horizontal neighboring blocks together
 // - not really used. TODO - may want to use this to decide whether objects should be grouped together or whatever.
-#define BLF_3D_BIT_GLUE     0x200000
+#define BLF_3D_BIT_GLUE     0x100000
 // set if the block does not affect fluid height
-#define BLF_DNE_FLUID		0x400000
+#define BLF_DNE_FLUID		0x200000
 // set if the block connects to redstone - do only if there's no orientation to the block, e.g. repeaters attach only on two sides, so don't have this flag
-#define BLF_CONNECTS_REDSTONE		0x800000
+#define BLF_CONNECTS_REDSTONE		0x400000
 // has no geometry, on purpose
-#define BLF_NONE			0x1000000
+#define BLF_NONE			0x800000
 
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTOP|BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 

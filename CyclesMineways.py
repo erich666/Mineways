@@ -1,5 +1,5 @@
 # Cycles Mineways setup
-# Version 1.2.0, 1/25/16
+# Version 1.2.1, 2/24/16
 # Copyright © 2016 Jonathan Edelman
 # Please send suggestions or report bugs at jonathanedelman@mail.com or discuss at https://github.com/JMY1000/CyclesMineways/
 # This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation under version 3 of the License.
@@ -41,34 +41,34 @@
 
 
 #The prefix of the texture files it uses
-PREFIX=""
+PREFIX = ""
 #If this list has scenes, the script only use those scenes to work with;
 #otherwise, it will use all scenes
 #example: USER_INPUT_SCENE = ["scene","scene2","randomScene123"]
-USER_INPUT_SCENE=[]
+USER_INPUT_SCENE = []
 #Cloud state, either True or False
-CLOUD_STATE=False
+CLOUD_STATE = False
 #Changing the number here changes what water shader will be used, 0 to use the normal shader, 1 to use a partially transparent but still only textured shader, 2 for a choppy shader, 3 for a wavy shader
-WATER_SHADER_TYPE=1
+WATER_SHADER_TYPE = 1
 #Changing the number here changes the type of sky shader used, 0 for no shader
-SKY_SHADER_TYPE=0
+SKY_SHADER_TYPE = 0
 #Time of day–note that the decimal is not in minutes, and is a fraction (ex. 12:30 is 12.50)
-TIME_OF_DAY=12.00
+TIME_OF_DAY = 12.00
 #Decide if  lava is animated
-LAVA_ANIMATION=False
+LAVA_ANIMATION = False
 #Use virtual displacement (changes normals for illusion of roughness) for wooden plank blocks
 #NOTE: this currently only works for oak wood planks
-DISPLACE_WOOD=False
+DISPLACE_WOOD = False
 
 #List of transparent blocks
-transparentBlocks=["Acacia_Leaves","Dark_Oak_Leaves","Acacia_Door","Activator_Rail","Beacon","Bed","Birch_Door","Brewing_Stand","Brown_Mushroom","Cactus","Carrot","Carrots","Cauldron","Cobweb",
-    "Cocoa","Crops","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jungle_Door","Large_Flower",
-    "Leaves","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Potatoes","Powered_Rail","Powered_Rail_(off)","Pumpkin_Stem","Rail","Red_Mushroom",
+transparentBlocks = ["Acacia_Leaves","Dark_Oak_Leaves","Acacia_Door","Activator_Rail","Bed","Birch_Door","Brewing_Stand","Cactus","Carrot","Carrots","Cauldron","Chorus_Flower","Chorus_Flower_Dead","Chorus_Plant","Cobweb",
+    "Cocoa","Crops","Dandelion","Dark_Oak_Door","Dead_Bush","Detector_Rail","Enchantment_Table","Glass","Glass_Pane","Grass","Iron_Bars","Iron_Door","Iron_Trapdoor","Jack_o'Lantern","Jungle_Door","Large_Flower",
+    "Leaves","Lily_Pad","Melon_Stem","Monster_Spawner","Nether_Portal","Nether_Wart","Oak_Leaves","Oak_Sapling","Poppy","Potato","Potatoes","Powered_Rail","Powered_Rail_(off)","Pumpkin_Stem","Rail","Red_Mushroom",
     "Redstone_Comparator_(off)","Redstone_Torch_(off)","Repeater_(off)","Sapling","Spruce_Door","Stained_Glass","Sugar_Cane","Sunflower","Tall_Grass","Trapdoor","Vines","Wheat","Wooden_Door"]
 #List of light emitting blocks
-lightBlocks=["End_Portal","Redstone_Lamp_(on)","Glowstone","Stationary_Lava","Flowing_Lava"]
+lightBlocks = ["End_Portal","Ender_Chest","Flowing_Lava","Glowstone","Redstone_Lamp_(on)","Stationary_Lava","Sea_Lantern"]
 #List of light emitting and transparent block
-lightTransparentBlocks=["Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Torch_(on)","Repeater_(on)","Torch"]
+lightTransparentBlocks = ["Beacon","Brown_Mushroom","Dragon_Egg","Endframe","End_Rod","Fire","Powered_Rail_(on)","Redstone_Comparator_(on)","Redstone_Torch_(on)","Repeater_(on)","Torch"]
 
 
 #SHADERS
@@ -866,10 +866,11 @@ def main():
 
 
 print("\nStarted Cycles Mineways import script.\n")
-    
-    
+
 #importing the Blender Python library
 import bpy
 print("Libraries imported")
+
 main()
+
 print("\nCycles Mineways has finished.\n")

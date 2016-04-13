@@ -96,8 +96,8 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
   <LI><a href="#3dsmax">3DS MAX</a>
   <LI><a href="#maya">Maya</a>  
 </UL>
-<LI><a href="#sketchfab">Exporting to Sketchfab</a> - how to make your creations immediately available to all.
 </UL>
+<LI><a href="#sketchfab">Publish to Sketchfab</a> - how to make your creations immediately available to all.
 <LI><a href="#print_services">3D Print Services</a> - Shapeways, Sculpteo, and more
 <UL>
 <LI><a href="#shapeways">Shapeways</a> - two key tricks to use the site effectively.
@@ -908,7 +908,7 @@ Check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> fr
 A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
 </P>
 
-<P><H4 id="sketchfab">Sketchfab</H4></a>
+<P><H2 id="sketchfab">Publish to Sketchfab</H2></a>
 <a href="http://sketchfab.com">Sketchfab</a> is a free service that lets you upload your models and share them with others; try an example <a href="https://skfb.ly/IQyA">here</a> or look at the end of these instructions. Mineways exports to it in a straightforward fashion, there are just a few steps to get your model up and running. It's always been possible to upload models to Sketchfab, see these <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">illustrated instructions</a>. With the 4.16 version of Mineways you can now publish directly from Mineways to Sketchfab.
 <P>
 <b>1) Sign up for an <a href="https://sketchfab.com/"Sketchfab</a>account on Sketchfab</a></b>.
@@ -939,7 +939,8 @@ One line says "API Token," as shown below. Copy the API token, a long string of 
 <P>
 <b>7) In the upper right click "SAVE SETTINGS".</b>. Then click "EXIT" and you're done.
 </P>
-If for some reason you can't get the "Publish to Sketchfab" feature to work for you, or you want to use anything but the default export options, there's another way to upload to Sketchfab that's only a little more work. Follow <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">these instructions</a> or go through the step-by-step below.
+<a id="sketchfab_alternate">
+If for some reason you can't get the "Publish to Sketchfab" feature to work for you,</a> or you want to use anything but the default export options, there's another way to upload to Sketchfab that's only a little more work. Follow <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">these instructions</a> or go through the step-by-step below.
 <P>
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File | Export Model for Rendering" from the menu.
 </P>
@@ -1067,7 +1068,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are actually textured, so 3D print out with more than just simple flat surfaces.
 
-</li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways, <a href="https://sketchfab.com/show/vPw6MyJPT5j6wHURu51KFcrqLOE">such as this example</a>.
+</li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways, <a href="https://sketchfab.com/show/vPw6MyJPT5j6wHURu51KFcrqLOE">such as this example</a>. But, that's old - just use the <a href="#sketchfab">Publish to Sketchfab</a> option in Mineways.
 
 </li><li><a href="http://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. I don't know how it compares to jmc2obj. If you use Blender, give both a try.
 
@@ -1088,6 +1089,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 </li><li><a href="http://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
 
 </li><li><a href="http://mineposter.com">Mineposter.com</a> - you can upload your world and have them make a poster of a view of the whole thing or a particular portion of it.
+
+</li><li><a href="http://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
 
 </li><li><a href="https://itunes.apple.com/us/app/voxel/id333186489?mt=8">Voxel</a> is an iPad app that lets you design in voxels and send your model directly to Sculpteo for printing.
 
@@ -2218,7 +2221,7 @@ That's it - have fun!
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/26/2016</p>
+		<p id="lastUpdate">Last updated 4/5/2016</p>
 	</div>
 </div>
 

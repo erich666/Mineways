@@ -139,8 +139,9 @@ typedef struct UVOutput
     int swatchLoc;	// where this record is stored, just for purposes of outputting comments
 } UVOutput;
 
+// We store a set of normals that get reused: 
 // 26 predefined, plus 30 known to be needed for 196 blocks, plus another 400 for water and lava and just in case.
-// extra normals are from torches, levers, brewing stands, and sunflowers
+// Extra normals are from torches, levers, brewing stands, and sunflowers
 #define NORMAL_LIST_SIZE (26+30+400)
 
 typedef struct Model {
@@ -314,8 +315,12 @@ static int gUsingTransform=0;
 #define BB_FIRE         5
 #define BB_SIDE			6
 
+// We used to offset past NUM_BLOCKS for textures, as there was a corresponding solid block color for
+// each block ID, just in case. Now we don't add NUM_BLOCKS, as all blocks have textures
+#define SWATCH_INDEX( col, row ) ((col) + (row)*16)
 
-#define SWATCH_INDEX( col, row ) (NUM_BLOCKS + (col) + (row)*16)
+// row & column to swatch location; removed NUM_BLOCKS + offset, as no longer needed.
+#define SWATCH_XY_TO_INDEX(x,y) ((y)*16 + (x))
 
 // these are swatches that we will use for other things;
 // The swatches reused are the "breaking block" animations, which we'll never need
@@ -595,7 +600,7 @@ static int faceIdCompare( void *context, const void *str1, const void *str2);
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
 static int checkAndCreateFaces( int boxIndex, IPoint loc );
-static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex, int fluidFullBlock );
 static int neighborMayCoverFace( int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex );
 static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, int view3D );
 static int isFluidBlockFull( int type, int boxIndex );
@@ -675,7 +680,7 @@ static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, uns
 //static void grayZeroAlphasPNG(progimage_info *dst, unsigned char r, unsigned char g, unsigned char b ); TODO remove?
 //static void fillZeroAlphasPNGSwatch(progimage_info *dst, int destSwatch, int sourceSwatch, int swatchSize, int swatchesPerRow );
 static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize );
-static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatch, float blend, unsigned char alpha );
+static void blendSwatchAndColor( progimage_info *dst, int txrSwatch, int color, float blend, unsigned char alpha );
 static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid );
@@ -10070,7 +10075,7 @@ static int checkAndCreateFaces( int boxIndex, IPoint loc )
         // TODO: do we care if two transparent objects are touching each other? (Ice & water?)
         // Right now water and ice touching will generate no faces, which I think is fine.
         // so, create a face?
-        if ( checkMakeFace( type, neighborType, !gPrint3D, testPartial, faceDirection, neighborBoxIndex ) )
+        if ( checkMakeFace( type, neighborType, !gPrint3D, testPartial, faceDirection, neighborBoxIndex, false ) )
         {
             // Air (or water, or portal) found next to solid block: time to write it out.
             // First write out any vertices that are needed (this may do nothing, if they're
@@ -10090,7 +10095,15 @@ static int checkAndCreateFaces( int boxIndex, IPoint loc )
                 // are all heights 1.0, so that this is a full block?
                 if ( isFullBlock )
                 {
-                    // full block, so save vertices as-is
+                    // full block, so save vertices as-is;
+                    // If we're doing a 3D print export, we still check if the neighbor fully covers this full face.
+                    if ( gPrint3D && testPartial )
+                    {
+                        if ( !checkMakeFace( type, neighborType, !gPrint3D, testPartial, faceDirection, neighborBoxIndex, true ) )
+                            // face is covered and we're 3D printing
+                            continue;
+                    }
+                    // rendering, or 3D printing and face is not covered
                     goto SaveFullBlock;
                 }
                 else
@@ -10128,7 +10141,8 @@ SaveFullBlock:
 // neighborType is neighboring type,
 // faceDirection is which way things connect
 // boxIndex and neighborBoxIndex is real locations, in case more info is needed
-static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex )
+// Return TRUE if we are to make the face, FALSE if not
+static int checkMakeFace( int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex, int fluidFullBlock )
 {
     // Our whole goal here is to determine if this face is visible. For most solid
     // blocks, if the neighbor covers the face and is not semitransparent, then the block
@@ -10243,7 +10257,9 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 // test neighbors: if it isn't the same fluid, then the face must be output.
                 if ( !sameFluid(type, neighborType) )
                 {
-                    return 1;
+                    // We are 3D printing, so if this fluid block is *known* to be full, then don't output (return 0), as the face is covered.
+                    // This occurs when the fluid block is tagged as full (all faces are full) or the bottom face is tested (it's always full).
+                    return !(fluidFullBlock || (faceDirection == DIRECTION_BLOCK_BOTTOM));
                 }
             }
         }
@@ -10875,8 +10891,9 @@ static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int 
                         }
 
                         type = gBoxData[boxIndex].type;
-                        if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) || 
-                            !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
+                        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
+                        // we used to check if the block had no textures, but now all blocks have textures, or are invisible
+                        //    !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
                         {
                             // use a solid color
                             swatchLoc = type;
@@ -11119,9 +11136,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     int swatchLoc;
     int localIndices[4] = { 0, 1, 2, 3 };
 
-    // outputting swatches, or this block doesn't have a good official texture?
-    if ( (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) || 
-        !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
+    // outputting swatches
+    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
     {
         // use a solid color - we could add carpet and stairs here, among others.
         // TODO: note that this is not as fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
@@ -11183,13 +11199,15 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     }
     else
     {
+        // Outputting textured face
+
         int head,bottom,angle,inside,outside,newFaceDirection,flip;
         int xoff,xstart,dir,dirBit,frontLoc,trimVal,xloc,yloc;
         // north is 0, east is 1, south is 2, west is 3
         int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
 
         // use the textures:
-        // go past the NUM_BLOCKS solid colors, use the txrX and txrY to find which to go to.
+        // use the txrX and txrY to find which to go to.
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
         // now do anything special needed for the particular type, data, and face direction
@@ -13864,7 +13882,7 @@ static int writeOBJMtlFile()
     DWORD br;
 #endif
     wchar_t mtlFileName[MAX_PATH];
-    char outputString[1024];
+    char outputString[2048];
 
     char textureRGB[MAX_PATH];
     char textureRGBA[MAX_PATH];
@@ -13877,7 +13895,7 @@ static int writeOBJMtlFile()
     if (gMtlFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    sprintf_s(outputString,1024,"Wavefront OBJ material file\n# Contains %d materials\n",
+    sprintf_s(outputString,2048,"Wavefront OBJ material file\n# Contains %d materials\n",
         (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) ? gModel.mtlCount : 1 );
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
@@ -13909,10 +13927,12 @@ static int writeOBJMtlFile()
                 gModel.usesAlpha = 1;
             }
 
-            sprintf_s(outputString,1024,
+            sprintf_s(outputString,2048,
                 "\nnewmtl %s\n"
                 "Kd 1 1 1\n"
                 "Ks 0 0 0\n"
+                "# for G3D, to make textures look blocky:\n",
+                "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n",
                 "map_Kd %s\n"
                 "map_d %s\n"
                 ,
@@ -13922,7 +13942,7 @@ static int writeOBJMtlFile()
         }
         else
         {
-            sprintf_s(outputString,1024,
+            sprintf_s(outputString,2048,
                 "\nnewmtl %s\n"
                 "Kd 1 1 1\n"
                 "Ks 0 0 0\n"
@@ -14102,7 +14122,7 @@ static int writeOBJMtlFile()
 
             if (gExportTexture)
             {
-                sprintf_s(outputString,1024,
+                sprintf_s(outputString,2048,
                     "\nnewmtl %s\n"
                     "%sNs 0\n"	// specular highlight power
                     "%sKa %g %g %g\n"
@@ -14110,6 +14130,8 @@ static int writeOBJMtlFile()
                     "Ks 0 0 0\n"
                     "%s" // emissive
                     "%smap_Ka %s\n"
+                    "# for G3D, to make textures look blocky:\n"
+                    "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
                     "map_Kd %s\n"
                     "%s" // map_d, if there's a cutout
                     "%s"	// map_Ke
@@ -14136,7 +14158,7 @@ static int writeOBJMtlFile()
             }
             else
             {
-                sprintf_s(outputString,1024,
+                sprintf_s(outputString,2048,
                     "\nnewmtl %s\n"
                     "%sNs 0\n"	// specular highlight power
                     "%sKa %g %g %g\n"
@@ -14339,71 +14361,75 @@ static int createBaseMaterialTexture()
 
     useTextureImage = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES);
 
-    // we fill the first NUM_BLOCKS with solid colors
-    keepGoing = 1;
+    // we fill the first NUM_BLOCKS with solid colors, if not using true textures
     gModel.swatchCount = 0;
 
-    // crazy code: add noise when using swatches, but for VRML we don't add noise if we're
-    // actually using material-only or no material modes (VRML always exports textures)
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
+    if ( !useTextureImage )
     {
-        addNoise = 1;
-        // check if VRML, and in anything but rich texture mode
-        if ( (gOptions->pEFD->fileType == FILE_TYPE_VRML2) && (!gOptions->pEFD->radioExportSolidTexture[gOptions->pEFD->fileType] ) )
+        keepGoing = 1;
+
+        // crazy code: add noise when using swatches, but for VRML we don't add noise if we're
+        // actually using material-only or no material modes (VRML always exports textures)
+        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
         {
-            addNoise = 0;
+            addNoise = 1;
+            // check if VRML, and in anything but rich texture mode
+            if ( (gOptions->pEFD->fileType == FILE_TYPE_VRML2) && (!gOptions->pEFD->radioExportSolidTexture[gOptions->pEFD->fileType] ) )
+            {
+                addNoise = 0;
+            }
         }
-    }
-    for ( row = 0; row < gModel.swatchesPerRow && keepGoing; row++ )
-    {
-        for ( col = 0; col < gModel.swatchesPerRow && keepGoing; col++ )
+        for ( row = 0; row < gModel.swatchesPerRow && keepGoing; row++ )
         {
-            // VRML only uses textures for output: set solid color to white if 
-            // no color should be output
-            if ( gOptions->pEFD->radioExportNoMaterials[gOptions->pEFD->fileType] )
+            for ( col = 0; col < gModel.swatchesPerRow && keepGoing; col++ )
             {
-                r = g = b = a = 255;
-                assert(gOptions->pEFD->fileType == FILE_TYPE_VRML2);
-            }
-            else
-            {
-                // fill with a solid color
-                r=(unsigned char)(gBlockDefinitions[gModel.swatchCount].color>>16);
-                g=(unsigned char)((gBlockDefinitions[gModel.swatchCount].color>>8) & 0xff);
-                b=(unsigned char)(gBlockDefinitions[gModel.swatchCount].color & 0xff);
-                a = (unsigned char)(gBlockDefinitions[gModel.swatchCount].alpha*255.0f);
-
-                if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+                // VRML only uses textures for output: set solid color to white if 
+                // no color should be output
+                if ( gOptions->pEFD->radioExportNoMaterials[gOptions->pEFD->fileType] )
                 {
-                    // make sure group is opaque: it can happen
-                    // that the debug group got turned off in a color scheme.
-                    a = 255;
+                    r = g = b = a = 255;
+                    assert(gOptions->pEFD->fileType == FILE_TYPE_VRML2);
                 }
-                // if the basic solid swatches are to be printed, or to be used as baselines
-                // for compositing with texture images, they must be opaque
-                else if ( gOptions->exportFlags & (EXPT_3DPRINT|EXPT_OUTPUT_TEXTURE_IMAGES) )
+                else
                 {
-                    a = 255;
+                    // fill with a solid color
+                    r=(unsigned char)(gBlockDefinitions[gModel.swatchCount].color>>16);
+                    g=(unsigned char)((gBlockDefinitions[gModel.swatchCount].color>>8) & 0xff);
+                    b=(unsigned char)(gBlockDefinitions[gModel.swatchCount].color & 0xff);
+                    a = (unsigned char)(gBlockDefinitions[gModel.swatchCount].alpha*255.0f);
+
+                    if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+                    {
+                        // make sure group is opaque: it can happen
+                        // that the debug group got turned off in a color scheme.
+                        a = 255;
+                    }
+                    // if the basic solid swatches are to be printed, or to be used as baselines
+                    // for compositing with texture images, they must be opaque
+                    else if ( gOptions->exportFlags & (EXPT_3DPRINT|EXPT_OUTPUT_TEXTURE_IMAGES) )
+                    {
+                        a = 255;
+                    }
                 }
+
+                // Order in PNG file is ABGR
+                color = (a<<24)|(b<<16)|(g<<8)|r;
+
+                setColorPNGTile( mainprog, col, row, gModel.swatchSize, color );
+
+                if ( addNoise )
+                {
+                    // if we're using a textured swatch, multiply the boring solid colors with some noise
+                    // to make textures richer
+                    addNoisePNGTile( mainprog, col, row, gModel.swatchSize, r, g, b, a, 0.1f );
+                }
+
+                gModel.swatchCount++;
+                keepGoing = (gModel.swatchCount < NUM_BLOCKS_MAP);
             }
-
-            // Order in PNG file is ABGR
-            color = (a<<24)|(b<<16)|(g<<8)|r;
-
-            setColorPNGTile( mainprog, col, row, gModel.swatchSize, color );
-
-            if ( addNoise )
-            {
-                // if we're using a textured swatch, multiply the boring solid colors with some noise
-                // to make textures richer
-                addNoisePNGTile( mainprog, col, row, gModel.swatchSize, r, g, b, a, 0.1f );
-            }
-
-            gModel.swatchCount++;
-            keepGoing = (gModel.swatchCount < NUM_BLOCKS_MAP);
         }
+        assert( keepGoing == 0 );
     }
-    assert( keepGoing == 0 );
 
     if ( useTextureImage )
     {
@@ -14438,7 +14464,7 @@ static int createBaseMaterialTexture()
         // Copy the top of each glass pane tile so that if these tiles are fattened the tops look OK
         for ( i = 0; i < 17; i++ )
         {
-            SWATCH_TO_COL_ROW( NUM_BLOCKS + glassPaneTopsCol[i] + glassPaneTopsRow[i]*16, dstCol, dstRow );
+            SWATCH_TO_COL_ROW( glassPaneTopsCol[i] + glassPaneTopsRow[i]*16, dstCol, dstRow );
             for ( j = 1; j < 15; j += 2 )
             {
                 if ( j != 7 )
@@ -14664,9 +14690,9 @@ static int createBaseMaterialTexture()
             // blue, etc. We therefore blend between the water texture and the water swatch based on alpha:
             // the higher the alpha (more opaque) the water color is set, the more it contributes to the
             // water texture.
-            blendTwoSwatches( mainprog, 
+            blendSwatchAndColor( mainprog, 
                 SWATCH_INDEX( gBlockDefinitions[BLOCK_WATER].txrX, gBlockDefinitions[BLOCK_WATER].txrY ),	// texture to blend
-                BLOCK_WATER,	// solid to blend
+                gBlockDefinitions[BLOCK_WATER].color,	// solid color to blend
                 gBlockDefinitions[BLOCK_WATER].alpha,	// how to blend the two (lower alpha will use the solid color less)
                 gPrint3D ? 255 : (unsigned char)(gBlockDefinitions[BLOCK_WATER].alpha*255) );	// alpha to always assign and use
         }
@@ -16777,43 +16803,45 @@ static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int
     }
 }
 
-static void blendTwoSwatches( progimage_info *dst, int txrSwatch, int solidSwatch, float blend, unsigned char alpha )
+static void blendSwatchAndColor( progimage_info *dst, int txrSwatch, int color, float blend, unsigned char alpha )
 {
     // these are swatch locations in index form (not yet multiplied by swatch size itself)
     int tcol = txrSwatch % gModel.swatchesPerRow;
     int trow = txrSwatch / gModel.swatchesPerRow;
-    int scol = solidSwatch % gModel.swatchesPerRow;
-    int srow = solidSwatch / gModel.swatchesPerRow;
-    // upper left corner, starting location, of each: over, under, destination
+    // upper left corner, starting location: over, under, destination
     unsigned int *ti = (unsigned int *)(&dst->image_data[0]) + trow*gModel.swatchSize*dst->width + tcol*gModel.swatchSize;
-    unsigned int *si = (unsigned int *)(&dst->image_data[0]) + srow*gModel.swatchSize*dst->width + scol*gModel.swatchSize;
 
     int row,col;
-    unsigned int *cti,*csi;
+    unsigned int *cti;
+
+    float srblend,sgblend,sbblend;
+    unsigned char dummyAlpha;
+    // note that we cheat and use this macro on the stored color for the block, which is RGB and with R being the
+    // higher channel, not B.
+    GET_PNG_TEXEL( sbblend,sgblend,srblend,dummyAlpha, color ); // sablend is unused
+    srblend *= blend;
+    sgblend *= blend;
+    sbblend *= blend;
 
     for ( row = 0; row < gModel.swatchSize; row++ )
     {
         int offset = row*dst->width;
         cti = ti + offset;
-        csi = si + offset;
 
         for ( col = 0; col < gModel.swatchSize; col++ )
         {
-            unsigned char tr,tg,tb,ta;
-            unsigned char sr,sg,sb,sa;
-
+            unsigned char tr,tg,tb;
+ 
             float oneMinusBlend = 1.0f - blend;
 
-            GET_PNG_TEXEL( tr,tg,tb,ta, *cti ); // ta is unused
-            GET_PNG_TEXEL( sr,sg,sb,sa, *csi );	// sa is unused
+            GET_PNG_TEXEL( tr,tg,tb,dummyAlpha, *cti ); // ta is unused
 
-            tr = (unsigned char)(tr*oneMinusBlend + sr*blend);
-            tg = (unsigned char)(tg*oneMinusBlend + sg*blend);
-            tb = (unsigned char)(tb*oneMinusBlend + sb*blend);
-            ta = alpha;
-            SET_PNG_TEXEL( *cti, tr,tg,tb,ta );
+            tr = (unsigned char)(tr*oneMinusBlend + srblend);
+            tg = (unsigned char)(tg*oneMinusBlend + sgblend);
+            tb = (unsigned char)(tb*oneMinusBlend + sbblend);
+            SET_PNG_TEXEL( *cti, tr,tg,tb, alpha );
+
             cti++;
-            csi++;
         }
     }
 }
