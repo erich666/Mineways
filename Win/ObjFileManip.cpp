@@ -610,7 +610,7 @@ static float getFluidHeightPercent( int dataVal );
 static int sameFluid( int fluidType, int type );
 static int saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4] );
 static int saveVertices( int boxIndex, int faceDirection, IPoint loc );
-static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4] );
+static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4], int firstFace );
 static int getMaterialUsingGroup( int groupID );
 static int retrieveWoolSwatch( int dataVal );
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] );
@@ -684,6 +684,7 @@ static void blendSwatchAndColor( progimage_info *dst, int txrSwatch, int color, 
 static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid );
+static void compositePNGSwatchOverColor(progimage_info *dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow );
 static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename);
 static void convertAlphaToGrayscale( progimage_info *dst );
 
@@ -994,35 +995,37 @@ Exit:
         if ( gModel.pPNGtexture != NULL )
         {
             // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
-#define FA_TABLE__RENDER_BLOCK_START 10
-#define FA_TABLE__VIEW_SIZE 18
-#define FA_TABLE_SIZE 71
+#define FA_TABLE__RENDER_BLOCK_START 9
+#define FA_TABLE__VIEW_SIZE (6+FA_TABLE__RENDER_BLOCK_START)
+#define FA_TABLE_SIZE 68
             static FillAlpha faTable[FA_TABLE_SIZE] =
             {
-                // stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block
-                { SWATCH_INDEX( 10, 8 ), BLOCK_OBSIDIAN }, // cauldron
-                { SWATCH_INDEX( 10, 9 ), BLOCK_OBSIDIAN }, // cauldron
-                { SWATCH_INDEX( 11, 9 ), BLOCK_OBSIDIAN }, // cauldron
+                // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
+                // Negative values for the underlay means "use this block's solid color", whatever it is.
+                // Incredible laziness: we use TRIPWIRE to mean black, since that's its "color". We can't use AIR because AIR is the same
+                // value as SWATCH_INDEX(0,0), which is grass.
+                { SWATCH_INDEX( 10, 9 ), -BLOCK_TRIPWIRE }, // cauldron side
+                { SWATCH_INDEX( 11, 9 ), -BLOCK_TRIPWIRE }, // cauldron bottom
 
-                { SWATCH_INDEX( 5, 9 ), BLOCK_OBSIDIAN }, // bed
-                { SWATCH_INDEX( 6, 9 ), BLOCK_OBSIDIAN }, // bed
-                { SWATCH_INDEX( 7, 9 ), BLOCK_OBSIDIAN }, // bed
-                { SWATCH_INDEX( 8, 9 ), BLOCK_OBSIDIAN }, // bed
+                { SWATCH_INDEX( 5, 9 ), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX( 6, 9 ), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX( 7, 9 ), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX( 8, 9 ), -BLOCK_TRIPWIRE }, // bed
 
-                { SWATCH_INDEX( 5, 4 ), BLOCK_CACTUS }, // cactus
-                { SWATCH_INDEX( 6, 4 ), BLOCK_CACTUS }, // cactus
-                { SWATCH_INDEX( 7, 4 ), BLOCK_CACTUS }, // cactus
+                { SWATCH_INDEX( 5, 4 ), -BLOCK_CACTUS }, // cactus
+                { SWATCH_INDEX( 6, 4 ), -BLOCK_CACTUS }, // cactus
+                { SWATCH_INDEX( 7, 4 ), -BLOCK_CACTUS }, // cactus
+
+                // count is FA_TABLE__RENDER_BLOCK_START up to this point
 
                 /////////////////////////////////// always do:
                 // stuff that is put in always, fringes that need to be filled
-                { SWATCH_INDEX( 9, 7 ), BLOCK_CAKE }, // cake
-                { SWATCH_INDEX( 10, 7 ), BLOCK_CAKE }, // cake
-                { SWATCH_INDEX( 11, 7 ), BLOCK_CAKE }, // cake
-                { SWATCH_INDEX( 12, 7 ), BLOCK_CAKE }, // cake
+                { SWATCH_INDEX( 9, 7 ), -BLOCK_CAKE }, // cake
+                { SWATCH_INDEX( 10, 7 ), -BLOCK_CAKE }, // cake
+                { SWATCH_INDEX( 11, 7 ), -BLOCK_CAKE }, // cake
+                { SWATCH_INDEX( 12, 7 ), -BLOCK_CAKE }, // cake
                 { SWATCH_INDEX( 15, 9 ), SWATCH_INDEX(15,10) }, // ender portal (should be filled, but just in case, due to stretch)
-                { SWATCH_INDEX( 15, 14 ), BLOCK_LAVA }, // lava, in case it's not filled
-                { SWATCH_INDEX( 15, 15 ), BLOCK_STATIONARY_LAVA }, // stationary lava, in case it's not present
-                { SWATCH_INDEX( 10, 11 ), BLOCK_FLOWER_POT }, // flower pot
+                { SWATCH_INDEX( 10, 11 ), -BLOCK_FLOWER_POT }, // flower pot
 
                 // count is FA_TABLE__VIEW_SIZE up to this point
 
@@ -1033,8 +1036,8 @@ Exit:
                 { SWATCH_INDEX( 15, 0 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
                 { SWATCH_INDEX( 12, 1 ), SWATCH_INDEX( 0, 0 ) }, // red mushroom over grass
                 { SWATCH_INDEX( 13, 1 ), SWATCH_INDEX( 0, 0 ) }, // brown mushroom over grass
-                { SWATCH_INDEX(  1, 3 ), BLOCK_GLASS }, // glass over glass color
-                { SWATCH_INDEX(  4, 3 ), BLOCK_AIR }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
+                { SWATCH_INDEX(  1, 3 ), -BLOCK_GLASS }, // glass over glass color
+                { SWATCH_INDEX(  4, 3 ), -BLOCK_TRIPWIRE }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
                 { SWATCH_INDEX(  7, 3 ), SWATCH_INDEX( 2, 1 ) }, // dead bush over grass
                 { SWATCH_INDEX(  8, 3 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
                 { SWATCH_INDEX(  1, 4 ), SWATCH_INDEX( 1, 0 ) }, // spawner over stone
@@ -1055,22 +1058,22 @@ Exit:
                 { SWATCH_INDEX(  0, 6 ), SWATCH_INDEX( 1, 0 ) }, // lever over stone
                 { SWATCH_INDEX( 15, 6 ), SWATCH_INDEX( 6, 5 ) }, // melon stem over farmland
                 { SWATCH_INDEX( 15, 7 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
-                { SWATCH_INDEX(  4, 8 ), BLOCK_AIR }, // leaves over air (black) - doesn't really matter, not used
-                { SWATCH_INDEX( 10, 8 ), BLOCK_AIR }, // cauldron over air (black)
-                { SWATCH_INDEX( 12, 8 ), BLOCK_AIR }, // cake over air (black) - what's this for, anyway?
-                { SWATCH_INDEX(  4, 9 ), BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
+                { SWATCH_INDEX(  4, 8 ), -BLOCK_TRIPWIRE }, // leaves over air (black) - doesn't really matter, not used
+                { SWATCH_INDEX( 10, 8 ), -BLOCK_TRIPWIRE }, // cauldron over air (black)
+                { SWATCH_INDEX( 12, 8 ), -BLOCK_TRIPWIRE }, // cake over air (black) - what's this for, anyway?
+                { SWATCH_INDEX(  4, 9 ), -BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
                 { SWATCH_INDEX( 13, 9 ), SWATCH_INDEX( 1, 0 ) }, // brewing stand over stone
                 { SWATCH_INDEX( 15,10 ), SWATCH_INDEX( 1, 0 ) }, // end portal thingy (unused) over stone
                 { SWATCH_INDEX( 14,11 ), SWATCH_INDEX( 6, 5 ) }, // pumpkin stem over farmland
                 { SWATCH_INDEX( 15,11 ), SWATCH_INDEX( 6, 5 ) }, // mature stem over farmland
-                { SWATCH_INDEX(  4,12 ), BLOCK_AIR }, // jungle leaves over air (black) - doesn't really matter, not used
+                { SWATCH_INDEX(  4,12 ), -BLOCK_TRIPWIRE }, // jungle leaves over air (black) - doesn't really matter, not used
                 { SWATCH_INDEX(  2,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
                 { SWATCH_INDEX(  3,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
                 { SWATCH_INDEX(  4,14 ), SWATCH_INDEX( 8, 6 ) }, // nether wart over soul sand
-                { SWATCH_INDEX( 11,14 ), BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
-                { SWATCH_INDEX(  8,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
-                { SWATCH_INDEX(  9,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-                { SWATCH_INDEX( 10,10 ), BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+                { SWATCH_INDEX( 11,14 ), -BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
+                { SWATCH_INDEX(  8,10 ), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
+                { SWATCH_INDEX(  9,10 ), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+                { SWATCH_INDEX( 10,10 ), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
                 { SWATCH_INDEX(  8,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
                 { SWATCH_INDEX(  9,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
                 { SWATCH_INDEX( 10,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
@@ -1079,7 +1082,7 @@ Exit:
                 { SWATCH_INDEX( 13,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
                 { SWATCH_INDEX( 14,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
                 { SWATCH_INDEX( 15,12 ), SWATCH_INDEX( 6, 5 ) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX( 15, 1 ), BLOCK_AIR }, // fire over air (black)
+                { SWATCH_INDEX( 15, 1 ), -BLOCK_TRIPWIRE }, // fire over air (black)
             };
 
             int rc;
@@ -1097,9 +1100,18 @@ Exit:
                 // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
                 for ( i = ( gPrint3D || !gOptions->pEFD->chkExportAll ) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++ )
                 {
-                    compositePNGSwatches( gModel.pPNGtexture,
-                        faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-                        gModel.swatchSize, gModel.swatchesPerRow, 0 );
+                    // passing in a negative swatch location means "use the absolute value as the index into the color of the block".
+                    // In other words, we want to composite against black (OBSIDIAN), 
+                    if ( faTable[i].underlay >= 0 )
+                    {
+                        compositePNGSwatches( gModel.pPNGtexture,
+                            faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
+                            gModel.swatchSize, gModel.swatchesPerRow, 0 );
+                    } else {
+                        compositePNGSwatchOverColor( gModel.pPNGtexture,
+                            faTable[i].cutout, faTable[i].cutout, gBlockDefinitions[-faTable[i].underlay].color,
+                            gModel.swatchSize, gModel.swatchesPerRow );
+                    }
                 }
 
                 // final swatch cleanup if textures are used and we're doing 3D printing
@@ -1869,6 +1881,7 @@ static void modifySides( int editMode )
     }
 }
 
+// This is used to clear out the bordering upper and lower slabs surrounding the model of data
 static void modifySlab( int y, int editMode )
 {
     for ( int x = gAirBox.min[X]; x <= gAirBox.max[X]; x++ )
@@ -1880,6 +1893,7 @@ static void modifySlab( int y, int editMode )
     }
 }
 
+// Clear a block of its data. Usually used for preprocessing the borders of the box of data.
 static void editBlock( int x, int y, int z, int editMode )
 {
     int boxIndex = BOX_INDEX(x,y,z);
@@ -1955,7 +1969,7 @@ static int filterBox()
     {
         outputFlags = (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY);
     }
-    // check for billboards and lesser geometry - immediately output. Flatten that which should be flattened. 
+    // check for billboards and lesser geometry that can flatten - immediately output. Flatten that which should be flattened. 
     for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
     {
         for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
@@ -1971,20 +1985,19 @@ static int filterBox()
                     int blockProcessed = 0;
                     if ( gExportBillboards )
                     {
-                        // If we're 3d printing, or rendering without textures, then export 3D printable bits,
-                        // on the assumption that the software can merge the data properly with the solid model.
+                        // Export billboards or flattenable geometry, only. So test by export flags,
+                        // and also test if it's a billboard or flattenable thing.
                         // TODO: Should any blocks that are bits get used to note connected objects,
                         // so that floaters are not deleted? Probably... but we don't try to test.
-                        if ( flags & outputFlags )
+                        if ( ( flags & outputFlags ) && ( flags & (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_FLATTOP|BLF_FLATSIDE)) )
                         {
-                            // tricksy code, because I'm lazy: if the return value > 1, then it's an error
+                            // tricksy code: if the return value > 1, then it's an error
                             // and should be treated as such.
                             retVal = saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type );
                             if ( retVal == 1 )
                             {
                                 // this block is then cleared out, since it's been processed.
                                 gBoxData[boxIndex].type = BLOCK_AIR;
-                                foundBlock = 1;
                                 blockProcessed = 1;
                             }
                             else if ( retVal >= MW_BEGIN_ERRORS )
@@ -1994,7 +2007,7 @@ static int filterBox()
                         }
                     }
 
-                    // not filtered out by the basics or billboard
+                    // not filtered out by the basics or billboard, so try to flatten
                     if ( !blockProcessed && flatten && ( flags & (BLF_FLATTOP|BLF_FLATSIDE) ) )
                     {
                         // this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
@@ -2007,18 +2020,68 @@ static int filterBox()
                         {
                             gBoxData[boxIndex].type = BLOCK_AIR;
                         }
+                        else
+                        {
+                            // not flattened, so it is real content that's output
+                            blockProcessed = 1;
+                        }
+                    }
+                    else
+                    {
+                        // non-flattened, non-air block found
+                        blockProcessed = 1;
                     }
                     // note that we found any sort of block that was valid (flats don't count, whatever
                     // they're pushed against needs to exist, too)
-                    foundBlock |= (gBoxData[boxIndex].type > BLOCK_AIR);
+                    foundBlock |= blockProcessed;
+                }
+            }
+        }
+    }
+
+    // check for other lesser geometry, which could have faces that have something flattened onto them 
+    if ( gExportBillboards )
+    {
+        for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
+        {
+            for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
+            {
+                boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
+                for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
+                {
+                    // sorry, air is never allowed to turn solid
+                    if ( gBoxData[boxIndex].type != BLOCK_AIR )
+                    {
+                        int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
+                        // check: is it geometry we can export? Clear it out if so.
+
+                        // If we're 3d printing, or rendering without textures, then export 3D printable bits,
+                        // on the assumption that the software can merge the data properly with the solid model.
+                        // TODO: Should any blocks that are bits get used to note connected objects,
+                        // so that floaters are not deleted? Probably... but we don't try to test.
+                        if ( flags & outputFlags )
+                        {
+                            retVal = saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type );
+                            if ( retVal == 1 )
+                            {
+                                // this block is then cleared out, since it's been processed.
+                                gBoxData[boxIndex].type = BLOCK_AIR;
+                                foundBlock = 1;
+                            }
+                            else if ( retVal >= MW_BEGIN_ERRORS )
+                            {
+                                return retVal;
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     // 1%
     UPDATE_PROGRESS(0.70f*PG_MAKE_FACES);
-    if ( foundBlock == 0 )
-        // everything got filtered out!
+    // were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
+    if ( foundBlock == 0 && ( flatten || gExportBillboards) )
         return retCode|MW_NO_BLOCKS_FOUND;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2203,6 +2266,7 @@ Exit:
     return retCode;
 }
 
+// return 1 if object is flattened and block should now be considered air
 static int computeFlatFlags( int boxIndex )
 {
     // for this box's contents, mark the neighbor(s) that should receive
@@ -6542,12 +6606,86 @@ static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], 
                     break;
                 }
 
-                // mark the first face if calling routine wants it, and this is the first face of six
-                retCode |= saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
-                if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+                // check flattening flags
+                int special = 0;
+                if ( gBoxData[boxIndex].flatFlags )
+                {
+                    switch ( faceDirection )
+                    {
+                    case DIRECTION_BLOCK_TOP:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_ABOVE )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    case DIRECTION_BLOCK_BOTTOM:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_BELOW )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    case DIRECTION_BLOCK_SIDE_LO_X:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_LO_X )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    case DIRECTION_BLOCK_SIDE_HI_X:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_HI_X )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    case DIRECTION_BLOCK_SIDE_LO_Z:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_LO_Z )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    case DIRECTION_BLOCK_SIDE_HI_Z:
+                        if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_HI_Z )
+                        {
+                            special = 1;
+                        }
+                        break;
+                    default:
+                        // only direction left is down, and nothing gets merged with those faces
+                        break;
+                    }
+                }
+                if ( special )
+                {
+                    // Minor geometric object with face that has a flat on it.
+                    if ( (minu == 0.0f)&&(minv == 0.0f)&&(maxu == 1.0f)&&(maxv == 1.0f) )
+                    {
+                        // a bit wasteful: vertices are set separately here in the grid
+                        retCode |= saveVertices( boxIndex, faceDirection, anchor );
+                        if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+                        saveFaceLoop( boxIndex, faceDirection, NULL, NULL, markFirstFace );
 
-                // face output, so don't need to mark first face
-                markFirstFace = 0;
+                        // face output, so don't need to mark first face
+                        markFirstFace = 0;
+                    }
+                    else
+                    {
+                        // For some reason, face is not a full-sized face, yet it has a flat getting
+                        // applied to it. This can happen in rare circumstances, such as a torch on top of a fence post.
+                        // TODO. Ignore the flat and export just the face normally without any composite.
+                        // To fix we'd have to figure out a new composite, special UVs, etc. - sounds like work.
+                        //assert(0);
+                        goto Normal;
+                    }
+                }
+                else
+                {
+                    Normal:
+                    // mark the first face if calling routine wants it, and this is the first face of six
+                    retCode |= saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+                    if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
+                    // face output, so don't need to mark first face
+                    markFirstFace = 0;
+                }
             }
         }
     }
@@ -10115,7 +10253,7 @@ static int checkAndCreateFaces( int boxIndex, IPoint loc )
                     // note that there's a "transform", which really is just that the
                     // top of the block is different.
                     gUsingTransform = 1;
-                    saveFaceLoop( boxIndex, faceDirection, heights, heightIndices );
+                    saveFaceLoop( boxIndex, faceDirection, heights, heightIndices, (faceDirection == 0) );
                     gUsingTransform = 0;
                 }
             }
@@ -10126,7 +10264,7 @@ SaveFullBlock:
                 retCode |= saveVertices( boxIndex, faceDirection, loc );
                 if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
-                saveFaceLoop( boxIndex, faceDirection, NULL, NULL );
+                saveFaceLoop( boxIndex, faceDirection, NULL, NULL, (faceDirection == 0) );
             }
         }
     }
@@ -10806,7 +10944,7 @@ static int saveVertices( int boxIndex, int faceDirection, IPoint loc )
     return retCode;
 }
 
-static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndices[4] )
+static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndices[4], int firstFace )
 {
     int i;
     FaceRecord *face;
@@ -10818,9 +10956,9 @@ static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int 
 
     face = allocFaceRecordFromPool();
 
-    // if  we sort, we want to keep faces in the order generated, which is
+    // if we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
-    face->faceIndex = firstFaceModifier( faceDirection == 0, gModel.faceCount );
+    face->faceIndex = firstFaceModifier( firstFace, gModel.faceCount );
 
     // always the same normal, which directly corresponds to the normals[6] array in gModel
     face->normalIndex = gUsingTransform ? COMPUTE_NORMAL : faceDirection;
@@ -17080,6 +17218,67 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
             }
             coveri++;
             cunderi++;
+            cdsti++;
+        }
+    }
+}
+
+static void compositePNGSwatchOverColor(progimage_info *dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow )
+{
+    unsigned char ur,ug,ub,ua;
+    // reversed, because that's how it works
+    GET_PNG_TEXEL( ub,ug,ur,ua, underColor );
+    ua = 255;   // always solid underlying color
+
+    // these are swatch locations in index form (not yet multiplied by swatch size itself)
+    int ocol = overSwatch % swatchesPerRow;
+    int orow = overSwatch / swatchesPerRow;
+    int dcol = dstSwatch % swatchesPerRow;
+    int drow = dstSwatch / swatchesPerRow;
+    // upper left corner, starting location, of each: over, under, destination
+    unsigned int *overi = (unsigned int *)(&dst->image_data[0]) + orow*swatchSize*dst->width + ocol*swatchSize;
+    unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + drow*swatchSize*dst->width + dcol*swatchSize;
+
+    int row,col;
+    unsigned char or,og,ob,oa;
+    unsigned char dr,dg,db,da;
+    unsigned int *coveri,*cdsti;
+
+    for ( row = 0; row < swatchSize; row++ )
+    {
+        int offset = row*dst->width;
+        coveri = overi + offset;
+        cdsti = dsti + offset;
+        for ( col = 0; col < swatchSize; col++ )
+        {
+            unsigned char oma;
+
+            GET_PNG_TEXEL( or,og,ob,oa, *coveri );
+
+            oma = 255 - oa;
+
+            // finally have all data: composite o over u
+            if ( oa == 0 )
+            {
+                // copy the under pixel
+                SET_PNG_TEXEL( *cdsti, ur,ug,ub,ua );
+                // essentially *cdsti = *cunderi;, but with ua possibly changed
+            }
+            else if ( oma == 0 )
+            {
+                // copy the over pixel
+                *cdsti = *coveri;
+            }
+            else
+            {
+                // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
+                dr = (unsigned char)((or*oa*255 + ur*ua*oma)/(255*255));
+                dg = (unsigned char)((og*oa*255 + ug*ua*oma)/(255*255));
+                db = (unsigned char)((ob*oa*255 + ub*ua*oma)/(255*255));
+                da = (unsigned char)((oa*255 + ua*oma)/255);
+                SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
+            }
+            coveri++;
             cdsti++;
         }
     }
