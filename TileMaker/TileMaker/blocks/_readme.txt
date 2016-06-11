@@ -1,0 +1,1 @@
+This is where to put any image files from the "blocks" directory in a Minecraft resource pack in order to make terrainExt.png. See mineways.html about the TileMaker for more information.
