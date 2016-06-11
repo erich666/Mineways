@@ -1,0 +1,5 @@
+// close.mwscript - a trivial little script to close Mineways.
+//
+// See http://mineways.com/scripting.html for its use from the command line.
+
+Close

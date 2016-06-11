@@ -1,0 +1,24 @@
+// startup.mwscript - A sample startup script for Mineways, called by mineways.bat.
+//
+// version 1.00
+//
+// Use it by running from the command line or batch file:
+//     mineways.exe startup.script
+//
+// Read more at http://mineways.com/scripting.html
+
+// If you want to load a particular world on startup, choose the directory you want in your %appdata%\.minecraft\saves
+// or if you store your world elsewhere, give the whole path.
+// Examples:
+//     Minecraft world: Super Castle
+//     Minecraft world: c:\my world saves\cool build
+//
+// uncomment this line and fill it in:
+
+//Minecraft world: *put your world's folder name here*
+
+
+// It's convenient to jump to the player's location, since this is where you'll tend to have been making a model.
+// Uncomment this line to enable (you'll also need to load a world first):
+
+//Jump to Player

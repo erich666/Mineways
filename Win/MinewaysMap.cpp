@@ -175,26 +175,22 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //opts = bitmasks of render options (see MinewaysMap.h)
 void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,double zoom,unsigned char *bits,Options opts, int *hitsFound, ProgressCallback callback)
 {
-    /* We're converting between coordinate systems, so this gets kinda ugly 
+    /* We're converting between coordinate systems: 
     *
-    * X     -world x N  -screen y
+    * X     -world z N  -screen y
     * screen origin  |
     *                |
     *                |
     *                |
-    *  +world z      |(cz,cx)   -world z
+    *  -world x      |(cx,cz)   +world x
     * W--------------+----------------E
     *  -screen x     |          +screen x
     *                |
     *                | 
     *                |
-    *      +world x  | +screen y
+    *      +world z  | +screen y
     *                S
     */
-
-    // Yes, yes, -x is north under most of the Beta versions of Minecraft. Feel free to revise
-    // the code to make -z to be north, for the release. If you add this, it should be an option,
-    // so that old players (like me) can use "old north". TODO
 
     unsigned char *blockbits;
     int z,x,px,py;
@@ -203,7 +199,6 @@ void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,doubl
     // number of blocks to fill the screen (plus 2 blocks for floating point inaccuracy)
     int hBlocks=(w+blockScale*2)/blockScale;
     int vBlocks=(h+blockScale*2)/blockScale;
-
 
     // cx/cz is the center, so find the upper left corner from that
     double startx=cx-(double)w/(2*zoom);
@@ -217,12 +212,14 @@ void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,doubl
 
     if (shiftx<0)
     {
+		// essentially the floor function
         startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-        startzblock--;
+		// essentially the floor function
+		startzblock--;
         shifty+=blockScale;
     }
 
@@ -1513,7 +1510,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
         for (x=0;x<16;x++)
         {
             prevSely = -1;
-            saveHeight = 0;
+            saveHeight = -1; // the "not found" value.
 
             voxel=((maxHeight*16+z)*16+x);
             r=gEmptyR;
@@ -1529,7 +1526,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             // go from top down through all voxels, looking for the first one visible.
             for (i=maxHeight;i>=0;i--,voxel-=16*16)
             {
-                type=block->grid[voxel];
+				type = block->grid[voxel];
                 // if block is air or something very small, note it's empty and continue to next voxel
                 if ( (type==BLOCK_AIR) ||
                     !(gBlockDefinitions[type].flags & viewFilterFlags ))
@@ -1966,8 +1963,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_SIGN_POST:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
-    case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-    case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+    case BLOCK_REDSTONE_COMPARATOR:
+    case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
     case BLOCK_STAINED_CLAY:
     case BLOCK_CARPET:
     case BLOCK_STAINED_GLASS:
@@ -2886,7 +2883,8 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
     }
     block->rendery = -1; // force redraw
 
-    if ( directory[0] == (wchar_t)'/' )
+	// block test world is the empty string, with a "/" at the start
+	if (directory[0] == (wchar_t)'/' && directory[1] == (wchar_t)0)
     {
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world

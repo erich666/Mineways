@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang=''>
+<head>
+   <meta charset='utf-8'>
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <link rel="stylesheet" href="styles.css">
+   <link rel="shortcut icon" href="icon.ico" type="image/x-icon" />
+   <link rel="icon" href="icon.ico" type="image/x-icon" />
+   <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+   <script src="script.js"></script>
+   <title>Mineways Quick Reference</title>
+</head>
+<body>
+<div id="wrapper">
+	<div id="mineways-header-image">
+		<a href="downloads.html">
+		<img src="http://realtimerendering.com/erich/minecraft/public/mineways/mineways_header.png" alt="Header image" width="787" height="125" />
+		</a>
+	</div>
+
+	<div id='cssmenu'>
+	<ul>
+		<li><a href="index.html"><span>Home</span></a></li>
+		<li><a href="downloads.html"><span>Quickstart</span></a></li>
+		<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
+			<ul>
+				<li class='active'><a href="reference.html"><span>Quick Reference</span></a></li>
+				<li><a href="mineways.html#troubleshooting"><span>Troubleshooting</span></a></li>
+				<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
+				<li><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz"><span>Videos</span></a></li>
+				<li><a href="scripting.html"><span>Scripting</span></a></li>
+				<li class='last'><a href="https://github.com/erich666/Mineways"><span>Source Code</span></a></li>
+			</ul>
+		</li>
+		<li class='has-sub'><a href="community.html"><span>Galleries</span></a>
+			<ul>
+				<li><a href="community.html"><span>Showcase</span></a></li>
+				<li><a href='http://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
+				<li><a href='https://www.google.com/search?q=mineways&newwindow=1&source=lnms&tbm=isch'><span>Google Images</span></a></li>
+				<li><a href='https://www.shapeways.com/search?q=mineways'><span>Shapeways</span></a></li>
+				<li><a href='http://www.sculpteo.com/en/gallery/today/?search=mineways'><span>Sculpteo</span></a></li>
+				<li class='last'><a href='https://sketchfab.com/tags/minecraft'><span>Sketchfab</span></a></li>
+			</ul>
+		</li>
+		<li class='has-sub'><a href='http://www.minecraftforum.net/topic/892856-mineways-3d-prints-of-minecraft-objects/'><span>Community</span></a>
+			<ul>
+				<li><a href="http://www.minecraftforum.net/topic/892856-mineways-3d-prints-of-minecraft-objects/"><span>Minecraft Forum</span></a></li>
+				<li><a href="http://www.reddit.com/r/mineways/"><span>Reddit</span></a></li>
+				<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
+			</ul>
+		</li>
+	   </li>
+	   <li class='last'><a href="contact.html"><span>Contact</span></a></li>
+	</ul>
+	</div>
+	
+    <div id="content" class="clearfix">
+<P>
+
+<!-- not really needed
+<UL>
+<LI><a href="#mmi">Mouse and Keyboard</a>
+<LI><a href="#mmi">Mineways Menu Items</a>
+<LI><a href="#hotkeys">Hotkeys</a>
+<LI><a href="#meo">Mineways Export Options</a>
+<LI><a href="#mf">Mineways Files</a>
+</UL>
+-->
+	
+<a name="mmi">
+<h1>Mouse and Keyboard</h1>
+</a>
+
+<UL>
+<LI>Left-click and drag - move around map.
+<LI>Right-click and drag - select or resize volume to export. Left-click and control-key also works.
+<LI>Middle-click - Change the lower height of the volume selected.
+<LI>Mouse wheel - zoom in and out.
+</UL>
+
+Upper or lower case (Shift key) does not matter for keys:
+<UL>
+<li><b>[</b> and <b>]</b> moves the lower depth up/down by one level, adjusting the bottom of the model.
+</li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level.
+</li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
+</UL>
+
+More on mouse controls in the <a href="mineways.html#select">Selection section</a>. Full list of <a href="mineways.html#shortcuts">shortcut keys here</a>. 
+
+
+<a name="mmi">
+<h1>Mineways Menu Items</h1>
+</a>
+ 
+<h2>File Menu</h2>
+<UL>
+<LI>Open World - select from list of worlds. The world name is shown to the left, the folder name to the right.
+<LI>Open... (Ctrl-O) - select the level.dat file of the Minecraft world to open.
+<LI>Reload World (R) - reopen loaded world. Handy for changing your Minecraft world itself and then reloading it.
+<LI><a href="mineways.html#terrain_png">Set Terrain File</a> (Ctrl-T) - select a Mineways terrainExt*.png file provided or one you've made with <a href="mineways.html#tilemaker">TileMaker</a>.
+<LI><a href="scripting.html">Import File</a> (Ctrl-I) - import a previously-exported model (OBJ, WRL, STL's TXT file) to continue where you left off. Or, run a <a href="scripting.html">script of commands</a>.
+<LI><a href="mineways.html#export">Export for Rendering</a> (Ctrl-R) - export the selected volume into a file appropriate for rendering. Tip: preview with <a href="mineways.html#g3d">G3D</a>.
+<LI><a href="mineways.html#print">Export for 3D Printing</a> (Ctrl-P) - export for 3D printing, making solidity checks and simplications.
+<LI><a href="mineways.html#sketchfab">Publish to Sketchfab</a> (Ctrl-F) - put your model up for display at <a href="https://sketchfab.com/tags/minecraft">Sketchfab</a>, a free service.
+<LI><a href="mineways.html#export">Export Schematic (Ctrl-S)</a> - export the model for use in <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
+<a href="http://www.mcedit-unified.net/">MCEdit</a>.
+<LI>Repeat Export (Ctrl-X)- do an export again with the same export options. Handy for exporting, looking at result, and modifying volume until it's what you want.
+<LI>Close (Ctrl-Q) - exit program.
+</UL>
+
+
+<h2>View Menu</h2>
+<UL>
+<LI>Jump to Spawn (F2) - view your spawn location.
+<LI>Jump to Player (F3) - view the player location.
+<LI>Jump to Model (F4) - once you've made a selection, move the map view to this location.
+<LI>View Nether (F5) - switch to the corresponding Nether level, if any.
+<LI>View The End (F6) - switch to The End level, if any.
+<LI>Show all objects (F7) - by default, small objects such as signs and ladders are not shown on the map.
+<LI>Show biomes (F8) - show the biome coloring for the world.
+<LI>Elevation shading (F) - higher elevations are brighter.
+<LI>Lighting (L) - an evening view of the world.
+<LI>Cave mode (C) - shows the presence of underground caves.
+<LI>Hide obscured (H) - mostly useful for The Nether, it shows what's under the topmost level at Max height.
+</UL>
+
+
+<h2>Colors Menu</h2>
+<UL>
+<LI><a href="mineways.html#schemes">Color Schemes...</a> - defining one of these lets you change which block types are output, and what the block color is for display.
+</UL>
+
+
+<h2>Help Menu</h2>
+<UL>
+<LI>About ... - shows version number.
+<LI>Give more export memory! - if you get an "out of memory" error from Mineways, try this to minimize memory use.
+</UL>
+
+
+<a name="meo">
+<h1>Mineways Export Options</h1>
+</a>
+
+You can usually ignore this scary dialog box and just click "OK" or hit the Enter key to skip it.
+<P>
+<a href="mineways.html#options">Rendering related</a>:
+<UL>
+<LI>World coordinates selection: the lower and diagonally-opposite upper corners of the volume you're exporting.
+<LI>Create a ZIP file: this file is the one to upload to 3D print services. It's also handy for packaging up all the files produced.
+<LI>Export no materials, etc.: whether the model has a single color, solid colors on blocks, or full textured colors.
+<LI>OBJ file export options: various <a href="mineways.html#obj_export_options">professional settings</a> allowing you to make the data easier to modify.
+<LI>Make Z up: <a href="https://youtu.be/W8hmWWoaUyU">some systems use Y as up, some Z</a>.
+<LI>Center model around the origin: if turned off, Minecraft coordinates are used instead. Useful for professionals.
+<LI>Use biome: use the biome's attributes to color the blocks. Currently uses only the single biome at the center of the export.
+<LI>Create block faces: if you don't plan on seeing the sides of your export, uncheck to make the file smaller.
+<LI>Tree leaves solid: for interactive applications such as VR, exports noticeably fewer polygons.
+<LI>Rotate model clockwise: useful mostly to pick a view for display in Shapeways' store.
+</UL>
+<a href="mineways.html#print">3D Print related</a>:
+<UL>
+<LI>Scale options:
+<UL>
+<LI>Make the model 5 cm in height: set the physical height of the model.
+<LI>Minimize size based on wall thickness...: make the walls as thin as possible while still being printable.
+<LI>Make each block 2 mm: the default safe wall thickness is shown, and can be changed.
+<LI>Aim for a cost of $25.00: roughly choose the cost of the model, which will scale it in size.
+</UL>
+<LI>Fill air bubbles: hollow "bubbles" in the model are made solid. Usually a wise move. Can also reduce polygon count when rendering.
+<UL>
+<LI>Seal off entrances: use torches to seal off an entrance, so that the building interior can be filled in (and then hollowed out).
+<LI>Fill in isolated tunnels: if a tunnel pokes out the side but does not reach the surface, fill it in.
+</UL>
+<LI>Connect parts sharing an edge: if a part would otherwise float in space, add a block to connect it to a nearby part.
+<UL>
+<LI>Connect corner tips: if a floating part touches another by just the corners, add blocks to connect it.
+<LI>Weld all shared edges: for any blocks touching only at the edge, add a block. Usually overkill, but can be useful for sloped roofs.
+</UL>
+<LI>Hollow out bottom of model...: make Shapeways and Sculpteo models more affordable by hollowing out unseen blocks.
+<UL>
+<LI>Superhollow: aggressively hollow, carving away into nooks and crannies.
+</UL>
+<LI>Melt snow blocks: pretty obscure, meant for making "weep holes" larger after all other processing.
+<LI><a href="#lesser">Export lesser, detailed blocks</a>: normally blocks are either printed as full blocks, or not at all. This allows many "partial" blocks to be printed.
+<UL>Fatten lesser blocks: some detailed blocks can be very thin and will not print well. This makes them thicker.
+<LI>
+</UL>
+<LI>Debug: show floating parts...: any parts that are not fully attached to the main model will be made obvious.
+<LI>Debug: show weld blocks...: any blocks added by Mineways to make the model printable are shown as lava and pink wool.
+</UL>
+
+<a name="mf">
+<h1>Mineways <a href="scripting.html#clo">Command Line Options</a></h1>
+</a>
+<P>
+<P>
+<div id="code">
+mineways.exe [-w X Y] [file1.mwscript [file2.mwscript [...]]]
+</div>
+<P>
+<i>script file</i><br>
+Specify the file name and path for a script or model file to load on startup.
+<P>
+-w <i>X Y</i><br>
+Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
+
+
+<a name="mf">
+<h1>Mineways Files</h1>
+</a>
+
+<UL>
+<LI><b>Mineways.exe</b> - the main, 64-bit executable.
+<LI>Mineways32.exe - the 32-bit version, if the 64-bit does not run on your machine.
+<LI>terrainExt.png - the default Minecraft block tiles texture read by Mineways, if present.
+<LI>terrainExt_*.png - various popular <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a> block textures.
+<LI>docs/index.html - the starting spot for documentation, same as <a href="http://mineways.com">mineways.com</a>.
+<LI>mineways.bat - run Mineways and first apply whatever scripting commands are in scripting/startup.mwscript.
+<LI>register-Mineways-run-as-administrator.bat - run once to associate *.mwscript scripting files with Mineways.exe. More <a href="scripting.html#amfwm">here</a>.
+<LI>README.txt - some quick notes, mostly leading you to documentation.
+<LI>scripting/*.mwscript - script files for automatically controlling Mineways in various ways. View the script itself to see comments about what it does. More <a href="scripting.html">here</a>.
+<LI>BlenderScripts/* - useful scripts for importing into Blender. More <a href="mineways.html#blender">here</a>.
+<LI>TileMaker/TileMaker.exe and TileMaker32.exe - a program to make a new terrain block texture set (terrainExt*.png) from a <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a>. More <a href="mineways.html#tilemaker">here</a>.
+<LI>TileMaker/terrainBase.png - the basic template for textures. The same file as terrainExt.png, just to be safe.
+<LI>TileMaker/blocks - the directory where tiles (block textures) for TileMaker are put for processing. You provide the blocks you want to change.
+</UL>
+
+    </div> <!-- /content -->
+	<div id="footer">
+		<hr>
+		<p id="lastUpdate">Last updated 6/10/2016</p>
+	</div>
+</div>
+
+</body>
+<html>

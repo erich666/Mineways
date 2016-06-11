@@ -14,7 +14,7 @@
 <body>
 <div id="wrapper">
 	<div id="mineways-header-image">
-		<a href="mineways.html">
+		<a href="community.html">
 		<img src="http://realtimerendering.com/erich/minecraft/public/mineways/mineways_header.png" alt="Header image" width="787" height="125" />
 		</a>
 	</div>
@@ -25,9 +25,11 @@
 		<li class='active'><a href="downloads.html"><span>Quickstart</span></a></li>
 		<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
 			<ul>
+				<li><a href="reference.html"><span>Quick Reference</span></a></li>
 				<li><a href="mineways.html#troubleshooting"><span>Troubleshooting</span></a></li>
 				<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
 				<li><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz"><span>Videos</span></a></li>
+				<li><a href="scripting.html"><span>Scripting</span></a></li>
 				<li class='last'><a href="https://github.com/erich666/Mineways"><span>Source Code</span></a></li>
 			</ul>
 		</li>
@@ -57,13 +59,13 @@
 	  <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">
 		<div id="windowsDownload" href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">
 		  <p>Download for Windows</p>
-			<img id="windows" src="images/windowsLogo.jpg">
+			<img id="windows_logo" src="images/windowsLogo.jpg">
 		</div>    
 		</a>
 		<a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">
 		<div id="appleDownload">
 		  <p>Download for Mac</p>
-			<img id="apple" src="images/appleLogo.png"> 
+			<img id="apple_logo" src="images/appleLogo.png"> 
 		</div> 
 	  </a>
 	</div>
@@ -79,30 +81,34 @@
         <p><b>5) </b> Drag with the right mouse button to select an area on the map and to adjust this rectangle. </p>
         <p><b>6) </b> Optionally click with the middle mouse button or set the "Lower depth" slider to select a depth. </p>
         <p><b>7) </b> Export the model for 3D printing by "File | Export for 3D Printing" - just hit "OK" on the Options dialog. For rendering, use "File | Export for Rendering"</p> 
+        <p><b>8) </b> Optional: if you want to see the result, view the .OBJ or .WRL with <a href="mineways.html#g3d">G3D, MeshLab</a>, or other 3D model viewer (avoid <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a> if you use colors; it's fine for STLs).</p> 
       </div>
 		<P>
-		Not clear? Watch <a href="https://www.youtube.com/watch?v=xmsnE85GNV8">this quick introduction</a> or
+		Not clear? Read over the <b><a href="reference.html">quick reference page</a></b> or watch <a href="https://www.youtube.com/watch?v=xmsnE85GNV8">this quick introduction</a> or
         <a href="https://www.youtube.com/watch?v=oGuIX21_7og">this longer tutorial</a>
         to see what's what. For using a home or school 3D printer, see <a href="http://services.minecraftedu.com/wiki/3D_Printing_and_Minecraft#Instructions_for_Exporting">this more in-depth guide at MinecraftEdu</a>. You can find more tutorials on the <a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">video playlist</a>.
     <P>
       <B>Problems?</B> Look below for <a href="#platform">platform-specific problems</a>, then see the <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.html#troubleshooting">Troubleshooting Guide</a>.
     </P>
     <P>
-      <B>3D Printing:</B> Exporting creates a .zip file by default. To preview your model, open the .wrl file with <a href="http://meshlab.sourceforge.net/">MeshLab</a> or other VRML file viewer. If you want to 3D print your model and don't have a 3D printer (or want a multicolored model), <a href="http://www.shapeways.com/register">create a free Shapeways account</a> and <a href="http://www.shapeways.com/upload/">upload</a> the <i><b>.zip</b></i> file. Once the model is processed by Shapeways (a few minutes), you can order it - make sure to select "colored sandstone" for the material. As an example, <a href="http://www.shapeways.com/shops/mineways">here's</a> my non-profit store. Note that no part of this process will cost you anything, unless you actually order something. <a href="http://sculpteo.com">Sculpteo</a> is another 3D print service worth considering; it's generally more expensive but often delivers more quickly (even shipping from France!). There are other 3D print services such as <a href="https://www.3dhubs.com/">3D Hubs</a>; see a <a href="mineways.html#print_services">list here</a>.
+      <B>3D Printing:</B> To preview your exported model to see if it's what you want, open the .wrl/.obj/.stl file with <a href="http://meshlab.sourceforge.net/">MeshLab</a> or other model viewer. If you want to 3D print your model and don't have a 3D printer (or want a multicolored model), <a href="http://www.shapeways.com/register">create a free Shapeways account</a> and <a href="http://www.shapeways.com/upload/">upload</a> the <i><b>.zip</b></i> file. Once the model is processed by Shapeways (a few minutes), you can order it - make sure to select "colored sandstone" for the material.
+	  <P>
+	  As an example, <a href="http://www.shapeways.com/shops/mineways">here's</a> my non-profit store. Note that no part of this process will cost you anything, unless you actually order something. <a href="http://sculpteo.com">Sculpteo</a> is another 3D print service worth considering (see <a href="http://www.sculpteo.com/en/gallery/public/eerich666/">my sample store</a>). It's generally more expensive but often delivers more rapidly (even shipping from France!). There are other 3D print services such as <a href="https://www.3dhubs.com/">3D Hubs</a>; see a <a href="mineways.html#print_services">list here</a>.
     </P>
     <P>
-      <B>Rendering:</B> To import the model to a rendering and animation program, <a href="mineways.html#rendering">see this area of the documentation</a>.
+      <B>Rendering:</B> see <a href="mineways.html#rendering">this section</a> for how to import your model into various rendering and animation systems.
     </P>
     <P>
-      What to try next: to learn more about other export options, work through the <a href="mineways.html#map">documentation page</a>, the information is pretty much in order of importance. For 3D printing, check out the <a href="mineways.html#lesser">"Export lesser blocks"</a> option, which lets you get more detail. This feature is not on by default because it has some risks, so read about it. 
+      What to try next: work through the <a href="mineways.html#map">documentation page</a> to learn more about other export options. The information is pretty much in order of importance. In particular, for 3D printing, check out the <a href="mineways.html#lesser">"Export lesser blocks"</a> option, which lets you get more detail. This feature is not on by default because it has some risks, so <a href="mineways.html#lesser">read about them there</a>. 
     </P>
 	<h1 id="platform">Platform-Specific Stuff</h1>
-	    <P>If Mineways gives you an error on startup on a Windows PC, try Mineways32. If you get an error about MSVCR100.DLL being missing, you'll need to install the Microsoft Visual C++ 2010 Redistributable Package for your <a href="https://www.microsoft.com/en-us/download/details.aspx?id=14632">64-bit</a> or <a href="https://www.microsoft.com/en-us/download/details.aspx?id=5555">32-bit</a> system. To find out if your computer is running a 32-bit or 64-bit version of Windows, follow <a href="http://pcsupport.about.com/od/operatingsystems/tp/what-version-of-windows.htm">the instructions here</a>. Basically, Mineways32.exe should run on any PC, but export size is somewhat limited (this usually doesn't matter for 3D printing); Mineways.exe is 64-bit and will run on only 64-bit systems.
+	<h2 id="windows">Windows</h2>
+	    <P>If Mineways gives you an error on startup on a Windows PC, try Mineways32. If you get an error about MSVCR130.DLL being missing, you'll need to install the Microsoft Visual C++ 2013 Redistributable Package for your system. Select vcredist_x64.exe for your 64-bit system, vcredist_x86.exe if your system is 32 bits. To find out if your computer is running a 32-bit or 64-bit version of Windows, follow <a href="http://www.computerhope.com/issues/ch001121.htm">the instructions here</a>, which come down to "hold down the Windows key and then click the Pause|Break key, then look for System type". Mineways32.exe should run on any PC, but export size is somewhat limited (this usually doesn't matter for 3D printing); Mineways.exe is 64-bit and will run on only 64-bit systems.
 		<P>
 		For Windows 10, there is a <a href="https://www.microsoft.com/en-us/store/apps/minecraft-windows-10-edition-beta/9nblggh2jhxj">Windows 10 Edition Beta of Minecraft</a>. This is essentially the Pocket Edition, which Mineways does not currently understand. You need to use the normal <a href="https://minecraft.net/">PC or Mac version of Minecraft</a> to use Mineways.
 		<P>
 		If Mineways is blocked by Norton Antivirus, e.g., you get an error that Windows is not being able to "access the specified device, path or file": First, make sure you are downloading Mineways from this site, i.e., the links above. If the download is being autodeleted, <a href="http://community.norton.com/comment/3833313#comment-3833313">here's how to turn Norton off temporarily</a>. Otherwise, just run Mineways and ignore the warnings. <a href="https://www.virustotal.com/en/file/7cd622325879c6b9218aad6ee9f59ae24271abf610e8a8229c31daef4eebaa7f/analysis/">No other antivirus software</a> reports Mineways as having a virus, so I believe it's a flaw in Norton. I won't be insulted if you are cautious and don't follow my advice, but Mineways is <a href="https://github.com/erich666/Mineways">open source</a>, and <a href="http://erichaines.com">I have a reputation as a good person</a>, so these things count against there being a virus. You can also try running <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions">older versions of Mineways</a>, this has been known to work.
-		<P>
+	<h2 id="Linux">Linux</h2>
         For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it.
     <h2 id="mac">Mac users:</h2>
     <p>Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a>.
@@ -143,7 +149,7 @@
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 4/2/2016</p>
+		<p id="lastUpdate">Last updated 6/10/2016</p>
 	</div>
 </div>
 

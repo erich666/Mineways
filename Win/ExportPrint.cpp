@@ -116,13 +116,16 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
             {
                 CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,epd.chkMultipleObjects);
-                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMultipleObjects?epd.chkMaterialPerType:BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,(epd.chkMultipleObjects && epd.chkMaterialPerType)?epd.chkG3DMaterial:BST_INDETERMINATE);
+				CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+				CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, epd.chkMultipleObjects || (!(epd.flags & EXPT_3DPRINT) && epd.chkIndividualBlocks) ? epd.chkMaterialPerType : BST_INDETERMINATE);
+                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,epd.chkG3DMaterial);
             }
             else
             {
+				// other file formats: keep these grayed out and unselectable
                 CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
+				CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
+				CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
                 CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
             }
 
@@ -134,8 +137,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkBlockFacesAtBorders);
             // disallow biome color if full texture is off
             CheckDlgButton(hDlg,IDC_BIOME,epd.radioExportFullTexture[epd.fileType]?epd.chkBiome:BST_INDETERMINATE);
-            // turn off individual blocks if 3D printing - you never want to do this
-            CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkIndividualBlocks);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -368,21 +369,7 @@ ChangeMaterial:
                 CheckDlgButton(hDlg,IDC_BIOME,IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES)?epd.chkBiome:BST_INDETERMINATE);
             }
             break;
-        case IDC_INDIVIDUAL_BLOCKS:
-            {
-                if ( epd.flags & EXPT_3DPRINT )
-                {
-                    CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,BST_INDETERMINATE);
-                }
-                else
-                {
-                    UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE );
-                    if ( isIndeterminate )
-                        CheckDlgButton(hDlg,IDC_INDIVIDUAL_BLOCKS,BST_UNCHECKED);
-                }
-            }
-            break;
-        case IDC_BIOME:
+		case IDC_BIOME:
             {
                 UINT isInactive = !IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
                 if ( isInactive )
@@ -452,65 +439,102 @@ ChangeMaterial:
 
 
         case IDC_MULTIPLE_OBJECTS:
-            {
-                // if the topmost button has changed to indeterminate, change it to be 
-                if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE )
+			if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+			{
+				if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE)
                 {
                     // go from the indeterminate tristate to unchecked - indeterminant is not selectable
                     CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_UNCHECKED);
-                }
-                if ( IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS) )
+					CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+				}
+				else
                 {
-                    // checked, so the boxes below become active, possibly
-                    CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,epd.chkMaterialPerType);
-                    CheckDlgButton(hDlg,IDC_G3D_MATERIAL,epd.chkMaterialPerType?epd.chkG3DMaterial:BST_INDETERMINATE);
-                }
-                else
-                {
-                    // unchecked, so shut the sub-buttons down, saving their state
-                    epd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
-                    CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_INDETERMINATE);
-                    if ( epd.chkMaterialPerType )
-                    {
-                        epd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
-                        CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
-                    }
-                }
+                    // checked, so the boxes below become active
+					//CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_UNCHECKED);
+					CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+				}
             }
+			else
+			{
+				CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, BST_INDETERMINATE);
+			}
             break;
-        case IDC_MATERIAL_PER_TYPE:
-            {
-                // it's implied that things are unlocked
-                if ( IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE) == BST_INDETERMINATE )
-                {
-                    CheckDlgButton(hDlg,IDC_MATERIAL_PER_TYPE,BST_UNCHECKED);
-                }
-                if ( IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE) )
-                {
-                    // checked, so the box below becomes active
-                    CheckDlgButton(hDlg,IDC_G3D_MATERIAL,epd.chkG3DMaterial);
-                }
-                else
-                {
-                    // unchecked, so shut the sub-button down, storing its state for later restoration if turned back on
-                    epd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
-                    CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_INDETERMINATE);
-                }
-            }
+		case IDC_INDIVIDUAL_BLOCKS:
+			// the indeterminate state is only for when the option is not available (i.e., 3d printing)
+			if (epd.flags & EXPT_3DPRINT)
+			{
+				CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
+			}
+			else
+			{
+				if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+				{
+					if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE)
+					{
+						// go from the indeterminate tristate to unchecked - indeterminant is not selectable
+						CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+						CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+					}
+					else
+					{
+						// checked, so the boxes below become active
+						//CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_CHECKED);
+						CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_UNCHECKED);
+						CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, BST_UNCHECKED);
+					}
+				}
+				else
+				{
+					CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
+				}
+			}
+			break;
+		case IDC_MATERIAL_PER_TYPE:
+			if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) || IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS))
+			{
+				// things are unlocked
+				if (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_TYPE) == BST_INDETERMINATE)
+				{
+					CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_UNCHECKED);
+				}
+			}
+			else
+			{
+				// button is not unlocked
+				CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+			}
             break;
         case IDC_G3D_MATERIAL:
-            if ( IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL) == BST_INDETERMINATE )
-            {
-                CheckDlgButton(hDlg,IDC_G3D_MATERIAL,BST_UNCHECKED);
-            }
+			if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+			{
+				if (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_INDETERMINATE)
+				{
+					CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_UNCHECKED);
+				}
+			}
+			else
+			{
+				CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
+			}
             break;
 
         case IDC_EXPORT_ALL:
             // if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
             if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_CHECKED && (epd.flags & EXPT_3DPRINT))
             {
-                MessageBox( NULL, _T("Warning: this checkbox allows very small features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - are very likely to snap off during manufacture. Fattened versions of these objects are used by default, but even these can easily break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have T-vertices and other elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with netfabb basic or other software. No guarantees!"),
-                    _T("Informational"), MB_OK|MB_ICONINFORMATION);
+				// depending on file format, explain problems and solutions
+				if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+					// Sculpteo
+					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully, or if you're lucky enough to have access, use netfabb to clean up the mesh."),
+					_T("Informational"), MB_OK | MB_ICONINFORMATION);
+				else if (epd.fileType == FILE_TYPE_VRML2)
+					// Shapeways
+					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems."),
+					_T("Informational"), MB_OK | MB_ICONINFORMATION);
+				else
+					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with software such as netfabb basic on desktop or free at http://cloud.netfabb.com."),
+					_T("Informational"), MB_OK | MB_ICONINFORMATION);
                 CheckDlgButton(hDlg,IDC_FATTEN,BST_CHECKED);
                 CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_UNCHECKED);
                 CheckDlgButton(hDlg,IDC_CONNECT_PARTS,BST_UNCHECKED);
@@ -533,7 +557,23 @@ ChangeMaterial:
             }
             break;
 
-        case IDC_TREE_LEAVES_SOLID:
+		case IDC_FATTEN:
+			{
+				UINT isLesserChecked = IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL);
+				if (!isLesserChecked)
+				{
+					CheckDlgButton(hDlg, IDC_FATTEN, BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isFattenIndeterminate = (IsDlgButtonChecked(hDlg, IDC_FATTEN) == BST_INDETERMINATE);
+					if (isFattenIndeterminate)
+						CheckDlgButton(hDlg, IDC_FATTEN, BST_UNCHECKED);
+				}
+			}
+			break;
+
+		case IDC_TREE_LEAVES_SOLID:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing)
             if ( epd.flags & EXPT_3DPRINT )
             {
@@ -558,22 +598,6 @@ ChangeMaterial:
                 UINT isIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_BLOCKS_AT_BORDERS) == BST_INDETERMINATE );
                 if ( isIndeterminate )
                     CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,BST_UNCHECKED);
-            }
-            break;
-
-        case IDC_FATTEN:
-            {
-                UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
-                if ( !isLesserChecked )
-                {
-                    CheckDlgButton(hDlg,IDC_FATTEN,BST_INDETERMINATE);
-                }
-                else
-                {
-                    UINT isFattenIndeterminate = ( IsDlgButtonChecked(hDlg,IDC_FATTEN) == BST_INDETERMINATE );
-                    if ( isFattenIndeterminate )
-                        CheckDlgButton(hDlg,IDC_FATTEN,BST_UNCHECKED);
-                }
             }
             break;
 
@@ -687,21 +711,9 @@ ChangeMaterial:
                 lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
 
                 // OBJ options
-                if ( lepd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || lepd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-                {
-                    lepd.chkMultipleObjects = IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS);
-                    // if filling bubbles is off, sealing entrances does nothing at all
-                    if ( lepd.chkMultipleObjects )
-                    {
-                        // set value only if value above is "unlocked"
-                        lepd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
-                        if ( lepd.chkMaterialPerType )
-                        {
-                            // set value only if value above is "unlocked"
-                            lepd.chkG3DMaterial = IsDlgButtonChecked(hDlg,IDC_G3D_MATERIAL);
-                        }
-                    }
-                }
+                lepd.chkMultipleObjects = IsDlgButtonChecked(hDlg,IDC_MULTIPLE_OBJECTS);
+                lepd.chkMaterialPerType = IsDlgButtonChecked(hDlg,IDC_MATERIAL_PER_TYPE);
+				lepd.chkG3DMaterial = IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL);
 
                 //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
@@ -712,7 +724,7 @@ ChangeMaterial:
                 lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1: IsDlgButtonChecked(hDlg,IDC_BLOCKS_AT_BORDERS);
                 lepd.chkBiome = IsDlgButtonChecked(hDlg,IDC_BIOME);
                 // 3D printing should never use this option.
-                lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0: IsDlgButtonChecked(hDlg,IDC_INDIVIDUAL_BLOCKS);
+				lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS);
 
                 lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);
                 lepd.radioRotate90 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_90);

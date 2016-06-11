@@ -525,18 +525,22 @@ static int initializeModelData();
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
-static int populateBox(const wchar_t *world, IBox *box);
+static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *box);
 static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox );
 static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
+static bool willChangeBlockCommandModifyAir(ChangeBlockCommand *pCBC);
 static void modifySides( int editMode );
 static void modifySlab(int by, int editMode);
 static void editBlock( int x, int y, int z, int editMode );
 
-static int filterBox();
-static int computeFlatFlags( int boxIndex );
+static int filterBox(ChangeBlockCommand *pCBC);
+static bool applyChangeBlockCommand(ChangeBlockCommand *pCBC);
+static bool isWorldVolumeEmpty();
+static int computeFlatFlags(int boxIndex);
 static int firstFaceModifier( int isFirst, int faceIndex );
 static int saveBillboardOrGeometry( int boxIndex, int type );
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide );
+static unsigned int getStairMask(int boxIndex, int dataVal);
 static void setDefaultUVs( Point2 uvs[3], int skip );
 static FaceRecord * allocFaceRecordFromPool();
 static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
@@ -625,13 +629,13 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v );
 
 static void freeModel( Model *pModel );
 
-static int writeAsciiSTLBox( const wchar_t *world, IBox *box );
-static int writeBinarySTLBox( const wchar_t *world, IBox *box );
-static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *curDir, const wchar_t *terrainFileName );
+static int writeAsciiSTLBox(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeBinarySTLBox(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeOBJBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc );
 static int writeOBJMtlFile();
 
-static int writeVRML2Box( const wchar_t *world, IBox *box );
+static int writeVRML2Box(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
 static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc );
 
@@ -652,7 +656,7 @@ static int schematicWriteStringValue( gzFile gz, char *stringValue );
 
 static int writeLines( HANDLE file, char **textLines, int lines );
 
-static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worldBox );
+static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBoxconst, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 
 static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, int numMinorBlocks );
 static int finalModelChecks();
@@ -693,7 +697,6 @@ static void removeSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffi
 //static const wchar_t *removePath( const wchar_t *src );
 static const char *removePathChar( const char *src );
 
-static void wcharToChar( const wchar_t *inWString, char *outString );
 static void charToWchar( char *inString, wchar_t *outWString );
 static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wchar_t *root );
 static void concatFileName2(wchar_t *dst, const wchar_t *src1, const wchar_t *src2);
@@ -725,7 +728,7 @@ void ClearCache()
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, 
-    ProgressCallback callback, wchar_t *terrainFileName, FileList *outputFileList, int majorVersion, int minorVersion )
+	ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, ChangeBlockCommand *pCBC)
 {
     //#ifdef WIN32
     //    DWORD br;
@@ -741,6 +744,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     //  ** Fill, connect, hollow, melt: various operations to add or subtract blocks, mostly needed for 3D printing.
 
     IBox worldBox;
+    IBox tightenedWorldBox;
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
 
@@ -788,7 +792,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     wcscpy_s(gOutputFileRootClean,MAX_PATH,gOutputFileRoot);
     wcharCleanse(gOutputFileRootClean);
     spacesToUnderlines(gOutputFileRootClean);
-    wcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar);
+    wcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH);
 
 
     // start exporting for real
@@ -846,9 +850,11 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     UPDATE_PROGRESS(0.40f*PG_MAKE_FACES);
 
     initializeWorldData( &worldBox, xmin, ymin, zmin, xmax, ymax, zmax );
+    tightenedWorldBox = worldBox;
 
-    // note that worldBox will come back with the "solid" bounds, of where data was actually found
-    retCode |= populateBox(world, &worldBox);
+    // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
+    // Mostly "of interest", not particularly useful - we used to output it, but that's a bit confusing when importing.
+	retCode |= populateBox(world, pCBC, &tightenedWorldBox);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // nothing in box, so end.
@@ -912,7 +918,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     UPDATE_PROGRESS(0.60f*PG_MAKE_FACES);
 
     // process all billboards and "minor geometry"
-    retCode |= filterBox();
+	retCode |= filterBox(pCBC);
     // always return the worst error
     if ( retCode >= MW_BEGIN_ERRORS )
     {
@@ -954,20 +960,20 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
         // for OBJ, we may use more than one texture
         needDifferentTextures = 1;
-        retCode |= writeOBJBox( world, &worldBox, curDir, terrainFileName );
+		retCode |= writeOBJBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
-        retCode |= writeBinarySTLBox( world, &worldBox );
+		retCode |= writeBinarySTLBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_ASCII_STL:
-        retCode |= writeAsciiSTLBox( world, &worldBox );
+		retCode |= writeAsciiSTLBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_VRML2:
-        retCode |= writeVRML2Box( world, &worldBox );
+		retCode |= writeVRML2Box(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     //case FILE_TYPE_SETTINGS:
-        //retCode |= writeSettings( world, &worldBox );
+        //retCode |= writeSettings( world, &worldBox, &tightenedWorldBox );
         //break;
     default:
         assert(0);
@@ -1266,6 +1272,34 @@ Exit:
     return retCode;
 }
 
+// assumes same length (or longer) for both strings
+void wcharToChar(const wchar_t *inWString, char *outString, int length)
+{
+	//WideCharToMultiByte(CP_UTF8,0,inWString,-1,outString,MAX_PATH,NULL,NULL);
+	int i;
+	int oct = 0;
+
+	for (i = 0; i < length; i++)
+	{
+		int val = inWString[i];
+		if (val >= 0 && val < 128)
+		{
+			outString[oct++] = (char)val;
+		}
+		if (val == 0)
+		{
+			// done: did anything get copied? (other than 0 at end)
+			//if ( oct <= 1 )
+			return;
+		}
+	}
+	// it is unlikely that the loop above didn't terminate and return
+	assert(0);
+	return;
+}
+
+
+
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax )
 {
     // clean up a bit: make sure max>=min, and limit Y
@@ -1511,46 +1545,51 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
     return MW_NO_ERROR;
 }
 
-static int populateBox(const wchar_t *world, IBox *worldBox)
+static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *worldBox)
 {
-    int startxblock, startzblock;
-    int endxblock, endzblock;
-    int blockX, blockZ;
-    IBox originalWorldBox = *worldBox;
+	int startxblock, startzblock;
+	int endxblock, endzblock;
+	int blockX, blockZ;
+	IBox originalWorldBox = *worldBox;
 
-    // grab the data block needed, with a border of "air", 0, around the set
-    startxblock=(int)floor((float)worldBox->min[X]/16.0f);
-    startzblock=(int)floor((float)worldBox->min[Z]/16.0f);
-    endxblock=(int)floor((float)worldBox->max[X]/16.0f);
-    endzblock=(int)floor((float)worldBox->max[Z]/16.0f);
+	// grab the data block needed, with a border of "air", 0, around the set
+	startxblock = (int)floor((float)worldBox->min[X] / 16.0f);
+	startzblock = (int)floor((float)worldBox->min[Z] / 16.0f);
+	endxblock = (int)floor((float)worldBox->max[X] / 16.0f);
+	endzblock = (int)floor((float)worldBox->max[Z] / 16.0f);
 
-    // get bounds on Y coordinates, since top part of box is usually air
-    VecScalar( gSolidWorldBox.min, =,  999999 );
-    VecScalar( gSolidWorldBox.max, =, -999999 );
+	// get bounds on Y coordinates, since top part of box is usually air
+	VecScalar(gSolidWorldBox.min, = , 999999);
+	VecScalar(gSolidWorldBox.max, = , -999999);
 
-    // We now extract twice: first time is just to get bounds of solid stuff we'll actually output.
-    // Results of this first pass are put in gSolidWorldBox.
-    for ( blockX=startxblock; blockX<=endxblock; blockX++ )
-    {
-        //UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
-        // z increases west, decreases east
-        for ( blockZ=startzblock; blockZ<=endzblock; blockZ++ )
-        {
-            // this method sets gSolidWorldBox
-            findChunkBounds(world,blockX,blockZ,worldBox);
-        }
-    }
-    if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y])
-    {
-        // nothing to do: there is nothing in the box
-        return MW_NO_BLOCKS_FOUND;
-    }
+	// We now extract twice: first time is just to get bounds of solid stuff we'll actually output.
+	// Results of this first pass are put in gSolidWorldBox.
+	for (blockX = startxblock; blockX <= endxblock; blockX++)
+	{
+		//UPDATE_PROGRESS( 0.1f*(blockX-startxblock+1)/(endxblock-startxblock+1) );
+		// z increases west, decreases east
+		for (blockZ = startzblock; blockZ <= endzblock; blockZ++)
+		{
+			// this method sets gSolidWorldBox
+			findChunkBounds(world, blockX, blockZ, worldBox);
+		}
+	}
 
-    // done with reading chunk for export, so free memory
-    if ( gOptions->moreExportMemory )
-    {
-        ClearCache();
-    }
+	// done with reading chunk for export, so free memory
+	if (gOptions->moreExportMemory)
+	{
+		ClearCache();
+	}
+
+	if (willChangeBlockCommandModifyAir(pCBC)) {
+		// have a command list - have to reset solid world bounds if we find the person is actually
+		// building in the air space, turning air into something solid.
+		// TODO: someday we might want to make the solid world bound limited.
+		gSolidWorldBox = *worldBox;
+	} else if (gSolidWorldBox.min[Y] > gSolidWorldBox.max[Y]) {
+		// quick out test, nothing to do: there is nothing in the box
+		return MW_NO_BLOCKS_FOUND;
+	}
 
     // have to reinitialize to get right globals for gSolidWorldBox.
     initializeWorldData( worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z] );
@@ -1661,7 +1700,7 @@ static int populateBox(const wchar_t *world, IBox *worldBox)
     Vec2Op( gAirBox.max, =,  1 + gSolidBox.max );
     assert( (gAirBox.min[Y] >= 0) && (gAirBox.max[Y] < gBoxSize[Y]) );
 
-    if ( gPrint3D )
+	if (gPrint3D)
     {
         // Clear slabs' type data, so that snow covering will not export if there is air below it.
         // Original types are left set so that minor objects can export properly.
@@ -1855,6 +1894,26 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *edgeWorldBo
     }
 }
 
+static bool willChangeBlockCommandModifyAir(ChangeBlockCommand *pCBC)
+{
+	while (pCBC != NULL) {
+		if (pCBC->useFromArray) {
+			// check air block
+			if (pCBC->fromDataBitsArray[BLOCK_AIR] & 0x1) {
+				return true;
+			}
+		}
+		else {
+			// check if air is in range
+			if (pCBC->simpleFromTypeBegin == BLOCK_AIR) {
+				return true;
+			}
+		}
+		pCBC = pCBC->next;
+	}
+	return false;
+}
+
 static void modifySides( int editMode )
 {
     // do X min and max sides first
@@ -1923,7 +1982,7 @@ static void editBlock( int x, int y, int z, int editMode )
 }
 
 // remove snow blocks and anything else not desired
-static int filterBox()
+static int filterBox(ChangeBlockCommand *pCBC)
 {
     int boxIndex;
     int x,y,z;
@@ -1960,7 +2019,31 @@ static int filterBox()
             }
         }
     }
-    // what should we output? Only 3D bits (no billboards) if printing or if textures are off
+
+	// world's loaded and normalized, now apply any change block commands
+	if (pCBC != NULL) {
+		ChangeBlockCommand *pCurCBC = pCBC;
+		bool passed = true;
+		while (pCurCBC != NULL) {
+			// apply the command
+			passed = applyChangeBlockCommand(pCurCBC);
+			// Note the solid world bounds are useful for knowing where non-air stuff is, for all commands where "from" is not air
+
+			// next command
+			pCurCBC = pCurCBC->next;
+		}
+		if (!passed) {
+			retCode |= MW_CHANGE_BLOCK_COMMAND_OUT_OF_BOUNDS;
+		}
+	}
+
+	// recheck if modified world is now empty. Could be emptied by color scheme or commands
+	if ( isWorldVolumeEmpty() )
+	{
+		retCode |= MW_NO_BLOCKS_FOUND;
+	}
+
+	// what should we output? Only 3D bits (no billboards) if printing or if textures are off
     if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
     {
         outputFlags = BLF_3D_BIT;
@@ -2266,6 +2349,113 @@ Exit:
     return retCode;
 }
 
+// returns false if the location box doesn't overlap the selected volume
+static bool applyChangeBlockCommand(ChangeBlockCommand *pCBC)
+{
+	int boxIndex;
+	int x, y, z;
+	unsigned char toType = pCBC->intoType;
+	unsigned char toData = pCBC->intoData;
+
+	IBox boxBounds = gSolidBox;
+	if (pCBC->hasLocation)
+	{
+		// tighten box as possible
+		IBox testBox;
+		testBox.min[X] = pCBC->minxVal + gWorld2BoxOffset[X];
+		testBox.min[Y] = pCBC->minyVal + gWorld2BoxOffset[Y];
+		testBox.min[Z] = pCBC->minzVal + gWorld2BoxOffset[Z];
+		testBox.max[X] = pCBC->maxxVal + gWorld2BoxOffset[X];
+		testBox.max[Y] = pCBC->maxyVal + gWorld2BoxOffset[Y];
+		testBox.max[Z] = pCBC->maxzVal + gWorld2BoxOffset[Z];
+		if (boxBounds.min[X] < testBox.min[X])
+			boxBounds.min[X] = testBox.min[X];
+		if (boxBounds.min[Y] < testBox.min[Y])
+			boxBounds.min[Y] = testBox.min[Y];
+		if (boxBounds.min[Z] < testBox.min[Z])
+			boxBounds.min[Z] = testBox.min[Z];
+		if (boxBounds.max[X] > testBox.max[X])
+			boxBounds.max[X] = testBox.max[X];
+		if (boxBounds.max[Y] > testBox.max[Y])
+			boxBounds.max[Y] = testBox.max[Y];
+		if (boxBounds.max[Z] > testBox.max[Z])
+			boxBounds.max[Z] = testBox.max[Z];
+		// empty area?
+		if ((boxBounds.min[X] > boxBounds.max[X]) ||
+			(boxBounds.min[Y] > boxBounds.max[Y]) ||
+			(boxBounds.min[Z] > boxBounds.max[Z])) {
+			return false;
+		}
+	}
+
+	for (x = boxBounds.min[X]; x <= boxBounds.max[X]; x++)
+	{
+		for (z = boxBounds.min[Z]; z <= boxBounds.max[Z]; z++)
+		{
+			boxIndex = BOX_INDEX(x, boxBounds.min[Y], z);
+			for (y = boxBounds.min[Y]; y <= boxBounds.max[Y]; y++, boxIndex++)
+			{
+				// two types of changes: array of bits, or a simple range
+				bool modify = false;
+				if (pCBC->useFromArray) {
+					// apply array: see if bit for type is flagged
+					if (pCBC->fromDataBitsArray[gBoxData[boxIndex].type] & (1 << gBoxData[boxIndex].data))
+						modify = true;
+				}
+				else {
+					// apply range and bits
+					int fromType = gBoxData[boxIndex].type;
+					if ((pCBC->simpleFromDataBits & (1 << gBoxData[boxIndex].data)) &&
+						(pCBC->simpleFromTypeBegin <= fromType) &&
+						(pCBC->simpleFromTypeEnd >= fromType)) {
+						modify = true;
+					}
+					if (modify) {
+						gBoxData[boxIndex].type = gBoxData[boxIndex].origType = toType;
+						gBoxData[boxIndex].data = toData;
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+// both check if the world is empty, and lower the gSolidBox.max[Y] as much as possible
+static bool isWorldVolumeEmpty()
+{
+	int boxIndex;
+	int x, y, z;
+	// go from high to low
+	for (y = gSolidBox.max[Y]; y >= gSolidBox.min[Y]; y++)
+	{
+		for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++) {
+			boxIndex = BOX_INDEX(x, y, gSolidBox.min[Z]);
+			for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++, boxIndex += gBoxSize[Y])
+			{
+				if (gBoxData[boxIndex].type != BLOCK_AIR) {
+					gSolidBox.max[Y] = y;
+					return false;
+				}
+			}
+		}
+	}
+	//for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
+	//{
+	//	for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
+	//	{
+	//		boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
+	//		for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
+	//		{
+	//			if (gBoxData[boxIndex].type != BLOCK_AIR)
+	//				return false;
+	//		}
+	//	}
+	//}
+	return true;
+}
+
+
 // return 1 if object is flattened and block should now be considered air
 static int computeFlatFlags( int boxIndex )
 {
@@ -2320,8 +2510,8 @@ static int computeFlatFlags( int boxIndex )
     case BLOCK_CARPET:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
-    case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-    case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+    case BLOCK_REDSTONE_COMPARATOR:
+    case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
     case BLOCK_LILY_PAD:
     case BLOCK_DANDELION:
     case BLOCK_POPPY:
@@ -2887,7 +3077,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 {
     int dataVal, minx, maxx, miny, maxy, minz, maxz, faceMask, tbFaceMask, bitAdd, dir;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
-    int topDataVal, bottomDataVal, shiftVal, neighborType, neighborDataVal, newHeight;
+    int topDataVal, bottomDataVal, shiftVal, neighborType, newHeight;
     int i, hasPost, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;
     float xrot, yrot, zrot;
     float mtx[4][4], angle, hingeAngle, signMult;
@@ -3405,158 +3595,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
 
         {
-            // The stairs block has a full level (a full slab) on one level. Our task is to find which of
-            // the four boxes are filled on the other level: it could be 1, 2, or 3. Normal stairs have
-            // 2 filled, but as they get next to other stairs, they can change, losing or adding a block.
-            // The rules are as follows:
-            // If the neighbor stair behind our stair block turns to left or right compared to the stair,
-            // then subtract the block not touched by the neighboring stair, but only if there is no
-            // neighbor stair to the left or right with the same orientation.
-            // Else, if the neighbor stair in front of our stair block turns left or right, then add
-            // a block to left or right, but only if there is no neighbor stair to the right or left
-            // (note the reversal from the subtraction case) with the same orientation.
-            // Else, the stair block remains as is.
-            //
-            // This is mostly table-driven.
-            // The mask bits are as follows
-            //
-            //        lo hi
-            //    lo   0  1
-            //    hi   2  3
-            //
-            // The value sets the 1<<bit in the mask. So, bits 2 and 3 would give 4 + 8 = 12.
-            // Table is oriented along world lines, and recall that North is -Z, East is +X.
-            typedef struct StairsTable {
-                unsigned int mask;  // which of the four blocks is set
-                int backDir;
-                unsigned int behind[4];
-                int sideDir[4];     // which side neighbor is important for overcoming the subtractive effect of the stair behind
-                unsigned int front[4];
-            } StairsTable;
-            const StairsTable stairs[4]={
-                { 10, DIRECTION_BLOCK_SIDE_HI_X,  {0,0,8,2}, {0,0,DIRECTION_BLOCK_SIDE_LO_Z,DIRECTION_BLOCK_SIDE_HI_Z}, {0,0,14,11} },
-                {  5, DIRECTION_BLOCK_SIDE_LO_X,  {0,0,4,1}, {0,0,DIRECTION_BLOCK_SIDE_LO_Z,DIRECTION_BLOCK_SIDE_HI_Z}, {0,0,13,7} },
-                { 12, DIRECTION_BLOCK_SIDE_HI_Z,  {8,4,0,0}, {DIRECTION_BLOCK_SIDE_LO_X,DIRECTION_BLOCK_SIDE_HI_X,0,0}, {14,13,0,0} },
-                {  3, DIRECTION_BLOCK_SIDE_LO_Z,  {2,1,0,0}, {DIRECTION_BLOCK_SIDE_LO_X,DIRECTION_BLOCK_SIDE_HI_X,0,0}, {11,7,0,0} }
-            };
-
-            // The bottom 2 bits is direction of step.
-            int stepDir = (dataVal & 0x3);
-            int stepLevel = (dataVal & 0x4);
-            unsigned int stepMask = stairs[stepDir].mask;
-            bool sideNeighbor;
-            unsigned int newMask;
-
-            int neighborIndex = boxIndex+gFaceOffset[stairs[stepDir].backDir];
-            neighborType = gBoxData[neighborIndex].origType;
-            // is there a stairs behind us that subtracted a block?
-            bool subtractedBlock = false;
-            if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-            {
-                // get the data value and check it
-                neighborDataVal = gBoxData[neighborIndex].data;
-
-                // first, are slabs on same level?
-                if ( (neighborDataVal & 0x4) == stepLevel )
-                {
-                    // On the same level. Is neighbor value one of the values that can affect this block?
-                    newMask = stairs[stepDir].behind[(neighborDataVal & 0x3)];
-                    if ( newMask != 0x0 )
-                    {
-                        // The behind value indeed affects the step. Now we need to check if the corresponding
-                        // neighbor to the side is a stairs, at the same level, and has the same orientation.
-                        // If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
-                        // the step's upper step "in place" without subtraction.
-                        sideNeighbor = false;
-                        neighborIndex = boxIndex+gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
-                        assert( neighborIndex != boxIndex );
-                        neighborType = gBoxData[neighborIndex].origType;
-                        // is there a stairs to the key side of us?
-                        if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                        {
-                            // get the data value and check it
-                            neighborDataVal = gBoxData[neighborIndex].data;
-
-                            // first, are slabs on same level?
-                            if ( (neighborDataVal & 0x4) == stepLevel )
-                            {
-                                // On the same level. Is neighbor value the same as the block's value, i.e. are the
-                                // stairs facing the same direction?
-                                if ( (neighborDataVal & 0x3) == stepDir )
-                                {
-                                    // so, this stairs hold the stair step in place, no subtraction.
-                                    sideNeighbor = true;
-                                }
-                            }
-                        }
-
-                        if ( !sideNeighbor )
-                        {
-                            // No side neighbor holding the step in place, so set this as the new mask, and we're done;
-                            // subtraction takes precedence over addition.
-                            stepMask = newMask;
-                            subtractedBlock = true;
-                        }
-                    }
-                }
-            }
-
-            // if a subtraction didn't happen, then we can test for an addition
-            if ( !subtractedBlock )
-            {
-                // now check the neighbor in front, in a similar manner.
-                neighborIndex = boxIndex+gFaceOffset[(stairs[stepDir].backDir+3)%6];
-                neighborType = gBoxData[neighborIndex].origType;
-                // is there a stairs in front of us?
-                if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                {
-                    // get the data value and check it
-                    neighborDataVal = gBoxData[neighborIndex].data;
-
-                    // first, are slabs on same level?
-                    if ( (neighborDataVal & 0x4) == stepLevel )
-                    {
-                        // On the same level. Is neighbor value one of the values that can affect this block?
-                        newMask = stairs[stepDir].front[(neighborDataVal & 0x3)];
-                        if ( newMask != 0x0 )
-                        {
-                            // The front value indeed affects the step. Now we need to check if the corresponding
-                            // neighbor to the side is a stairs, at the same level, and has the same orientation.
-                            // If so, we ignore addition, else allow it. Basically, steps next to steps keep
-                            // the step's upper step "in place" without addition.
-                            sideNeighbor = false;
-                            neighborIndex = boxIndex+gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)]+3)%6];
-                            assert( neighborIndex != boxIndex );
-                            neighborType = gBoxData[neighborIndex].origType;
-                            // is there a stairs to the key side of us?
-                            if ( gBlockDefinitions[neighborType].flags & BLF_STAIRS )
-                            {
-                                // get the data value and check it
-                                neighborDataVal = gBoxData[neighborIndex].data;
-
-                                // first, are slabs on same level?
-                                if ( (neighborDataVal & 0x4) == stepLevel )
-                                {
-                                    // On the same level. Is neighbor value the same as the block's value, i.e. are the
-                                    // stairs facing the same direction?
-                                    if ( (neighborDataVal & 0x3) == stepDir )
-                                    {
-                                        // so, this stairs hold the stair step in place, no subtraction.
-                                        sideNeighbor = true;
-                                    }
-                                }
-                            }
-
-                            if ( !sideNeighbor )
-                            {
-                                // No side neighbor holding the step in place, so set this as the new mask, and we're done;
-                                // subtraction takes precedence over addition.
-                                stepMask = newMask;
-                            }
-                        }
-                    }
-                }
-            }
+			unsigned int stepMask, origStepMask;
+			stepMask = origStepMask = getStairMask(boxIndex, dataVal);
+			int stepLevel = (dataVal & 0x4);
 
             // We now have the mask in stepMask of what blocks to output.
 
@@ -3575,6 +3616,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 miny = 0;
                 maxy = 8;
             }
+
+			// Other blocks will clear faces as needed, by the save system itself (i.e. if a small face is next to a full block,
+			// it'll be remove if and only if we're rendering).
             saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
 
             // Now create the larger 2x1 box, if found
@@ -3582,40 +3626,43 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             maxx = maxz = 16;
             assert( (stepMask != 0) && (stepMask != 0xff) );
             bool outputStep = false;
+			bool northSouth = false;
             if ( (stepMask & 0x3) == 0x3 )
             {
-                // north step covered
+                // north step covered, goes east-west
                 outputStep = true;
                 maxz = 8;
                 stepMask &= ~0x3;
             }
             else if ( (stepMask & 0xC) == 0xC )
             {
-                // south step covered
+                // south step covered, goes east-west
                 outputStep = true;
                 minz = 8;
                 stepMask &= ~0xC;
-            }
+			}
             else if ( (stepMask & 0x5) == 0x5 )
             {
-                // west step covered
+                // west step covered, goes north-south
                 outputStep = true;
                 maxx = 8;
                 stepMask &= ~0x5;
-            }
+				northSouth = true;
+			}
             else if ( (stepMask & 0xA) == 0xA )
             {
-                // east step covered
+                // east step covered, goes north-south
                 outputStep = true;
                 minx = 8;
                 stepMask &= ~0xA;
-            }
+				northSouth = true;
+			}
 
             if ( outputStep )
             {
                 if ( stepLevel )
                 {
-                    // lower step (stairs is upside down)
+                    // lower 2x1 step (stairs is upside down)
                     miny = 0;
                     maxy = 8;
                     // if 3D printing, we output all faces of the small step, as this step needs to be watertight
@@ -3623,12 +3670,80 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 }
                 else
                 {
-                    // upper step
+                    // upper 2x1 step
                     miny = 8;
                     maxy = 16;
                     // if 3D printing, we output all faces of the small step, as this step needs to be watertight
                     faceMask = gPrint3D ? 0x0 : DIR_BOTTOM_BIT;
                 }
+				// Now, try the common case of two identical steps next to each other: if this really is a 2x1 block and nothing
+				// else, no 1x1 is left, then check if the two adjoining steps touching the 1 sides (not 2) are *IDENTICAL* in
+				// their step masks and levels. The short version: are their data values exactly the same as this block's?
+				// If so, then mask out that 1x1 side face. This then covers the easy and common case where two identical steps are
+				// next to each other and continuing.
+				int neighborData;
+				if (stepMask == 0x0)
+				{
+					// OK, this is a 2x1 block. Does it go north-south or east-west?
+					if (northSouth) {
+						// Goes north-south.
+						// Check north neighbor.
+						neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+						if (gBlockDefinitions[neighborType].flags & BLF_STAIRS) {
+							// northern neighbor is stairs
+							neighborData = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data;
+							if (neighborData == dataVal) {
+								// the data values match - but, do the stair masks match?
+								if (getStairMask(boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z], neighborData) == origStepMask) {
+									// all matches, so mask off the northern face
+									faceMask |= DIR_LO_Z_BIT;
+								}
+							}
+						}
+						// Check south neighbor.
+						neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+						if (gBlockDefinitions[neighborType].flags & BLF_STAIRS) {
+							// southern neighbor is stairs
+							neighborData = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data;
+							if (neighborData == dataVal) {
+								// the data values match - but, do the stair masks match?
+								if (getStairMask(boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z], neighborData) == origStepMask) {
+									// all matches, so mask off the southern face
+									faceMask |= DIR_HI_Z_BIT;
+								}
+							}
+						}
+					}
+					else {
+						// Goes east-west
+						// Check west neighbor.
+						neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+						if (gBlockDefinitions[neighborType].flags & BLF_STAIRS) {
+							// western neighbor is stairs
+							neighborData = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data;
+							if (neighborData == dataVal) {
+								// the data values match - but, do the stair masks match?
+								if (getStairMask(boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X], neighborData) == origStepMask) {
+									// all matches, so mask off the southern face
+									faceMask |= DIR_LO_X_BIT;
+								}
+							}
+						}
+						// Check east neighbor.
+						neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+						if (gBlockDefinitions[neighborType].flags & BLF_STAIRS) {
+							// eastern neighbor is stairs
+							neighborData = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data;
+							if (neighborData == dataVal) {
+								// the data values match - but, do the stair masks match?
+								if (getStairMask(boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X], neighborData) == origStepMask) {
+									// all matches, so mask off the southern face
+									faceMask |= DIR_HI_X_BIT;
+								}
+							}
+						}
+					}
+				}
                 saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
             }
 
@@ -3869,21 +3984,19 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             angle = 90.0f;
             break;
         }
-        // TODO: sign is actually a bit thick here - it should be more like 1.5 and move 0.25 out.
-        // To do this we would need to pass in floats, which might be fine.
         gUsingTransform = 1;
-        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 14,16 );
+        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 7,9 );
         gUsingTransform = 0;
-        // scale sign down, move slightly away from wall
+        // Scale sign down, move slightly away from wall
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         // this moves block up so that bottom of sign is at Y=0
-        // also move a bit away from wall if we're not doing 3d printing
-        translateMtx(mtx, 0.0f, 0.5f, gPrint3D ? 0.0f : -0.25f/16.0f);
+        translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+        scaleMtx(mtx, 1.0f, 8.0f / 12.0f, gPrint3D ? 1.0f : 2.0f / 3.0f);
+        // move a bit away from wall if we're not doing 3d printing
+        translateMtx(mtx, 0.0f, -0.5f, 7.0f / 16.0f );
         rotateMtx(mtx, 0.0f, angle, 0.0f);
-        scaleMtx(mtx, 1.0f, 8.0f/12.0f, 1.0f);
         // undo translation
-        translateMtx(mtx, 0.0f, -0.5f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, 4.5f/16.0f, 0.0f);
         transformVertices(8,mtx);
@@ -4036,7 +4149,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_SIGN_POST:
         // sign is two parts:
-        // bottom output first, which saves one translation
+        // bottom post is output first, which saves one translation
         topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_LOG].txrX, gBlockDefinitions[BLOCK_LOG].txrY );
         sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
         gUsingTransform = 1;
@@ -4046,9 +4159,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
+        // move bottom of sign to origin, for scaling
         translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+        // scale down in Y, and make post thinner if rendering
+        scaleMtx(mtx, gPrint3D ? 1.0f : 2.0f / 3.0f, 16.0f / 24.0f, gPrint3D ? 1.0f : 2.0f / 3.0f);
         rotateMtx(mtx, 0.0f, dataVal*22.5f, 0.0f);
-        scaleMtx(mtx, 1.0f, 16.0f/24.0f, 1.0f);
         // undo translation
         translateMtx(mtx, 0.0f, -0.5f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
@@ -4058,8 +4173,16 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         gUsingTransform = 1;
         saveBoxGeometry( boxIndex, type, 0, 0x0, 0,16, 0,12, 7-fatten,9+fatten );
         gUsingTransform = 0;
-        translateMtx(mtx, 0.0f, 14.0f/24.0f, 0.0f);
-        transformVertices(8,mtx);
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+        // scale down in Y, and make sign thinner only in Z direction
+        scaleMtx(mtx, 1.0f, 16.0f / 24.0f, gPrint3D ? 1.0f : 2.0f / 3.0f);
+        rotateMtx(mtx, 0.0f, dataVal*22.5f, 0.0f);
+        // undo translation
+        translateMtx(mtx, 0.0f, 14.0f / 24.0f - 0.5f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(8, mtx);
 
         break;
 
@@ -4857,12 +4980,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         gUsingTransform = 0;
         break;
 
-    case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-    case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+    case BLOCK_REDSTONE_COMPARATOR:
+    case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
         // in 1.5, comparator active is used for top bit
         // in 1.6, comparator active is not used, it depends on dataVal
         {
-            int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_ACTIVE) || (dataVal >= 8));
+            int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_DEPRECATED) || (dataVal >= 8));
             int out_powered = (dataVal & 0x4) == 0x4;
             swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
             angle = 90.0f*(float)(dataVal&0x3);
@@ -6210,6 +6333,164 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
     return retCode;
 }
 
+static unsigned int getStairMask(int boxIndex, int dataVal)
+{
+	// The stairs block has a full level (a full slab) on one level. Our task is to find which of
+	// the four boxes are filled on the other level: it could be 1, 2, or 3. Normal stairs have
+	// 2 filled, but as they get next to other stairs, they can change, losing or adding a block.
+	// The rules are as follows:
+	// If the neighbor stair behind our stair block turns to left or right compared to the stair,
+	// then subtract the block not touched by the neighboring stair, but only if there is no
+	// neighbor stair to the left or right with the same orientation.
+	// Else, if the neighbor stair in front of our stair block turns left or right, then add
+	// a block to left or right, but only if there is no neighbor stair to the right or left
+	// (note the reversal from the subtraction case) with the same orientation.
+	// Else, the stair block remains as is.
+	//
+	// This is mostly table-driven.
+	// The mask bits are as follows
+	//
+	//        lo hi
+	//    lo   0  1
+	//    hi   2  3
+	//
+	// The value sets the 1<<bit in the mask. So, bits 2 and 3 would give 4 + 8 = 12.
+	// Table is oriented along world lines, and recall that North is -Z, East is +X.
+	typedef struct StairsTable {
+		unsigned int mask;  // which of the four blocks is set
+		int backDir;
+		unsigned int behind[4];
+		int sideDir[4];     // which side neighbor is important for overcoming the subtractive effect of the stair behind
+		unsigned int front[4];
+	} StairsTable;
+	const StairsTable stairs[4] = {
+		{ 10, DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 2 }, { 0, 0, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z }, { 0, 0, 14, 11 } },
+		{ 5, DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 4, 1 }, { 0, 0, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z }, { 0, 0, 13, 7 } },
+		{ 12, DIRECTION_BLOCK_SIDE_HI_Z, { 8, 4, 0, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X, 0, 0 }, { 14, 13, 0, 0 } },
+		{ 3, DIRECTION_BLOCK_SIDE_LO_Z, { 2, 1, 0, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X, 0, 0 }, { 11, 7, 0, 0 } }
+	};
+
+	// The bottom 2 bits is direction of step.
+	int stepDir = (dataVal & 0x3);
+	int stepLevel = (dataVal & 0x4);
+	unsigned int stepMask = stairs[stepDir].mask;
+	bool sideNeighbor;
+	unsigned int newMask;
+	int neighborDataVal;
+
+	int neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].backDir];
+	int neighborType = gBoxData[neighborIndex].origType;
+	// is there a stairs behind us that subtracted a block?
+	bool subtractedBlock = false;
+	if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+	{
+		// get the data value and check it
+		neighborDataVal = gBoxData[neighborIndex].data;
+
+		// first, are slabs on same level?
+		if ((neighborDataVal & 0x4) == stepLevel)
+		{
+			// On the same level. Is neighbor value one of the values that can affect this block?
+			newMask = stairs[stepDir].behind[(neighborDataVal & 0x3)];
+			if (newMask != 0x0)
+			{
+				// The behind value indeed affects the step. Now we need to check if the corresponding
+				// neighbor to the side is a stairs, at the same level, and has the same orientation.
+				// If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
+				// the step's upper step "in place" without subtraction.
+				sideNeighbor = false;
+				neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
+				assert(neighborIndex != boxIndex);
+				neighborType = gBoxData[neighborIndex].origType;
+				// is there a stairs to the key side of us?
+				if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+				{
+					// get the data value and check it
+					neighborDataVal = gBoxData[neighborIndex].data;
+
+					// first, are slabs on same level?
+					if ((neighborDataVal & 0x4) == stepLevel)
+					{
+						// On the same level. Is neighbor value the same as the block's value, i.e. are the
+						// stairs facing the same direction?
+						if ((neighborDataVal & 0x3) == stepDir)
+						{
+							// so, this stairs hold the stair step in place, no subtraction.
+							sideNeighbor = true;
+						}
+					}
+				}
+
+				if (!sideNeighbor)
+				{
+					// No side neighbor holding the step in place, so set this as the new mask, and we're done;
+					// subtraction takes precedence over addition.
+					stepMask = newMask;
+					subtractedBlock = true;
+				}
+			}
+		}
+	}
+
+	// if a subtraction didn't happen, then we can test for an addition
+	if (!subtractedBlock)
+	{
+		// now check the neighbor in front, in a similar manner.
+		neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].backDir + 3) % 6];
+		neighborType = gBoxData[neighborIndex].origType;
+		// is there a stairs in front of us?
+		if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+		{
+			// get the data value and check it
+			neighborDataVal = gBoxData[neighborIndex].data;
+
+			// first, are slabs on same level?
+			if ((neighborDataVal & 0x4) == stepLevel)
+			{
+				// On the same level. Is neighbor value one of the values that can affect this block?
+				newMask = stairs[stepDir].front[(neighborDataVal & 0x3)];
+				if (newMask != 0x0)
+				{
+					// The front value indeed affects the step. Now we need to check if the corresponding
+					// neighbor to the side is a stairs, at the same level, and has the same orientation.
+					// If so, we ignore addition, else allow it. Basically, steps next to steps keep
+					// the step's upper step "in place" without addition.
+					sideNeighbor = false;
+					neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6];
+					assert(neighborIndex != boxIndex);
+					neighborType = gBoxData[neighborIndex].origType;
+					// is there a stairs to the key side of us?
+					if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+					{
+						// get the data value and check it
+						neighborDataVal = gBoxData[neighborIndex].data;
+
+						// first, are slabs on same level?
+						if ((neighborDataVal & 0x4) == stepLevel)
+						{
+							// On the same level. Is neighbor value the same as the block's value, i.e. are the
+							// stairs facing the same direction?
+							if ((neighborDataVal & 0x3) == stepDir)
+							{
+								// so, this stairs hold the stair step in place, no subtraction.
+								sideNeighbor = true;
+							}
+						}
+					}
+
+					if (!sideNeighbor)
+					{
+						// No side neighbor holding the step in place, so set this as the new mask, and we're done;
+						// subtraction takes precedence over addition.
+						stepMask = newMask;
+					}
+				}
+			}
+		}
+	}
+	return stepMask;
+}
+
 //   3---2
 //   |   |
 //   |   |
@@ -6998,8 +7279,8 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, int faceRec
 
             case BLOCK_REDSTONE_REPEATER_OFF:
             case BLOCK_REDSTONE_REPEATER_ON:
-            case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-            case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+            case BLOCK_REDSTONE_COMPARATOR:
+            case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
                 // annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear each other...
                 setTop = 2;
                 break;
@@ -7762,14 +8043,14 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             // time to rotate to place. Minecraft shears the torch, we're just going to rotate it.
-            // scale sign down, move slightly away from wall
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             // this moves block up so that bottom of torch is at Y=0
             // also move to wall
             translateMtx(mtx, 0.0f, 0.5f, 0.0f );
-            //rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
-            shearMtx(mtx, 0.0f, shr);
+            rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
+            // in 1.7 and earlier torches are sheared:
+            // shearMtx(mtx, 0.0f, shr);
             translateMtx(mtx, 0.0f, 0.0f, trans );
             rotateMtx(mtx, 0.0f, yAngle, 0.0f);
             // undo translation, and kick it up the wall a bit
@@ -10068,7 +10349,7 @@ static int generateBlockDataAndStatistics()
     }
 
     // If we are grouping by material (e.g., STL does not need this), then we need to sort by material
-    if ( gOptions->exportFlags & EXPT_GROUP_BY_MATERIAL )
+	if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
     {
         qsort_s(gModel.faceList,gModel.faceCount,sizeof(FaceRecord*),faceIdCompare,NULL);
     }
@@ -10593,8 +10874,8 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
 
         case BLOCK_REDSTONE_REPEATER_OFF:
         case BLOCK_REDSTONE_REPEATER_ON:
-        case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-        case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+        case BLOCK_REDSTONE_COMPARATOR:
+        case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
             // blocks top
@@ -10668,6 +10949,15 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
                 }
             }
             break;
+
+		case BLOCK_WATER:
+		case BLOCK_STATIONARY_WATER:
+		case BLOCK_LAVA:
+		case BLOCK_STATIONARY_LAVA:
+			// if these are above, the bottom is always a full face
+			if (faceDirection == DIRECTION_BLOCK_TOP)
+				return 1;
+			break;
 
         default:
             // not in list, so won't cover anything
@@ -12567,12 +12857,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             if ( uvIndices )
                 rotateIndices( localIndices, 90*(dataVal&0x3));
             break;
-        case BLOCK_REDSTONE_COMPARATOR_INACTIVE:
-        case BLOCK_REDSTONE_COMPARATOR_ACTIVE:
+        case BLOCK_REDSTONE_COMPARATOR:
+        case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
             // in 1.5, comparator active is used for top bit
             // in 1.6, comparator active is not used, it depends on dataVal
             {
-                int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_ACTIVE) || (dataVal >= 8));
+                int in_powered = ((type == BLOCK_REDSTONE_COMPARATOR_DEPRECATED) || (dataVal >= 8));
                 swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
             }
             if ( uvIndices )
@@ -13566,7 +13856,7 @@ static void resolveFaceNormals()
 }
 
 // return 0 if no write
-static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *curDir, const wchar_t *terrainFileName )
+static int writeOBJBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
     // set to 1 if you want absolute (positive) indices used in the faces
     int absoluteIndices = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_REL_COORDINATES) ? 0 : 1;
@@ -13578,8 +13868,6 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
 
     char outputString[MAX_PATH];
     char mtlName[MAX_PATH];
-    const char *justWorldFileName;
-    char justMtlFileName[MAX_PATH];
 
     int i, groupCount;
 
@@ -13595,7 +13883,6 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     FaceRecord *pFace;
 
     char worldChar[MAX_PATH];
-    char outChar[MAX_PATH];
 
 #define OUTPUT_NORMALS
 #ifdef OUTPUT_NORMALS
@@ -13613,39 +13900,28 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     if (gModelFile == INVALID_HANDLE_VALUE)
         return retCode|MW_CANNOT_CREATE_FILE;
 
-    wcharToChar(world,worldChar);	// don't touch worldChar after this, as justWorldFileName depends on it
-    justWorldFileName = removePathChar(worldChar);
-
     sprintf_s(outputString,256,"# Wavefront OBJ file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    retCode |= writeStatistics( gModelFile, justWorldFileName, worldBox );
+	const char *justWorldFileName;
+	wcharToChar(world, worldChar, MAX_PATH);
+	justWorldFileName = removePathChar(worldChar);
+
+	retCode |= writeStatistics(gModelFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
-
-    // Debug info, to figure out Mac paths:
-    sprintf_s(outputString,256,"\n# Full world path: %s\n", worldChar );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-    wcharToChar(terrainFileName,outChar);
-    sprintf_s(outputString,256,"# Full terrainExt.png path: %s\n", outChar );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
-    wcharToChar(curDir,outChar);
-    sprintf_s(outputString,256,"# Full current path: %s\n", outChar );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
 
     // If we use materials, say where the file is
     if ( exportMaterials )
     {
-        sprintf_s(justMtlFileName,MAX_PATH,"%s.mtl",gOutputFileRootCleanChar);
+		char justMtlFileName[MAX_PATH];
+		sprintf_s(justMtlFileName, MAX_PATH, "%s.mtl", gOutputFileRootCleanChar);
 
         sprintf_s(outputString,256,"\nmtllib %s\n", justMtlFileName );
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
-
-    // replace spaces with underscores for world name output
+	
+	// replace spaces with underscores for world name output
     strcpy_s(worldNameUnderlined,256,justWorldFileName);
     spacesToUnderlinesChar(worldNameUnderlined);
 
@@ -13703,7 +13979,7 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
     if ( exportMaterials )
     {
         // should there be just one single material in this OBJ file?
-        if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) )
+        if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
         {
             sprintf_s(outputString,256,"\nusemtl %s\n", MINECRAFT_SINGLE_MATERIAL);
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -13718,48 +13994,58 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
         if ( exportMaterials )
         {
             // should there be more than one material or group output in this OBJ file?
-            if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE|EXPT_OUTPUT_OBJ_GROUPS) )
+            if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MULTIPLE_MTLS|EXPT_OUTPUT_OBJ_GROUPS) )
             {
                 // did we reach a new material?
                 if ( prevType != gModel.faceList[i]->type )
                 {
                     prevType = gModel.faceList[i]->type;
-                    // new ID encountered, so output it: material name, and group
-                    // group isn't really required, but can be useful.
-                    // Output group only if we're not already using it for individual blocks
+                    // New ID encountered, so output it: material name, and group.
+                    // Group isn't really required, but can be useful.
+                    // Output group only if we're not already using it for individual blocks.
                     strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar( mtlName );
                     // usemtl materialName
-                    if ( gOptions->exportFlags & EXPT_GROUP_BY_BLOCK )
+                    if (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
                     {
-                        sprintf_s(outputString,256,"\nusemtl %s\n", mtlName);
-                        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-                        // note which material is to be output, if not output already
-                        if ( outputMaterial[prevType] == 0 )
-                        {
-                            gModel.mtlList[gModel.mtlCount++] = prevType;
-                            outputMaterial[prevType] = 1;
-                        }
+						// output every block individually
+						sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
+						WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+						if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+						{
+							// new group for objects of same type (which are sorted)
+							sprintf_s(outputString, 256, "g %s\n", mtlName);
+							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+						}
+						// note which material is to be output, if not output already
+						if (outputMaterial[prevType] == 0)
+						{
+							gModel.mtlList[gModel.mtlCount++] = prevType;
+							outputMaterial[prevType] = 1;
+						}
                     }
                     else
                     {
-                        strcpy_s(outputString,256,"\n");
-                        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+						// don't output by block: output by group, and/or by material, or none at all (one material for scene)
+                        strcpy_s(outputString, 256, "\n");
+                        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-                        if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_GROUPS )
+                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_GROUPS)
                         {
-                            sprintf_s(outputString,256,"g %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+                            // new group for objects of same type (which are sorted)
+                            sprintf_s(outputString, 256, "g %s\n", mtlName);
+                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
-                        if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE )
+                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS)
                         {
-                            sprintf_s(outputString,256,"usemtl %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+                            // new material per object
+                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             gModel.mtlList[gModel.mtlCount++] = prevType;
                         }
-                        // else don't output material
+                        // else don't output material, there's only one for the whole scene
                     }
                 }
             }
@@ -13768,8 +14054,8 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
         // output the actual face
         pFace = gModel.faceList[i];
 
-        // if we're outputting each individual block, set a unique group name here.
-        if ( (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) && pFace->faceIndex <= 0 )
+        // if we're outputting each individual block in a group, set a unique group name here.
+		if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && pFace->faceIndex <= 0)
         {
             sprintf_s(outputString,256,"\ng block_%05d\n", ++groupCount);
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -13815,22 +14101,30 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
             }
             else
             {
+				// Output a quad
+				// if normal sums negative, rotate order by one so that dumb tessellators
+				// match up the faces better, which should make matching face removal work better. I hope.
+				int offset = 0;
+				int idx = pFace->normalIndex;
+				if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+					offset = 1;
+
                 if ( absoluteIndices )
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1, outputFaceDirection,
-                        pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1, outputFaceDirection,
-                        pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1, outputFaceDirection,
-                        pFace->vertexIndex[3]+1, pFace->uvIndex[3]+1, outputFaceDirection
+						pFace->vertexIndex[offset] + 1, pFace->uvIndex[offset] + 1, outputFaceDirection,
+						pFace->vertexIndex[offset + 1] + 1, pFace->uvIndex[offset + 1] + 1, outputFaceDirection,
+						pFace->vertexIndex[offset + 2] + 1, pFace->uvIndex[offset + 2] + 1, outputFaceDirection,
+						pFace->vertexIndex[(offset + 3) % 4] + 1, pFace->uvIndex[(offset + 3) % 4] + 1, outputFaceDirection
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-gModel.uvIndexCount, outputFaceDirection
+						pFace->vertexIndex[offset] - gModel.vertexCount, pFace->uvIndex[offset] - gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[offset + 1] - gModel.vertexCount, pFace->uvIndex[offset + 1] - gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[offset + 2]-gModel.vertexCount, pFace->uvIndex[offset + 2]-gModel.uvIndexCount, outputFaceDirection,
+						pFace->vertexIndex[(offset + 3) % 4]-gModel.vertexCount, pFace->uvIndex[(offset + 3) % 4]-gModel.uvIndexCount, outputFaceDirection
                         );
                 }
             }
@@ -13905,22 +14199,29 @@ static int writeOBJBox( const wchar_t *world, IBox *worldBox, const wchar_t *cur
             }
             else
             {
-                if ( absoluteIndices )
+				// Output a quad
+				// if normal sums negative, rotate order by one so that dumb tessellators
+				// match up the faces better, which should make matching face removal work better. I hope.
+				int offset = 0;
+				int idx = pFace->normalIndex;
+				if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+					offset = 1;
+				if (absoluteIndices)
                 {
                     sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[0]+1, outputFaceDirection,
-                        pFace->vertexIndex[1]+1, outputFaceDirection,
-                        pFace->vertexIndex[2]+1, outputFaceDirection,
-                        pFace->vertexIndex[3]+1, outputFaceDirection
+						pFace->vertexIndex[offset] + 1, outputFaceDirection,
+						pFace->vertexIndex[offset + 1] + 1, outputFaceDirection,
+						pFace->vertexIndex[offset + 2] + 1, outputFaceDirection,
+						pFace->vertexIndex[(offset + 3) % 4] + 1, outputFaceDirection
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d//%d %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[0]-gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[1]-gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[2]-gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[3]-gModel.vertexCount, outputFaceDirection
+                        pFace->vertexIndex[offset]-gModel.vertexCount, outputFaceDirection,
+						pFace->vertexIndex[offset + 1] - gModel.vertexCount, outputFaceDirection,
+						pFace->vertexIndex[offset + 2]-gModel.vertexCount, outputFaceDirection,
+						pFace->vertexIndex[(offset + 3) % 4]-gModel.vertexCount, outputFaceDirection
                         );
                 }
             }
@@ -14034,7 +14335,7 @@ static int writeOBJMtlFile()
         return MW_CANNOT_CREATE_FILE;
 
     sprintf_s(outputString,2048,"Wavefront OBJ material file\n# Contains %d materials\n",
-        (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) ? gModel.mtlCount : 1 );
+        (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) ? gModel.mtlCount : 1 );
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
     if (gExportTexture )
@@ -14047,7 +14348,7 @@ static int writeOBJMtlFile()
         sprintf_s(textureAlpha,MAX_PATH,"%s%s.png",gOutputFileRootCleanChar,PNG_ALPHA_SUFFIXCHAR);
     }
 
-    if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_TYPE) )
+    if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
     {
         // output a single material
         if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
@@ -14069,8 +14370,8 @@ static int writeOBJMtlFile()
                 "\nnewmtl %s\n"
                 "Kd 1 1 1\n"
                 "Ks 0 0 0\n"
-                "# for G3D, to make textures look blocky:\n",
-                "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n",
+                "# for G3D, to make textures look blocky:\n"
+                "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
                 "map_Kd %s\n"
                 "map_d %s\n"
                 ,
@@ -14112,7 +14413,8 @@ static int writeOBJMtlFile()
 
             if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
             {
-                // use full material description, and include illumination model.
+                // Use full material description, and include illumination model.
+				// Works by uncommenting lines where "fullMtl" is used in the output.
                 // Really currently tailored for G3D, and things like Tr are commented out always.
                 strcpy_s(fullMtl,256,"");
             }
@@ -15088,7 +15390,7 @@ static int createBaseMaterialTexture()
     return MW_NO_ERROR;
 }
 
-static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
+static int writeBinarySTLBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -15134,7 +15436,7 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-    wcharToChar(world,worldChar);
+	wcharToChar(world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -15185,6 +15487,13 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
         }
 
         faceTriCount = (vertex[2] == vertex[3]) ? 1:2;
+		// For export quad
+		// if normal sums negative, rotate order by one so that we
+		// match up the faces better, which should make matching face removal work better. I hope.
+		int offset = 0;
+		int i = pFace->normalIndex;
+		if ((faceTriCount > 1) && (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f))
+			offset = 1;
 
         // output a triangle or a quad, i.e. 1 or 2 faces
         for ( i = 0; i < faceTriCount; i++ )
@@ -15192,9 +15501,10 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
             // 3 float normals
             WERROR(PortaWrite(gModelFile, &gModel.normals[pFace->normalIndex], 12 ));
 
-            WERROR(PortaWrite(gModelFile, vertex[0], 12 ));
-            WERROR(PortaWrite(gModelFile, vertex[i+1], 12 ));
-            WERROR(PortaWrite(gModelFile, vertex[i+2], 12 ));
+			// two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
+			WERROR(PortaWrite(gModelFile, vertex[offset], 12));
+            WERROR(PortaWrite(gModelFile, vertex[offset+i+1], 12 ));
+            WERROR(PortaWrite(gModelFile, vertex[(offset+i+2)%4], 12 ));
 
             if ( writeColor )
             {
@@ -15242,7 +15552,7 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
         return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-    retCode |= writeStatistics( statsFile, justWorldFileName, worldBox );
+	retCode |= writeStatistics(statsFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
@@ -15250,7 +15560,7 @@ static int writeBinarySTLBox( const wchar_t *world, IBox *worldBox )
     return retCode;
 }
 
-static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
+static int writeAsciiSTLBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -15284,7 +15594,7 @@ static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-    wcharToChar(world,worldChar);
+	wcharToChar(world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -15334,19 +15644,27 @@ static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
         //endfacet
 
         faceTriCount = (vertex[2] == vertex[3]) ? 1:2;
+		// For export quad
+		// if normal sums negative, rotate order by one so that we
+		// match up the faces better, which should make matching face removal work better. I hope.
+		int offset = 0;
+		int i = pFace->normalIndex;
+		if ((faceTriCount>1) && (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f))
+			offset = 1;
 
         for ( i = 0; i < faceTriCount; i++ )
         {
             WERROR(PortaWrite(gModelFile, facetNormalString[normalIndex], strlen(facetNormalString[normalIndex]) ));
             WERROR(PortaWrite(gModelFile, "outer loop\n", strlen("outer loop\n") ));
 
-            pt = vertex[0];
+			// two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
+			pt = vertex[offset];
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-            pt = vertex[i+1];
+			pt = vertex[offset + i + 1];
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-            pt = vertex[i+2];
+			pt = vertex[(offset + i + 2)%4];
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
@@ -15369,7 +15687,7 @@ static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
         return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-    retCode |= writeStatistics( statsFile, justWorldFileName, worldBox );
+	retCode |= writeStatistics(statsFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
@@ -15378,7 +15696,7 @@ static int writeAsciiSTLBox( const wchar_t *world, IBox *worldBox )
 }
 
 
-static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
+static int writeVRML2Box(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -15426,15 +15744,15 @@ static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
     exportSolidColors = (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) && !gExportTexture;
 
     // if you want each separate textured object to be its own shape, do this line instead:
-    exportSingleMaterial = !(gOptions->exportFlags & EXPT_GROUP_BY_MATERIAL);
+    exportSingleMaterial = !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE);
 
-    wcharToChar(world,worldChar);
+	wcharToChar(world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-    retCode |= writeStatistics( gModelFile, justWorldFileName, worldBox );
+	retCode |= writeStatistics(gModelFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
 
@@ -15562,6 +15880,7 @@ static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
 
             if ( pFace->vertexIndex[2] == pFace->vertexIndex[3] )
             {
+				// export triangle
                 sprintf_s(outputString,256,"          %d,%d,%d,-1%s\n",
                     pFace->vertexIndex[0],
                     pFace->vertexIndex[1],
@@ -15570,11 +15889,18 @@ static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
             }
             else
             {
+				// Export quad
+				// if normal sums negative, rotate order by one so that dumb tessellators
+				// match up the faces better, which should make matching face removal work better. I hope.
+				int offset = 0;
+				int i = pFace->normalIndex;
+				if (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f)
+					offset = 1;
                 sprintf_s(outputString,256,"          %d,%d,%d,%d,-1%s\n",
-                    pFace->vertexIndex[0],
-                    pFace->vertexIndex[1],
-                    pFace->vertexIndex[2],
-                    pFace->vertexIndex[3],
+                    pFace->vertexIndex[offset],
+					pFace->vertexIndex[offset+1],
+					pFace->vertexIndex[offset+2],
+					pFace->vertexIndex[(offset+3)%4],
                     commaString);
             }
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -15605,11 +15931,18 @@ static int writeVRML2Box( const wchar_t *world, IBox *worldBox )
                 }
                 else
                 {
-                    sprintf_s(outputString,256,"          %d %d %d %d -1\n",
-                        pFace->uvIndex[0],
-                        pFace->uvIndex[1],
-                        pFace->uvIndex[2],
-                        pFace->uvIndex[3]);
+					// Export quad
+					// if normal sums negative, rotate order by one so that dumb tessellators
+					// match up the faces better, which should make matching face removal work better. I hope.
+					int offset = 0;
+					int i = pFace->normalIndex;
+					if (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f)
+						offset = 1;
+					sprintf_s(outputString, 256, "          %d %d %d %d -1\n",
+                        pFace->uvIndex[offset],
+						pFace->uvIndex[offset+1],
+						pFace->uvIndex[offset+2],
+						pFace->uvIndex[(offset+3)%4]);
                 }
                 WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
             }
@@ -16140,34 +16473,74 @@ static float min3( Point pt )
     return min( retVal, pt[2] );
 }
 
-static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worldBox )
+static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
-    DWORD br;
+	DWORD br;
 #endif
 
-    char outputString[256];
-    char timeString[256];
-    char formatString[256];
-    errno_t errNum;
-    struct tm newtime;
-    __time32_t aclock;
+	char outputString[256];
+	char timeString[256];
+	char formatString[256];
+	errno_t errNum;
+	struct tm newtime;
+	__time32_t aclock;
 
-    int radio;
-    float angle;
+	int radio;
+	float angle;
 
-    char *outputTypeString[] = {
-        "Export no materials",
-        "Export solid material colors only (no textures)",
-        "Export richer color textures",
-        "Export full color texture patterns"
-    };
+	char *outputTypeString[] = {
+		"Export no materials",
+		"Export solid material colors only (no textures)",
+		"Export richer color textures",
+		"Export full color texture patterns"
+	};
 
-    float inCM = gModel.scale * METERS_TO_CM;
-    float inCM3 = inCM * inCM * inCM;
+	float inCM = gModel.scale * METERS_TO_CM;
+	float inCM3 = inCM * inCM * inCM;
 
-    sprintf_s(outputString,256,"# Extracted from Minecraft world %s\n", justWorldFileName );
+	char outChar[MAX_PATH];
+	char *outPtr;
+
+	// Path info (originally just meant for debugging)
+	char worldChar[MAX_PATH];
+	wcharToChar(world, worldChar, MAX_PATH);	// don't touch worldChar after this, as justWorldFileName depends on it
+	const char *justWorldFileName = removePathChar(worldChar);
+
+	if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
+	{
+		strcpy_s(outputString, 256, "# Minecraft world: [Block Test World]\n");
+	}
+	else {
+		sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
+	}
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
+	wcharToChar(terrainFileName, outChar, MAX_PATH);
+	outPtr = strrchr(outChar, '\\');
+	if (outPtr == NULL)
+	{
+		outPtr = outChar;
+	}
+	else
+	{
+		// get past \\ 
+		outPtr++;
+	}
+	sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
+	{
+		sprintf_s(outputString, 256, "# Color scheme: Standard\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
+	else
+	{
+		wcharToChar(schemeSelected, outChar, MAX_PATH);
+		sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
 
 
     _time32( &aclock );   // Get time in seconds.
@@ -16182,10 +16555,15 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
     }
 
     // put the selection box near the top, since I find I use these values most of all
-    sprintf_s(outputString,256,"\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
+    sprintf_s(outputString, 256, "\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n",
         worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
-        worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+        worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
+    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+    sprintf_s(outputString, 256, "#   Non-empty selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
+        tightenedWorldBox->min[X], tightenedWorldBox->min[Y], tightenedWorldBox->min[Z],
+        tightenedWorldBox->max[X], tightenedWorldBox->max[Y], tightenedWorldBox->max[Z]);
+    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
     // If STL, say which type of STL, etc.
     switch ( gOptions->pEFD->fileType )
@@ -16213,7 +16591,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         assert(0);
         break;
     }
-    sprintf_s(outputString,256,"# Created for %s - %s\n", gPrint3D ? "3D printing" : "Viewing", formatString );
+    sprintf_s(outputString,256,"# Set %s type: %s\n", gPrint3D ? "3D print" : "render", formatString );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     if ( gPrint3D )
@@ -16356,16 +16734,17 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
 
         sprintf_s(outputString,256,"# Export separate objects: %s\n", gOptions->pEFD->chkMultipleObjects ? "YES" : "no" );
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        if ( gOptions->pEFD->chkMultipleObjects )
+        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
+        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+        if (gOptions->pEFD->chkMultipleObjects || gOptions->pEFD->chkIndividualBlocks)
         {
             sprintf_s(outputString,256,"#  Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no" );
             WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-            if ( gOptions->pEFD->chkMaterialPerType )
-            {
-                sprintf_s(outputString,256,"#   G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no" );
-                WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-            }
         }
+
+        sprintf_s(outputString, 256, "#   G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
+        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no" );
@@ -16393,10 +16772,7 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
 
-    sprintf_s(outputString,256,"# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"# Use biomes: %s\n", gOptions->pEFD->chkBiome ? "YES" : "no" );
+    sprintf_s(outputString, 256, "# Use biomes: %s\n", gOptions->pEFD->chkBiome ? "YES" : "no");
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
 
     // now always on by default
@@ -16537,7 +16913,28 @@ static int writeStatistics( HANDLE fh, const char *justWorldFileName, IBox *worl
         WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
     }
 
-    return MW_NO_ERROR;
+	if (pCBC) {
+		int cmdCount = 0;
+		while (pCBC != NULL) {
+			cmdCount++;
+			pCBC = pCBC->next;
+		}
+		sprintf_s(outputString, 256, "# Change commands issued: %d\n", cmdCount);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "\n# Full world path: %s\n", worldChar);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	wcharToChar(terrainFileName, outChar, MAX_PATH);
+	sprintf_s(outputString, 256, "# Full terrainExt.png path: %s\n", outChar);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	wcharToChar(curDir, outChar, MAX_PATH);
+	sprintf_s(outputString, 256, "# Full current path: %s\n", outChar);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	return MW_NO_ERROR;
 }
 
 // final checks:
@@ -17416,17 +17813,15 @@ static const char *removePathChar( const char *src )
     if ( strPtr )
         // found a \, so move up past it
         strPtr++;
-    else
-    {
-        // look for /
-        const char *strPtr = strrchr(src,(int)'/');
-        if ( strPtr )
-            // found a /, so move up past it
-            strPtr++;
-        else
-            // no \ or / found, just return string itself
-            return src;
-    }
+
+    // also look for final /
+    const char *strfPtr = strrchr(src,(int)'/');
+    if ( strfPtr )
+		// found a /, so move up past it
+		strPtr = strfPtr+1;
+	else if ( strPtr == NULL )
+        // no \ or / found, just return string itself
+        return src;
 
     return strPtr;
 }
@@ -17500,37 +17895,6 @@ static void concatFileName4(wchar_t *dst, const wchar_t *src1, const wchar_t *sr
     wcscat_s(dst,MAX_PATH-wcslen(dst),src4);
 }
 
-// assumes MAX_PATH length for both strings
-static void wcharToChar( const wchar_t *inWString, char *outString )
-{
-    //WideCharToMultiByte(CP_UTF8,0,inWString,-1,outString,MAX_PATH,NULL,NULL);
-    int i;
-    int oct=0;
-
-    for ( i = 0; i < MAX_PATH; i++ )
-    {
-        int val = inWString[i];
-        if (val >= 0 && val < 128)
-        {
-            outString[oct++] = (char)val;
-        }
-        if (val == 0)
-        {
-            // done: did anything get copied? (other than 0 at end)
-            if ( oct <= 1 )
-            {
-                // put some sort of string in for the converted string, so that at least
-                // the user will have something to work from.
-                strcpy_s(outString,MAX_PATH,"[Block Test World]");
-            }
-            return;
-        }
-    }
-    // it is unlikely that the loop above didn't terminate and return
-    assert(0);
-    return;
-}
-
 static void charToWchar( char *inString, wchar_t *outWString )
 {
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,inString,-1,outWString,MAX_PATH);
@@ -17540,7 +17904,7 @@ static void charToWchar( char *inString, wchar_t *outWString )
 static void wcharCleanse( wchar_t *wstring )
 {
     char tempString[MAX_PATH];
-    wcharToChar( wstring, tempString );
+	wcharToChar(wstring, tempString, MAX_PATH);
     charToWchar( tempString, wstring );
 }
 

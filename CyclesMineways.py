@@ -1,5 +1,5 @@
 # Cycles Mineways setup
-# Version 1.2.2, 4/10/16
+# Version 1.2.3, 4/11/16
 # Copyright © 2016
 # Please send suggestions or report bugs at https://github.com/JMY1000/CyclesMineways/
 # This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation under version 3 of the License.
@@ -14,8 +14,10 @@
 # CONSTANTS section. Change PREFIX="" to whatever your save file name is. For example, if it's
 # castle.obj, then do this:
 # PREFIX="castle"
-# Optionally, you can change the other constants as described by the comments to modify the scene.
-# Note that clouds and animation are not supported yet, and that the sky shader currently only handles day and night
+# Optionally, you can change the other constants to customise what this script will do.
+# Desriptions of what constant does can be found above each constant.
+# Note that some features are not yet implemented.
+# Any constant that is not yet used will have a note stating that it is not implemented.
 
 
 # To use the script within Blender, for use with the Cycles renderer:
@@ -25,39 +27,65 @@
 
 # At the bottom of the gray window you'll see a menu "Text"; click it and select "Open Text
 # Block". Go to the directory where this file "cycles_mineways.py" is and select it. You should now
-# see some text in the gray window. Optionally, you can also paste in the text.
+# see some text in the gray window. Optionally, you can also copy the entire code and paste in the text area.
 
 # To apply this script, click on the "Run Script" button at the bottom right of the text window.
 
-# To see that the script did something, from the upper left select "Window" and "Toggle System Console".
-# If you are running OS X, you will need to follow a different set of instructions to do this.
-# Find you application, right click it, hit "Show Package Contents".
+
+# OPTIONAL:
+# To see that the script has, in fact, done something, you may want to turn on the terminal.
+
+# For most users:
+# From the upper left of your window select "Window" and then "Toggle System Console".
+
+# For OS X:
+# Find your application, right click it, hit "Show Package Contents".
 # Navigate to Contents/MacOS/blender
 # Launch blender this way; this will show the terminal.
-# It isn't critical to see this window, but gives you a warm and fuzzy feeling that the script has worked. It also helps provide debug info if something goes wrong.
+
+# It is not critical to see this window, but it might give you a warm and fuzzy feeling to know that the script has worked.
+# It also helps provide debug info if something goes wrong.
+
+
 
 
 #CONSTANTS
 
 
-#The prefix of the texture files it uses
+#PREFIX must be set by the user to allow this script to know what it is working with.
+#Set the PREFIX to the name of the file it uses (eg: a castle.obj file uses PREFIX = "castle")
 PREFIX = ""
+#USER_INPUT_SCENE controls what scenes Blender will apply this script's functionality to.
 #If this list has scenes, the script only use those scenes to work with;
 #otherwise, it will use all scenes
 #example: USER_INPUT_SCENE = ["scene","scene2","randomScene123"]
 USER_INPUT_SCENE = []
-#Cloud state, either True or False
+#CLOUD_STATE, either True or False
+#NOTE: This feature it not currently implemented.
+#NOTE: This can only be True or False (but it doesn't matter as this constant is never used).
 CLOUD_STATE = False
-#Changing the number here changes what water shader will be used, 0 to use the normal shader, 1 to use a partially transparent but still only textured shader, 2 for a choppy shader, 3 for a wavy shader
+#WATER_SHADER_TYPE controls the water shader that will be used.
+#Use 0 for a solid block shader.
+#Use 1 for a semi-transparent shader.
+#Use 2 for a choppy shader.
+#Use 3 for a wavy shader.
 WATER_SHADER_TYPE = 1
-#Changing the number here changes the type of sky shader used, 0 for no shader
+#SKY_SHADER_TYPE controls the type of sky shader that will be used.
+#Use 0 for no shader.
+#NOTE: This feature it not currently implemented.
 SKY_SHADER_TYPE = 0
-#Time of day–note that the decimal is not in minutes, and is a fraction (ex. 12:30 is 12.50)
+#TIME_OF_DAY controls the time of day.
+#If TIME_OF_DAY is between 6.5 and 19.5 (crossing 12), the daytime shader will be used.
+#If TIME_OF_DAY is between 19.5 and 6.5 (crossing 24), the nighttim shader will be used.
+#NOTE: The decimal is not in minutes, and is a fraction (ex. 12:30 is 12.50).
+#NOTE: This currently only handles day and night
 TIME_OF_DAY = 12.00
-#Decide if  lava is animated
+#LAVA_ANIMATION controls whether lava is animated.
+#NOTE: This feature is not currently implemented.
 LAVA_ANIMATION = False
-#Use virtual displacement (changes normals for illusion of roughness) for wooden plank blocks
-#NOTE: this currently only works for oak wood planks
+#DISPLACE_WOOD controls whether virtual displacement (changes normals for illusion of roughness) for wooden plank blocks is used.
+#NOTE: This currently only works for oak wood planks.
+#NOTE: This can only be True or False
 DISPLACE_WOOD = False
 
 #List of transparent blocks
@@ -174,7 +202,7 @@ def Light_Emiting_Shader(material):
     #Create the Light Falloff node for indirect emission
     light_falloff_node=nodes.new('ShaderNodeLightFalloff')
     light_falloff_node.location=(-300,0)
-    light_falloff_node.inputs[0].default_value=5000 #sets strength of light
+    light_falloff_node.inputs[0].default_value=700 #sets strength of light
     light_falloff_node.inputs[1].default_value=0.05 #sets smooth level of light
     #Create the HSV node to brighten the light
     hsv_node=nodes.new('ShaderNodeHueSaturation')
@@ -829,14 +857,11 @@ def main():
         
     #Set up the sky
     print("Started shading sky")
-    for worlds in bpy.data.worlds:
-        world=worlds
-        if TIME_OF_DAY>=6.5 and TIME_OF_DAY<=19.5:
+    for world in bpy.data.worlds:
+        if 6.5<=TIME_OF_DAY<=19.5:
             Sky_Day_Shader(world)
-        elif TIME_OF_DAY<6.5 or TIME_OF_DAY>19.5:
-            Sky_Night_Shader(world)
         else:
-            print("ERROR, FAILED TO SET UP SKY")
+            Sky_Night_Shader(world)
     print("Sky shaded")
     
     
