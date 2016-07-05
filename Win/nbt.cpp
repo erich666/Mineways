@@ -412,6 +412,7 @@ void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
     *z=readDword(bf);
 }
 
+//  The NBT version of the level, 19133. See http://minecraft.gamepedia.com/Level_format#level.dat_format
 void nbtGetFileVersion(bfFile bf, int *version)
 {
     *version = 0x0; // initialize
@@ -423,6 +424,36 @@ void nbtGetFileVersion(bfFile bf, int *version)
     if (nbtFindElement(bf,"Data")!=10) return;
     if (nbtFindElement(bf,"version")!=3) return;
     *version=readDword(bf);
+}
+
+// From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom
+void nbtGetFileVersionId(bfFile bf, int *versionId)
+{
+	*versionId = 0x0; // initialize
+	int len;
+	//Data/version
+	bfseek(bf, 1, SEEK_CUR); //skip type
+	len = readWord(bf); //name length
+	bfseek(bf, len, SEEK_CUR); //skip name ()
+	if (nbtFindElement(bf, "Data") != 10) return;
+	if (nbtFindElement(bf, "Version") != 10) return;
+	if (nbtFindElement(bf, "Id") != 3) return;
+	*versionId = readDword(bf);
+}
+
+void nbtGetFileVersionName(bfFile bf, char *versionName)
+{
+	int len;
+	//Data/version
+	bfseek(bf, 1, SEEK_CUR); //skip type
+	len = readWord(bf); //name length
+	bfseek(bf, len, SEEK_CUR); //skip name ()
+	if (nbtFindElement(bf, "Data") != 10) return;
+	if (nbtFindElement(bf, "Version") != 10) return;
+	if (nbtFindElement(bf, "Name") != 8) return;
+	len = readWord(bf);
+	bfread(bf, versionName, len);
+	versionName[len] = 0;
 }
 
 void nbtGetLevelName(bfFile bf, char *levelName)

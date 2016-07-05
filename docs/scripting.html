@@ -26,7 +26,7 @@
 		<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
 			<ul>
 				<li><a href="reference.html"><span>Quick Reference</span></a></li>
-				<li><a href="mineways.html#troubleshooting"><span>Troubleshooting</span></a></li>
+				<li><a href="downloads.html#troubleshooting"><span>Troubleshooting</span></a></li>
 				<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
 				<li><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz"><span>Videos</span></a></li>
 				<li class='active'><a href="scripting.html"><span>Scripting</span></a></li>
@@ -271,6 +271,7 @@ Individual blocks: <i>no</i><br>
 Material per object: <i>YES</i><br>
 G3D full material: <i>YES</i><br>
 Make Z the up direction instead of Y: <i>no</i><br>
+Create composite overlay faces: <i>no</i><br>
 Center model: <i>YES</i><br>
 Export lesser blocks: <i>YES</i><br>
 Fatten lesser blocks: <i>no</i><br>
@@ -405,10 +406,26 @@ Set map view mode on or off, using TRUE/true/YES/yes/1 for on. Note that, as usu
 <tr>
 <td>
 Select minimum height: <i>55</i><br>
+Select minimum height: <i>-12</i><br>
+Select minimum height: <i>+5</i><br>
+Select minimum height: <i>V</i><br>
+Select minimum height: <i>v</i><br>
+Select minimum height: <i>V43</i><br>
+Select minimum height: <i>v63</i><br>
+</td>
+<td>
+Set the minimum height slider for the box volume to be exported. The +/- versions give a relative change, e.g., "-12" means subtract 12 from the current level, whatever it is. V/v is used to set the height level by looking at the selected area, plus a one-block border around it, and selecting the lowest height of the entire set of visible blocks. "V" means "ignore semitransparent blocks", those that can be seen through, such as water and glass. "v" means to pay attention to such blocks. Finally, V/v followed by a number means to use the level found, or the level specified, whichever is <i>larger</i>. For example "V47" means find the minimum level of the selected area (plus one block border). If that level is greater than 47, use it; if less than 47, set the level to 47.
+<P>
+While involved to explain, settings such as "V43" can be useful for exporting the above-ground visible area - 43 is as deep as the oceans normally ever go. Deeper than this and the selected area probably has a deep hole that throws off the level. If you're exporting separate pieces of terrain for viewing, "V" is pretty safe for showing everything above ground (you might miss an area with a large overhang, though, since the overhang will limit the minimum level found). If you <i>know</i> that you don't care about anything lower than, say, 57, then use "V57" to make sure the minimum level set is never lower than 57.
+</td>
+</tr>
+
+<tr>
+<td>
 Select maximum height: <i>119</i>
 </td>
 <td>
-Set the height sliders for the box volume to be exported and (for maximum height) that is visible.
+Set the maximum height slider for the box volume to be exported and that is visible.
 </td>
 </tr>
 
@@ -595,16 +612,19 @@ You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">stor
 Syntax:
 <P>
 <div id="code">
-mineways.exe [-w X Y] [file1.mwscript [file2.mwscript [...]]]
+mineways.exe [-w X Y] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
 </div>
 <P>
 The command-line options are:
 <P>
-<i>script file</i><br>
+<i>file1.mwscript</i><br>
 Specify the file name and path for a script or model file to load on startup.
 <P>
 -w <i>X Y</i><br>
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
+<P>
+-l <i>mineways_exec.log</i><br>
+For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
 <P>
 Here are a few examples:
 <P>
@@ -760,7 +780,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 6/10/2016</p>
+		<p id="lastUpdate">Last updated 7/5/2016</p>
 	</div>
 </div>
 

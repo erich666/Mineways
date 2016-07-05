@@ -81,7 +81,8 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 #ifdef WIN32
     DWORD br;
 #endif
-    static unsigned char *buf=NULL,*out=NULL;
+	static unsigned char buf[CHUNK_DEFLATE_MAX];
+	static unsigned char out[CHUNK_INFLATE_MAX];
 
     int sectorNumber, offset, chunkLength;
 
@@ -90,13 +91,6 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
 
     static z_stream strm;
     static int strm_initialized = 0;
-
-    if (buf==NULL)
-    {
-        // note that these will never get freed, but we just need this one.
-        buf=(unsigned char*)malloc(CHUNK_DEFLATE_MAX);
-        out=(unsigned char*)malloc(CHUNK_INFLATE_MAX);
-    }
 
     // open the region file - note we get the new mca 1.2 file type here!
     swprintf_s(filename,256,L"%sregion/r.%d.%d.mca",directory,cx>>5,cz>>5);

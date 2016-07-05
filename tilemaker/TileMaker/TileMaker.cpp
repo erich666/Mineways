@@ -23,17 +23,80 @@
 int findTile( wchar_t *tileName, int alternate );
 int findNextTile( wchar_t *tileName, int index, int alternate );
 int findUnneededTile( wchar_t *tileName );
+int trueWidth(int tileLoc);
 
 static void reportReadError( int rc, wchar_t *filename );
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
-static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src);
+static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src, int dst_x_lo, int dst_y_lo, int dst_x_hi, int dst_y_hi, int src_x_lo, int src_y_lo, float zoom);
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile);
 static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y );
+static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y);
 static void makeSolidTile(progimage_info *dst, int chosenTile, int solid);
 
 static void copyPNGArea(progimage_info *dst, progimage_info *src);
+
+typedef struct ChestData {
+	int fromX;
+	int fromY;
+	int sizeX;
+	int sizeY;
+	int txrX;   // column and row, from upper left, of 64x64 chest tile
+	int txrY;
+	int toX;
+	int toY;
+} ChestData;
+
+static ChestData gNormalChest[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0,  0,   6,  5,   7, 26,   0, 0 },	// MW_CHEST_LATCH
+	{ 14,  0,  14, 14,   9,  1,   1, 1 },	// MW_CHEST_TOP
+	{  0, 14,  14,  4,  10,  1,   1, 2 },	// top of MW_CHEST_SIDE
+	{  0, 33,  14, 10,  10,  1,   1, 6 },	// bottom of MW_CHEST_SIDE
+	{ 14, 14,  14,  4,  11,  1,   1, 2 },	// top of MW_CHEST_FRONT
+	{ 14, 33,  14, 10,  11,  1,   1, 6 },	// bottom of MW_CHEST_FRONT
+};
+
+static ChestData gNormalDoubleChest[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 14, 14,  15,  4,   9,  2,  1, 2 },	// MW_DCHEST_FRONT_LEFT top
+	{ 14, 33,  15, 10,   9,  2,  1, 6 },	// MW_DCHEST_FRONT_LEFT bottom
+	{ 29, 14,  15,  4,  10,  2,  0, 2 },	// MW_DCHEST_FRONT_RIGHT top
+	{ 29, 33,  15, 10,  10,  2,  0, 6 },	// MW_DCHEST_FRONT_RIGHT bottom
+	{ 58, 14,  15,  4,   9,  3,  1, 2 },	// MW_DCHEST_BACK_LEFT top
+	{ 58, 33,  15, 10,   9,  3,  1, 6 },	// MW_DCHEST_BACK_LEFT bottom
+	{ 73, 14,  15,  4,  10,  3,  0, 2 },	// MW_DCHEST_BACK_RIGHT top
+	{ 73, 33,  15, 10,  10,  3,  0, 6 },	// MW_DCHEST_BACK_RIGHT bottom
+	{ 14,  0,  15, 14,   9, 14,  1, 1 },	// MW_DCHEST_TOP_LEFT
+	{ 29,  0,  15, 14,  10, 14,  0, 1 },	// MW_DCHEST_TOP_RIGHT
+};
+
+static ChestData gEnderChest[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0,  0,   6,  5,   9, 13,   0, 0 },	// MW_ENDER_CHEST_LATCH
+	{ 14,  0,  14, 14,  10, 13,   1, 1 },	// MW_ENDER_CHEST_TOP
+	{  0, 14,  14,  4,  11, 13,   1, 2 },	// top of MW_ENDER_CHEST_SIDE
+	{  0, 33,  14, 10,  11, 13,   1, 6 },	// bottom of MW_ENDER_CHEST_SIDE
+	{ 14, 14,  14,  4,  12, 13,   1, 2 },	// top of MW_ENDER_CHEST_FRONT
+	{ 14, 33,  14, 10,  12, 13,   1, 6 },	// bottom of MW_ENDER_CHEST_FRONT
+};
+
+static struct Chest {
+	wchar_t *wname;
+	int numCopies;	// number of elements we'll copy
+	int defaultResX;	// how big the image is in the default set
+	int defaultresY;
+	ChestData *data;
+} gChest[] = {
+	{ L"normal", 6, 64, 64, NULL },
+	{ L"normal_double", 10, 128, 64, NULL },
+	{ L"ender", 6, 64, 64, NULL }
+};
+
+static int tilesFoundArray[TOTAL_TILES];
+static progimage_info tile[TOTAL_TILES];
+
 
 typedef struct int2 {
 	int x;
@@ -48,11 +111,11 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info *destination_ptr = &destination;
 
 	int i;
+	int index;
+	int width;
 
 	int tilesFound = 0;
-	int tilesFoundArray[TOTAL_TILES];
 	int tilesMissingSet[TOTAL_TILES];
-	progimage_info tile[TOTAL_TILES];
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
 	int outputTileSize, outputYTiles, outputXResolution, outputYResolution;
 
@@ -75,7 +138,11 @@ int wmain(int argc, wchar_t* argv[])
     int solid = 0;
     int solidcutout = 0;
 
-	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME );
+	gChest[0].data = gNormalChest;
+	gChest[1].data = gNormalDoubleChest;
+	gChest[2].data = gEnderChest;
+
+	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME);
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
 	wcscpy_s(terrainExtOutput, MAX_PATH, OUTPUT_FILENAME );
 
@@ -114,7 +181,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		else if ( wcscmp(argv[argLoc],L"-nb") == 0 )
 		{
-			// no tiles
+			// no base background image; mostly for debug, to see which tiles we actually have ready.
 			nobase = 1;
 		}
 		else if ( wcscmp(argv[argLoc],L"-nt") == 0 )
@@ -250,7 +317,6 @@ int wmain(int argc, wchar_t* argv[])
 				len = (int)wcslen(tileName);
 				if ( _wcsicmp( &tileName[len-4], L".png" ) == 0 )
 				{
-					int index;
 					// remove .png suffix
 					tileName[len-4] = 0x0;
 					index = findTile(tileName, alternate);
@@ -279,6 +345,15 @@ int wmain(int argc, wchar_t* argv[])
 								return 1;
 							}
 							readpng_cleanup(0,&tile[tilesFound]);
+
+							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
+								wprintf(L"ERROR: file %s has a width that is not a power of two. This will cause copying errors!\n", ffd.cFileName);
+								return 1;
+							}
+							if (tile[tilesFound].width > tile[tilesFound].height) {
+								wprintf(L"ERROR: file %s has a height that is less than its width. This will cause copying errors!\n", ffd.cFileName);
+								return 1;
+							}
 						}
 
 						// check for unsupported formats
@@ -292,7 +367,8 @@ int wmain(int argc, wchar_t* argv[])
 							tilesMissingSet[index] = 1;	// note tile is used
 							tilesFound++;
 
-							// find maximum Y resolution of output tile
+							// Find maximum Y resolution of output tile: expand bottom of output texture if found.
+							// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
 							if ( outputYTiles-1 < gTiles[index].txrY )
 							{
 								outputYTiles = gTiles[index].txrY + 1;
@@ -329,9 +405,12 @@ int wmain(int argc, wchar_t* argv[])
 	// find largest tile. Hmmm, beware of flowing lava & water, which is twice as wide.
 	for ( i = 0; i < tilesFound; i++ )
 	{
-		if ( overlayTileSize < tile[i].width )
+		// for water_flow and lava_flow, the width is twice normal, so halve it.
+		width = trueWidth(i);
+
+		if (overlayTileSize < width)
 		{
-			overlayTileSize = tile[i].width;
+			overlayTileSize = width;
 		}
 	}
 
@@ -376,7 +455,7 @@ int wmain(int argc, wchar_t* argv[])
 	// copy tiles found over
 	for ( i = 0; i < tilesFound; i++ )
 	{
-		int index = tilesFoundArray[i];
+		index = tilesFoundArray[i];
 		// -r option on?
 		if ( onlyreplace )
 		{
@@ -390,10 +469,67 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			setBlackAlphaPNGTile( chosenTile, &tile[i] );
 		}
-		copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i]);
+		copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16));
 		if ( verbose )
 			wprintf (L"File %s merged.\n", gTiles[index].filename);
 	}
+
+	// Now for the chests, if any. Look for each chest image file, and use bits as found
+	bool giveChestWarning = true;
+	for (i = 0; i < 3; i++) {
+		// single chest, double chest, ender chest in \textures\entity\chest
+		Chest *pChest = &gChest[i];
+
+		// chests are normally found in \assets\minecraft\textures\entity\chest
+		wchar_t chestFile[MAX_PATH];
+		wcscpy_s(chestFile, MAX_PATH, tilePath);
+		wcscat_s(chestFile, MAX_PATH, L"\\");
+		wcscat_s(chestFile, MAX_PATH, L"chest");
+		wcscat_s(chestFile, MAX_PATH, L"\\");
+		wcscat_s(chestFile, MAX_PATH, pChest->wname);
+		wcscat_s(chestFile, MAX_PATH, L".png");
+
+		progimage_info chestImage;
+		rc = readpng(&chestImage, chestFile);
+		if (rc != 0)
+		{
+			// file not found
+			if (giveChestWarning) {
+				wprintf(L"Note: TileMaker also now reads files in the chest subdirectory and uses\nnormal.png, normal_double.png, and ender.png.\n  - Copy the texture resources from assets\\minecraft\\textures\\entity\\chest\n    directory to Mineways' subdirectory blocks\\chest.\n");
+				giveChestWarning = false;
+			}
+
+			continue;
+		}
+		// if we read one chest successfully, don't give warning if others are missing.
+		giveChestWarning = false;
+		readpng_cleanup(0, &chestImage);
+
+		if (verbose)
+			wprintf(L"The chest file %s exists\n", chestFile);
+
+		// from size figure out scaling factor from chest to terrainExt.png
+
+		// loop through bits to copy
+		for (index = 0; index < pChest->numCopies; index++) {
+			// clear tile if it's a new one (don't wipe out previous copies)
+			if ((index == 0) ||
+				(pChest->data[index].txrX != pChest->data[index - 1].txrX) ||
+				(pChest->data[index].txrY != pChest->data[index - 1].txrY)) {
+				makePNGTileEmpty(destination_ptr, pChest->data[index].txrX, pChest->data[index].txrY);
+			}
+
+			// copy from area to area, scaling as needed
+			copyPNGTile(destination_ptr, pChest->data[index].txrX, pChest->data[index].txrY, 0, 
+				&chestImage,
+				pChest->data[index].toX, pChest->data[index].toY, 
+				pChest->data[index].toX + pChest->data[index].sizeX, pChest->data[index].toY + pChest->data[index].sizeY,
+				pChest->data[index].fromX, pChest->data[index].fromY, 
+				(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
+		}
+	}
+
+
 
     // if solid is desired, blend final result and replace in-place
     if ( solid || solidcutout )
@@ -463,6 +599,17 @@ int findUnneededTile( wchar_t *tileName )
     return -1;
 }
 
+int trueWidth( int tileLoc )
+{
+	int width = tile[tileLoc].width;
+	if ((wcscmp(gTiles[tilesFoundArray[tileLoc]].filename, L"water_flow") == 0) ||
+		(wcscmp(gTiles[tilesFoundArray[tileLoc]].filename, L"lava_flow") == 0)){
+		width /= 2;
+	}
+	return width;
+}
+
+
 
 //====================== statics ==========================
 
@@ -516,34 +663,45 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
 	}
 }
 
-static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src)
+static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src, int dst_x_lo, int dst_y_lo, int dst_x_hi, int dst_y_hi, int src_x_lo, int src_y_lo, float zoom )
 {
     int row,col,src_start;
     unsigned char* dst_data;
 	unsigned char color[4];
-	int tileSize,zoom,zoomTileSize;
-	int zoomrow,zoomcol;
+	int tileSize,zoomTileSize;
+	int zoomrow,zoomcol,izoom;
 	unsigned int sumR,sumG,sumB,sumA;
 	int zoom2;
 
-	if ( dst->width == src->width * 16 )
+	if ( zoom == 1.0f ) // dst->width == src->width * 16 )
 	{
 		//tile matches destination tile size - copy
-		tileSize = src->width;
+		tileSize = dst->width / 16;
+
+		// 16x16 is assumed, so scale up all our lo and hi values if not the case
+		if (tileSize != 16) {
+			int rescale = tileSize / 16;
+			dst_x_lo *= rescale;
+			dst_y_lo *= rescale;
+			dst_x_hi *= rescale;
+			dst_y_hi *= rescale;
+			src_x_lo *= rescale;
+			src_y_lo *= rescale;
+		}
 
 		assert( dst_y*tileSize < dst->height );	// destination can't hold tile
 
 		// which tile to use: get the bottommost
 		src_start = computeVerticalTileOffset( src, chosenTile );
 
-		for ( row = 0; row < tileSize; row++ )
+		for ( row = dst_y_lo; row < dst_y_hi; row++ )
 		{
-			dst_data = &dst->image_data[0] + ((dst_y*tileSize + row) * dst->width + dst_x*tileSize) * 4;
-			for ( col = 0; col < tileSize; col++ )
+			dst_data = &dst->image_data[0] + ((dst_y*tileSize + row) * dst->width + dst_x*tileSize + dst_x_lo) * 4;
+			for ( col = dst_x_lo; col < dst_x_hi; col++ )
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-				getPNGPixel( src, col, row+src_start, color );
+				getPNGPixel(src, col + src_x_lo - dst_x_lo, row + src_start + src_y_lo - dst_y_lo, color);
 				if ( color[3] == 0 )
 				{
 					memset(dst_data,0,4);
@@ -556,33 +714,44 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 			}
 		}
 	}
-	else if ( dst->width > src->width * 16 )
+	else if ( zoom > 1.0f ) // dst->width > src->width * 16 )
 	{
 		// magnify
-		tileSize = src->width;
+		tileSize = (int)((float)dst->width / zoom)/16;
 
-		// check that zoom factor is an integer (really should be a power of two)
-		zoom = dst->width / (src->width*16);
-		zoomTileSize = zoom * tileSize;
+		// 16x16 is assumed, so scale up all our lo and hi values if not the case
+		if (tileSize != 16) {
+			int rescale = tileSize / 16;
+			dst_x_lo *= rescale;
+			dst_y_lo *= rescale;
+			dst_x_hi *= rescale;
+			dst_y_hi *= rescale;
+			src_x_lo *= rescale;
+			src_y_lo *= rescale;
+		}
+
+		// could check that zoom factor is an integer (really should be a power of two)
+		izoom = (int)zoom;
+		zoomTileSize = izoom * tileSize;
 
 		// which tile to use: get the bottommost
 		src_start = computeVerticalTileOffset( src, chosenTile );
 
-		for ( row = 0; row < tileSize; row++ )
+		for (row = dst_y_lo; row < dst_y_hi; row++)
 		{
-			for ( col = 0; col < tileSize; col++ )
+			for (col = dst_x_lo; col < dst_x_hi; col++)
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-				getPNGPixel( src, col, row+src_start, color );
+				getPNGPixel(src, col + src_x_lo - dst_x_lo, row + src_start + src_y_lo - dst_y_lo, color);
 				if ( color[3] == 0 )
 				{
 					color[0] = color[1] = color[2] = 0;
 				}
-				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
+				for ( zoomrow = 0; zoomrow < izoom; zoomrow++ )
 				{
-					dst_data = &dst->image_data[0] + ((dst_y*zoomTileSize + row * zoom + zoomrow ) * dst->width + dst_x*zoomTileSize + col * zoom) * 4;
-					for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
+					dst_data = &dst->image_data[0] + ((dst_y*zoomTileSize + row * izoom + zoomrow ) * dst->width + dst_x*zoomTileSize + col * izoom) * 4;
+					for ( zoomcol = 0; zoomcol < izoom; zoomcol++ )
 					{
 						memcpy(dst_data,color,4);
 						dst_data += 4;
@@ -591,30 +760,41 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 			}
 		}
 	}
-	else
+	else // zoom < 1.0f
 	{
 		// minify
 		tileSize = dst->width/16;
 
+		// 16x16 is assumed, so scale up all our lo and hi values if not the case
+		if (tileSize != 16) {
+			int rescale = tileSize / 16;
+			dst_x_lo *= rescale;
+			dst_y_lo *= rescale;
+			dst_x_hi *= rescale;
+			dst_y_hi *= rescale;
+			src_x_lo *= rescale;
+			src_y_lo *= rescale;
+		}
+
 		// check that zoom factor is an integer (really should be a power of two)
-		zoom = src->width * 16 / dst->width;
-		zoom2 = zoom * zoom;
+		izoom = (int)(1.0f / zoom);	// src->width * 16 / dst->width;
+		zoom2 = izoom * izoom;
 
 		// which tile to use: get the bottommost
 		src_start = computeVerticalTileOffset( src, chosenTile );
 
-		for ( row = 0; row < tileSize; row++ )
+		for (row = dst_y_lo; row < dst_y_hi; row++)
 		{
-			for ( col = 0; col < tileSize; col++ )
+			for (col = dst_x_lo; col < dst_x_hi; col++)
 			{
 				sumR = sumG = sumB = sumA = 0;
-				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
+				for ( zoomrow = 0; zoomrow < izoom; zoomrow++ )
 				{
-					for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
+					for ( zoomcol = 0; zoomcol < izoom; zoomcol++ )
 					{
 						// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 						// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-						getPNGPixel( src, col*zoom + zoomcol, row*zoom + zoomrow, color );
+						getPNGPixel(src, (col + src_x_lo - dst_x_lo)*izoom + zoomcol, (row + src_y_lo - dst_y_lo)*izoom + zoomrow, color);
 						if ( color[3] == 0 )
 						{
 							color[0] = color[1] = color[2] = 0;
@@ -626,7 +806,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 					}
 				}
 				dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize + col) * 4;
-				for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
+				for ( zoomcol = 0; zoomcol < izoom; zoomcol++ )
 				{
 					dst_data[0] = (unsigned char)(sumR/zoom2);
 					dst_data[1] = (unsigned char)(sumG/zoom2);
@@ -706,26 +886,43 @@ static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *co
 	//}
 }
 
-static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y )
+static int isPNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
-	int tileSize = dst->width/16;
+	int tileSize = dst->width / 16;
 	unsigned char *dst_data;
-	int row,col;
+	int row, col;
 
-	for ( row = 0; row < tileSize; row++ )
+	for (row = 0; row < tileSize; row++)
 	{
-		dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize ) * 4;
-		for ( col = 0; col < tileSize; col++ )
+		dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize) * 4;
+		for (col = 0; col < tileSize; col++)
 		{
-			if ( (dst_data+col)[3] != 0 )
+			if ((dst_data + col)[3] != 0)
 			{
 				return 0;
 			}
-			dst_data++;
+			dst_data += 4;
 		}
 	}
 	return 1;
+};
+
+static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
+{
+	// look at all data: are all alphas 0?
+	int tileSize = dst->width / 16;
+	unsigned int *dst_data;
+	int row, col;
+
+	for (row = 0; row < tileSize; row++)
+	{
+		dst_data = ((unsigned int *)&dst->image_data[0]) + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize);
+		for (col = 0; col < tileSize; col++)
+		{
+			*dst_data++ = 0x0;
+		}
+	}
 };
 
 // assumes we want to match the source to fit the destination

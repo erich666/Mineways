@@ -323,6 +323,7 @@ typedef struct ExportFileData
     UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
     UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
     UINT chkBiome;
+	UINT chkCompositeOverlay;
 
     UINT chkFillBubbles;
     UINT chkSealEntrances;
@@ -380,7 +381,7 @@ typedef struct Options {
 } Options;
 
 // number of official Minecraft blocks (take highest valid block ID and add 1)
-#define NUM_BLOCKS_STANDARD 213
+#define NUM_BLOCKS_STANDARD 218
 // number of blocks we want to show on the map (includes the unknown one)
 #define NUM_BLOCKS_MAP (NUM_BLOCKS_STANDARD+1)
 // number of blocks with entries in block info table - now that 255 is used, we need this
@@ -455,6 +456,8 @@ typedef struct Options {
 #define BLF_CONNECTS_REDSTONE		0x400000
 // has no geometry, on purpose
 #define BLF_NONE			0x800000
+// is an offset tile, rendered separately: rails, vines, lily pad, redstone, ladder (someday, tripwire? TODO)
+#define BLF_OFFSET			0x1000000
 
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTOP|BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 
@@ -578,6 +581,7 @@ enum block_types {
     BLOCK_JUKEBOX = 0x54,
     BLOCK_FENCE = 0x55,
     BLOCK_PUMPKIN = 0x56,
+	BLOCK_GLOWSTONE = 0x59,
     BLOCK_JACK_O_LANTERN = 0x5b,
     BLOCK_CAKE = 0x5c,
     BLOCK_REDSTONE_REPEATER_OFF = 0x5d,
@@ -614,9 +618,9 @@ enum block_types {
     BLOCK_COCOA_PLANT = 0x7f,
     BLOCK_SANDSTONE_STAIRS = 0x80,
     BLOCK_ENDER_CHEST = 0x82,
-    BLOCK_TRIPWIRE_HOOK = 0x83,
-    BLOCK_TRIPWIRE = 0x84,
-    BLOCK_SPRUCE_WOOD_STAIRS = 0x86,
+    BLOCK_TRIPWIRE_HOOK = 131,
+    BLOCK_TRIPWIRE = 132,
+    BLOCK_SPRUCE_WOOD_STAIRS = 134,
     BLOCK_BIRCH_WOOD_STAIRS = 0x87,
     BLOCK_JUNGLE_WOOD_STAIRS = 0x88,
     BLOCK_COMMAND_BLOCK = 0x89,
@@ -699,6 +703,11 @@ enum block_types {
     BLOCK_REPEATING_COMMAND_BLOCK = 0xD2,
     BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
     BLOCK_FROSTED_ICE = 0xD4,
+	BLOCK_MAGMA_BLOCK = 0xD5,
+	BLOCK_NETHER_WART_BLOCK = 0xD6,
+	BLOCK_NETHER_BRICK = 0xD7,
+	BLOCK_BONE_BLOCK = 0xD8,
+	BLOCK_STRUCTURE_VOID = 0xD9,
 
     BLOCK_STRUCTURE_BLOCK = 0xFF,
 

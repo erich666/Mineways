@@ -105,9 +105,10 @@ void ChangeCache( int size );
 void ClearCache();
 
 int SaveVolume( wchar_t *objFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
-	ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, ChangeBlockCommand *pCBC);
+	ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand *pCBC);
+int GetMinimumSelectionHeight(const wchar_t *world, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent);
 
-void wcharToChar(const wchar_t *inWString, char *outString, int length);
+void WcharToChar(const wchar_t *inWString, char *outString, int length);
 
 
 //

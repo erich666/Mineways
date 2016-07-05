@@ -182,6 +182,13 @@
   padding-bottom: 6px;
 }
 
+#getGoing {
+    //width: 50px;
+    //height: 50px;
+    //background: #999;
+    //display: inline-block;
+    vertical-align: top;
+}
 
 @import url(http://fonts.googleapis.com/css?family=Open+Sans:400,700);
 #cssmenu,
@@ -442,7 +449,7 @@
     padding: 18px 25px 18px 25px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    background: url('images/bg.png');
+    //background: url('images/bg.png');
     cursor: pointer;
   }
   #cssmenu ul ul,

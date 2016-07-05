@@ -131,7 +131,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
             //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
-            CheckDlgButton(hDlg,IDC_CENTER_MODEL,epd.chkCenterModel);
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
+			CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
             // these next two options are only available for rendering
             CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkLeavesSolid);
             CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkBlockFacesAtBorders);
@@ -573,6 +574,20 @@ ChangeMaterial:
 			}
 			break;
 
+		case IDC_COMPOSITE_OVERLAY:
+			// the indeterminate state is only for when the option is not available (i.e., 3d printing)
+			if (epd.flags & EXPT_3DPRINT)
+			{
+				CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+			}
+			else
+			{
+				UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_INDETERMINATE);
+				if (isIndeterminate)
+					CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
+			}
+			break;
+
 		case IDC_TREE_LEAVES_SOLID:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing)
             if ( epd.flags & EXPT_3DPRINT )
@@ -718,6 +733,7 @@ ChangeMaterial:
                 //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
                 lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
+				lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 : IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY);
 
                 // solid leaves and faces at borders always true for 3D printing.
                 lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1: IsDlgButtonChecked(hDlg,IDC_TREE_LEAVES_SOLID);

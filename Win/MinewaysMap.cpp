@@ -1637,7 +1637,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             //}
 
             //if(hasSlime > 0){
-            //    // before 1.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
+            //    // before 0.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
             //    //if(maxHeight<=16){
             //    if(maxHeight<=40){
             //        g=clamp(g+20,0,MAP_MAX_HEIGHT);
@@ -2681,6 +2681,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 
     case BLOCK_HAY:
     case BLOCK_PURPUR_PILLAR:
+	case BLOCK_BONE_BLOCK:
         // uses 0,4,8
         if ( (dataVal == 0) || (dataVal == 4) || (dataVal == 8) ) {
             addBlock = 1;
@@ -3064,15 +3065,39 @@ int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 }
 int GetFileVersion(const wchar_t *world, int *version)
 {
-    bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcscat_s(filename,256,L"/level.dat");
-    bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return 1;
-    nbtGetFileVersion(bf,version);
-    nbtClose(bf);
-    return 0;
+	bfFile bf;
+	wchar_t filename[256];
+	wcsncpy_s(filename, 256, world, 255);
+	wcscat_s(filename, 256, L"/level.dat");
+	bf = newNBT(filename);
+	if (bf.gz == 0x0) return 1;
+	nbtGetFileVersion(bf, version);
+	nbtClose(bf);
+	return 0;
+}
+int GetFileVersionId(const wchar_t *world, int *versionId)
+{
+	bfFile bf;
+	wchar_t filename[256];
+	wcsncpy_s(filename, 256, world, 255);
+	wcscat_s(filename, 256, L"/level.dat");
+	bf = newNBT(filename);
+	if (bf.gz == 0x0) return 1;
+	nbtGetFileVersionId(bf, versionId);
+	nbtClose(bf);
+	return 0;
+}
+int GetFileVersionName(const wchar_t *world, char *versionName)
+{
+	bfFile bf;
+	wchar_t filename[256];
+	wcsncpy_s(filename, 256, world, 255);
+	wcscat_s(filename, 256, L"/level.dat");
+	bf = newNBT(filename);
+	if (bf.gz == 0x0) return 1;
+	nbtGetFileVersionName(bf, versionName);
+	nbtClose(bf);
+	return 0;
 }
 int GetLevelName(const wchar_t *world, char *levelName)
 {

@@ -27,6 +27,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #pragma once
+// define #include <crtdbg.h> below and this line to test memory leaks, see https://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
+//#define TEST_FOR_MEMORY_LEAKS
+#ifdef TEST_FOR_MEMORY_LEAKS
+#define _CRTDBG_MAP_ALLOC
+#endif
 
 // For internet update, sadly does not link under x64:
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __wargv
@@ -50,14 +55,17 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // C RunTime Header Files
 #include <stdlib.h>
+// define _CRTDBG_MAP_ALLOC and this next line to test memory leaks, see https://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
+#ifdef TEST_FOR_MEMORY_LEAKS
+#include <crtdbg.h>
+#endif
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #define MINEWAYS_MAJOR_VERSION 5
-#define MINEWAYS_MINOR_VERSION 00
+#define MINEWAYS_MINOR_VERSION 01
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))

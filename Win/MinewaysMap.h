@@ -63,7 +63,9 @@ void CheckUnknownBlock( int check );
 int NeedToCheckUnknownBlock();
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z);
 int GetFileVersion(const wchar_t *world,int *version);
-int GetLevelName(const wchar_t *world,char *levelName);
+int GetFileVersionId(const wchar_t *world, int *versionId);
+int GetFileVersionName(const wchar_t *world, char *versionName);
+int GetLevelName(const wchar_t *world, char *levelName);
 void GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors();

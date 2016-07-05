@@ -49,7 +49,7 @@ static bool gAlwaysFail = false;
 #define MY_ASSERT(val) if ((val) == 0) { \
 	wchar_t assertbuf[1024]; \
 	wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
-	MessageBox(NULL, assertbuf, L"Error", MB_OK); \
+	MessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
 } \
 
 // zoomed all the way in. We could allow this to be larger...
@@ -76,11 +76,23 @@ static bool gAlwaysFail = false;
                     UpdateWindow(hWnd);
 // InvalidateRect was TRUE in last arg - does it matter?
 
+#define LOG_INFO( FH, OUTPUTSTRING ) \
+if (FH) { \
+	DWORD br; \
+    if ( PortaWrite(FH, OUTPUTSTRING, strlen(OUTPUTSTRING))) { \
+		MessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
+		PortaClose(FH); \
+		(FH) = 0x0; \
+	} \
+}
+
+
 // Global Variables:
 HINSTANCE hInst;								// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
-TCHAR *worlds[1000];							// up to 1000 worlds
+TCHAR *gWorlds[1000];							// up to 1000 worlds
+int gNumWorlds = 0;
 
 static Options gOptions = {0,   // which world is visible
     BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP | BLF_FLATSIDE,   // what's exportable (really, set on output)
@@ -90,6 +102,7 @@ static Options gOptions = {0,   // which world is visible
     NULL};
 
 static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
+static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 static BOOL gSameWorld=FALSE;
 static BOOL gHoldSameWorld=FALSE;
 static wchar_t gSelectTerrainPathAndName[MAX_PATH];				//path and file name to selected terrainExt.png file, if any
@@ -110,7 +123,7 @@ static BOOL gLeftIsRight=FALSE;
 static int gSpawnX,gSpawnY,gSpawnZ;
 static int gPlayerX,gPlayerY,gPlayerZ;
 
-// minimum depth output by default, sea level including water (or not, in 1.9 - TODO: we could key off of version number in world)
+// minimum depth output by default, sea level including water (or not, in 1.9; still, not a terrible start)
 // note: 51 this gets you to bedrock in deep lakes
 #define MIN_OVERWORLD_DEPTH SEA_LEVEL
 
@@ -171,6 +184,8 @@ static wchar_t gLesserSeparator = (wchar_t)'/';
 
 static int gArgCount = 0;
 static LPWSTR *gArgList = NULL;
+
+static HANDLE gExecutionLogfile = 0x0;
 
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
@@ -281,6 +296,8 @@ static struct {
     {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<21
 };
 
+#define RUNNING_SCRIPT_STATUS_MESSAGE L"Running script commands"
+
 #define IMPORT_LINE_LENGTH	1024
 
 // Forward declarations of functions included in this code module:
@@ -289,7 +306,8 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static void closeMineways();
-static void modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
+static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
+static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadWorld(HWND hWnd);
@@ -366,7 +384,15 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     LPTSTR    lpCmdLine,
     int       nCmdShow)
 {
-    GetCurrentDirectory(MAX_PATH,gCurrentDirectory);
+#ifdef TEST_FOR_MEMORY_LEAKS
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+
+	// get version info
+	gMajorVersion = MINEWAYS_MAJOR_VERSION;
+	gMinorVersion = MINEWAYS_MINOR_VERSION;
+
+	GetCurrentDirectory(MAX_PATH, gCurrentDirectory);
 	// which sort of separator? If "\" found, use that one, else "/" assumed.
 	if (wcschr(gCurrentDirectory, (wchar_t)'\\') != NULL) {
 		gPreferredSeparator = (wchar_t)'\\';
@@ -384,13 +410,28 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 	gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
 	if (gArgList == NULL)
 	{
-		MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK);
+		MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
 	}
 
-	//for (int i = 0; i < argCount; i++)
+	//for (int i = 0; i < gArgCount; i++)
 	//{
-	//	MessageBox(NULL, szArgList[i], L"Arglist contents", MB_OK);
+	//	MessageBox(NULL, gArgList[i], L"Arglist contents", MB_OK);
 	//}
+
+	// to force logging, no command line options needed, uncomment this line
+	//gExecutionLogfile = PortaCreate(L"mineways_exec.log");
+
+	// start logging system for application itself, to track down startup problems.
+	if (!startExecutionLogFile(gArgList, gArgCount)) {
+		// bad parse
+		exit(EXIT_FAILURE);
+	}
+
+	char outputString[1024];
+	if (gExecutionLogfile) {
+		sprintf_s(outputString, 1024, "Preferred separator: %c\n", (char)gPreferredSeparator);
+		LOG_INFO(gExecutionLogfile, outputString);
+	}
 
     // assume terrainExt.png is in .exe's directory to start
     wcscpy_s(gSelectTerrainDir, MAX_PATH, gCurrentDirectory);
@@ -409,7 +450,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    initializeExportDialogData();
+	LOG_INFO(gExecutionLogfile, "execute initializeExportDialogData\n");
+	initializeExportDialogData();
     // Initialize Skfb data
     memset(&gSkfbPData, 0, sizeof(PublishSkfbData));
 
@@ -421,26 +463,27 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     // Initialize global strings
     LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadString(hInstance, IDC_MINEWAYS, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
+	LOG_INFO(gExecutionLogfile, "execute MyRegisterClass\n");
+	MyRegisterClass(hInstance);
 
     // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
+	LOG_INFO(gExecutionLogfile, "execute InitInstance\n");
+	if (!InitInstance(hInstance, nCmdShow))
     {
         return FALSE;
     }
 
-    hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
-
-    // get version info
-    gMajorVersion = MINEWAYS_MAJOR_VERSION;
-    gMinorVersion = MINEWAYS_MINOR_VERSION;
+	LOG_INFO(gExecutionLogfile, "execute LoadAccelerators\n");
+	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
 
     // One-time initialization for mapping and object export
     // set the pcolors properly once. They'll change from color schemes.
-    SetMapPremultipliedColors();
+	LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
+	SetMapPremultipliedColors();
 
     // Set biome colors - TODO: add texture support, etc.
-    PrecomputeBiomeColors();
+	LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
+	PrecomputeBiomeColors();
 
     gArrowCursor = LoadCursor(NULL, IDC_ARROW);
     gNsCursor = LoadCursor(NULL, IDC_SIZENS);
@@ -448,16 +491,54 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     gNeswCursor = LoadCursor(NULL, IDC_SIZENESW);
     gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
 
-
     // Main message loop:
-    while (GetMessage(&msg, NULL, 0, 0))
+	LOG_INFO(gExecutionLogfile, "execute GetMessage while loop\n");
+	// see http://stackoverflow.com/questions/32768924/wm-quit-only-posts-for-thread-and-not-the-window
+	BOOL bRet;
+	while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+		if (bRet == -1)
+		{
+			LOG_INFO(gExecutionLogfile, "  got error\n");
+			// handle the error and possibly exit
+			DWORD dw = GetLastError();
+
+			//LOG_INFO(gExecutionLogfile, "    about to format message\n");
+			//LPVOID lpMsgBuf;
+			//FormatMessage(
+			//	FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			//	FORMAT_MESSAGE_FROM_SYSTEM |
+			//	FORMAT_MESSAGE_IGNORE_INSERTS,
+			//	NULL,
+			//	dw,
+			//	MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			//	(LPTSTR)&lpMsgBuf,
+			//	0, NULL);
+
+			// Display the error message and exit the process.
+			// Look up code here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681381(v=vs.85).aspx
+			if (gExecutionLogfile) {
+				char outputString[1024];
+				sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+				LOG_INFO(gExecutionLogfile, outputString);
+			}
+			wchar_t wString[1024];
+			swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+			MessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+		}
+		else
+		{
+			LOG_INFO(gExecutionLogfile, "  got a message\n");
+			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+			{
+				LOG_INFO(gExecutionLogfile, "  translate accelerator passed\n");
+				TranslateMessage(&msg);
+				LOG_INFO(gExecutionLogfile, "  message translated\n");
+				DispatchMessage(&msg);
+				LOG_INFO(gExecutionLogfile, "  message dispatched\n");
+			}
+		}
+	}
 
     return (int) msg.wParam;
 }
@@ -516,7 +597,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	int x = 480;
 	int y = 582;
-	modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount);
+	if (!modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount)) {
+		exit(EXIT_FAILURE);
+	}
 
     hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, x, y, NULL, NULL, hInstance, NULL);
@@ -590,6 +673,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	wchar_t msgString[1024];
 
     // Show message
+	char outputString[1024];
+	if (gExecutionLogfile) {
+		sprintf_s(outputString, 1024, "process message %u\n", message);
+		LOG_INFO(gExecutionLogfile, outputString);
+	}
 //#ifdef _DEBUG
 //    wchar_t buf[100];
 //    swprintf( buf, 100, L"Message: %u\n", message);
@@ -601,14 +689,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
 
         validateItems(GetMenu(hWnd));
+		LOG_INFO(gExecutionLogfile, " loadWorldList");
         if ( loadWorldList(GetMenu(hWnd)) )
         {
             MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
-                _T("Warning"), MB_OK|MB_ICONWARNING);
+				_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         }
 		wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
 
-        populateColorSchemes(GetMenu(hWnd));
+		LOG_INFO(gExecutionLogfile, " populateColorSchemes");
+		populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
 
         ctlBrush=CreateSolidBrush(GetSysColor(COLOR_WINDOW));
@@ -709,12 +799,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bmi.bmiHeader.biPlanes=1;
         bmi.bmiHeader.biBitCount=32;
         bmi.bmiHeader.biCompression=BI_RGB;
+		LOG_INFO(gExecutionLogfile, " CreateDIBSection");
 		bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
 
 		// set standard custom color at startup.
+		LOG_INFO(gExecutionLogfile, " useCustomColor");
 		useCustomColor(IDM_CUSTOMCOLOR, hWnd);
 
 		// finally, load any scripts on the command line.
+		LOG_INFO(gExecutionLogfile, " processCreateArguments");
 		processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
         break;
     case WM_LBUTTONDOWN:
@@ -755,6 +848,7 @@ RButtonDown:
             // these track whether a selection height volume has blocks in it,
             // low, medium, high, and minimum low-height found
             gHitsFound[0] = gHitsFound[1] = gHitsFound[2] = 0;
+			// no longer used - now we use a direct call for this very purpose
             gHitsFound[3] = MAP_MAX_HEIGHT+1;
 
             // now to check the corners: is this location near any of them?
@@ -922,28 +1016,31 @@ RButtonUp:
         {
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
-            if ( gHitsFound[0] && !gHitsFound[1] )
+			assert(on);
+			int minHeightFound = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, true);
+			if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
-                if ( gHitsFound[3] < gTargetDepth )
+				if (minHeightFound < gTargetDepth)	// was gHitsFound[3]
                 {
                     // send warning, set to min height found, then redo!
                     if ( gFullLow )
                     {
                         gFullLow = 0;
                         swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
-                            gTargetDepth, gHitsFound[3] );
+							gTargetDepth, minHeightFound);
                     }
                     else
                     {
                         swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
-                            gTargetDepth, gHitsFound[3] );
+							gTargetDepth, minHeightFound);
                     }
                     MessageBox( NULL, msgString,
                         _T("Informational"), MB_OK|MB_ICONINFORMATION);
-                    gTargetDepth = gHitsFound[3];
+                    //gTargetDepth = gHitsFound[3]; - no longer used.
+					gTargetDepth = minHeightFound;
+
                     setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
-                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     // update target depth
                     SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
@@ -957,24 +1054,24 @@ RButtonUp:
             }
             // else, test if there's something in both volumes and offer to adjust.
             else if ( gAutocorrectDepth &&
-                ((  gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] < gTargetDepth ) ) ||
-                ( !gHitsFound[0] && gHitsFound[1] && ( gHitsFound[3] > gTargetDepth) )) )
+                ((  gHitsFound[0] && gHitsFound[1] && ( minHeightFound < gTargetDepth ) ) ||
+                ( !gHitsFound[0] && gHitsFound[1] && ( minHeightFound > gTargetDepth) )) )
             {
                 // send warning
                 int retval;
                 // send warning, set to min height found, then redo!
-                if ( gHitsFound[3] < gTargetDepth )
+                if ( minHeightFound < gTargetDepth )
                 {
                     if ( gFullLow )
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-                            gTargetDepth, gHitsFound[3] );
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                            gTargetDepth, minHeightFound );
                     }
                     else
                     {
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.",
-                            gTargetDepth, gHitsFound[3] );
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                            gTargetDepth, minHeightFound );
                     }
                 }
                 else
@@ -982,20 +1079,22 @@ RButtonUp:
                     if ( gFullLow )
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.",
-                            gTargetDepth, gHitsFound[3] );
+                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                            gTargetDepth, minHeightFound );
                     }
                     else
                     {
-                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.",
-                            gTargetDepth, gHitsFound[3] );
+                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                            gTargetDepth, minHeightFound );
                     }
                 }
+				// System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
+				// We force it here, as it's OK if it gets ignored, but we want people to see it.
                 retval = MessageBox( NULL, msgString,
-                    _T("Informational"), MB_YESNOCANCEL|MB_ICONINFORMATION|MB_DEFBUTTON1);
+					_T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                 if ( retval == IDYES )
                 {
-                    gTargetDepth = gHitsFound[3];
+                    gTargetDepth = minHeightFound;
                     setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
                     // update target depth
@@ -1222,11 +1321,21 @@ RButtonUp:
                 SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
                 changed=TRUE;
                 break;
-            default:
+			case VK_SPACE:
+				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+				if (on) {
+					bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
+					gTargetDepth = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, useOnlyOpaque);
+					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+					REDRAW_ALL;
+				}
+				break;
+			default:
                 // unknown key, don't move
                 moving=0;
                 break;
             }
+
             if (moving!=0)
             {
                 if (moving&1) //up
@@ -1311,8 +1420,8 @@ RButtonUp:
             int loadErr;
 			//convert path to utf8
             //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorld,MAX_PATH,NULL,NULL);
-            gSameWorld = (wcscmp(gWorld,worlds[wmId-IDM_WORLD])==0);
-            wcscpy_s(gWorld,MAX_PATH,worlds[wmId-IDM_WORLD]);
+            gSameWorld = (wcscmp(gWorld,gWorlds[wmId-IDM_WORLD])==0);
+            wcscpy_s(gWorld,MAX_PATH,gWorlds[wmId-IDM_WORLD]);
             // if this is not the same world, switch back to the aboveground view.
             // TODO: this code is repeated, should really be a subroutine.
             if (!gSameWorld)
@@ -1326,12 +1435,12 @@ RButtonUp:
                 if ( loadErr == 2 )
                 {
                     MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
-                        _T("Read error"), MB_OK|MB_ICONERROR);
+						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 }
                 else
                 {
                     MessageBox( NULL, _T("Error: cannot read world."),
-                        _T("Read error"), MB_OK|MB_ICONERROR);
+						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 }
 
                 return 0;
@@ -1420,7 +1529,7 @@ RButtonUp:
                 {
                     // world not loaded properly
                     MessageBox( NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
-                        _T("Read error"), MB_OK|MB_ICONERROR);
+						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                     return 0;
                 }
@@ -1457,7 +1566,7 @@ RButtonUp:
 			wcscpy_s(pathAndFile, MAX_PATH, gImportFile);
 			ofn.lpstrFile = pathAndFile;
             ofn.nMaxFile=MAX_PATH;
-			ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
+			ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
 			ofn.nFilterIndex = gImportFilterIndex;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
@@ -1696,7 +1805,7 @@ RButtonUp:
                 {
                     // world not loaded properly
                     MessageBox( NULL, _T("Error: cannot read world."),
-                        _T("Read error"), MB_OK|MB_ICONERROR);
+						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                     return 0;
                 }
@@ -1904,15 +2013,97 @@ RButtonUp:
 
 static void closeMineways()
 {
+	int i;
 	if (gArgList) {
 		LocalFree(gArgList);
 		gArgList = NULL;
 	}
+	if (gExecutionLogfile) {
+		PortaClose(gExecutionLogfile);
+		gExecutionLogfile = 0x0;
+	}
+	// clear memory, if testing for memory leaks
+	for (i = 0; i < gNumWorlds; i++) {
+		if (gWorlds[i] != NULL) {
+			free(gWorlds[i]);
+			gWorlds[i] = NULL;
+		}
+	}
+	Cache_Empty();
+
 	PostQuitMessage(0);
+}
+// parse on startup, looking for an execution log file name.
+// Return true if successful (i.e. no error found) - does NOT mean a log file was opened, just that the parse was OK.
+static bool startExecutionLogFile(const LPWSTR *argList, int argCount)
+{
+	argList = NULL;	// just to make compiler happy
+	argCount = 0;	// just to make compiler happy
+	// argument:
+	// -l log-file-name
+	int argIndex = 1;
+
+	// if execution log file already opened earlier (hard-wired in), just go to part where we write to the file.
+	if (gExecutionLogfile)
+		goto WriteFile;
+	while (argIndex < argCount)
+	{
+		// is it a script? get past it
+		if (wcscmp(argList[argIndex], L"-l") == 0) {
+			// found window resize
+			argIndex++;
+			if (argIndex < argCount) {
+				// take next argument as file name for logging
+				argList[argIndex];
+				// attempt to open file
+				// overwrite previous log file
+				gExecutionLogfile = PortaCreate(argList[argIndex]);
+				WriteFile:
+				if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
+					//// try the long file name, using current directory - not needed, it tries the local file anyway.
+					//wchar_t longFileName[MAX_PATH];
+					//wcscpy_s(longFileName, MAX_PATH, gCurrentDirectory);
+					//wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), gPreferredSeparatorString);
+					//wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), argList[argIndex]);
+					//gExecutionLogfile = PortaCreate(argList[argIndex]);
+					//if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
+					MessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+						return false;
+					//}
+				}
+				// write one line to start.
+				// Print local time as a string.
+				errno_t errNum;
+				struct tm newtime;
+				__time32_t aclock;
+				char timeString[256];
+
+				_time32(&aclock);   // Get time in seconds.
+				_localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
+
+				errNum = asctime_s(timeString, 32, &newtime);
+				if (!errNum)
+				{
+					char outputString[256];
+					sprintf_s(outputString, 256, "Mineways version %d.%02d execution log begun %s\n", gMajorVersion, gMinorVersion, timeString);
+					LOG_INFO(gExecutionLogfile, outputString);
+				}
+				return true;
+			}
+			// if we got here, parsing didn't work
+			MessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+			return false;
+		}
+		else {
+			// skip whatever it is.
+			argIndex++;
+		}
+	}
+	return true;
 }
 
 // parse on startup, looking for a window size - has to be done before the window is created, etc.
-static void modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount)
+static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount)
 {
 	// arguments possible:
 	// -w x y
@@ -1938,21 +2129,21 @@ static void modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argLis
 							// found it! Always use the first one found
 							*x = valx;
 							*y = valy;
-							return;
+							return true;
 						}
 					}
 				}
 			}
 			// if we got here, parsing didn't work
-			MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR);
-			return;
+			MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+			return false;
 		}
 		else {
 			// skip whatever it is.
 			argIndex++;
 		}
 	}
-	return;
+	return true;
 }
 
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount)
@@ -1965,11 +2156,18 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
 	{
 		if (wcscmp(argList[argIndex], L"-w") == 0) {
 			// skip window resize
+			LOG_INFO(gExecutionLogfile, " skip window resize");
 			argIndex += 3;
+		}
+		else if (wcscmp(argList[argIndex], L"-l") == 0) {
+			// skip logging
+			LOG_INFO(gExecutionLogfile, " skip logging");
+			argIndex += 2;
 		}
 		// is it a script?
 		else {
 			// Load a script; if it works fine, don't pop up a dialog
+			LOG_INFO(gExecutionLogfile, " runImportOrScript");
 			runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
 			argIndex++;
 		}
@@ -2268,6 +2466,7 @@ static int loadWorld(HWND hWnd)
     {
         // load test world
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+		gVersionId = 99999;	// always assumed to be the latest one.
     }
     else
     {
@@ -2275,6 +2474,7 @@ static int loadWorld(HWND hWnd)
         // world, then reload and carry on.
         //gHighlightOn=FALSE;
         //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+		// Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
         if ( GetFileVersion(gWorld,&version) != 0 ) {
             return 1;
         }
@@ -2287,6 +2487,8 @@ static int loadWorld(HWND hWnd)
             return 1;
         }
         GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
+		// Get the uppercase "Version" ID, which is > 0 if Minecraft is 1.9 or newer.
+		GetFileVersionId(gWorld, &gVersionId);
     }
 
     // keep current state around, we use it to set new window title
@@ -2352,7 +2554,7 @@ static int setWorldPath(TCHAR *path)
     if ( PathFileExists( path ) )
         return 1;
 
-    // Back to the old method. Not sure if we should keep this. TODOTODO 1.9 - also, should it be backslashes here?
+    // Back to the old method. Not sure if we should keep this method...
     wcscpy_s(path, MAX_PATH, L"./Library/Application Support/minecraft/saves");
     wchar_t msgString[1024];
 
@@ -2386,7 +2588,7 @@ static int setWorldPath(TCHAR *path)
     // failed
     if ( gDebug )
     {
-        MessageBox( NULL, L"Failed to find path", _T("Informational"), MB_OK|MB_ICONINFORMATION);
+		MessageBox(NULL, L"Failed to find path", _T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
     }
     return 0;
 }
@@ -2428,9 +2630,12 @@ static int loadWorldList(HMENU menu)
     TCHAR saveFilesPath[MAX_PATH];
     HANDLE hFind;
     WIN32_FIND_DATA ffd;
-    int numWorlds=1;
 
-    // uncomment to pop up dialogs about progress
+	// first world is actually the block test world
+	gNumWorlds = 1;
+	memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
+
+    // uncomment to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
     //gDebug = true;
 
     int retCode = setWorldPath(gWorldPathDefault);
@@ -2438,7 +2643,7 @@ static int loadWorldList(HMENU menu)
     if ( retCode == 0 )
     {
         MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-            _T("Informational"), MB_OK|MB_ICONINFORMATION);
+			_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
         return 0;
     }
     wcscpy_s(saveFilesPath,MAX_PATH,gWorldPathDefault);
@@ -2501,11 +2706,19 @@ static int loadWorldList(HMENU menu)
 
                 if ( gDebug )
                 {
-                    swprintf_s(msgString,1024,L"Succeeded with file %s", testAnvil );
+					int versionId = 0;
+					char versionName[MAX_PATH];
+					versionName[0] = (char)0;
+					GetFileVersionId(testAnvil, &versionId);
+					GetFileVersionName(testAnvil, versionName);
+					GetLevelName(testAnvil, levelName);
+
+					// 0 version ID means earlier than 1.9
+					swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and level %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
-                info.wID=IDM_WORLD+numWorlds;
+                info.wID=IDM_WORLD+gNumWorlds;
 
                 // display the "given name" followed by / the world folder name; both can be useful
                 TCHAR worldIDString[MAX_PATH], wLevelName[MAX_PATH];
@@ -2514,7 +2727,7 @@ static int loadWorldList(HMENU menu)
 
                 info.cch=(UINT)wcslen(worldIDString);
                 info.dwTypeData=worldIDString;
-                info.dwItemData=numWorlds;
+                info.dwItemData=gNumWorlds;
                 // if version is pre-Anvil, show world but gray it out
                 if (version < 19133)
                 {
@@ -2529,11 +2742,11 @@ static int loadWorldList(HMENU menu)
                     info.fState = 0x0; // MFS_CHECKED;
                 }
                 InsertMenuItem(menu,IDM_TEST_WORLD,FALSE,&info);
-                worlds[numWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
-                wcscpy_s(worlds[numWorlds], MAX_PATH, testAnvil);
+                gWorlds[gNumWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
+                wcscpy_s(gWorlds[gNumWorlds], MAX_PATH, testAnvil);
 				// was: setWorldPath(worlds[numWorlds]);
                 //PathAppend(worlds[numWorlds],ffd.cFileName);
-                numWorlds++;
+                gNumWorlds++;
             }
         }
     } while (FindNextFile(hFind,&ffd)!=0);
@@ -2818,7 +3031,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
         if (skfbPData->skfbFilePath.empty()){
             int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
                 gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-				updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gChangeBlockCommands);
+				updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
 			deleteCommandBlockSet(gChangeBlockCommands);
 			gChangeBlockCommands = NULL;
 
@@ -3142,7 +3355,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 
         int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-			updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gChangeBlockCommands);
+			updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
 		deleteCommandBlockSet(gChangeBlockCommands);
 		gChangeBlockCommands = NULL;
 
@@ -3195,7 +3408,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
                 gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1], 
                 gOptions.totalBlocks );
             retval = MessageBox( NULL, msgString,
-                _T("Informational"), MB_YESNO|MB_ICONINFORMATION|MB_DEFBUTTON1);
+				_T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
             if ( retval != IDYES )
             {
                 gShowPrintStats = false;
@@ -3332,6 +3545,7 @@ static void initializePrintExportData(ExportFileData &printData)
 	printData.chkExportAll = 0;
 	printData.chkFatten = 0;
 	printData.chkBiome = 0;
+	printData.chkCompositeOverlay = 1;	// never allow 0 for 3D printing, as this would create tiles floating above the surface
 	printData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
 	printData.chkLeavesSolid = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold 
 
@@ -3432,10 +3646,11 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
     viewData.chkG3DMaterial = 0;
-    viewData.chkBlockFacesAtBorders = 1;
+	viewData.chkCompositeOverlay = 0;
+	viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
 
-    viewData.floaterCountVal = 16;
+	viewData.floaterCountVal = 16;
     // irrelevant for viewing
 	INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
     INIT_ALL_FILE_TYPES( viewData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
@@ -3593,7 +3808,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 	if (err != 0) {
 		wchar_t buf[MAX_PATH + 100];
 		wsprintf(buf, L"Error: could not read file %s", importFile);
-		MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR);
+		MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 		retCode = 0;
 		goto Exit;
 	}
@@ -3638,9 +3853,11 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 				// output errors and warnings
 				// convert to char
 				length++;
-				char *pConverted = (char*)malloc(length*sizeof(char));
-				wcharToChar(is.errorMessages, pConverted, (int)length);
-				if (PortaWrite(is.logfile, pConverted, strlen(pConverted))) goto OnDone;
+				pConverted = (char*)malloc(length*sizeof(char));
+				WcharToChar(is.errorMessages, pConverted, (int)length);
+				if (PortaWrite(is.logfile, pConverted, strlen(pConverted))) {
+					goto OnDone;
+				}
 			}
 
 			sprintf_s(outputString, 256, "\n========================================================\n\n");
@@ -3659,7 +3876,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 				if (is.errorsFound > 0) {
 					swprintf_s(msgString, 1024, L"Errors found in script file - processing aborted. Check log file %S",
 						is.logFileName);
-					MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR);
+					MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 				}
 				else {
 					swprintf_s(msgString, 1024, L"Processing finished. Warnings found in script file. Check log file %S",
@@ -3677,7 +3894,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 		// Are there errors, or just warnings?
 		if (is.errorsFound) {
 			// run-time error!
-			MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR);
+			MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 			deleteCommandBlockSet(is.pCBChead);
 			is.pCBChead = is.pCBClast = NULL;
 			retCode = false;
@@ -3809,6 +4026,9 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
 	is.readingModel = false;
 	is.processData = false;
 
+	// check
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Checking script for syntax errors");
+
 	// First test: read lines until done
 	int readCode;
 	int isRet;
@@ -3891,6 +4111,8 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
 		return false;
 	}
 
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+
 	commentBlock = false;
 	do {
 		readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
@@ -3946,6 +4168,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
 		commentBlock = nextCommentBlock;
 		// go until we've hit the end of the file, or any error was found, or we hit a Close
 	} while ((readCode >= 1) && (is.errorsFound == 0) && !is.closeProgram);
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script done");
 
 Exit :
 	fclose(fh);
@@ -4518,6 +4741,18 @@ static int interpretImportLine(char *line, ImportedSet & is)
 		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
 	}
 
+	strPtr = findLineDataNoCase(line, "Create composite overlay faces:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Create composite overlay faces command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkCompositeOverlay = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
 
 	strPtr = findLineDataNoCase(line, "Center model:");
 	if (strPtr != NULL) {
@@ -5204,7 +5439,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 				// clear selection when you switch from somewhere else to The Nether, or vice versa
 				gHighlightOn = FALSE;
 				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 			}
 			else {
 				// warning: selection set but no world is loaded
@@ -5298,11 +5533,56 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 
 	strPtr = findLineDataNoCase(line, "Select minimum height:");
 	if (strPtr != NULL) {
-		int minHeight;
-		if (1 != sscanf_s(strPtr, "%d", &minHeight))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
+		// set value for testing
+		int minHeight = 0;
+		if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1))) {
+			// first, is it simply a number?
+			if (1 == sscanf_s(strPtr, "%d", &minHeight))
+			{
+				// it's simply a number. Is it + or -?
+				if ((string1[0] == (char)'+') || (string1[0] == (char)'-')) {
+					if (is.processData) {
+						// it's a relative offset
+						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+						minHeight += miny;
+						clamp(minHeight, 0, 255);
+					} else {
+						//ignore value for now, not processing yet, so reset it
+						minHeight = 0;
+					}
+				}
+			}
+			else {
+				// not a number - look for a V or v
+				if ((string1[0] == (char)'V') || (string1[0] == (char)'v')) {
+					// compare to value after, if any
+					if (is.processData) {
+						// "V" means ignore transparent blocks, such as ocean
+						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+						if (on) {
+							int heightFound = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
+							if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
+								minHeight = heightFound > minHeight ? heightFound : minHeight;
+							}
+							else {
+								// no number after, just use the height directly
+								minHeight = heightFound;
+							}
+						}
+						else {
+							saveErrorMessage(is, L"the V/v option for Select minimum height command requires that an area is selected."); return INTERPRETER_FOUND_ERROR;
+						}
+					}
+				}
+				else {
+					saveErrorMessage(is, L"could not find integer value or V/v, V#, or v# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
+				}
+			}
 		}
+		else {
+			saveErrorMessage(is, L"could not find integer value or V, V#, or V# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
+		}
+
 		if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
 			saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select minimum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
 		}
@@ -5314,7 +5594,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 			SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
 			enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 		}
-		return INTERPRETER_FOUND_VALID_LINE;
+		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
 	}
 
 	strPtr = findLineDataNoCase(line, "Select maximum height:");
@@ -5335,7 +5615,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 			SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
 			enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 		}
-		return INTERPRETER_FOUND_VALID_LINE;
+		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
 	}
 
 	if (testChangeBlockCommand(line, is, &retCode)) return retCode;
@@ -6088,7 +6368,7 @@ static void rationalizeFilePath(wchar_t *fileName)
                     if ( major > gMajorVersion || (major == gMajorVersion && minor > gMinorVersion) )
                     {
                         wchar_t msgString[1024];
-                        swprintf_s( msgString, 1024, L"You currently use version %d.%d of this program. A newer version %d.%d is available at http://mineways.com.",
+                        swprintf_s( msgString, 1024, L"You currently use version %d.%02d of this program. A newer version %d.%02d is available at http://mineways.com.",
                                 (int)gMajorVersion, (int)gMinorVersion, major, minor );
                         MessageBox( NULL, msgString,
                             _T("Informational"), MB_OK|MB_ICONINFORMATION);
@@ -6316,12 +6596,21 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
 	addChangeBlockCommandsToGlobalList(is);
 
 	// return number of files exported; 0 means failed
+	wchar_t statusbuf[MAX_PATH + 100];
+	wchar_t exportName[MAX_PATH];
+	splitToPathAndName(wcharFileName, NULL, exportName);
+	wsprintf(statusbuf, L"Script exporting %s", exportName);
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)statusbuf);
+
 	gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
 	if (gExported == 0)
 	{
+		SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script export operation failed");
 		swprintf_s(error, 1024, L"export operation failed.");
 		return false;
 	}
+	// back to normal
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
 
 	SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
 	enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
