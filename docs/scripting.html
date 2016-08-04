@@ -194,8 +194,8 @@ Selects the named color scheme, if available. "Standard" is the default.
 
 <tr>
 <td>
-Selection location min to max: <i>-199, 0, -466 to -176, 255, -442</i><br>
-Selection location: <i>60, 0, 60 to 80, 255, 100</i>
+Selection location min to max: <i>-199, 0, -466</i> to <i>-176, 255, -442</i><br>
+Selection location: <i>60, 0, 60</i> to <i>80, 255, 100</i><br>
 Selection location: none
 </td>
 <td>
@@ -505,6 +505,21 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 
 <tr>
 <td>
+Custom printer cost per ccm: <i>0.03</i><br>
+Custom printer cost per printer ccm: <i>0.00</i><br>
+Custom printer handling cost: <i>0.00</i><br>
+Custom printer minimum cost: <i>0.00</i><br>
+Custom printer currency: <i>$</i><br>
+Custom printer maximum size: <i>20.0 20.0 19.0</i><br>
+Custom printer minimum wall thickness: <i>1.5</i><br>
+</td>
+<td>
+The custom printer material that is used by the STL exporter can have its attributes set for showing the cost on export. You can set the cost per cubic centimeter (ccm) of material used (assuming a solid model), the cost per ccm of printer volume used (i.e., including the empty space, a bounding box around the model; Shapeways uses this for its <a href="https://www.shapeways.com/materials/strong-and-flexible-plastic?li=nav">Strong &amp; Flexible</a> material, for example), the "handling" cost (added in), the minimum cost a model will cost, the currency symbol (only the first character is used), the volume size of the 3D printer in centimeters (to warn if the print is too large), and the minimum wall thickness in <b>millimeters</b> for printing. Any or all of these can be set; the defaults are shown when not modified. PLA is typically priced at $24 for a 1 kilogram (800 cubic centimeters) spool, and <a href="http://www.fabbaloo.com/blog/2015/9/27/is-it-filament-weight-or-length">using this conversion</a>. That is, $24/800 ccm then costs $0.03 per cubic centimeter.
+</td>
+</tr>
+
+<tr>
+<td>
 Save log file: <i>filename</i>
 </td>
 <td>
@@ -780,7 +795,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 7/5/2016</p>
+		<p id="lastUpdate">Last updated 8/4/2016</p>
 	</div>
 </div>
 

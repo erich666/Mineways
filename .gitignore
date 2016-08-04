@@ -27,7 +27,7 @@ Win/x64
 Win/UpdateCheck.*
 Win/teapot*.png
 ipch
-TileMaker/TileMaker/blocks_*
+TileMaker/TileMaker/blocks*
 TileMaker/TileMaker/MW_BLOCKS
 TileMaker/TileMaker/code*
 TileMaker/TileMaker/make_*.bat

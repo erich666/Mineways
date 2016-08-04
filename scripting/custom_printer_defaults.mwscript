@@ -1,0 +1,18 @@
+// See http://www.realtimerendering.com/erich/minecraft/public/mineways/scripting.html#soc for documentation
+
+// Choose which 3D print type you want to use. 
+Set 3D print type: Binary STL VisCAM
+
+// Choose the 3D print material and scaling method
+Scale model by using the minimum wall thickness for the Custom printer material
+// The line above is important mostly to set the material. You can change to a different scaling method after this point if you want.
+
+// Set the Custom printer material's costs and other attributes.
+Custom printer cost per ccm: 0.03
+Custom printer cost per printer ccm: 0.00
+Custom printer handling cost: 0.00
+Custom printer minimum cost: 0.00
+Custom printer currency: $
+Custom printer maximum size: 20.0 20.0 19.0
+// This value is in millimeters; the others above are in centimeters in some form
+Custom printer minimum wall thickness: 1.5

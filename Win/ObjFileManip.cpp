@@ -260,11 +260,11 @@ static int gFaceOffset[6];
 // flat flag for a neighbor that points to the original block
 static int gFlagPointsTo[6];
 
-static ProgressCallback *gpCallback;
+static ProgressCallback *gpCallback = NULL;
 
-static Options *gOptions;
+static Options *gOptions = NULL;
 
-static FileList *gOutputFileList;
+static FileList *gOutputFileList = NULL;
 
 static int gExportTexture=0;
 // whether we're outputting a print or render
@@ -727,7 +727,7 @@ static void wcharCleanse( wchar_t *wstring );
 static void myseedrand( long seed );
 static double myrand();
 
-static int analyzeChunk(const wchar_t *world, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
+static int analyzeChunk(const wchar_t *world, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
 
 
 void ChangeCache( int size )
@@ -2003,41 +2003,41 @@ static void editBlock( int x, int y, int z, int editMode )
 // remove snow blocks and anything else not desired
 static int filterBox(ChangeBlockCommand *pCBC)
 {
-    int boxIndex;
-    int x,y,z;
-    // Push flattop onto block below
+	int boxIndex;
+	int x, y, z;
+	// Push flattop onto block below
 	int flatten = gOptions->pEFD->chkMergeFlattop && gOptions->pEFD->chkCompositeOverlay;
 
-    int retCode = MW_NO_ERROR;
-    int foundBlock = 0;
+	int retCode = MW_NO_ERROR;
+	int foundBlock = 0;
 
-    int outputFlags, retVal;
+	int outputFlags, retVal;
 
-    // Filter out all stuff that is not to be rendered. Done before anything, as these blocks simply
-    // should not exist for all operations beyond.
-    for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
-    {
-        for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
-        {
-            boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
-            for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
-            {
-                // sorry, air is never allowed to turn solid
-                if ( gBoxData[boxIndex].type != BLOCK_AIR )
-                {
-                    int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
+	// Filter out all stuff that is not to be rendered. Done before anything, as these blocks simply
+	// should not exist for all operations beyond.
+	for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
+	{
+		for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
+		{
+			boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
+			for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
+			{
+				// sorry, air is never allowed to turn solid
+				if (gBoxData[boxIndex].type != BLOCK_AIR)
+				{
+					int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
 
-                    // check if it's something to be filtered out: not in the output list or alpha is 0
-                    if ( !(flags & gOptions->saveFilterFlags) ||
-                        gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0 ) {
-                            // things that should not be saved should be gone, gone, gone
-                            gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
-                            gBoxData[boxIndex].data = 0x0;
-                    }
-                }
-            }
-        }
-    }
+					// check if it's something to be filtered out: not in the output list or alpha is 0
+					if (!(flags & gOptions->saveFilterFlags) ||
+						gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0) {
+						// things that should not be saved should be gone, gone, gone
+						gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
+						gBoxData[boxIndex].data = 0x0;
+					}
+				}
+			}
+		}
+	}
 
 	// world's loaded and normalized, now apply any change block commands
 	if (pCBC != NULL) {
@@ -2057,31 +2057,50 @@ static int filterBox(ChangeBlockCommand *pCBC)
 	}
 
 	// recheck if modified world is now empty. Could be emptied by color scheme or commands
-	if ( isWorldVolumeEmpty() )
+	if (isWorldVolumeEmpty())
 	{
 		retCode |= MW_NO_BLOCKS_FOUND;
 	}
 
 	// what should we output? Only 3D bits (no billboards) if printing or if textures are off
-    if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
-    {
-        outputFlags = BLF_3D_BIT;
-    }
-    else
-    {
-        outputFlags = (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_TRUE_GEOMETRY);
+	if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES))
+	{
+		outputFlags = BLF_3D_BIT;
+	}
+	else
+	{
+		outputFlags = (BLF_BILLBOARD | BLF_SMALL_BILLBOARD | BLF_TRUE_GEOMETRY);
 		if (!gOptions->pEFD->chkCompositeOverlay)
 		{
 			outputFlags |= BLF_OFFSET;
 		}
-    }
+	}
 
-	if (gExportBillboards && !gOptions->pEFD->chkCompositeOverlay)
-	{
-		// Special pass: if we are outputting billboards and we're not doing composites,
-		// we have to do a pre-pass through all redstone to get its connectivity all set up
-		// before outputting to billboards. If composites are on, this is done in computeFlatFlags
-		// and won't get used until the full blocks are output.
+	// if we are not outputting schematics, we need more passes:
+	// 1) determine redstone connectivity
+	// 2) output billboards and small stuff, or flatten stuff onto other blocks
+	// 3) output billboard again, for offset object output, which is not done in first pass.
+	if (gOptions->pEFD->fileType != FILE_TYPE_SCHEMATIC) {
+		if (gExportBillboards && !gOptions->pEFD->chkCompositeOverlay)
+		{
+			// Special pass: if we are outputting billboards and we're not doing composites,
+			// we have to do a pre-pass through all redstone to get its connectivity all set up
+			// before outputting to billboards. If composites are on, this is done in computeFlatFlags
+			// and won't get used until the full blocks are output.
+			for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
+			{
+				for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
+				{
+					boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
+					for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
+					{
+						if (gBoxData[boxIndex].type == BLOCK_REDSTONE_WIRE)
+							computeRedstoneConnectivity(boxIndex);
+					}
+				}
+			}
+		}
+		// check for billboards and lesser geometry that can flatten - immediately output. Flatten that which should be flattened. 
 		for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
 		{
 			for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
@@ -2089,308 +2108,299 @@ static int filterBox(ChangeBlockCommand *pCBC)
 				boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
 				for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
 				{
-					if ( gBoxData[boxIndex].type == BLOCK_REDSTONE_WIRE)
-						computeRedstoneConnectivity(boxIndex);
+					// sorry, air is never allowed to turn solid
+					int type = gBoxData[boxIndex].type;
+					if (type != BLOCK_AIR)
+					{
+						int flags = gBlockDefinitions[type].flags;
+						// check: is it a billboard we can export? Clear it out if so.
+						int blockProcessed = 0;
+						if (gExportBillboards)	// same as gOptions->pEFD->chkExportAll
+						{
+							// Export billboards or flattenable geometry, only. So test by export flags,
+							// and also test if it's a billboard or flattenable thing.
+							// TODO: Should any blocks that are bits get used to note connected objects,
+							// so that floaters are not deleted? Probably... but we don't try to test.
+							if ((flags & outputFlags) && (flags & (BLF_BILLBOARD | BLF_SMALL_BILLBOARD | BLF_FLATTOP | BLF_FLATSIDE)))
+							{
+								// tricksy code: if the return value > 1, then it's an error
+								// and should be treated as such.
+								retVal = saveBillboardOrGeometry(boxIndex, type);
+								if (retVal == 1)
+								{
+									// this block is then cleared out, since it's been processed.
+									gBoxData[boxIndex].type = BLOCK_AIR;
+									gBoxData[boxIndex].data = 0x0;
+									blockProcessed = 1;
+								}
+								else if (retVal >= MW_BEGIN_ERRORS)
+								{
+									return retVal;
+								}
+							}
+						}
+
+						// not filtered out by the basics or billboard, so try to flatten
+						if (!blockProcessed && flatten && (flags & (BLF_FLATTOP | BLF_FLATSIDE)))
+						{
+							// this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
+							// or to its neighbor, or both (depends on dataval),
+							// instead of rendering a block for it.
+
+							// was: gBoxData[boxIndex-1].flatFlags = type;
+							// if object was indeed flattened, set it to air
+							if (computeFlatFlags(boxIndex))
+							{
+								gBoxData[boxIndex].type = BLOCK_AIR;
+								gBoxData[boxIndex].data = 0x0;
+							}
+							else
+							{
+								// not flattened, so it is real content that's output
+								blockProcessed = 1;
+							}
+						}
+						else
+						{
+							// non-flattened, non-air block found
+							blockProcessed = 1;
+						}
+						// note that we found any sort of block that was valid (flats don't count, whatever
+						// they're pushed against needs to exist, too)
+						foundBlock |= blockProcessed;
+					}
 				}
 			}
 		}
+
+		// check for other lesser geometry, which could have faces that have something flattened onto them 
+		if (gExportBillboards)	// same as gOptions->pEFD->chkExportAll
+		{
+			for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
+			{
+				for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
+				{
+					boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
+					for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
+					{
+						// sorry, air is never allowed to turn solid
+						if (gBoxData[boxIndex].type != BLOCK_AIR)
+						{
+							int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
+							// check: is it geometry we can export? Clear it out if so.
+
+							// If we're 3d printing, or rendering without textures, then export 3D printable bits,
+							// on the assumption that the software can merge the data properly with the solid model.
+							// TODO: Should any blocks that are bits get used to note connected objects,
+							// so that floaters are not deleted? Probably... but we don't try to test.
+							if (flags & outputFlags)
+							{
+								retVal = saveBillboardOrGeometry(boxIndex, gBoxData[boxIndex].type);
+								if (retVal == 1)
+								{
+									// this block is then cleared out, since it's been processed.
+									gBoxData[boxIndex].type = BLOCK_AIR;
+									gBoxData[boxIndex].data = 0x0;
+									foundBlock = 1;
+								}
+								else if (retVal >= MW_BEGIN_ERRORS)
+								{
+									return retVal;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// 1%
+		UPDATE_PROGRESS(0.70f*PG_MAKE_FACES);
+		// were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
+		if ( foundBlock == 0 && ( flatten || gExportBillboards) )
+			return retCode|MW_NO_BLOCKS_FOUND;
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//
+		// Filling, connecting, hollowing, melting.
+		//
+		// If we'd doing 3D printing, there are lots of things to worry about. Here are some:
+		// 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
+		//    the unsolidified material inside can be removed. Fix by filling in these "bubbles".
+		// 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
+		//    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
+		// 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
+		//    Fix by deleting any groups of objects smaller than 16 blocks that don't touch the ground. 16 is chosen as
+		//    16 blocks is the minimum to make a chain link at the end of a chain (a 5x5 square minus the 3x3 middle),
+		//    which *is* legal.
+		// 4) Unattached objects. While it's perfectly legal to have blocks touch at corners, the object might fall apart
+		//    when created. Option: weld such blocks together if they're part of different groups.
+		// 5) Wasted material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
+		//    bottom up. Option: delete a block at the base if it has neighboring blocks in all 8 positions on this level
+		//    and all 9 positions on the level above. This may be overconservative in some cases, but is safe. Mark all
+		//    these positions, working up the object, then delete.
+
+		gSolidGroups = gAirGroups = 0;
+
+		if ( gOptions->pEFD->chkBlockFacesAtBorders )
+		{
+			// Clear slabs (sides are not set, so we don't need to clear them). We don't need the slab data for here on in
+			// if borders are being output.
+			modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_ALL);
+			modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_ALL);
+		}
+
+		// do we need groups and neighbors?
+		if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS|EXPT_DEBUG_SHOW_GROUPS) )
+		{
+			// If we're modifying blocks, we need to stash the border blocks away and clear them.
+			if ( !gOptions->pEFD->chkBlockFacesAtBorders )
+			{
+				// not putting borders in final output, so need to do two things:
+				// The types in the borders must all be cleared. The original type should be left intact for output, *except*:
+				// any entrance blocks need to be fully cleared so that they don't mess with the seed propagation process.
+				// This is the only use of "originalType" during this block editing process below.
+				modifySides(EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+				modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+				modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+			}
+
+			int foundTouching = 0;
+			gGroupListSize = 200;
+			gGroupList = (BoxGroup *)malloc(gGroupListSize*sizeof(BoxGroup));
+			if ( gGroupList == NULL )
+			{
+				return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+			}
+
+			memset(gGroupList,0,gGroupListSize*sizeof(BoxGroup));
+			gGroupCount = 0;
+
+			retCode |= findGroups();
+			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
+
+			// We now know a bit about how the blocks are grouped. The first group is always air, the second
+			// group is always solid. If there are any more air groups, these are bubbles surround by one or more
+			// solid groups and must be filled (and the solid groups merged). If there are corner tips that touch,
+			// and the solid groups are different, and one of the solid groups is hanging in space, we should weld.
+			// If there are objects that hang in the air (we tighten the Y bounds, so there will always be at least
+			// one object that doesn't), if the group is small (16 or less), then delete it.
+
+			// Note that if there is only one solid group, we don't need further processing: this group is what will
+			// be cleaned up (manifold), hollowed, and exported.
+
+			// Now that we have the groups and their bounds, start processing them.
+
+			// 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
+			//    the unsolidified material inside can be removed. Fix by filling in these "bubbles".
+			// Really, we could start the count at 2, since the first group is air,
+			// the second group is something solid, and is a group at the base (minimum Y).
+			// If we're deleting floaters, we need to merge groups first. This is done by merging bubbles but not changing from AIR.
+			if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_DELETE_FLOATING_OBJECTS) )
+			{
+				if ( gAirGroups > 1 )
+				{
+					checkAndRemoveBubbles();
+				}
+			}
+			// 2%
+			UPDATE_PROGRESS(0.80f*PG_MAKE_FACES);
+
+			// 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
+			//    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
+			// These are good to do next, as we want to build up all material before carving away.
+			// If two different groups are welded together, add them to the same meta group.
+			// Note that a single group can have non-manifold geometry, so this test must always be done (if flagged)
+			// Also, check if when a block is next to be added, would it *make* another manifold edge? If so, pass it by until
+			// we're desperate. If any like this are added, need to run manifold again (but do this later, after joining tips
+			// below).
+			do
+			{
+				if ( gOptions->exportFlags & EXPT_CONNECT_PARTS )
+				{
+					foundTouching = fixTouchingEdges();
+				}
+
+				// 4) Unattached corners. While it's perfectly legal to have blocks touch at corner tips, the object might fall apart
+				//    when created. Option: weld such blocks together if they're part of different groups.
+				// This is why we need metagroups, because holes could get filled and groups get joined.
+				// If there is only one solid original group, we don't have to do this test.
+				// We do this after doing edge part connections: our pass here puts in one block that will then get joined to
+				// other parts out there, by edge welding. We add *after* because we want parts to get connected "normally" by
+				// connecting edges.
+				if ( gOptions->exportFlags & EXPT_CONNECT_CORNER_TIPS )
+				{
+					assert( gOptions->exportFlags & EXPT_CONNECT_PARTS );
+					if ( gSolidGroups > 1 )
+					{
+						foundTouching |= connectCornerTips();
+					}
+				}
+
+				// run again if any non-manifold made manifold.
+				// we must process until we find *no* non-manifold edges that are fixed. Fixing can create
+				// more non-manifold (touching) edges.
+			} while ( foundTouching );
+
+			// 3.5%
+			UPDATE_PROGRESS(0.85f*PG_MAKE_FACES);
+
+
+			// 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
+			//    Fix by deleting any groups of objects smaller than 16 blocks that don't touch the ground. 16 is chosen as
+			//    16 blocks is the minimum to make a chain link at the end of a chain (a 5x5 square minus the 3x3 middle),
+			//    which *is* legal.
+			// Now delete any tiny objects, unless there's only one group
+			// Make this an option, as a person could be making "charms" and having
+			// a bunch of little objects in a single order.
+			if ( gOptions->exportFlags & EXPT_DELETE_FLOATING_OBJECTS )
+			{
+				// delete only if there's more than one solid group. One solid group means this is the object to output.
+				if ( gSolidGroups > 1 )
+				{
+					// delete only groups that have a min Y > the base gMinY+1 level, i.e. aren't at ground level
+					// OR delete tree (even at ground level - who wants a tree that will fall over?).
+					deleteFloatingGroups();
+				}
+
+				// it's possible that all groups are deleted
+				if ( gSolidGroups == 0 )
+				{
+					retCode |= MW_ALL_BLOCKS_DELETED;
+					goto Exit;
+				}
+			}
+
+			// if debug for groups is on, and materials are being output, then
+			// change the alpha for the largest group to be semitransparent. In
+			// this way you can see the small groups left over much more easily.
+			// Set this while gGroupList is still around.
+			if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
+				(gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) )
+			{
+				int groupMaxID=-1;
+				int maxPop = -1;
+				int i;
+				for ( i = 0; i <= gGroupCount; i++ )
+				{
+					if ( gGroupList[i].population > maxPop && gGroupList[i].solid )
+					{
+						groupMaxID = gGroupList[i].groupID;
+						maxPop = gGroupList[i].population;
+					}
+				}
+				assert(groupMaxID>=0);
+				// now we know which group is the largest. Set its
+				// alpha to semitransparent when material and texture are
+				// output
+				gDebugTransparentType = getMaterialUsingGroup(groupMaxID);
+			}
+
+	Exit:
+			free(gGroupList);
+		}
 	}
-    // check for billboards and lesser geometry that can flatten - immediately output. Flatten that which should be flattened. 
-    for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
-    {
-        for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
-        {
-            boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
-            for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
-            {
-                // sorry, air is never allowed to turn solid
-				int type = gBoxData[boxIndex].type;
-                if ( type != BLOCK_AIR )
-                {
-                    int flags = gBlockDefinitions[type].flags;
-                    // check: is it a billboard we can export? Clear it out if so.
-                    int blockProcessed = 0;
-                    if ( gExportBillboards )	// same as gOptions->pEFD->chkExportAll
-                    {
-                        // Export billboards or flattenable geometry, only. So test by export flags,
-                        // and also test if it's a billboard or flattenable thing.
-                        // TODO: Should any blocks that are bits get used to note connected objects,
-                        // so that floaters are not deleted? Probably... but we don't try to test.
-                        if ( ( flags & outputFlags ) && ( flags & (BLF_BILLBOARD|BLF_SMALL_BILLBOARD|BLF_FLATTOP|BLF_FLATSIDE)) )
-                        {
-                            // tricksy code: if the return value > 1, then it's an error
-                            // and should be treated as such.
-                            retVal = saveBillboardOrGeometry( boxIndex, type );
-                            if ( retVal == 1 )
-                            {
-                                // this block is then cleared out, since it's been processed.
-                                gBoxData[boxIndex].type = BLOCK_AIR;
-                                blockProcessed = 1;
-                            }
-                            else if ( retVal >= MW_BEGIN_ERRORS )
-                            {
-                                return retVal;
-                            }
-                        }
-                    }
-
-                    // not filtered out by the basics or billboard, so try to flatten
-                    if ( !blockProcessed && flatten && ( flags & (BLF_FLATTOP|BLF_FLATSIDE) ) )
-                    {
-                        // this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
-                        // or to its neighbor, or both (depends on dataval),
-                        // instead of rendering a block for it.
-
-                        // was: gBoxData[boxIndex-1].flatFlags = type;
-                        // if object was indeed flattened, set it to air
-						if (computeFlatFlags(boxIndex))
-                        {
-                            gBoxData[boxIndex].type = BLOCK_AIR;
-                        }
-                        else
-                        {
-                            // not flattened, so it is real content that's output
-                            blockProcessed = 1;
-                        }
-                    }
-                    else
-                    {
-                        // non-flattened, non-air block found
-                        blockProcessed = 1;
-                    }
-                    // note that we found any sort of block that was valid (flats don't count, whatever
-                    // they're pushed against needs to exist, too)
-                    foundBlock |= blockProcessed;
-                }
-            }
-        }
-    }
-
-    // check for other lesser geometry, which could have faces that have something flattened onto them 
-	if (gExportBillboards)	// same as gOptions->pEFD->chkExportAll
-    {
-        for ( x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++ )
-        {
-            for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
-            {
-                boxIndex = BOX_INDEX(x,gSolidBox.min[Y],z);
-                for ( y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++ )
-                {
-                    // sorry, air is never allowed to turn solid
-                    if ( gBoxData[boxIndex].type != BLOCK_AIR )
-                    {
-                        int flags = gBlockDefinitions[gBoxData[boxIndex].type].flags;
-                        // check: is it geometry we can export? Clear it out if so.
-
-                        // If we're 3d printing, or rendering without textures, then export 3D printable bits,
-                        // on the assumption that the software can merge the data properly with the solid model.
-                        // TODO: Should any blocks that are bits get used to note connected objects,
-                        // so that floaters are not deleted? Probably... but we don't try to test.
-                        if ( flags & outputFlags )
-                        {
-                            retVal = saveBillboardOrGeometry( boxIndex, gBoxData[boxIndex].type );
-                            if ( retVal == 1 )
-                            {
-                                // this block is then cleared out, since it's been processed.
-                                gBoxData[boxIndex].type = BLOCK_AIR;
-                                foundBlock = 1;
-                            }
-                            else if ( retVal >= MW_BEGIN_ERRORS )
-                            {
-                                return retVal;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // 1%
-    UPDATE_PROGRESS(0.70f*PG_MAKE_FACES);
-    // were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
-    if ( foundBlock == 0 && ( flatten || gExportBillboards) )
-        return retCode|MW_NO_BLOCKS_FOUND;
-
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //
-    // Filling, connecting, hollowing, melting.
-    //
-    // If we'd doing 3D printing, there are lots of things to worry about. Here are some:
-    // 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
-    //    the unsolidified material inside can be removed. Fix by filling in these "bubbles".
-    // 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
-    //    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
-    // 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
-    //    Fix by deleting any groups of objects smaller than 16 blocks that don't touch the ground. 16 is chosen as
-    //    16 blocks is the minimum to make a chain link at the end of a chain (a 5x5 square minus the 3x3 middle),
-    //    which *is* legal.
-    // 4) Unattached objects. While it's perfectly legal to have blocks touch at corners, the object might fall apart
-    //    when created. Option: weld such blocks together if they're part of different groups.
-    // 5) Wasted material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
-    //    bottom up. Option: delete a block at the base if it has neighboring blocks in all 8 positions on this level
-    //    and all 9 positions on the level above. This may be overconservative in some cases, but is safe. Mark all
-    //    these positions, working up the object, then delete.
-
-    gSolidGroups = gAirGroups = 0;
-
-    if ( gOptions->pEFD->chkBlockFacesAtBorders )
-    {
-        // Clear slabs (sides are not set, so we don't need to clear them). We don't need the slab data for here on in
-        // if borders are being output.
-        modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_ALL);
-        modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_ALL);
-    }
-
-    // do we need groups and neighbors?
-    if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS|EXPT_DEBUG_SHOW_GROUPS) )
-    {
-        // If we're modifying blocks, we need to stash the border blocks away and clear them.
-        if ( !gOptions->pEFD->chkBlockFacesAtBorders )
-        {
-            // not putting borders in final output, so need to do two things:
-            // The types in the borders must all be cleared. The original type should be left intact for output, *except*:
-            // any entrance blocks need to be fully cleared so that they don't mess with the seed propagation process.
-            // This is the only use of "originalType" during this block editing process below.
-            modifySides(EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
-            modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
-            modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
-        }
-
-        int foundTouching = 0;
-        gGroupListSize = 200;
-        gGroupList = (BoxGroup *)malloc(gGroupListSize*sizeof(BoxGroup));
-        if ( gGroupList == NULL )
-        {
-            return retCode|MW_WORLD_EXPORT_TOO_LARGE;
-        }
-
-        memset(gGroupList,0,gGroupListSize*sizeof(BoxGroup));
-        gGroupCount = 0;
-
-        retCode |= findGroups();
-        if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
-
-        // We now know a bit about how the blocks are grouped. The first group is always air, the second
-        // group is always solid. If there are any more air groups, these are bubbles surround by one or more
-        // solid groups and must be filled (and the solid groups merged). If there are corner tips that touch,
-        // and the solid groups are different, and one of the solid groups is hanging in space, we should weld.
-        // If there are objects that hang in the air (we tighten the Y bounds, so there will always be at least
-        // one object that doesn't), if the group is small (16 or less), then delete it.
-
-        // Note that if there is only one solid group, we don't need further processing: this group is what will
-        // be cleaned up (manifold), hollowed, and exported.
-
-        // Now that we have the groups and their bounds, start processing them.
-
-        // 1) Hollow spots in the model that can't get cleared out of material. You need to make fair-size holes so that
-        //    the unsolidified material inside can be removed. Fix by filling in these "bubbles".
-        // Really, we could start the count at 2, since the first group is air,
-        // the second group is something solid, and is a group at the base (minimum Y).
-        // If we're deleting floaters, we need to merge groups first. This is done by merging bubbles but not changing from AIR.
-        if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_DELETE_FLOATING_OBJECTS) )
-        {
-            if ( gAirGroups > 1 )
-            {
-                checkAndRemoveBubbles();
-            }
-        }
-        // 2%
-        UPDATE_PROGRESS(0.80f*PG_MAKE_FACES);
-
-        // 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
-        //    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
-        // These are good to do next, as we want to build up all material before carving away.
-        // If two different groups are welded together, add them to the same meta group.
-        // Note that a single group can have non-manifold geometry, so this test must always be done (if flagged)
-        // Also, check if when a block is next to be added, would it *make* another manifold edge? If so, pass it by until
-        // we're desperate. If any like this are added, need to run manifold again (but do this later, after joining tips
-        // below).
-        do
-        {
-            if ( gOptions->exportFlags & EXPT_CONNECT_PARTS )
-            {
-                foundTouching = fixTouchingEdges();
-            }
-
-            // 4) Unattached corners. While it's perfectly legal to have blocks touch at corner tips, the object might fall apart
-            //    when created. Option: weld such blocks together if they're part of different groups.
-            // This is why we need metagroups, because holes could get filled and groups get joined.
-            // If there is only one solid original group, we don't have to do this test.
-            // We do this after doing edge part connections: our pass here puts in one block that will then get joined to
-            // other parts out there, by edge welding. We add *after* because we want parts to get connected "normally" by
-            // connecting edges.
-            if ( gOptions->exportFlags & EXPT_CONNECT_CORNER_TIPS )
-            {
-                assert( gOptions->exportFlags & EXPT_CONNECT_PARTS );
-                if ( gSolidGroups > 1 )
-                {
-                    foundTouching |= connectCornerTips();
-                }
-            }
-
-            // run again if any non-manifold made manifold.
-            // we must process until we find *no* non-manifold edges that are fixed. Fixing can create
-            // more non-manifold (touching) edges.
-        } while ( foundTouching );
-
-        // 3.5%
-        UPDATE_PROGRESS(0.85f*PG_MAKE_FACES);
-
-
-        // 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
-        //    Fix by deleting any groups of objects smaller than 16 blocks that don't touch the ground. 16 is chosen as
-        //    16 blocks is the minimum to make a chain link at the end of a chain (a 5x5 square minus the 3x3 middle),
-        //    which *is* legal.
-        // Now delete any tiny objects, unless there's only one group
-        // Make this an option, as a person could be making "charms" and having
-        // a bunch of little objects in a single order.
-        if ( gOptions->exportFlags & EXPT_DELETE_FLOATING_OBJECTS )
-        {
-            // delete only if there's more than one solid group. One solid group means this is the object to output.
-            if ( gSolidGroups > 1 )
-            {
-                // delete only groups that have a min Y > the base gMinY+1 level, i.e. aren't at ground level
-                // OR delete tree (even at ground level - who wants a tree that will fall over?).
-                deleteFloatingGroups();
-            }
-
-            // it's possible that all groups are deleted
-            if ( gSolidGroups == 0 )
-            {
-                retCode |= MW_ALL_BLOCKS_DELETED;
-                goto Exit;
-            }
-        }
-
-        // if debug for groups is on, and materials are being output, then
-        // change the alpha for the largest group to be semitransparent. In
-        // this way you can see the small groups left over much more easily.
-        // Set this while gGroupList is still around.
-        if ( (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
-            (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS) )
-        {
-            int groupMaxID=-1;
-            int maxPop = -1;
-            int i;
-            for ( i = 0; i <= gGroupCount; i++ )
-            {
-                if ( gGroupList[i].population > maxPop && gGroupList[i].solid )
-                {
-                    groupMaxID = gGroupList[i].groupID;
-                    maxPop = gGroupList[i].population;
-                }
-            }
-            assert(groupMaxID>=0);
-            // now we know which group is the largest. Set its
-            // alpha to semitransparent when material and texture are
-            // output
-            gDebugTransparentType = getMaterialUsingGroup(groupMaxID);
-        }
-
-Exit:
-        free(gGroupList);
-    }
-    return retCode;
+	return retCode;
 }
 
 // returns false if the location box doesn't overlap the selected volume
@@ -17072,6 +17082,7 @@ static int writeSchematicBox()
         float globalT = progressStart + progressOffset*localT;
         UPDATE_PROGRESS( globalT );
 
+		// note: the *Incr values are either -1 or 1, depending on rotation
         for ( loc[Z] = zStart; loc[Z]*zIncr <= zEnd*zIncr; loc[Z]+=zIncr )
         {
             for ( loc[X] = xStart; loc[X]*xIncr <= xEnd*xIncr; loc[X]+=xIncr )
@@ -17102,8 +17113,8 @@ static int writeSchematicBox()
                         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
                     }
                 }
-                *block_ptr++ = type;
-                *blockData_ptr++ = data;
+				*block_ptr++ = type;
+				*blockData_ptr++ = data;
             }
         }
     }
@@ -17408,7 +17419,7 @@ static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox
         {
             sprintf_s(warningString,256,"%s", (gModel.scale < gMtlCostTable[gPhysMtl].minWall) ? " *** WARNING, thin wall ***" : "" );
             sprintf_s(outputString,256,
-                "#   if made using the %s material:     $ %0.2f%s\n",
+                "#   if made using the %s material:     %0.2f%s\n",	// TODO: could add custom material currency symbol
                 gMtlCostTable[gPhysMtl].name,
                 computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount ),
                 warningString);
@@ -18660,7 +18671,7 @@ static double myrand()
 //=============================================
 
 // return 0 if nothing found in volume
-int GetMinimumSelectionHeight(const wchar_t *world, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent)
+int GetMinimumSelectionHeight(const wchar_t *world, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent)
 {
 	int minHeightFound = 256;
 
@@ -18683,7 +18694,13 @@ int GetMinimumSelectionHeight(const wchar_t *world, int minx, int minz, int maxx
 	{
 		for (int blockZ = edgestartzblock; blockZ <= edgeendzblock; blockZ++)
 		{
-			int heightFound = analyzeChunk(world, blockX, blockZ, minx, 0, minz, maxx, 255, maxz, ignoreTransparent);
+			if (pOptions == NULL) {
+				pOptions = pOptions;
+			}
+if (blockX == 29 && blockZ == -61) {
+	blockZ = blockZ + 1 - 1;
+}
+			int heightFound = analyzeChunk(world, pOptions, blockX, blockZ, minx, 0, minz, maxx, 255, maxz, ignoreTransparent);
 			if (heightFound < minHeightFound)
 			{
 				minHeightFound = heightFound;
@@ -18695,7 +18712,7 @@ int GetMinimumSelectionHeight(const wchar_t *world, int minx, int minz, int maxx
 }
 
 // find first (optional: non-transparent) block visible from above
-static int analyzeChunk(const wchar_t *world, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent)
+static int analyzeChunk(const wchar_t *world, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent)
 {
 	int minHeight = 256;
 
@@ -18715,11 +18732,11 @@ static int analyzeChunk(const wchar_t *world, int bx, int bz, int minx, int miny
 		wchar_t directory[256];
 		wcsncpy_s(directory, 256, world, 255);
 		wcscat_s(directory, 256, L"/");
-		if (gOptions->worldType&HELL)
+		if (pOptions->worldType&HELL)
 		{
 			wcscat_s(directory, 256, L"DIM-1/");
 		}
-		if (gOptions->worldType&ENDER)
+		if (pOptions->worldType&ENDER)
 		{
 			wcscat_s(directory, 256, L"DIM1/");
 		}

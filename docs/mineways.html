@@ -148,7 +148,7 @@ If you can't find your world in the list, you can select "Find your world..." at
 <P>
 <b>File | Import Settings:</b> If you've previously exported data from your world, you can actually select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. This will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen.
 <P>
-When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for export settings specific to OBJ files, such as material output). This feature is backwards compatible to Mineways 2.0, though of course features added since then will be given default values. A noticeable change in 5.01 is that the "Create composite overlay faces" option is off by default; files from before 5.01 will read in but not change this option to on (which is what was used in 5.00 and earlier to export the model).
+When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for export settings specific to OBJ files, such as material output). This feature is backwards compatible to Mineways 2.0, though of course features added since then will be given default values. A noticeable change in 5.01 is that the <a href="#composite">"Create composite overlay faces"</a> is off by default; files from before 5.01 will read in but not change this option to on (which is what was used in 5.00 and earlier to export the model).
 <P>
 One other extremely useful type of file that Import Settings can read in is a script file, which can automatically perform all sorts of operations, including a powerful system for modifying blocks during export. See <a href="scripting.html">the scripting documentation</a> for more information.
 </P>
@@ -307,34 +307,40 @@ To make terrainExt.png files yourself, use the <a href="#tilemaker">TileMaker</a
   <div class="textureBox">
     <a href="images/zen_default.jpg">
     <img src="images/thumb_zen_default.jpg"></a>
-    <span> Default Minecraft textures, plus flame </span>
+    <span> Default Minecraft textures</span><span>&nbsp;</span>
+	<b><a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
     <a href="images/zen_coterie_craft.jpg">
     <img src="images/thumb_zen_coterie_craft.jpg"></a>
     <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a><span>by Cpt. Corn<span>
+	<b><a href="https://sketchfab.com/models/fa71f250ca53407ea443ae03fbef8ba3">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
     <a href="images/zen_dokucraft_high.jpg">
     <img src="images/thumb_zen_dokucraft_high.jpg"></a>
-    <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft High</a><br>by Hickerydickery
+    <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft High</a><span>by Hickerydickery</span>
+	<b><a href="https://skfb.ly/QsDZ">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
-    <a href="images/zen_lb_photo_realism.jpg">
-    <img src="images/thumb_zen_lb_photo_realism.jpg"></a>
+    <a href="images/zen_dokucraft_light.jpg">
+    <img src="images/thumb_zen_dokucraft_light.jpg"></a>
+    <a href="http://www.minecraftforum.net/topic/513093-11-dokucraft-the-saga-continues-32x/">DokuCraft Light</a><span>by Hickerydickery</span>
+	<b><a href="https://skfb.ly/QsEH">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_modern_hd.jpg">
+    <img src="images/thumb_zen_modern_hd.jpg"></a>
     <a href="http://resourcepack.net/modern-hd-resource-pack/">Modern HD</a>
     <span>by Mikeyto1o</span>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_quandary_ar.jpg">
-    <img src="images/thumb_zen_quandary_ar.jpg"></a>
-    <a href="http://vokselia.com">Quandary Ancient Roots</a>
+	<b><a href="https://skfb.ly/QsEL">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
     <a href="images/zen_sphax_pure_bd_craft.jpg">
     <img src="images/thumb_zen_sphax_pure_bd_craft.jpg"></a>
     <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a>
     <span>by Sphax84</span>
+	<b><a href="https://skfb.ly/Q8rU">View on Sketchfab</a></b>
   </div>
 </div>
 
@@ -393,6 +399,20 @@ You can also interactively compare these sampling methods <a href="https://skfb.
 <b><a id="composite">Create composite overlay faces:</a></b> For 3D printing there cannot be "floating" cutout tiles such as vines, ladders, rails, etc. These block types are overlaid atop the underlying block and a new "composite" texture is saved and used. This process must be done for 3D printing. For rendering it is an option. The advantage of leaving this option off is that the result more closely matches Minecraft itself, and that each object has its own material. It also means that all render files exported could use single set of PNG textures, since no composite textures are created. The main drawback of having this option off is that you may encounter z-fighting problems, stray shadows, or other artifacts in your renderings.
 <P>
 This option was on by default for rendering up to version 5.00 of Mineways (really, it could not be turned off); as of 5.01 this option is off by default.
+<P>
+<div id="textureImgsSet">
+  <div id="textureImgs">
+    <div class="textureImg">
+      <img src="images/composite_off.jpg">
+      <span class="caption">Create composite option off (the default). The ladders, rails, and lily pad float a bit above the surface.</span>
+    </div>
+    <div class="textureImg">
+      <img src="images/composite_on.jpg">
+      <span class="caption">Create composite option on. Note how the ladders, rails, and lily pad are attached to the surface.</span>
+    </div>
+  </div>
+</div>
+
 <P>
 <a id="center_model">
 <b>Center model around the origin:</b></a> when checked, the center of the bottom of the model is put at the origin, location (0,0,0). This helps for import into some renderers, and can improve the floating-point resolution of the data. If you want to instead have the same coordinate values as in your world, uncheck this box (you might also want to set the "Make each block" size to whatever you like). Unchecking this option is useful if you do multiple exports from the same world for rendering and want them to use the same coordinate space. Multiple exports are a way to get around the export size limits for the 32-bit version of Mineways, which is what runs on the Mac.
@@ -460,7 +480,8 @@ to thicken the model in the right direction. Don't forget to put this new WRL in
 <B>Physical material:</B> choosing a material here from among the more sensible <a href="http://www.shapeways.com/materials/">Shapeways material options</a> sets the default wall thickness and constrains the "Aim for a cost" option. It also ensures that the price is computed for that material and output in the top of the model file (or associated *.txt file, for STL output). <b>Key tip:</b> if you look at your export file (.OBJ, .WRL, or for STL the .TXT file) in a text editor, you'll find all sorts of useful information about the model and how you generated it.
 <P>
 The "White &amp; Flexible" material has a smaller minimum wall thickness compared to "Colored Sandstone" (0.7 mm vs. 2.0 mm), so much smaller (and cheaper) models can be created in it. White &amp; flexible is plastic and pretty durable, colored sandstone is heavier, <a href="http://www.youtube.com/watch?v=o-yeV4tTTKE">fairly strong, but brittle</a>. Shapeways has <a href="http://www.shapeways.com/tutorials/painting3dprintedsls">a tutorial on how to paint this white plastic material</a>, which can be fun in itself. Note that the <a href="http://www.shapeways.com/design-rules/ceramics">ceramics material</a> has a <i>maximum</i> wall thickness of 15 mm, something Mineways does not check; this material is also the only one where you are charged by surface area instead of volume (which Mineways does compute).
-
+<P>
+The "Custom Printer" material is used for STL export. By default, it is set to show the approximate cost of a print for 1.75 mm PLA priced at $24 for a 1 kilogram spool. The cost numbers are modifiable by using a script. See the <a href="scripting.html#soc">scripting commands for "Custom printer" for how to set new cost values.
 <P>
 <B>Model's units:</B> when a model is saved, the values stored in the file are not in any particular units, like meters or inches. However, 3D printers need this scale for printing the model. Millimeters are assumed, as this is what Shapeways uses by default. For other services and printers, other units are assumed. Here's a brief rundown:
 <UL>
@@ -957,12 +978,11 @@ One other thing you may wish to do is material cleanup. On the Sketchfab Materia
 Here's an example of Sketchfab in action, a model I uploaded. Click on the window and you can interact with it. More models <a href="https://sketchfab.com/erich/folders/mineways">here</a> and <a href="https://sketchfab.com/tags/minecraft">here</a>.
 <P>
 <div>
-<iframe width="1280" height="960" src="https://sketchfab.com/models/3006e83fb72841d7bcf5e3ed3d1b34d0/embed" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" onmousewheel=""></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
-    <a href="https://sketchfab.com/models/3006e83fb72841d7bcf5e3ed3d1b34d0?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Community Station</a>
+<iframe width="1280" height="960" src="https://sketchfab.com/models/4e754893c97a4254984a0fd637742379/embed" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" onmousewheel=""></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
+    <a href="https://sketchfab.com/models/4e754893c97a4254984a0fd637742379?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Community Station</a>
     by <a href="https://sketchfab.com/erich?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">erich</a>
     on <a href="https://sketchfab.com?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Sketchfab</a>
 </div>
-
 <P><H2 id="print_services">
 3D Print Services
 </H2>
@@ -1033,6 +1053,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://www.mcedit-unified.net/">MCEdit Unified</a> lets you make large-scale changes on your world; <a href="http://www.mcedit.net/">documentation here</a>. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files from sites such as <a href="http://www.mcschematics.com/">this</a>. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. 
 <LI><a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from MCEdit in that it is a plug-in to Minecraft, while MCEdit is standalone.
 <LI><a href="http://voxelsniper.wikia.com/wiki/VoxelSniper_Wiki">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
+<LI><a href="http://www.stuffbydavid.com/mineimator">Mine-imator</a> is a self-contained Minecraft video animation system. It can read in and view schematic files, among much else. <a href="http://www.stuffbydavid.com/dl/mineimator-installer">Direct download</a> to avoid scammy pop-ups.
 <LI><a href="http://www.diamondpants.com/spritecraft/">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
 <LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="http://www.realtimerendering.com/erich/minecraft/public/vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Programs_and_editors/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5533030544811105330">guardian</a>, and <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5544034260231691970">hopper</a>, among other models.
 <LI><a href="http://tinkercad.com">TinkerCAD</a> is an online CAD program. You can now <a href="http://blog.tinkercad.com/2013/08/15/tinkercraft/">export <i>to</i> Minecraft from it</a> - try the "Download for Minecraft" feature, <a href="http://blog.tinkercad.com/2016/03/10/5707/">now with materials</a>. You can also search for <a href="https://www.tinkercad.com/search/?q=minecraft">Minecraft-related objects</a>.
@@ -1055,7 +1076,7 @@ For something amazing, <a href="https://www.youtube.com/watch?v=ldiISyKkGl8">che
 
 <h3 id="packages">Other Packages</h3>
 <p>
-Mineways is not the first to offer a Minecraft model exporter, nor the best for export for rendering. Minepedia has a <a href="http://minecraft.gamepedia.com/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services. They may fit your needs better than Mineways:
+Mineways is not the first to offer a Minecraft model exporter, nor necessarily the best for export for rendering. Minepedia has a <a href="http://minecraft.gamepedia.com/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services. They may fit your needs better than Mineways:
 </p><ul>
 <li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home printers for the most part, since the STL comes without any colors.
 
@@ -1067,7 +1088,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are actually textured, so 3D print out with more than just simple flat surfaces.
 
-</li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways. But, that's old - just use the <a href="#sketchfab">Publish to Sketchfab</a> option in Mineways.
+</li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways. But, that's old - just use the <a href="#sketchfab">Publish to Sketchfab</a> option in Mineways. Lots of <a href="https://sketchfab.com/tags/minecraft">Minecraft models are viewable</a>.
 
 </li><li><a href="http://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. I don't know how it compares to jmc2obj. If you use Blender, give both a try.
 
@@ -1079,7 +1100,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor the best for 
 
 </li><li><a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">Minecraft world exporter</a> - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
 
-</li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
+</li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. <a href="http://ephtracy.github.io/index.html?page=mv_renderer">MagicaVoxel Viewer</a> reads in schematic files and does a nice job displaying the blocks (always as full blocks, though, no detail). Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is snappy. A very cool thing is that it works in multiplayer, and you don't need access to the world files! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>, perhaps fixed by now. But, this software can all but improve over time - if it gets people trying out 3D printing, great! <a href="http://www.wired.com/2012/11/3-d-printed-minecraft/">Photos and more here</a>.
 
@@ -1222,10 +1243,10 @@ There are two main modes of export: for rendering and for 3D printing. These mai
 <P>
 If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the <a href="http://minecraft.gamepedia.com/Block_ids">block IDs</a> to select and export whatever block types in whatever mode you want. Alternately, you could <a href="http://www.minecraftforum.net/forums/mapping-and-modding/resource-packs/1243823-1-10-qmagnets-test-map-for-resource-packs-and-map">download this map</a>.
 <P>
-Here's what Mineways exports as of version 4.14:
+Here's what Mineways exports as of version 5.01:
 <div>
-<iframe width="1280" height="960" src="https://sketchfab.com/models/48ae68759ab84897a5db4ac7cab9330b/embed" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" onmousewheel=""></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
-    <a href="https://sketchfab.com/models/48ae68759ab84897a5db4ac7cab9330b?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Material Sampler</a>
+<iframe width="1280" height="960" src="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac/embed" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" onmousewheel=""></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
+    <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Material Sampler</a>
     by <a href="https://sketchfab.com/erich?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Eric Haines</a>
     on <a href="https://sketchfab.com?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Sketchfab</a>
 </p>
@@ -2202,7 +2223,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Cleaned up step export for 3D printing, when using the "lesser blocks" mode. A few less faces are now exported when adjoining stair blocks match exactly, which may help some 3D printer slicers get it right.
 <LI>Lots of other little changes, hopefully for the better.
 </UL>
-<LI>Version 5.01, 7/5/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV501.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 5.01, 7/5/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV501.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac501.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annotation_cycle=8">this model</a> for a runthrough of the improvements made to rendering export.
 <UL>
@@ -2238,7 +2259,23 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>New icon! <i>(thanks to JMY1000 for <a href="https://github.com/erich666/Mineways/issues/12">the idea</a>)</i>
 </UL>
 
-<LI>Version 5.02, X/X/2016 - in the pipeline, no promises.
+<LI>Version 5.02, 8/4/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV502.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac502.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Critical bug fix: properly find minimum height when selection is performed.
+<LI>Critical bug fix: schematic file export broken due to filtering out smaller blocks.
+<LI>Bug fix: Import Settings now will properly read in STL ".txt" information files, so work can be resumed.
+<LI>Bug fix: scripting export of schematic files now properly saves as a schematic.
+<LI>Bug fix: when a new world is loaded, properly display reset slider depths.
+<LI>Bug fix: ignore case when comparing most strings in scripting system.
+<LI>Improvement (I hope): "Custom printer" material added and used by STL export, set to PLA characteristics by default.
+<UL>
+<LI>Costs for volume, handling, etc., currency, and minimum wall size can be set by using <a href="scripting.html#soc">script commands</a>.
+</UL>
+<LI>Hardened clay (#159) changed to stained clay; tinted clay (#172) changed to hardened clay.
+</UL>
+
+<LI>Version 5.03, X/X/20XX - may include:
 <UL>
 <LI>Schematic as world import.
 <LI>Export texture to individual tiles.
@@ -2321,7 +2358,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 7/5/2016</p>
+		<p id="lastUpdate">Last updated 8/4/2016</p>
 	</div>
 </div>
 

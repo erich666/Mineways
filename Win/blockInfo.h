@@ -81,17 +81,20 @@ extern bool gDebug;
 
 // TODO: yes, this is dumb, we have a separate static mtlCostTable for every code file that includes this .h file.
 
-// https://www.shapeways.com/materials - I left out gold and platinum; 14 is about the maximum usable length
+// https://www.shapeways.com/materials - I left out gold and platinum; 14 is about the maximum usable length, after that the dialog scrolls, which is confusing
 #define MTL_COST_TABLE_SIZE 14
 
 #define PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE 0
 #define PRINT_MATERIAL_FULL_COLOR_SANDSTONE 1
-#define PRINT_MATERIAL_FCS_SCULPTEO (MTL_COST_TABLE_SIZE-1)
+// last one can be set to whatever you like
+#define PRINT_MATERIAL_CUSTOM_MATERIAL 13
+#define PRINT_MATERIAL_FCS_SCULPTEO (PRINT_MATERIAL_CUSTOM_MATERIAL-1)
 
 typedef struct MaterialCost {
     // lame on my part: we really shouldn't be using wide characters in the dialog TODO
     wchar_t *wname;
     char *name;
+	wchar_t *currency;
     // minimum recommended wall thickness in mm, though usually you want to go 50% or more above this
     // Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
     // White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
@@ -648,7 +651,7 @@ enum block_types {
     BLOCK_ACTIVATOR_RAIL = 0x9D,
     BLOCK_DROPPER = 0x9E,
     // 1.6 & 1.7.2
-    BLOCK_STAINED_CLAY = 0x9F,
+    BLOCK_STAINED_CLAY = 159,	// now called hardened clay
     BLOCK_STAINED_GLASS_PANE = 0xA0,
     BLOCK_AD_LEAVES = 0xA1,
     BLOCK_AD_LOG = 0xA2,

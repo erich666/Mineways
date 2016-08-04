@@ -173,6 +173,7 @@ static HCURSOR gNwseCursor = NULL;
 static wchar_t gSchemeSelected[255];
 
 static int gImportFilterIndex = 1;
+static int gOpenFilterIndex = 1;
 
 static bool gScriptExportWarning = false;
 
@@ -186,6 +187,8 @@ static int gArgCount = 0;
 static LPWSTR *gArgList = NULL;
 
 static HANDLE gExecutionLogfile = 0x0;
+
+static wchar_t *gCustomCurrency = NULL;
 
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
@@ -310,6 +313,7 @@ static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
 static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
+static int loadSchematic(HWND hWnd, wchar_t *pathAndFile);
 static int loadWorld(HWND hWnd);
 static int setWorldPath(TCHAR *path);
 //static void homePathMac(TCHAR *path);
@@ -1017,7 +1021,7 @@ RButtonUp:
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
 			assert(on);
-			int minHeightFound = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, true);
+			int minHeightFound = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, true);
 			if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
@@ -1325,7 +1329,7 @@ RButtonUp:
 				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 				if (on) {
 					bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
-					gTargetDepth = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, useOnlyOpaque);
+					gTargetDepth = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque);
 					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
 					REDRAW_ALL;
 				}
@@ -1499,43 +1503,65 @@ RButtonUp:
 			ofn.lpstrFile = pathAndFile;
 			ofn.lpstrFile[0] = (wchar_t)0;
 			ofn.nMaxFile = sizeof(pathAndFile);
-            ofn.lpstrFilter = L"Minecraft World (level.dat)\0level.dat\0";
-            ofn.nFilterIndex = 1;
+			ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
+			//ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
+			ofn.nFilterIndex = gOpenFilterIndex;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;
 			ofn.lpstrInitialDir = gWorldPathCurrent;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-            if (GetOpenFileName(&ofn)==TRUE)
-            {
-				PathRemoveFileSpec(pathAndFile);
+			if (GetOpenFileName(&ofn) == TRUE)
+			{
 				// first, "rationalize" the gWorld name: make it all \'s or all /'s, not both.
 				// This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
 				rationalizeFilePath(pathAndFile);
 
-				//convert path to utf8
-                //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorld,MAX_PATH,NULL,NULL);
-				gSameWorld = (wcscmp(gWorld, pathAndFile) == 0);
-				wcscpy_s(gWorld, MAX_PATH, pathAndFile);
+				// schematic or world?
+				wchar_t filename[MAX_PATH];
+				splitToPathAndName(pathAndFile, NULL, filename);
+				size_t len = wcslen(filename);
+				if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+					// Read schematic as a world.
 
-                // if this is not the same world, switch back to the aboveground view.
-                if (!gSameWorld)
-                {
-                    gotoSurface( hWnd, hwndSlider, hwndLabel);
-                }
+					if (loadSchematic(hWnd, pathAndFile)) {
+						// schematic world not loaded properly
+						MessageBox(NULL, _T("Error: cannot read Minecraft schematic."),
+							_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
-                UpdateWindow(hWnd);
-				if (loadWorld(hWnd))
-                {
-                    // world not loaded properly
-                    MessageBox( NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
-						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+						return 0;
+					}
+					UpdateWindow(hWnd);
+				}
+				else {
+					// read level.dat normal world
 
-                    return 0;
-                }
+					PathRemoveFileSpec(pathAndFile);
+					//convert path to utf8
+					//WideCharToMultiByte(CP_UTF8,0,path,-1,gWorld,MAX_PATH,NULL,NULL);
+					gSameWorld = (wcscmp(gWorld, pathAndFile) == 0);
+					wcscpy_s(gWorld, MAX_PATH, pathAndFile);
+
+					// if this is not the same world, switch back to the aboveground view.
+					if (!gSameWorld)
+					{
+						gotoSurface(hWnd, hwndSlider, hwndLabel);
+					}
+
+					UpdateWindow(hWnd);
+					if (loadWorld(hWnd))
+					{
+						// world not loaded properly
+						MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
+							_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+
+						return 0;
+					}
+				}
 				setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
             }
-            break;
+			gOpenFilterIndex = ofn.nFilterIndex;
+			break;
         case IDM_FILE_SELECTTERRAIN:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
@@ -2029,6 +2055,10 @@ static void closeMineways()
 			gWorlds[i] = NULL;
 		}
 	}
+	if (gCustomCurrency != NULL) {
+		free(gCustomCurrency);
+		gCustomCurrency = NULL;
+	}
 	Cache_Empty();
 
 	PostQuitMessage(0);
@@ -2185,10 +2215,10 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
 		EnableWindow(hwndInfoLabel, TRUE);
 		EnableWindow(hwndBottomSlider, TRUE);
 		EnableWindow(hwndBottomLabel, TRUE);
-		setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-		setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
-		validateItems(GetMenu(hWnd));
 	}
+	setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+	setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+	validateItems(GetMenu(hWnd));
 	drawInvalidateUpdate(hWnd);
 }
 
@@ -2454,6 +2484,18 @@ static void draw()
         map[i+2]^=map[i];
         map[i]^=map[i+2];
     }
+}
+
+static int loadSchematic(HWND /*hWnd*/, wchar_t * /*pathAndFile*/)
+{
+	// Always read again, even if read before, and recenter.
+	// Set spawn and player location to center of model.
+	// Read whole schematic in, then 
+	CloseAll();
+
+	// MAJOR TODO, WIP.
+
+	return 0;
 }
 
 // return 1 or 2 or higher if world could not be loaded
@@ -3174,14 +3216,16 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // export all
     if ( gpEFD->chkExportAll )
     {
-        if ( printModel )
+        if ( printModel == 1 )
         {
-            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+			// 3d printing
+			gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
                 BLF_FLATSIDE | BLF_3D_BIT;
         }
         else
         {
-            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+			// rendering or schematic
+			gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
                 BLF_FLATSIDE | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
         }
     }
@@ -3395,18 +3439,25 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 
         // output stats, if printing and there *are* stats
 		if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
-            // is Shapeways or Sculpteo file type?
-            (gOptions.pEFD->fileType == FILE_TYPE_VRML2 || gOptions.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gOptions.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+            // is not schematic?
+            (gOptions.pEFD->fileType != FILE_TYPE_SCHEMATIC))
         {
+			wchar_t *currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
+			if (gCustomCurrency != NULL &&
+				gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL )
+			{
+				currency = gCustomCurrency;
+			}
             int retval;
             wchar_t msgString[2000];
-            swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is $ %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                gOptions.cost,
+            swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+				currency,
+				gOptions.cost,
                 gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
                 gOptions.block_mm, gOptions.block_inch,
                 gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1], 
                 gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1], 
-                gOptions.totalBlocks );
+				gOptions.totalBlocks, gOptions.totalBlocks*gOptions.block_mm*gOptions.block_mm*gOptions.block_mm/1000.0f);
             retval = MessageBox( NULL, msgString,
 				_T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
             if ( retval != IDYES )
@@ -3419,7 +3470,10 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         {
             PopupErrorDialogs( errCode );
         }
-    }
+		// clear progress bar
+		if (*updateProgress)
+			(*updateProgress)(0.0f);
+	}
 
     return retCode;
 }
@@ -3556,9 +3610,9 @@ static void initializePrintExportData(ExportFileData &printData)
 	INIT_ALL_FILE_TYPES(printData.blockSizeVal,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
 	printData.costVal = 25.00f;
@@ -3588,14 +3642,14 @@ static void initializePrintExportData(ExportFileData &printData)
 	INIT_ALL_FILE_TYPES(printData.hollowThicknessVal,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
 		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
+		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
 
 	// materials selected
-	INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+	INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
 	// defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
 	INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_CENTIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
@@ -3653,7 +3707,7 @@ static void initializeViewExportData(ExportFileData &viewData)
 	viewData.floaterCountVal = 16;
     // irrelevant for viewing
 	INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
-    INIT_ALL_FILE_TYPES( viewData.comboPhysicalMaterial,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FCS_SCULPTEO,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE,PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+	INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     INIT_ALL_FILE_TYPES( viewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
@@ -3667,6 +3721,7 @@ static void InitializeSchematicExportData(ExportFileData &schematicData)
 	//////////////////////////////////////////////////////
 	// copy schematic data from view, and change what's needed
 	initializeViewExportData(schematicData);
+	schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
 	schematicData.chkMergeFlattop = 0;
 }
 
@@ -3823,6 +3878,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 	bool exported = false;
 	if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
 		(strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
+		(strstr(lineString, "# Minecraft world:") != NULL) ||	// stl
 		(strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
 		exported = true;
 
@@ -4535,7 +4591,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 			&v[3], &v[4], &v[5])) {
 			if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1)))
 			{
-				if (strcmp(string1, "none") == 0) {
+				if (_stricmp(string1, "none") == 0) {
 					noSelection = true;
 				}
 				else {
@@ -4608,7 +4664,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 		}
 		for (i = 0; i < MODELS_UNITS_TABLE_SIZE; i++)
 		{
-			if (strcmp(gUnitTypeTable[i].name, string1) == 0)
+			if (_stricmp(gUnitTypeTable[i].name, string1) == 0)
 			{
 				if (is.processData)
 					is.pEFD->comboModelUnits[is.pEFD->fileType] = i;
@@ -4640,7 +4696,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 		};
 		for (i = 0; i < 4; i++)
 		{
-			if (strcmp(outputTypeString[i], string1) == 0)
+			if (_stricmp(outputTypeString[i], string1) == 0)
 			{
 				break;
 			}
@@ -4876,6 +4932,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
 	strPtr = findLineDataNoCase(line, "Scale model by ");
 	if (strPtr != NULL) {
+		bool materialSet = false;
 		is.pEFD->radioScaleByBlock = is.pEFD->radioScaleByCost = is.pEFD->radioScaleToHeight = is.pEFD->radioScaleToMaterial = 0;
 		// oddly, "making each block 100 mmm high" passes - maybe the end of the string is ignored after %f?
 		if (1 == sscanf_s(strPtr, "making each block %f mm high", &floatVal))
@@ -4895,7 +4952,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
 			if (5 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
 			{
-				if (strcmp(string4, "material") != 0)
+				if (_stricmp(string4, "material") != 0)
 				{
 					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 				}
@@ -4910,12 +4967,13 @@ static int interpretImportLine(char *line, ImportedSet & is)
 					is.pEFD->radioScaleByCost = 1;
 					is.pEFD->costVal = floatVal;
 				}
+				materialSet = true;
 
 				goto SetPrintMaterialType;
 			}
 			else if (4 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
 			{
-				if (strcmp(string3, "material") != 0)
+				if (_stricmp(string3, "material") != 0)
 				{
 					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 				}
@@ -4928,12 +4986,13 @@ static int interpretImportLine(char *line, ImportedSet & is)
 					is.pEFD->radioScaleByCost = 1;
 					is.pEFD->costVal = floatVal;
 				}
+				materialSet = true;
 
 				goto SetPrintMaterialType;
 			}
 			else if (3 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2)))
 			{
-				if (strcmp(string2, "material") != 0)
+				if (_stricmp(string2, "material") != 0)
 				{
 					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 				}
@@ -4944,6 +5003,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 					is.pEFD->radioScaleByCost = 1;
 					is.pEFD->costVal = floatVal;
 				}
+				materialSet = true;
 
 				goto SetPrintMaterialType;
 			}
@@ -4964,7 +5024,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 				// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
 				if (4 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
 				{
-					if (strcmp(string4, "material") != 0)
+					if (_stricmp(string4, "material") != 0)
 					{
 						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 					}
@@ -4975,12 +5035,13 @@ static int interpretImportLine(char *line, ImportedSet & is)
 					if (is.processData) {
 						is.pEFD->radioScaleToMaterial = 1;
 					}
+					materialSet = true;
 
 					goto SetPrintMaterialType;
 				}
 				else if (3 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
 				{
-					if (strcmp(string3, "material") != 0)
+					if (_stricmp(string3, "material") != 0)
 					{
 						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 					}
@@ -4989,18 +5050,20 @@ static int interpretImportLine(char *line, ImportedSet & is)
 					if (is.processData) {
 						is.pEFD->radioScaleToMaterial = 1;
 					}
+					materialSet = true;
 
 					goto SetPrintMaterialType;
 				}
 				else if (2 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2)))
 				{
-					if (strcmp(string2, "material") != 0)
+					if (_stricmp(string2, "material") != 0)
 					{
 						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
 					}
 					if (is.processData) {
 						is.pEFD->radioScaleToMaterial = 1;
 					}
+					materialSet = true;
 
 					goto SetPrintMaterialType;
 				}
@@ -5011,11 +5074,12 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
 	SetPrintMaterialType:
 		// if by cost or by material, need to set the material type.
-		if (is.pEFD->radioScaleByCost || is.pEFD->radioScaleToMaterial)
+		if (materialSet)
 		{
 			for (i = 0; i < MTL_COST_TABLE_SIZE; i++)
 			{
-				if (strcmp(string1, gMtlCostTable[i].name) == 0)
+				// ignore case
+				if (_stricmp(string1, gMtlCostTable[i].name) == 0)
 				{
 					break;
 				}
@@ -5560,7 +5624,7 @@ enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel,
 						// "V" means ignore transparent blocks, such as ocean
 						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 						if (on) {
-							int heightFound = GetMinimumSelectionHeight(gWorld, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
+							int heightFound = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
 							if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
 								minHeight = heightFound > minHeight ? heightFound : minHeight;
 							}
@@ -5643,6 +5707,84 @@ enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel,
 		if (!is.processData) {
 			strcpy_s(is.logFileName, MAX_PATH, strPtr);
 			if (!openLogFile(is)) {
+				return INTERPRETER_FOUND_ERROR;
+			}
+		}
+		return INTERPRETER_FOUND_VALID_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Custom printer ");
+	if (strPtr != NULL) {
+		float floatVal, floatVal2, floatVal3;
+		char buf[MAX_PATH];
+		if (1 == sscanf_s(strPtr, "minimum wall thickness: %f", &floatVal))
+		{
+			if (is.processData) {
+				// this one is actually stored in meters.
+				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall = floatVal*MM_TO_METERS;
+				// for all exporters currently using this material, change their blockSizeVal to match this value.
+				for (int i = 0; i < 7; i++) {
+					// a bit sleazy, this happens directly on the 3d printer pEFDs
+					if (gExportPrintData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+						gExportPrintData.blockSizeVal[i] = floatVal;
+					if (gExportViewData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+						gExportViewData.blockSizeVal[i] = floatVal;
+				}
+			}
+		}
+		else if (1 == sscanf_s(strPtr, "cost per ccm: %f", &floatVal))
+		{
+			if (is.processData) {
+				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerCubicCentimeter = floatVal;
+			}
+		}
+		else if (1 == sscanf_s(strPtr, "cost per printer ccm: %f", &floatVal))
+		{
+			if (is.processData) {
+				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerMachineCC = floatVal;
+			}
+		}
+		else if (1 == sscanf_s(strPtr, "handling cost: %f", &floatVal))
+		{
+			if (is.processData) {
+				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costHandling = floatVal;
+			}
+		}
+		else if (1 == sscanf_s(strPtr, "minimum cost: %f", &floatVal))
+		{
+			if (is.processData) {
+				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costMinimum = floatVal;
+			}
+		}
+		else if (1 == sscanf_s(strPtr, "currency: %s", &buf, _countof(buf)))
+		{
+			if (is.processData) {
+				if (gCustomCurrency) {
+					free(gCustomCurrency);
+					gCustomCurrency = NULL;
+				}
+				size_t size = (strlen(buf) + 1)*sizeof(wchar_t);
+				gCustomCurrency = (wchar_t *)malloc(size);
+				size_t dummySize = 0;
+				mbstowcs_s(&dummySize, gCustomCurrency, size/2, buf, (size/2)-1);
+			}
+		}
+		else {
+			char cleanString[1024];
+			cleanStringForLocations(cleanString, strPtr);
+			if (3 == sscanf_s(cleanString, "maximum size: %f %f %f", &floatVal, &floatVal2, &floatVal3))
+			{
+				if (is.processData) {
+					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[0] = floatVal;
+					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[1] = floatVal2;
+					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[2] = floatVal3;
+				}
+			}
+
+			else {
+				wchar_t error[1024];
+				wsprintf(error, L"could not understand command %S", line);
+				saveErrorMessage(is, error);
 				return INTERPRETER_FOUND_ERROR;
 			}
 		}

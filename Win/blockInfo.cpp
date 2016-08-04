@@ -30,26 +30,28 @@ THE POSSIBILITY OF SUCH DAMAGE.
 bool gDebug = false;
 
 MaterialCost gMtlCostTable[MTL_COST_TABLE_SIZE]={
-    // wname                 name                  minWall in meters  minSum in meters    costH  costPerCCM cDens    cDisCCM  costMinimum?  costMachCC maxSizeCM (descending order)
-    { L"White & Flexible",   "white & flexible",   0.7f*MM_TO_METERS, 7.5f*MM_TO_METERS,  1.50f, 0.28f,    999.0f, 99999.0f,  1.50f*0.10f,  0.21f,     65.0f,55.0f,35.0f },
-    { L"Colored Sandstone",  "colored sandstone",  2.0f*MM_TO_METERS, 10.0f*MM_TO_METERS, 3.00f, 0.75f,    999.0f, 99999.0f,  3.00f*0.134f, 0.0f,      38.0f,25.0f,20.0f },
-    { L"Full Color Plastic", "full color plastic", 0.7f*MM_TO_METERS, 10.0f*MM_TO_METERS, 3.00f, 2.00f,    999.0f, 99999.0f,  3.00f*0.134f, 0.0f,      15.0f,15.0f,15.0f },
-    { L"Colored & Flexible", "colored & flexible", 0.7f*MM_TO_METERS, 7.5f*MM_TO_METERS,  2.25f, 0.28f,    999.0f, 99999.0f,  2.25f*0.10f,  0.21f,     65.0f,55.0f,35.0f },
-    { L"Brass/Bronze",       "brass/bronze",       0.8f*MM_TO_METERS, 3.4f*MM_TO_METERS,  10.0f, 16.0f,    999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
-    { L"Castable Wax",       "castable wax",       0.6f*MM_TO_METERS, 12.0f*MM_TO_METERS, 10.0f, 8.0f,     999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      75.0f,75.0f,50.0f },
-    { L"Ceramics",           "ceramics",           3.0f*MM_TO_METERS, 120.0f*MM_TO_METERS,6.00f, 0.35f,    999.0f, 99999.0f,  6.00f,        0.0f,      30.0f,22.0f,17.0f },
-    { L"Detailed Plastic",   "alumide/detail",	   1.0f*MM_TO_METERS, 6.25f*MM_TO_METERS, 2.50f, 2.99f,    999.0f, 99999.0f,  2.50f*0.10f,  0.0f,      25.0f,25.0f,20.0f },
-    { L"Elasto Plastic",     "elasto plastic",     0.8f*MM_TO_METERS, 10.0f*MM_TO_METERS, 1.50f, 0.42f,    999.0f, 99999.0f,  1.95f*0.10f,  0.26f,     30.0f,30.0f,25.0f },
-    { L"Frosted Detail",     "frosted detail",     0.5f*MM_TO_METERS, 12.0f*MM_TO_METERS, 5.00f, 2.39f,    999.0f, 99999.0f,  5.00f*0.10f,  0.0f,      28.4f,20.3f,18.4f },
+    // wname                 name                  Currency minWall in meters  minSum in meters    costH  costPerCCM cDens    cDisCCM  costMinimum?  costMachCC maxSizeCM (descending order)
+    { L"White & Flexible",   "white & flexible",   L"$", 0.7f*MM_TO_METERS, 7.5f*MM_TO_METERS,  1.50f, 0.28f,    999.0f, 99999.0f,  1.50f*0.10f,  0.21f,     65.0f,55.0f,35.0f },
+    { L"Colored Sandstone",  "colored sandstone",  L"$", 2.0f*MM_TO_METERS, 10.0f*MM_TO_METERS, 3.00f, 0.75f,    999.0f, 99999.0f,  3.00f*0.134f, 0.0f,      38.0f,25.0f,20.0f },
+    { L"Full Color Plastic", "full color plastic", L"$", 0.7f*MM_TO_METERS, 10.0f*MM_TO_METERS, 3.00f, 2.00f,    999.0f, 99999.0f,  3.00f*0.134f, 0.0f,      15.0f,15.0f,15.0f },
+    { L"Colored & Flexible", "colored & flexible", L"$", 0.7f*MM_TO_METERS, 7.5f*MM_TO_METERS,  2.25f, 0.28f,    999.0f, 99999.0f,  2.25f*0.10f,  0.21f,     65.0f,55.0f,35.0f },
+    { L"Brass/Bronze",       "brass/bronze",       L"$", 0.8f*MM_TO_METERS, 3.4f*MM_TO_METERS,  10.0f, 16.0f,    999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
+    { L"Castable Wax",       "castable wax",       L"$", 0.6f*MM_TO_METERS, 12.0f*MM_TO_METERS, 10.0f, 8.0f,     999.0f, 99999.0f, 10.0f *0.10f,  0.0f,      75.0f,75.0f,50.0f },
+    { L"Ceramics",           "ceramics",           L"$", 3.0f*MM_TO_METERS, 120.0f*MM_TO_METERS,6.00f, 0.35f,    999.0f, 99999.0f,  6.00f,        0.0f,      30.0f,22.0f,17.0f },
+    { L"Detailed Plastic",   "alumide/detail",	   L"$", 1.0f*MM_TO_METERS, 6.25f*MM_TO_METERS, 2.50f, 2.99f,    999.0f, 99999.0f,  2.50f*0.10f,  0.0f,      25.0f,25.0f,20.0f },
+    { L"Elasto Plastic",     "elasto plastic",     L"$", 0.8f*MM_TO_METERS, 10.0f*MM_TO_METERS, 1.50f, 0.42f,    999.0f, 99999.0f,  1.95f*0.10f,  0.26f,     30.0f,30.0f,25.0f },
+    { L"Frosted Detail",     "frosted detail",     L"$", 0.5f*MM_TO_METERS, 12.0f*MM_TO_METERS, 5.00f, 2.39f,    999.0f, 99999.0f,  5.00f*0.10f,  0.0f,      28.4f,20.3f,18.4f },
     // make the dialog usable: { L"Gold",               "gold",               0.8f*MM_TO_METERS, 5.4f*MM_TO_METERS,  50.0f,600.0f,    999.0f, 99999.0f, 50.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
-    { L"Metallic Plastic",   "metallic plastic",   0.8f*MM_TO_METERS, 7.5f*MM_TO_METERS,  1.50f, 0.56f,    999.0f, 99999.0f,  1.50f*0.10f,  0.32f,     31.0f,23.0f,18.0f },
+    //{ L"Metallic Plastic",   "metallic plastic",   0.8f*MM_TO_METERS, 7.5f*MM_TO_METERS,  1.50f, 0.56f,    999.0f, 99999.0f,  1.50f*0.10f,  0.32f,     31.0f,23.0f,18.0f },
     // make the dialog usable: { L"Platinum",           "platinum",           0.8f*MM_TO_METERS, 5.4f*MM_TO_METERS,  100.0f,1750.0f,  999.0f, 99999.0f, 100.0f*0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
-    { L"Silver",             "silver",             0.8f*MM_TO_METERS, 3.4f*MM_TO_METERS,  45.0f, 28.0f,    999.0f, 99999.0f, 45.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
-    { L"Steel",              "steel",              1.0f*MM_TO_METERS, 27.0f*MM_TO_METERS, 6.00f, 5.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,      76.2f,39.3f,39.3f },
+    { L"Silver",             "silver",             L"$", 0.8f*MM_TO_METERS, 3.4f*MM_TO_METERS,  45.0f, 28.0f,    999.0f, 99999.0f, 45.0f *0.10f,  0.0f,      10.0f, 8.9f, 8.9f },
+    { L"Steel",              "steel",              L"$", 1.0f*MM_TO_METERS, 27.0f*MM_TO_METERS, 6.00f, 5.00f,    999.0f, 99999.0f,  8.00f*0.10f,  0.0f,      76.2f,39.3f,39.3f },
     // old model, based on surface area: { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
     // I haven't figured out Sculpteo's cost model. Prices tend to be 20% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
     // With full-sized rectangular blocks, the costPerCCM is more like 1.05
-    { L"Sculpteo Multicolor","Sculpteo multicolor",2.0f*MM_TO_METERS, 0.0f,               3.00f, 1.20f*0.75f,   999.0f, 99999.0f,  3.00f,        0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
+	{ L"Sculpteo Multicolor", "Sculpteo multicolor", L"$", 2.0f*MM_TO_METERS, 0.0f*MM_TO_METERS, 3.00f, 1.20f*0.75f, 999.0f, 99999.0f, 3.00f,     0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
+	// typical home printer, 1.75 mm PLA: https://hwg.fictiv.com/fabricate/recommended-wall-thickness-for-3d-printing and http://www.fabbaloo.com/blog/2015/9/27/is-it-filament-weight-or-length
+	{ L"Custom Printer", "custom printer",       L"$", 1.5f*MM_TO_METERS,  0.0f*MM_TO_METERS,  0.00f, 0.03f,   999.0f, 99999.0f,  0.00f,        0.0f,      20.0f,20.0f,20.0f },	// Ultimaker, PLA
 };
 
 UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
