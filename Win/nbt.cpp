@@ -29,6 +29,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include <string.h>
 
+// We know we won't run into names longer than 100 characters. The old code was
+// safe, but was also allocating strings all the time - seems slow.
+#define MAX_NAME_LENGTH 100
+
+
 static void skipType(bfFile bf, int type);
 static void skipList(bfFile bf);
 static void skipCompound(bfFile bf);
@@ -244,18 +249,11 @@ static int compare(bfFile bf,char *name)
 {
     int ret=0;
     int len=readWord(bf);
-#ifdef C99
-    char thisName[len+1];
-#else
-    char *thisName=(char*)malloc(len+1);
-#endif
+    char thisName[MAX_NAME_LENGTH];
     bfread(bf,thisName,len);
     thisName[len]=0;
     if (strcmp(thisName,name)==0)
         ret=1;
-#ifndef C99
-    free(thisName);
-#endif
     return ret;
 }
 
@@ -280,10 +278,6 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     int len,nsections;
     int biome_save;
     //int found;
-
-#ifndef C99
-    char *thisName;
-#endif
 
     //Level/Blocks
     bfseek(bf,1,SEEK_CUR); //skip type
@@ -340,11 +334,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
             if (type==0) 
                 break;
             len=readWord(bf);
-#ifdef C99
-            char thisName[len+1];
-#else
-            thisName=(char *)malloc(len+1);
-#endif
+			char thisName[MAX_NAME_LENGTH];
             bfread(bf,thisName,len);
             thisName[len]=0;
             if (strcmp(thisName,"BlockLight")==0)
@@ -368,9 +358,6 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
                 len=readDword(bf); //array length
                 bfread(bf,data+16*16*8*y,len);
             }
-#ifndef C99
-            free(thisName);
-#endif
             if (!ret)
                 skipType(bf,type);
         }
@@ -500,6 +487,73 @@ void nbtGetPlayer(bfFile bf,int *px,int *py,int *pz)
     *py=(int)readDouble(bf);
     *pz=(int)readDouble(bf);
 }
+
+//////////// schematic
+//  http://minecraft.gamepedia.com/Schematic_file_format
+// return 1 if not found, 0 if all is well
+int nbtGetSchematicWord(bfFile bf, char *field, int *value)
+{
+	*value = 0x0; // initialize
+	int len;
+	//Data/version
+	bfseek(bf, 1, SEEK_CUR); //skip type
+	len = readWord(bf); //name length
+	bfseek(bf, len, SEEK_CUR); //skip name ()
+	if (nbtFindElement(bf, field) != 2) return 1;
+	*value = readWord(bf);
+	return 0;
+}
+
+// return 0 on success
+int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData)
+{
+	int len;
+	//Data/version
+	bfseek(bf, 1, SEEK_CUR); //skip type
+	len = readWord(bf); //name length
+	bfseek(bf, len, SEEK_CUR); //skip name ()
+
+	int found = 0;
+	while (found < 2)
+	{
+		int ret = 0;
+		unsigned char type = 0;
+		bfread(bf, &type, 1);
+		if (type == 0)
+			break;
+		len = readWord(bf);
+		char thisName[MAX_NAME_LENGTH];
+		bfread(bf, thisName, len);
+		thisName[len] = 0;
+		if (strcmp(thisName, "Blocks") == 0)
+		{
+			//found++;
+			ret = 1;
+			len = readDword(bf); //array length
+			// check that array is the right size
+			if (len != numBlocks)
+				return 1;
+			bfread(bf, schematicBlocks, len);
+			found++;
+		}
+		else if (strcmp(thisName, "Data") == 0)
+		{
+			//found++;
+			ret = 1;
+			len = readDword(bf); //array length
+			// check that array is the right size
+			if (len != numBlocks)
+				return 1;
+			bfread(bf, schematicBlockData, len);
+			found++;
+		}
+		if (!ret)
+			skipType(bf, type);
+	}
+	return ((found == 2) ? 0 : 1);
+}
+
+
 void nbtClose(bfFile bf)
 {
     if (bf.type == BF_GZIP)

@@ -712,6 +712,8 @@ enum block_types {
 	BLOCK_BONE_BLOCK = 0xD8,
 	BLOCK_STRUCTURE_VOID = 0xD9,
 
+	BLOCK_FAKE = 0xFE,	// I hope we never get this far
+
     BLOCK_STRUCTURE_BLOCK = 0xFF,
 
     BLOCK_UNKNOWN = (NUM_BLOCKS_STANDARD),

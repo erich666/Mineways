@@ -75,7 +75,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 </div>
 <UL>
 <LI><a href="#install">Installation</a> - simple!
-<LI><a href="#openworld">Open World</a> - how to view your world.
+<LI><a href="#openworld">Opening Worlds and Schematics</a> - how to view your world.
 <LI><a href="#map">Mapping</a> - lots of ways to change the view and what you see.
 <LI><a href="#select">Selecting a Region</a> - define a 3D box in your world for export.
 <LI><a href="#export">Exporting Models</a> - basics of exporting.
@@ -129,30 +129,37 @@ Uninstall: just delete the directory. If you created color schemes, there will b
 Double-click the mineways.exe to run the program.
 
 <H2 id="openworld">
-Opening Worlds
+Opening Worlds and Schematics
 </H2>
-There are many ways to open a Minecraft world in Mineways. If one doesn't work for you, try the next.
+There are many ways to open a Minecraft world or schematic file in Mineways. If one doesn't work for you, try the next.
 <P>
 <b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders.
 <P>
 <a id="blocktestworld">
 If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
 <P>
-Here's a view of a tiny piece of [Block Test World] exported to OBJ and viewed with <a href="#g3d">G3D</a>:
+Here's a view of a small portion of [Block Test World] exported to OBJ and rendered with Cinema 4D:
 <P>
 <img src="images/test_world.jpg">
 <P>
 If you can't find your world in the list, you can select "Find your world..." at the bottom, which is the same as doing...
 <P>
-<b>File | Open...:</b> Navigate to wherever your world is stored and select the level.dat file. On Windows, the default folder for saves is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/".
+<b>File | Open...:</b> This option is for opening schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". A pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g. rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
 <P>
-<b>File | Import Settings:</b> If you've previously exported data from your world, you can actually select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. This will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen.
+<b>File | Import Settings:</b> If you've previously exported a model from your world or schematic, you can actually select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. This will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen.
 <P>
 When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for export settings specific to OBJ files, such as material output). This feature is backwards compatible to Mineways 2.0, though of course features added since then will be given default values. A noticeable change in 5.01 is that the <a href="#composite">"Create composite overlay faces"</a> is off by default; files from before 5.01 will read in but not change this option to on (which is what was used in 5.00 and earlier to export the model).
 <P>
-One other extremely useful type of file that Import Settings can read in is a script file, which can automatically perform all sorts of operations, including a powerful system for modifying blocks during export. See <a href="scripting.html">the scripting documentation</a> for more information.
+One other extremely useful type of file that Import Settings can read in is a script file. You can create script files to automatically perform all sorts of operations, including special ways of modifying blocks during export. See <a href="scripting.html">the scripting documentation</a> for more information.
 </P>
-
+The first image is a schematic <i>pikachu7795240.schematic</i> loaded via "File | Open..." In the second the schematic is renamed <i>pikachu7795240repeat.schematic</i> and loaded. The word "repeat" in the file name tips off Mineways to repeat the object. Also, I typed Control-A to select a single copy of the schematic.
+<P>
+<img src="images/pika_single.jpg">
+<img src="images/pika_repeat.jpg">
+<P>
+Here is a 3x3 set of objects output and viewed with <a href="#g3d">G3D</a>:
+<P>
+<img src="images/pika_army.jpg">
 <H2 id="map">
 Mapping
 </H2>
@@ -204,16 +211,16 @@ The lower depth can be changed in a number of ways, even when no area is selecte
 <H2 id="export">
 Exporting Models
 </H2>
-If you want to render the model, select "Export for Rendering" from the File menu, or use control-R, and save your file. The resulting file(s) can then be imported into a huge variety of 3D modelers and viewers, e.g. <a href="http://blender.org">Blender</a>. See <a href="#rendering">this section</a> for instructions for various popular modelers.
+If you want to render the model, select "Export for Rendering" from the File menu, or use Control-R, and save your file. The resulting file(s) can then be imported into a huge variety of 3D modelers and viewers, e.g. <a href="http://blender.org">Blender</a>. See <a href="#rendering">this section</a> for instructions for various popular modelers.
 <P>
-You can select "Export Model for 3D Printing", control-P, to create a model suitable for sending to a 3D printer. Even if you don't have a 3D printer, you can still get it printed, usually for a reasonable price. See the <a href="#too_big">next section</a> for how to get going.
+You can select "Export Model for 3D Printing", Control-P, to create a model suitable for sending to a 3D printer. Even if you don't have a 3D printer, you can still get it printed, usually for a reasonable price. See the <a href="#too_big">next section</a> for how to get going.
 <P>
 The big difference between rendering and printing is that 3D print models <i>must</i> be solid and well-formed. Currently Mineways treats all blocks as solid, full blocks: half-steps or stairs are treated as blocks, as is every other block. There is also no transparency for the materials, since printers do not currently support this type of creation. Models for rendering can, when full texturing is on, include billboard models for flowers, saplings, crops, and other elements. Note that the billboard locations are added in comments to the output .OBJ and .WRL files. In this way, a dedicated modeler could substitute his own elaborate grass, flower, or other models in place of the simple billboards Minecraft provides.
 <P>
 To make your model immediately viewable on the web in 3D, choose the third option "Publish to Sketchfab." Mineways directly uploads your model to the Sketchfab site and makes it displayable to everyone. It's fun and easy, honestly. <a href="#sketchfab">Go here</a> for detailed instructions.
 <P>
 The last option is "Export Schematic", which allows you to then import your model to another world by using <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a>. Currently Mineways does not read schematic files; it's easy enough to import these into a world and then use Mineways on them.
+<a href="http://www.mcedit-unified.net/">MCEdit</a>. Note that Mineways can read any schematic file by using <a href="#openworld">"File | Open..."</a>.
 <P>
 <a id="schematic">
 Mineways' schematic export option</a> allows you to easily grab a volume of your world and turn it into a schematic file. This type of file is commonly used to share constructions among builders. Tools such as <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
@@ -255,7 +262,7 @@ There are some solutions to the price problem:
 <UL>
 <LI>Switch to the white and flexible physical material. Choose this material in the options dialog on export and the thin wall minimum drops to 0.7 mm. This brings the price (and size) of your model down, from about $6.00 per thousand blocks to $0.48 per thousand. You do lose color printout, of course, but can <a href="http://www.shapeways.com/tutorials/painting3dprintedsls">paint the model yourself</a>. Your model should print safely.
 <LI>Print it smaller and cross your fingers. Change "Make each block 2 mm high" to "Make each block 1 mm high", for example: at 1 mm/block, you can print 8 times as many blocks as 2 mm/block: $0.75 per thousand blocks. I like this scale a lot, it's very cute. Two examples: <a href="http://www.shapeways.com/model/458361/small-bowl.html">World in a Bowl</a> and <a href="http://www.shapeways.com/model/432763/sentinel-1mm.html">Sentinel Castle</a>. If you don't have any tree trunks (which at 1 mm <a href="http://www.flickr.com/photos/postapocalyptic/6606215281/in/pool-1862849@N21/">will snap right off</a>), thin walls, or other filigree, the model should be fine. You can remove trees from your model by using a color scheme that makes leaves and logs invisible. See <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">this video</a>, which shows how to make glass blocks invisible; just do the same with logs and leaves. At worst, at 1 mm other little bits might break off. Companion cubes will print with no problems, models of ships with thin masts and lanyards are much less likely to survive. Keep going smaller until you like the price, or simpler yet, just choose the scaling option "Aim for a cost of $25.00" or whatever you want. Note that Shapeways itself might refuse to print your model if they believe some parts are too thin to support the structure; <a href="images/model_fail.jpg">here's an example</a> where Shapeways decided the support struts were not thick enough.
-<LI>Learn more about the options below. Proper use of "fill bubbles" and "super-hollow" can easily combine to reduce your costs by 2/3rds. "Seal off entrances" and "Fill in isolated tunnels" can also help. These options are extremely useful for going to a smaller scale but still having thick enough walls. The strategy I like is to have the interior of the building get filled with blocks by using "fill bubbles" and then have "super-hollow" remove most of these blocks, leaving a shell that's thick enough to print. Basically, don't print what you can't see.
+<LI>Learn more about the options below. Proper use of "fill bubbles" and "super-hollow" can easily combine to reduce your costs by 2/3rds. <a href="#seal">"Seal off entrances"</a> and "Fill in isolated tunnels" can also help. These options are extremely useful for going to a smaller scale but still having thick enough walls. The strategy I like is to have the interior of the building get filled with blocks by using "fill bubbles" and then have "super-hollow" remove most of these blocks, leaving a shell that's thick enough to print. Basically, don't print what you can't see.
 </UL>
 By the way, I hear "it would be cheaper using LEGOs" a fair bit. LEGO blocks cost around <a href="http://shop.lego.com/en-US/LEGO-Basic-Bricks-Deluxe-6177">4-5 cents a block</a>, 2 mm colored sandstone 3D printed blocks run about 6/10th of a cent. There are advantages to LEGOs (larger, reusable, fun to make) and disadvantages (no textures, not perfect cubes), but LEGO cost is not an advantage.
 <P>
@@ -266,7 +273,7 @@ By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</
 <P>
 <B>OBJ, relative:</B> <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ#Relative_and_absolute_indices">relative indices</a> are used on faces. These allow you to concatenate two or more OBJ files into a single OBJ file.
 <P>
-<B>Binary STL:</B> This file format is commonly used by 3D printers. It normally is used for single-color materials, but the exporter will used either the Materialise Magics or VisCAM format to attach colors to triangles - see <a href="http://en.wikipedia.org/wiki/STL_(file_format)#Colour_in_binary_STL">this article</a>. When STL files, binary or ASCII text, are exported a corresponding *.txt file is generated with information about the model. This same data is included in the beginning of the *.obj and *.wrl files themselves.
+<B>Binary STL:</B> This file format is commonly used by 3D printers. It normally is used for single-color materials, but the exporter will use either the Materialise Magics or VisCAM format to attach colors to triangles - see <a href="http://en.wikipedia.org/wiki/STL_(file_format)#Colour_in_binary_STL">this article</a>. I recommend using VisCAM's variant, as MeshLab will then display the proper model colors. When STL files, binary or ASCII, are exported a corresponding *.txt file is generated with information about the model. This same data is included in the beginning of the *.obj and *.wrl files themselves. This text file can be read back into Mineways using "Import Settings" to set everything back the way it was set before.
 <P>
 <B>ASCII text STL:</B> A variant for 3D printers, the file generated is considerably larger than the binary form and cannot include color. The main advantage is that this file type is a simple text file and so can be easily edited. The format is trivial and so can provide a raw set of triangles for a model.
 <P>
@@ -496,13 +503,22 @@ By default, the model is heavily processed to clear up a number of potential 3D 
 <P>
 <b>Fill air bubbles:</b> any hollow area is filled with solid material (specifically, glass, which can sometimes be seen when doing base hollowing, below). There are two sub-options: 
 <ul>
-<li>Seal off entrances: uses "entrance" blocks - doors, ladders, trapdoors, torches, fence gates, daylight sensors - to seal off rooms, even if the doors and ladders themselves are culled. Sealed rooms can then be removed from printing. See the example below.
+<li id="seal">Seal off entrances: If a building has 1-block wide windows and doors that are not filled in, this setting will attempt to fill these in with recessed glass blocks. This option also uses snow blocks and "entrance" blocks - doors, ladders, trapdoors, torches, fence gates, daylight sensors - to help seal off rooms, even if the doors and ladders themselves are culled. See the examples below. Sealing a room has a few advantages: the interiors of rooms that cannot be seen are filled in. This lets <a href="#hollow">the hollowing option</a> do its job better, both saving material on a print and making the print stronger.
 </li>
 <li>Fill in isolated tunnels: a volume being exported can have tunnels underground running through it, and can run into the sides of the volume itself. These tunnels cost time and money to print; if the tunnel is isolated (no access to the surface) then this option will seal these off and fill them in. Hollowing can then remove more material.
 </li>
 </ul>
 <P>
-<b>Example:</b> in the first image, the inside of this simple building is visible. In the second, the "Seal off entrances" export box is checked. The torches are then considered as blocking the entrance; since the entrance is fully sealed off, the room is filled with glass. This example is trivial, but by placing torches you can seal rooms off so that they fill up with glass, then get hollowed by the "hollow" option, described further on, thus saving on printing areas difficult or impossible to see from outside.
+<b>Example:</b> in the first image, the inside of the building is not filled in. In the second, the "Seal off entrances" export box is checked. Since the model has window and door gaps that are only a block wide, these will be detected and the interior will be filled in, as shown on the right.
+<P>
+<img src="images/seal_without_fill.jpg">
+<img src="images/seal_with_fill.jpg">
+<P>
+<b>Wide door example:</b> in the first image, the inside of this simple building is visible. In the second, the "Seal off entrances" export box is checked. The torches are then considered as blocking the entrance; since the entrance is fully sealed off, the room is filled with glass. This example is trivial, but by placing torches you can seal rooms off so that they fill up with glass, then get hollowed by the "hollow" option, described further on, thus saving on printing areas difficult or impossible to see from outside.
+<P>
+<img src="images/no_seal.jpg">
+<img src="images/seal.jpg">
+<b>Another wide door example:</b> Another way to seal off large doors or windows is to add snow blocks. Here a two-block-wide door will not automatically be sealed off by the "seal off entrances" option. By adding snow blocks and then also enabling the <a href="#melt">melt option</a>, the building interior will be sealed off and then the snow blocks removed before output.
 <P>
 <img src="images/no_seal.jpg">
 <img src="images/seal.jpg">
@@ -558,7 +574,9 @@ By default, the model is heavily processed to clear up a number of potential 3D 
 </div>
 
 <P>
-<b>Hollow out bottom of model:</b> models are typically resting on an uneven ground layer, and building interiors are typically filled in. Hollowing clears out blocks inside the model, making it <a href="http://www.shapeways.com/tutorials/creating-hollow-objects">less expensive</a> and faster to print (though weaker). The "super hollow" option is more aggressive, searching hollow areas found to see if more can be carved out. This option can occasionally make volumes that do not have wide enough holes to clear out the material; vanilla "hollow" alone is normally safe in this respect.
+<b id="hollow">Hollow out bottom of model:</b> models are typically resting on an uneven ground layer, and building interiors are typically filled in. Hollowing clears out blocks inside the model, making it <a href="http://www.shapeways.com/tutorials/creating-hollow-objects">less expensive</a> and faster to print. The "super hollow" option is more aggressive, searching hollow areas found to see if more can be carved out.
+<P>
+This option, used in conjunction with <a href="#seal">seal off entrances</a>, can make detailed models stronger. If the interior of a model is entirely filled in by the "fill air bubbles" process, it can then be hollowed out and the walls left thick. For example, say you want to print your cathedral model with 1 mm wide blocks. The printer you want to use needs walls at least 2 mm thick. Instead of manually adding blocks to the interior of your entire model, by using the seal off the entrances option you fill the interiors in with solid blocks. When you hollow, you set the hollow width to 2 mm, or even 3 mm, and now the exterior walls will be made a few blocks thick, automatically.
 <P>
 Technical note: superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, pieces of tunnel not cleaned out. You'll need to also turn on the "fill in isolated tunnels" box to have these removed ("delete floating objects" should do this, but currently does not).
 <P>
@@ -585,7 +603,7 @@ Technical note: superhollow can sometimes create little separate objects at the 
 </div>
 
 <P>
-<b>Melt snow blocks:</b> This one's subtle, for pros. Say you have a model of a fort on a mountaintop. You would like to have the mountain be hollowed out. You would also like the fort to have an escape hole in the floor for any unattached printing sand inside it to be cleared out. By replacing part of the floor (or other area) of the fort with snow blocks, these blocks will be removed at the very end of all processing. So, the hollow operation can then hollow out the mountain below the fort, right up to the fort's floor. Then the "melt snow" operation makes a hole between the fort's interior and the mountain, allowing sand to be vacuumed out.
+<b id="melt">Melt snow blocks:</b> The <a href="#seal">seal off entrances option</a> automatically looks for one-block-wide entrances and windows and seals them off. If you have wider entrances, off-axis windows (such as in a dome), holes in the roof, or other features, instead of adding torches or ladders to help seal these off, you can use snow blocks to do so. The melt option then removes these snow blocks from your model just before output. See the <a href="#seal">seal off entrances option</a> description for an example of its use.
 <P>
 <b id="lesser">Export lesser, detailed blocks:</b> when 3D printing, this option is off by default; for rendering it is on. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot for 3D printing; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down, as these are likely to not work well. When exporting lesser blocks it's better to add and delete blocks by hand and not have the program clean up the data.
 </P>
@@ -644,7 +662,7 @@ blocks directory filled with files from assets\minecraft\textures\blocks and bar
     chest directory inside a copy of the assets\minecraft\textures\entity\chest directory
 </PRE>
 <P>
-A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g. 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
+A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your Minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g. 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 What TileMaker does by default is pretty simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), extracts the chests from "blocks\chest", then writes out this new image as terrainExt.png. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size. Chests' sizes are ignored during this resizing calculation.
 <P>
@@ -832,7 +850,9 @@ Here's a typical result, made in a few minutes:
 </P>
 
 <P><H4 id="c4d">Cinema 4D</H4>
-Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. That said, for best results you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
+Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R17; older versions may need additional steps, as shown.
+<P>
+That said, for best results you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
 <P>
 <b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
 </P>
@@ -846,25 +866,25 @@ Here is how to import a model and set the textures for Cinema 4D. The steps are 
 You may wish to change the OBJ file export options in the upper right of the dialog, but the defaults are fine.
 </P>
 <P>
-<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. Hit "OK" for the import options dialog.
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. Make sure the "Presets" at the top of the OBJ Import dialog is set to Default. Hit "OK".
 </P>
 <P>
 To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
 </P>
 <P>
-<b>Step 5:</b> Once it is all loaded, all objects will be white. Select all the materials in the material viewer, the row of spheres at the lower left. Do this by clicking one sphere and then hitting control-A. All spheres should now be selected.
+<b>Step 5:</b> Select all the materials in the material viewer, the row of spheres at the lower left. Do this by clicking one sphere and then hitting Control-A. All spheres should now be selected.
 </P>
 <P>
-<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option.
+<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Reflectance (in older versions, "Specular") option, and check the Alpha option.
 </P>
 <P>
-<b>Step 7:</b> Select the "Color" settings, towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
+<b>Step 7:</b> In older versions of Cinema 4D all objects will be white, as the texture is not attached. If this occurs, select the "Color" settings, and towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
 </P>
 <P>
-<b>Step 8:</b> Select the "Alpha" settings, at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel; this means you have no transparent objects in your scene. Otherwise, all transparent objects should now appear so.
+<b>Step 8:</b> Select the "Alpha" settings, and at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel; this means you have no transparent objects in your scene. Otherwise, all transparent objects should now appear so.
 </P>
 <P>
-<b>Step 9:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine. Also, you'll see "Multiple Values" before and after picking "None" - have faith, you've chosen correctly. Or click on the "Multiple Values" line to the right of "Texture...." to see the settings, and the back arrow button to exit this menu.
+<b>Step 9:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered will be blocky. Also, you'll see "Multiple Values" before and after picking "None" - have faith, you've chosen correctly. Or click on the "Multiple Values" line to the right of "Texture...." to see the settings, and the back arrow button above the menu to exit this menu. For a quick render to see the effect, click Ctrl-R.
 </P>
 <P>
 <B>Alternate method: VRML</B>: If you have problems with OBJ import, or would prefer a single material for the whole scene, you can also import using VRML. (Note: there is also an OBJ plugin for C4D with a free trial, <a href="http://skinprops.com/riptide.php">Riptide</a>). Here are steps from <a href="mailto:james_christien@hotmail.com">James Christien</a> (<a href="http://www.youtube.com/user/jamesdarandom">icecruiser xD</a>; example C4D result <a href="http://www.youtube.com/watch?v=SYfqp9807no&list=PL3AE7AB94E9114715&index=14&feature=plpp_video">here</a>), with help from <a href="http://www.youtube.com/watch?v=BMgxB1a6YAc">Huskyiee</a> on alpha.
@@ -878,19 +898,19 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 <b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter.
 </P>
 <P>
-<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the 2 files (.png and .wrl) generated. Hit "OK" for the import options dialog.
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .WRL file generated. Hit "OK" for the import options dialog.
 </P>
 <P>
-<b>Step 5:</b> Once it is all loaded, if black ugly things are present on tiles - such as glass or torches - then double-click the material in the materials viewer. The materials viewer is the round sphere with materials on it, at the left bottom of the interface.
+<b>Step 5:</b> Once it is all loaded, if black ugly things are present on tiles - such as glass or torches - then double-click the material (the round sphere) in the materials viewer at the left bottom.
 </P>
 <P>
-<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Specular and check the Alpha option. You should see to the right of the blue "Basic" button the button "Color", then "Alpha". Click on Alpha.
+<b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Reflectance (in older versions, "Specular") and check the Alpha option. You should see to the right of the "Basic" button the button "Color", then "Alpha". Click on Alpha.
 </P>
 <P>
-<b>Step 7:</b> In the Alpha settings, at the bottom is the Texture setting. Click on the little right arrow next to "Texture", go down the menu and select Bitmaps, and choose the only image file name listed there. All the black things should now be gone, ready to be used and rendered properly.
+<b>Step 7:</b> In the Alpha settings, at the bottom is the Texture setting. Click on the little right arrow next to "Texture", go down the menu and select Bitmaps, and choose the corresponding PNG for the model. All the black things should now be gone, ready to be rendered properly.
 </P>
 <P>
-<b>Step 8:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the blue "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine.
+<b>Step 8:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine. For a quick render to see the effect, click Ctrl-R.
 </P>
 
 <P><H4 id="3dsmax">3DS MAX</H4>
@@ -946,7 +966,7 @@ One line says "API Token," as shown below. Copy the API token, a long string of 
 <b>4) When done, a new dialog comes up saying, "Your model has been uploaded. Click OK to view it on Sketchfab."</b> - do that!
 </P>
 <P>
-<b>5) On the model's web page, adjust and save the view.</b> You can orbit, pan, and zoom (mouse wheel). In the lower-right corner is an eye icon, where you can switch to a :First Person" mode - I find it a bit zippy by default, so use the mouse wheel to dial down the speed. Also, if you double-click with the middle-mouse button on your object, you set the pivot point that the camera orbits around. Pick a nice view and then click "SAVE VIEW" in the upper left-hand corner. 
+<b>5) On the model's web page, adjust and save the view.</b> You can orbit, pan, and zoom (mouse wheel). In the lower-right corner is an eye icon, where you can switch to a "First Person" mode - I find it a bit zippy by default, so use the mouse wheel to dial down the speed. Also, if you double-click with the middle-mouse button on your object, you set the pivot point that the camera orbits around. Pick a nice view and then click "SAVE VIEW" in the upper left-hand corner. 
 </P>
 <P>
 <b>6) In the lower right of the window click "SETTINGS" and choose "3D settings".</b> I recommend clicking on the light-bulb icon in the upper left, then turn on the lights (just below); this will give shadows. There are lots of options here - explore and have fun! You can change the surrounding environment, make various materials look different, etc. Annotations are nice for setting up views and touring your model.
@@ -1031,7 +1051,7 @@ Note the links above these options. "Settings" lets you add photos, change your 
 If you <i>really</i> want to get meta, consider this option: making a hologram of your creation! See <a href="http://www.zebraimaging.com/mineways">Zebra Imaging's Mineways site</a>. You can use Mineways to export a model, then order a holographic 3D print of your creation. I made a little (pretty terrible!) video of the results; I hope to make a better one soon.
 
 <H3 id="lookingglass">Looking Glass Factory</H3>
-Another option for 3D printing a model is <a href="http://www.lookingglassfactory.com/">Looking Glass Factory</a>. For around $90 you can make a color 3D print in lucite of any model.
+Another option for 3D printing a model is <a href="http://www.lookingglassfactory.com/">Looking Glass Factory</a>. For around $90 you can make a color 3D print in Lucite of any model.
 <P>
 
 <P><H2 id="scripting">
@@ -1207,8 +1227,8 @@ If you also want to play your converted world in Minecraft, you can remove the e
 
 Note: The easiest way to locate this hidden directory is via the Minecraft launcher. On the  lower left of the launcher window (do not click "Play"), click on "Edit Profile". At the bottom  of the dialog that appears, click "Open Game Dir", then open the "saves" folder. Copy your  converted world folder here.
 
-<h2 id="shortcuts">Keyboard Shortcut keys</h2>
-Most operations in Mineways can be done with the mouse: left button drag and mousewheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. More on mouse controls in the <a href="#select">Selection section</a>.
+<h2 id="shortcuts">Keyboard Shortcut Keys</h2>
+Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. More on mouse controls in the <a href="#select">Selection section</a>.
 <ul>
 <li><b>[</b> and <b>]</b> moves the lower depth up/down by one level.
 </li><li><b>Space bar</b> adjusts the bottom level to the lowest solid block visible in the selection area, plus a border of one block. Holding shift will adjust to the lowest visible block level (includes transparent blocks).
@@ -1235,6 +1255,7 @@ Most operations in Mineways can be done with the mouse: left button drag and mou
 </li><li><b>H</b> hides obscured blocks. When you set a maximum altitude underground, this option discards all blocks at this altitude and lower, until an air pocket is hit. Try it with the slider set to 60 or lower, to see tunnels. On by default in the Nether.
 </li><li><b>R</b> reloads the world's map. This is useful for when you edit your world while Mineways is running, see <a href="http://www.youtube.com/watch?v=8I5K-nB86z4&t=5m3s">this tutorial</a>.
 </li><li><b>Escape</b> clears the selected area.
+</li><li><b>Ctrl-A</b> selects the entire model (for schematic "worlds" only).
 </li><li><b>Ctrl-Q</b> closes the program.
 </li></ul>
 
@@ -2130,7 +2151,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.13, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Shapeways redesigned its upload page, now millimeters is the default model unit. Changed Mineways to export in millimeters by default, rewrote the documentation for Shapeways export.
 <LI>Version 2.14, 8/4/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV214.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Vines not exporting for 3D printing when the "lesser" feature was on. Fixed. Thanks to Sterling Babcock for reporting this bug.
 <LI>Version 2.15, 8/28/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV215.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added "fatten lesser blocks" option, so that small features that are printed are less likely to snap off during manufacture. Removed "flatten blocks" option, since it's never turned off by anyone nowadays. Numerous minor tiled texture fixes. Fixed farmland output for printing. Added correct bed, cactus, and redstone repeater output for rendering and "lesser" 3D printing. Added sloped rails for 3D printing when "lesser" is on. Cauldrons with water levels added. Dragon egg geometry added. Command and beacon blocks added (default terrain.png only; beacon block is currently at 8,11), along with cobblestone walls, flower pots, carrots, potatoes, and wooden buttons.
-<LI>Version 2.16, 9/8/2012 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac216.zip">Mac</a> - bug fixes: fixed 3D printing color export for Sculpteo (OBJ) format viewed in SAP Viewer, fixed output of relative texture coordinates for OBJ export. Fixed color schemes so that old color schemes will autoupdate when used with newer worlds. Provided guidance to Mac users looking for their world directory (still trying to figure out how to make this happen automatically). Added Xzip/unzip in anticipation of someday reading texture packs directly for textures. Added Ender Chest, but only for default terrain.png. Thanks to Sterling Babcock for bug reports and the Ender Chest texture addition.
+<LI>Version 2.16, 9/8/2012 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac216.zip">Mac</a> - bug fixes: fixed 3D printing color export for Sculpteo (OBJ) format viewed in SAP Viewer, fixed output of relative texture coordinates for OBJ export. Fixed color schemes so that old color schemes will auto-update when used with newer worlds. Provided guidance to Mac users looking for their world directory (still trying to figure out how to make this happen automatically). Added Xzip/unzip in anticipation of someday reading texture packs directly for textures. Added Ender Chest, but only for default terrain.png. Thanks to Sterling Babcock for bug reports and the Ender Chest texture addition.
 <LI>Version 2.17, 9/11/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV217.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - bug fixes: for cobblestone walls, pillars were not appearing on straight walls when objects were placed above the walls (thanks again to Sterling Babcock for the bug report). Also, in version 2.16 I tried to fix a problem for the Mac where it crashes for some users, possibly due to a memory use improvement introduced in version 2.09. I've turned this memory improvement back on in this version as it doesn't seem to matter for the crash.
 <LI>Version 2.18, 9/27/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV218.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Output block size in statistics popup. Warn user if unknown block type is encountered. Add a "head block" placeholder (pumpkin) for now; it turns out to be hard to really add the new beta's head blocks. Bug fixes: fix the scale dialog (the radio boxes got separated from one another). Turn default options (connect blocks, delete floaters) back on when "lesser blocks" option is turned off. Attempt to find Minecraft worlds a bit better on the Mac (no promises...). Remove warning about floaters when "lesser blocks" is used.
 <LI>Version 2.19, 10/17/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV219.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Added anvil. Fixed terrain.png to avoid rendering errors. Fixed crash on solid color export for rendering, and proper export for 3D printing. Added fire tile for 3D printing. Added path information to .OBJ header. Fixed texturing and placement errors for doors, cauldrons, and cocoa. Fixed texture clamping for furnaces, bed, and cauldron. Added color expansion (bleeding a decal's texture colors outward into the transparent parts) to improve rendering quality on various renderers. G3D/SAP export also now performs further color expansion. Improved error messages for Mac version - I still don't know how to detect Mac paths using MFC and WINE; advice appreciated. Added beta's stair "trimming" rules (where stairs at right angles will trim away part of the upper step), but this feature will not be enabled until 1.4 is released.
@@ -2275,15 +2296,30 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Hardened clay (#159) changed to stained clay; tinted clay (#172) changed to hardened clay.
 </UL>
 
-<LI>Version 5.03, X/X/20XX - may include:
+<LI>Version 5.03, 8/22/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV503.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac503.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
 <UL>
-<LI>Schematic as world import.
-<LI>Export texture to individual tiles.
-<LI>Customizable cost.
-<LI>Improve error reporting system to give more information, etc.
-<LI>Undo/redo for selected area.
-<LI>Export model elements to Mineways script file?
-<LI>Use an installer for Mineways, such as WIX?
+<LI>Serious bug fix: stairs improperly causing full faces to disappear, due to the data value of the stairs being cleared when output. That's what I get for trying to tidy up.
+<LI>The "Open..." command now reads in a schematic as a map, for ease of exporting.
+<UL>
+<LI>For schematics, only, Control-A will select the whole schematic model.
+<LI>If you save or rename your schematic file to have the world "repeat" in it, e.g. rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model.
+<LI>FWIW, I've added to Planet Minecraft <a href="http://www.planetminecraft.com/project/block-test-world/">a schematic of the Block Test World</a> that comes built-in to Mineways.
+</UL>
+<LI>The <a href="#seal">seal off entrances checkbox</a> now automatically attempts to fill in small window and door openings in houses and fill the interiors, without having to place torches, etc.
+<LI>Bug fix: properly select the correct color scheme when adding or deleting color schemes.
+<LI>Bug fix: properly mark The End as on when chosen from the menu.
+<LI><a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways</a> scripts updated.
+</UL>
+
+<LI>Version 5.04, ??/??/201?  - possible near-term future features:
+<BR>
+<UL>
+<LI>Use an installer for Mineways, such as INNO
+<LI>Export model elements to a Mineways script file
+<LI>Improve the error reporting system to give more information, etc.
+<LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill?
+<LI>Export texture to individual tiles - not sure I see the point...
 </UL>
 </UL>
 

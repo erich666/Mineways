@@ -70,7 +70,7 @@ static bool gAlwaysFail = false;
 // should probably be a subroutine, but too many variables...
 #define REDRAW_ALL  draw();\
                     gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,\
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);\
+                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome,gWorldGuide.type==WORLD_LEVEL_TYPE);\
                     updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);\
                     InvalidateRect(hWnd,NULL,FALSE);\
                     UpdateWindow(hWnd);
@@ -101,7 +101,7 @@ static Options gOptions = {0,   // which world is visible
     INITIAL_CACHE_SIZE,	// cache size
     NULL};
 
-static wchar_t gWorld[MAX_PATH];						//path to currently loaded world
+static WorldGuide gWorldGuide;
 static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 static BOOL gSameWorld=FALSE;
 static BOOL gHoldSameWorld=FALSE;
@@ -313,7 +313,7 @@ static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
 static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
-static int loadSchematic(HWND hWnd, wchar_t *pathAndFile);
+static int loadSchematic(wchar_t *pathAndFile);
 static int loadWorld(HWND hWnd);
 static int setWorldPath(TCHAR *path);
 //static void homePathMac(TCHAR *path);
@@ -373,7 +373,7 @@ static void saveWarningMessage(ImportedSet & is, wchar_t *error);
 static void saveMessage(ImportedSet & is, wchar_t *error, wchar_t *msgType, int increment, char *restOfLine = NULL);
 static bool validBoolean(ImportedSet & is, char *string);
 static bool interpretBoolean(char *string);
-static void formTitle(wchar_t *world, wchar_t *title);
+static void formTitle(WorldGuide *pWorldGuide, wchar_t *title);
 static void rationalizeFilePath(wchar_t *fileName);
 //static void checkUpdate( HINSTANCE hInstance );
 static bool splitToPathAndName(wchar_t *pathAndName, wchar_t *path, wchar_t *name);
@@ -444,6 +444,9 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
 	// setting this to empty means the last path used (from last session, hopefully) will be used again
 	wcscpy_s(gImportPath, MAX_PATH, L"");
+
+	gWorldGuide.type = WORLD_UNLOADED_TYPE;
+	gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
 
     gImportFile[0] = (wchar_t)0;
 	gSchemeSelected[0] = (wchar_t)0;
@@ -842,7 +845,7 @@ RButtonDown:
 
             // get mouse position in world space
             (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+				bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam=lParam;
 
             gStartHiX=mx;
@@ -982,7 +985,7 @@ RButtonDown:
         gLockMouseX = gLockMouseZ = 0;
         int mx,mz;
         gBlockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         gHoldlParam=lParam;
         if ( my >= 0 && my <= MAP_MAX_HEIGHT )
         {
@@ -1021,7 +1024,7 @@ RButtonUp:
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
 			assert(on);
-			int minHeightFound = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, true);
+			int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true);
 			if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
@@ -1141,7 +1144,7 @@ RButtonUp:
             lParam &= 0x7fff7fff;
 
             gBlockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+				bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam=lParam;
             // is right mouse button down and we're dragging out a selection box?
             if (hdragging && gLoaded)
@@ -1329,7 +1332,7 @@ RButtonUp:
 				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 				if (on) {
 					bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
-					gTargetDepth = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque);
+					gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque);
 					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
 					REDRAW_ALL;
 				}
@@ -1396,7 +1399,7 @@ RButtonUp:
         SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
         enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
         gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
         SetFocus(hWnd);
 		drawInvalidateUpdate(hWnd);
@@ -1418,25 +1421,27 @@ RButtonUp:
 			useCustomColor(wmId, hWnd);
 		}
 
-        // load world
         if (wmId>IDM_WORLD && wmId<IDM_WORLD+999)
         {
-            int loadErr;
+			// Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
+			
+			int loadErr;
 			//convert path to utf8
-            //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorld,MAX_PATH,NULL,NULL);
-            gSameWorld = (wcscmp(gWorld,gWorlds[wmId-IDM_WORLD])==0);
-            wcscpy_s(gWorld,MAX_PATH,gWorlds[wmId-IDM_WORLD]);
+            //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
+            gSameWorld = (wcscmp(gWorldGuide.world,gWorlds[wmId-IDM_WORLD])==0);
+            wcscpy_s(gWorldGuide.world,MAX_PATH,gWorlds[wmId-IDM_WORLD]);
             // if this is not the same world, switch back to the aboveground view.
             // TODO: this code is repeated, should really be a subroutine.
             if (!gSameWorld)
             {
                 gotoSurface( hWnd, hwndSlider, hwndLabel);
             }
+			gWorldGuide.type = WORLD_LEVEL_TYPE;
             loadErr = loadWorld(hWnd);
             if ( loadErr )
             {
                 // world not loaded properly
-                if ( loadErr == 2 )
+				if (loadErr == 2)
                 {
                     MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
 						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
@@ -1456,6 +1461,19 @@ RButtonUp:
         case IDM_ABOUT:
             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             break;
+		case ID_SELECT_ALL:
+			if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+				gTargetDepth = 0;
+				gCurDepth = gWorldGuide.sch.height - 1;
+
+				setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+				// update target depth
+				gHighlightOn = TRUE;
+				SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1);
+				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+				drawInvalidateUpdate(hWnd);
+			}
+			break;
         case IDM_COLOR:
             {
                 doColorSchemes(hInst,hWnd);
@@ -1463,24 +1481,26 @@ RButtonUp:
                 // always go back to the standard color scheme after editing, as editing
                 // could have removed the custom scheme being modified.
                 wchar_t *schemeSelected = getSelectedColorScheme();
-				if (wcslen(schemeSelected) <= 0)
-                {
-                    useCustomColor(IDM_CUSTOMCOLOR,hWnd);
-                }
-                else
-                {
-                    int item = findColorScheme(gSchemeSelected);
-                    if ( item > 0 )
-                    {
-                        useCustomColor(IDM_CUSTOMCOLOR+item,hWnd);
-                    }
-                    else
-                    {
+				int item = findColorScheme(schemeSelected);
+				if (item > 0)
+				{
+					// use item selected in color scheme's create/delete/edit dialog, if found
+					useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
+				}
+				else {
+					// nothing selected in color scheme edit system, so set previously-used scheme, if available
+					item = findColorScheme(gSchemeSelected);
+					if (item > 0)
+					{
+						//
+						useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
+					}
+					else
+					{
 						// no user-defined scheme found, must be Standard
-						MY_ASSERT(wcscmp(gSchemeSelected, L"Standard") == 0);
-                        useCustomColor(IDM_CUSTOMCOLOR,hWnd);
-                    }
-                }
+						useCustomColor(IDM_CUSTOMCOLOR, hWnd);
+					}
+				}
             }
             break;
         case IDM_CLOSE:
@@ -1488,10 +1508,11 @@ RButtonUp:
             DestroyWindow(hWnd);
             break;
         case IDM_TEST_WORLD:
-            gWorld[0] = 0;
+            gWorldGuide.world[0] = 0;
             gSameWorld = FALSE;
             sprintf_s(gSkfbPData.skfbName, "TestWorld");
             gotoSurface( hWnd, hwndSlider, hwndLabel);
+			gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
             loadWorld(hWnd);
 			setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
 			break;
@@ -1508,12 +1529,13 @@ RButtonUp:
 			ofn.nFilterIndex = gOpenFilterIndex;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;
-			ofn.lpstrInitialDir = gWorldPathCurrent;
+			wcscpy_s(path, MAX_PATH, gWorldPathCurrent);
+			ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
 			if (GetOpenFileName(&ofn) == TRUE)
 			{
-				// first, "rationalize" the gWorld name: make it all \'s or all /'s, not both.
+				// first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
 				// This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
 				rationalizeFilePath(pathAndFile);
 
@@ -1523,9 +1545,14 @@ RButtonUp:
 				size_t len = wcslen(filename);
 				if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
 					// Read schematic as a world.
-
-					if (loadSchematic(hWnd, pathAndFile)) {
+					gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
+					gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+					gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+					wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
+					if (loadWorld(hWnd)) {
+					//if (loadSchematic(pathAndFile)) {
 						// schematic world not loaded properly
+						gWorldGuide.type = WORLD_UNLOADED_TYPE;
 						MessageBox(NULL, _T("Error: cannot read Minecraft schematic."),
 							_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
@@ -1538,9 +1565,9 @@ RButtonUp:
 
 					PathRemoveFileSpec(pathAndFile);
 					//convert path to utf8
-					//WideCharToMultiByte(CP_UTF8,0,path,-1,gWorld,MAX_PATH,NULL,NULL);
-					gSameWorld = (wcscmp(gWorld, pathAndFile) == 0);
-					wcscpy_s(gWorld, MAX_PATH, pathAndFile);
+					//WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
+					gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+					wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
 
 					// if this is not the same world, switch back to the aboveground view.
 					if (!gSameWorld)
@@ -1549,6 +1576,7 @@ RButtonUp:
 					}
 
 					UpdateWindow(hWnd);
+					gWorldGuide.type = WORLD_LEVEL_TYPE;
 					if (loadWorld(hWnd))
 					{
 						// world not loaded properly
@@ -1558,6 +1586,8 @@ RButtonUp:
 						return 0;
 					}
 				}
+				// the file read succeeded, so update path to it.
+				wcscpy_s(gWorldPathCurrent, MAX_PATH, pathAndFile);
 				setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
             }
 			gOpenFilterIndex = ofn.nFilterIndex;
@@ -1706,7 +1736,7 @@ RButtonUp:
                     gTargetDepth = gpEFD->minyVal;
                 }
                 gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+					bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
                 updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
                 setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                 setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
@@ -1847,85 +1877,85 @@ RButtonUp:
 			}
             break;
         case IDM_HELL:
-            if (!(gOptions.worldType&HELL))
-            {
-                gOptions.worldType |= HELL;
-                gOptions.worldType &= ~ENDER;
-                // change scale as needed
-                gCurX /= 8.0;
-                gCurZ /= 8.0;
-                // it's useless to view Nether from MAP_MAX_HEIGHT
-                if ( gCurDepth == MAP_MAX_HEIGHT )
-                {
-                    gCurDepth = 126;
-                    setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
-                }
-                gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
-                gOptions.worldType |= HIDEOBSCURED;
-                //gTargetDepth=0;
-                // semi-useful, I'm not sure: zoom in when going to nether
-                //gCurScale *= 8.0;
-                //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
-            }
-            else
-            {
-                // back to the overworld
-                gotoSurface( hWnd, hwndSlider, hwndLabel);
-            }
-            CheckMenuItem(GetMenu(hWnd),IDM_OBSCURED,(gOptions.worldType&HIDEOBSCURED)?MF_CHECKED:MF_UNCHECKED);
-            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&HELL)?MF_CHECKED:MF_UNCHECKED);
-            if (gOptions.worldType&ENDER)
-            {
-                CheckMenuItem(GetMenu(hWnd),IDM_END,MF_UNCHECKED);
-                gOptions.worldType&=~ENDER;
-            }
-            CloseAll();
-            // clear selection when you switch from somewhere else to The Nether, or vice versa
-            gHighlightOn=FALSE;
-            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+			if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+				if (!(gOptions.worldType&HELL))
+				{
+					CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
+					gOptions.worldType |= HELL;
+					CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
+					gOptions.worldType &= ~ENDER;
+					// change scale as needed
+					gCurX /= 8.0;
+					gCurZ /= 8.0;
+					// it's useless to view Nether from MAP_MAX_HEIGHT
+					if (gCurDepth == MAP_MAX_HEIGHT)
+					{
+						gCurDepth = 126;
+						setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+					}
+					gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
+					gOptions.worldType |= HIDEOBSCURED;
+					//gTargetDepth=0;
+					// semi-useful, I'm not sure: zoom in when going to nether
+					//gCurScale *= 8.0;
+					//gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+				}
+				else
+				{
+					// back to the overworld
+					gotoSurface(hWnd, hwndSlider, hwndLabel);
+				}
+				CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+				CloseAll();
+				// clear selection when you switch from somewhere else to The Nether, or vice versa
+				gHighlightOn = FALSE;
+				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
 
-            REDRAW_ALL;
+				REDRAW_ALL;
+			}
 
             break;
         case IDM_END:
-            CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&ENDER)?MF_CHECKED:MF_UNCHECKED);
-            if (!(gOptions.worldType&ENDER))
-            {
-                // entering Ender, turn off hell if need be
-                gOptions.worldType |= ENDER;
-                if (gOptions.worldType&HELL)
-                {
-                    // get out of hell zoom
-                    gCurX*=8.0;
-                    gCurZ*=8.0;
-                    // and undo other hell stuff
-                    if ( gCurDepth == 126 )
-                    {
-                        gCurDepth = MAP_MAX_HEIGHT;
-                        setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
-                    }
-                    // turn off obscured, then restore overworld's obscured status
-                    gOptions.worldType &= ~HIDEOBSCURED;
-					CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-					gOptions.worldType |= gOverworldHideStatus;
-                    // uncheck hell menu item
-                    CheckMenuItem(GetMenu(hWnd),IDM_HELL,MF_UNCHECKED);
-                    gOptions.worldType &= ~HELL;
-                }
-            }
-            else
-            {
-                // exiting Ender, go back to overworld
-                gotoSurface( hWnd, hwndSlider, hwndLabel);
-            }
-            CloseAll();
-            // clear selection when you switch from somewhere else to The End, or vice versa
-            gHighlightOn=FALSE;
-            SetHighlightState(gHighlightOn,0,0,0,0,0,0);
-            enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
+			if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+				if (!(gOptions.worldType&ENDER))
+				{
+					// entering Ender, turn off hell if need be
+					CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
+					gOptions.worldType |= ENDER;
+					if (gOptions.worldType&HELL)
+					{
+						// get out of hell zoom
+						gCurX *= 8.0;
+						gCurZ *= 8.0;
+						// and undo other hell stuff
+						if (gCurDepth == 126)
+						{
+							gCurDepth = MAP_MAX_HEIGHT;
+							setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+						}
+						// turn off obscured, then restore overworld's obscured status
+						gOptions.worldType &= ~HIDEOBSCURED;
+						CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
+						gOptions.worldType |= gOverworldHideStatus;
+						// uncheck hell menu item
+						CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
+						gOptions.worldType &= ~HELL;
+					}
+				}
+				else
+				{
+					// exiting Ender, go back to overworld
+					gotoSurface(hWnd, hwndSlider, hwndLabel);
+				}
+				CloseAll();
+				// clear selection when you switch from somewhere else to The End, or vice versa
+				gHighlightOn = FALSE;
+				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
 
-            REDRAW_ALL;
+				REDRAW_ALL;
+			}
             break;
         case IDM_HELP_GIVEMEMOREMEMORY:
             // If you are using the 32-bit version, this option can help give you more memory during export.
@@ -2236,7 +2266,7 @@ static void updateCursor( LPARAM lParam, BOOL hdragging)
 
         // get mouse position in world space
         (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-            bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome);
+			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 
         // now to check the corners: is this location near any of them?
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
@@ -2469,7 +2499,7 @@ static void updateProgress(float progress)
 static void draw()
 {
     if (gLoaded)
-        DrawMap(gWorld,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,gOptions,gHitsFound,updateProgress);
+        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,gOptions,gHitsFound,updateProgress);
 	else {
 		// avoid clearing nothing at all.
 		if (bitWidth > 0 && bitHeight > 0)
@@ -2486,14 +2516,34 @@ static void draw()
     }
 }
 
-static int loadSchematic(HWND /*hWnd*/, wchar_t * /*pathAndFile*/)
+static int loadSchematic(wchar_t *pathAndFile)
 {
 	// Always read again, even if read before, and recenter.
 	// Set spawn and player location to center of model.
 	// Read whole schematic in, then 
 	CloseAll();
 
-	// MAJOR TODO, WIP.
+#define CHECK_READ_SCHEMATIC_QUIT( b )			\
+    if ( (b) != 0 ) {						\
+	    return 1;		\
+	}
+
+	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Width", &gWorldGuide.sch.width));
+	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height));
+	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length));
+
+	gWorldGuide.sch.numBlocks = gWorldGuide.sch.width * gWorldGuide.sch.height * gWorldGuide.sch.length;
+	if (gWorldGuide.sch.numBlocks <= 0)
+		return 1;
+
+	gWorldGuide.sch.blocks = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
+	gWorldGuide.sch.data = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
+
+	CHECK_READ_SCHEMATIC_QUIT(GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data));
+
+	// All data's read in! Now we let the mapping system take over and load on demand.
+	gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+	gVersionId = 99999;	// always assumed to be the latest one.
 
 	return 0;
 }
@@ -2501,37 +2551,60 @@ static int loadSchematic(HWND /*hWnd*/, wchar_t * /*pathAndFile*/)
 // return 1 or 2 or higher if world could not be loaded
 static int loadWorld(HWND hWnd)
 {
-    int version;
-    CloseAll();
+	int version;
+	CloseAll();
 
-    if ( gWorld[0] == 0 )
-    {
-        // load test world
-        gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+	// delete schematic data stored, if any, since we're loading a new world
+	if (gWorldGuide.sch.blocks != NULL) {
+		free(gWorldGuide.sch.blocks);
+		gWorldGuide.sch.blocks = NULL;
+	}
+	if (gWorldGuide.sch.data != NULL) {
+		free(gWorldGuide.sch.data);
+		gWorldGuide.sch.data = NULL;
+	}
+
+	switch (gWorldGuide.type) {
+	case WORLD_TEST_BLOCK_TYPE:
+		// load test world
+		MY_ASSERT(gWorldGuide.world[0] == 0);
+		gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
 		gVersionId = 99999;	// always assumed to be the latest one.
-    }
-    else
-    {
+		break;
+
+	case WORLD_LEVEL_TYPE:
 		// Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
-        // world, then reload and carry on.
-        //gHighlightOn=FALSE;
-        //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+		// world, then reload and carry on.
+		//gHighlightOn=FALSE;
+		//SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
 		// Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
-        if ( GetFileVersion(gWorld,&version) != 0 ) {
-            return 1;
-        }
-        if ( version < 19133 )
-        {
-            // world is old
-            return 2;
-        }
-        if ( GetSpawn(gWorld,&gSpawnX,&gSpawnY,&gSpawnZ) != 0 ) {
-            return 1;
-        }
-        GetPlayer(gWorld,&gPlayerX,&gPlayerY,&gPlayerZ);
+		if (GetFileVersion(gWorldGuide.world, &version) != 0) {
+			gWorldGuide.type = WORLD_UNLOADED_TYPE;
+			return 1;
+		}
+		if (version < 19133)
+		{
+			// world is old
+			gWorldGuide.type = WORLD_UNLOADED_TYPE;
+			return 2;
+		}
+		// it's not a good sign if we can't get the spawn location from the world - consider this a failure to load
+		if (GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 0) {
+			gWorldGuide.type = WORLD_UNLOADED_TYPE;
+			return 1;
+		}
+		GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ);
 		// Get the uppercase "Version" ID, which is > 0 if Minecraft is 1.9 or newer.
-		GetFileVersionId(gWorld, &gVersionId);
-    }
+		GetFileVersionId(gWorldGuide.world, &gVersionId);
+		break;
+
+	case WORLD_SCHEMATIC_TYPE:
+		loadSchematic(gWorldGuide.world);
+		break;
+
+	default:
+		MY_ASSERT(gAlwaysFail);
+	}
 
     // keep current state around, we use it to set new window title
     gHoldSameWorld = gSameWorld;
@@ -2546,19 +2619,20 @@ static int loadWorld(HWND hWnd)
         gCurScale=MINZOOM;
 
         gCurDepth = MAP_MAX_HEIGHT;
-        gTargetDepth = MIN_OVERWORLD_DEPTH;
+		// set lower level height to sea level, or to 0 if it's a schematic
+		gTargetDepth = (gWorldGuide.type == WORLD_SCHEMATIC_TYPE ) ? 0x0 : MIN_OVERWORLD_DEPTH;
         gHighlightOn=FALSE;
         SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
         // turn on error checking for this new world, to warn of unknown blocks
         CheckUnknownBlock( true );
         // just to be safe, make sure flag is cleared for read check.
         ClearBlockReadCheck();
-		// because gSameWorld gets set to 1 by loadWorld()
+		// because gSameWorld gets set to 1 by loadWorld()T
 		if (!gHoldSameWorld)
 		{
 			wchar_t title[MAX_PATH];
-			formTitle(gWorld, title);
-			sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorld));
+			formTitle(&gWorldGuide, title);
+			sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorldGuide.world));
 			SetWindowTextW(hWnd, title);
 		}
 	}
@@ -3071,7 +3145,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
         gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
         // if skfbFilePath is empty, that means that it has not been created yet or selection has changed
         if (skfbPData->skfbFilePath.empty()){
-            int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
+            int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
                 gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
 				updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
 			deleteCommandBlockSet(gChangeBlockCommands);
@@ -3397,7 +3471,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         // redraw, in case the bounds were changed
 		drawInvalidateUpdate(hWnd);
 
-        int errCode = SaveVolume( objFileName, gpEFD->fileType, &gOptions, gWorld, gCurrentDirectory,
+		int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
 			updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
 		deleteCommandBlockSet(gChangeBlockCommands);
@@ -3807,7 +3881,7 @@ static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **
 		gCurDepth = gpEFD->maxyVal;
 		//}
 		*pBlockLabel = IDBlock(LOWORD(holdlParam), HIWORD(holdlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome);
+			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 		updateStatus(mx, mz, my, *pBlockLabel, type, dataVal, biome, ws.hwndStatus);
 		setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
 		setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
@@ -4637,7 +4711,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
 							// don't bother updating status in commands, do that after all is done
 							//gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(1) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-							//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome);
+							//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 							//updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, is.ws.hwndStatus);
 							setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
 							setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
@@ -5478,6 +5552,11 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 	if (strPtr != NULL) {
 		if (is.processData) {
 			if (gLoaded) {
+				if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+				{
+					saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
+					return INTERPRETER_FOUND_ERROR;
+				}
 				gOptions.worldType |= HELL;
 				gOptions.worldType &= ~ENDER;
 				// change scale as needed
@@ -5503,7 +5582,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 				// clear selection when you switch from somewhere else to The Nether, or vice versa
 				gHighlightOn = FALSE;
 				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+				enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 			}
 			else {
 				// warning: selection set but no world is loaded
@@ -5519,6 +5598,11 @@ enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel,
 	if (strPtr != NULL) {
 		if (is.processData) {
 			if (gLoaded) {
+				if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+				{
+					saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
+					return INTERPRETER_FOUND_ERROR;
+				}
 				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
 				// entering Ender, turn off hell if need be
 				gOptions.worldType |= ENDER;
@@ -5624,7 +5708,7 @@ enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel,
 						// "V" means ignore transparent blocks, such as ocean
 						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 						if (on) {
-							int heightFound = GetMinimumSelectionHeight(gWorld, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
+							int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
 							if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
 								minHeight = heightFound > minHeight ? heightFound : minHeight;
 							}
@@ -6446,17 +6530,17 @@ static bool interpretBoolean(char *string)
 	return ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1'));
 }
 
-static void formTitle(wchar_t *world, wchar_t *title)
+static void formTitle(WorldGuide *pWorldGuide, wchar_t *title)
 {
     wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
 
-    if ( wcslen( world ) <= 0 )
+	if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
+	{
+		wcscat_s(title, MAX_PATH - 1, L"[Block Test World]");
+	}
+	else
     {
-        wcscat_s( title, MAX_PATH-1, L"[Block Test World]" );
-    }
-    else
-    {
-       wcscat_s( title, MAX_PATH-1, stripWorldName(world) );
+		wcscat_s(title, MAX_PATH - 1, stripWorldName(pWorldGuide->world));
     }
 }
 
@@ -6577,53 +6661,68 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
 	// see if we can load the world
 	size_t dummySize = 0;
 	wchar_t backupWorld[MAX_PATH];
-	wcscpy_s(backupWorld, MAX_PATH, gWorld);
-	mbstowcs_s(&dummySize, gWorld, (size_t)MAX_PATH, is.world, MAX_PATH);
-	if (wcslen(gWorld) > 0) {
-		// first, "rationalize" the gWorld name: make it all \'s or all /'s, not both.
+	wcscpy_s(backupWorld, MAX_PATH, gWorldGuide.world);
+	int backupWorldType = gWorldGuide.type;
+	mbstowcs_s(&dummySize, gWorldGuide.world, (size_t)MAX_PATH, is.world, MAX_PATH);
+	if (wcslen(gWorldGuide.world) > 0) {
+		// first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
 		// This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
-		rationalizeFilePath(gWorld);
+		rationalizeFilePath(gWorldGuide.world);
 
 		// world name found - can we load it?
 		wchar_t warningWorld[MAX_PATH];
-		wcscpy_s(warningWorld, MAX_PATH, gWorld);
+		wcscpy_s(warningWorld, MAX_PATH, gWorldGuide.world);
 
 		// first, is it the test world?
-		if (wcscmp(gWorld, L"[Block Test World]") == 0)
+		if (wcscmp(gWorldGuide.world, L"[Block Test World]") == 0)
 		{
 			// the test world is noted by the empty string.
-			gWorld[0] = (wchar_t)0;
+			gWorldGuide.world[0] = (wchar_t)0;
+			gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
 			gSameWorld = FALSE;
 			sprintf_s(gSkfbPData.skfbName, "TestWorld");
 		}
 		else {
+			// test if it's a schematic file or a normal world, and set TYPE appropriately.
+			wchar_t filename[MAX_PATH];
+			splitToPathAndName(gWorldGuide.world, NULL, filename);
+			size_t len = wcslen(filename);
+			if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+				// Read schematic as a world.
+				gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
+				gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+			}
+			else {
+				gWorldGuide.type = WORLD_LEVEL_TYPE;
+			}
 			// was the world passed in as just a directory name, or as a full path?
-			if (wcschr(gWorld, gPreferredSeparator) == NULL) {
+			if (wcschr(gWorldGuide.world, gPreferredSeparator) == NULL) {
 				// just the name, so add the path.
 				// this gives us the whole path
 				wchar_t testAnvil[MAX_PATH];
 				wcscpy_s(testAnvil, MAX_PATH, gWorldPathDefault);
 				wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
-				wcscat_s(testAnvil, MAX_PATH, gWorld);
-				wcscpy_s(gWorld, MAX_PATH, testAnvil);
+				wcscat_s(testAnvil, MAX_PATH, gWorldGuide.world);
+				wcscpy_s(gWorldGuide.world, MAX_PATH, testAnvil);
 			}
 		}
 
 		// if the world is already loaded, don't reload it.
-		if (wcscmp(backupWorld, gWorld) != 0 || (gSameWorld == FALSE))
+		if (wcscmp(backupWorld, gWorldGuide.world) != 0 || (gSameWorld == FALSE))
 		{
 			// not the same, attempt to load!
 			gSameWorld = FALSE;
-			if (loadWorld(is.ws.hWnd))	// uses gWorld
+			if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
 			{
 				// could not load world, so restore old world, if any;
-				wcscpy_s(gWorld, MAX_PATH, backupWorld);
-				if (gWorld[0] != 0) {
-					loadWorld(is.ws.hWnd);	// uses gWorld
+				wcscpy_s(gWorldGuide.world, MAX_PATH, backupWorld);
+				if (gWorldGuide.world[0] != 0) {
+					gWorldGuide.type = backupWorldType;
+					loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
 				}
 				swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
 				return false;
-			} // else success with just world folder name, and it's already saved to gWorld
+			} // else success with just world folder name, and it's already saved to gWorldGuide.world
 			// world loaded, so turn things on, etc.
 			setUIOnLoadWorld(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, is.ws.hwndInfoLabel, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel);
 		}
@@ -6762,7 +6861,7 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
 		gTargetDepth = gpEFD->minyVal;
 	}
 	//gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-	//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome);
+	//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 	//updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
 	setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
 	setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);

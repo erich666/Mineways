@@ -78,7 +78,7 @@ typedef struct BoxCell {
 
 typedef struct BoxGroup 
 {
-    int groupID;	// which group number am I? Always matches index of gGroupInfo array
+    int groupID;	// which group number am I? Always matches index of gGroupInfo array - TODO: maybe could be made an unsigned short...
     int population;	// how many in the group?
     int solid;		// solid or air group?
     IBox bounds;	// the box that this group occupies. Not valid if population is 0 (merged)
@@ -549,9 +549,9 @@ static int initializeModelData();
 
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
-static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *box);
-static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox );
-static void extractChunk(const wchar_t *world, int bx, int bz, IBox *box );
+static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *box);
+static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox);
+static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *box);
 static bool willChangeBlockCommandModifyAir(ChangeBlockCommand *pCBC);
 static void modifySides( int editMode );
 static void modifySlab(int by, int editMode);
@@ -595,6 +595,8 @@ static void propagateSeed(IPoint point, BoxGroup *groupInfo, IPoint **seedStack,
 static int getNeighbor( int faceDirection, IPoint newPoint );
 static void getNeighborUnsafe( int faceDirection, IPoint newPoint );
 
+static void coatSurfaces();
+static void removeCoatingAndGroups();
 static void checkAndRemoveBubbles();
 static void findNeighboringGroups( IBox *bounds, int groupID, int *neighborGroups );
 
@@ -654,13 +656,13 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v );
 
 static void freeModel( Model *pModel );
 
-static int writeAsciiSTLBox(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
-static int writeBinarySTLBox(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
-static int writeOBJBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc );
 static int writeOBJMtlFile();
 
-static int writeVRML2Box(const wchar_t *world, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
 static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc );
 
@@ -681,7 +683,7 @@ static int schematicWriteStringValue( gzFile gz, char *stringValue );
 
 static int writeLines( HANDLE file, char **textLines, int lines );
 
-static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBoxconst, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
+static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBoxconst, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 
 static float computeMaterialCost( int printMaterialType, float blockEdgeSize, int numBlocks, int numMinorBlocks );
 static int finalModelChecks();
@@ -727,7 +729,7 @@ static void wcharCleanse( wchar_t *wstring );
 static void myseedrand( long seed );
 static double myrand();
 
-static int analyzeChunk(const wchar_t *world, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
+static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
 
 
 void ChangeCache( int size )
@@ -749,7 +751,7 @@ void ClearCache()
 
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
-int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wchar_t *world, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, 
+int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide *pWorldGuide, const wchar_t *curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax,
 	ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand *pCBC)
 {
     //#ifdef WIN32
@@ -877,7 +879,7 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
 
     // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
     // Mostly "of interest", not particularly useful - we used to output it, but that's a bit confusing when importing.
-	retCode |= populateBox(world, pCBC, &tightenedWorldBox);
+	retCode |= populateBox(pWorldGuide, pCBC, &tightenedWorldBox);
     if ( retCode >= MW_BEGIN_ERRORS )
     {
         // nothing in box, so end.
@@ -983,20 +985,20 @@ int SaveVolume( wchar_t *saveFileName, int fileType, Options *options, const wch
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
         // for OBJ, we may use more than one texture
         needDifferentTextures = 1;
-		retCode |= writeOBJBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+		retCode |= writeOBJBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
-		retCode |= writeBinarySTLBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+		retCode |= writeBinarySTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_ASCII_STL:
-		retCode |= writeAsciiSTLBox(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+		retCode |= writeAsciiSTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     case FILE_TYPE_VRML2:
-		retCode |= writeVRML2Box(world, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+		retCode |= writeVRML2Box(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
         break;
     //case FILE_TYPE_SETTINGS:
-        //retCode |= writeSettings( world, &worldBox, &tightenedWorldBox );
+        //retCode |= writeSettings( pWorldGuide, &worldBox, &tightenedWorldBox );
         //break;
     default:
         assert(0);
@@ -1574,7 +1576,7 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
     return MW_NO_ERROR;
 }
 
-static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *worldBox)
+static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *worldBox)
 {
 	int startxblock, startzblock;
 	int endxblock, endzblock;
@@ -1600,7 +1602,7 @@ static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *wor
 		for (blockZ = startzblock; blockZ <= endzblock; blockZ++)
 		{
 			// this method sets gSolidWorldBox
-			findChunkBounds(world, blockX, blockZ, worldBox);
+			findChunkBounds(pWorldGuide, blockX, blockZ, worldBox);
 		}
 	}
 
@@ -1703,7 +1705,7 @@ static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *wor
         // z increases south, decreases north
         for ( blockZ=edgestartzblock; blockZ<=edgeendzblock; blockZ++ )
         {
-            extractChunk(world,blockX,blockZ,&edgeWorldBox);
+			extractChunk(pWorldGuide, blockX, blockZ, &edgeWorldBox);
 
             // done with reading chunk for export, so free memory
             if ( gOptions->moreExportMemory )
@@ -1741,7 +1743,7 @@ static int populateBox(const wchar_t *world, ChangeBlockCommand *pCBC, IBox *wor
 }
 
 // test relevant part of a given chunk to find its size
-static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox )
+static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox )
 {
     int chunkX, chunkZ;
 
@@ -1759,19 +1761,18 @@ static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox
 
     if (block==NULL)
     {
-        wchar_t directory[256];
-        wcsncpy_s(directory,256,world,255);
-        wcscat_s(directory,256,L"/");
+		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
+		wcscat_s(pWorldGuide->directory, 260, L"/");
         if (gOptions->worldType&HELL)
         {
-            wcscat_s(directory,256,L"DIM-1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
         }
         if (gOptions->worldType&ENDER)
         {
-            wcscat_s(directory,256,L"DIM1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
         }
 
-        block=LoadBlock(directory,bx,bz);
+		block = LoadBlock(pWorldGuide, bx, bz);
         if (block==NULL) //blank tile, nothing to do
             return;
 
@@ -1820,7 +1821,7 @@ static void findChunkBounds(const wchar_t *world, int bx, int bz, IBox *worldBox
 }
 
 // copy relevant part of a given chunk to the box data grid
-static void extractChunk(const wchar_t *world, int bx, int bz, IBox *edgeWorldBox )
+static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorldBox)
 {
     int chunkX, chunkZ;
 
@@ -1839,19 +1840,18 @@ static void extractChunk(const wchar_t *world, int bx, int bz, IBox *edgeWorldBo
 
     if (block==NULL)
     {
-        wchar_t directory[256];
-        wcsncpy_s(directory,256,world,255);
-        wcscat_s(directory,256,L"/");
-        if (gOptions->worldType&HELL)
-        {
-            wcscat_s(directory,256,L"DIM-1/");
-        }
-        if (gOptions->worldType&ENDER)
-        {
-            wcscat_s(directory,256,L"DIM1/");
-        }
+		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260 - 1);
+		wcscat_s(pWorldGuide->directory, 260, L"/");
+		if (gOptions->worldType&HELL)
+		{
+			wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+		}
+		if (gOptions->worldType&ENDER)
+		{
+			wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+		}
 
-        block=LoadBlock(directory,bx,bz);
+		block = LoadBlock(pWorldGuide, bx, bz);
         if (block==NULL) //blank tile, nothing to do
             return;
 
@@ -1984,6 +1984,7 @@ static void editBlock( int x, int y, int z, int editMode )
     case EDIT_MODE_CLEAR_ALL:
         gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
         // just to be safe, probably not necessary, but do it anyway:
+		// (one of the very few places where we clear the data field
         gBoxData[boxIndex].data = 0x0;
         break;
     case EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES:
@@ -2030,7 +2031,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
 					// check if it's something to be filtered out: not in the output list or alpha is 0
 					if (!(flags & gOptions->saveFilterFlags) ||
 						gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0) {
-						// things that should not be saved should be gone, gone, gone
+						// things that should not be saved should be gone, gone, gone, no trace left
 						gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
 						gBoxData[boxIndex].data = 0x0;
 					}
@@ -2130,7 +2131,9 @@ static int filterBox(ChangeBlockCommand *pCBC)
 								{
 									// this block is then cleared out, since it's been processed.
 									gBoxData[boxIndex].type = BLOCK_AIR;
-									gBoxData[boxIndex].data = 0x0;
+									// do NOT do this, as we use the data later to check if geometry
+									// covers a voxel face, etc., e.g. stairs in particular:
+									// NO NO NO gBoxData[boxIndex].data = 0x0;
 									blockProcessed = 1;
 								}
 								else if (retVal >= MW_BEGIN_ERRORS)
@@ -2152,7 +2155,8 @@ static int filterBox(ChangeBlockCommand *pCBC)
 							if (computeFlatFlags(boxIndex))
 							{
 								gBoxData[boxIndex].type = BLOCK_AIR;
-								gBoxData[boxIndex].data = 0x0;
+								// don't do this: we may use origType and data at some point:
+								// NO NO NO: gBoxData[boxIndex].data = 0x0;
 							}
 							else
 							{
@@ -2200,7 +2204,9 @@ static int filterBox(ChangeBlockCommand *pCBC)
 								{
 									// this block is then cleared out, since it's been processed.
 									gBoxData[boxIndex].type = BLOCK_AIR;
-									gBoxData[boxIndex].data = 0x0;
+									// do NOT do this, as we use the data later to check if geometry
+									// covers a voxel face, etc., e.g. stairs in particular:
+									// NO NO NO gBoxData[boxIndex].data = 0x0;
 									foundBlock = 1;
 								}
 								else if (retVal >= MW_BEGIN_ERRORS)
@@ -2251,30 +2257,61 @@ static int filterBox(ChangeBlockCommand *pCBC)
 		}
 
 		// do we need groups and neighbors?
-		if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS|EXPT_DEBUG_SHOW_GROUPS) )
+		if (gOptions->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS | EXPT_DELETE_FLOATING_OBJECTS | EXPT_DEBUG_SHOW_GROUPS))
 		{
 			// If we're modifying blocks, we need to stash the border blocks away and clear them.
-			if ( !gOptions->pEFD->chkBlockFacesAtBorders )
+			if (!gOptions->pEFD->chkBlockFacesAtBorders)
 			{
 				// not putting borders in final output, so need to do two things:
 				// The types in the borders must all be cleared. The original type should be left intact for output, *except*:
 				// any entrance blocks need to be fully cleared so that they don't mess with the seed propagation process.
 				// This is the only use of "originalType" during this block editing process below.
 				modifySides(EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
-				modifySlab(gAirBox.min[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
-				modifySlab(gAirBox.max[Y],EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+				modifySlab(gAirBox.min[Y], EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
+				modifySlab(gAirBox.max[Y], EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES);
 			}
 
 			int foundTouching = 0;
 			gGroupListSize = 200;
 			gGroupList = (BoxGroup *)malloc(gGroupListSize*sizeof(BoxGroup));
-			if ( gGroupList == NULL )
+			if (gGroupList == NULL)
 			{
-				return retCode|MW_WORLD_EXPORT_TOO_LARGE;
+				return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 			}
 
-			memset(gGroupList,0,gGroupListSize*sizeof(BoxGroup));
+			memset(gGroupList, 0, gGroupListSize*sizeof(BoxGroup));
 			gGroupCount = 0;
+
+			static bool showCoat = false;
+
+			if (showCoat) {
+				coatSurfaces();
+			}
+			else {
+
+				// Another use of seal off entrances: look for doors and windows that can be temporarily sealed off,
+				// check and remove bubbles, then we'll do this again (further below) to check if the sealed off doors
+				// and windows themselves should be permanently filled in.
+				if ((gOptions->exportFlags & EXPT_SEAL_ENTRANCES) && (gOptions->exportFlags & EXPT_FILL_BUBBLES)) {
+					// coat everything with fake coating of blocks
+					coatSurfaces();
+					// if we do expansion testing
+					retCode |= findGroups();
+					if (retCode >= MW_BEGIN_ERRORS) return retCode;
+
+					if (gAirGroups > 1)
+					{
+						checkAndRemoveBubbles();
+					}
+
+					// now remove the coating blocks
+					removeCoatingAndGroups();
+
+					// and do it again
+					gGroupCount = 0;
+					gSolidGroups = gAirGroups = 0;
+				}
+			}
 
 			retCode |= findGroups();
 			if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
@@ -9037,18 +9074,18 @@ static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint **pSeedStack, i
             if ( (gBoxData[newBoxIndex].group == NO_GROUP_SET) &&
                 ((gBoxData[newBoxIndex].type > BLOCK_AIR) == pGroup->solid) ) {
 
-                    // note the block is a part of this group now
-                    gBoxData[newBoxIndex].group = pGroup->groupID;
-                    // update the group's population, and check if this one touches a side.
-                    pGroup->population++;
-                    addBounds(newPt,&pGroup->bounds);
+                // note the block is a part of this group now
+                gBoxData[newBoxIndex].group = pGroup->groupID;
+                // update the group's population, and check if this one touches a side.
+                pGroup->population++;
+                addBounds(newPt,&pGroup->bounds);
 
-                    // and add it to the list of potential seeds to continue to propagate
-                    sindex = *seedCount;
-                    Vec2Op(seedStack[sindex], =, newPt);
-                    (*seedCount)++;
-                    // it's possible that we could run out, I think: each seed could add its six neighbors, etc.?
-                    assert((*seedCount)<gBoxSizeXYZ);
+                // and add it to the list of potential seeds to continue to propagate
+                sindex = *seedCount;
+                Vec2Op(seedStack[sindex], =, newPt);
+                (*seedCount)++;
+                // it's possible that we could run out, I think: each seed could add its six neighbors, etc.?
+                assert((*seedCount)<gBoxSizeXYZ);
             }
         }
     }
@@ -9114,6 +9151,104 @@ static void getNeighborUnsafe( int faceDirection, IPoint newPoint )
         newPoint[Z]++;
         break;
     }
+}
+
+static void coatSurfaces()
+{
+	int boxIndex;
+	int x, y, z;
+
+	for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
+	{
+		for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
+		{
+			boxIndex = BOX_INDEX(x, gSolidBox.min[Y], z);
+			for (y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; y++, boxIndex++)
+			{
+				// air?
+				if (gBoxData[boxIndex].type == BLOCK_AIR)
+				{
+					// Are the two neighbors on each side solid? Could be a door or window.
+					static int rule = 2;
+					switch (rule) {
+					default:
+					case 1:
+						if (((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].type > BLOCK_AIR)) ||
+							((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].type > BLOCK_AIR)))
+							gBoxData[boxIndex].type = BLOCK_FAKE;
+						break;
+
+						// We could also test if the two in the other direction *are* air. This will not plug holes in the roof, though, so let's not.
+					case 2:
+						if (((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].type > BLOCK_AIR) &&
+							(gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].type == BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].type == BLOCK_AIR)) ||
+							((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].type == BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].type == BLOCK_AIR) &&
+							(gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].type > BLOCK_AIR)))
+							gBoxData[boxIndex].type = BLOCK_FAKE;
+						break;
+
+						// Are the two neighbors on each side solid, or solid on both ends with one air block in between? Could be a door or window.
+						// This works for two-wide doors and windows. I've left it off as generally unnecessary, but someday could be an option.
+					case 3:
+					{
+						bool madeFake = false;
+						for (int xlo = 1; xlo < 3 && !madeFake; xlo++) {
+							if (x - xlo >= gSolidBox.min[X] - 1) {
+								for (int xhi = 1; xhi < 3 && !madeFake; xhi++) {
+									if (x + xhi <= gSolidBox.max[X] + 1 && xlo + xhi < 4) {
+										if ((gBoxData[boxIndex + gFaceOffset[xlo*DIRECTION_BLOCK_SIDE_LO_X]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[xhi*DIRECTION_BLOCK_SIDE_HI_X]].type > BLOCK_AIR)) {
+											gBoxData[boxIndex].type = BLOCK_FAKE;
+											madeFake = true;
+										}
+									}
+								}
+							}
+						}
+						if (!madeFake) {
+							for (int zlo = 1; zlo < 3 && !madeFake; zlo++) {
+								if (z - zlo >= gSolidBox.min[Z] - 1) {
+									for (int zhi = 1; zhi < 3 && !madeFake; zhi++) {
+										if (z + zhi <= gSolidBox.max[Z] + 1 && zlo + zhi < 4) {
+											if ((gBoxData[boxIndex + gFaceOffset[zlo*DIRECTION_BLOCK_SIDE_LO_Z]].type > BLOCK_AIR) && (gBoxData[boxIndex + gFaceOffset[zhi*DIRECTION_BLOCK_SIDE_HI_Z]].type > BLOCK_AIR)) {
+												gBoxData[boxIndex].type = BLOCK_FAKE;
+												madeFake = true;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					break;
+					}
+				}
+			}
+		}
+	}
+}
+
+static void removeCoatingAndGroups()
+{
+	int boxIndex;
+	int x, y, z;
+
+	// we go larger so that the group ID is reset for all
+	for (x = gAirBox.min[X]; x <= gAirBox.max[X]; x++)
+	{
+		for (z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z++)
+		{
+			boxIndex = BOX_INDEX(x, gAirBox.min[Y], z);
+			for (y = gAirBox.min[Y]; y <= gAirBox.max[Y]; y++, boxIndex++)
+			{
+				gBoxData[boxIndex].group = 0;
+				// turn fake blocks back to air
+				if (gBoxData[boxIndex].type == BLOCK_FAKE)
+				{
+					gBoxData[boxIndex].type = BLOCK_AIR;
+				}
+			}
+		}
+	}
 }
 
 static void checkAndRemoveBubbles()
@@ -9395,7 +9530,9 @@ static void fillGroups( IBox *bounds, int masterGroupID, int solid, int fillType
                         {
                             gBoxData[boxIndex].type = (unsigned char)fillType;
                         }
-                        gBoxData[boxIndex].data = 0x0;
+                        // no real reason to clear data field, and we may
+						// in fact want to check it later with origType:
+						// NO NO NO: gBoxData[boxIndex].data = 0x0;
                     }
                     // transfer to master group
                     gBoxData[boxIndex].group = masterGroupID;
@@ -14692,7 +14829,7 @@ static void resolveFaceNormals()
 }
 
 // return 0 if no write
-static int writeOBJBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
+static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
     // set to 1 if you want absolute (positive) indices used in the faces
     int absoluteIndices = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_REL_COORDINATES) ? 0 : 1;
@@ -14740,10 +14877,10 @@ static int writeOBJBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorl
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
 	const char *justWorldFileName;
-	WcharToChar(world, worldChar, MAX_PATH);
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
 	justWorldFileName = removePathChar(worldChar);
 
-	retCode |= writeStatistics(gModelFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+	retCode |= writeStatistics(gModelFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
 
@@ -16184,7 +16321,7 @@ static int createBaseMaterialTexture()
     return MW_NO_ERROR;
 }
 
-static int writeBinarySTLBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
+static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -16230,7 +16367,7 @@ static int writeBinarySTLBox(const wchar_t *world, IBox *worldBox, IBox *tighten
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-	WcharToChar(world, worldChar, MAX_PATH);
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -16346,7 +16483,7 @@ static int writeBinarySTLBox(const wchar_t *world, IBox *worldBox, IBox *tighten
         return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-	retCode |= writeStatistics(statsFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+	retCode |= writeStatistics(statsFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
@@ -16354,7 +16491,7 @@ static int writeBinarySTLBox(const wchar_t *world, IBox *worldBox, IBox *tighten
     return retCode;
 }
 
-static int writeAsciiSTLBox(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
+static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -16388,7 +16525,7 @@ static int writeAsciiSTLBox(const wchar_t *world, IBox *worldBox, IBox *tightene
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-	WcharToChar(world, worldChar, MAX_PATH);
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -16481,7 +16618,7 @@ static int writeAsciiSTLBox(const wchar_t *world, IBox *worldBox, IBox *tightene
         return retCode|MW_CANNOT_CREATE_FILE;
 
     //
-	retCode |= writeStatistics(statsFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+	retCode |= writeStatistics(statsFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     PortaClose(statsFile);
@@ -16490,7 +16627,7 @@ static int writeAsciiSTLBox(const wchar_t *world, IBox *worldBox, IBox *tightene
 }
 
 
-static int writeVRML2Box(const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
+static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
     DWORD br;
@@ -16540,13 +16677,13 @@ static int writeVRML2Box(const wchar_t *world, IBox *worldBox, IBox *tightenedWo
     // if you want each separate textured object to be its own shape, do this line instead:
     exportSingleMaterial = !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE);
 
-	WcharToChar(world, worldChar, MAX_PATH);
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
     justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion );
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
-	retCode |= writeStatistics(gModelFile, world, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+	retCode |= writeStatistics(gModelFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if ( retCode >= MW_BEGIN_ERRORS )
         goto Exit;
 
@@ -17268,7 +17405,7 @@ static float min3( Point pt )
     return min( retVal, pt[2] );
 }
 
-static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
+static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
 	DWORD br;
@@ -17298,7 +17435,7 @@ static int writeStatistics(HANDLE fh, const wchar_t *world, IBox *worldBox, IBox
 
 	// Path info (originally just meant for debugging)
 	char worldChar[MAX_PATH];
-	WcharToChar(world, worldChar, MAX_PATH);	// don't touch worldChar after this, as justWorldFileName depends on it
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);	// don't touch worldChar after this, as justWorldFileName depends on it
 	const char *justWorldFileName = removePathChar(worldChar);
 
 	if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
@@ -18671,7 +18808,7 @@ static double myrand()
 //=============================================
 
 // return 0 if nothing found in volume
-int GetMinimumSelectionHeight(const wchar_t *world, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent)
+int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent)
 {
 	int minHeightFound = 256;
 
@@ -18697,10 +18834,8 @@ int GetMinimumSelectionHeight(const wchar_t *world, Options *pOptions, int minx,
 			if (pOptions == NULL) {
 				pOptions = pOptions;
 			}
-if (blockX == 29 && blockZ == -61) {
-	blockZ = blockZ + 1 - 1;
-}
-			int heightFound = analyzeChunk(world, pOptions, blockX, blockZ, minx, 0, minz, maxx, 255, maxz, ignoreTransparent);
+
+			int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, 255, maxz, ignoreTransparent);
 			if (heightFound < minHeightFound)
 			{
 				minHeightFound = heightFound;
@@ -18712,7 +18847,7 @@ if (blockX == 29 && blockZ == -61) {
 }
 
 // find first (optional: non-transparent) block visible from above
-static int analyzeChunk(const wchar_t *world, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent)
+static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent)
 {
 	int minHeight = 256;
 
@@ -18729,19 +18864,18 @@ static int analyzeChunk(const wchar_t *world, Options *pOptions, int bx, int bz,
 
 	if (block == NULL)
 	{
-		wchar_t directory[256];
-		wcsncpy_s(directory, 256, world, 255);
-		wcscat_s(directory, 256, L"/");
+		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260 - 1);
+		wcscat_s(pWorldGuide->directory, 260, L"/");
 		if (pOptions->worldType&HELL)
 		{
-			wcscat_s(directory, 256, L"DIM-1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
 		}
 		if (pOptions->worldType&ENDER)
 		{
-			wcscat_s(directory, 256, L"DIM1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
 		}
 
-		block = LoadBlock(directory, bx, bz);
+		block = LoadBlock(pWorldGuide, bx, bz);
 		if (block == NULL) //blank tile, nothing to do
 			return minHeight;
 

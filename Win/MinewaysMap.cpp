@@ -36,11 +36,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <string.h>
 
-static unsigned char* draw(const wchar_t *world,int bx,int bz,int topy,Options opts,
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int topy,Options opts,
     ProgressCallback callback,float percent,int *hitsFound);
 static void blit(unsigned char *block,unsigned char *bits,int px,int py,
     double zoom,int w,int h);
+static int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock *block);
 static void initColors();
+
 
 static int gColorsInited=0;
 static unsigned int gBlockColors[256*16];
@@ -173,7 +175,7 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,double zoom,unsigned char *bits,Options opts, int *hitsFound, ProgressCallback callback)
+void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options opts, int *hitsFound, ProgressCallback callback)
 {
     /* We're converting between coordinate systems: 
     *
@@ -232,7 +234,7 @@ void DrawMap(const wchar_t *world,double cx,double cz,int topy,int w,int h,doubl
         // z increases west, decreases east
         for (x=0,px=-shiftx;x<=hBlocks;x++,px+=blockScale)
         {
-            blockbits = draw(world,startxblock+x,startzblock+z,topy,opts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
+            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,opts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
             blit(blockbits,bits,px,py,zoom,w,h);
         }
     }
@@ -351,7 +353,7 @@ static struct {
 //oz = world z at mouse
 //type is block type
 //biome is biome found
-const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type,int *dataVal, int *biome)
+const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom,int *ox,int *oy,int *oz,int *type,int *dataVal, int *biome, bool schematic)
 {
     //WARNING: keep this code in sync with draw()
     WorldBlock *block;
@@ -427,8 +429,16 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     if (y == (unsigned char)-1)
     {
         *oy=-1;
-        *type=BLOCK_AIR;
-        return "Empty";  // nothing was rendered here
+		if (schematic) {
+			// act like the pixel is not there, vs. a block that has an empty location
+			*biome = -1;
+			*type = BLOCK_UNKNOWN;
+			return "Unknown";
+		}
+		else {
+			*type = BLOCK_AIR;
+			return "Empty";  // nothing was rendered here
+		}
     }
 
     // there's a bug in the original code, sometimes xoff is negative.
@@ -1393,7 +1403,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Options opts,ProgressCallback callback,float percent,int *hitsFound)
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options opts,ProgressCallback callback,float percent,int *hitsFound)
 {
     WorldBlock *block, *prevblock;
     int ofs=0,prevy,prevSely,blockSolid,saveHeight;
@@ -1426,19 +1436,18 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
 
     if (block==NULL)
     {
-        wchar_t directory[256];
-        wcsncpy_s(directory,256,world,255);
-        wcscat_s(directory,256,L"/");
+		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
+		wcscat_s(pWorldGuide->directory, 260, L"/");
         if (opts.worldType&HELL)
         {
-            wcscat_s(directory,256,L"DIM-1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
         }
         if (opts.worldType&ENDER)
         {
-            wcscat_s(directory,256,L"DIM1/");
+			wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
         }
 
-        block=LoadBlock(directory,bx,bz);
+		block = LoadBlock(pWorldGuide, bx, bz);
         if (block==NULL) //blank tile
             return gBlankTile;
 
@@ -1613,7 +1622,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             // this higher height for these purposes.
             prevy=showAll ? saveHeight:i;
 
-            if (depthshading) // darken deeper blocks
+			if (depthshading && prevy >= 0) // darken deeper blocks
             {
                 // 50 kicks up the minimum darkness returned, so that it's not black.
                 // Note that setting the upper height of the selection box affects this view.
@@ -1712,7 +1721,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                         if ( bx*16 + x == gBoxMinX || bx*16 + x == gBoxMaxX ||
                             bz*16 + z == gBoxMinZ || bz*16 + z == gBoxMaxZ )
                         {
-                            double dim=0.5;
+							double dim = 0.5;
                             r = (unsigned char)((double)r*dim);
                             g = (unsigned char)((double)g*dim);
                             b = (unsigned char)((double)b*dim);
@@ -1728,14 +1737,23 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
                         if ( bx*16 + x == gBoxMinX || bx*16 + x == gBoxMaxX ||
                             bz*16 + z == gBoxMinZ || bz*16 + z == gBoxMaxZ )
                         {
-                            double brighten=0.5;
+							double brighten = 0.5;
                             r = (unsigned char)((double)r*(1.0-brighten) + brighten);
                             g = (unsigned char)((double)g*(1.0-brighten) + brighten);
                             b = (unsigned char)((double)b*(1.0-brighten) + brighten);
                         }
                     }
                 }
-            }
+			}
+			
+			if ((pWorldGuide->type == WORLD_SCHEMATIC_TYPE) && (prevy == -1)) {
+				// empty, not highlighted, so make it background color if we're drawing a schematic
+				unsigned char *clr = &gBlankTile[(x + z * 16)*4];
+				r = *clr++;
+				g = *clr++;
+				b = *clr; // ++ if you add alpha
+				// the alpha of gBlankTile is actually 128, I don't know if it matters...
+			}
 
             bits[ofs++]=r;
             bits[ofs++]=g;
@@ -1743,7 +1761,7 @@ static unsigned char* draw(const wchar_t *world,int bx,int bz,int maxHeight,Opti
             bits[ofs++]=0xff;
 
             // heightmap determines what value is displayed on status and for shadowing. If "show all" is on,
-            // save any semi-visible thing, else save the first solid thing (or possibly nothing == 0).
+            // save any semi-visible thing, else save the first solid thing (or possibly nothing == -1).
             block->heightmap[x+z*16] = (unsigned char)prevy;
         }
     }
@@ -2871,10 +2889,14 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
     }
 }
 
-
-WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
+// return NULL if no block loaded.
+WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
 {
-    WorldBlock *block=block_alloc();
+	// if there's no world, simply return
+	if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
+		return NULL;
+
+	WorldBlock *block = block_alloc();
 
     // out of memory? If so, clear cache and cross fingers
     if ( block == NULL )
@@ -2884,8 +2906,7 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
     }
     block->rendery = -1; // force redraw
 
-	// block test world is the empty string, with a "/" at the start
-	if (directory[0] == (wchar_t)'/' && directory[1] == (wchar_t)0)
+	if ( pWorldGuide->type == WORLD_TEST_BLOCK_TYPE )
     {
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
@@ -2994,36 +3015,119 @@ WorldBlock *LoadBlock(wchar_t *directory, int cx, int cz)
             block_free(block);
             return NULL;
         }
-    }
-    // end of test world (and all paths return something), resume normal programming
-    assert( directory[0] != (wchar_t)'/' );
+	}
+	else {
+		// it's a real world or schematic or no world is loaded
+		int gotBlock = 0;
 
-    if (regionGetBlocks(directory, cx, cz, block->grid, block->data, block->light, block->biome)) {
-        // got block successfully
+		if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
 
-        int i;
-        unsigned char *pBlockID = block->grid;
-        for ( i = 0; i < 16*16*256; i++, pBlockID++ )
-        {
-            if ( (*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK) )
-            {
-                // some new version of Minecraft, block ID is unrecognized;
-                // turn this block into stone. dataVal will be ignored.
-                // flag assert only once
-                assert( (gUnknownBlock == 1 ) || (gPerformUnknownBlockCheck == 0) );	// note the program needs fixing
-                *pBlockID = BLOCK_UNKNOWN;
-                // note that we always clean up bad blocks;
-                // whether we flag that a bad block was found is optional.
-                // This gets turned off once the user has been warned, once, that his map has some funky data.
-                if ( gPerformUnknownBlockCheck )
-                    gUnknownBlock = 1;
-            }
-        }
-        return block;
-    }
+			gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome);
+			// got block successfully?
+		}
+		else {
+			assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
+			gotBlock = createBlockFromSchematic(pWorldGuide, cx, cz, block);
+		}
+
+		if ( gotBlock ) {
+
+			int i;
+			unsigned char *pBlockID = block->grid;
+			for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
+			{
+				if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
+				{
+					// some new version of Minecraft, block ID is unrecognized;
+					// turn this block into stone. dataVal will be ignored.
+					// flag assert only once
+					assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
+					*pBlockID = BLOCK_UNKNOWN;
+					// note that we always clean up bad blocks;
+					// whether we flag that a bad block was found is optional.
+					// This gets turned off once the user has been warned, once, that his map has some funky data.
+					if (gPerformUnknownBlockCheck)
+						gUnknownBlock = 1;
+				}
+			}
+			return block;
+		}
+	}
 
     block_free(block);
     return NULL;
+}
+
+// cx and cz are the chunk location - multiply by 16 to get the starting world location
+// return 1 if real data is found, 0 if all empty
+int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock *block)
+{
+	if (!pWorldGuide->sch.repeat) {
+		// does block overlap the schematic?
+		if ((cx * 16 > pWorldGuide->sch.width) || (cx < 0))
+			return 0;
+		if ((cz * 16 > pWorldGuide->sch.length) || (cz < 0))
+			return 0;
+	}
+
+	// no biome, so that's easy
+	memset(block->biome, 0, 16 * 16);
+	// no light, so that's also easy
+	memset(block->light, 0, 16 * 16 * 128);
+
+	// clear the rest, so we fill these in as found
+	memset(block->grid, 0, 16 * 16 * 256);
+	memset(block->data, 0, 16 * 16 * 128);
+
+	static int border = 1;
+	if (pWorldGuide->sch.repeat) {
+		// loop through local block locations, 0-15,0-15
+		for (int y = 0; y < pWorldGuide->sch.height; y++) {
+			int zWorld = cz * 16;
+			for (int z = 0; z < 16; z++, zWorld++) {
+				int zMod = zWorld % (pWorldGuide->sch.length + border);
+				zMod = (zMod + pWorldGuide->sch.length + border) % (pWorldGuide->sch.length + border);
+				// leave a border
+				if (zMod < pWorldGuide->sch.length) {
+					int index = (y * 16 + z) * 16;
+					int xWorld = cx * 16;
+					for (int x = 0; x < 16; x++, index++, xWorld++) {
+						int xMod = xWorld % (pWorldGuide->sch.width + border);
+						xMod = (xMod + pWorldGuide->sch.width + border) % (pWorldGuide->sch.width + border);
+						if (xMod < pWorldGuide->sch.width) {
+							int schIndex = (y * pWorldGuide->sch.length + zMod) * pWorldGuide->sch.width + xMod;
+							assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
+							block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+							block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
+						}
+					}
+				}
+			}
+		}
+	}
+	else {
+		// find the valid data's bounds inside the 16x16 area
+		int xlength = (cx * 16 + 16 > pWorldGuide->sch.width) ? pWorldGuide->sch.width - cx * 16 : 16;
+		int ylength = pWorldGuide->sch.height;
+		int zlength = (cz * 16 + 16 > pWorldGuide->sch.length) ? pWorldGuide->sch.length - cz * 16 : 16;
+		// the offset is how many 16x16 tiles into the schematic data itself we need to offset
+		int offset = 16 * cz * pWorldGuide->sch.width + 16 * cx;
+
+		// loop through local block locations, 0-15,0-15
+		for (int y = 0; y < ylength; y++) {
+			for (int z = 0; z < zlength; z++) {
+				int index = (y * 16 + z) * 16;
+				int schIndex = (y * pWorldGuide->sch.length + z) * pWorldGuide->sch.width + offset;
+				assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
+				for (int x = 0; x < xlength; x++, index++, schIndex++) {
+
+					block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+					block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
+				}
+			}
+		}
+	}
+	return 1;
 }
 
 // Clear that an unknown block was encountered. Good to do when loading a new world.
@@ -3134,6 +3238,29 @@ void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
     nbtClose(bf);
 }
 
+/////////////////////////// Schematic read file
+// return 0 for OK, 1 for failure
+int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
+{
+	bfFile bf;
+	bf = newNBT(schematic);
+	if (bf.gz == 0x0) return 1;
+	int retval = nbtGetSchematicWord(bf, field, value);
+	nbtClose(bf);
+	return retval;
+}
+
+int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData)
+{
+	bfFile bf;
+	bf = newNBT(schematic);
+	if (bf.gz == 0x0) return 1;
+	int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
+	nbtClose(bf);
+	return retval;
+}
+
+
 //Sets the pcolor, the premultiplied colors, as these are a pain to precompute and put in the table.
 void SetMapPremultipliedColors()
 {
@@ -3224,8 +3351,6 @@ static void initColors()
     gEmptyB = (unsigned char)(gBlockColors[15]&0xff);
 
     // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
-    // TODO - could be influenced by unknown color, if desired.
-
     for (rx = 0; rx < 16; ++rx)
     {
         for (ry = 0; ry < 16; ++ry)
@@ -3237,7 +3362,8 @@ static void initColors()
             gBlankTile[off] = (unsigned char)tone;
             gBlankTile[off+1] = (unsigned char)tone;
             gBlankTile[off+2] = (unsigned char)tone;
-            gBlankTile[off+3] = (unsigned char)128;
+            gBlankTile[off+3] = (unsigned char)255;	// was 128 - why?
         }
     }
+
 }

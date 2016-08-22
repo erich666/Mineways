@@ -165,11 +165,12 @@
 <td>
 Minecraft world: <i>Happy Blocks Land</i><br>
 Minecraft world: <i>C:\Users\erich\AppData\Roaming\.minecraft\saves\Round World</i><br>
+Minecraft world: <i>C:\Users\erich\schematics\teapot.schematic</i><br>
 Minecraft world: [Block Test World]
 Extracted from Minecraft world saves/<i>BestWorld</i> [deprecated]
 </td>
 <td>
-The world to load, accessed by the folder name. The .minecraft/saves directory is assumed, but a full path can be given if desired. Use <I>[Block Test World]</I> to load this special test world.
+The world to load, accessed by the folder name. The .minecraft/saves directory is assumed, but a full path can be given if desired. The full path is always needed for schematics. Use <I>[Block Test World]</I> to load this special test world.
 </td>
 </tr>
 
@@ -535,6 +536,42 @@ Instead of displaying script errors, warnings, and completion messages to the sc
 The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant.
 <P>
 <div id="code">
+Change blocks: from 8-9
+</div>
+<P>
+Block IDs 8 and 9 are the two types of water. These are cleared to "air" in the whole selection volume - the land's dried up.
+<P>
+<div id="code">
+Change blocks: from "wool":5 to "wool":13
+</div>
+<P>
+Change all lime green wool blocks to a deep green wool.
+<P>
+<div id="code">
+Change blocks: to "TNT" at 2112,71,548
+</div>
+<P>
+The specific location, no matter what's in it (even air), is turned into TNT. For the next example below, no "from" means "everything <i>except</i> air". If you can't remember what the default is, just specify it, e.g. this command is the same as Change blocks: from 0-255 to "TNT" at 2112,71,548
+<P>
+<div id="code">
+Change blocks: to 24:1
+</div>
+<P>
+Everything solid (not air) in the whole volume is turned into <a href="http://minecraft.gamepedia.com/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
+<P>
+<div id="code">
+Change blocks: from "stained glass","glass pane","stained glass pane" to "glass"
+</div>
+<P>
+Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g. 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>, e.g. "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.gamepedia.com/Data_values#Wood_Planks">data value 1</a>.
+<P>
+<div id="code">
+Change blocks: at -5,50,45 to 50,255,90
+</div>
+<P>
+The at/to volume specified is cleared out, turned to air. The long form is Change blocks: from 1-255 to 0 at -5,50,45 to 50,255,90
+<P>
+<div id="code">
 Change blocks: from "wheat" to "cactus" at -5,0,-45 to 50,255,90
 </div>
 <P>
@@ -544,7 +581,7 @@ This example finds any wheat blocks in the given volume and changes them to cact
 Change blocks: from 59 to 81 at -5,0,-45   // wheat to cactus
 </div>
 <P>
-This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies a single block; if that block is wheat, it will be turned into a cactus.
+This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies only a single block in this example, just to show a different example; if that block is wheat, it will be turned into a cactus.
 <P>
 <div id="code">
 Change blocks: from "wheat":0-6 to "wheat":7 at -5,0,-45 to 50,255,90
@@ -561,40 +598,10 @@ Any <a href="http://minecraft.gamepedia.com/Data_values#Crops">growing wheat</a>
 <i>Usually</i> if you don't specify a "from" range, it means everything solid (not air). The one exception is if you set "to" and a volume, in which case air is also turned into the specified block type. The "to" value is "air" by default. If the location volume is not given, the whole export selection area is used.
 <P>
 <div id="code">
-Change blocks: from "stained glass","glass pane","stained glass pane" to "glass"
-</div>
-<P>
-Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g. 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>, e.g. "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.gamepedia.com/Data_values#Wood_Planks">data value 1</a>.
-<P>
-<div id="code">
 Change blocks: from 198-255 at -319,50,-1077 to -302,50,-1059
 </div>
 <P>
-All blocks greater or equal in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
-<P>
-<div id="code">
-Change blocks: from 8-9
-</div>
-<P>
-Block IDs 8 and 9 are the two types of water. These are cleared to "air" in the whole selection volume - the land's dried up.
-<P>
-<div id="code">
-Change blocks: to "TNT" at 2112,71,548
-</div>
-<P>
-The specific location, no matter what's in it (even air), is turned into TNT. For the next example below, no "from" means "everything <i>except</i> air". If you can't remember what the default is, just specify it, e.g. this command is the same as Change blocks: from 0-255 to "TNT" at 2112,71,548
-<P>
-<div id="code">
-Change blocks: to 24:1
-</div>
-<P>
-Everything solid (not air) in the whole volume is turned into <a href="http://minecraft.gamepedia.com/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
-<P>
-<div id="code">
-Change blocks: at -5,50,45 to 50,255,90
-</div>
-<P>
-The volume specified is cleared out, turned to air. The long form is Change blocks: from 1-255 to 0 at -5,50,45 to 50,255,90
+All blocks greater or equal in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
 
 <a name="c">
 <h2>Comments</h2>
@@ -795,7 +802,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 8/4/2016</p>
+		<p id="lastUpdate">Last updated 8/22/2016</p>
 	</div>
 </div>
 

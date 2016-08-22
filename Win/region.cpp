@@ -73,7 +73,7 @@ deflated data is the chunk length - 1.
 // block: a 32KB buffer to write block data into
 // blockLight: a 16KB buffer to write block light into (not skylight)
 //
-// returns 1 on success, 0 on error
+// returns 1 on success, 0 on error or nothing found
 int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, unsigned char *data, unsigned char *blockLight, unsigned char *biome) 
 {
     wchar_t filename[256];

@@ -53,6 +53,8 @@ void nbtGetFileVersionName(bfFile bf, char *versionName);
 void nbtGetLevelName(bfFile bf, char *levelName);
 void nbtGetPlayer(bfFile bf,int *px,int *py,int *pz);
 //void nbtGetRandomSeed(bfFile bf,long long *seed);
+int nbtGetSchematicWord(bfFile bf, char *field, int *value);
+int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
 void nbtClose(bfFile bf);
 
 #endif
