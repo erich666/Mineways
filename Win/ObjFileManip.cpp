@@ -627,7 +627,7 @@ static void hollowBottomOfModel();
 static void meltSnow();
 static void hollowSeed( int x, int y, int z, IPoint **seedList, int *seedSize, int *seedCount );
 
-static int generateBlockDataAndStatistics();
+static int generateBlockDataAndStatistics(IBox *tightWorldBox, IBox *worldBox);
 static int faceIdCompare( void *context, const void *str1, const void *str2);
 
 static int getDimensionsAndCount( Point dimensions );
@@ -971,12 +971,8 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     }
     UPDATE_PROGRESS(PG_MAKE_FACES);
 
-    // TODO idea: not sure it's needed, but we could provide a "melt" function, in which all objects of
-    // a given ID are removed from the final model before output. This gives the user a way to connect
-    // hollowed areas with interiors and let the building material out of "escape holes".
-
     // create database and compute statistics for output
-    retCode |= generateBlockDataAndStatistics();
+	retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
     UPDATE_PROGRESS(PG_OUTPUT);
@@ -11205,7 +11201,7 @@ static void meltSnow()
     }
 }
 
-static int generateBlockDataAndStatistics()
+static int generateBlockDataAndStatistics(IBox *tightWorldBox, IBox *worldBox)
 {
     int i, boxIndex;
     IPoint loc;
@@ -11247,18 +11243,33 @@ static int generateBlockDataAndStatistics()
     { OSIN22P5DEG,0, OCOS22P5DEG},
     };
 
-    // Add the following to this, everyone does it
+    // Add the following to this, everyone adds it
     if ( gOptions->pEFD->chkCenterModel )
     {
-        // Compute center for output. This could be more elaborate, but our goal
-        // here is simply to approximately center in X and Z and put min.Y at 0 level
+        // Compute center for output.
+		// We use the difference of the worldBox coordinates here (used to be the average of gSolidBox) because we want to allow
+		// people to continue to use centering if they export the same model multiple times.
+		// They might do this, for example, to have separate models for certain elements, using
+		// color schemes to filter out various blocks with each pass.
 
-        gModel.center[Y] = (float)gSolidBox.min[Y];
-        // Note that we don't perfectly center all the time, but rather try to make blocks
+		// Here we are figuring out how much was "shaved off" the original bounds in order to get the gSolidBox. Basically, the
+		// tight world box min is >= the world box min, so we either subtract nothing or subtract the air cushion from the solid box.
+		IPoint minOffset;
+		for (int i = 0; i < 3; i++) {
+			minOffset[i] = gSolidBox.min[i] + worldBox->min[i] - tightWorldBox->min[i];
+		}
+
+		// The bottom of the solid box's original bounds is set to be the "0" level when outputting a level.
+		gModel.center[Y] = (float)minOffset[Y];
+
+		// We now take the lower bounds offset for the amount to subtract from the X and Z location. We also subtract
+		// half the length of the whole box from the output location (rounded to a whole number) so that the model is
+		// centered in X and Z on the origin.
+		// Note that we don't perfectly center all the time but instead round, which makes the blocks
         // align with whole numbers. If you output in meters, you get no fractions, so get
-        // a smaller OBJ file.
-        gModel.center[X] = (float)floor((float)(gSolidBox.max[X]+gSolidBox.min[X]+1)/2.0f);
-        gModel.center[Z] = (float)floor((float)(gSolidBox.max[Z]+gSolidBox.min[Z]+1)/2.0f);
+        // a smaller and slightly more accurate OBJ file.
+		gModel.center[X] = (float)(minOffset[X] + floor((float)(worldBox->max[X] - worldBox->min[X] + 1) / 2.0f));
+		gModel.center[Z] = (float)(minOffset[Z] + floor((float)(worldBox->max[Z] - worldBox->min[Z] + 1) / 2.0f));
     }
     else
     {
