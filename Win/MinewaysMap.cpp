@@ -369,8 +369,9 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     int startzblock=(int)(startz/16);
     int shiftx=(int)((startx-startxblock*16)*zoom);
     int shifty=(int)((startz-startzblock*16)*zoom);
-    assert(cz < 10000);
-    assert(cz > -10000);
+	// someone could be more than 10000 blocks from spawn, so don't assert
+    //assert(cz < 10000);
+    //assert(cz > -10000);
 
     // initialize to "not set"
     *biome = -1;
