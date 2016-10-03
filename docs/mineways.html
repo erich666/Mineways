@@ -235,7 +235,7 @@ Camera controls: WASD for normal movement, ZC for up and down, QE for swivel. Ho
 <P>
 Aside from being a lovely renderer, G3D has additional features such as making a screenshot (F4) and recording a video (F6). The <a href="http://g3d.cs.williams.edu/g3d/www/index.html">master G3D site is here</a>.
 <P>
-Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>).
+Here's an example, side to side, of <a href="http://realtimerendering.com/erich/minecraft/public/mineways/zen.zip">this set of sampler files</a>, which show one of (almost) every block in Minecraft (a good world for looking at blocks and texture packs is <a href="http://www.minecraftforum.net/topic/121011-creation-tykens-test-world-110-new-map/">here</a>, and a compact one <a href="http://www.minecraftforum.net/forums/mapping-and-modding/resource-packs/1243823-qmagnets-test-map-for-resource-packs-and-map">here</a>).
   <P>
   <p><a href="#g3d">G3D</a> displaying an OBJ rendering file:</p>
   <div>
@@ -383,7 +383,7 @@ One warning: 128x128 and larger tile texture packs will work (and will take a wh
 Internals: the tiles are each given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping will not work well, since tiles are next to each other, so disable it for rendering (other sampling techniques should work fine). If you cannot disable bilinear interpolation in your renderer and want a blockier look, take your terrainExt.png file and resize it to be say 4x larger in both directions - you can use the <a href="#tilemaker">TileMaker</a> program included with Mineways (use the "-t tileSize" option), or any other image manipulation program (I'd use "nearest neighbor", if possible - <a href="http://www.irfanview.com/">IrfanView</a> has this option when resizing a texture by doing "Size method: Resize"). Note: from experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
 </P>
 <p>
-On the left, the basic 256 x 384 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to 1024 texels wide. You can download high-resolution versions of terrainExt.png: <a href="http://mineways.com/downloads/terrainExt1024.png">1024 wide</a> and <a href="http://mineways.com/downloads/terrainExt8196.png">8192 wide</a>.</p>
+On the left, the basic 256 x 384 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to 1024 texels wide. You can download high-resolution versions of terrainExt.png: <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt1024.png">1024 wide</a> and <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt8192.png">8192 wide</a>.</p>
 <div id="terrainExtImgs">
   <img src="images/spawn_lores.jpg">
   <img src="images/spawn_hires.jpg">
@@ -605,12 +605,12 @@ Technical note: superhollow can sometimes create little separate objects at the 
 <P>
 <b id="melt">Melt snow blocks:</b> The <a href="#seal">seal off entrances option</a> automatically looks for one-block-wide entrances and windows and seals them off. If you have wider entrances, off-axis windows (such as in a dome), holes in the roof, or other features, instead of adding torches or ladders to help seal these off, you can use snow blocks to do so. The melt option then removes these snow blocks from your model just before output. See the <a href="#seal">seal off entrances option</a> description for an example of its use.
 <P>
-<b id="lesser">Export lesser, detailed blocks:</b> when 3D printing, this option is off by default; for rendering it is on. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot for 3D printing; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down, as these are likely to not work well. When exporting lesser blocks it's better to add and delete blocks by hand and not have the program clean up the data.
+<b id="lesser">Export lesser, detailed blocks:</b> when 3D printing, this option is off by default; for rendering it is on. When not checked, smaller objects, such as signs, fences, etc., are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. Basically, I've given you the ability to shoot yourself in the foot for 3D printing; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down, as these are likely to not work well - only full blocks are tracked when using these features. When exporting lesser blocks it's better to add and delete blocks by hand and not have the program clean up the data. If you do want to check for floating objects, I recommend exporting full blocks first (which will perform the check properly if the option is checked), then export lesser blocks with the option off.
 </P>
 <P>
 Checking this box for 3D printing is experimental and risky, but will allow you to properly export slabs, stairs, etc. The model produced with this option on can have some geometry that's tough for some 3D print slicers to process. The risk is that the service bureau or printer software cannot properly interpret your files. If you are printing a single-color model, use the free <a href="http://cloud.netfabb.com/">cloud version of netfabb</a> to preprocess your model. Shapeways also uses <a href="http://www.netfabb.com/">netfabb</a> to process your uploaded models, so you should have no problems with the mesh itself using their service. You may of course still have problems with features being too thin to reliably print.
 <P>
-If you use another service bureau such as Sculpteo, look over your uploaded model for any missing block or texturing errors. Secret <a href="http://sculpteo.com">Sculpteo</a> trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for <a href="http://www.sculpteo.com/en/design/sand-castle-1/hfM9BZw2">this model</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2</a> to see it large. Try the two links and compare.</p>
+If you use another service bureau such as Sculpteo, look over your uploaded model for any missing block or texturing errors. Secret <a href="http://sculpteo.com">Sculpteo</a> trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for <a href="http://www.sculpteo.com/en/design/sand-castle-1/hfM9BZw2">this model</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2</a> to see it large. Try these two links and compare.</p>
 
 <div id="slicerProbsSet">
   <div id="slicerProbs">
@@ -712,7 +712,7 @@ TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
     the tiles directory. This option is a way of finding if there are any images you can still add to the "blocks" directory. For example, if "nether_brick.png" is reported missing, you know that "blocks" doesn't have this image and that Mineways will use it. This merely means that the default terrainBase.png texture will be used instead.
 <P>
   -a - include alternate texture names when files are not found. These alternate
-    names can be found <a href="https://github.com/erich666/Mineways/blob/master/tilemaker/TileMaker/tiles.h">in tiles.h</a>, alternate names of textures sometimes found in block texture directories.
+    names can be found <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h">in tiles.h</a>, alternate names of textures sometimes found in block texture directories.
 <P>
   -s - output solid color. Instead of exporting the texture, export a solid color formed from the average color of the texture.
     This is useful if you want specific colors for block faces or for various IDs for a block type. The texture produced is more appropriate for 3D printing.
@@ -729,14 +729,16 @@ Rendering Tips
   <p>
   This section covers the basics on importing Mineways files into various renderers.
   To be honest, if you want better geometry, you should consider using <a href="#packages">jmc2obj</a>. Mineways' focus is on 3D printing more than rendering, so has limitations such as using a single texture for the model. The one feature that Mineways offers animators that is currently not in other exporters is the
-  <a href="#individual">"individual blocks" option</a>, which exports each block as a separate object.</p>
+  <a href="#individual">"individual blocks" option</a>, which exports each block as a separate object.</p> 
   <P>
   While I have your ear, you should also check out <a href="http://www.minecraftforum.net/topic/249637-100-optifine-hd-d3-fps-boost-hd-textures/">OptiFine</a>, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a>, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> for in-game play or viewing: they have lots of cool rendering options.
   <P>
   <h3 id="previewing">Previewing:</h3>
   <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer. <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a good previewer models in any format Mineways produces.</p>
   <P>
-  For rendering preview I recommend the <a href="#g3d">G3D</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, and has screenshot and video capture built in. 
+  For rendering preview I recommend the <a href="#g3d">G3D</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, and has screenshot and video capture built in.
+  <P>
+  What follows are steps for using various popular rendering software packages. There are always more; for example, <a href="http://blog.yiningkarlli.com/2016/07/minecraft-in-renderman-ris.html">this article</a> talks in depth about using RenderMan for rendering.
 </div>
 <P><H4 id="blender">Blender</H4></a>
 Here's a quick beginner tutorial from Alexander Boden, along with ideas by Milenco Mulder and others; if you have anything to add, let me know. This is for <a href="http://www.blender.org/">Blender version 2.75a</a>. Alternative Minecraft exporters for Blender include <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
@@ -1075,7 +1077,8 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://voxelsniper.wikia.com/wiki/VoxelSniper_Wiki">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
 <LI><a href="http://www.stuffbydavid.com/mineimator">Mine-imator</a> is a self-contained Minecraft video animation system. It can read in and view schematic files, among much else. <a href="http://www.stuffbydavid.com/dl/mineimator-installer">Direct download</a> to avoid scammy pop-ups.
 <LI><a href="http://www.diamondpants.com/spritecraft/">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
-<LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="http://www.realtimerendering.com/erich/minecraft/public/vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Programs_and_editors/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5533030544811105330">guardian</a>, and <a href="https://picasaweb.google.com/eric.haines/VokseliaPart2#5544034260231691970">hopper</a>, among other models.
+<LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="http://www.realtimerendering.com/erich/minecraft/public/vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Programs_and_editors/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://get.google.com/albumarchive/101252446341510025731/album/AF1QipNHDukcTXoMKMFvm4hGw5cJMudS__Z6usPZTq-n/AF1QipO3nq2mALywVpvTa8HLjNvmJQn0XUfZVdWqecey">guardian</a>, and <a href="https://get.google.com/albumarchive/101252446341510025731/album/AF1QipNHDukcTXoMKMFvm4hGw5cJMudS__Z6usPZTq-n/AF1QipNewSsuMPCe150YETklmtIRBM7PolqUNkC47lns">hopper</a>, among other models.
+<LI><a href="http://www.minddesk.com/">Qubicle</a> costs money, but has some nice functions. It is a set of voxel-based utilities, including an editor and a voxelizer that computes a good color for the voxel from the material.
 <LI><a href="http://tinkercad.com">TinkerCAD</a> is an online CAD program. You can now <a href="http://blog.tinkercad.com/2013/08/15/tinkercraft/">export <i>to</i> Minecraft from it</a> - try the "Download for Minecraft" feature, <a href="http://blog.tinkercad.com/2016/03/10/5707/">now with materials</a>. You can also search for <a href="https://www.tinkercad.com/search/?q=minecraft">Minecraft-related objects</a>.
 <LI><a href="http://mblaine.github.io/BiomePainter/">Biome Painter</a> lets you modify the biomes of your world. If you get it, make sure to use the "Help" menu "Check for updates" feature.
 <LI><a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> is a fantastic 3D viewer for your world. You can zoom through, see a huge distance, and get coordinates for wherever you are. It's slightly outdated and buggy right now, but a new version is in the works.
@@ -1129,8 +1132,6 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li><li><a href="https://www.whiteclouds.com/blog/how-3d-print-your-minecraft-creation">WhiteClouds</a> - this print service uses Mineways to export your Minecraft creations, among other 3D models. Worth a look for the cool pictures of models, along with Minecraft characters! There are a few pictures <a href="http://imgur.com/a/E9Kvz">here</a>, and model description <a href="https://www.whiteclouds.com/3d-printed-minecraft-building">.  
 
 </li><li><a href="http://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
-
-</li><li><a href="http://mineposter.com">Mineposter.com</a> - you can upload your world and have them make a poster of a view of the whole thing or a particular portion of it.
 
 </li><li><a href="http://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
 
@@ -1955,16 +1956,16 @@ Faked by putting tile at 11,14 in terrain.png.
 Flower Pot (#140)
 </td>
 <td>
-<center>Proper geometry made in 1.6.4 or earlier, except acacia and dark oak</center>
+<center>Proper geometry made</center>
 </td>
 <td>
-<center>Removed</center>
+<center>Removed entirely, no decal</center>
 </td>
 <td>
-<center>Pot geometry, and only cactus made in 1.6.4 or earlier</center>
+<center>Pot geometry, and only cactus is made</center>
 </td>
 <td>
-Acacia and dark oak not identifiable by Mineways currently. Pots made in 1.7 and after will not have any contents, as they rely on tile entities for the contents, not supported by Mineways.
+In Minecraft flower pot flowers are dimmer than the originals. Mineways does not dim these.
 </td>
 </tr>
 
@@ -1973,16 +1974,16 @@ Acacia and dark oak not identifiable by Mineways currently. Pots made in 1.7 and
 Head (#144)
 </td>
 <td>
-<center>Pumpkin</center>
+<center>Half-wide pumpkin</center>
 </td>
 <td>
-<center>Pumpkin</center>
+<center>Full-size pumpkin, rotated to nearest 90 degree angle</center>
 </td>
 <td>
-<center>Pumpkin</center>
+<center>Half-wide pumpkin</center>
 </td>
 <td>
-Heads use <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity data</a>, which Mineways doesn't support.
+Mineways reads <a href="http://minecraft.gamepedia.com/Block_entity">block entity data</a> to get the rotation and type of head, but currently does not use the head type to put something other than a pumpkin.
 </td>
 </tr>
 
@@ -2108,6 +2109,42 @@ To make the tiny structure void block appear, create a color scheme and change t
 </td>
 </tr>
 
+<tr>
+<td>
+Observer (#218)
+</td>
+<td>
+<center>Faked</center>
+</td>
+<td>
+<center>Faked</center>
+</td>
+<td>
+<center>Faked</center>
+</td>
+<td>
+Since observers are in beta, the textures may change. Piston and comparator tiles are used to fake up the observer.
+</td>
+</tr>
+
+<tr>
+<td>
+Shulker Boxes (#218-234)
+</td>
+<td>
+<center>Simple wool</center>
+</td>
+<td>
+<center>Simple wool</center>
+</td>
+<td>
+<center>Simple wool</center>
+</td>
+<td>
+Shulker boxes are in beta, and are also unfolded textures in a shulker subdirectory as well as the tops as shulker_*.png files. As such, no directional elements are done for these currently, and wool is used in place of the tiles.
+</td>
+</tr>
+
 </TABLE>
 
 <h2 id="versions">Version History</h2>
@@ -2161,7 +2198,7 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.23, 9/3/2013 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac223.zip">Mac</a> - Enable stairs to join together under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.
 
 <P>
-<LI><B>Version 3.0</B>, 10/11/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV222.zip">Mineways 2.22</a>; for Minecraft 1.1 or earlier, use Mineways 1.15 (I don't even have a copy any more.... <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme's air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you'll never notice.
+<LI><B>Version 3.0</B>, 10/11/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use Mineways 2.22; for Minecraft 1.1 or earlier, use Mineways 1.15 (I don't even have a copy of either any more.... <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme's air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you'll never notice.
 <LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft's style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
 <LI>Version 3.02, 10/25/2013 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool's locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g. brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
@@ -2315,6 +2352,11 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Version 5.04, ??/??/201?  - possible near-term future features:
 <BR>
 <UL>
+<LI>Stand-ins are in place for the proposed 1.11 observer and shulker boxes. The new tiles are not yet integrated into Mineways, as I don't like to integrate textures and their names until the release is official. You'll get something approximating these new blocks.
+<LI>Flower pots are fully supported for rendering, as <a href="http://minecraft.gamepedia.com/Chunk_format#Block_entity_format">block entities</a> are now read in. Reading in block entities was pretty involved...
+<LI>Heads are properly scaled and positioned, but are still rendered as pumpkins. Adding the real heads is on the TODO list, but involves using unwrapped textures; the dragon head in particular is quite elaborate.
+<LI>Bug fix: if lesser block export is turned off for rendering, composite overlay must also be off, as the whole "small object" subsystem is not used.
+<LI>Bug fix: acacia and jungle saplings were getting turned into oak and spruce saplings, due to masking out the two high data value bits.
 <LI>Use an installer for Mineways, such as INNO
 <LI>Export model elements to a Mineways script file
 <LI>Improve the error reporting system to give more information, etc.
@@ -2326,14 +2368,14 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in order of (personal) interest; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
-<LI>Schematic file import: some players store their creations in <a href="http://minecraft.gamepedia.com/Schematic_File_Format">schematic files</a>. Currently you can use <a href="http://www.mcedit-unified.net/">MCEdit</a> to import a schematic into an empty world and save the world, then use Mineways on that world. It would be nicer if the schematic file could just be read in directly and selected for export.
-<LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render. Worth contemplating.
-<LI>Head, sign, and banner support (among others), which means that <a href="http://minecraft.gamepedia.com/Tile_entity">tile entity support</a> is needed.
+<LI>Head, sign, and banner support (among others), which means that <a href="http://minecraft.gamepedia.com/Block_entity">block entity support</a> is needed.
+<LI>Add Pocket Edition/Education Edition support. Right now MCEdit properly reads such files. This turns out to be a bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
+<LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
 <LI>Biome support: get biome color and use it to change terrain's output color. Currently only the biome at the center of the export is used to set the color of all blocks in the export. The hard part is blending (and saving all the resulting textures, a potentially large number) at biome margins.
-<LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g. redstone wire and and off, pumpkin and melon stems color, farmland wetness.
-<LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks a breeze, as well as letting users make their own custom block descriptions.
-<LI>Full "lesser" block merging: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together; use <a href="http://cloud.netfabb.com">netfabb's free cloud solution</a> for basic cleanup. Some software does poorly, e.g., Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
+<LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g. pumpkin and melon stems color, farmland wetness. This will use up more texture tiles, but that might be acceptable.
+<LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks fairly easy, as well as letting users make their own custom block descriptions. That said, it's a lot of work to add this.
+<LI>Full "lesser" block merging for 3D printing: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together; I recommend using <a href="http://cloud.netfabb.com">netfabb's free cloud solution</a> for basic single-color-model cleanup. Some software does poorly with the current geometry, e.g., Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
 <LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
 <LI>Vines really should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching, but intervening properly is tricky.
@@ -2394,7 +2436,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 8/4/2016</p>
+		<p id="lastUpdate">Last updated 9/30/2016</p>
 	</div>
 </div>
 
