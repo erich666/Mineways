@@ -157,8 +157,15 @@ void Cache_Empty()
         entry = gBlockCache[hash];
         while (entry != NULL) {
             next = entry->next;
-            free(entry->data);
-            free(entry);
+			// so hacky
+			if (entry->data->entities != NULL) {
+				free(entry->data->entities);
+				// shouldn't be needed, but for safety's sake
+				entry->data->entities = NULL;
+				entry->data->numEntities = 0;
+			}
+			free(entry->data);
+			free(entry);
             entry = next;
         }
     }
@@ -184,19 +191,37 @@ static WorldBlock* last_block = NULL;
 
 WorldBlock* block_alloc() 
 {
+	WorldBlock* ret = NULL;
     if (last_block != NULL)
     {
-        WorldBlock* ret = last_block;
-        last_block = NULL;
+        ret = last_block;
+		if (ret->numEntities > 0) {
+			free(ret->entities);
+			ret->entities = NULL;
+			ret->numEntities = 0;
+		}
+		last_block = NULL;
         return ret;
-    }
-    return (WorldBlock*)malloc(sizeof(WorldBlock));
+	}
+	else {
+		ret = (WorldBlock*)malloc(sizeof(WorldBlock));
+		ret->entities = NULL;
+		ret->numEntities = 0;
+		return ret;
+	}
 }
 
 void block_free(WorldBlock* block)
 {
-    if (last_block != NULL)
-        free(last_block);
+	if (last_block != NULL)
+	{
+		if (last_block->numEntities > 0) {
+			free(last_block->entities);
+			last_block->entities = NULL;
+			last_block->numEntities = 0;
+		}
+		free(last_block);
+	}
 
     last_block = block;
 }

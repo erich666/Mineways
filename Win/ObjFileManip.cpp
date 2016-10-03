@@ -278,6 +278,8 @@ static int gExportBillboards=0;
 
 static int gMajorVersion=0;
 static int gMinorVersion=0;
+// used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
+// 0 means version 1.8 and earlier
 static int gMinecraftWorldVersion = 0;
 
 static int gBadBlocksInModel=0;
@@ -1827,7 +1829,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 
     int loopXmin, loopZmin;
     int loopXmax, loopZmax;
-    int x,y,z;
+    int x,y,z,i;
 
     int chunkIndex, boxIndex;
     int blockID;
@@ -1891,6 +1893,54 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
                 gBoxData[boxIndex].data = dataVal;
                 blockID = gBoxData[boxIndex].origType = 
                     gBoxData[boxIndex].type = block->grid[chunkIndex];
+
+				// if the block is a flower pot or head, we need to extract the extra data from the block
+				if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD))
+				{
+					// don't do extraction if 1.7 or earlier data for the flower pot, i.e. the data shows there's something in the pot right now
+					if (!((blockID == BLOCK_FLOWER_POT) && (dataVal > 0)))
+					{
+						// find the entity in the list, as possible
+						BlockEntity *pBE = block->entities;
+						for (i = 0; i < block->numEntities; i++, pBE++) {
+							int listChunkIndex = pBE->y << 8 | pBE->zx;
+							if (chunkIndex == listChunkIndex) {
+								if (pBE->type == blockID) {
+									// found it, data gets stored differently for heads and flowers
+									if (blockID == BLOCK_FLOWER_POT) {
+										gBoxData[boxIndex].data = pBE->data;
+									}
+									else {
+										// BLOCK_HEAD
+
+										// most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
+										// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
+										// 7 | 654 | 3210
+										// bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
+										// bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
+										// bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+										if (gBoxData[boxIndex].data > 1) {
+											// head is on the wall, so rotation is ignored; just store the head in the high 4 bits
+											assert((pBE->data & 0x80) == 0x0);	// topmost bit better not be used...
+											// use wall rotation value 2-5 in lower 4 bits, put head type in next top 3 bits.
+											gBoxData[boxIndex].data |= pBE->data & 0x70;
+										}
+										else {
+											// head is on the floor, use the rotation angle too.
+											assert(gBoxData[boxIndex].data == 1);
+											// flag very highest bit: this means the lower data field is the rotation angle, 0-16, like sign posts.
+											// use head data and rotation data, and flag topmost bit to note it's this way
+											gBoxData[boxIndex].data = pBE->data | 0x80;
+										}
+									}
+								}
+								break;
+							}
+						}
+						// we should always find a match, if things are working properly
+						assert(i < block->numEntities);
+					}
+				}
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
@@ -3208,7 +3258,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_SUGAR_CANE:
     case BLOCK_DOUBLE_FLOWER:
         return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
-		break;
+		break;	// saveBillboardOrGeometry
 
 	// special: billboard and possible an extra stem to the pumpkin or melon
 	case BLOCK_PUMPKIN_STEM:						// saveBillboardOrGeometry
@@ -3253,7 +3303,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			transformVertices(totalVertexCount, mtx);
 		}
 		return 1;
-		break;
+		break; // saveBillboardOrGeometry
 
     case BLOCK_CROPS:						// saveBillboardOrGeometry
     case BLOCK_NETHER_WART:
@@ -3261,12 +3311,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POTATOES:
     case BLOCK_BEETROOT_SEEDS:
         return saveBillboardFaces( boxIndex, type, BB_GRID );
-        break;
+        break; // saveBillboardOrGeometry
     case BLOCK_TORCH:						// saveBillboardOrGeometry
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
         return saveBillboardFaces( boxIndex, type, BB_TORCH );
-        break;
+        break; // saveBillboardOrGeometry
     case BLOCK_RAIL:						// saveBillboardOrGeometry
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
@@ -3403,7 +3453,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
         }
-        break;
+        break; // saveBillboardOrGeometry
 
 
     case BLOCK_FIRE:						// saveBillboardOrGeometry
@@ -3521,7 +3571,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15,  10+fatten,16 );
             }
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_COBBLESTONE_WALL:						// saveBillboardOrGeometry
         groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
@@ -3622,7 +3672,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
             firstFace = 0;
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_PLANT:						// saveBillboardOrGeometry
         // 6 sides, no interior
@@ -3658,7 +3708,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
         saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType))?DIR_HI_Z_BIT:0x0)|DIR_LO_Z_BIT, 4,12, 4,12, 12,newHeight);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_PRESSURE_PLATE:						// saveBillboardOrGeometry
     case BLOCK_WOODEN_PRESSURE_PLATE:
@@ -3681,7 +3731,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             translateMtx(mtx, 0.0f, -0.5f/16.0f, 0.5/16.0f);
             transformVertices(8,mtx);
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_CARPET:						// saveBillboardOrGeometry
         // if printing and the location below the carpet is empty, then don't make carpet (it'll be too thin)
@@ -3696,7 +3746,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // use dataVal to retrieve location. These are scattered all over.
         swatchLoc = retrieveWoolSwatch(dataVal);
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 0,1, 0,16 );
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_OAK_WOOD_STAIRS:						// saveBillboardOrGeometry
     case BLOCK_COBBLESTONE_STAIRS:
@@ -3952,7 +4002,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
         }
 
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_SLAB:						// saveBillboardOrGeometry
     case BLOCK_WOODEN_SLAB:
@@ -4061,7 +4111,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             maxy = 8;
         }
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_BUTTON:						// saveBillboardOrGeometry
     case BLOCK_WOODEN_BUTTON:
@@ -4117,7 +4167,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // we *could* save one face of the stone button, the one facing the object, but don't:
         // the thing holding the stone button could be missing, due to export limits.
         saveBoxGeometry( boxIndex, type, 1, 0x0, minx,maxx, miny,maxy, minz,maxz );
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
         switch (dataVal)
@@ -4152,7 +4202,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, 4.5f/16.0f, 0.0f);
         transformVertices(8,mtx);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_BANNER:						// saveBillboardOrGeometry
         switch (dataVal)
@@ -4247,7 +4297,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         gUsingTransform = 0;
 
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_TRAPDOOR:						// saveBillboardOrGeometry
     case BLOCK_IRON_TRAPDOOR:
@@ -4297,7 +4347,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             translateMtx(mtx, 0.0f, 13.0f/16.0f, 0.0f);
             transformVertices(8,mtx);
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
         // sign is two parts:
@@ -4336,7 +4386,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
 
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_STANDING_BANNER:						// saveBillboardOrGeometry
         // Banner: five pieces: vertical sticks, horizontal brace, top half, bottom half
@@ -4398,7 +4448,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         gUsingTransform = 0;
 
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_WOODEN_DOOR:						// saveBillboardOrGeometry
     case BLOCK_IRON_DOOR:
@@ -4501,7 +4551,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // undo translation
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_SNOW:						// saveBillboardOrGeometry
         // if printing and the location below the snow is empty, then don't make geometric snow (it'll be too thin).
@@ -4515,21 +4565,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         // change height as needed
 		saveBoxGeometry(boxIndex, type, 1, 0x0, 0, 16, 0, 2 * (1 + (float)(dataVal & 0x7)), 0, 16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_END_PORTAL_FRAME:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( 15,9 );
         bottomSwatchLoc = SWATCH_INDEX( 15,10 );
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,13, 0,16);
-        break;
+        break; // saveBillboardOrGeometry
 
 	case BLOCK_ENCHANTMENT_TABLE:						// saveBillboardOrGeometry
 		topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		sideSwatchLoc = SWATCH_INDEX(6,11);
 		bottomSwatchLoc = SWATCH_INDEX(7,11);
 		saveBoxMultitileGeometry(boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 12, 0, 16);
-		break;
+		break; // saveBillboardOrGeometry
 
         // top, sides, and bottom, and don't stretch the sides if output here
     case BLOCK_CAKE:						// saveBillboardOrGeometry
@@ -4540,7 +4590,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = 
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 10,7 );
         saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1+(float)(dataVal&0x7)*2,15, 0,8, 1,15);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_FARMLAND:						// saveBillboardOrGeometry
         if ( gPrint3D )
@@ -4557,14 +4607,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         sideSwatchLoc = SWATCH_INDEX( 2,0 );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_GRASS_PATH:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX+1, gBlockDefinitions[type].txrY );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );  // dirt
         saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_FENCE_GATE:						// saveBillboardOrGeometry
     case BLOCK_SPRUCE_FENCE_GATE:
@@ -4659,7 +4709,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 9,12,  7-fatten,9+fatten);
             }
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_COCOA_PLANT:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -4742,7 +4792,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             transformVertices((int)bitAdd,mtx);
         }
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_CAULDRON:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -4790,7 +4840,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				2, 14, 6 + (float)dataVal * 3, 6 + (float)dataVal * 3, 2, 14);
         }
 
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_DRAGON_EGG:						// saveBillboardOrGeometry
         // top to bottom
@@ -4802,7 +4852,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         saveBoxGeometry( boxIndex, type, 0, 0x0, 1,15, 3,8, 1,15);
         saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 2,14, 1,3, 2,14);
         saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 5,11, 0,1, 5,11);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_ANVIL:						// saveBillboardOrGeometry
         // top to bottom
@@ -4843,22 +4893,60 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             transformVertices(totalVertexCount,mtx);
         }
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_FLOWER_POT:						// saveBillboardOrGeometry
-        // note that in version 1.7 on flower pots rely on the tile entity to give the data value. Pots before then have the value.
-		// we can't tell these entities for newer versions, so we'll always use an empty pot for now.
-		useInsidesAndBottom = (gMinecraftWorldVersion > 0) || (dataVal != 9);	// cactus
+		// if we output a cactus, we don't need to output the faces inside the flowerpot
+		useInsidesAndBottom = 1;
         firstFace = 1;
 
-        if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+		// old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
+		// so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
+		// See nbt for the loop minecraft:red_flower etc. that sets these values.
+#define RED_FLOWER_FIELD		0x10
+#define YELLOW_FLOWER_FIELD		0x20
+#define RED_MUSHROOM_FIELD		0x30
+#define BROWN_MUSHROOM_FIELD	0x40
+#define SAPLING_FIELD			0x50
+#define DEADBUSH_FIELD			0x60
+#define TALLGRASS_FIELD			0x70
+#define CACTUS_FIELD			0x80
+		/*
+		Flower Pot Contents
+		Contents		Item			Data
+		empty			air				0
+		poppy			red_flower		0
+		blue orchid		red_flower		1
+		allium			red_flower		2
+		houstonia		red_flower		3
+		red tulip		red_flower		4
+		orange tulip	red_flower		5
+		white tulip		red_flower		6
+		pink tulip		red_flower		7
+		oxeye daisy		red_flower		8
+		dandelion		yellow_flower	0
+		red mushroom	red_mushroom	0
+		brown mushroom	brown_mushroom	0
+		oak sapling		sapling			0
+		spruce sapling	sapling			1
+		birch sapling	sapling			2
+		jungle sapling	sapling			3
+		acacia sapling	sapling			4
+		dark oak sapling	sapling		5
+		dead bush		deadbush		0
+		fern			tallgrass		2
+		cactus			cactus			0
+		*/
+
+		if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES))
         {
             // printing or not using images: only geometry we can add is a cactus
-			if ((gMinecraftWorldVersion==0) && (dataVal == 9))
+			if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
             {
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
-                saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6,10, 6,16, 6,10 );
+				saveBoxMultitileGeometry(boxIndex, type, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
+				useInsidesAndBottom = 0;
             }
         }
         else
@@ -4869,71 +4957,109 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             int billboardType = BB_FULL_CROSS;
             float scale = 1.0f;
             // rendering
-			// if it's an old minecraft world, cross fingers and use the dataVal, else don't - TODO, get dataVal from tile entity.
-			switch ((gMinecraftWorldVersion == 0) ? dataVal : 0x0)
+			// old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers
+			switch (dataVal)
             {
             case 0:
                 // nothing!
                 performMatrixOps = 0;
                 break;
             case 1:
-                // rose
+			case RED_FLOWER_FIELD:
+                // poppy / rose
                 typeB = BLOCK_POPPY;
                 break;
             case 2:
+			case YELLOW_FLOWER_FIELD:
                 // dandelion
                 typeB = BLOCK_DANDELION;
                 break;
             case 3:
+			case SAPLING_FIELD:
                 // sapling (oak)
                 typeB = BLOCK_SAPLING;
                 scale = 0.75f;
                 break;
             case 4:
-                // spruce sapling flower - todo ACACIA uses this, maybe uses tile entity?
+			case SAPLING_FIELD|0x1:
+				// spruce sapling flower - todo ACACIA uses this, maybe uses tile entity?
                 typeB = BLOCK_SAPLING;
                 dataValB = 1;
                 scale = 0.75f;
                 break;
             case 5:
-                // birch sapling - todo DARK OAK uses this, maybe uses tile entity?
+			case SAPLING_FIELD | 0x2:
+				// birch sapling - todo DARK OAK uses this, maybe uses tile entity?
                 typeB = BLOCK_SAPLING;
                 dataValB = 2;
                 scale = 0.75f;
                 break;
             case 6:
-                // jungle sapling
+			case SAPLING_FIELD | 0x3:
+				// jungle sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 3;
                 scale = 0.75f;
                 break;
             case 7:
+			case RED_MUSHROOM_FIELD:
                 // red mushroom
                 typeB = BLOCK_RED_MUSHROOM;
                 break;
             case 8:
+			case BROWN_MUSHROOM_FIELD:
                 // brown mushroom
                 typeB = BLOCK_BROWN_MUSHROOM;
                 break;
             case 9:
+			case CACTUS_FIELD:
                 // cactus (note we're definitely not 3D printing, so no face test)
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
-                saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, firstFace, DIR_BOTTOM_BIT, 0, 6,10, 6,16, 6,10 );
+				// interestingly enough, the tiny cactus is actually all made out of the side tiles, not top and bottom
+				saveBoxMultitileGeometry(boxIndex, type, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
                 performMatrixOps = 0;
-                break;
+				useInsidesAndBottom = 0;
+				break;
             case 10:
+			case DEADBUSH_FIELD:
                 // dead bush
                 typeB = BLOCK_TALL_GRASS;
                 scale = 0.75f;
                 break;
             case 11:
+			case TALLGRASS_FIELD | 0x2:
                 // fern
                 typeB = BLOCK_TALL_GRASS;
                 dataValB = 2;
                 scale = 0.75f;
                 break;
-            default:
+
+			case SAPLING_FIELD | 0x4:
+				// acacia sapling
+				typeB = BLOCK_SAPLING;
+				dataValB = 4;
+				scale = 0.75f;
+				break;
+			case SAPLING_FIELD | 0x5:
+				// dark oak sapling
+				typeB = BLOCK_SAPLING;
+				dataValB = 5;
+				scale = 0.75f;
+				break;
+			case RED_FLOWER_FIELD | 0x1:
+			case RED_FLOWER_FIELD | 0x2:
+			case RED_FLOWER_FIELD | 0x3:
+			case RED_FLOWER_FIELD | 0x4:
+			case RED_FLOWER_FIELD | 0x5:
+			case RED_FLOWER_FIELD | 0x6:
+			case RED_FLOWER_FIELD | 0x7:
+			case RED_FLOWER_FIELD | 0x8:
+				// blue orchid through oxeye daisy
+				typeB = BLOCK_POPPY;
+				dataValB = dataVal & 0xf;
+				break;
+			default:
                 // Debug world gives: assert(0); - a value here is "fine", and should be ignored
                 performMatrixOps = 0;
                 break;
@@ -4989,7 +5115,69 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // outside bottom - in theory never seen, so we make it dirt, since the flowerpot texture itself has a hole in it at these coordinates
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,  5,11,  0,4,  5,11);
 
-        break;
+        break; // saveBillboardOrGeometry
+
+	case BLOCK_HEAD:	// definitely wrong for heads, TODOTODO - have tile entity, but now need all the dratted head textures... Pumpkin half-sized for now.
+		// most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
+		// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
+		// 7 | 654 | 3210
+		// bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
+		// bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
+		// bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+
+		// make pumpkin, scale it down, and prepare to translate and rotate it, etc.
+		gUsingTransform = 1;
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(7, 7);	// front face, as a start
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(6, 7);
+		swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(6, 6);
+		swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(6, 6);
+		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(6, 7);
+		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(6, 7);
+		saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 1, 0x0, 0x0, 0,
+			0, 16, 0, 16, 0, 16);
+
+		gUsingTransform = 0;
+		// scale it down, move to wall, then
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		translateMtx(mtx, 0.0f, -0.5f, 0.0f);
+		scaleMtx(mtx, 0.5f, 0.5f, 0.5f);
+
+		// is head on floor or wall?
+		if (dataVal & 0x80) {
+			// on floor
+			// TODO head type
+			rotateMtx(mtx, 0.0f, 22.5f*(dataVal & 0xf), 0.0f);
+		}
+		else {
+			// on wall
+			// TODO head type
+
+			translateMtx(mtx, 0.0f, 0.0f, 0.25f);
+			switch (dataVal&0xf) {
+			default:
+				assert(0);
+			case 2: // north
+				yrot = 0.0f;
+				break;
+			case 3: // south
+				yrot = 180.0f;
+				break;
+			case 4: // east
+				yrot = 270.0f;
+				break;
+			case 5: // west
+				yrot = 90.0f;
+				break;
+			}
+			// rotate the head by 90's
+			rotateMtx(mtx, 0.0f, yrot, 0.0f);
+		}
+		// undo global translation
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(8, mtx);
+
+		break; // saveBillboardOrGeometry
 
     case BLOCK_BED:						// saveBillboardOrGeometry
         // side of bed - head or foot?
@@ -5029,7 +5217,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
 			(gPrint3D ? 0.0f : 3.0f), (gPrint3D ? 0.0f : 3.0f), 0, 16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_CACTUS:						// saveBillboardOrGeometry
         // are top and bottom needed?
@@ -5059,7 +5247,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|faceMask, 0, 1,15, 0,16, 1,15 );
             }
         }
-        break;
+        break; // saveBillboardOrGeometry
 
 	case BLOCK_CHEST:						// saveBillboardOrGeometry
 	case BLOCK_TRAPPED_CHEST:
@@ -5193,7 +5381,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		rotateMtx(mtx, 0.0f, angle, 0.0f);
 		translateFromOriginMtx(mtx, boxIndex);
 		transformVertices(totalVertexCount, mtx);
-		break;
+		break; // saveBillboardOrGeometry
 
 	case BLOCK_ENDER_CHEST:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -5251,7 +5439,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
 		transformVertices(totalVertexCount, mtx);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_REDSTONE_REPEATER_OFF:						// saveBillboardOrGeometry
     case BLOCK_REDSTONE_REPEATER_ON:
@@ -5293,7 +5481,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             transformVertices(totalVertexCount,mtx);
         }
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_REDSTONE_COMPARATOR:						// saveBillboardOrGeometry
     case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
@@ -5352,7 +5540,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
             gUsingTransform = 0;
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_BEACON:						// saveBillboardOrGeometry
         saveBoxGeometry( boxIndex, BLOCK_GLASS, 1, 0x0, 0,16, 0,16, 0,16);
@@ -5362,7 +5550,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             saveBoxGeometry( boxIndex, BLOCK_BEACON, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
             saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 0, 0x0, 2,14, 0,3, 2,14);
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_SLIME:						// saveBillboardOrGeometry
         saveBoxGeometry( boxIndex, BLOCK_SLIME, 1, 0x0, 0,16, 0,16, 0,16);
@@ -5371,7 +5559,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // tasty slime center
             saveBoxGeometry( boxIndex, BLOCK_SLIME, 0, 0x0, 3,13, 3,13, 3,13);
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_BREWING_STAND:						// saveBillboardOrGeometry
         // brewing stand exports as an ugly block for 3D printing - too delicate to print. Check that we're not printing
@@ -5412,7 +5600,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   1,  7 );
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   9, 15 );
         saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  9, 15,   0,  2,   5, 11 );
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_LEVER:						// saveBillboardOrGeometry
         // make the lever on the ground, facing east, then move it into position
@@ -5486,7 +5674,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(uberTotalVertexCount,mtx);
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_DAYLIGHT_SENSOR:						// saveBillboardOrGeometry
     case BLOCK_INVERTED_DAYLIGHT_SENSOR:
@@ -5499,7 +5687,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] =  SWATCH_INDEX( 5,15 );
         // TODO! For tile itself, Y data was centered instead of put at bottom, so note we have to shift it down
         saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 0,16, 0,6, 0,16 );
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_STICKY_PISTON:						// saveBillboardOrGeometry
     case BLOCK_PISTON:
@@ -5590,7 +5778,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             transformVertices(totalVertexCount,mtx);
         }
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_PISTON_HEAD:						// saveBillboardOrGeometry
         // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
@@ -5665,7 +5853,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount,mtx);
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_HOPPER:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -5736,7 +5924,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             saveBoxMultitileGeometry( boxIndex, type, swatchLoc-2, swatchLoc-2, swatchLoc-2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
 				2, 14, 10 + (float)gPrint3D * 2, 10 + (float)gPrint3D * 2, 2, 14);
         }
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_END_ROD:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
@@ -5821,7 +6009,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             transformVertices(totalVertexCount,mtx);
         }
         gUsingTransform = 0;
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_FLOWER:						// saveBillboardOrGeometry
         // 6 sides, no interior
@@ -5836,7 +6024,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_LO_X_BIT, 14,16, 2,14, 2,14);
         saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_HI_Z_BIT, 2,14, 2,14, 0,2);
         saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_LO_Z_BIT, 2,14, 2,14, 14,16);
-        break;
+        break; // saveBillboardOrGeometry
 
     case BLOCK_IRON_BARS:						// saveBillboardOrGeometry
     case BLOCK_GLASS_PANE:
@@ -6428,7 +6616,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 break;
             }
         }
-        break;
+        break; // saveBillboardOrGeometry
 
 	case BLOCK_TRIPWIRE_HOOK:						// saveBillboardOrGeometry
 		{
@@ -6539,13 +6727,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			transformVertices(totalVertexCount, mtx);
 			gUsingTransform = 0;
 		}
-		break;
+		break; // saveBillboardOrGeometry
 
 	case BLOCK_STRUCTURE_VOID:						// saveBillboardOrGeometry
 		// tiny little red wool block
 		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		saveBoxTileGeometry(boxIndex, type, swatchLoc, 1, 0x0, 7, 9, 7, 9, 7, 9);
-		break;
+		break; // saveBillboardOrGeometry
 
     default:
         // something tagged as billboard or geometry, but no case here!
@@ -7882,9 +8070,11 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     switch ( type )
     {
     case BLOCK_SAPLING:				// saveBillboardFacesExtraData
-        switch ( dataVal & 0x3 )
+		// The 0x8 bit functions as the counter. The counter is cleared when a sapling is dropped as an item.
+		switch (dataVal & 0x7)
         {
         default:
+			assert(0);
         case 0: // OAK sapling
             // set OK already
             break;
@@ -12893,7 +13083,89 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 }
             }
             break;
-        case BLOCK_POWERED_RAIL:						// getSwatch
+		case BLOCK_OBSERVER:
+			// TODO use real tiles. For now: piston back by default on sides:
+			swatchLoc = SWATCH_INDEX(13, 6);
+			// I suspect the top bit is whether the observer is firing, but don't know. 
+			switch (dataVal & 0x7)
+			{
+			case 0:	// facing down
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
+				case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
+				default: break;
+				}
+				break;
+			case 1: // facing up
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(14, 14); break;
+				case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(14, 14); break;
+				default: break;
+				}
+				break;
+			case 2: // North
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 0); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 0); break;
+				case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				default: break;
+				}
+				break;
+			case 3: // South, which is really the west side, i.e. HI_Z
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
+				case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				default: break;
+				}
+				break;
+			case 4: // West
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 270); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 270); break;
+				case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				default: break;
+				}
+				break;
+			case 5: // East
+			default:
+				switch (faceDirection) {
+				case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+				case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+				default: break;
+				}
+				break;
+			}
+			break;
+		case BLOCK_SHULKER_CHEST:
+		case BLOCK_SHULKER_CHEST + 1:
+		case BLOCK_SHULKER_CHEST + 2:
+		case BLOCK_SHULKER_CHEST + 3:
+		case BLOCK_SHULKER_CHEST + 4:
+		case BLOCK_SHULKER_CHEST + 5:
+		case BLOCK_SHULKER_CHEST + 6:
+		case BLOCK_SHULKER_CHEST + 7:
+		case BLOCK_SHULKER_CHEST + 8:
+		case BLOCK_SHULKER_CHEST + 9:
+		case BLOCK_SHULKER_CHEST + 10:
+		case BLOCK_SHULKER_CHEST + 11:
+		case BLOCK_SHULKER_CHEST + 12:
+		case BLOCK_SHULKER_CHEST + 13:
+		case BLOCK_SHULKER_CHEST + 14:
+		case BLOCK_SHULKER_CHEST + 15:
+			// TODO: look above for up/down/right/left/etc. sides. Add the tiles (and, ugh, item tiles) when the beta becomes real
+			swatchLoc = retrieveWoolSwatch(type - BLOCK_SHULKER_CHEST);
+			break;
+		case BLOCK_POWERED_RAIL:						// getSwatch
         case BLOCK_DETECTOR_RAIL:
         case BLOCK_ACTIVATOR_RAIL:
             switch ( type )
@@ -13650,10 +13922,47 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_PUMPKIN:						// getSwatch
         case BLOCK_JACK_O_LANTERN:
-        case BLOCK_HEAD:	// definitely wrong for heads, TODO - need tile entity daa
+        case BLOCK_HEAD:	// definitely wrong for heads, TODOTODO - have tile entity, but now need all the dratted head textures...
             SWATCH_SWITCH_SIDE( faceDirection, 6, 7 );
             xoff = ( type == BLOCK_PUMPKIN ) ? 7 : 8;
-            if ( ( faceDirection != DIRECTION_BLOCK_TOP ) && ( faceDirection != DIRECTION_BLOCK_BOTTOM ) )
+			// if it's a head, we round the rotation found into a dataVal
+			if (type == BLOCK_HEAD) {
+				// TODO head type
+				// is head on floor or wall?
+				float yrot = 0.0f;
+				if (dataVal & 0x80) {
+					// on floor
+					yrot = 22.5f*(dataVal & 0xf);
+				}
+				else {
+					// on wall
+					switch (dataVal & 0xf) {
+					default:
+						assert(0);
+					case 2: // north
+						yrot = 0.0f;
+						break;
+					case 3: // south
+						yrot = 180.0f;
+						break;
+					case 4: // east
+						yrot = 270.0f;
+						break;
+					case 5: // west
+						yrot = 90.0f;
+						break;
+					}
+				}
+				if (yrot >= 45.0f && yrot < 135.0f)
+					dataVal = 3;
+				else if (yrot >= 135.0f && yrot < 225.0f)
+					dataVal = 0;
+				else if (yrot >= 225.0f && yrot < 315.0f)
+					dataVal = 1;
+				else
+					dataVal = 2;
+			}
+			if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM))
             {
                 switch ( dataVal )
                 {
@@ -13883,9 +14192,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_SAPLING:						// getSwatch
-            switch ( dataVal & 0x3 )
+			switch (dataVal & 0x7)
             {
-            case 0: // OAK
+			default:
+				assert(0);
+			case 0: // OAK
                 // set OK already
                 break;
             case 1:
@@ -13896,11 +14207,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // birch
                 swatchLoc = SWATCH_INDEX(15,4);
                 break;
-            default:
             case 3:
+				// jungle sapling
                 swatchLoc = SWATCH_INDEX(14,1);
                 break;
-            }
+			case 4:
+				// acacia sapling
+				swatchLoc = SWATCH_INDEX(14, 18);
+				break;
+			case 5:
+				// dark oak sapling
+				swatchLoc = SWATCH_INDEX(15, 18);
+				break;
+			}
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_TALL_GRASS:						// getSwatch

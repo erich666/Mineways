@@ -326,7 +326,7 @@ typedef struct ExportFileData
     UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
     UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
     UINT chkBiome;
-	UINT chkCompositeOverlay;
+	UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
 
     UINT chkFillBubbles;
     UINT chkSealEntrances;
@@ -384,7 +384,7 @@ typedef struct Options {
 } Options;
 
 // number of official Minecraft blocks (take highest valid block ID and add 1)
-#define NUM_BLOCKS_STANDARD 218
+#define NUM_BLOCKS_STANDARD 235
 // number of blocks we want to show on the map (includes the unknown one)
 #define NUM_BLOCKS_MAP (NUM_BLOCKS_STANDARD+1)
 // number of blocks with entries in block info table - now that 255 is used, we need this
@@ -711,6 +711,8 @@ enum block_types {
 	BLOCK_NETHER_BRICK = 0xD7,
 	BLOCK_BONE_BLOCK = 0xD8,
 	BLOCK_STRUCTURE_VOID = 0xD9,
+	BLOCK_OBSERVER = 0xDA,
+	BLOCK_SHULKER_CHEST = 0xDB,
 
 	BLOCK_FAKE = 0xFE,	// I hope we never get this far
 

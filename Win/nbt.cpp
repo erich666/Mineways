@@ -273,7 +273,14 @@ static int nbtFindElement(bfFile bf,char *name)
     }
 }
 
-int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome)
+// use only least significant half-byte of location, since we know what block we're in
+// TODOTODO - check this works for negative and positive values.
+unsigned char mod16(int val)
+{
+	return (unsigned char)(val & 0xf);
+}
+
+int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities)
 {
     int len,nsections;
     int biome_save;
@@ -316,16 +323,20 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 
     nsections=readDword(bf);
 
+	char thisName[MAX_NAME_LENGTH];
+
+	// number of block sections stacked one atop the other; each is a Y slice
     while (nsections--)
     {	
         unsigned char y;
         int save = *bf.offset;
-        if (nbtFindElement(bf,"Y")!=1) //which section is this?
+        if (nbtFindElement(bf,"Y")!=1) //which section of the block stack is this?
             return 0;
         bfread(bf,&y,1);
         bfseek(bf,save,SEEK_SET); //rewind to start of section
 
         //found=0;
+		// read all the arrays in this section
         for (;;)
         {
             int ret=0;
@@ -334,7 +345,6 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
             if (type==0) 
                 break;
             len=readWord(bf);
-			char thisName[MAX_NAME_LENGTH];
             bfread(bf,thisName,len);
             thisName[len]=0;
             if (strcmp(thisName,"BlockLight")==0)
@@ -362,8 +372,182 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
                 skipType(bf,type);
         }
     }
-    return 1;
+	if (nbtFindElement(bf, "TileEntities") != 9)
+		// all done, no TileEntities found
+		return 1;
+
+	{
+		unsigned char type = 0;
+		bfread(bf, &type, 1);
+		if (type != 10)
+			return 1;
+
+		// tile entity (aka block entity) found, parse it - get number of sections that follow
+		nsections = readDword(bf);
+
+// hack - don't really want to include blockInfo.h down here.
+#define BLOCK_HEAD			0x90
+#define BLOCK_FLOWER_POT	0x8C
+
+		int numSaved = 0;
+
+		while (nsections--)
+		{
+			// read all the elements in this section
+			bool skipSection = false;
+			unsigned char dataType = 0;
+			unsigned char dataRot = 0;
+			unsigned char dataSkullType = 0;
+			unsigned char dataFlowerPotType = 0;
+			int dataX = 0;
+			int dataY = 0;
+			int dataZ = 0;
+			int dataData = 0;
+			for (;;)
+			{
+				unsigned char type = 0;
+				bfread(bf, &type, 1);
+				if (type == 0) {
+					// end of list, so process data, if any valid data found
+					if (!skipSection) {
+						// save skulls and flowers
+						BlockEntity *pBE = &entities[numSaved];
+						pBE->type = dataType;
+						pBE->y = (unsigned char)dataY;
+						pBE->zx = (mod16(dataZ) << 4) | mod16(dataX);
+						switch (dataType) {
+						case BLOCK_HEAD:
+							pBE->data = (unsigned char)((dataSkullType<<4) | dataRot);
+							break;
+						case BLOCK_FLOWER_POT:
+							pBE->data = (unsigned char)((dataFlowerPotType << 4) | dataData);
+							break;
+						default:
+							// should flag an error!
+							break;
+						}
+						numSaved++;
+					}
+					break;
+				}
+
+				// always read name of field
+				int len = readWord(bf);
+				bfread(bf, thisName, len);
+
+				// if the id is one we don't care about, skip the rest of the data
+				if (skipSection) {
+					skipType(bf, type);
+				}
+				else {
+					thisName[len] = 0;			
+					if (strcmp(thisName, "x") == 0 && type == 3)
+					{
+						dataX = readDword(bf);
+					}
+					else if (strcmp(thisName, "y") == 0 && type == 3)
+					{
+						dataY = readDword(bf);
+					}
+					else if (strcmp(thisName, "z") == 0 && type == 3)
+					{
+						dataZ = readDword(bf);
+					}
+					else if (strcmp(thisName, "id") == 0 && type == 8)
+					{
+						len = readWord(bf);
+						char idName[MAX_NAME_LENGTH];
+						bfread(bf, idName, len);
+						idName[len] = 0;
+
+						// is it a skull or a flowerpot?
+						if (strcmp(idName, "minecraft:skull") == 0)
+						{
+							dataType = BLOCK_HEAD;
+						}
+						else if (strcmp(idName, "minecraft:flower_pot") == 0)
+						{
+							dataType = BLOCK_FLOWER_POT;
+						}
+						else {
+							skipSection = true;
+						}
+					}
+					else if (strcmp(thisName, "Item") == 0 && type == 8)
+					{
+						len = readWord(bf);
+						char idName[MAX_NAME_LENGTH];
+						bfread(bf, idName, len);
+						idName[len] = 0;
+						/*
+						Flower Pot Contents
+						Contents		Item			Data
+						empty			air				0
+						poppy			red_flower		0
+						blue orchid		red_flower		1
+						allium			red_flower		2
+						houstonia		red_flower		3
+						red tulip		red_flower		4
+						orange tulip	red_flower		5
+						white tulip		red_flower		6
+						pink tulip		red_flower		7
+						oxeye daisy		red_flower		8
+						dandelion		yellow_flower	0
+						red mushroom	red_mushroom	0
+						brown mushroom	brown_mushroom	0
+						oak sapling		sapling			0
+						spruce sapling	sapling			1
+						birch sapling	sapling			2
+						jungle sapling	sapling			3
+						acacia sapling	sapling			4
+						dark oak sapling	sapling		5
+						dead bush		deadbush		0
+						fern			tallgrass		2
+						cactus			cactus			0
+						*/
+						char* potName[] = {
+							"minecraft:air", "minecraft:red_flower", "minecraft:yellow_flower", "minecraft:red_mushroom", "minecraft:brown_mushroom",
+							"minecraft:sapling", "minecraft:deadbush", "minecraft:tallgrass", "minecraft:cactus"};
+
+						skipSection = true;
+						for (int pot = 0; pot < 9; pot++) {
+							if (strcmp(idName, potName[pot]) == 0) {
+								dataFlowerPotType = (unsigned char)pot;
+								skipSection = false;
+								break;
+							}
+						}
+					}
+					else if (strcmp(thisName, "Rot") == 0 && type == 1)
+					{
+						bfread(bf, &dataRot, 1);
+					}
+					else if (strcmp(thisName, "SkullType") == 0 && type == 1)
+					{
+						bfread(bf, &dataSkullType, 1);
+					}
+					else if (strcmp(thisName, "Data") == 0 && type == 3)
+					{
+						dataData = readDword(bf);
+					}
+					else {
+						// unused type, skip it, and skip all rest of object, since it's something we don't care about
+						// (all fields we care about are read above - if we hit one we don't care about, we know we
+						// can ignore the rest).
+						skipType(bf, type);
+						skipSection = true;
+					}
+				}
+			}
+		}
+
+		if (numSaved > 0) {
+			*numEntities = numSaved;
+		}
+	}
+	return 1;
 }
+
 void nbtGetSpawn(bfFile bf,int *x,int *y,int *z)
 {
     int len;

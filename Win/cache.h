@@ -30,6 +30,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __CACHE_H__
 #define __CACHE_H__
 
+#include "nbt.h"
+
 // For 64 bits we can increase the amount of map memory we can hold at one time considerably.
 #ifndef MINEWAYS_X64
 #define INITIAL_CACHE_SIZE 6000
@@ -47,6 +49,8 @@ typedef struct WorldBlock {
     unsigned char rendercache[16*16*4]; // bitmap of last render
     unsigned char heightmap[16*16]; // height of rendered block [x+z*16]
     unsigned char biome[16*16];
+	BlockEntity *entities;	// block entities, http://minecraft.gamepedia.com/Chunk_format#Block_entity_format
+	int numEntities;	// number in the list, maximum of 16x16x256
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render

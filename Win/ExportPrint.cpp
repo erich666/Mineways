@@ -131,7 +131,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
             //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
-			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
+			// under certain conditions we need to make composite overlay uncheckable, i.e. if 3D printing is on, or if detailed output is off for rendering
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
 			CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
             // these next two options are only available for rendering
             CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkLeavesSolid);
@@ -201,11 +202,11 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 CheckDlgButton(hDlg,IDC_SEAL_SIDE_TUNNELS,isFillBubblesChecked?epd.chkSealEntrances:BST_INDETERMINATE);
             }
             break;
-            // all this crazy code says is "if Fill Bubbles is not checked, keep the seal entrances checkbox indeterminate;
-            // if it *is* checked, then don't allow seal entrances to become indeterminate."
         case IDC_SEAL_ENTRANCES:
             {
-                UINT isChecked = IsDlgButtonChecked(hDlg,IDC_FILL_BUBBLES);
+				// all this crazy code says is "if Fill Bubbles is not checked, keep the seal entrances checkbox indeterminate;
+				// if it *is* checked, then don't allow seal entrances to become indeterminate."
+				UINT isChecked = IsDlgButtonChecked(hDlg, IDC_FILL_BUBBLES);
                 if ( !isChecked )
                 {
                     CheckDlgButton(hDlg,IDC_SEAL_ENTRANCES,BST_INDETERMINATE);
@@ -522,34 +523,55 @@ ChangeMaterial:
 
         case IDC_EXPORT_ALL:
             // if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
-            if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_CHECKED && (epd.flags & EXPT_3DPRINT))
-            {
-				// depending on file format, explain problems and solutions
-				if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
-					// Sculpteo
-					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully, or if you're lucky enough to have access, use netfabb to clean up the mesh."),
-					_T("Informational"), MB_OK | MB_ICONINFORMATION);
-				else if (epd.fileType == FILE_TYPE_VRML2)
-					// Shapeways
-					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems."),
-					_T("Informational"), MB_OK | MB_ICONINFORMATION);
-				else
-					MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with software such as netfabb basic on desktop or free at http://cloud.netfabb.com."),
-					_T("Informational"), MB_OK | MB_ICONINFORMATION);
-                CheckDlgButton(hDlg,IDC_FATTEN,BST_CHECKED);
-                CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_UNCHECKED);
-                CheckDlgButton(hDlg,IDC_CONNECT_PARTS,BST_UNCHECKED);
-                CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,BST_INDETERMINATE);
-                CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,BST_INDETERMINATE);
-            }
-            else if ( IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL) == BST_UNCHECKED && (epd.flags & EXPT_3DPRINT))
-            {
-                // if lesser is toggled back off, turn on the defaults
-                CheckDlgButton(hDlg,IDC_DELETE_FLOATERS,BST_CHECKED);
-                CheckDlgButton(hDlg,IDC_CONNECT_PARTS,BST_CHECKED);
-                CheckDlgButton(hDlg,IDC_CONNECT_CORNER_TIPS,BST_CHECKED);
-                CheckDlgButton(hDlg,IDC_CONNECT_ALL_EDGES,BST_UNCHECKED);
-            }
+			if (epd.flags & EXPT_3DPRINT) {
+				if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
+				{
+					// depending on file format, explain problems and solutions
+					if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+						// Sculpteo
+						MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully, or if you're lucky enough to have access, use netfabb to clean up the mesh."),
+						_T("Informational"), MB_OK | MB_ICONINFORMATION);
+					else if (epd.fileType == FILE_TYPE_VRML2)
+						// Shapeways
+						MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems."),
+						_T("Informational"), MB_OK | MB_ICONINFORMATION);
+					else
+						MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with software such as netfabb basic on desktop or free at http://cloud.netfabb.com."),
+						_T("Informational"), MB_OK | MB_ICONINFORMATION);
+					CheckDlgButton(hDlg, IDC_FATTEN, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
+					CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
+				}
+				else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
+				{
+					// if lesser is toggled back off, turn on the defaults
+					CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_UNCHECKED);
+				}
+			}
+			else {
+				// for rendering
+				if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
+				{
+					// all objects has been toggled back on, so make compositing checkable, but off, which is the default for rendering
+					CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
+				}
+				else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
+				{
+					// definitely make compositing uncheckable at this point - full blocks mean that composite overlay will be used, vs. separate objects
+					CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+
+					// just to be safe:
+					CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
+					CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
+					CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
+				}
+			}
             // if we're turning it off, set fatten to indeterminate state
             {
                 UINT isLesserChecked = IsDlgButtonChecked(hDlg,IDC_EXPORT_ALL);
@@ -576,12 +598,13 @@ ChangeMaterial:
 
 		case IDC_COMPOSITE_OVERLAY:
 			// the indeterminate state is only for when the option is not available (i.e., 3d printing)
-			if (epd.flags & EXPT_3DPRINT)
+			if ((epd.flags & EXPT_3DPRINT) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED))
 			{
 				CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
 			}
 			else
 			{
+				// always go to the next state, if we'd normally go to the indeterminate (tri-value) state
 				UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_INDETERMINATE);
 				if (isIndeterminate)
 					CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
@@ -733,7 +756,9 @@ ChangeMaterial:
                 //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
                 lepd.chkMakeZUp[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_MAKE_Z_UP);
                 lepd.chkCenterModel = IsDlgButtonChecked(hDlg,IDC_CENTER_MODEL);
-				lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 : IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY);
+				// if 3D printing, or if lesser blocks is off, do composite overlay, where we make a new tile (things break otherwise)
+				lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 :
+					((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED));
 
                 // solid leaves and faces at borders always true for 3D printing.
                 lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1: IsDlgButtonChecked(hDlg,IDC_TREE_LEAVES_SOLID);

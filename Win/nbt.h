@@ -44,8 +44,15 @@ typedef struct {
     gzFile gz;
 } bfFile;
 
+typedef struct BlockEntity {
+	unsigned char type;
+	unsigned char zx;
+	unsigned char y;
+	unsigned char data;	// major and minor data in one byte
+} BlockEntity;
+
 bfFile newNBT(const wchar_t *filename);
-int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome);
+int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities);
 void nbtGetSpawn(bfFile bf,int *x,int *y,int *z);
 void nbtGetFileVersion(bfFile bf, int *version);
 void nbtGetFileVersionId(bfFile bf, int *versionId);

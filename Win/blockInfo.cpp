@@ -61,7 +61,7 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
     { L"Inches", "inches", 100.0f/2.54f }
 };
 
-
+// if you add new blocks, also set NUM_BLOCKS_STANDARD in the blockInfo.h file
 BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size here. Crazy as it sounds, this is important: color schemes use this hard-wired size to copy stuff over.
     // Don't trust the premultiplied colors - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               read_color ralpha color     prem-clr  alpha,     txX,Y  flags
@@ -214,7 +214,7 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 141 */ "Carrot",                 0x056B05, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,12, BLF_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//8d/141
     { /* 142 */ "Potato",                 0x00C01B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,12, BLF_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//8e/142
     { /* 143 */ "Wooden Button",          0x9f8150, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, BLF_FLATSIDE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//8f/143
-    { /* 144 */ "Mob Head",	              0xcacaca, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, BLF_ALMOST_WHOLE|BLF_DNE_FLUID},	//90/144 - TODO! |BLF_TRUE_GEOMETRY|BLF_3D_BIT
+    { /* 144 */ "Mob Head",	              0xcacaca, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, BLF_ALMOST_WHOLE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_DNE_FLUID},	//90/144 - TODO; we use a pumpkin for now...
     { /* 145 */ "Anvil",                  0x404040, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,13, BLF_ALMOST_WHOLE|BLF_TRUE_GEOMETRY|BLF_3D_BIT},    // 91/145 - NOTE: the top swatch is not used, the generic side swatch is
     // 1.6
     { /* 146 */ "Trapped Chest",          0xa06f23, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 1, BLF_ALMOST_WHOLE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_CONNECTS_REDSTONE},	// 92/146
@@ -289,24 +289,24 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
 	{ /* 214 */ "Nether Wart Block",      0x770C0D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,26, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 215 */ "Red Nether Brick",       0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 216 */ "Bone Block",             0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, BLF_WHOLE|BLF_FENCE_NEIGHBOR}, // top location; side is previous tile
-	{ /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY },	// uses red wool
-    { /* 218 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 219 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 220 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 221 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 222 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 223 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 224 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 225 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 226 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 227 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 228 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 229 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 230 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 231 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 232 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 233 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 234 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+	{ /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY},	// uses red wool
+	{ /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 6, BLF_WHOLE},	// TODO - for now use the dropper
+    { /* 219 */ "White Shulker Box",      0xDFDFDF, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 220 */ "Orange Shulker Box",     0xDB7E40, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 221 */ "Magenta Shulker Box",    0xB452BD, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 222 */ "Light Blue Shulker Box", 0x6D8BC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 223 */ "Yellow Shulker Box",     0xB2A728, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 224 */ "Lime Shulker Box",       0x42AF39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 225 */ "Pink Shulker Box",       0xC9738B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 226 */ "Gray Shulker Box",       0x414141, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 227 */ "Light Grey Shulker Box", 0x9CA2A2, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 228 */ "Cyan Shulker Box",       0x2F6F8A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 229 */ "Purple Shulker Box",     0x7F3EB6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 230 */ "Blue Shulker Box",       0x2E398E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 231 */ "Brown Shulker Box",      0x50331F, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 232 */ "Green Shulker Box",      0x35471C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 233 */ "Red Shulker Box",        0x983431, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
+    { /* 234 */ "Black Shulker Box",      0x1B1717, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, BLF_WHOLE},	// TODO - for now use wool
     { /* 235 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
     { /* 236 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
     { /* 237 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
@@ -326,6 +326,6 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 251 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
     { /* 252 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
     { /* 253 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 254 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
+    { /* 254 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock - BLOCK_FAKE is used here
     { /* 255 */ "Structure Block",        0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,25, BLF_WHOLE|BLF_FENCE_NEIGHBOR}
 };

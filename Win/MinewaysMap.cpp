@@ -1832,8 +1832,14 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_HEAD:	// TODO!
-    case BLOCK_QUARTZ_BLOCK:
+    case BLOCK_HEAD:
+		// uses 2-5
+		if (dataVal >= 2 && dataVal <= 5)
+		{
+			addBlock = 1;
+		}
+		break;
+	case BLOCK_QUARTZ_BLOCK:
         // uses 0-4
         if ( dataVal < 5 )
         {
@@ -1846,7 +1852,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_CAKE:
     case BLOCK_END_ROD:
     case BLOCK_CHORUS_FLOWER:
-        // uses 0-5
+	case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
+		// uses 0-5
         if ( dataVal < 6 )
         {
             addBlock = 1;
@@ -1962,7 +1969,13 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         }
         break;
     case BLOCK_FLOWER_POT:
-    case BLOCK_ANVIL:
+		// uses 0-13 for old-style 1.7 flower pots
+		if (dataVal < 14)
+		{
+			addBlock = 1;
+		}
+		break;
+	case BLOCK_ANVIL:
         // uses 0-11
         if ( dataVal < 12 )
         {
@@ -1988,7 +2001,23 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_STAINED_GLASS:
     case BLOCK_STANDING_BANNER:
     case BLOCK_WOOL:
-        // uses all bits, 0-15
+	case BLOCK_SHULKER_CHEST:
+	case BLOCK_SHULKER_CHEST + 1:
+	case BLOCK_SHULKER_CHEST + 2:
+	case BLOCK_SHULKER_CHEST + 3:
+	case BLOCK_SHULKER_CHEST + 4:
+	case BLOCK_SHULKER_CHEST + 5:
+	case BLOCK_SHULKER_CHEST + 6:
+	case BLOCK_SHULKER_CHEST + 7:
+	case BLOCK_SHULKER_CHEST + 8:
+	case BLOCK_SHULKER_CHEST + 9:
+	case BLOCK_SHULKER_CHEST + 10:
+	case BLOCK_SHULKER_CHEST + 11:
+	case BLOCK_SHULKER_CHEST + 12:
+	case BLOCK_SHULKER_CHEST + 13:
+	case BLOCK_SHULKER_CHEST + 14:
+	case BLOCK_SHULKER_CHEST + 15:
+		// uses all bits, 0-15
         addBlock = 1;
         break;
     case BLOCK_WATER:
@@ -2904,7 +2933,8 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
         Cache_Empty();
         block=block_alloc();
     }
-    block->rendery = -1; // force redraw
+	// always set
+	block->rendery = -1; // force redraw
 
 	if ( pWorldGuide->type == WORLD_TEST_BLOCK_TYPE )
     {
@@ -3021,9 +3051,21 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
 		int gotBlock = 0;
 
 		if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
+			BlockEntity blockEntities[16 * 16 * 256];
 
-			gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome);
+			gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities);
 			// got block successfully?
+
+			if (gotBlock && block->numEntities > 0) {
+				// transfer the relevant part of the BlockEntity array to permanent block storage
+				block->entities = (BlockEntity *)malloc(block->numEntities*sizeof(BlockEntity));
+
+				if (block->entities)
+					memcpy(block->entities, blockEntities, block->numEntities*sizeof(BlockEntity));
+				else
+					// couldn't alloc data
+					return NULL;
+			}
 		}
 		else {
 			assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
