@@ -311,6 +311,7 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
 static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
+static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t *pathAndFile);
@@ -696,10 +697,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
 
         validateItems(GetMenu(hWnd));
+
+		// get new directory for where world saves are located, if any: -s dir
+		if (getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount)) {
+			// path found on command line, try it out.
+			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine");
+		}
+		else {
+			// load default list of worlds
+			LOG_INFO(gExecutionLogfile, " setWorldPath");
+			int retCode = setWorldPath(gWorldPathDefault);
+
+			if (retCode == 0)
+			{
+				MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+					_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+			}
+		}
+
 		LOG_INFO(gExecutionLogfile, " loadWorldList");
         if ( loadWorldList(GetMenu(hWnd)) )
         {
-            MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+            MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
 				_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         }
 		wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
@@ -2206,6 +2225,45 @@ static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argLis
 	return true;
 }
 
+// return true if a command line directory was found and it's valid, false means not found or not valid.
+// fill in saveWorldDirectory with user-specified directory
+static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount)
+{
+	// parse to get -s dir
+	int argIndex = 1;
+	while (argIndex < argCount)
+	{
+		// is it a script? get past it
+		if (wcscmp(argList[argIndex], L"-s") == 0) {
+			// found window resize
+			argIndex++;
+			if (argIndex < argCount) {
+				wcscpy_s(saveWorldDirectory, MAX_PATH, argList[argIndex]);
+				argIndex++;
+				if (!PathFileExists(saveWorldDirectory)) {
+					MessageBox(NULL, _T("Warning:\nThe path you specified on the command line for your saved worlds location does not exist. The default directory will be used instead."),
+						_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+					return false;
+				}
+				else {
+					// found it - done
+					return true;
+				}
+			}
+			// if we got here, parsing didn't work
+			MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s directory\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+			return false;
+		}
+		else {
+			// skip whatever it is.
+			argIndex++;
+		}
+	}
+	// we return false when we don't find a directory that was input on the command line
+	return false;
+}
+
+
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount)
 {
 	// arguments possible:
@@ -2218,6 +2276,11 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
 			// skip window resize
 			LOG_INFO(gExecutionLogfile, " skip window resize");
 			argIndex += 3;
+		}
+		else if (wcscmp(argList[argIndex], L"-s") == 0) {
+			// skip user world save directory
+			LOG_INFO(gExecutionLogfile, " skip user world save directory");
+			argIndex += 2;
 		}
 		else if (wcscmp(argList[argIndex], L"-l") == 0) {
 			// skip logging
@@ -2751,24 +2814,15 @@ static int loadWorldList(HMENU menu)
 	gNumWorlds = 1;
 	memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
 
-    // uncomment to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
+    // uncomment next line to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
     //gDebug = true;
 
-    int retCode = setWorldPath(gWorldPathDefault);
-
-    if ( retCode == 0 )
-    {
-        MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-			_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
-        return 0;
-    }
     wcscpy_s(saveFilesPath,MAX_PATH,gWorldPathDefault);
 
     wchar_t msgString[1024];
-
     if ( gDebug )
     {
-        swprintf_s(msgString,1024,L"Found Minecraft saves directory successfully, on attempt %d", retCode );
+        swprintf_s(msgString,1024,L"Found Minecraft saves directory successfully" );
         MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
     }
 

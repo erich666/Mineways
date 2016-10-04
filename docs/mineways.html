@@ -133,10 +133,10 @@ Opening Worlds and Schematics
 </H2>
 There are many ways to open a Minecraft world or schematic file in Mineways. If one doesn't work for you, try the next.
 <P>
-<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders.
+<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders. If you want to specify a different directory for where your world saves are located, use the "-s" option on the command line on startup; see the <a href="scripting.html#clo">command line options</a>.
 <P>
 <a id="blocktestworld">
-If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south. To select a single block, find it, select it, then hit "[" to move the bottom level up by one, so selecting only the block itself and not the surrounding grass.
+If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south by their <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>. To select a single block, find it, right-click it, then hit "[" to move the bottom level up by one, thus selecting only the block itself and not the surrounding grass.
 <P>
 Here's a view of a small portion of [Block Test World] exported to OBJ and rendered with Cinema 4D:
 <P>
@@ -2357,6 +2357,9 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Heads are properly scaled and positioned, but are still rendered as pumpkins. Adding the real heads is on the TODO list, but involves using unwrapped textures; the dragon head in particular is quite elaborate.
 <LI>Bug fix: if lesser block export is turned off for rendering, composite overlay must also be off, as the whole "small object" subsystem is not used.
 <LI>Bug fix: acacia and jungle saplings were getting turned into oak and spruce saplings, due to masking out the two high data value bits.
+<LI>Bug fix: areas with Z coordinates outside of -10,000 to 10,000 range would throw an assertion, left over from some spurious mouse events not being filtered out. Removed assertions.
+
+
 <LI>Use an installer for Mineways, such as INNO
 <LI>Export model elements to a Mineways script file
 <LI>Improve the error reporting system to give more information, etc.
@@ -2436,7 +2439,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 9/30/2016</p>
+		<p id="lastUpdate">Last updated 10/4/2016</p>
 	</div>
 </div>
 
