@@ -59,10 +59,10 @@ static int gBoxMinZ;
 static int gBoxMaxX;
 static int gBoxMaxY;
 static int gBoxMaxZ;
-static int gDirtyBoxMinX=99999;
-static int gDirtyBoxMinZ=99999;
-static int gDirtyBoxMaxX=-99999;
-static int gDirtyBoxMaxZ=-99999;
+static int gDirtyBoxMinX = INT_MAX;
+static int gDirtyBoxMinZ = INT_MAX;
+static int gDirtyBoxMaxX = INT_MIN;
+static int gDirtyBoxMaxZ = INT_MIN;
 
 // highlight blend factor and color
 static double gHalpha = 0.3;
@@ -253,8 +253,8 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
     else
     {
         // empty
-        gDirtyBoxMinX=gDirtyBoxMinZ=99999;
-        gDirtyBoxMaxX=gDirtyBoxMaxZ=-99999;
+        gDirtyBoxMinX=gDirtyBoxMinZ=INT_MAX;
+		gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
     }
 }
 
@@ -1610,8 +1610,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                         b+=(unsigned char)((1.0-alpha)*(color&0xff));
                         alpha+=currentAlpha*(1.0-alpha);
                     }
-                    // if the block's color is now solid, finish.
-                    if (currentAlpha==1.0)
+                    // if the current block's color is fully opaque, finish.
+                    if (currentAlpha==1.0f)
                         break;
                 }
             }

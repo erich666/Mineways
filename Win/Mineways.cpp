@@ -254,6 +254,8 @@ typedef struct ImportedSet {
 	size_t errorMessagesStringSize;
 	wchar_t *errorMessages;
 	bool processData;
+	bool nether;
+	bool theEnd;
 	bool logging;
 	char logFileName[MAX_PATH];
 	HANDLE logfile;
@@ -351,6 +353,8 @@ static char *prepareLineData(char *line, bool model);
 static bool dealWithCommentBlocks(char *line, bool commentBlock);
 static bool startCommentBlock(char *line);
 static char *closeCommentBlock(char *line);
+static int switchToNether(ImportedSet & is);
+static int switchToTheEnd(ImportedSet & is);
 static int interpretImportLine(char *line, ImportedSet & is);
 static int interpretScriptLine(char *line, ImportedSet & is);
 static bool findBitToggle(char *line, ImportedSet & is, char *type, unsigned int bitLocation, unsigned int windowID, int *pRetCode);
@@ -1043,7 +1047,7 @@ RButtonUp:
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
 			assert(on);
-			int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true);
+			int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);
 			if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
@@ -1351,7 +1355,7 @@ RButtonUp:
 				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 				if (on) {
 					bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
-					gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque);
+					gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque, maxy);
 					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
 					REDRAW_ALL;
 				}
@@ -3892,6 +3896,19 @@ static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **
 			}
 		}
 
+		// if world viewed is nether or The End, load here.
+		if (is.nether) {
+			if (switchToNether(is)) {
+				MessageBox(NULL, L"Attempt to switch to the Nether failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+			}
+		}
+		else if (is.theEnd) {
+			assert(is.nether == false);
+			if (switchToTheEnd(is)) {
+				MessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+			}
+		}
+
 		// see if we can load the terrain file
 		if (strlen(is.terrainFile) > 0)
 		{
@@ -4515,10 +4532,88 @@ static char *closeCommentBlock(char *line)
 	return NULL;
 }
 
+// Return 0 if this executes properly. Else return code should be passed up chain.
+static int switchToNether(ImportedSet & is)
+{
+	if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+	{
+		saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
+		return INTERPRETER_FOUND_ERROR;
+	}
+	gOptions.worldType |= HELL;
+	gOptions.worldType &= ~ENDER;
+	// change scale as needed
+	gCurX /= 8.0;
+	gCurZ /= 8.0;
+	// it's useless to view Nether from MAP_MAX_HEIGHT
+	if (gCurDepth == MAP_MAX_HEIGHT)
+	{
+		gCurDepth = 126;
+		setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+	}
+	gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
+	gOptions.worldType |= HIDEOBSCURED;
+
+	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType&HELL) ? MF_CHECKED : MF_UNCHECKED);
+	if (gOptions.worldType&ENDER)
+	{
+		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
+		gOptions.worldType &= ~ENDER;
+	}
+	CloseAll();
+	// clear selection when you switch from somewhere else to The Nether, or vice versa
+	gHighlightOn = FALSE;
+	SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+	enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+
+	return 0;
+}
+
+// Return 0 if this executes properly. Else return code should be passed up chain.
+static int switchToTheEnd(ImportedSet & is)
+{
+	if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+	{
+		saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
+		return INTERPRETER_FOUND_ERROR;
+	}
+	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
+	// entering Ender, turn off hell if need be
+	gOptions.worldType |= ENDER;
+	if (gOptions.worldType&HELL)
+	{
+		// get out of hell zoom
+		gCurX *= 8.0;
+		gCurZ *= 8.0;
+		// and undo other hell stuff
+		if (gCurDepth == 126)
+		{
+			gCurDepth = MAP_MAX_HEIGHT;
+			setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+		}
+		// turn off obscured, then restore overworld's obscured status
+		gOptions.worldType &= ~HIDEOBSCURED;
+		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
+		gOptions.worldType |= gOverworldHideStatus;
+		// uncheck hell menu item
+		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
+		gOptions.worldType &= ~HELL;
+	}
+
+	CloseAll();
+	// clear selection when you switch from somewhere else to The End, or vice versa
+	gHighlightOn = FALSE;
+	SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+	enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+
+	return 0;
+}
+
 static int interpretImportLine(char *line, ImportedSet & is)
 {
 	char *strPtr;
-	int i;
+	int i, ret;
 	char string1[100], string2[100], string3[100], string4[100];
 	wchar_t error[1024];
 	int modelStyle = ISE_NO_DATA_TYPE_FOUND;
@@ -4677,6 +4772,75 @@ static int interpretImportLine(char *line, ImportedSet & is)
 			if (!is.readingModel) {
 				if (!commandLoadTerrainFile(is, error)) {
 					saveErrorMessage(is, error);
+					return INTERPRETER_FOUND_ERROR;
+				}
+			}
+		}
+		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+	}
+
+	strPtr = findLineDataNoCase(line, "View Overworld");
+	if (strPtr != NULL) {
+		if (is.processData) {
+			// simply ignored if read inside a model, since overworld is the default
+			if (!is.readingModel) {
+				if (gLoaded) {
+					gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
+					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+					if (gOptions.worldType&ENDER)
+					{
+						CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
+						gOptions.worldType &= ~ENDER;
+					}
+					CloseAll();
+					// clear selection when you switch from somewhere else to The Nether, or vice versa
+					gHighlightOn = FALSE;
+					SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+					enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+				}
+				else {
+					// warning: selection set but no world is loaded
+					saveErrorMessage(is, L"attempt to view Overworld but no world is loaded.");
+					return INTERPRETER_FOUND_ERROR;
+				}
+			}
+		}
+		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+	}
+
+	strPtr = findLineDataNoCase(line, "View Nether");
+	if (strPtr != NULL) {
+		if (is.processData) {
+			is.nether = true;
+			if (!is.readingModel) {
+				if (gLoaded) {
+					ret = switchToNether(is);
+					if (ret)
+						return ret;
+				}
+				else {
+					// warning: selection set but no world is loaded
+					saveErrorMessage(is, L"attempt to view Nether but no world is loaded.");
+					return INTERPRETER_FOUND_ERROR;
+				}
+			}
+		}
+		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+	}
+
+	strPtr = findLineDataNoCase(line, "View The End");
+	if (strPtr != NULL) {
+		if (is.processData) {
+			is.theEnd = true;
+			if (!is.readingModel) {
+				if (gLoaded) {
+					ret = switchToTheEnd(is);
+					if (ret)
+						return ret;
+				}
+				else {
+					// warning: selection set but no world is loaded
+					saveErrorMessage(is, L"attempt to view The End but no world is loaded.");
 					return INTERPRETER_FOUND_ERROR;
 				}
 			}
@@ -5574,128 +5738,6 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
 	}
 
-
-	strPtr = findLineDataNoCase(line, "View Overworld");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
-				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-				if (gOptions.worldType&ENDER)
-				{
-					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-					gOptions.worldType &= ~ENDER;
-				}
-				CloseAll();
-				// clear selection when you switch from somewhere else to The Nether, or vice versa
-				gHighlightOn = FALSE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-			}
-			else {
-				// warning: selection set but no world is loaded
-				saveErrorMessage(is, L"attempt to view Overworld but no world is loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "View Nether");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-				{
-					saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-				gOptions.worldType |= HELL;
-				gOptions.worldType &= ~ENDER;
-				// change scale as needed
-				gCurX /= 8.0;
-				gCurZ /= 8.0;
-				// it's useless to view Nether from MAP_MAX_HEIGHT
-				if (gCurDepth == MAP_MAX_HEIGHT)
-				{
-					gCurDepth = 126;
-					setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-				}
-				gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
-				gOptions.worldType |= HIDEOBSCURED;
-
-				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType&HELL) ? MF_CHECKED : MF_UNCHECKED);
-				if (gOptions.worldType&ENDER)
-				{
-					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-					gOptions.worldType &= ~ENDER;
-				}
-				CloseAll();
-				// clear selection when you switch from somewhere else to The Nether, or vice versa
-				gHighlightOn = FALSE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-			}
-			else {
-				// warning: selection set but no world is loaded
-				saveErrorMessage(is, L"attempt to view Nether but no world is loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "View The End");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-				{
-					saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
-				// entering Ender, turn off hell if need be
-				gOptions.worldType |= ENDER;
-				if (gOptions.worldType&HELL)
-				{
-					// get out of hell zoom
-					gCurX *= 8.0;
-					gCurZ *= 8.0;
-					// and undo other hell stuff
-					if (gCurDepth == 126)
-					{
-						gCurDepth = MAP_MAX_HEIGHT;
-						setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-					}
-					// turn off obscured, then restore overworld's obscured status
-					gOptions.worldType &= ~HIDEOBSCURED;
-					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
-					gOptions.worldType |= gOverworldHideStatus;
-					// uncheck hell menu item
-					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
-					gOptions.worldType &= ~HELL;
-				}
-
-				CloseAll();
-				// clear selection when you switch from somewhere else to The End, or vice versa
-				gHighlightOn = FALSE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-			}
-			else {
-				// warning: selection set but no world is loaded
-				saveErrorMessage(is, L"attempt to view The End but no world is loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-
 	if (findBitToggle(line, is, "Show all objects", SHOWALL, IDM_SHOWALLOBJECTS, &retCode)) return retCode;
 	if (findBitToggle(line, is, "Show biomes", BIOMES, IDM_VIEW_SHOWBIOMES, &retCode)) return retCode;
 	if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode)) return retCode;
@@ -5762,7 +5804,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 						// "V" means ignore transparent blocks, such as ocean
 						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
 						if (on) {
-							int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'));
+							int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'), maxy);
 							if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
 								minHeight = heightFound > minHeight ? heightFound : minHeight;
 							}

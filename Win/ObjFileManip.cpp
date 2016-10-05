@@ -68,6 +68,9 @@ static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
 // 1/16 - one pixel in a 16x16 tile
 #define ONE_PIXEL	0.0625f
 
+// if we see this value, it's probably bad
+#define UNINITIALIZED_INT	-98789
+
 typedef struct BoxCell {
     int group;	// for 3D printing, what connected group a block is part of
     unsigned char type;
@@ -87,8 +90,8 @@ typedef struct BoxGroup
 static BoxCell *gBoxData = NULL;
 static unsigned char *gBiome = NULL;
 static IPoint gBoxSize;
-static int gBoxSizeYZ = -999;
-static int gBoxSizeXYZ = -999;
+static int gBoxSizeYZ = UNINITIALIZED_INT;
+static int gBoxSizeXYZ = UNINITIALIZED_INT;
 // the box bounds of gBoxData that has something in it, before processing
 static IBox gSolidBox;
 // the box bounds of gBoxData that has something in it, +1 in all directions for air
@@ -248,12 +251,12 @@ typedef struct FillAlpha {
     (c) = (s) % gModel.swatchesPerRow; \
     (r) = (s) / gModel.swatchesPerRow; \
 
-static int gSolidGroups = -999;
-static int gAirGroups = -999;
+static int gSolidGroups = UNINITIALIZED_INT;
+static int gAirGroups = UNINITIALIZED_INT;
 
 static int gGroupListSize = 0;
 static BoxGroup *gGroupList = NULL;
-static int gGroupCount = -999;
+static int gGroupCount = UNINITIALIZED_INT;
 
 // offsets in box coordinates to the neighboring faces
 static int gFaceOffset[6];
@@ -367,15 +370,15 @@ wchar_t gOutputFileRootClean[MAX_PATH]; // used by all files that are referenced
 char gOutputFileRootCleanChar[MAX_PATH];
 
 // how many blocks are needed to make a thick enough wall
-static int gWallBlockThickness = -999;
+static int gWallBlockThickness = UNINITIALIZED_INT;
 // how many is the user specifying for hollow walls
-static int gHollowBlockThickness = -999;
+static int gHollowBlockThickness = UNINITIALIZED_INT;
 
-static int gBlockCount = -999;
+static int gBlockCount = UNINITIALIZED_INT;
 
-static int gMinorBlockCount = -999;
+static int gMinorBlockCount = UNINITIALIZED_INT;
 
-static int gDebugTransparentType = -999;
+static int gDebugTransparentType = UNINITIALIZED_INT;
 
 static long gMySeed = 12345;
 
@@ -1398,8 +1401,8 @@ static int initializeModelData()
     gModel.faceRecordPool->count = 0;
     gModel.faceRecordPool->pPrev = NULL;
 
-    VecScalar( gModel.billboardBounds.min, =,  999999);
-    VecScalar( gModel.billboardBounds.max, =, -999999);
+    VecScalar( gModel.billboardBounds.min, =,  INT_MAX);
+    VecScalar( gModel.billboardBounds.max, =, INT_MIN);
 
     // NO_INDEX_SET means vertex is not used
     for ( i = 0; i < gBoxSizeXYZ; i++ )
@@ -1588,8 +1591,8 @@ static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *
 	endzblock = (int)floor((float)worldBox->max[Z] / 16.0f);
 
 	// get bounds on Y coordinates, since top part of box is usually air
-	VecScalar(gSolidWorldBox.min, = , 999999);
-	VecScalar(gSolidWorldBox.max, = , -999999);
+	VecScalar(gSolidWorldBox.min, = , INT_MAX);
+	VecScalar(gSolidWorldBox.max, = , INT_MIN);
 
 	// We now extract twice: first time is just to get bounds of solid stuff we'll actually output.
 	// Results of this first pass are put in gSolidWorldBox.
@@ -9516,8 +9519,8 @@ static void checkAndRemoveBubbles()
                 // Take the biggest group out of the list, as it's the one everyone merges to.
                 neighborGroups[masterGroupID] = 0;
                 // Get the union of the bounds of all groups found to merge.
-                VecScalar( bounds.min, =,  999999);
-                VecScalar( bounds.max, =, -999999);
+                VecScalar( bounds.min, =,  INT_MAX);
+                VecScalar( bounds.max, =, INT_MIN);
                 // Turn the air bubble itself back on, as it will also be filled
                 neighborGroups[i] = 1;
                 for ( groupID = SURROUND_AIR_GROUP+1; groupID <= gGroupCount; groupID++ )
@@ -9614,8 +9617,8 @@ static void findNeighboringGroups( IBox *bounds, int groupID, int *neighborGroup
 //
 //	for ( i = SURROUND_AIR_GROUP+1; i <= gGroupCount; i++ )
 //	{
-//		VecScalar( gGroupList[i].bounds.min, =,  999999);
-//		VecScalar( gGroupList[i].bounds.max, =, -999999);
+//		VecScalar( gGroupList[i].bounds.min, =, INT_MAX);
+//		VecScalar( gGroupList[i].bounds.max, =, INT_MIN);
 //	}
 //
 //	// look at all locations and set. We can not bother with the air coating (group 1), as that one's done anyways
@@ -10042,7 +10045,7 @@ static int fixTouchingEdges()
 
 		if (gTouchGrid[boxIndex].count > 0)
 		{
-			int boxMtlIndex = -999;
+			int boxMtlIndex = UNINITIALIZED_INT;
 			int foundBlock = 0;
 			int faceGroupIDCount = 0;
 			int faceGroupID[6];
@@ -10142,8 +10145,8 @@ static int fixTouchingEdges()
 				assert(gSolidGroups >= 1);
 
 				// Get the union of the bounds of all groups found to merge.
-				VecScalar(bounds.min, = , 999999);
-				VecScalar(bounds.max, = , -999999);
+				VecScalar(bounds.min, = , INT_MAX);
+				VecScalar(bounds.max, = , INT_MIN);
 				// mark all the neighbor groups that are to merge
 				for (i = 0; i < faceGroupIDCount; i++)
 				{
@@ -10230,10 +10233,10 @@ static void checkForTouchingEdge(int boxIndex, int offx, int offy, int offz)
             ( gBoxData[boxIndex].group != gBoxData[otherSolidIndex].group ) )
         {
             // groups differ (or all edges should be connected)
-            int n1index=-999;
-            int n2index=-999;
-            int n1neighbor=-999;
-            int n2neighbor=-999;
+            int n1index=UNINITIALIZED_INT;
+            int n2index=UNINITIALIZED_INT;
+            int n1neighbor=UNINITIALIZED_INT;
+            int n2neighbor=UNINITIALIZED_INT;
             int foundPair = 0;
             // is this the +X face or +Z face
             if ( offx == 1 )
@@ -10374,7 +10377,7 @@ static int computeObscurity( int boxIndex )
             // we want to get the start & ending locations and increment for the loop to
             // check obscurity.
             int start = boxIndex;
-            int incr=-999;
+            int incr=UNINITIALIZED_INT;
             int hit=0;
             int i, cellIndex, cellsToLoop;
             int axis = faceDirection % 3;
@@ -10572,8 +10575,8 @@ static void deleteFloatingGroups()
     // Find largest group and don't delete it, so there's always something left.
     // If there's a tie on size, lower Y bounds is the tie breaker
     // [don't need to look at air group]
-    int survivorGroup = -999;
-    int maxPop = -999;
+    int survivorGroup = UNINITIALIZED_INT;
+    int maxPop = UNINITIALIZED_INT;
     int minY=999;
     for ( i = SURROUND_AIR_GROUP+1; i <= gGroupCount; i++ )
     {
@@ -10780,6 +10783,7 @@ static float computeMachineVolume()
     {
         for ( z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++ )
         {
+			// set uninitialized Y values, where the valid range is 0-255
             int minSolid = 999;
             int maxSolid = -999;
             // check the 3x3 in the column for its max and min heights
@@ -11365,8 +11369,8 @@ static int getDimensionsAndCount( Point dimensions )
     int boxIndex;
     IBox bounds;
     int count = 0;
-    VecScalar( bounds.min, =,  999999);
-    VecScalar( bounds.max, =, -999999);
+    VecScalar( bounds.min, =, INT_MAX);
+    VecScalar( bounds.max, =, INT_MIN);
 
     // do full grid here, in case supports or other stuff gets added at the end
     //for ( loc[X] = 0; loc[X] < gBoxSize[X]; loc[X]++ )
@@ -17694,45 +17698,45 @@ static int schematicWriteStringValue( gzFile gz, char *stringValue )
 {
     int totWrite = gzwrite( gz, stringValue, (unsigned int)strlen(stringValue) );
     assert(totWrite);
-    return totWrite;
+return totWrite;
 }
 
 
-static int writeLines( HANDLE file, char **textLines, int lines )
+static int writeLines(HANDLE file, char **textLines, int lines)
 {
 #ifdef WIN32
-    DWORD br;
+	DWORD br;
 #endif
 
-    int i;
-    for ( i = 0; i < lines; i++ )
-    {
-        WERROR(PortaWrite(file, textLines[i], strlen(textLines[i]) ));
-    }
+	int i;
+	for (i = 0; i < lines; i++)
+	{
+		WERROR(PortaWrite(file, textLines[i], strlen(textLines[i])));
+	}
 
-    return MW_NO_ERROR;
+	return MW_NO_ERROR;
 }
 
-static float max3( Point pt )
+static float max3(Point pt)
 {
-    float retVal = max( pt[0], pt[1] );
-    return max( retVal, pt[2] );
+	float retVal = max(pt[0], pt[1]);
+	return max(retVal, pt[2]);
 }
-static float med3( Point pt )
+static float med3(Point pt)
 {
-    float retVal = max( pt[0], pt[1] );
-    if ( retVal > pt[2] )
-    {
-        // old retVal is maximum, so compare other two
-        retVal = min( pt[0], pt[1] );
-        retVal = max( retVal, pt[2] );
-    }
-    return retVal;
+	float retVal = max(pt[0], pt[1]);
+	if (retVal > pt[2])
+	{
+		// old retVal is maximum, so compare other two
+		retVal = min(pt[0], pt[1]);
+		retVal = max(retVal, pt[2]);
+	}
+	return retVal;
 }
-static float min3( Point pt )
+static float min3(Point pt)
 {
-    float retVal = min( pt[0], pt[1] );
-    return min( retVal, pt[2] );
+	float retVal = min(pt[0], pt[1]);
+	return min(retVal, pt[2]);
 }
 
 static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
@@ -17775,7 +17779,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	else {
 		sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
 	}
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
 	WcharToChar(terrainFileName, outChar, MAX_PATH);
 	// this code removes the path, but the path is now useful for scripting, so keep it in.
@@ -17792,6 +17796,18 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	//sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
 	sprintf_s(outputString, 256, "# Terrain file name: %s\n", outChar);
 	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	// if we output the Nether or The End, note it here. Otherwise overworld is assumed.
+	if (gOptions->worldType&(ENDER | HELL)) {
+		if (gOptions->worldType&HELL) {
+			sprintf_s(outputString, 256, "# View Nether\n");
+		}
+		else {
+			assert(gOptions->worldType&ENDER);
+			sprintf_s(outputString, 256, "# View The End\n");
+		}
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
 
 	if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
 	{
@@ -19138,7 +19154,7 @@ static double myrand()
 //=============================================
 
 // return 0 if nothing found in volume
-int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent)
+int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy)
 {
 	int minHeightFound = 256;
 
@@ -19165,7 +19181,7 @@ int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int mi
 				pOptions = pOptions;
 			}
 
-			int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, 255, maxz, ignoreTransparent);
+			int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent);
 			if (heightFound < minHeightFound)
 			{
 				minHeightFound = heightFound;
@@ -19222,10 +19238,31 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
 	loopXmax = min(maxx, chunkX + 15);
 	loopZmax = min(maxz, chunkZ + 15);
 
+	// Have we seen an empty voxel yet? Initialize to true if the volume scanned is at the maximum height, else
+	// we might be in a cave and in nether hide-obscured mode and so ignore solid voxels until we hit air.
+	int seenempty = (maxy == MAP_MAX_HEIGHT) ? 1 : 0;
+
+	// don't need to turn on showobscured if we've seen an empty location already. NOTE: this is not in the map
+	// draw() method, though probably needs to be. That's touchy code, though, so I won't mess with it now.
+	bool showobscured = !seenempty && (pOptions->worldType & HIDEOBSCURED);
+
 	for (x = loopXmin; x <= loopXmax; x++) {
 		for (z = loopZmin; z <= loopZmax; z++) {
 			chunkIndex = CHUNK_INDEX(bx, bz, x, maxy, z);
-			for (y = maxy; y >= miny; y--) {
+			int adj_maxy = maxy;
+			if (showobscured) {
+				// ignore solid voxels, continue from the first "hollow" empty area
+				for (; adj_maxy >= miny; adj_maxy--) {
+					int type = block->grid[chunkIndex];
+
+					// always ignore air; if we ignore transparent, then anything with alpha < 1.0 is ignored, else alpha == 0.0 only is ignored
+					if ((type == BLOCK_AIR) || (gBlockDefinitions[type].alpha == 0.0)) {
+						break;
+					}
+					chunkIndex -= 256;
+				}
+			}
+			for (y = adj_maxy; y >= miny; y--) {
 				int type = block->grid[chunkIndex];
 
 				// always ignore air; if we ignore transparent, then anything with alpha < 1.0 is ignored, else alpha == 0.0 only is ignored

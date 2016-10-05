@@ -176,6 +176,17 @@ The world to load, accessed by the folder name. The .minecraft/saves directory i
 
 <tr>
 <td>
+View Overworld<br>
+View Nether<br>
+View The End
+</td>
+<td>
+Change to the given map level (will appear all gray if the level does not exist). For model export "View Overworld" is not output, since it's the default.
+</td>
+</tr>
+
+<tr>
+<td>
 Terrain file name: <i>C:\Users\erich\Desktop\Mineways\terrainExt_Sphax.png</i><br>
 Terrain file name: <i>terrainExt_DokuLight.png</i>
 </td>
@@ -376,17 +387,6 @@ Zoom: <i>5</i><br>
 </td>
 <td>
 Zoom in on the view, higher is more zoomed in. The legal range is 1 to 40, inclusive, and represents the width of each block in pixels.
-</td>
-</tr>
-
-<tr>
-<td>
-View Overworld<br>
-View Nether<br>
-View The End
-</td>
-<td>
-Change to the given map level (will appear all gray if the level does not exist).
 </td>
 </tr>
 
@@ -646,7 +646,7 @@ Specify the file name and path for a script or model file to load on startup.
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
 <P>
 -s <i>UserSaveDirectory</i><br>
-Specify the directory where your Minecraft worlds are located. This is "%appdata%\.minecraft\saves" by default, if not specified. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
+Specify the directory where your Minecraft worlds are located. This is "%appdata%\.minecraft\saves" by default, if not specified. This directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
