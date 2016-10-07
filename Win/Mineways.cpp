@@ -3293,12 +3293,13 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     else if ( printModel == 1 )
     {
         // print
-        gpEFD = &gExportPrintData;
+		gpEFD = &gExportPrintData;
         gOptions.exportFlags = EXPT_3DPRINT;
         gpEFD->flags = EXPT_3DPRINT;
     }
     else
     {
+		// render
         gpEFD = &gExportViewData;
         gOptions.exportFlags = 0x0;
         gpEFD->flags = 0x0;
@@ -3369,11 +3370,12 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // export options
     if ( gpEFD->radioExportMtlColors[gpEFD->fileType] == 1 )
     {
-        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+		// if color output is specified, we *must* put out multiple objects, each with its own material
+		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
     else if ( gpEFD->radioExportSolidTexture[gpEFD->fileType] == 1 )
     {
-        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
     else if ( gpEFD->radioExportFullTexture[gpEFD->fileType] == 1 )
     {
@@ -3405,16 +3407,16 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // set OBJ group and material output state
     if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
     {
-        if ( gpEFD->chkMultipleObjects )
-        {
+		if (gpEFD->chkMultipleObjects)
+		{
 			MY_ASSERT(gpEFD->chkIndividualBlocks == 0);
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
+			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
 
-            if ( gpEFD->chkMaterialPerType )
-            {
-                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS;
-            }
-        }
+			if (gpEFD->chkMaterialPerType)
+			{
+				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS;
+			}
+		}
 		else if (gpEFD->chkIndividualBlocks)
 		{
 			// these must be on for individual block export, plus grouping by block
@@ -3425,12 +3427,18 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 			}
 		}
 
+		if (gpEFD->chkMaterialSubtypes)
+		{
+			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES;
+		}
+
 		if (gpEFD->chkG3DMaterial)
 		{
+			// if G3D is chosen, we output the full material
 			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
 			if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
 			{
-				// G3D - use only if textures are on.
+				// G3D - use this option only if textures are on.
 				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
 			}
 		}
@@ -3762,10 +3770,12 @@ static void initializePrintExportData(ExportFileData &printData)
 	printData.chkShowParts = 0;
 	printData.chkShowWelds = 0;
 
-	printData.chkMultipleObjects = 1;
+	// should normally just have one material and group
+	printData.chkMultipleObjects = 0;
 	printData.chkIndividualBlocks = 0;
-	printData.chkMaterialPerType = 1;
-	// we want a neutral material for printing (the rest is not all that important), as the SAP Viewer needs this
+	printData.chkMaterialPerType = 0;
+	printData.chkMaterialSubtypes = 0;
+	// we want a neutral material for printing (the rest is not all that important), to make sure the color is not multiplied by the texture
 	printData.chkG3DMaterial = 1;
 
 	printData.floaterCountVal = 16;
@@ -3831,7 +3841,11 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.chkHollow, 0,0,0,0,0,0,0);
     INIT_ALL_FILE_TYPES( viewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
-    viewData.chkG3DMaterial = 0;
+	viewData.chkMultipleObjects = 1;
+	viewData.chkIndividualBlocks = 0;
+	viewData.chkMaterialPerType = 1;
+	viewData.chkMaterialSubtypes = 0;
+	viewData.chkG3DMaterial = 0;
 	viewData.chkCompositeOverlay = 0;
 	viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
@@ -5060,6 +5074,19 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
 		if (is.processData)
 			is.pEFD->chkMaterialPerType = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Split materials into subtypes command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkMaterialSubtypes = interpretBoolean(string1);
 		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
 	}
 

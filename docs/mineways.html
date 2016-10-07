@@ -58,7 +58,7 @@
     <div id="content" class="clearfix">
 <h1>Documentation</h1>
 
-To quickly get started, see the <a href="downloads.html#instructions">downloads page</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="mailto:erich@acm.org">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
+To quickly get started, see the <a href="downloads.html#instructions">downloads page</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
 <P>
 Normally you can just hit "OK" on the export dialog and things will work fine. Read on if you want to understand how to make your models less expensive, use different texture packs, and otherwise tailor you want to see printed out. What follows is extensive documentation about each part of the export and print process. If you don't want to wade through it all, at least search this page for the phrase <b>"Key tip"</b>, as these bits are particularly useful.
 <P>
@@ -397,8 +397,21 @@ You can also interactively compare these sampling methods <a href="https://skfb.
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, etc. - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages.
 <LI>Separate materials/blocks: on by default, each object is given a separate material. Turning this option off for some renderers makes for a simpler import conversion process, at the cost of having only one material.
 <LI id="individual" class="ib">Individual blocks: Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to easily animate such operations as mining. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Separate materials/blocks," each separate block is put into a separate object, so each can be deleted, animated, etc. <I>(thanks to Ryan Miller for the idea, and Flaeon for the group option.)</I>
-<LI><a id="full_material">G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which positively affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="#g3d">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default.
+<LI><a id="material_subtypes">Split materials into subtypes:</a> If multiple materials are exported (see the combinations below), have each different variant of a given type have its own material. This lets you individually tailor the material of the 7 different forms of <a href="http://minecraft.gamepedia.com/Data_values#Stone">Stone</a>, so that polished granite could have a different shine than granite, for example. This option is off by default, because turning it on yields noticeably more materials. Each material is identified by its data value suffix, e.g. "Stone__5" is <a href="http://minecraft.gamepedia.com/Data_values#Stone">Andesite</a>. If the data value is 0, no suffix is added (so "Stone" is plain old stone, data value 0). Note: I have tried to limit new materials to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material. Crops are given separate materials for each growth level, and farmland each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states.
+<LI><a id="full_material">G3D material:</a> Checking this box causes the diffuse color of the material to always be white (which positively affects water in 3DS MAX), and for a more elaborate illumination model to be output (which adversely affects Blender's rendering of water). <a href="http://meshlab.sourceforge.net/">MeshLab</a> and the <a href="#g3d">G3D viewer</a> have the feature/bug that the texture color is multiplied by the material color. Most renderers (Maya, Cinema 4D, Blender) do not perform this multiplication, so leaving this box unchecked for them means you can turn off textures and still see the solid block colors. This is particularly handy for Blender, where textures are off by default. This is also the default material for colored 3D printing, to avoid any problems with readers.
 </UL>
+<P>
+The logic for the first few options is confusing (even to me), so here are all the permutations:
+<UL>
+<LI>No OBJ export boxes checked (ignore the G3D box for all of these): no group is output, single material. This is what 3D prints always use.
+<LI>Check "Export separate types": visible polygons are grouped by type (Grass_Block, Sand, Dirt), single material.
+<LI>Check "Export separate types" and "Separate materials/blocks" (the default): polygons are grouped by type, each type has a material.
+<LI>Check "Export individual blocks": same as above, polygons are grouped by block type, each type has a material. However, geometrically, every block has all its faces output, even those not visible.
+<LI>Check "Export individual blocks" and "Separate materials/blocks": each individual Minecraft block has its own group, each material type has a material, blocks each use the (single) relevant material, and all faces are output.
+</UL>
+<P>
+If you check "Split materials into subtypes", for the last three combinations materials are then created per sub-type, e.g., there are three kinds of <a href="http://minecraft.gamepedia.com/Dirt#Block_data">Dirt</a>. If only a single material is output, this option is ignored.
+
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
 </P>
@@ -797,7 +810,7 @@ Save the file.
 <P>
 At this point you then do exactly the same procedure as described for blender_mineways.py above, but loading this CyclesMineways.py script instead. Hit F12 to see the result.
 <P>
-Note: this script is in development, so <a href="mailto:erich@acm.org">please do contribute</a> and make it better!
+Note: this script is in development, so <a href="contact.html">please do contribute your ideas</a> and make it better!
 <LI>
 <b>manual method:</b>
 If either script is not working for you or you'd rather do a lot of work by hand, what follows are the step-by-step instructions for setting each material manually.
@@ -1810,7 +1823,7 @@ Delicate, and billboards won't print on a 3D printer.
 
 <tr>
 <td>
-Cauldron (#118)<br>End Portal Frame (#120)<br>Dragon Egg (#122)
+Cauldron (#118)<br>Dragon Egg (#122)
 </td>
 <td>
 <center>Proper geometry</center>
@@ -1840,7 +1853,24 @@ End Portal (#119)<br>End Gateway (#209)
 <center>Full block only</center>
 </td>
 <td>
-Uses the custom tile MW_END_PORTAL.png
+Uses the custom tile MW_END_PORTAL.png for the void
+</td>
+</tr>
+
+<tr>
+<td>
+End Portal Frame (#120)
+</td>
+<td>
+<center>Proper geometry, rotation is simplified to 90 degrees or not</center>
+</td>
+<td>
+<center>Full block, no ender eye, correct rotation</center>
+</td>
+<td>
+<center>Proper geometry, rotation is simplified to 90 degrees or not</center>
+</td>
+<td>
 </td>
 </tr>
 
@@ -2350,29 +2380,42 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI><a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways</a> scripts updated.
 </UL>
 
-<LI>Version 5.04, ??/??/201?  - possible near-term future features:
+<LI>Version 5.04, 10/8/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV504.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac504.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Stand-ins are in place for the proposed 1.11 observer and shulker boxes. The new tiles are not yet integrated into Mineways, as I don't like to integrate textures and their names until the release is official. You'll get something approximating these new blocks.
-<LI>Flower pots are fully supported for rendering, as <a href="http://minecraft.gamepedia.com/Chunk_format#Block_entity_format">block entities</a> are now read in. Reading in block entities was pretty involved...
-<LI>Heads are properly scaled and positioned, but are still rendered as pumpkins. Adding the real heads is on the TODO list, but involves using unwrapped textures; the dragon head in particular is quite elaborate.
-<LI>Import of models exported from the Nether and The End using Import Settings now switch to these world types on import. Only models exported from this or later versions will contain the "View Nether" and "View The End" information needed for this to work.
+<LI><a href="#material_subtypes">Material subtypes</a> can be output: for example, Stone has seven types. Normally only one material, "Stone", is output, but you can have "Stone", "Stone__1", "Stone__5" for each type used, by its data value.
+<LI>Command line option added: you can specify the folder where your Minecraft world save folders are stored, if you want to use another directory location. The format is <a href="scripting.html#clo">-s directory</a>. <I>(Thanks to <a href="https://www.reddit.com/r/mineways/comments/50hvj1/suggestionsbugs/">this redditor</a> for this suggestion.)</I>
+<LI>The selection box now shows against empty space. <I>(Thanks again to <a href="https://www.reddit.com/r/mineways/comments/50hvj1/suggestionsbugs/">this redditor</a> for this suggestion.)</I>
+<LI><a href="http://minecraft.gamepedia.com/Flower_Pot">Flower pots</a> are fully supported for rendering, as <a href="http://minecraft.gamepedia.com/Chunk_format#Block_entity_format">block entities</a> are now read in. Reading in block entities was pretty involved...
+<LI><a href="http://minecraft.gamepedia.com/Mob_head">Mob heads</a> are properly scaled and positioned, but are still rendered as pumpkins. Adding the real heads is on the TODO list, but involves using unwrapped textures; the dragon head in particular is quite elaborate. Note that with <a href="#material_subtypes">Material subtypes</a> feature the different heads will be identified by their material.
+<LI>Efficiency/bug fix: 3D print OBJ models were exporting with separate materials and groups. These are unnecessary, as is the alpha channel texture output. However, if exported using a single material, the alpha textures were getting used. Fixed.
+<LI>Import of models exported from the Nether and The End using Import Settings now switch to these world types on import. Only models exported from this or later versions will contain the "View Nether" and "View The End" header information needed for this to work.
 <LI>Automatic height adjustment when using Hide obscured (usually on in the Nether) now takes this feature into account, to give a better bottom starting height.
-<LI>Bug fix: if lesser block export is turned off for rendering, composite overlay must also be off, as the whole "small object" subsystem is not used. (Thanks to the guy I ran into at Minecon for reporting this bug.)
+<LI>Monster eggs now output mossy, cracked, and chiseled stone brick versions, a 1.7.2 change I finally noticed.
+<LI>End portal frames now show the eye of ender if present, and also are rotated (though not 100% compliant, as I don't want to mess with adding a bunch of rotation flags).
+<LI>Pumpkins and Jack O' Lanterns now show the faceless varieties (data value 4).
+<LI>Bug fix: a block with vines hanging on all 4 sides and with the bottom covered could potentially crash Mineways. Array sizes increased.
+<LI>Bug fix: if lesser block export is turned off for rendering, composite overlay must also be off, as the whole "small object" subsystem is not used. This bug caused a crash. <I>(Thanks to <a href="https://www.reddit.com/r/mineways/comments/50hvj1/suggestionsbugs/">this redditor</a> for reporting this bug.)</I>
+<LI>Bug fix: Anvil top blocks were output twice, causing the top of the anvil to not show correctly.
 <LI>Bug fix: acacia and jungle saplings were getting turned into oak and spruce saplings, due to masking out the two high data value bits.
-<LI>Bug fix: areas with X or Z coordinates outside of the -1,000,000 to 1,000,000 range would give an out of memory error, due to some lazy bounds testing I put in. Changed 999999 to INT_MAX, -999999 to INT_MIN throughout the code. <I>(Thanks to David Ng for reporting this bug.)
+<LI>Bug fix: areas with X or Z coordinates outside of the -1,000,000 to 1,000,000 range would give an out of memory error, due to some lazy bounds testing I put in. Changed 999999 to INT_MAX, -999999 to INT_MIN throughout the code. <I>(Thanks to David Ng for reporting this bug.)</I>
+</UL>
 
-
-<LI>Use an installer for Mineways, such as INNO
-<LI>Export model elements to a Mineways script file
+<LI>Future Version 5.05, ??/??/201?  - possible near-term future features:
+<BR>
+<UL>
+<LI>Real shulker box and observer textures, once 1.11 is released and stable.
+<LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
 <LI>Improve the error reporting system to give more information, etc.
 <LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill?
-<LI>Export texture to individual tiles - not sure I see the point...
+<LI>Export texture to individual tiles.
+<LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed.
 </UL>
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
-This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="mailto:erich@acm.org">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
+This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render.
 <LI>Separate materials for individual block types. For example, Dirt has three types: dirt, coarse dirt, and podzol. Each could have its own material.

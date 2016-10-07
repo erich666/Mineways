@@ -646,7 +646,7 @@ Specify the file name and path for a script or model file to load on startup.
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
 <P>
 -s <i>UserSaveDirectory</i><br>
-Specify the directory where your Minecraft worlds are located. This is "%appdata%\.minecraft\saves" by default, if not specified. This directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
+Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
@@ -682,6 +682,11 @@ mineways.exe -w 1 1 "C:\Mineways\Load Eiffel.mwscript" C:\Mineways\export.mwscri
 </div>
 <P>
 Start with a tiny window and run the specified scripts at startup. The "Make Eiffel" script might load a world and select the Eiffel model in that world. The export script exports it, and the close script closes Mineways. This allows you to essentially run Mineways from the command line with no interactions needed, though the program still needs to pop up a small window. The tiny window actually speeds up processing, since only the map chunks in the exported model are loaded.
+<div id="code">
+mineways.exe -s C:\MyWorlds
+</div>
+<P>
+Load the world folders contained in C:\MyWorlds so that they appear in the "File | Open World" menu list.
 <P>
 Here are typical export and close scripts, simple one-line scripts. The export script exports to some given file name:
 <P>

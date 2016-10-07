@@ -106,7 +106,8 @@ static IPoint gWorld2BoxOffset;
 typedef struct FaceRecord {
     int faceIndex;	// tie breaker, so that faces get near each other in location
     int vertexIndex[4];
-	short type;	// block id - only 0-255, but play it safe, and we use negatives for some things
+	short materialType;	// block id - only 0-255, but play it safe, and we use negatives for some things
+	unsigned short materialDataVal;	// extended data value, identifying unique block materials
 	short normalIndex;    // always the same! normals all the same for the face - shared, so need only around 335
     short uvIndex[4];	// around 3800 unique values, since we use sharing.
 } FaceRecord;
@@ -194,7 +195,10 @@ typedef struct Model {
     int faceSize;
     int triangleCount;	// the number of true triangles output - currently just sloped rail sides
 
-    int mtlList[NUM_BLOCKS];
+	// The absolute maximum number of materials possible. It's actually much smaller than this, as data values
+	// do not usually generate sub-materials, but we're playing it safe.
+#define NUM_SUBMATERIALS	2000
+	unsigned int mtlList[NUM_SUBMATERIALS];
     int mtlCount;
 
     progimage_info *pInputTerrainImage;
@@ -573,21 +577,22 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
 static unsigned int getStairMask(int boxIndex, int dataVal);
 static void setDefaultUVs( Point2 uvs[3], int skip );
 static FaceRecord * allocFaceRecordFromPool();
-static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
+static unsigned short getSignificantMaterial(int type, int dataVal);
+static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] );
 static void saveBlockGeometry( int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
-static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
-static void saveBoxTileGeometry( int boxIndex, int type, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
-static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
+static void saveBoxGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
+static void saveBoxTileGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
+static void saveBoxMultitileGeometry(int boxIndex, int type, int dataVal, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
     int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
-static void saveBoxReuseGeometry(int boxIndex, int type, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
-static int saveBoxAlltileGeometry( int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
+static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
+static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, float rect[4] );
 static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceRect[4] );
-static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
+static int saveBoxFace( int swatchLoc, int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop,
     int rotUVs, float minu, float maxu, float minv, float maxv );
-static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
+static int saveBoxFaceUVs( int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
 static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardType, int dataVal, int firstFace );
 static int checkGroupListSize();
@@ -1937,7 +1942,8 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 							}
 						}
 						// we should always find a match, if things are working properly
-						assert(i < block->numEntities);
+						// (well, the test block world does not currently generate block entities, TODO, so this is not quite true)
+						//assert(i < block->numEntities);
 					}
 				}
 
@@ -3291,7 +3297,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			// so sleazy: make this a top geometry so that top and bottom will match. Rotate to position, twice
 			gUsingTransform = 1;
-			saveBoxTileGeometry(boxIndex, type, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 16, 8, 8, 0, 16);
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 16, 8, 8, 0, 16);
 			gUsingTransform = 0;
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			identityMtx(mtx);
@@ -3488,7 +3494,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
             // always put the post
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, 0x0, 4,12, 0,16, 4,12 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 4, 12, 0, 16, 4, 12);
             // left in these variables, just in case we ever want to use them.
             hasPost = 1;
             firstFace = 0;
@@ -3499,7 +3505,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // this fence connects to the neighboring block, so output the fence pieces
                 // - if we're doing 3D printing, neighbor type must exactly match for the face to be removed
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,8-hasPost*4,  0,13,  5,11 );
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
@@ -3507,7 +3513,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
@@ -3515,7 +3521,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 5,11,  0,13,  0,8-hasPost*4 );
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
                 firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
@@ -3523,7 +3529,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
                 firstFace = 0;
             }
         }
@@ -3532,7 +3538,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // don't really need to "fatten", as it's now done above, but keeping fatten around is good to know.
 
             // post, always output
-            saveBoxGeometry( boxIndex, type, 1, 0x0, 6-fatten,10+fatten, 0,16, 6-fatten,10+fatten);
+			saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 6 - fatten, 10 + fatten);
             // which posts are needed: NSEW. Brute-force it.
 
             // since we erase "billboard" objects as we go, we need to test against origType.
@@ -3542,32 +3548,32 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,6-fatten, 6,9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,6-fatten, 12,15,  7-fatten,9+fatten );
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 6,9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 10+fatten,16, 12,15,  7-fatten,9+fatten );
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 7-fatten,9+fatten, 6,9,  0,6-fatten );
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 7-fatten,9+fatten, 12,15,  0,6-fatten );
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 6,9,  10+fatten,16 );
-                saveBoxGeometry( boxIndex, type, 0, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15,  10+fatten,16 );
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
             }
         }
         break; // saveBillboardOrGeometry
@@ -3631,7 +3637,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         if ( hasPost )
         {
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, 0x0, 4,12, 0,16, 4,12 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 4, 12, 0, 16, 4, 12);
             firstFace = 0;
         }
         else
@@ -3644,7 +3650,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_X_BIT)|(transNeighbor?0x0:DIR_LO_X_BIT), 0,8-hasPost*4,  0,13,  5,11 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
@@ -3652,7 +3658,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_X_BIT)|(transNeighbor?0x0:DIR_HI_X_BIT), 8+hasPost*4,16,  0,13,  5,11 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
@@ -3660,7 +3666,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_HI_Z_BIT)|(transNeighbor?0x0:DIR_LO_Z_BIT), 5,11,  0,13,  0,8-hasPost*4 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
@@ -3668,7 +3674,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-            saveBoxTileGeometry( boxIndex, type, swatchLoc, firstFace, (gPrint3D?0x0:DIR_LO_Z_BIT)|(transNeighbor?0x0:DIR_HI_Z_BIT), 5,11,  0,13,  8+hasPost*4,16 );
+			saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
             firstFace = 0;
         }
         break; // saveBillboardOrGeometry
@@ -3687,26 +3693,26 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         //tricky: when extended, cap it only if 3D printing and the neighbor is NOT the same type; i.e. we want caps when it's a flower or end stone.
         //in other words, we remove face if not 3D printing and newHeight is 16, OR if neighbor == type.
         //Really, I'm doing too much with one line, but so be it - write-only code it is!
-        saveBoxGeometry( boxIndex, type, 1, (((!gPrint3D && (newHeight == 16)) || (type == neighborType))?DIR_TOP_BIT:0x0)|DIR_BOTTOM_BIT, 4,12, 12,newHeight, 4,12);
+		saveBoxGeometry(boxIndex, type, dataVal, 1, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_TOP_BIT : 0x0) | DIR_BOTTOM_BIT, 4, 12, 12, newHeight, 4, 12);
 
         // bottom
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_BOTTOM]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType) || (BLOCK_END_STONE == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType))?DIR_BOTTOM_BIT:0x0)|DIR_TOP_BIT, 4,12, newHeight,4, 4,12);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_BOTTOM_BIT : 0x0) | DIR_TOP_BIT, 4, 12, newHeight, 4, 4, 12);
 
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType))?DIR_LO_X_BIT:0x0)|DIR_HI_X_BIT, newHeight,4, 4,12, 4,12);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_X_BIT : 0x0) | DIR_HI_X_BIT, newHeight, 4, 4, 12, 4, 12);
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
-        saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType))?DIR_HI_X_BIT:0x0)|DIR_LO_X_BIT, 12,newHeight, 4,12, 4,12);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_X_BIT : 0x0) | DIR_LO_X_BIT, 12, newHeight, 4, 12, 4, 12);
 
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType))?DIR_LO_Z_BIT:0x0)|DIR_HI_Z_BIT, 4,12, 4,12, newHeight,4);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_Z_BIT : 0x0) | DIR_HI_Z_BIT, 4, 12, 4, 12, newHeight, 4);
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
 		newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
-        saveBoxGeometry( boxIndex, type, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType))?DIR_HI_Z_BIT:0x0)|DIR_LO_Z_BIT, 4,12, 4,12, 12,newHeight);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_Z_BIT : 0x0) | DIR_LO_Z_BIT, 4, 12, 4, 12, 12, newHeight);
         break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_PRESSURE_PLATE:						// saveBillboardOrGeometry
@@ -3722,7 +3728,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         // the only reason I fatten here is because plates get used for table tops sometimes...
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
-        saveBoxGeometry( boxIndex, type, 1, 0x0, 1,15, 0,1+fatten, 1,15);
+		saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
         if ( dataVal & 0x1 )
         {
             // pressed, kick it down half a pixel
@@ -3744,7 +3750,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_WOOL:						// saveBillboardOrGeometry
         // use dataVal to retrieve location. These are scattered all over.
         swatchLoc = retrieveWoolSwatch(dataVal);
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 0,1, 0,16 );
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 1, 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_OAK_WOOD_STAIRS:						// saveBillboardOrGeometry
@@ -3820,7 +3826,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			// Other blocks will clear faces as needed, by the save system itself (i.e. if a small face is next to a full block,
 			// it'll be remove if and only if we're rendering).
-            saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, miny, maxy, 0, 16);
 
             // Now create the larger 2x1 box, if found
             minx = minz = 0;
@@ -3945,7 +3951,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 						}
 					}
 				}
-                saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
             }
 
             // anything left? output that little box
@@ -3997,7 +4003,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                     // should never get here
                     assert(0);
                 }
-                saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx,maxx, miny,maxy, minz,maxz);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
             }
         }
 
@@ -4109,7 +4115,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             miny = 0;
             maxy = 8;
         }
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, miny,maxy, 0,16);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, miny, maxy, 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_BUTTON:						// saveBillboardOrGeometry
@@ -4165,7 +4171,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         // we *could* save one face of the stone button, the one facing the object, but don't:
         // the thing holding the stone button could be missing, due to export limits.
-        saveBoxGeometry( boxIndex, type, 1, 0x0, minx,maxx, miny,maxy, minz,maxz );
+		saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, minx, maxx, miny, maxy, minz, maxz);
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
@@ -4186,7 +4192,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             break;
         }
         gUsingTransform = 1;
-        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,12, 7,9 );
+		saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 12, 7, 9);
         gUsingTransform = 0;
         // Scale sign down, move slightly away from wall
         identityMtx(mtx);
@@ -4230,7 +4236,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // upper banner
             swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1,15, 0,14, 2,5 );
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1, 15, 0, 14, 2, 5);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4240,7 +4246,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // lower banner
             swatchLoc++;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1,15, 3,16, 10,13 );
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1, 15, 3, 16, 10, 13);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4261,14 +4267,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // rendering
 
             // crossbar
-            saveBoxGeometry( boxIndex, BLOCK_PISTON, 1, 0x0, 1,15, 14,16, 0,2);
+			saveBoxGeometry(boxIndex, BLOCK_PISTON, 0, 1, 0x0, 1, 15, 14, 16, 0, 2);
             identityMtx(mtx);
             translateMtx(mtx, 0.0f, -2.0f/16.0f, 7.0f/16.0f);
             transformVertices(8,mtx);
 
             // upper banner
             swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1,15, 0,14, 2,3 );
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1, 15, 0, 14, 2, 3);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4278,7 +4284,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // lower banner
             swatchLoc++;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1,15, 3,16, 12,13 );
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1, 15, 3, 16, 12, 13);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4309,7 +4315,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         //		return 0;
         //}
         gUsingTransform = 1;
-        saveBoxGeometry( boxIndex, type, 1, 0x0, 0,16, 0,3, 0,16);
+		saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 3, 0, 16);
         gUsingTransform = 0;
         // rotate as needed
         if (dataVal & 0x4 )
@@ -4355,7 +4361,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
         gUsingTransform = 1;
         // if printing, seal the top of the post
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7-fatten,9+fatten, 0,14, 7-fatten,9+fatten);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7 - fatten, 9 + fatten, 0, 14, 7 - fatten, 9 + fatten);
         gUsingTransform = 0;
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
@@ -4372,7 +4378,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // top is 12 high, extends 2 blocks above. Scale down by 16/24 and move up by 14/24
         gUsingTransform = 1;
-        saveBoxGeometry( boxIndex, type, 0, 0x0, 0,16, 0,12, 7-fatten,9+fatten );
+		saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 16, 0, 12, 7 - fatten, 9 + fatten);
         gUsingTransform = 0;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -4393,7 +4399,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         totalVertexCount = gModel.vertexCount;
 
         // first the pole, two parts, rotate to position, made from piston head texture
-        saveBoxGeometry( boxIndex, BLOCK_PISTON_HEAD, 1, DIR_HI_X_BIT, 0,12, 11,13, 3,5);
+		saveBoxGeometry(boxIndex, BLOCK_PISTON_HEAD, 0, 1, DIR_HI_X_BIT, 0, 12, 11, 13, 3, 5);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, -4.0f/16.0f, 0.0f);
@@ -4402,7 +4408,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
 
-        saveBoxGeometry( boxIndex, BLOCK_PISTON_HEAD, 0, DIR_LO_X_BIT, 0,16, 11,13, 3,5);
+		saveBoxGeometry(boxIndex, BLOCK_PISTON_HEAD, 0, 0, DIR_LO_X_BIT, 0, 16, 11, 13, 3, 5);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, -4.0f/16.0f, 0.0f);
@@ -4412,14 +4418,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
 
         // crossbar
-        saveBoxGeometry( boxIndex, BLOCK_PISTON, 0, 0x0, 1,15, 14,16, 0,2);
+		saveBoxGeometry(boxIndex, BLOCK_PISTON, 0, 0, 0x0, 1, 15, 14, 16, 0, 2);
         identityMtx(mtx);
         translateMtx(mtx, 0.0f, 14.0f/16.0f, 7.0f/16.0f);
         transformVertices(8,mtx);
 
         // upper banner
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1,15, 0,14, 2,3 );
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1, 15, 0, 14, 2, 3);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4429,7 +4435,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // lower banner
         swatchLoc++;
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1,15, 3,16, 12,13 );
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_TOP_BIT, 0, 1, 15, 3, 16, 12, 13);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -4521,7 +4527,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // Their doors are oriented and so use different pieces of the texture for the tops and bottoms, depending on which direction
         // the door faces (and maybe open/closed). Minecraft appears to grab a strip from the left edge of the bottom tile, or something.
         gUsingTransform = 1;
-        saveBoxMultitileGeometry( boxIndex, type, bottomSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0,16, 0,16, 13-fatten, 16);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 13 - fatten, 16);
         gUsingTransform = 0;
 
         identityMtx(mtx);
@@ -4563,21 +4569,28 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             return 0;
         }
         // change height as needed
-		saveBoxGeometry(boxIndex, type, 1, 0x0, 0, 16, 0, 2 * (1 + (float)(dataVal & 0x7)), 0, 16);
+		saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 2 * (1 + (float)(dataVal & 0x7)), 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_END_PORTAL_FRAME:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( 15,9 );
         bottomSwatchLoc = SWATCH_INDEX( 15,10 );
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,13, 0,16);
+		// TODO: actually, we want to rotate 90, 180, 270 depending on 0x3 bits 0-3 of the portal. We cheat here and rotate by 90 or not.
+		// This mostly matters for the eye of ender box on top, which is not symmetric
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, (dataVal & 0x1) ? REVOLVE_INDICES : 0, 0, 16, 0, 13, 0, 16);
+		if (dataVal & 0x4) {
+			// eye of ender
+			topSwatchLoc = SWATCH_INDEX(14, 10);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, topSwatchLoc, topSwatchLoc, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, (dataVal&0x1)?REVOLVE_INDICES:0, 4, 12, 13, 16, 4, 12);
+		}
         break; // saveBillboardOrGeometry
 
 	case BLOCK_ENCHANTMENT_TABLE:						// saveBillboardOrGeometry
 		topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		sideSwatchLoc = SWATCH_INDEX(6,11);
 		bottomSwatchLoc = SWATCH_INDEX(7,11);
-		saveBoxMultitileGeometry(boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 12, 0, 16);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 12, 0, 16);
 		break; // saveBillboardOrGeometry
 
         // top, sides, and bottom, and don't stretch the sides if output here
@@ -4588,7 +4601,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = 
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = 
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX( 10,7 );
-        saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 1+(float)(dataVal&0x7)*2,15, 0,8, 1,15);
+		saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)(dataVal & 0x7) * 2, 15, 0, 8, 1, 15);
         break; // saveBillboardOrGeometry
 
     case BLOCK_FARMLAND:						// saveBillboardOrGeometry
@@ -4605,14 +4618,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( 2,0 );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 15, 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_GRASS_PATH:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX+1, gBlockDefinitions[type].txrY );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );  // dirt
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0,16, 0,15, 0,16);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 15, 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_FENCE_GATE:						// saveBillboardOrGeometry
@@ -4628,57 +4641,57 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             if ( dataVal & 0x1 )
             {
                 // open west/east
-                saveBoxGeometry( boxIndex, type, 1, 0x0, 7,9, 5,16,  0, 2+fatten);
-                saveBoxGeometry( boxIndex, type, 0, 0x0, 7,9, 5,16, 14-fatten,16);
+				saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 7, 9, 5, 16, 0, 2 + fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7, 9, 5, 16, 14 - fatten, 16);
                 if ( dataVal & 0x2 )
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9, 14-fatten,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16,  6, 9, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT), 9,16, 12,15, 14-fatten,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14,16, 9,12, 14-fatten,16 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9, 14-fatten,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7,  6, 9, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_X_BIT), 0,7, 12,15, 14-fatten,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12,  0, 2+fatten );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12, 14-fatten,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12,  0, 2+fatten );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 0,2, 9,12, 14-fatten,16 );
                 }
             }
             else
             {
                 // open north/south - hinge posts:
-                saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2+fatten, 5,16, 7,9);
-                saveBoxGeometry( boxIndex, type, 0, 0x0, 14-fatten,16, 5,16, 7,9);
+                saveBoxGeometry( boxIndex, type, dataVal, 1, 0x0,  0, 2+fatten, 5,16, 7,9);
+                saveBoxGeometry( boxIndex, type, dataVal, 0, 0x0, 14-fatten,16, 5,16, 7,9);
                 if ( dataVal & 0x2 )	// north
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten,  6, 9,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten, 12,15,  0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16,  6, 9, 0,7 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16, 12,15, 0,7 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten,  6, 9,  0,7 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2+fatten, 12,15,  0,7 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16,  6, 9, 0,7 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_HI_Z_BIT), 14-fatten,16, 12,15, 0,7 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 0,2 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 0,2 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 0,2 );
                 }
                 else
                 {
                     // side pieces
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten, 12,15, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16,  6, 9, 9,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT),  0, 2+fatten, 12,15, 9,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16,  6, 9, 9,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT), 14-fatten,16, 12,15, 9,16 );
                     // gate center
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 14,16 );
-                    saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT),  0, 2+fatten, 9,12, 14,16 );
+                    saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 14-fatten,16, 9,12, 14,16 );
                 }
             }
         }
@@ -4688,24 +4701,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             if ( dataVal & 0x1 )
             {
                 // open west/east
-                saveBoxGeometry( boxIndex, type, 1, 0x0, 7-fatten,9+fatten, 5,16,  0, 2);
-                saveBoxGeometry( boxIndex, type, 0, 0x0, 7-fatten,9+fatten, 5,16, 14,16);
+                saveBoxGeometry( boxIndex, type, dataVal, 1, 0x0, 7-fatten,9+fatten, 5,16,  0, 2);
+                saveBoxGeometry( boxIndex, type, dataVal, 0, 0x0, 7-fatten,9+fatten, 5,16, 14,16);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten,  6, 9, 2,14 );
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15, 2,14 );
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten,  6, 9, 2,14 );
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_Z_BIT|DIR_HI_Z_BIT), 7-fatten,9+fatten, 12,15, 2,14 );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 7-fatten,9+fatten, 9,12, 6,10 );
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 7-fatten,9+fatten, 9,12, 6,10 );
             }
             else
             {
                 // open north/south
-                saveBoxGeometry( boxIndex, type, 1, 0x0,  0, 2, 5,16, 7-fatten,9+fatten);
-                saveBoxGeometry( boxIndex, type, 0, 0x0, 14,16, 5,16, 7-fatten,9+fatten);
+                saveBoxGeometry( boxIndex, type, dataVal, 1, 0x0,  0, 2, 5,16, 7-fatten,9+fatten);
+                saveBoxGeometry( boxIndex, type, dataVal, 0, 0x0, 14,16, 5,16, 7-fatten,9+fatten);
                 // side pieces
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14,  6, 9,  7-fatten,9+fatten );
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14, 12,15,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14,  6, 9,  7-fatten,9+fatten );
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_HI_X_BIT), 2,14, 12,15,  7-fatten,9+fatten );
                 // gate center
-                saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 9,12,  7-fatten,9+fatten);
+                saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 9,12,  7-fatten,9+fatten);
             }
         }
         break; // saveBillboardOrGeometry
@@ -4720,19 +4733,19 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // small
             swatchLoc += 2;
             // note all six sides are used, but with different texture coordinates
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  11,15,  7,12,  11,15);
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 1,5,  7,12,  1,5);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 11, 15, 7, 12, 11, 15);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 1, 5, 7, 12, 1, 5);
             // top and bottom
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0x0, 0,4,  0,4,  0,4);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 0, 4, 0, 4);
             shiftVal = 5;
             break;
         case 1:
             // medium
             swatchLoc++;
             // note all six sides are used, but with different texture coordinates
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  9,15,  5,12,  9,15);
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 1,7,  5,12,  1,7);
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0x0, 0,6,  0,6, 0,6);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 9, 15, 5, 12, 9, 15);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 1, 7, 5, 12, 1, 7);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 6, 0, 6, 0, 6);
             shiftVal = 4;
             break;
         case 2:
@@ -4741,11 +4754,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // already right swatch
             // note all six sides are used, but with different texture coordinates
             // sides:
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 7,15, 3,12, 7,15);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 7, 15, 3, 12, 7, 15);
             // it should really be 3,12, but Minecraft has a bug where their sides are wrong and are 3,10
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 1,9,  3,10,  1,9);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 1, 9, 3, 10, 1, 9);
             // top and bottom:
-            saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0x0, 0,7, 0,7, 0,7);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 7, 0, 7, 0, 7);
             shiftVal = 3;
             break;
         }
@@ -4760,7 +4773,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // add stem if not printing and images in use
         if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0,  DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 12,16, 12,16, 8,8);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 12, 16, 12, 16, 8, 8);
             // transform the stem and the block, below, so add in these vertices
             bitAdd = 16;
         }
@@ -4798,36 +4811,36 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // if printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom
         waterHeight = gPrint3D ? (6+(float)dataVal*3) : 6;
         // outsides and bottom
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 1, DIR_TOP_BIT, 0, 0, 16, 0, 16, 0, 16 );
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT, 0, 0, 16, 0, 16, 0, 16);
         // top as 4 small faces, and corresponding inside faces
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             14, 16, waterHeight, 16, 2, 14 );	// top and lo_x
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             0, 2, waterHeight, 16, 2, 14 );	// top and hi_x
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0,
             2, 14, waterHeight, 16, 14, 16 );	// top and lo_z
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0,
             2, 14, waterHeight, 16, 0, 2 );	// top and hi_z
         // four tiny corners, just tops
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             0, 2, 16, 16, 0, 2 );	// top
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             0, 2, 16, 16, 14, 16 );	// top
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             14, 16, 16, 16, 0, 2 );	// top
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+16, swatchLoc+17, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             14, 16, 16, 16, 14, 16 );	// top
         // inside bottom
         // outside bottom
         if ( !gPrint3D || (dataVal == 0x0) )
         {
             // show smaller inside bottom if cauldron is empty
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 16, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
                 2, 14, 3, 6, 2, 14 );
 
             if ( !gPrint3D ) {
                 // outside bottom, above the cutout legs - only when not printing, as otherwise it's invisible and not needed
-                saveBoxMultitileGeometry( boxIndex, type, swatchLoc+1, swatchLoc+16, swatchLoc+1, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 16, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0,
                     0, 16, 3, 6, 0, 16 );
             }
         }
@@ -4835,7 +4848,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         if ( dataVal > 0 && dataVal < 4 )
         {
             // water level
-            saveBoxGeometry( boxIndex, BLOCK_STATIONARY_WATER, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 
+            saveBoxGeometry( boxIndex, BLOCK_STATIONARY_WATER, 0 /* water data value is always 0 */, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 
 				2, 14, 6 + (float)dataVal * 3, 6 + (float)dataVal * 3, 2, 14);
         }
 
@@ -4843,14 +4856,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
     case BLOCK_DRAGON_EGG:						// saveBillboardOrGeometry
         // top to bottom
-        saveBoxGeometry( boxIndex, type, 1, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 6,10, 15,16, 6,10);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 5,11, 14,15, 5,11);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 13,14, 4,12);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 3,13, 11,13, 3,13);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 2,14,  8,11, 2,14);
-        saveBoxGeometry( boxIndex, type, 0, 0x0, 1,15, 3,8, 1,15);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 2,14, 1,3, 2,14);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 5,11, 0,1, 5,11);
+        saveBoxGeometry( boxIndex, type, dataVal, 1, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 6,10, 15,16, 6,10);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 5,11, 14,15, 5,11);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 13,14, 4,12);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 3,13, 11,13, 3,13);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 2,14,  8,11, 2,14);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, 0x0, 1,15, 3,8, 1,15);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 2,14, 1,3, 2,14);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 5,11, 0,1, 5,11);
         break; // saveBillboardOrGeometry
 
     case BLOCK_ANVIL:						// saveBillboardOrGeometry
@@ -4873,12 +4886,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry( boxIndex, type, topSwatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0,
             3,13, 10,16, 0,16 );
-        saveBoxGeometry( boxIndex, type, 0, 0x0, 3,13, 10,16, 0,16);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 5,10, 4,12);
-        saveBoxGeometry( boxIndex, type, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 4,5, 3,13);
-        saveBoxGeometry( boxIndex, type, 0, 0x0, 2,14, 0,4, 2,14);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : (DIR_BOTTOM_BIT|DIR_TOP_BIT), 6,10, 5,10, 4,12);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 4,12, 4,5, 3,13);
+        saveBoxGeometry( boxIndex, type, dataVal, 0, 0x0, 2,14, 0,4, 2,14);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
         if ( dataVal & 0x3 )
@@ -4943,7 +4955,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
             {
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
-				saveBoxMultitileGeometry(boxIndex, type, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
 				useInsidesAndBottom = 0;
             }
@@ -5015,7 +5027,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // cactus (note we're definitely not 3D printing, so no face test)
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
 				// interestingly enough, the tiny cactus is actually all made out of the side tiles, not top and bottom
-				saveBoxMultitileGeometry(boxIndex, type, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_CACTUS, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
                 performMatrixOps = 0;
 				useInsidesAndBottom = 0;
@@ -5086,37 +5098,37 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
 
         // the four outside walls
-        saveBoxGeometry( boxIndex, type, firstFace, DIR_TOP_BIT|DIR_BOTTOM_BIT, 5,11, 0,6, 5,11 );
+        saveBoxGeometry( boxIndex, type, dataVal, firstFace, DIR_TOP_BIT|DIR_BOTTOM_BIT, 5,11, 0,6, 5,11 );
 
         // 4 top edge faces and insides, if visible
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_X_BIT), 
             10,11,  4,6,   6,10 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_X_BIT),
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_X_BIT),
             5,6,    4,6,   6,10 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_Z_BIT),
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|(useInsidesAndBottom?0x0:DIR_LO_Z_BIT),
             6,10,   4,6,  10,11 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_Z_BIT),
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|(useInsidesAndBottom?0x0:DIR_HI_Z_BIT),
             6,10,   4,6,   5,6 );
         // top corners
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             5,6,  4,6,  5,6 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             5,6,  4,6,  10,11 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             10,11,  4,6,  5,6 );
-        saveBoxGeometry( boxIndex, type, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
+        saveBoxGeometry( boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 
             10,11,  4,6, 10,11 );
 
         // inside bottom
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_DIRT].txrX, gBlockDefinitions[BLOCK_DIRT].txrY );
         if ( useInsidesAndBottom )
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 6,10,  0,4,  6,10);
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 6,10,  0,4,  6,10);
         // outside bottom - in theory never seen, so we make it dirt, since the flowerpot texture itself has a hole in it at these coordinates
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,  5,11,  0,4,  5,11);
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0,  5,11,  0,4,  5,11);
 
         break; // saveBillboardOrGeometry
 
-	case BLOCK_HEAD:	// definitely wrong for heads, TODOTODO - have tile entity, but now need all the dratted head textures... Pumpkin half-sized for now.
+	case BLOCK_HEAD:	// definitely wrong for heads, TODO - have tile entity, but now need all the dratted head textures... Pumpkin half-sized for now.
 		// most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
 		// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
 		// 7 | 654 | 3210
@@ -5132,7 +5144,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(6, 6);
 		swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(6, 7);
 		swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(6, 7);
-		saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 1, 0x0, 0x0, 0,
+		saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0x0, 0,
 			0, 16, 0, 16, 0, 16);
 
 		gUsingTransform = 0;
@@ -5191,7 +5203,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX( 8,9 );
             // Note: for rendering we might print an open-ended bed - could test neighbor to see if other half of bed is there.
             // For 3D printing we can't risk it, so cap the middle of the bed.
-            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_LO_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
+            saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_LO_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
                 0,16, 0,9, 0,16 );
         }
         else
@@ -5201,7 +5213,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX( 6,8 );
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX( 5,9 );
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX( 8,9 );  // should normally get removed by neighbor tester code
-            saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_HI_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
+            saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT|(gPrint3D?0x0:DIR_HI_X_BIT), FLIP_Z_FACE_VERTICALLY, 0,
                 0,16, 0,9, 0,16 );
         }
         gUsingTransform = 0;
@@ -5214,7 +5226,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // add bottom at bottom, just in case bed is open to world
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
 			(gPrint3D ? 0.0f : 3.0f), (gPrint3D ? 0.0f : 3.0f), 0, 16);
         break; // saveBillboardOrGeometry
 
@@ -5232,18 +5244,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // for textured rendering, make a billboard-like object, for printing or solid rendering, pull in the edges
         if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
         {
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
         }
         else
         {
             // could use billboard, but this gives two-sided faces, and Minecraft actually uses one-sided faces for thorns
-            //saveBillboardFaces( boxIndex, type, BB_GRID );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_TOP_BIT|DIR_BOTTOM_BIT, 0, 0,16, 0,16, 1,15 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|DIR_BOTTOM_BIT, 0, 1,15, 0,16, 0,16 );
+            //saveBillboardFaces( boxIndex, type, dataVal, BB_GRID );
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_TOP_BIT|DIR_BOTTOM_BIT, 0, 0,16, 0,16, 1,15 );
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|DIR_BOTTOM_BIT, 0, 1,15, 0,16, 0,16 );
             if ( faceMask != (DIR_TOP_BIT|DIR_BOTTOM_BIT))
             {
                 // top and bottom
-                saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|faceMask, 0, 1,15, 0,16, 1,15 );
+                saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|faceMask, 0, 1,15, 0,16, 1,15 );
             }
         }
         break; // saveBillboardOrGeometry
@@ -5321,17 +5333,17 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			swatchLoc = SWATCH_INDEX(9, 13);
 			// note all six sides are used, but with different texture coordinates
 			// front is LO_X - 0,1 is thickness, 11,15 is height, 1,3 is width
-			saveBoxMultitileGeometry(boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 1, 11, 15, 1, 3);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 1, 11, 15, 1, 3);
 			// back - have to go high with coordinates
-			saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 1, 11, 15, 10, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 1, 11, 15, 10, 12);
 			// left side - have to go high with coordinates
-			saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 15, 16, 11, 15, 15, 16);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 15, 16, 11, 15, 15, 16);
 			// right side
-			saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 3, 4, 11, 15, 3, 4);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 3, 4, 11, 15, 3, 4);
 			// top
-			saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 1, 3, 1, 3, 0, 1);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 1, 3, 1, 3, 0, 1);
 			// bottom - probably needs to be mirrored?
-			saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 3, 5, 3, 5, 0, 1);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 3, 5, 3, 5, 0, 1);
 			identityMtx(mtx);
 			translateMtx(mtx, 0.0f, -4.0f / 16.0f, (chestType == 0) ? 6.0f / 16.0f : -2.0f / 16.0f);
 			translateToOriginMtx(mtx, boxIndex);
@@ -5372,7 +5384,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			break;
 		}
 		// latch only if single or right
-		saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, (chestType == 1), faceMask, 0, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
+		saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, (chestType == 1), faceMask, 0, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
 		gUsingTransform = 0;
 		identityMtx(mtx);
@@ -5397,23 +5409,23 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLoc = SWATCH_INDEX(9,13);
 		// note all six sides are used, but with different texture coordinates
 		// front is LO_X - 0,1 is thickness, 11,15 is height, 1,3 is width
-		saveBoxMultitileGeometry(boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0,1, 11,15, 1,3);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0,1, 11,15, 1,3);
 		// back - have to go high with coordinates
-		saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,1, 11,15, 10,12);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,1, 11,15, 10,12);
 		// left side - have to go high with coordinates
-		saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 15,16, 11,15, 15,16);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 15,16, 11,15, 15,16);
 		// right side
-		saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 3,4, 11,15, 3,4);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 3,4, 11,15, 3,4);
 		// top
-		saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 1,3, 1,3, 0,1);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 1,3, 1,3, 0,1);
 		// bottom - probably needs to be mirrored?
-		saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 3,5, 3,5, 0,1);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 3,5, 3,5, 0,1);
 		identityMtx(mtx);
 		translateMtx(mtx, 0.0f, -4.0f / 16.0f, 6.0f / 16.0f);
 		transformVertices(8, mtx);
 
 		// chest itself - easy!
-	    saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 0, 0x0, 0, 0, 1,15, 0,14, 1,15);
+	    saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, 0x0, 0, 0, 1,15, 0,14, 1,15);
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
 		gUsingTransform = 0;
         switch ( dataVal )
@@ -5445,7 +5457,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLoc = SWATCH_INDEX( 3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON) );
         angle = 90.0f*(float)(dataVal&0x3);
         gUsingTransform = 1;
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, -14.0f/16.0f, 0.0f );
@@ -5492,7 +5504,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLoc = SWATCH_INDEX( 14 + in_powered,14 );
             angle = 90.0f*(float)(dataVal&0x3);
             gUsingTransform = 1;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0,16, 14,16, 0,16 );
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, 0.0f, -14.0f/16.0f, 0.0f );
@@ -5542,21 +5554,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break; // saveBillboardOrGeometry
 
     case BLOCK_BEACON:						// saveBillboardOrGeometry
-        saveBoxGeometry( boxIndex, BLOCK_GLASS, 1, 0x0, 0,16, 0,16, 0,16);
+        saveBoxGeometry( boxIndex, BLOCK_GLASS, 0, 1, 0x0, 0,16, 0,16, 0,16);
         if (!gPrint3D)
         {
             // chewy interior
-            saveBoxGeometry( boxIndex, BLOCK_BEACON, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
-            saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 0, 0x0, 2,14, 0,3, 2,14);
+            saveBoxGeometry( boxIndex, BLOCK_BEACON, dataVal, 0, DIR_BOTTOM_BIT, 3,13, 3,13, 3,13);
+            saveBoxGeometry( boxIndex, BLOCK_OBSIDIAN, 0, 0, 0x0, 2,14, 0,3, 2,14);
         }
         break; // saveBillboardOrGeometry
 
     case BLOCK_SLIME:						// saveBillboardOrGeometry
-        saveBoxGeometry( boxIndex, BLOCK_SLIME, 1, 0x0, 0,16, 0,16, 0,16);
+		saveBoxGeometry(boxIndex, BLOCK_SLIME, dataVal, 1, 0x0, 0, 16, 0, 16, 0, 16);
         if (!gPrint3D)
         {
             // tasty slime center
-            saveBoxGeometry( boxIndex, BLOCK_SLIME, 0, 0x0, 3,13, 3,13, 3,13);
+			saveBoxGeometry(boxIndex, BLOCK_SLIME, dataVal, 0, 0x0, 3, 13, 3, 13, 3, 13);
         }
         break; // saveBillboardOrGeometry
 
@@ -5565,7 +5577,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         assert( !gPrint3D );
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // post
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0,  7,  9,  0, 14,  7,  9 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0,  7,  9,  0, 14,  7,  9 );
         // go through the three bottle locations
         for ( i = 0; i < 3; i++ )
         {
@@ -5583,7 +5595,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // Set angle and whether there is a bottle.
             // We don't look at (or have!) TileEntity data at this point. TODO
             gUsingTransform = 1;
-			saveBoxMultitileGeometry(boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 9 - (float)filled * 9, 16 - (float)filled * 9, 0, 16, 8, 8);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 9 - (float)filled * 9, 16 - (float)filled * 9, 0, 16, 8, 8);
             gUsingTransform = 0;
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
@@ -5596,9 +5608,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // base
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX-1, gBlockDefinitions[type].txrY );
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   1,  7 );
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   9, 15 );
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  9, 15,   0,  2,   5, 11 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   1,  7 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  2,  8,   0,  2,   9, 15 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0,  9, 15,   0,  2,   5, 11 );
         break; // saveBillboardOrGeometry
 
     case BLOCK_LEVER:						// saveBillboardOrGeometry
@@ -5608,7 +5620,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         littleTotalVertexCount = gModel.vertexCount;
         // tip - move over by 1
         gUsingTransform = 1;
-        saveBoxGeometry( boxIndex, BLOCK_LEVER, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT,  7,9,  10,10,  6,8);
+        saveBoxGeometry( boxIndex, BLOCK_LEVER, dataVal, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT,  7,9,  10,10,  6,8);
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
         identityMtx(mtx);
         translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f );
@@ -5616,7 +5628,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // add lever - always mask top face, which is output above. Use bottom face if 3D printing, to make object watertight.
         // That said, levers are not currently exported when 3D printing, but just in case we ever do...
-        saveBoxGeometry( boxIndex, BLOCK_LEVER, 0, (gPrint3D ? 0x0 : DIR_BOTTOM_BIT)|DIR_TOP_BIT,  7,9,  0,10,  7,9);
+		saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 0, (gPrint3D ? 0x0 : DIR_BOTTOM_BIT) | DIR_TOP_BIT, 7, 9, 0, 10, 7, 9);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -5627,7 +5639,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount,mtx);
 
-        saveBoxGeometry( boxIndex, BLOCK_COBBLESTONE, 0, 0x0,  4,12,  0,3,  5,11);
+        saveBoxGeometry( boxIndex, BLOCK_COBBLESTONE, 0, 0, 0x0,  4,12,  0,3,  5,11);
 
         uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
         // transform lever as a whole
@@ -5685,7 +5697,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] =  SWATCH_INDEX( 5,15 );
         // TODO! For tile itself, Y data was centered instead of put at bottom, so note we have to shift it down
-        saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, 0x0, 0, 0, 0,16, 0,6, 0,16 );
+        saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 0,16, 0,6, 0,16 );
         break; // saveBillboardOrGeometry
 
     case BLOCK_STICKY_PISTON:						// saveBillboardOrGeometry
@@ -5753,7 +5765,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // side of piston body:
         swatchLoc = SWATCH_INDEX( 12, 6 );
         // form the piston itself sideways, just the small connecting bit, then we rotate upwards
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD)?DIR_HI_X_BIT:0x0)|(gPrint3D ? 0x0 : DIR_LO_X_BIT),  0,4,   12,16,  0,4 );
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD)?DIR_HI_X_BIT:0x0)|(gPrint3D ? 0x0 : DIR_LO_X_BIT),  0,4,   12,16,  0,4 );
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
         identityMtx(mtx);
@@ -5765,7 +5777,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // piston body
         gUsingTransform = (bottomDataVal != 1);
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc+2, swatchLoc, swatchLoc+1, 0, 0x0,         0, 0,16,   0,12,  0,16 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc+2, swatchLoc, swatchLoc+1, 0, 0x0,         0, 0,16,   0,12,  0,16 );
         if ( (zrot != 0.0) || (yrot != 0.0) )
         {
             totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -5832,7 +5844,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // side of piston body:
         swatchLoc = SWATCH_INDEX( 12, 6 );
         // form the piston itself sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)||(gPrint3D ? 0x0 : DIR_HI_X_BIT),  4,16,   12,16,  0,4 );
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)||(gPrint3D ? 0x0 : DIR_HI_X_BIT),  4,16,   12,16,  0,4 );
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
         identityMtx(mtx);
@@ -5843,7 +5855,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(littleTotalVertexCount,mtx);
 
         // piston body
-        saveBoxMultitileGeometry( boxIndex, type, (dataVal & 0x8)?(swatchLoc-2):(swatchLoc-1), swatchLoc, swatchLoc-1, 0, 0x0,         0, 0,16,   12,16,  0,16 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, (dataVal & 0x8)?(swatchLoc-2):(swatchLoc-1), swatchLoc, swatchLoc-1, 0, 0x0,         0, 0,16,   12,16,  0,16 );
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -5857,13 +5869,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_HOPPER:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // outsides and bottom
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0,16,  10,16,  0,16 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc-1, swatchLoc-1, swatchLoc-1, 1, DIR_TOP_BIT, 0, 0,16,  10,16,  0,16 );
         // next level down outsides and bottom
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 4,12,   4,10,  4,12 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 4,12,   4,10,  4,12 );
         // bottom level cube - move to position based on dataVal
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = (dataVal > 1);
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, 0x0,         0, 6,10,   0, 4,  6,10 );
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc-1, swatchLoc-1, swatchLoc-1, 0, 0x0,         0, 6,10,   0, 4,  6,10 );
         gUsingTransform = 0;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         if ( dataVal > 1 )
@@ -5894,33 +5906,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         if ( fatten )
         {
             // top as a single flat face - really won't print well otherwise, as surface is infinitely thin at level Y=10.
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
                 0, 16,   16, 16,   0, 16 );
         }
         else
         {
             // top as 4 small faces, and corresponding inside faces
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 14, 16, 10+(float)gPrint3D*2, 16,   2, 14 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 0,  2,  10+(float)gPrint3D*2, 16,   2, 14 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT, 0, 
                 2, 14,  10+(float)gPrint3D*2, 16,  14, 16 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0, 
                 2, 14,  10+(float)gPrint3D*2, 16,   0,  2 );
 
             // top corners
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 0,  2,  16, 16,  0,  2 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 0,  2, 16, 16,  14, 16 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 14, 16, 16, 16,  0,  2 );
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc-1, swatchLoc-1, 0, DIR_BOTTOM_BIT|DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0, 
                 14, 16, 16, 16, 14, 16 );
 
             // inside bottom
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc-2, swatchLoc-2, swatchLoc-2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
+            saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc-2, swatchLoc-2, swatchLoc-2, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 
 				2, 14, 10 + (float)gPrint3D * 2, 10 + (float)gPrint3D * 2, 2, 14);
         }
         break; // saveBillboardOrGeometry
@@ -5969,11 +5981,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // form the rod
         // the sides
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  0,2,  1,16,  0,2);
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0,  0,2,  1,16,  0,2);
         // for the high X and Z, we need to use (1-u) for x and z
-        saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 14,16,  1,16, 14,16);
+        saveBoxReuseGeometry( boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 14,16,  1,16, 14,16);
         // the ends; we need to use (1-v) for z here
-        saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0x0, 2,4,  1,16,  0,2);
+        saveBoxReuseGeometry( boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0x0, 2,4,  1,16,  0,2);
 
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
@@ -5986,10 +5998,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // form the base of the rod, put it at the bottom
         //gUsingTransform = (bottomDataVal != 1);
-        saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,  2,6,  0,1,  2,6);
-        saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0x0, 2,6,  9,10,  2,6);
+        saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT, 0,  2,6,  0,1,  2,6);
+        saveBoxReuseGeometry( boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT, 0x0, 2,6,  9,10,  2,6);
         // for the high X and Z, we need to use (1-u) for x and z
-        saveBoxReuseGeometry( boxIndex, type, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 10,14,  9,10,  10,14);
+        saveBoxReuseGeometry( boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT|DIR_TOP_BIT|DIR_LO_X_BIT|DIR_HI_Z_BIT, 0x0, 10,14,  9,10,  10,14);
         
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
@@ -6017,12 +6029,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // fully mature
             swatchLoc++;
         }
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, DIR_BOTTOM_BIT, 2,14, 14,16, 2,14);
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_TOP_BIT, 2,14, 0,2, 2,14);
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_HI_X_BIT, 0,2, 2,14, 2,14);
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_LO_X_BIT, 14,16, 2,14, 2,14);
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_HI_Z_BIT, 2,14, 2,14, 0,2);
-        saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, DIR_LO_Z_BIT, 2,14, 2,14, 14,16);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 1, DIR_BOTTOM_BIT, 2,14, 14,16, 2,14);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 0, DIR_TOP_BIT, 2,14, 0,2, 2,14);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0,2, 2,14, 2,14);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14,16, 2,14, 2,14);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_Z_BIT, 2,14, 2,14, 0,2);
+        saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_Z_BIT, 2,14, 2,14, 14,16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_IRON_BARS:						// saveBillboardOrGeometry
@@ -6123,312 +6135,312 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case 0:
 				// just a little box
 				// bottom & top, double-sided
-				saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,
+				saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,
 					7, 9, 0, 0, 7, 9);
-				saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,
+				saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0,
 					7, 9, 16, 16, 7, 9);
 
 				// north-south
-				saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+				saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
 					7, 9, 0, 16, 8, 8);
 
 				// east-west
-				saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+				saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
 					8, 8, 0, 16, 7, 9);
 				break;
             case 15:
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,7 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,7 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 9,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 9,16 );
 
                 // bottom & top of east-west wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 16,16, 7, 9 );
 
                 // north and south ends
-                //saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                //saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                 //	7, 9, 0,16, 0,16 );
 
                 // east and west ends
-                //saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                //saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                 //	7, 9, 0,0, 0,16 );
 
                 // north-south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,16 );
                 // east-west wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,16, 0,16, 8,8 );
                 break;
             case 1:
                 // north wall only, just south edge as border
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,9 );
 
                 // south end
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     7, 9, 0,16, 9,9 );
 
                 // north wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,9 );
                 break;
             case 2:
                 // east wall only
                 // bottom & top of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     7,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     7,16, 16,16, 7, 9 );
 
                 // west end
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7,7, 0,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     7,16, 0,16, 8,8 );
                 break;
             case 3:
                 // north and east: build west face of north wall, plus top and bottom
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,8 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,8 );
 
                 // north wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,8 );
 
                 // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     8,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     8,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     8,16, 0,16, 8,8 );
                 break;
             case 4:
                 // south wall only
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 7,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 7,16 );
 
                 // south end
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     7, 9, 0,16, 7,7 );
 
                 // south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 7,16 );
                 break;
             case 5:
                 // north and south - easy!
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,16 );
 
                 // north-south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,16 );
                 break;
             case 6:
                 // east and south
                 // south and east: build west face of north wall, plus top and bottom
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 8,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 8,16 );
 
                 // south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 8,16 );
 
                 // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     8,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     8,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     8,16, 0,16, 8,8 );
                 break;
             case 7:
                 // north, east, and south - 5 faces horizontally
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,16 );
 
                 // south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,16 );
 
                 // bottom & top of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     9,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     9,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     8,16, 0,16, 8,8 );
                 break;
             case 8:
                 // west wall only
                 // bottom & top of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,9, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,9, 16,16, 7, 9 );
 
                 // west end
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     9,9, 0,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,9, 0,16, 8,8 );
                 break;
             case 9:
                 // north and west
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,8 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,8 );
 
                 // north wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,8 );
 
                 // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,8, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,8, 16,16, 7, 9 );
 
                 // west wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,8, 0,16, 8,8 );
                 break;
             case 10:
                 // east and west - have to mess with top and bottom being rotated
                 // bottom & top of wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,16, 0,16, 8,8 );
                 break;
             case 11:
                 // north, east, and west
                 // north top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,7 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,7 );
                 // north wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,8 );
 
                 // east-west bottom & top
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,16, 0,16, 8,8 );
                 break;
             case 12:
                 // south and west
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 8,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 8,16 );
 
                 // south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 8,16 );
 
                 // bottom & top of west wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,8, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,8, 16,16, 7, 9 );
 
                 // west wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,8, 0,16, 8,8 );
                 break;
             case 13:
                 // north, south, and west
                 // bottom & top of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 0,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 0,16 );
 
                 // south wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 0,16 );
 
                 // bottom & top of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,7, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,7, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,8, 0,16, 8,8 );
                 break;
             case 14:
                 // east, south, and west
                 // south top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 0,0, 9,16 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, 0x0, 0,
                     7, 9, 16,16, 9,16 );
                 // north wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     8,8, 0,16, 8,16 );
 
                 // east-west bottom & top
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,0, 7, 9 );
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 16,16, 7, 9 );
 
                 // east wall (easy!)
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 0,
                     0,16, 0,16, 8,8 );
                 break;
             }
@@ -6442,175 +6454,175 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
             case 0:
 				// post
-				saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 1, 0x0, FLIP_Z_FACE_VERTICALLY | ROTATE_TOP_AND_BOTTOM, 0,
+				saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, FLIP_Z_FACE_VERTICALLY | ROTATE_TOP_AND_BOTTOM, 0,
 					7 - fatten, 9 + fatten, 0, 16, 7 - fatten, 9 + fatten);
 				break;
             case 15:
                 // all four; 15 has no outside edges.
                 // top & bottom of north-south wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0,16 );
 
                 // east and west faces of north wall, shorter at south
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0,7-fatten );
                 // east and west faces of south wall, shorter at north
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 // north and south face of west wall, shorter at east, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 7-fatten, 0,16, 7-fatten, 9+fatten );
                 // north and south face of east wall, shorter at east, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 1:
                 // north wall only, just south edge as border
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 9+fatten );
                 break;
             case 2:
                 // east wall only
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     7-fatten,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 3:
                 // north and east: build west face of north wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 9+fatten );
                 // east face of north wall, shorter at south
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 7-fatten );
                 // north face of east wall, shorter at west, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 // south face of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     7-fatten,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 4:
                 // south wall only
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 7-fatten,16 );
                 break;
             case 5:
                 // north and south - easy!
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0,16 );
                 break;
             case 6:
                 // east and south
                 // build west face of south wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 7-fatten,16 );
                 // east face of south wall, shorter at north
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 // north face of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     7-fatten,16, 0,16, 7-fatten, 9+fatten );
                 // south face of east wall, shorter at west, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 7:
                 // north, east, and south - 5 faces horizontally
                 // west face of north-south wall, and top & bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0,16 );
                 // east face of north wall, shorter at south
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 7-fatten );
                 // north and south face of east wall, shorter at west, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 // east face of south wall, shorter at north
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 break;
             case 8:
                 // west wall only
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 9+fatten, 0,16, 7-fatten, 9+fatten );
                 break;
             case 9:
                 // north and west
                 // build east face of north wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 9+fatten );
                 // west face of north wall, shorter at south
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 7-fatten );
                 // north face of west wall, shorter at east, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 7-fatten, 0,16, 7-fatten, 9+fatten );
                 // south face of west wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 9+fatten, 0,16, 7-fatten, 9+fatten );
                 break;
             case 10:
                 // east and west - have to mess with top and bottom being rotated
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, faceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 11:
                 // north, east, and west
                 // east and west faces of north wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 7-fatten );
                 // north face of west wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 7-fatten, 0,16, 7-fatten, 9+fatten );
                 // north face of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 // south face of west-east wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,16, 7-fatten, 9+fatten );
                 break;
             case 12:
                 // south and west
                 // build east face of south wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 7-fatten,16 );
                 // west face of south wall, shorter at north
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 // north face of west wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,9+fatten, 0,16, 7-fatten, 9+fatten );
                 // south face of west wall, shorter at west, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,7-fatten, 0,16, 7-fatten, 9+fatten );
                 break;
             case 13:
                 // north, south, and west
                 // east face of north-south wall, and top & bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0,16 );
                 // west face of north wall, shorter at south
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 0, 7-fatten );
                 // north and south face of west wall, shorter at east, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,7-fatten, 0,16, 7-fatten, 9+fatten );
                 // east face of south wall, shorter at north
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 break;
             case 14:
                 // east, south, and west
                 // east and west faces of south wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_Z_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_X_FACE_VERTICALLY, 0,
                     7-fatten, 9+fatten, 0,16, 9+fatten,16 );
                 // south face of west wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0, 7-fatten, 0,16, 7-fatten, 9+fatten );
                 // south face of east wall
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     9+fatten,16, 0,16, 7-fatten, 9+fatten );
                 // north face of west-east wall, plus top and bottom
-                saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
+                saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT|tbFaceMask, FLIP_Z_FACE_VERTICALLY|ROTATE_TOP_AND_BOTTOM, 0,
                     0,16, 0,16, 7-fatten, 9+fatten );
                 break;
             }
@@ -6640,13 +6652,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// box on wall
 			littleTotalVertexCount = gModel.vertexCount;
 			// left half
-			saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 1, 0x0, 6, 10, 1, 9, 3, 5);
+			saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 1, 0x0, 6, 10, 1, 9, 3, 5);
 			// right half
-			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0x0, 9, 10, 1, 9, 3, 5);
+			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, 0x0, 9, 10, 1, 9, 3, 5);
 			// top bit in middle
-			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 7, 9, 3, 5);
+			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 7, 9, 3, 5);
 			// bottom bit in middle
-			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 1, 5, 3, 5);
+			//saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 1, 5, 3, 5);
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 			identityMtx(mtx);
 			translateMtx(mtx, 0.0f, 0.0f, -3 * ONE_PIXEL);
@@ -6657,8 +6669,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 
 				littleTotalVertexCount = gModel.vertexCount;
-				saveBoxGeometry(boxIndex, type, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, 0, 5, 7, 9);
-				saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 7, 9, 0, 5, 14, 16);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, 0, 5, 7, 9);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 7, 9, 0, 5, 14, 16);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -6675,15 +6687,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 				littleTotalVertexCount = gModel.vertexCount;
 				// left half
-				saveBoxGeometry(boxIndex, type, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 5, 7, 7, 8, 3, 9);
-				saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 5, 11, 7, 8, 5, 11);
+				saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 5, 7, 7, 8, 3, 9);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 5, 11, 7, 8, 5, 11);
 				// right half
-				saveBoxGeometry(boxIndex, type, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 9, 11, 7, 8, 3, 9);
-				saveBoxReuseGeometry(boxIndex, type, swatchLoc, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 5, 11, 7, 8, 5, 11);
+				saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 9, 11, 7, 8, 3, 9);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 5, 11, 7, 8, 5, 11);
 				// top bit in middle
-				saveBoxGeometry(boxIndex, type, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 7, 9, 7, 8, 7, 9);
+				saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 7, 9, 7, 8, 7, 9);
 				// bottom bit in middle
-				saveBoxGeometry(boxIndex, type, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 7, 9, 7, 8, 3, 5);
+				saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT, 7, 9, 7, 8, 3, 5);
 
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
@@ -6731,7 +6743,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_STRUCTURE_VOID:						// saveBillboardOrGeometry
 		// tiny little red wool block
 		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-		saveBoxTileGeometry(boxIndex, type, swatchLoc, 1, 0x0, 7, 9, 7, 9, 7, 9);
+		saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 7, 9, 7, 9, 7, 9);
 		break; // saveBillboardOrGeometry
 
     default:
@@ -6834,7 +6846,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
     switch ( choppedSide )
     {
     case DIR_LO_X_BIT:
-        retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_LO_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+        retCode |= saveBoxFaceUVs( typeBelow, dataValBelow, DIRECTION_LO_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
@@ -6850,7 +6862,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x4|0x2;	// xmax, ymax, zmin
         setDefaultUVs( uvs, 2 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex, swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         vindex[0] = 0x1;		    // xmin, ymin, zmax
@@ -6858,12 +6870,12 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x1|0x4|0x2;	// xmax, ymax, zmax
         setDefaultUVs( uvs, 3 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         break;
     case DIR_HI_X_BIT:
-        retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_HI_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs(typeBelow, dataValBelow, DIRECTION_HI_X_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
@@ -6879,7 +6891,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x2;	    // xmin, ymax, zmin
         setDefaultUVs( uvs, 3 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_Z, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         vindex[0] = 0x1;		    // xmin, ymin, zmax
@@ -6887,12 +6899,12 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x1|0x2;	    // xmin, ymax, zmax
         setDefaultUVs( uvs, 2 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_Z, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         break;
     case DIR_LO_Z_BIT:	// north side, going from north low to south high (i.e. sloping up to south)
-        retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_LO_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs(typeBelow, dataValBelow, DIRECTION_LO_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
@@ -6908,7 +6920,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x1|0x2;	// zmax, ymax, xmin
         setDefaultUVs( uvs, 3 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
@@ -6916,12 +6928,12 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x4|0x1|0x2;	// zmax, ymax, xmax
         setDefaultUVs( uvs, 2 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         break;
     case DIR_HI_Z_BIT:
-        retCode |= saveBoxFaceUVs( typeBelow, DIRECTION_HI_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices );
+		retCode |= saveBoxFaceUVs(typeBelow, dataValBelow, DIRECTION_HI_Z_HI_Y, 1, startVertexIndex, vindex, uvSlopeIndices);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
@@ -6937,7 +6949,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x2;	    // zmin, ymax, xmin
         setDefaultUVs( uvs, 2 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_LO_X, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         vindex[0] = 0x4|0x1;		// zmax, ymin, xmax
@@ -6945,7 +6957,7 @@ static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBe
         vindex[2] = 0x4|0x2;	    // zmin, ymax, xmax
         setDefaultUVs( uvs, 3 );
         swatchLoc = getSwatch( typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, boxIndexBelow, NULL );
-        retCode |= saveTriangleFace( boxIndex,  swatchLoc, typeBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs );
+		retCode |= saveTriangleFace(boxIndex, swatchLoc, typeBelow, dataValBelow, DIRECTION_BLOCK_SIDE_HI_X, startVertexIndex, vindex, uvs);
         if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
         break;
@@ -7158,8 +7170,41 @@ static FaceRecord * allocFaceRecordFromPool()
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
 
+static unsigned short getSignificantMaterial(int type, int dataVal)
+{
+	// TODOTODO for now, return all bits of data value.
+	// Return only the "material-related" bits of the data value. That is, only those bits
+	// that differentiate the various sub-materials. So, dirt has all low bits returned
+	// (might as well account for future data values 0-15), ladders have none, since the
+	// bits all affect orientation and not material itself.
+
+	// special cases
+	switch (type) {
+	case BLOCK_QUARTZ_BLOCK:
+		// make the pillar quartzs, 2-4, all have the same value
+		if (dataVal > 2)
+			dataVal = 2;
+		break;
+	case BLOCK_HUGE_RED_MUSHROOM:
+	case BLOCK_HUGE_BROWN_MUSHROOM:
+		// 0 - pores are fine as is
+		// 1 - cap and filling; 2-9 and 14 go to 1
+		// 10 - stem; 15 goes to 10
+		if (((dataVal >= 2) && (dataVal <= 9)) || (dataVal == 14))
+			dataVal = 1;
+		else if (dataVal == 15)
+			dataVal = 10;
+		break;
+	case BLOCK_HEAD:
+		// bits 654 are actually the head
+		dataVal = (dataVal >> 4) & 0x7;
+		break;
+	}
+	return (unsigned short)(gBlockDefinitions[type].subtype_mask & dataVal);
+}
+
 // Output the face of triangle slope element
-static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
+static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
     FaceRecord *face;
     int j;
@@ -7198,7 +7243,8 @@ static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int faceDire
         //face->faceIndex = firstFaceModifier( 0, gModel.faceCount );
         // never a first face, we know how we're using it currently (as sides for rails, and these simply aren't the first)
         face->faceIndex = gModel.faceCount;
-        face->type = (short)type;
+        face->materialType = (short)type;
+		face->materialDataVal = getSignificantMaterial(type, dataVal);
 
         // always the same normal, which directly corresponds to the normals[] array in gModel
         face->normalIndex = gUsingTransform ? COMPUTE_NORMAL : (short)faceDirection;
@@ -7234,24 +7280,24 @@ static void saveBlockGeometry( int boxIndex, int type, int dataVal, int markFirs
     {
         swatchLocSet[i] = getSwatch(type,dataVal,i,boxIndex,NULL);
     }
-    saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, 0, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+	saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, markFirstFace, faceMask, 0, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
 }
 
-static void saveBoxGeometry( int boxIndex, int type, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ )
+static void saveBoxGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     int swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
-    saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+	saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
 }
 
 // With this one we specify the swatch location explicitly, vs. get it from the type - e.g., cobblestone vs. moss stone for cobblestone walls
-static void saveBoxTileGeometry( int boxIndex, int type, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ )
+static void saveBoxTileGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
-    saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+    saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
 }
 
 
-static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ )
+static void saveBoxMultitileGeometry(int boxIndex, int type, int dataVal, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     int swatchLocSet[6];
     swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
@@ -7260,10 +7306,10 @@ static void saveBoxMultitileGeometry( int boxIndex, int type, int topSwatchLoc, 
     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = sideSwatchLoc;
     swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = sideSwatchLoc;
     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = sideSwatchLoc;
-    saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, markFirstFace, faceMask, rotUVs, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+    saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, markFirstFace, faceMask, rotUVs, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
 }
 
-static void saveBoxReuseGeometry(int boxIndex, int type, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
+static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     int swatchLocSet[6];
     swatchLocSet[DIRECTION_BLOCK_TOP] =
@@ -7272,13 +7318,13 @@ static void saveBoxReuseGeometry(int boxIndex, int type, int swatchLoc, int face
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
-	saveBoxAlltileGeometry(boxIndex, type, swatchLocSet, 0, faceMask, rotUVs, 1, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
+	saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, faceMask, rotUVs, 1, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
 }
 
 // rotUVs == FLIP_X_FACE_VERTICALLY means vertically flip X face
 // rotUVs == FLIP_Z_FACE_VERTICALLY means vertically flip Z face
 // rotUVs == ROTATE_TOP_AND_BOTTOM means rotate top and bottom tile 90 degrees; for glass panes.
-static int saveBoxAlltileGeometry(int boxIndex, int type, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
+static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     int i;
     int swatchLoc;
@@ -7588,7 +7634,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int swatchLocSet[6], i
                 {
                     Normal:
                     // mark the first face if calling routine wants it, and this is the first face of six
-                    retCode |= saveBoxFace( swatchLoc, type, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
+                    retCode |= saveBoxFace( swatchLoc, type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, reverseLoop, useRotUVs, minu, maxu, minv, maxv );
                     if ( retCode >= MW_BEGIN_ERRORS ) return retCode;
 
                     // face output, so don't need to mark first face
@@ -7955,7 +8001,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
 }
 
 // rotUVs rotates the face: 0 - no rotation, 1 - 90 degrees (I forget if it's CCW or CW), 2 - 180, 3 - 270
-static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
+static int saveBoxFace( int swatchLoc, int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
 {
     int j;
     int uvIndices[4];
@@ -7984,11 +8030,11 @@ static int saveBoxFace( int swatchLoc, int type, int faceDirection, int markFirs
         }
     }
 
-    retCode |= saveBoxFaceUVs( type, faceDirection, markFirstFace, startVertexIndex, vindex, orderedUvIndices );
+    retCode |= saveBoxFaceUVs( type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, orderedUvIndices );
     return retCode;
 }
 
-static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] )
+static int saveBoxFaceUVs( int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] )
 {
     FaceRecord *face;
     int j;
@@ -8004,7 +8050,8 @@ static int saveBoxFaceUVs( int type, int faceDirection, int markFirstFace, int s
     // if we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
     face->faceIndex = firstFaceModifier( markFirstFace, gModel.faceCount );
-    face->type = (short)type;
+    face->materialType = (short)type;
+	face->materialDataVal = getSignificantMaterial(type, dataVal);
 
     // always the same normal, which directly corresponds to the normals[] array in gModel
     face->normalIndex = gUsingTransform ? COMPUTE_NORMAL : (short)faceDirection;
@@ -8039,8 +8086,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 {
     int i, j, fc, swatchLoc;
     FaceRecord *face;
-    int faceDir[8];
-    Point vertexOffsets[4][4];
+    int faceDir[2*5];			// vines need 5 total
+    Point vertexOffsets[5][4];	// vines need 5 total, if one is under the block
     IPoint anchor;
     int faceCount = 0;
     int startVertexCount = 0;   // doesn't really need initialization, but makes compilers happy
@@ -8059,7 +8106,10 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 	float mtx[4][4];
 	int redstoneDirFlags = 0x0;
 	bool redstoneOn = true;
+	int redstoneOrigDataVal = 0;
 	float angle = 0.0f;
+
+	int origDataVal = dataVal;
 
     assert(!gPrint3D);
 
@@ -8131,7 +8181,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 	case BLOCK_CROPS:				// saveBillboardFacesExtraData
         // adjust for growth
         // undocumented: village-grown wheat appears to have
-        // the 0x8 bit set, which doesn't seem to matter. Mask it out.
+        // the 0x8 bit set, which doesn't seem to mreatter. Mask it out.
         swatchLoc += ( (dataVal & 0x7) - 7 );
         break;
 	case BLOCK_CARROTS:				// saveBillboardFacesExtraData
@@ -8310,6 +8360,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
             // row 19 (#18) has these
             swatchLoc = SWATCH_INDEX( gBoxData[boxIndex-1].data*2+3,18 );
+			// for material differentiation set the dataVal to the bottom half
+			origDataVal = gBoxData[boxIndex - 1].data;
             if ( gBoxData[boxIndex-1].data == 0 )
             {
                 foundSunflowerTop = 1;
@@ -8327,8 +8379,11 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		// If set, then output redstone. Also, remove the flat flag, so it's not used later.
 
 		// dataVal is used for the sides and which should be output. We derive it here.
+		// The data value holds the direction flags in 0xf0, and the original data (power) value in 0x0f bits
 		redstoneDirFlags = dataVal >> 4;
+		redstoneOrigDataVal = dataVal & 0xf;
 		redstoneOn = (dataVal & 0xf) ? true : false;
+		// we reuse dataVal here for edges.
 		dataVal = 0x0;
 		distanceOffset = ONE_PIXEL * 0.25;
 
@@ -8624,6 +8679,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                         faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
 						faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
                     }
+					assert(faceCount <= 10);
 
                     switch ( sideCount )
                     {
@@ -8659,7 +8715,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                         assert(0);
                     }
                     billCount++;
-                }
+					assert(billCount <= 5);
+				}
 
                 sideCount++;
                 dataVal = dataVal>>1;
@@ -8669,12 +8726,14 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 				// two paired billboards
 				faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
 				faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
+				assert(faceCount <= 10);
 
 				Vec3Scalar(vertexOffsets[billCount][0], = , 1.0f, 1.0f - ONE_PIXEL, 1.0f);
 				Vec3Scalar(vertexOffsets[billCount][1], = , 1.0f, 1.0f - ONE_PIXEL, 0.0f);
 				Vec3Scalar(vertexOffsets[billCount][2], = , 0.0f, 1.0f - ONE_PIXEL, 0.0f);
 				Vec3Scalar(vertexOffsets[billCount][3], = , 0.0f, 1.0f - ONE_PIXEL, 1.0f);
 				billCount++;
+				assert(billCount <= 5);
 				break;
 			}
         }
@@ -8723,7 +8782,8 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 				// if  we sort, we want to keep faces in the order generated, which is
 				// generally cache-coherent (and also just easier to view in the file)
 				face->faceIndex = firstFaceModifier((i == 0) && firstFace, gModel.faceCount);
-				face->type = (short)type;
+				face->materialType = (short)type;
+				face->materialDataVal = getSignificantMaterial(type, origDataVal);
 
 				// if no transform happens, then use faceDir index for normal index
 				face->normalIndex = normalUnknown ? COMPUTE_NORMAL : (short)faceDir[i];
@@ -8789,13 +8849,13 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     {
 		gUsingTransform = 1;
 		// 11 high, 2x2 but extending out by 1 on each side
-		saveBoxGeometry(boxIndex, type, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6,10, 0,11, 7, 9);
-		saveBoxGeometry(boxIndex, type, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, 0,11, 6,10);
+		saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6,10, 0,11, 7, 9);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, 0, 11, 6, 10);
 
         // add a tip to the torch, shift it one texel in X
         //saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
 		int torchVertexCount = gModel.vertexCount;
-		saveBoxGeometry(boxIndex, type, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7,9, 10,10, 6,8);
+		saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, 10, 10, 6, 8);
 		gUsingTransform = 0;
 
         torchVertexCount = gModel.vertexCount - torchVertexCount;
@@ -8851,7 +8911,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             // add sheared "cross flames" inside, 8 in all
             int fireVertexCount = gModel.vertexCount;
             gUsingTransform = 1;
-            saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, 
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0,
                 DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT,
                 FLIP_Z_FACE_VERTICALLY, 0,16, 0,16, 16,16);
             gUsingTransform = 0;
@@ -8898,7 +8958,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 
         gUsingTransform = 1;
 		// note that if culling is off, the front face is likely to hide the back.
-        retCode |= saveBoxAlltileGeometry( boxIndex, type, swatchLocSet, 0, 
+		retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
 			DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT,
             FLIP_X_FACE_VERTICALLY, 0,  8,8, 0,16, 0,16);
         if ( retCode > MW_BEGIN_ERRORS ) return retCode;
@@ -8979,7 +9039,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		totalVertexCount = gModel.vertexCount;
 		gUsingTransform = 1;
 		// if dataVal is 0, no sides were output and this is actually the first face
-		saveBoxTileGeometry(boxIndex, type, swatchLoc, (dataVal > 0) ? 0 : 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 16, 0, 0, 0, 16);
+		saveBoxTileGeometry(boxIndex, type, redstoneOrigDataVal, swatchLoc, (dataVal > 0) ? 0 : 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 16, 0, 0, 0, 16);
 
 		gUsingTransform = 0;
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -11349,15 +11409,20 @@ static int faceIdCompare( void* context, const void *str1, const void *str2)
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
     context;    // make a useless reference to the unused variable, to avoid C4100 warning
-    if ( f1->type == f2->type )
+    if ( f1->materialType == f2->materialType )
     {
-        // Not necessary, but...
-        // Tie break is face loop starting vertex, so that data is
-        // output with some coherence. May help mesh caching and memory access.
-        // Also, the data just looks more tidy in the file.
-        return ( (f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1 );
+		// tie break of the data value
+		// TODO: do this test only if we really want sub-materials
+		if (f1->materialDataVal == f2->materialDataVal) {
+			// Not necessary, but...
+			// Tie break is face loop starting vertex, so that data is
+			// output with some coherence. May help mesh caching and memory access.
+			// Also, the data just looks more tidy in the file.
+			return ((f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1);
+		}
+		else return ((f1->materialDataVal < f2->materialDataVal) ? -1 : 1);
     }
-    else return ( (f1->type < f2->type) ? -1 : 1 );
+    else return ( (f1->materialType < f2->materialType) ? -1 : 1 );
 }
 
 
@@ -12351,12 +12416,13 @@ UseGridLoc:
         // as the material
         if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
         {
-			face->type = (short)getMaterialUsingGroup(gBoxData[boxIndex].group);
+			face->materialType = (short)getMaterialUsingGroup(gBoxData[boxIndex].group);
+			face->materialDataVal = 0;
         }
         else
         {
-            // if we're doing FLATTOP compression, the topId for the block will
-            // have been set to what is above the block before now (in filter).
+            // if we're doing FLATTOP compression, the topId and dataVal for the block will
+            // have been set to what is above the block before now (in the filter code).
             // If the value is not 0 (air), use that material instead
             int special = 0;
             if ( gBoxData[boxIndex].flatFlags )
@@ -12366,7 +12432,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_TOP:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_ABOVE )
                     {
-                        face->type = gBoxData[boxIndex+1].origType;
+                        face->materialType = gBoxData[boxIndex+1].origType;
                         dataVal = gBoxData[boxIndex+1].data;    // this should still be intact, even if neighbor block is cleared to air
                         special = 1;
                     }
@@ -12374,7 +12440,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_BOTTOM:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_BELOW )
                     {
-                        face->type = gBoxData[boxIndex-1].origType;
+                        face->materialType = gBoxData[boxIndex-1].origType;
                         dataVal = gBoxData[boxIndex-1].data;    // this should still be intact, even if neighbor block is cleared to air
                         special = 1;
                     }
@@ -12382,7 +12448,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_SIDE_LO_X:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_LO_X )
                     {
-                        face->type = gBoxData[boxIndex-gBoxSizeYZ].origType;
+                        face->materialType = gBoxData[boxIndex-gBoxSizeYZ].origType;
                         dataVal = gBoxData[boxIndex-gBoxSizeYZ].data;
                         special = 1;
                     }
@@ -12390,7 +12456,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_HI_X )
                     {
-                        face->type = gBoxData[boxIndex+gBoxSizeYZ].origType;
+                        face->materialType = gBoxData[boxIndex+gBoxSizeYZ].origType;
                         dataVal = gBoxData[boxIndex+gBoxSizeYZ].data;
                         special = 1;
                     }
@@ -12398,7 +12464,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_LO_Z )
                     {
-                        face->type = gBoxData[boxIndex-gBoxSize[Y]].origType;
+                        face->materialType = gBoxData[boxIndex-gBoxSize[Y]].origType;
                         dataVal = gBoxData[boxIndex-gBoxSize[Y]].data;
                         special = 1;
                     }
@@ -12406,7 +12472,7 @@ UseGridLoc:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     if ( gBoxData[boxIndex].flatFlags & FLAT_FACE_HI_Z )
                     {
-                        face->type = gBoxData[boxIndex+gBoxSize[Y]].origType;
+                        face->materialType = gBoxData[boxIndex+gBoxSize[Y]].origType;
                         dataVal = gBoxData[boxIndex+gBoxSize[Y]].data;
                         special = 1;
                     }
@@ -12416,34 +12482,43 @@ UseGridLoc:
                     break;
                 }
             }
+			// did flattening happen?
             if ( !special )
             {
-                face->type = originalType;
-                dataVal = gBoxData[boxIndex].data;
+				// no flattening, normal storage.
+                face->materialType = originalType;
+				dataVal = gBoxData[boxIndex].data;
+				face->materialDataVal = getSignificantMaterial(face->materialType, dataVal);
             }
             else
             {
                 // A flattening has happened.
                 // Test just in case something's wedged
-                if ( face->type == BLOCK_AIR )
+                if ( face->materialType == BLOCK_AIR )
                 {
                     assert(0);
-                    face->type = originalType;
-                    return retCode|MW_INTERNAL_ERROR;
-                }
+                    face->materialType = originalType;
+					dataVal = gBoxData[boxIndex].data;
+					face->materialDataVal = getSignificantMaterial(face->materialType, dataVal);
+					return retCode | MW_INTERNAL_ERROR;
+				}
+				else {
+					// normal case, flattening found and so save material data value
+					face->materialDataVal = getSignificantMaterial(face->materialType, dataVal);
+				}
             }
         }
 
-        assert(face->type);
+        assert(face->materialType);
     }
     // else no material, so type is not needed
 
     if ( gExportTexture )
     {
-        // I guess we really don't need the swatch location returned; it's
+        // I guess we really don't need the swatch location returned; its
         // main effect is to set the proper indices in the texture map itself
         // and note that the swatch is being used
-		(int)getSwatch(face->type, dataVal, faceDirection, boxIndex, computedSpecialUVs ? NULL : regularUVindices);
+		(int)getSwatch(face->materialType, dataVal, faceDirection, boxIndex, computedSpecialUVs ? NULL : regularUVindices);
 
 		if (computedSpecialUVs)
             for ( i = 0; i < 4; i++ )
@@ -12471,7 +12546,7 @@ UseGridLoc:
     return retCode;
 }
 
-
+// this gives us different materials for debug output, a set of various essentially random materials
 static int getMaterialUsingGroup( int groupID )
 {
     // material 11 is the second lava color swatch. Counting up from here is a colorful
@@ -13937,7 +14012,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_PUMPKIN:						// getSwatch
         case BLOCK_JACK_O_LANTERN:
-        case BLOCK_HEAD:	// definitely wrong for heads, TODOTODO - have tile entity, but now need all the dratted head textures...
+        case BLOCK_HEAD:	// definitely wrong for heads, TODO - have tile entity, but now need all the dratted head textures...
             SWATCH_SWITCH_SIDE( faceDirection, 6, 7 );
             xoff = ( type == BLOCK_PUMPKIN ) ? 7 : 8;
 			// if it's a head, we round the rotation found into a dataVal
@@ -13999,13 +14074,16 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                         swatchLoc = SWATCH_INDEX( xoff, 7 );
                     }
                     break;
-                case 3: // east
-                    if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
-                    {
-                        swatchLoc = SWATCH_INDEX( xoff, 7 );
-                    }
-                    break;
-                }
+				case 3: // east
+					if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+					{
+						swatchLoc = SWATCH_INDEX(xoff, 7);
+					}
+					break;
+				case 4: // no face at all!
+					// http://minecraft.gamepedia.com/Pumpkin#Block_data
+					break;
+				}
             }
             else
             {
@@ -14144,7 +14222,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( 5, 6 );
                 break;
             case 3:
-                // circle - added in 1.2.4
+                // chiseled circle - added in 1.2.4
                 swatchLoc = SWATCH_INDEX( 5,13 );
                 break;
             }
@@ -14267,21 +14345,30 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             }
             break;
-        case BLOCK_HIDDEN_SILVERFISH:						// getSwatch
+        case BLOCK_MONSTER_EGG:						// getSwatch
             switch ( dataVal )
             {
             case 0:
             default:
                 // default
                 break;
-            case 1: // cobblestone
-                swatchLoc = SWATCH_INDEX( 0, 1 );
-                break;
-            case 2: // stone brick
-                swatchLoc = SWATCH_INDEX( 6, 3 );
-                break;
-            }
-            break;
+			case 1: // cobblestone
+				swatchLoc = SWATCH_INDEX(0, 1);
+				break;
+			case 2: // stone brick
+				swatchLoc = SWATCH_INDEX(6, 3);
+				break;
+			case 3: // mossy stone brick
+				swatchLoc = SWATCH_INDEX(4, 6);
+				break;
+			case 4: // Cracked Stone Brick
+				swatchLoc = SWATCH_INDEX(5, 6);
+				break;
+			case 5: // Chiseled Stone Brick
+				swatchLoc = SWATCH_INDEX(5, 13);
+				break;
+			}
+			break;
         case BLOCK_HUGE_BROWN_MUSHROOM:						// getSwatch
         case BLOCK_HUGE_RED_MUSHROOM:
             inside = SWATCH_INDEX( 14, 8 );
@@ -14381,6 +14468,21 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_END_PORTAL_FRAME:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 15, 9,  15,10 );
+			// TODO: if eye of ender is in place, 0x4 bit, then we should use some
+			// new (doesn't exist right now) composited tile of 14, 9 and 14,10
+			// Rotate top and bottom
+			switch (faceDirection)
+			{
+			case DIRECTION_BLOCK_BOTTOM:
+			case DIRECTION_BLOCK_TOP:
+				if (uvIndices) {
+					rotateIndices(localIndices, (dataVal&0x3)*90);
+				}
+				break;
+			default:
+				break;
+			}
+
             break;
         case BLOCK_COBBLESTONE_WALL:						// getSwatch
             if ( dataVal == 0x1 )
@@ -15277,6 +15379,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     //}
 
     prevType = -1;
+	int prevDataVal = -1;
     groupCount = 0;
     // outputMaterial notes when a material is used for the first time;
     // should only be needed for when objects are not sorted by material (grouped by block).
@@ -15293,6 +15396,8 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
         }
     }
 
+	bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES) != 0x0);
+
     for ( i = 0; i < gModel.faceCount; i++ )
     {
         if ( i % 1000 == 0 )
@@ -15304,13 +15409,25 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
             if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MULTIPLE_MTLS|EXPT_OUTPUT_OBJ_GROUPS) )
             {
                 // did we reach a new material?
-                if ( prevType != gModel.faceList[i]->type )
+				if ((prevType != gModel.faceList[i]->materialType) ||
+					(subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)))
                 {
-                    prevType = gModel.faceList[i]->type;
+					// New material definitely found, so make a new one to be output.
+                    prevType = gModel.faceList[i]->materialType;
+					prevDataVal = gModel.faceList[i]->materialDataVal;
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
                     strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
+
+					if (subtypeMaterial && prevDataVal != 0) {
+						// add a dataval suffix
+						// TODO: if I ever have way too much time on my hands, turn these data values
+						// into the actual sub-material type names. Hours of fun typing!
+						char tempString[MAX_PATH];
+						sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+						strcpy_s(mtlName, 256, tempString);
+					}
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar( mtlName );
@@ -15326,11 +15443,33 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 							sprintf_s(outputString, 256, "g %s\n", mtlName);
 							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 						}
-						// note which material is to be output, if not output already
-						if (outputMaterial[prevType] == 0)
-						{
-							gModel.mtlList[gModel.mtlCount++] = prevType;
-							outputMaterial[prevType] = 1;
+						if (subtypeMaterial) {
+							// We can't use outputMaterial, a simple array of types. We need to
+							// instead check the whole previous list and see if the material's
+							// already on it. Check from last to first for speed, I hope.
+							int curCount = gModel.mtlCount-1;
+							unsigned int typeData = prevType << 8 | prevDataVal;
+							while (curCount >= 0) {
+								if (gModel.mtlList[curCount--] == typeData) {
+									// found it; exit loop
+									curCount = -999;
+								}
+							}
+							// did we find it?
+							if (curCount != -999) {
+								// did not find type/data combinationTOD - add it to list
+								gModel.mtlList[gModel.mtlCount++] = typeData;
+								assert(gModel.mtlCount < NUM_SUBMATERIALS);
+							}
+						}
+						else {
+							// note which material is to be output, if not output already
+							if (outputMaterial[prevType] == 0)
+							{
+								gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+								assert(gModel.mtlCount < NUM_SUBMATERIALS);
+								outputMaterial[prevType] = 1;
+							}
 						}
                     }
                     else
@@ -15350,7 +15489,8 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                             // new material per object
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            gModel.mtlList[gModel.mtlCount++] = prevType;
+                            gModel.mtlList[gModel.mtlCount++] = prevType <<8 | prevDataVal;
+							assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
                         // else don't output material, there's only one for the whole scene
                     }
@@ -15663,6 +15803,7 @@ static int writeOBJMtlFile()
             if ( gPrint3D )
             {
                 gModel.usesRGB = 1;
+				gModel.usesAlpha = 0;
             }
             else
             {
@@ -15673,19 +15814,24 @@ static int writeOBJMtlFile()
                 gModel.usesAlpha = 1;
             }
 
-            sprintf_s(outputString,2048,
-                "\nnewmtl %s\n"
-                "Kd 1 1 1\n"
-                "Ks 0 0 0\n"
-                "# for G3D, to make textures look blocky:\n"
-                "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
-                "map_Kd %s\n"
-                "map_d %s\n"
-                ,
-                MINECRAFT_SINGLE_MATERIAL,
-                textureRGBA,
-                textureAlpha );
-        }
+			sprintf_s(outputString, 2048,
+				"\nnewmtl %s\n"
+				"Kd 1 1 1\n"
+				"Ks 0 0 0\n"
+				"# for G3D, to make textures look blocky:\n"
+				"interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
+				"map_Kd %s\n"
+				,
+				MINECRAFT_SINGLE_MATERIAL,
+				gModel.usesRGB ? textureRGB : textureRGBA);
+			WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+
+			if (gModel.usesAlpha) {
+				sprintf_s(outputString, 2048,
+					"map_d %s\n", textureAlpha);
+				WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+			}
+		}
         else
         {
             sprintf_s(outputString,2048,
@@ -15694,29 +15840,32 @@ static int writeOBJMtlFile()
                 "Ks 0 0 0\n"
                 ,
                 MINECRAFT_SINGLE_MATERIAL );
-        }
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-
+			WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+		}
     }
     else
     {
         // output materials
-        int i;
+		bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES) != 0x0);
+		int i;
         for ( i = 0; i < gModel.mtlCount; i++ )
         {
-            int type;
+			int type;
+			int dataVal = 0;
             char tfString[256];
             char mapdString[256];
             char mapKeString[256];
             char keString[256];
-            char mtlName[MAX_PATH];
-            char *typeTextureFileName;
+			char mtlName[MAX_PATH];
+			char *typeTextureFileName;
             char fullMtl[256];
             double alpha;
             double fRed,fGreen,fBlue;
             double ka, kd;
 
-            type = gModel.mtlList[i];
+            type = gModel.mtlList[i]>>8;
+			if (subtypeMaterial)
+				dataVal = gModel.mtlList[i] & 0xff;
 
             if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
             {
@@ -15733,7 +15882,13 @@ static int writeOBJMtlFile()
 
             // print header: material name
             strcpy_s(mtlName,256,gBlockDefinitions[type].name);
-            spacesToUnderlinesChar(mtlName);
+			if (subtypeMaterial && (dataVal != 0)) {
+				// add a dataval suffix
+				char tempString[MAX_PATH];
+				sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
+				strcpy_s(mtlName, 256, tempString);
+			}
+			spacesToUnderlinesChar(mtlName);
 
             // if we want a neutral material, set to white
             // was: if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
@@ -16777,7 +16932,7 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tigh
                 if ( isMagics )
                 {
                     // Materialise Magics 
-                    colorBytes = gBlockDefinitions[pFace->type].color;
+                    colorBytes = gBlockDefinitions[pFace->materialType].color;
                     r=(unsigned char)(colorBytes>>16);
                     g=(unsigned char)(colorBytes>>8);
                     b=(unsigned char)(colorBytes);
@@ -16790,7 +16945,7 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tigh
                 else
                 {
                     // VisCAM/SolidView 
-                    colorBytes = gBlockDefinitions[pFace->type].color;
+                    colorBytes = gBlockDefinitions[pFace->materialType].color;
                     r=(unsigned char)(colorBytes>>16);
                     g=(unsigned char)(colorBytes>>8);
                     b=(unsigned char)(colorBytes);
@@ -17065,7 +17220,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
         }
         else
         {
-            strcpy_s(mtlName,256,gBlockDefinitions[gModel.faceList[currentFace]->type].name);
+            strcpy_s(mtlName,256,gBlockDefinitions[gModel.faceList[currentFace]->materialType].name);
             spacesToUnderlinesChar(mtlName);
         }
         sprintf_s( outputString, 256, shapeString, 
@@ -17129,17 +17284,17 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
         }
 
         beginIndex = currentFace;
-        currentType = exportSingleMaterial ? BLOCK_STONE : gModel.faceList[currentFace]->type;
+        currentType = exportSingleMaterial ? BLOCK_STONE : gModel.faceList[currentFace]->materialType;
 
         strcpy_s(outputString,256,"        coordIndex\n        [\n");
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
         // output face loops until next material is found, or all, if exporting no material
         while ( (currentFace < gModel.faceCount) &&
-            ( (currentType == gModel.faceList[currentFace]->type) || exportSingleMaterial ) )
+            ( (currentType == gModel.faceList[currentFace]->materialType) || exportSingleMaterial ) )
         {
             char commaString[256];
-            strcpy_s(commaString,256,( currentFace == gModel.faceCount-1 || (currentType != gModel.faceList[currentFace+1]->type) ) ? "" : "," );
+            strcpy_s(commaString,256,( currentFace == gModel.faceCount-1 || (currentType != gModel.faceList[currentFace+1]->materialType) ) ? "" : "," );
 
             pFace = gModel.faceList[currentFace];
 
@@ -18022,9 +18177,12 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
             WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
         }
 
-        sprintf_s(outputString, 256, "#   G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-    }
+		sprintf_s(outputString, 256, "#   Split materials into subtypes: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
 
     sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no" );
     WERROR(PortaWrite(fh, outputString, strlen(outputString) ));

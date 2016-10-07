@@ -47,7 +47,9 @@ static void initColors();
 static int gColorsInited=0;
 static unsigned int gBlockColors[256*16];
 static unsigned char gEmptyR,gEmptyG,gEmptyB;
-static unsigned char gBlankTile[16*16*4];
+static unsigned char gBlankTile[16 * 16 * 4];
+static unsigned char gBlankHighlitTile[16 * 16 * 4];
+static unsigned char gBlankTransitionTile[16 * 16 * 4];
 
 static unsigned short gColormap=0;
 static long long gMapSeed;
@@ -108,16 +110,14 @@ void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy
         if ( on )
         {
             // increase dirty rectangle by new bounds
-            // This *can* mess up, if the selection area is off screen
-            // when the dirty region is used
-            if ( gDirtyBoxMinX > minx/16 )
-                gDirtyBoxMinX = minx/16;
-            if ( gDirtyBoxMinZ > minz/16 )
-                gDirtyBoxMinZ = minz/16;
-            if ( gDirtyBoxMaxX < maxx/16 )
-                gDirtyBoxMaxX = maxx/16;
-            if ( gDirtyBoxMaxZ < maxz/16 )
-                gDirtyBoxMaxZ = maxz/16;
+            if ( gDirtyBoxMinX > minx )
+                gDirtyBoxMinX = minx;
+            if ( gDirtyBoxMinZ > minz )
+                gDirtyBoxMinZ = minz;
+            if ( gDirtyBoxMaxX < maxx )
+                gDirtyBoxMaxX = maxx;
+            if ( gDirtyBoxMaxZ < maxz )
+                gDirtyBoxMaxZ = maxz;
         }
     }
 }
@@ -244,16 +244,15 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         // box is set to current rectangle
         // TODO: this isn't quite right, as if you select a large rect, scroll it offscreen
         // then select new and scroll back, you'll see the highlight.
-        gDirtyBoxMinX = gBoxMinX/16;
-        gDirtyBoxMinZ = gBoxMinZ/16;
-        gDirtyBoxMaxX = gBoxMaxX/16;
-        gDirtyBoxMaxZ = gBoxMaxZ/16;
-
+        gDirtyBoxMinX = gBoxMinX;
+        gDirtyBoxMinZ = gBoxMinZ;
+        gDirtyBoxMaxX = gBoxMaxX;
+        gDirtyBoxMaxZ = gBoxMaxZ;
     }
     else
     {
         // empty
-        gDirtyBoxMinX=gDirtyBoxMinZ=INT_MAX;
+		gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
 		gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
     }
 }
@@ -1435,7 +1434,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     block=(WorldBlock *)Cache_Find(bx,bz);
 
-    if (block==NULL)
+	if (block == NULL)
     {
 		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
 		wcscat_s(pWorldGuide->directory, 260, L"/");
@@ -1449,8 +1448,49 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
         }
 
 		block = LoadBlock(pWorldGuide, bx, bz);
-        if (block==NULL) //blank tile
-            return gBlankTile;
+		if (block == NULL) //blank tile
+		{
+			// highlighting off, or fully outside real area? Use blank tile.
+			if (!gBoxHighlightUsed ||
+				(bx * 16 + 15 < gBoxMinX) || (bx * 16 > gBoxMaxX) ||
+				(bz * 16 + 15 < gBoxMinZ) || (bz * 16 > gBoxMaxZ))
+					return gBlankTile;
+
+			// fully inside? Use precomputed highlit area
+			static int flux = 0;
+			if ((bx * 16 > gBoxMinX) && (bx * 16 + 15 < gBoxMaxX) &&
+				(bz * 16 > gBoxMinZ) && (bz * 16 + 15 < gBoxMaxZ))
+				return gBlankHighlitTile;
+
+			// draw the highlighted area
+			memcpy(gBlankTransitionTile, gBlankTile, 16 * 16 * 4);
+			// z increases south, decreases north
+			for (z = 0; z < 16; z++)
+			{
+				// x increases west, decreases east
+				for (x = 0; x < 16; x++)
+				{
+					int offset = (z * 16 + x) * 4;
+					// make selected area slightly red, if at right heightmap range
+					if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
+						bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+					{
+						// blend in highlight color
+						blend = gHalpha;
+						// are we on a border? If so, change blend factor
+						if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
+							bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+						{
+							blend = gHalphaBorder;
+						}
+						gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset]*(1.0 - blend) + blend*(double)gHred);
+						gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHgreen);
+						gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHblue);
+					}
+				}
+			}
+			return gBlankTransitionTile;
+		}
 
         //let's only update the progress bar if we're loading
         if (callback)
@@ -1461,9 +1501,9 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     // At this point the block is loaded.
 
-    // Is it inside highlighted area?
-    bool isInside = ( bx >= gDirtyBoxMinX-1 && bx <= gDirtyBoxMaxX &&
-        bz >= gDirtyBoxMinZ-1 && bz <= gDirtyBoxMaxZ );
+	// Is the block partially or fully inside the dirty area?
+	bool isOnOrInside = (bx * 16 + 15 >= gDirtyBoxMinX && bx * 16 <= gDirtyBoxMaxX &&
+		bz * 16 + 15 >= gDirtyBoxMinZ && bz * 16 <= gDirtyBoxMaxZ);
 
     // already rendered?
     if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
@@ -1477,8 +1517,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             // If the area is outside the hightlighted region, renderhilitID==0.
             // Else the area should be redrawn.
             // final check, is highlighting state OK?
-            if ( ((block->renderhilitID==gHighlightID) && isInside) ||
-                ((block->renderhilitID==0) && !isInside) )
+            if ( ((block->renderhilitID==gHighlightID) && isOnOrInside) ||
+                ((block->renderhilitID==0) && !isOnOrInside) )
             {
                 // there's no need to re-render, use cached image already generated
                 return block->rendercache;
@@ -1491,7 +1531,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
     block->renderopts=opts.worldType;
     // if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
     // when we come back next time, the code above will note the rendering is OK.
-    block->renderhilitID= isInside ? gHighlightID : 0;
+    block->renderhilitID= isOnOrInside ? gHighlightID : 0;
     block->rendermissing=0;
     block->colormap=gColormap;
 
@@ -1753,7 +1793,6 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 				r = *clr++;
 				g = *clr++;
 				b = *clr; // ++ if you add alpha
-				// the alpha of gBlankTile is actually 128, I don't know if it matters...
 			}
 
             bits[ofs++]=r;
@@ -1810,7 +1849,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_DIRT:
     case BLOCK_TALL_GRASS:
     case BLOCK_SANDSTONE:
-    case BLOCK_HIDDEN_SILVERFISH:
     case BLOCK_RED_SANDSTONE:
     case BLOCK_PRISMARINE:
         // uses 0-2
@@ -1821,8 +1859,6 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         break;
     case BLOCK_LEAVES:
     case BLOCK_NETHER_WART:
-    case BLOCK_PUMPKIN:
-    case BLOCK_JACK_O_LANTERN:
     case BLOCK_STONE_BRICKS:
     case BLOCK_CAULDRON:
     case BLOCK_FROSTED_ICE:
@@ -1840,6 +1876,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 			addBlock = 1;
 		}
 		break;
+	case BLOCK_PUMPKIN:
+	case BLOCK_JACK_O_LANTERN:
 	case BLOCK_QUARTZ_BLOCK:
         // uses 0-4
         if ( dataVal < 5 )
@@ -1851,7 +1889,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_SAPLING:
     case BLOCK_CAKE:
-    case BLOCK_END_ROD:
+	case BLOCK_MONSTER_EGG:
+	case BLOCK_END_ROD:
     case BLOCK_CHORUS_FLOWER:
 	case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
 		// uses 0-5
@@ -1898,6 +1937,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_JUNGLE_WOOD_STAIRS:
     case BLOCK_QUARTZ_STAIRS:
     case BLOCK_SNOW:
+	case BLOCK_END_PORTAL_FRAME:
     case BLOCK_FENCE_GATE:
     case BLOCK_SPRUCE_FENCE_GATE:
     case BLOCK_BIRCH_FENCE_GATE:
@@ -3406,7 +3446,12 @@ static void initColors()
             gBlankTile[off+1] = (unsigned char)tone;
             gBlankTile[off+2] = (unsigned char)tone;
             gBlankTile[off+3] = (unsigned char)255;	// was 128 - why?
-        }
-    }
 
+			// fully inside highlight box
+			gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha*(double)gHred);
+			gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha*(double)gHgreen);
+			gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha*(double)gHblue);
+			gBlankHighlitTile[off + 3] = (unsigned char)255;
+		}
+    }
 }

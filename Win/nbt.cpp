@@ -274,7 +274,6 @@ static int nbtFindElement(bfFile bf,char *name)
 }
 
 // use only least significant half-byte of location, since we know what block we're in
-// TODOTODO - check this works for negative and positive values.
 unsigned char mod16(int val)
 {
 	return (unsigned char)(val & 0xf);

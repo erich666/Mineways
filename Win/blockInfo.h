@@ -159,88 +159,97 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_DEBUG_SHOW_GROUPS			0x0001
 // DEBUG: output welds as lava - TODO
 #define EXPT_DEBUG_SHOW_WELDS			0x0002
-// leave 0x4 and 0x8 for future debugging modes
 
 // Output material file
-#define EXPT_OUTPUT_MATERIALS		    0x0010
+#define EXPT_OUTPUT_MATERIALS		    0x0004
 // Model is meant to be watertight, e.g. for 3D printing
-#define EXPT_3DPRINT				    0x0020
+#define EXPT_3DPRINT				    0x0008
 // Export a noisy color texture instead of simple solid materials
-#define EXPT_OUTPUT_TEXTURE_SWATCHES    0x0040
+#define EXPT_OUTPUT_TEXTURE_SWATCHES    0x0010
 // Export a true block texture instead of simple solid materials
-#define EXPT_OUTPUT_TEXTURE_IMAGES	    0x0080
+#define EXPT_OUTPUT_TEXTURE_IMAGES	    0x0020
 #define EXPT_OUTPUT_TEXTURE (EXPT_OUTPUT_TEXTURE_SWATCHES|EXPT_OUTPUT_TEXTURE_IMAGES)
 
 // For 3d Printing, make the model as small as the material chosen allows (colored sandstone currently assumed)
-#define EXPT_MAKE_SMALL				    0x0100
+#define EXPT_MAKE_SMALL				    0x0040
 
 // These flags are useful as we sometimes want to check for any of them (e.g. for whether
 // to make parts).
 // Fill bubbles, hollow spots inside a model not visible from the outside
 // This can be useful for models for viewing if you never plan to go inside the structure
-#define EXPT_FILL_BUBBLES			    0x0200
+#define EXPT_FILL_BUBBLES			    0x0080
 // Join any two cubes sharing an edge and having different groups (i.e. are different parts)
-#define EXPT_CONNECT_PARTS			    0x0400
+#define EXPT_CONNECT_PARTS			    0x0100
 // Join any two cubes sharing an edge, period. Aggressive, do only if needed by 3D printer.
 // http://www.shapeways.com/tutorials/things-to-keep-in-mind says it's needed, but uploading
 // two separate cubes sharing an edge works fine with Shapeways. The newer
 // http://www.shapeways.com/tutorials/fixing-non-manifold-models doesn't mention shared edges.
-#define EXPT_CONNECT_ALL_EDGES          0x0800
+#define EXPT_CONNECT_ALL_EDGES          0x0200
 // Join any two cubes *in different meta-groups* that share corner tips
-#define EXPT_CONNECT_CORNER_TIPS		0x1000
+#define EXPT_CONNECT_CORNER_TIPS		0x0400
 // Delete objects < 16 blocks or all tree that are not at the ground level
-#define EXPT_DELETE_FLOATING_OBJECTS	0x2000
+#define EXPT_DELETE_FLOATING_OBJECTS	0x0800
 // Hollow out the bottom of the model (TODO: could add a base, with a hole in it)
-#define EXPT_HOLLOW_BOTTOM				0x4000
+#define EXPT_HOLLOW_BOTTOM				0x1000
 // Aggressively hollow out an area, carving from the bottom around tunnels.
 // The danger is that holes can be created which may not get emptied.
-#define EXPT_SUPER_HOLLOW_BOTTOM		0x8000
+#define EXPT_SUPER_HOLLOW_BOTTOM		0x2000
 // Allow BLF_ENTRANCE blocks to act solid when forming air groups. This allows
 // insides of buildings to get sealed off and filled.
-#define EXPT_SEAL_ENTRANCES				0x10000
+#define EXPT_SEAL_ENTRANCES				0x4000
 // Tunnels on the sides and bottom of the solid box are considered bubbles and filled with glass
 // For now, make it the same thing as sealing entrances - I'm not sure it needs yet another checkbox
-#define EXPT_SEAL_SIDE_TUNNELS			0x20000
+#define EXPT_SEAL_SIDE_TUNNELS			0x8000
 
 // should each block type be given a separate material?
 // In OBJ we have two ways to group: there are groups, each group defining an object. We allow
 // two kinds of grouping:
 // * One group for each object type. Example: all acacia logs are an object type, so can be modified as a whole.
 // * One group for each block, with each block fully formed with all its side. Example: each acacia block is an object.
-// There are materials, and we share in three ways:
+// There are materials, and we share in different ways:
 // * One material for all objects. This is a find choice for 3D printing, where it doesn't matter.
 // * One material for each object type. So water might be transparent, lava not.
-// * One material for each object.
+
+// This logic is confusing, so here are some examples:
+// No OBJ export boxes checked (ignore the G3D box for all of these): no group output, single material.
+// Check "Export separate types": all polygons are grouped by type (Grass_Block, Sand, Dirt), single material.
+// Check "Export separate types" and "Separate materials/blocks" (the default): polygons are grouped by type, each type has a material.
+// Check "Export individual blocks": same as above, polygon are grouped by type, each type has a material. However, geometrically, every block has all its faces output.
+// Check "Export individual blocks" and "Separate materials/blocks": each Minecraft block is in its own group, each type has a material, blocks each use the relevant material.
 
 // when exporting objects with OBJ, do we want to export groups at all? For rendering, the default is on; 3D printing, off.
-#define EXPT_OUTPUT_OBJ_GROUPS				0x40000
+#define EXPT_OUTPUT_OBJ_GROUPS				0x10000
 // do we want to export by block? That is, every individual Minecraft block is in its own group? Normally off.
-#define EXPT_GROUP_BY_BLOCK					0x80000
+#define EXPT_GROUP_BY_BLOCK					0x20000
 
 // when exporting objects with OBJ, do we want multiple materials?
 // This is the norm, but for things like Blender and Maya, a single material can be less work.
 // A single material for all objects has the EXPT_OUTPUT_OBJ_MTL_PER_TYPE off entirely.
 // To have a material for each object type, both of the flags that follow are on. On by default.
-#define EXPT_OUTPUT_OBJ_MULTIPLE_MTLS		0x100000
+#define EXPT_OUTPUT_OBJ_MULTIPLE_MTLS		0x40000
 // If true (and EXPT_OUTPUT_OBJ_GROUPS is on), then there's a separate material for each type of block.
-#define EXPT_OUTPUT_OBJ_MTL_PER_TYPE		0x200000
+#define EXPT_OUTPUT_OBJ_MTL_PER_TYPE		0x80000
 // If true, output each individual block as its own group
-#define EXPT_OUTPUT_EACH_BLOCK_A_GROUP		0x400000
+#define EXPT_OUTPUT_EACH_BLOCK_A_GROUP		0x100000
 
 // Special modifiers for material output for OBJ, only:
 // when exporting textures with OBJ, output a uniform material: Ka and Kd set to white (G3D likes this)
-#define EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL	0x800000
+#define EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL	0x200000
 // when exporting materials with OBJ, output the extra values (G3D likes this)
-#define EXPT_OUTPUT_OBJ_FULL_MATERIAL		0x1000000
+#define EXPT_OUTPUT_OBJ_FULL_MATERIAL		0x400000
 
 // relative or absolute coordinates for OBJ
-#define EXPT_OUTPUT_OBJ_REL_COORDINATES		0x2000000
+#define EXPT_OUTPUT_OBJ_REL_COORDINATES		0x800000
+
+// should subtypes (types differentiated by the data value bits) be output as separate textures?
+#define EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES	0x1000000
 
 // use biomes for export
-#define EXPT_BIOME							0x4000000
+#define EXPT_BIOME							0x2000000
 // Sketchfab export (to export only RGBA texture)
-#define EXPT_SKFB							0x8000000
+#define EXPT_SKFB							0x4000000
 
+// string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
 
 // linked to the ofn.lpstrFilter in Mineways.cpp
@@ -353,6 +362,7 @@ typedef struct ExportFileData
     UINT chkMultipleObjects;
 	UINT chkIndividualBlocks;
 	UINT chkMaterialPerType;
+	UINT chkMaterialSubtypes;
     UINT chkG3DMaterial;
 
     UINT flags;
@@ -486,6 +496,7 @@ typedef struct BlockDefinition {
     float alpha;
     int txrX;   // column and row, from upper left, of 16x16 tiles in terrainExt.png, for TOP view of block
     int txrY;
+	unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
     unsigned int flags;
 } BlockDefinition;
 
@@ -591,7 +602,7 @@ enum block_types {
     BLOCK_REDSTONE_REPEATER_ON = 0x5e,
     BLOCK_STAINED_GLASS = 0x5f,	// was BLOCK_LOCKED_CHEST, which went away in 1.7
     BLOCK_TRAPDOOR = 0x60,
-    BLOCK_HIDDEN_SILVERFISH = 0x61,
+    BLOCK_MONSTER_EGG = 0x61,
     BLOCK_STONE_BRICKS = 0x62,
     BLOCK_HUGE_BROWN_MUSHROOM = 0x63,
     BLOCK_HUGE_RED_MUSHROOM = 0x64,
