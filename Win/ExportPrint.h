@@ -2,7 +2,10 @@
 
 static int gOK;
 
-static     ExportFileData epd;
+static	ExportFileData epd;
+// this one has to be static to make the compiler happy
+static	ExportFileData origEpd;
+
 
 class ExportPrint
 {

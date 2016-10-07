@@ -3775,8 +3775,8 @@ static void initializePrintExportData(ExportFileData &printData)
 	printData.chkIndividualBlocks = 0;
 	printData.chkMaterialPerType = 0;
 	printData.chkMaterialSubtypes = 0;
-	// we want a neutral material for printing (the rest is not all that important), to make sure the color is not multiplied by the texture
-	printData.chkG3DMaterial = 1;
+	// shouldn't really matter, now that both versions don't use the diffuse color when texturing
+	printData.chkG3DMaterial = 0;
 
 	printData.floaterCountVal = 16;
 	INIT_ALL_FILE_TYPES(printData.chkHollow, 1, 1, 0, 0, 0, 1, 0);

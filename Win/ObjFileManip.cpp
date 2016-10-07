@@ -4955,7 +4955,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
             {
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_CACTUS, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gPrint3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
 				useInsidesAndBottom = 0;
             }
@@ -5165,11 +5165,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// TODO head type
 
 			translateMtx(mtx, 0.0f, 0.0f, 0.25f);
+			yrot = 0.0f;
 			switch (dataVal&0xf) {
 			default:
 				assert(0);
+			case 1:
+				// unused, but it's in some worlds, so this case ignores it instead of asserting.
+				break;
 			case 2: // north
-				yrot = 0.0f;
+				// already set above: yrot = 0.0f;
 				break;
 			case 3: // south
 				yrot = 180.0f;

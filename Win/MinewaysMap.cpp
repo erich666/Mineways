@@ -1739,7 +1739,9 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                     }
 
                     // in bounds, is the height good?
-                    if ( prevSely >= gBoxMinY && prevSely <= gBoxMaxY )
+					// First case is for if we hit nothing, all void, so it's black:
+					// always highlight that area, just for readability.
+                    if ( (prevSely == -1) || (prevSely >= gBoxMinY && prevSely <= gBoxMaxY))
                     {
                         hitsFound[1] = 1;
                         // blend in highlight color
