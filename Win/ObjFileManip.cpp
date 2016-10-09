@@ -15865,7 +15865,7 @@ static int writeOBJMtlFile()
             char fullMtl[256];
             double alpha;
             double fRed,fGreen,fBlue;
-            double ka, kd;
+            double ka, kd, ks;
 
             type = gModel.mtlList[i]>>8;
 			if (subtypeMaterial)
@@ -15914,6 +15914,7 @@ static int writeOBJMtlFile()
             // good for blender:
             ka = 0.2;
             kd = 1.0;
+			ks = 0.0;
             // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
             // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
             // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
@@ -16006,15 +16007,7 @@ static int writeOBJMtlFile()
             }
             if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
             {
-                // emitter: for G3D, make it 2x as bright to get bloom effect
-                if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
-                {
-                    sprintf_s(keString,256,"Ke 2 2 2\n" );
-                }
-                else
-                {
-                    sprintf_s(keString,256,"Ke 1 1 1\n" );
-                }
+                sprintf_s(keString,256,"Ke 1 1 1\n" );
                 if ( gExportTexture )
                 {
                     sprintf_s(mapKeString,256,"map_Ke %s\n", typeTextureFileName );
@@ -16030,6 +16023,15 @@ static int writeOBJMtlFile()
                 mapKeString[0] = '\0';
             }
 
+			// Any last-minute adjustments due to material?
+			// I like to give the water a slight reflectivity, it's justifiable. Same with glass.
+			// Simplify this to all transparent surfaces, which are likely to be shiny, except for
+			// BLOCK_FROSTED_ICE (hey, it's frosted).
+			if ((gBlockDefinitions[type].read_alpha < 1.0f) && (type != BLOCK_FROSTED_ICE)) {
+				// just a little - too much in G3D reflects the sun too much
+				ks = 0.03;
+			}
+
             if (gExportTexture)
             {
                 sprintf_s(outputString,2048,
@@ -16037,7 +16039,7 @@ static int writeOBJMtlFile()
                     "%sNs 0\n"	// specular highlight power
                     "%sKa %g %g %g\n"
                     "Kd %g %g %g\n"
-                    "Ks 0 0 0\n"
+                    "Ks %g %g %g\n"
                     "%s" // emissive
                     "%smap_Ka %s\n"
                     "# for G3D, to make textures look blocky:\n"
@@ -16055,8 +16057,9 @@ static int writeOBJMtlFile()
                     mtlName,
                     fullMtl,
                     fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
-                    (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                    keString,
+					(float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
+					(float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
+					keString,
                     fullMtl,typeTextureFileName,
                     typeTextureFileName,
                     mapdString,
@@ -16073,7 +16076,7 @@ static int writeOBJMtlFile()
                     "%sNs 0\n"	// specular highlight power
                     "%sKa %g %g %g\n"
                     "Kd %g %g %g\n"
-                    "Ks 0 0 0\n"
+                    "Ks %g %g %g\n"
                     "%s%s" // emissive
                     // "Ni 1.0\n" - Blender likes to output this - no idea what it is
                     "%sillum %d\n"
@@ -16086,7 +16089,8 @@ static int writeOBJMtlFile()
                     fullMtl,
                     fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
                     (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                    fullMtl,keString,
+					(float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
+					fullMtl, keString,
                     fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
                     (float)(alpha),
                     (float)(alpha),

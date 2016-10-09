@@ -202,7 +202,7 @@ Once you make a selection, you may get a dialog as shown below.
   </div>
 </div>
 <P>
-By default the heights used for the rectangular block are from y=63 (sea level) to y=255. The upper slider determines the maximum height, but usually you'll leave this one alone. You'll normally use it for viewing or selecting areas fully underground or in the Nether.
+By default, the heights used for the rectangular block are from y=63 (sea level) to y=255. The upper slider determines the maximum height, but usually you'll leave this one alone. You'll normally use it for viewing or selecting areas fully underground or in the Nether.
 <P>
 The lower depth can be changed in a number of ways, even when no area is selected. The lower slider is the simplest way to modify this value. If you click the middle mouse button on a location, the lower depth is set to its height.  The <b>[</b> and <b>]</b> keys shift the lower depth by one, and so are useful for tuning. The spacebar will also select a reasonable lower depth for your selection volume; shift-space will treat water and glass as solid. See <a href="#shortcuts">the shortcut key list</a> for more program options.
 <P>
@@ -229,7 +229,7 @@ Mineways' schematic export option</a> allows you to easily grab a volume of your
 <h3 id="g3d">Displaying with G3D</h3>
 Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default), I highly recommend the free G3D viewer. In fact, it now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look. If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. Avoid <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a>, which comes with Windows 10, if you use colors; it's fine for STLs.
 <P>
-Download <a href="http://mineways.com/g3d.zip">this special version of G3D here</a>. Unzip and run, then drop your .OBJ file on to the window to view it. Simpler yet, you can set up your Windows system to view .OBJ files with G3D when double-clicked. Just run register-G3D-viewer64-run-as-administrator.bat one time as administrator (see <a href="scripting.html#amfwm">these instructions</a> to learn how).
+<B>Download <a href="http://mineways.com/g3d.zip">this special version of G3D here</a>.</B> Unzip and run, then drop your .OBJ file on to the window to view it. Simpler yet, you can set up your Windows system to view .OBJ files with G3D when double-clicked. Just run register-G3D-viewer64-run-as-administrator.bat one time as administrator (see <a href="scripting.html#amfwm">these instructions</a> to learn how).
 <P>
 Camera controls: WASD for normal movement, ZC for up and down, QE for swivel. Hold down Shift to go more slowly, Alt to go very fast. Escape to quit.
 <P>
@@ -296,7 +296,7 @@ There is a bewildering dialog that pops up on export, with a ton of options. You
 <P>
 <b>Create a ZIP:</b> like it says, when exporting for 3d printing a ZIP file of the exported files is created, ready for upload for 3d printing at Shapeways or other service.
 <P>
-<b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
+<b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default, this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 <P>
 <a id="terrain_png">
 <b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file, reading this file to create full textures for each block, as possible. Some blocks are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
@@ -397,8 +397,8 @@ You can also interactively compare these sampling methods <a href="https://skfb.
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, etc. - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages.
 <LI>Separate materials/blocks: on by default, each object is given a separate material. Turning this option off for some renderers makes for a simpler import conversion process, at the cost of having only one material.
 <LI id="individual" class="ib">Individual blocks: Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to easily animate such operations as mining. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Separate materials/blocks," each separate block is put into a separate object, so each can be deleted, animated, etc. <I>(thanks to Ryan Miller for the idea, and Flaeon for the group option.)</I>
-<LI><a id="material_subtypes">Split materials into subtypes:</a> If multiple materials are exported (see the combinations below), have each different variant of a given type have its own material. This lets you individually tailor the material of the 7 different forms of <a href="http://minecraft.gamepedia.com/Data_values#Stone">Stone</a>, so that polished granite could have a different shine than granite, for example. This option is off by default, because turning it on yields noticeably more materials. Each material is identified by its data value suffix, e.g. "Stone__5" is <a href="http://minecraft.gamepedia.com/Data_values#Stone">Andesite</a>. If the data value is 0, no suffix is added (so "Stone" is plain old stone, data value 0). Note: I have tried to limit new materials to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material. Crops are given separate materials for each growth level, and farmland each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states.
-<LI><a id="full_material">G3D material:</a> Checking this box causes a more elaborate illumination model to be output. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set, and Ke is made twice as bright for any light sources (this makes objects such as lava glow a bit more in G3D). Originally this option was meant to make the (great and free) <a href="#g3d">G3D</a> previewer happy, but now G3D works about the same whether this box is checked or not.
+<LI><a id="material_subtypes">Split materials into subtypes:</a> If multiple materials are exported (see the combinations below), have each different variant of a given type have its own material. For example, this lets you individually tailor the material of the 7 different forms of <a href="http://minecraft.gamepedia.com/Data_values#Stone">Stone</a>, so that polished granite could have a different shine than granite. This option is off by default, because turning it on yields noticeably more materials. Each material is identified by its data value suffix, e.g. "Stone__5" is <a href="http://minecraft.gamepedia.com/Data_values#Stone">Andesite</a>. If the data value is 0, no suffix is added (so "Stone" is plain old stone, data value 0). Note: I have tried to limit new materials to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material. Crops are given separate materials for each growth level, and farmland each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states.
+<LI><a id="full_material">G3D material:</a> Checking this box causes a more elaborate illumination model to be output. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set, and Ke is made twice as bright for any light sources (I will be removing this Ke doubling in version 5.05, as G3D no longer needs it; as it stands, the latest <a href="#g3d">G3D</a> viewer works better when <i>not</i> using the G3D material!). Originally this option was meant to make the (great and free) <a href="#g3d">G3D</a> previewer happy, but now G3D works about the same whether this box is checked or not.
 </UL>
 <P>
 The logic for the first few options is confusing (even to me), so here are all the permutations (ignore the G3D material option):
@@ -475,7 +475,7 @@ There are other potential pitfalls with 3D printing, such as <a href="http://www
 <ul>
 <li>Height: you can specify how high you would like a model to be. This is also useful for rendering output, where the default is set to be reasonable for import into Blender.
 </li><li>Minimize size: if you want to make "draft" 3D print models that are as small as safely possible, check this option. That said, if you know your model has pretty thick walls, you could make your model smaller still by using the next option.
-</li><li>Block size: by default the safe wall size (for a non-supporting wall) is shown here. You can make this value smaller if you are convinced that your model is thick enough to print. Mineways will issue a warning nonetheless. This option is also useful for rendering output.
+</li><li>Block size: by default, the safe wall size (for a non-supporting wall) is shown here. You can make this value smaller if you are convinced that your model is thick enough to print. Mineways will issue a warning nonetheless. This option is also useful for rendering output.
 </li><li>Aim for a cost: you can aim, though the wall size needed may be too small to safely print. If you get this warning, you'll have to decide whether the walls appear thick enough to print. This feature is imperfect: it computes a rough cost before hollowing, so that it has a sense of how small it has to make the blocks to reach the goal. Hollowing uses this size to keep the walls thick enough to print. So, sometimes the walls are thicker than needed when the model is finally exported.
 </li></ul>
 <P>
@@ -505,7 +505,7 @@ The "Custom Printer" material is used for STL export. By default, it is set to s
 <P>
 <B>Model's units:</B> when a model is saved, the values stored in the file are not in any particular units, like meters or inches. However, 3D printers need this scale for printing the model. Millimeters are assumed, as this is what Shapeways uses by default. For other services and printers, other units are assumed. Here's a brief rundown:
 <UL>
-<LI><a href="http://sculpteo.com/">Sculpteo</a> - choose the "Wavefront OBJ, absolute and true" file type; by default "Z is up" is on and the units are centimeters. Textured models are fully supported, including the truly worthwhile <a href="#lesser">"Export lesser blocks"</a> feature, though <a href="#lesser">read the warnings</a> to make sure you know what problems may occur.
+<LI><a href="http://sculpteo.com/">Sculpteo</a> - choose the "Wavefront OBJ, absolute and true" file type; by default, "Z is up" is on and the units are centimeters. Textured models are fully supported, including the truly worthwhile <a href="#lesser">"Export lesser blocks"</a> feature, though <a href="#lesser">read the warnings</a> to make sure you know what problems may occur.
 <LI><a href="http://i.materialise.com/">i.materialise</a> - for this 3D print service, millimeters are the default units. For STL export, choose the "Binary Materialise Magics" STL file type; by default "Z is up" is off and the units are millimeters. Textured models are not currently supported, but colored models are, by exporting color to STL and choosing the multicolor material in their 3D print lab. If you want to import VRML for some reason, "Z is up" should be on and you'll have to change the export scale to millimeters.
 <LI><a href="http://ponoko.com">Ponoko</a> - this 3D print service uses centimeters, millimeters, and inches. "Z is up" should be on, to show properly in Ponoko's thumbnail view. If your model is flagged as having a problem with normals, export again and check the "Weld all shared edges" checkbox. You can use the "Export solid material colors" or "no materials" options; textures are not supported. The preview itself will not show the colors, but I have been assured the model will print with color.
 <LI><a href="http://reprap.org/wiki/RepRap">RepRap</a> - this home 3D printer <a href="http://repraprip.blogspot.com/2012/01/tutorial-printing-from-minecraft-with.html">appears to need models in centimeters</a>. I'm not sure if this is more of a requirement of the related software.
@@ -741,7 +741,7 @@ Rendering Tips
 <div id="renderTips">
   <p>
   This section covers the basics on importing Mineways files into various renderers.
-  To be honest, if you want better geometry, you should consider using <a href="#packages">jmc2obj</a>. Mineways' focus is on 3D printing more than rendering, so has limitations such as using a single texture for the model. The one feature that Mineways offers animators that is currently not in other exporters is the
+  To be honest, if you want better geometry for some blocks, you should consider using <a href="#packages">jmc2obj</a>. Mineways' focus is on 3D printing more than rendering, so has limitations such as using a single texture for the model. The one feature that Mineways offers animators that is currently not in other exporters is the
   <a href="#individual">"individual blocks" option</a>, which exports each block as a separate object.</p> 
   <P>
   While I have your ear, you should also check out <a href="http://www.minecraftforum.net/topic/249637-100-optifine-hd-d3-fps-boost-hd-textures/">OptiFine</a>, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a>, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> for in-game play or viewing: they have lots of cool rendering options.
@@ -867,7 +867,7 @@ Here's a typical result, made in a few minutes:
 <P><H4 id="c4d">Cinema 4D</H4>
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R17; older versions may need additional steps, as shown.
 <P>
-That said, for best results you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
+That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
 <P>
 <b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
 </P>
@@ -881,7 +881,7 @@ That said, for best results you may want to use <a href="http://code.google.com/
 You may wish to change the OBJ file export options in the upper right of the dialog, but the defaults are fine.
 </P>
 <P>
-<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. Make sure the "Presets" at the top of the OBJ Import dialog is set to Default. Hit "OK".
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. <B>Make sure the "Presets" at the top of the OBJ Import dialog is set to Default.</b> (If you don't, your grass blocks will import upside-down.) Hit "OK".
 </P>
 <P>
 To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
@@ -929,7 +929,7 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 </P>
 
 <P><H4 id="3dsmax">3DS MAX</H4>
-These instructions are for 3DS MAX 2012. To be honest, you should probably be using <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a> instead, as it does a much better job producing geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
+These instructions are for 3DS MAX 2012. You might also try <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a> instead, as it does a much better job producing some geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
 </P>
 <P>
 For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
@@ -1088,7 +1088,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://www.mcedit-unified.net/">MCEdit Unified</a> lets you make large-scale changes on your world; <a href="http://www.mcedit.net/">documentation here</a>. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files from sites such as <a href="http://www.mcschematics.com/">this</a>. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. 
 <LI><a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from MCEdit in that it is a plug-in to Minecraft, while MCEdit is standalone.
 <LI><a href="http://voxelsniper.wikia.com/wiki/VoxelSniper_Wiki">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
-<LI><a href="http://www.stuffbydavid.com/mineimator">Mine-imator</a> is a self-contained Minecraft video animation system. It can read in and view schematic files, among much else. <a href="http://www.stuffbydavid.com/dl/mineimator-installer">Direct download</a> to avoid scammy pop-ups.
+<LI><a href="http://www.stuffbydavid.com/mineimator">Mine-imator</a> is a self-contained Minecraft video animation system. It can read in and view schematic files, among much else. <a href="http://www.stuffbydavid.com/dl/mineimator-installer">Direct download</a>.
 <LI><a href="http://www.diamondpants.com/spritecraft/">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
 <LI><a href="http://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="http://www.realtimerendering.com/erich/minecraft/public/vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="http://minecraft.gamepedia.com/Programs_and_editors/Binvox">here</a>. For more info, see the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910">forum thread</a> and <a href="http://www.minecraftforum.net/viewtopic.php?f=25&t=60742">related forum thread</a>, and <a href="http://picasaweb.google.com/112791664800738604413/BinvoxViewvoxForMinecraft#">album</a>. I used it to make the <a href="http://www.minecraftforum.net/viewtopic.php?f=3&t=55910#p893068">teapot</a>, <a href="https://get.google.com/albumarchive/101252446341510025731/album/AF1QipNHDukcTXoMKMFvm4hGw5cJMudS__Z6usPZTq-n/AF1QipO3nq2mALywVpvTa8HLjNvmJQn0XUfZVdWqecey">guardian</a>, and <a href="https://get.google.com/albumarchive/101252446341510025731/album/AF1QipNHDukcTXoMKMFvm4hGw5cJMudS__Z6usPZTq-n/AF1QipNewSsuMPCe150YETklmtIRBM7PolqUNkC47lns">hopper</a>, among other models.
 <LI><a href="http://www.minddesk.com/">Qubicle</a> costs money, but has some nice functions. It is a set of voxel-based utilities, including an editor and a voxelizer that computes a good color for the voxel from the material.
@@ -1135,7 +1135,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 </li><li><a href="http://www.thingiverse.com/thing:9940">Minecraft structure planner</a> - written in Ruby, this is a basic exporter of STL files from schematics. It's the first program I know to export color models from Minecraft for 3D printing.
 
-</li><li><a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">Minecraft world exporter</a> - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
+</li><li><a href="http://www.minecraftforum.net/forums/mapping-and-modding/minecraft-mods/2520465-1-10-1-9-4-1-8-9-world-downloader-mod-create">Minecraft world exporter</a> (<a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">old thread</a>) - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
 
 </li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. <a href="http://ephtracy.github.io/index.html?page=mv_renderer">MagicaVoxel Viewer</a> reads in schematic files and does a nice job displaying the blocks (always as full blocks, though, no detail). Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
@@ -2395,6 +2395,7 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Monster eggs now output mossy, cracked, and chiseled stone brick versions, a 1.7.2 change I finally noticed.
 <LI>End portal frames now show the eye of ender if present, and also are rotated (though not 100% compliant, as I don't want to mess with adding a bunch of rotation flags).
 <LI>Pumpkins and Jack O' Lanterns now show the faceless varieties (data value 4).
+<LI>Centering the model around the origin now maintains coordinates. That is, if you use color schemes to select various blocks for export and centering is on, each export will use the same centered coordinates. Prior to this fix, each export would be centered around whatever blocks were actually output, meaning that different exports of the same volume would not align. Some renderers such as RenderMan need all transparent faces. This improvement lets you export water or other transparent objects so that they generate all faces, not just those faces that border air, though you have to perform two exports to do so. I might add yet another checkbox for having transparent surfaces always generate faces...
 <LI>Bug fix: A block with vines hanging on all 4 sides and with the bottom covered could potentially crash Mineways. Array sizes increased.
 <LI>Bug fix: If lesser block export is turned off for rendering, composite overlay must also be off, as the whole "small object" subsystem is not used. This bug caused a crash. <I>(Thanks to <a href="https://www.reddit.com/r/mineways/comments/50hvj1/suggestionsbugs/">this redditor</a> for reporting this bug.)</I>
 <LI>Bug fix: Anvil top blocks were output twice, causing the top of the anvil to not show correctly.
@@ -2406,11 +2407,13 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Future Version 5.05, ??/??/201?  - possible near-term future features:
 <BR>
 <UL>
+<LI>Now that the G3D viewer doesn't need it, don't double the Ke material in OBJ output when the G3D material is used.
+<LI>I might add yet another checkbox for having transparent surfaces always generate faces...
 <LI>Real shulker box and observer textures, once 1.11 is released and stable.
 <LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
 <LI>Improve the error reporting system to give more information, etc.
-<LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill?
 <LI>Export texture to individual tiles.
+<LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill?
 <LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed.
 </UL>
 </UL>
@@ -2487,7 +2490,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 10/7/2016</p>
+		<p id="lastUpdate">Last updated 10/9/2016</p>
 	</div>
 </div>
 

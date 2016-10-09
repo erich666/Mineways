@@ -67,6 +67,14 @@
 		  <p>Download for Mac</p>
 			<img id="apple_logo" src="images/appleLogo.png"> 
 		</div> 
+		<div id="getGoing">
+			<p>Problems?
+				<UL>
+					<LI><a href="downloads.html#windows">Windows</a></LI>
+					<LI><a href="downloads.html#linux">Linux</a></LI>
+					<LI><a href="downloads.html#mac">Mac</a></LI>
+				</UL>
+		</div>
 	  </a>
 	</div>
 	
@@ -88,7 +96,7 @@
         <a href="https://www.youtube.com/watch?v=oGuIX21_7og">this longer tutorial</a>
         to see what's what. For using a home or school 3D printer, see <a href="http://services.minecraftedu.com/wiki/3D_Printing_and_Minecraft#Instructions_for_Exporting">this more in-depth guide at MinecraftEdu</a>. You can find more tutorials on the <a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">video playlist</a>.
     <P>
-      <B>Problems?</B> Look below for <a href="#platform">platform-specific problems</a>, then see the <a href="#troubleshooting">Troubleshooting Guide</a>.
+      <B>Problems?</B> Look below for platform-specific problems on <a href="#windows">Windows, <a href="#mac">Mac, and <a href="#linux">Linux</a>, then see the <a href="#troubleshooting">Troubleshooting Guide</a> that follows if those don't help.
     </P>
     <P>
       <B>3D Printing:</B> To preview your exported model to see if it's what you want, open the .wrl/.obj/.stl file with <a href="http://meshlab.sourceforge.net/">MeshLab</a> or other model viewer. If you want to 3D print your model and don't have a 3D printer (or want a multicolored model), <a href="http://www.shapeways.com/register">create a free Shapeways account</a> and <a href="http://www.shapeways.com/upload/">upload</a> the <i><b>.zip</b></i> file. Once the model is processed by Shapeways (a few minutes), you can order it - make sure to select "colored sandstone" for the material.
@@ -105,17 +113,16 @@
 	<h2 id="windows">Windows</h2>
 		If you get "Windows protected your PC" when running Mineways, click on "More info" and then "Run anyway". <a href="http://erichaines.com">I'm trustworthy</a>.
 	    <P>
-		If Mineways gives you an error on startup on a Windows PC, try Mineways32. Also, version 5.x may not work for you for some reason (and please let me know why, if you figure it out): try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">version 4.17</a> if all else fails.
+		If Mineways gives you an error on startup, try Mineways32. Also, version 5.x may not work for you for some reason (and please let me know why, if you figure it out): try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">version 4.17</a> if all else fails.
 		<P>
 		If you get an error about MSVCR120.DLL being missing, install the <a href="https://www.microsoft.com/en-us/download/details.aspx?id=40784">Microsoft Visual C++ 2013 Redistributable Package</a> for your system. You <i>may</i> find you need to open that link in Microsoft's Internet Explorer or Edge browsers. Select vcredist_x64.exe for a 64-bit system, vcredist_x86.exe if your system is 32 bits. If you don't know whether your system is 32 or 64 bits, follow <a href="http://www.computerhope.com/issues/ch001121.htm">the instructions here</a>, which boil down to "hold down the Windows key and then click the Pause|Break key, then look for System type". Mineways32.exe should run on any PC, but export size is somewhat limited (this usually doesn't matter for 3D printing); Mineways.exe is 64-bit and will run on only 64-bit systems. Sorry for this annoyance, but Microsoft does not make this easy, and it even <a href="https://en.wikipedia.org/wiki/DLL_Hell">has a name</a>.
 		<P>
 		The <a href="https://www.microsoft.com/en-us/store/apps/minecraft-windows-10-edition-beta/9nblggh2jhxj">Windows 10 Edition Beta of Minecraft</a> is essentially the Pocket Edition, which Mineways does not currently understand. You need to use the normal <a href="https://minecraft.net/">PC or Mac version of Minecraft</a> to use Mineways.
 		<P>
 		If Mineways is blocked by Norton Antivirus, e.g., you get an error that Windows is not being able to "access the specified device, path or file": First, make sure you are downloading Mineways from this site, i.e., the links above. If the download is being autodeleted, <a href="http://community.norton.com/comment/3833313#comment-3833313">here's how to turn Norton off temporarily</a>. Otherwise, just run Mineways and ignore the warnings. <a href="https://www.virustotal.com/en/url/e46760f7ae06728c171b532c301b85057b1584937a6225c586503f32afcf8f72/analysis/">No other antivirus software</a> reports Mineways as having a virus, so I believe it's a flaw in Norton. I won't be insulted if you are cautious and don't follow my advice, but Mineways is <a href="https://github.com/erich666/Mineways">open source</a>, and <a href="http://erichaines.com">I have a reputation as a good person</a>. You can also try running <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions">older versions of Mineways</a>, as these have been known to work and to not be identified as viruses.
-		<P>
-		If on the Mac you get a problem when opening a world, where it says that the file name cannot contain the characters / : < > or |, change your world's folder name so that it doesn't contain these characters. Mineways is a Windows program masquerading as a Mac program, and Windows does not allow these characters in file names.
-    <h2 id="mac">Mac users:</h2>
-    <p>Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a>.
+    <h2 id="mac">Mac</h2>
+    <p>
+	  Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a> and double-click on this zip file. Mineways should unzip and run.
     <p>
 	  Once installed, run Mineways - it'll take awhile to start the first time and you'll get a notice about <a href="http://www.winehq.org/">Wine</a>, so be patient. To load your world, use "File | Open World". If none of your worlds are listed, you'll get a warning and will need to use "File | Open..." and navigate to /users/<I>&lt;your name&gt;</I>/Library/Application Support/minecraft/saves/<I>&lt;your world's name&gt;</I> and select the level.dat file there.
 	 <P>
@@ -125,11 +132,13 @@
 	<P>
 	  When you save, go to the directory /Users/&lt;your name&gt;/Documents to save.
 	  The Mac version is only 32 bits, so cannot export very large areas that the PC version can. This normally doesn't matter for 3D printing, since you want to keep the models small. If you <i>do</i> find you're out of memory, try the "Give more export memory!" option under Help, which clears out the map cache before trying to export the area you've selected.
-	 <P>
+	<P>
 	  Otherwise the Mac version is the same as the PC version, and Mac users can similarly use <a href="http://meshlab.sourceforge.net/">MeshLab</a> or <a href="http://www.glc-player.net/">GLC Player</a> for viewing exported 3D models. See <a href="mineways.html">the main documentation page</a> for (way) more help.
     </p>
 	<h3>Troubleshooting for the Mac</h3>
 	  If you get the warning "'Mineways' can't be opened because the identity of the developer cannot be confirmed." take steps similar to those <a href="https://support.techsmith.com/hc/en-us/articles/203727998-TechSmith-Relay-Can-t-be-opened-because-the-identity-of-the-developer-cannot-be-confirmed-">explained here</a>. The short version: right-click and select "Open," then verify that you want to run the program. Yes, <a href="http://erichaines.com">I'm trustworthy</a>.
+	<P>
+	  If when opening a world it says that the file name cannot contain the characters "/ : < > or |", change your world's folder name so that it doesn't contain these characters. Mineways is a Windows program masquerading as a Mac program, and Windows does not allow any of these characters in file names.
 	<P>
 	  If you get the message "Couldn't find your Minecraft world saves directory..." you'll need to guide Mineways to wherever your world files are saved on your computer. Follow <a href="http://www.macinfo.us/how-to-find-minecraft-worlds-on-your-mac.php">these instructions</a>. If you are using a Mac with a language that is not English, Mineways may still have problems with the path to your files. One solution is to copy your world files to a USB flash drive - this avoids the path problems. Another solution <i>may</i> be to temporarily change the language to English.
 	<P>
@@ -153,31 +162,31 @@
 	<P>
       We use <a href="http://winebottler.kronenberg.org/">WineBottler</a> to make mineways32.exe into a Mac app - it's pretty easy! Start it up and click on "Advanced", the rightmost icon at the top of the application. <a href="images/winebottler.png">Here's a screenshot of the settings</a> I use; I've renamed mineways32.exe to be Mineways.exe for this example. Click "Install", save to the "Documents" directory, and "Save As: Mineways". Wait a while, and then you can run (and redistribute) the Mineways.app produced. Note: do <I>not</I> save to the original Mineways directory where the mineways32.exe file is located, as this will cause a loop and the program will never finish. Note to self: download the original to the desktop. Output to Documents. Zip it up. Upload the zip, that's what gets distributed. Test by copying zip to Applications and double-clicking - should just run.
 
-	<h2 id="Linux">Linux</h2>
+	<h2 id="linux">Linux</h2>
         For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. My advice: try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">Version 4.17</a>.
 
-<H2 id="troubleshooting">
+<H1 id="troubleshooting">
 General Troubleshooting
-</H2>
+</H1>
 If something goes wrong, here's the checklist I go through with people:
 <UL>
 <LI>Did you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">download the latest version</a>? Mineways has undergone many bug fixes.
 <LI>Did you read any warnings from the program carefully?
 <LI>Reboot and try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertently checked, or untangles some hidden program bug.
-<LI>Run through the platform-specific problems for <a href="#windows">Windows</a>, <a href="#mac">Mac</a>, and <a href="#Linux">Linux</a>.
+<LI>Run through the platform-specific problems for <a href="#windows">Windows</a>, <a href="#mac">Mac</a>, and <a href="#linux">Linux</a>.
 </UL>
 <P>
 Here are some common problems:
 <UL>
-<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? Version 1.x of Mineways reads only older Minecraft (pre-1.2.x) worlds, not Anvil worlds. Version 2.x of Mineways reads Anvil worlds and will warn if it finds a pre-Anvil (unconverted) world.
-<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place.
-<LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Often, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> bother with trying STL instead of VRML; STL will not print at Shapeways with color.
-<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure you've got a version of Mineways newer than version 2.12 (look at "Help | About"), and "Model's units" on the export dialog should say "Millimeters".
-<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it's still there.
+<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps get you to the right spot on your map. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? Version 1.x of Mineways reads only older Minecraft (pre-1.2.x) worlds, not Anvil worlds. Version 2.x of Mineways reads Anvil worlds and will warn if it finds a pre-Anvil (unconverted) world.
+<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place. You can use color schemes for all sorts of tricks, e.g., export your model a few times, with different options for the blocks you want to export.
+<LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Sometimes, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> normally bother with trying STL instead of VRML; STL will not print at Shapeways with color.
+<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure the "Model's units" on the export dialog says "Millimeters".
+<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.
 <LI> "It (still) doesn't work" - please <a href="contact.html">email me</a>.
 </UL>
 
-<H3>Known Bugs</H3>
+<H2>Known Bugs</H2>
 <UL>
 <LI>Superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, caused by internal tunnels. "Delete floating objects" currently does not remove these. The workaround is to use "fill in isolated tunnels", or to just let these separate little chunks print and pay a bit more for them. The real fix to add to the code is to search the whole model again for groups and delete the small groups.
 </LI>
@@ -185,9 +194,9 @@ Here are some common problems:
 
 
 
-<H2 id="myway">
+<H1 id="myway">
 How I Make a 3D Print Export
-</H2>
+</H1>
 
 I'm assuming you have basic knowledge from the <a href="downloads.html#instructions">quick-start guide</a> or <a href="http://services.minecraftedu.com/wiki/3D_Printing_and_Minecraft#Instructions_for_Exporting">guide at MinecraftEdu</a> and can find options on the output dialog. If you need more information on a process, just follow the links or search this page for the term.
 <P>
@@ -214,7 +223,7 @@ Once I've figured out what to capture, there are then a few steps I walk through
 
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 10/7/2016</p>
+		<p id="lastUpdate">Last updated 10/9/2016</p>
 	</div>
 </div>
 
