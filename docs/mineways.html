@@ -1008,7 +1008,8 @@ At this point the steps are pretty much the same as above, starting at step #5. 
 </P>
 <P>
 One other thing you may wish to do is material cleanup. On the Sketchfab Materials tab (the center one) is the "Faces Rendering" option at the bottom. You may notice some "z-fighting" for objects such as sunflowers, where the two textures on each side of the flower fight each other. Choose a material at the top and select "Single sided" for that material. This will make the object look better.
-</P>
+<P>
+An irregularity: if you download your uploaded model from Sketchfab, it may not display correctly. The short version is that you probably have to comment out the "map_d" field in the .mtl file for the model. Some viewers incorrectly grab the red channel instead of the alpha channel from the four-channel map that Sketchfab uses for compactness.
 </P>
 Here's an example of Sketchfab in action, a model I uploaded. Click on the window and you can interact with it. More models <a href="https://sketchfab.com/erich/folders/mineways">here</a> and <a href="https://sketchfab.com/tags/minecraft">here</a>.
 <P>
@@ -1117,6 +1118,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </p><ul>
 <li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home printers for the most part, since the STL comes without any colors.
 
+<li>The <a href="http://newmatter.com/#!/minecraft">Newmatter MOD-t 3D printer</a> includes software to let you export your models from Minecraft and print them directly on your printer (or you could use Mineways, of course). I like that they're aiming to make this process easy.
+
 </li><li><a href="http://3dprintingindustry.com/2014/04/21/3d-printing-cubeteam-browser/">CubeTeam</a> is a free multiplayer online 3D modeling program that works in the browser. It's Minecraft meets CAD, with some interesting options such as smoothing your model or importing and voxelizing an existing 3D mesh.
 
 </li><li><a href="http://code.google.com/p/j-mc-2-obj/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It has grown to become a great tool for creating OBJ files; I think it's the best exporter for rendering that is out there. It's free and open source. There is a little wiftiness with the interface when zoomed in and with the export dialog, and I recommend choosing "Center" for the Offset option, but the resulting export is excellent - every block I tested was output properly. The only mismatches I saw were some obscure redstone wiring cases.
@@ -1124,8 +1127,6 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li><li><a href="https://github.com/webbukkit/dynmap/wiki/Exporting-World-Data-in-Wavefront-OBJ-Format">dynmap</a> has an option to export blocks, even custom blocks, to the OBJ format. I haven't tried it; let me know how you find it.
 
 </li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are actually textured, so 3D print out with more than just simple flat surfaces.
-
-</li><li><a href="https://sketchfab.com/exporters">Sketchfab</a> has a Minecraft exporter that can pull models from the game into their site. Their displayer also does a nice job importing and displaying models from Mineways. But, that's old - just use the <a href="#sketchfab">Publish to Sketchfab</a> option in Mineways. Lots of <a href="https://sketchfab.com/tags/minecraft">Minecraft models are viewable</a>.
 
 </li><li><a href="http://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. I don't know how it compares to jmc2obj. If you use Blender, give both a try.
 
