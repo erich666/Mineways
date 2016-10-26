@@ -28,16 +28,9 @@
   max-width: 100%;
 }
 
-
-#downloadImgs {
-  display: block;
-  //text-align: center;
-  padding: 10px 0;
-}
 #downloadImgs div {
   display: inline-block;
-  margin: 0px 10px 10px 10px;
-  margin: 0 5%;
+  margin: 2px 10px;
 }
 #downloadImgs div img {
   width: 100px;
@@ -47,6 +40,27 @@
 }
 #downloadImgs div p {
   font-family: "helvetica nue", sans-serif;
+}
+
+
+.helpLightOuterSector {
+  background-color: #f1f1f1;
+  padding: 10px 10px;
+  border-style: double;
+}
+
+
+.helpDarkOuterSector {
+  background-color: #eeeeee;
+  padding: 10px 10px;
+  border-style: double;
+}
+
+
+.helpInnerSector {
+  background-color: #eaeaea;
+  padding: 10px 10px;
+  border-style: double;
 }
 
 
