@@ -204,6 +204,72 @@
     vertical-align: top;
 }
 
+
+#blenderLogo {
+  border-style: double;
+}
+
+#helpLink {
+	-webkit-filter: grayscale(0%); filter: grayscale(0%);
+	width: 100%;
+}
+
+#helpLink:hover {
+	-webkit-filter: grayscale(50%);
+	filter: grayscale(50%);
+}
+
+.imgWrap {
+  position: relative;
+  //height: 200px;
+  //width: 257px;
+}
+
+.imgWrap .imgTitle {
+  visibility: visible;
+  opacity: 1;
+}
+
+.imgTitle {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  background: rgba(50, 169, 195, 0.72);
+  color: #fff;
+  font-size: 50px;
+  margin: 10px;
+  padding: 3px;
+
+  visibility: hidden;
+  opacity: 0;
+
+  -webkit-transition: visibility opacity 0.2s;
+}
+
+.imgDescription {
+  position: absolute;
+  top: 70px;
+  left: 10px;
+  //background: rgba(29, 106, 154, 0.72);
+  //background: #32a9c3;
+  background: rgba(50, 169, 195, 0.72);
+  color: #fff;
+  margin: 10px;
+  padding: 3px;
+
+  visibility: hidden;
+  opacity: 0;
+
+  -webkit-transition: visibility opacity 0.2s;
+}
+
+
+.imgWrap:hover .imgDescription {
+  visibility: visible;
+  opacity: 1;
+}
+
+
 @import url(http://fonts.googleapis.com/css?family=Open+Sans:400,700);
 #cssmenu,
 #cssmenu ul,
