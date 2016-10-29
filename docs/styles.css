@@ -222,6 +222,7 @@
 
 .imgWrap {
 	position: relative;
+	display: inline-block;
 }
 
 .imgWrap .imgTitle {
