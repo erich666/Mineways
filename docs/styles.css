@@ -232,12 +232,13 @@
 .imgTitle {
   position: absolute;
   top: 0;
-  left: 10px;
+  left: 1vw;
   background: rgba(50, 169, 195, 0.72);
   color: #fff;
-  font-size: 200%;
-  margin: 10px;
-  padding: 3px;
+  //font-size: 200%;
+  font-size: 4vw;
+  margin: 1vw;
+  padding: 1vw;
 
   visibility: hidden;
   opacity: 0;
@@ -245,12 +246,14 @@
 
 .imgDescription {
   position: absolute;
-  top: 50px;
-  left: 10px;
+  //top: 50px;
+  top: 8vw;
+  left: 1vw;
   background: rgba(50, 169, 195, 0.72);
   color: #fff;
-  margin: 10px;
-  padding: 3px;
+  font-size: 3vw;
+  margin: 1vw;
+  padding: 1vs;
 
   visibility: hidden;
   opacity: 0;
