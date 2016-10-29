@@ -221,8 +221,6 @@
 
 .imgWrap {
   position: relative;
-  //height: 200px;
-  //width: 257px;
 }
 
 .imgWrap .imgTitle {
@@ -236,22 +234,18 @@
   left: 10px;
   background: rgba(50, 169, 195, 0.72);
   color: #fff;
-  font-size: 50px;
+  font-size: 200%;
   margin: 10px;
   padding: 3px;
 
   visibility: hidden;
   opacity: 0;
-
-  -webkit-transition: visibility opacity 0.2s;
 }
 
 .imgDescription {
   position: absolute;
-  top: 70px;
+  top: 60px;
   left: 10px;
-  //background: rgba(29, 106, 154, 0.72);
-  //background: #32a9c3;
   background: rgba(50, 169, 195, 0.72);
   color: #fff;
   margin: 10px;
@@ -259,8 +253,6 @@
 
   visibility: hidden;
   opacity: 0;
-
-  -webkit-transition: visibility opacity 0.2s;
 }
 
 
