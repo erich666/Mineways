@@ -210,7 +210,8 @@
 }
 
 #helpLink {
-	-webkit-filter: grayscale(0%); filter: grayscale(0%);
+	-webkit-filter: grayscale(0%);
+	filter: grayscale(0%);
 	width: 100%;
 }
 
@@ -244,7 +245,7 @@
 
 .imgDescription {
   position: absolute;
-  top: 60px;
+  top: 50px;
   left: 10px;
   background: rgba(50, 169, 195, 0.72);
   color: #fff;
