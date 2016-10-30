@@ -7,7 +7,7 @@
    <link rel="stylesheet" href="styles.css">
    <link rel="shortcut icon" href="icon.ico" type="image/x-icon" />
    <link rel="icon" href="icon.ico" type="image/x-icon" />
-   <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+   <script src="https://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
    <script src="script.js"></script>
    <title>Mineways Documentation</title>
 </head>
@@ -22,7 +22,19 @@
 	<div id='cssmenu'>
 	<ul>
 		<li><a href="index.html"><span>Home</span></a></li>
-		<li><a href="downloads.html"><span>Quickstart</span></a></li>
+		<li class='has-sub'><a href="downloads.html"><span>Quickstart</span></a>
+			<ul>
+				<li><a href="downloads.html#downloadImgs">Downloads</a></li>
+				<li><a href="downloads.html#instructions">Quick Instructions</a></li>
+				<li><a href="downloads.html#referenceHelp">Reference Help</a></li>
+				<li><a href="downloads.html#windowsPlatformHelp">Windows Help</a></li>
+				<li><a href="downloads.html#macPlatformHelp">Mac Help</a></li>
+				<li><a href="downloads.html#linuxlatformHelp">Linux Help</a></li>
+				<li><a href="downloads.html#generalTrouble">General Troubleshooting</a></li>
+				<li><a href="downloads.html#knownBugs">Known Bugs</a></li>
+				<li><a href="downloads.html#howToPrint">How To 3D Print</a></li>
+			</ul>
+		</li>
 		<li class='active has-sub'><a href="mineways.html"><span>Documentation</span></a>
 			<ul>
 				<li><a href="reference.html"><span>Quick Reference</span></a></li>
@@ -89,9 +101,9 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
   <LI><a href="#blender">Blender</a>
-  <LI><a href="#c4d">Cinema 4D</a>
   <LI><a href="#3dsmax">3DS MAX</a>
   <LI><a href="#maya">Maya</a>  
+  <LI><a href="#c4d">Cinema 4D</a>
 </UL>
 </UL>
 <LI><a href="#sketchfab">Publish to Sketchfab</a> - how to make your creations immediately available to all.
@@ -753,7 +765,9 @@ Rendering Tips
   <P>
   What follows are steps for using various popular rendering software packages. There are always more; for example, <a href="http://blog.yiningkarlli.com/2016/07/minecraft-in-renderman-ris.html">this article</a> talks in depth about using RenderMan for rendering.
 </div>
-<P><H4 id="blender">Blender</H4></a>
+<P><H4 id="blender">Blender</H4><p>
+<a href="https://www.blender.org"><img id="productLogo" src="images/blender_icon.png" alt="Blender icon"><a>
+<p>
 Here's a quick beginner tutorial from Alexander Boden, along with ideas by Milenco Mulder and others; if you have anything to add, let me know. This is for <a href="http://www.blender.org/">Blender version 2.75a</a>. Alternative Minecraft exporters for Blender include <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, a general-purpose and full-featured exporter, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is tailored specifically for Minecraft to Blender import.
 </P>
 <P>
@@ -864,7 +878,47 @@ Here's a typical result, made in a few minutes:
 
 </P>
 
-<P><H4 id="c4d">Cinema 4D</H4>
+<P><H4 id="3dsmax">3DS MAX</H4><p>
+<a href="http://www.autodesk.com/products/3ds-max/overview-dts"><img id="productLogo" src="images/3dsmax_icon.png" alt="3DS MAX icon"><a>
+<P>
+Note: <a href="http://www.autodesk.com/education/free-software/3ds-max">3DS MAX is free for students and teachers</a>.
+<P>
+These instructions are for 3DS MAX 2012. You might also try <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a> instead, as it does a better job producing some geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
+</P>
+<P>
+For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
+</P>
+<P>
+<b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
+</P>
+<P>
+<b>Step 2:</b> Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
+</P>
+<P>
+<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
+</P>
+<P>
+<b>Step 4:</b> Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select Faceted to get Minecraft's blocky look. Alternately, if you want to smooth water surfaces a bit, select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
+<P>
+<b>Step 5:</b> Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
+</P>
+<P>
+<b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials". Click on the "+" to show the scene's materials. Double-click on whatever material looks bad, e.g. Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, etc. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
+</P>
+
+<P><H4 id="maya">Maya</H4><p>
+<a href="http://www.autodesk.com/products/maya/overview-dts"><img id="productLogo" src="images/maya_icon.png" alt="Maya icon"><a>
+<P>
+Note: <a href="http://www.autodesk.com/education/free-software/maya">Maya is free for students and teachers</a>.
+<P>
+Check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import.
+<P>
+A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
+</P>
+
+<P><H4 id="c4d">Cinema 4D</H4><p>
+<a href="https://www.maxon.net/en-us/"><img id="productLogo" src="images/cinema4d_icon.png" alt="Cinema 4D icon"><a>
+<P>
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R17; older versions may need additional steps, as shown.
 <P>
 That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
@@ -928,37 +982,10 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 <b>Step 8:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine. For a quick render to see the effect, click Ctrl-R.
 </P>
 
-<P><H4 id="3dsmax">3DS MAX</H4>
-These instructions are for 3DS MAX 2012. You might also try <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a> instead, as it does a much better job producing some geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
-</P>
+<P><H2 id="sketchfab">Publish to Sketchfab</H2>
+<p>
+<a href="https://sketchfab.com"><img id="productLogo" src="images/sketchfab_icon.png" alt="Sketchfab icon"><a>
 <P>
-For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
-</P>
-<P>
-<b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
-</P>
-<P>
-<b>Step 2:</b> Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
-</P>
-<P>
-<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
-</P>
-<P>
-<b>Step 4:</b> Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select Faceted to get Minecraft's blocky look. Alternately, if you want to smooth water surfaces a bit, select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
-<P>
-<b>Step 5:</b> Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
-</P>
-<P>
-<b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials". Click on the "+" to show the scene's materials. Double-click on whatever material looks bad, e.g. Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, etc. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
-</P>
-
-<P><H4 id="maya">Maya</H4>
-Check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import.
-<P>
-A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
-</P>
-
-<P><H2 id="sketchfab">Publish to Sketchfab</H2></a>
 <a href="http://sketchfab.com">Sketchfab</a> is a free service that lets you upload your models and share them with others; try an example <a href="https://skfb.ly/IQyA">here</a> or look at the end of these instructions. Mineways exports to it in a straightforward fashion, there are just a few steps to get your model up and running. It's always been possible to upload models to Sketchfab, see these <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">illustrated instructions</a>. With the 4.16 version of Mineways you can now publish directly from Mineways to Sketchfab. Note: you can always export a rendering as usual to an OBJ file and upload the ZIP of the files output to Sketchfab. This will give a somewhat different rendering style, sharp and less shadowed.
 <P>
 <b>1) Sign up for an <a href="https://sketchfab.com/"Sketchfab</a>account on Sketchfab</a></b>.
@@ -1024,7 +1051,9 @@ Here's an example of Sketchfab in action, a model I uploaded. Click on the windo
 </H2>
 If you want to make a 3D print of a model, the easiest way is to use a 3D print service such as <a href="http://shapeways.com">Shapeways</a> or <a href="http://sculpteo.com">Sculpteo</a>. The main differences are cost, quality, and speed of delivery. Shapeways is almost always less expensive, Sculpteo offers faster delivery and better supports the <a href="#lesser">"Export lesser blocks"</a> option, which lets you print out slabs, steps, fences, and other smaller bits in your model. <a href="https://www.3dhubs.com/">3D Hubs</a> also has some users with full-color printers, so may be both competitive and fast. There are other 3D print services for consumers, such as <a href="http://i.materialise.com/">i.materialise</a> and <a href="http://ponoko.com">Ponoko</a>, but currently these two do not offer fully-textured 3D printing, just solid color blocks.
 <P>
-<H3 id="shapeways">Shapeways</H3>
+<H3 id="shapeways">Shapeways</H3><p>
+<a href="https://www.shapeways.com"><img id="productLogo" src="images/shapeways_icon.png" alt="Shapeways icon"><a>
+<P>
 After <a href="http://www.shapeways.com/register">creating an account</a> (and  <a href="http://www.shapeways.com/myshop">creating a shop</a>), go to the <a href="http://www.shapeways.com/upload/">upload page</a>. Choose a file for upload - <B>you must pick the .ZIP file for your model</B> that you created with Mineways, using 3D print export, e.g. "mymodel.wrl.zip". You also don't need to change the Unit of Measure: "millimeters" is the default and is what Mineways always outputs. Push the upload button.
 <P>
 Once you've uploaded, you will be taken to the model's page. Here you can preview the model in the window to make sure it looks correct. You can also order from this page by choosing the material. For a full color print you want to find "Full Color Sandstone", near the bottom of the page, and "add to cart". Note there's a fixed cost of $4.99 per order. Be careful, however: you normally cannot cancel your order once placed. After you've made an order, the waiting begins, sometimes 2-3 weeks.
@@ -1040,8 +1069,10 @@ See <a href="http://www.shapeways.com/shops/mineways">my humble shop</a> as an e
 If you get serious about printing models, the <a href="http://www.shapeways.com/model/133452/">materials sampler</a> is worth considering: it costs just $4.99 to add to an order, factoring in the $25 coupon you receive with it towards your next order.
 
 <P>
-<H3 id="sculpteo">Sculpteo</H3>
-Go to the <a href="http://www.sculpteo.com/en/">Sculpteo site</a> and register for an account.
+<H3 id="sculpteo">Sculpteo</H3><p>
+<a href="https://www.sculpteo.com"><img id="productLogo" src="images/sculpteo_icon.png" alt="Sculpteo icon"><a>
+<P>
+Go to the <a href="http://www.sculpteo.com">Sculpteo site</a> and register for an account.
 <P>
 In Mineways, you normally want to export to Wavefront OBJ when exporting to print, using the "Sculpteo" file type. Sculpteo also accepts VRML2 files, but the OBJ exporter sets some useful defaults for Sculpteo, such as centimeters for model units. One major advantage of Sculpteo is that they support the <a href="#lesser">"Export lesser blocks"</a> option, which allows you to export slabs, stairs, fences, doors, and other smaller objects. Please <a href="#lesser">read the documentation</a> for that option before using it. Also note that when you export, the price shown is the Shapeways price; Sculpteo prices tend to be about a third higher overall.
 <P>
@@ -2491,7 +2522,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 10/11/2016</p>
+		<p id="lastUpdate">Last updated 10/30/2016</p>
 	</div>
 </div>
 
