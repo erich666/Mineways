@@ -44,33 +44,21 @@
 
 
 .helpLightOuterSector {
-<<<<<<< HEAD
-  background-color: #f1f1f1;
-=======
   //background-color: #f1f1f1;
->>>>>>> refs/remotes/erich666/master
   padding: 10px 10px;
   border-style: double;
 }
 
 
 .helpDarkOuterSector {
-<<<<<<< HEAD
-  background-color: #eeeeee;
-=======
   //background-color: #eeeeee;
->>>>>>> refs/remotes/erich666/master
   padding: 10px 10px;
   border-style: double;
 }
 
 
 .helpInnerSector {
-<<<<<<< HEAD
-  background-color: #eaeaea;
-=======
   //background-color: #eaeaea;
->>>>>>> refs/remotes/erich666/master
   padding: 10px 10px;
   border-style: double;
 }
@@ -217,20 +205,10 @@
 }
 
 
-<<<<<<< HEAD
-#blenderLogo {
-  border-style: double;
-}
-
-=======
 #productLogo {
   border-style: double;
 }
 
-
-}
-
->>>>>>> refs/remotes/erich666/master
 #helpLink {
 	-webkit-filter: grayscale(0%);
 	filter: grayscale(0%);
