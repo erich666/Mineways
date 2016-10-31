@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang=''>
+<html lang="en">
 <head>
 	<meta charset='utf-8'>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -62,7 +62,6 @@
 						<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
 					</ul>
 				</li>
-				</li>
 				<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 			</ul>
 		</div>
@@ -70,16 +69,17 @@
 		<div id="content" class="clearfix">
 			<div id="downloadImgs" class="helpLightOuterSector">
 				<a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">
-				<div id="windowsDownload" href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">
+				<div id="windowsDownload">
 					<p>Download for Windows</p>
-					<img id="windows_logo" src="images/windowsLogo.jpg">
+					<img id="windows_logo" src="images/windowsLogo.jpg" alt="Windows logo">
 				</div>		
 				</a>
 				<a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">
 				<div id="appleDownload">
 					<p>Download for Mac</p>
-					<img id="apple_logo" src="images/appleLogo.png"> 
-				</div> 
+					<img id="apple_logo" src="images/appleLogo.png" alt="Apple logo"> 
+				</div>
+				</a>				
 				<div id="getGoing">
 					<p>Problems?
 						<UL>
@@ -88,22 +88,22 @@
 							<LI><a href="downloads.html#linux">Linux</a></LI>
 						</UL>
 				</div>
-				</a>
 			</div>
 
 
 			<div id="instructions" class="helpDarkOuterSector">
 				<P>
-					<b>How to set up Mineways for 3D printing and rendering export:</b>
+					<b>How to set-up and run Mineways:</b>
+				</p>
 					<p><b>1) </b> Unzip mineways.zip, the whole thing, to some directory. On Windows you can actually run mineways.exe from the zip file.</p>
 					<p><b>2) </b> Double-click the Mineways.exe program to run (try the Mineways32.exe if that fails). If things don't start up correctly, see <a href="#platform">this guide</a>.</p>
 					<p><b>3) </b> Use "File | Open World" to select a world. Use "File | Open..." to open a schematic file.</p> 
 					<p><b>4) </b> Use the left mouse button to drag the map around, use the mouse wheel to zoom. "F3" takes you to the player's location.</p>
 					<p><b>5) </b> Drag with the right mouse button to select an area on the map and to adjust this rectangle. </p>
 					<p><b>6) </b> Optionally click with the middle mouse button or set the "Lower depth" slider to select a depth. </p>
-					<p><b>7) </b> Export the model for 3D printing by "File | Export for 3D Printing" - just hit "OK" on the Options dialog. For rendering, use "File | Export for Rendering"</p> 
-					<p><b>8) </b> Optional: if you want to see the result, view the .OBJ or .WRL with <a href="mineways.html#g3d">G3D, MeshLab</a>, or other 3D model viewer (avoid <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a> if you use colors; it's fine for STLs).</p> 
-				</p>
+					<p><b>7) </b> Export the model for rendering by "File | Export for Rendering". Export for 3D printing by "File | Export for 3D Printing" - just hit "OK" on the Options dialog. To upload directly to the web is a little more involved, see <a href="mineways.html#sketchfab">these directions</a>.</p>
+					<p><b>8) </b> Optional: if you want to see the result, view the .OBJ or .WRL with <a href="mineways.html#g3d">G3D</a>, MeshLab, or other 3D model viewer (avoid Microsoft's <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a> if you use colors; it's fine for STLs).</p> 
+
 			</div>
 			<div id="referenceHelp" class="helpLightOuterSector">
 				<P>
@@ -112,14 +112,14 @@
 					to see what's what. For using a home or school 3D printer, see <a href="http://services.minecraftedu.com/wiki/3D_Printing_and_Minecraft#Instructions_for_Exporting">this more in-depth guide at MinecraftEdu</a>. You can find more tutorials on the <a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">video playlist</a>.
 				</p>
 				<P>
-					<B>Problems?</B> Look below for platform-specific problems on <a href="#windows">Windows, <a href="#mac">Mac, and <a href="#linux">Linux</a>, then see the <a href="#troubleshooting">Troubleshooting Guide</a> that follows if those don't help.
+					<B>Problems?</B> Look below for platform-specific problems on <a href="#windows">Windows</a>, <a href="#mac">Mac</a>, and <a href="#linux">Linux</a>, then see the <a href="#troubleshooting">Troubleshooting Guide</a> that follows if those don't help.
 				</P>
 				<P>
 					<B>3D Printing:</B> To preview your exported model to see if it's what you want, open the .wrl/.obj/.stl file with <a href="http://meshlab.sourceforge.net/">MeshLab</a> or other model viewer. If you want to 3D print your model and don't have a 3D printer (or want a multicolored model), <a href="http://www.shapeways.com/register">create a free Shapeways account</a> and <a href="http://www.shapeways.com/upload/">upload</a> the <i><b>.zip</b></i> file. Once the model is processed by Shapeways (a few minutes), you can order it - make sure to select "colored sandstone" for the material.
-					<P>
-					As an example, <a href="http://www.shapeways.com/shops/mineways">here's</a> my non-profit store. Note that no part of this process will cost you anything, unless you actually order something. <a href="http://sculpteo.com">Sculpteo</a> is another 3D print service worth considering (see <a href="http://www.sculpteo.com/en/gallery/public/eerich666/">my sample store</a>). It's generally more expensive but often delivers more rapidly (even shipping from France!). There are other 3D print services such as <a href="https://www.3dhubs.com/">3D Hubs</a>; see a <a href="mineways.html#print_services">list here</a>.
-					</p>
 				</P>
+				<P>
+					As an example, <a href="http://www.shapeways.com/shops/mineways">here's</a> my non-profit store. Note that no part of this process will cost you anything, unless you actually order something. <a href="http://sculpteo.com">Sculpteo</a> is another 3D print service worth considering (see <a href="http://www.sculpteo.com/en/gallery/public/eerich666/">my sample store</a>). It's generally more expensive but often delivers more rapidly (even shipping from France!). There are other 3D print services such as <a href="https://www.3dhubs.com/">3D Hubs</a>; see a <a href="mineways.html#print_services">list here</a>.
+				</p>
 				<P>
 					<B>Rendering:</B> see <a href="mineways.html#rendering">this section</a> for how to import your model into various rendering and animation systems.
 				</P>
@@ -158,16 +158,14 @@
 					<P>Otherwise the Mac version is the same as the PC version, and Mac users can similarly use <a href="http://meshlab.sourceforge.net/">MeshLab</a> or <a href="http://www.glc-player.net/">GLC Player</a> for viewing exported 3D models. See <a href="mineways.html">the main documentation page</a> for (way) more help.</p>
 					<h3>Troubleshooting for the Mac</h3>
 					<p>If you get the warning "'Mineways' can't be opened because the identity of the developer cannot be confirmed." take steps similar to those <a href="https://support.techsmith.com/hc/en-us/articles/203727998-TechSmith-Relay-Can-t-be-opened-because-the-identity-of-the-developer-cannot-be-confirmed-">explained here</a>. The short version: right-click and select "Open," then verify that you want to run the program. Yes, <a href="http://erichaines.com">I'm trustworthy</a>.</p>
-					<P>If when opening a world it says that the file name cannot contain the characters "/ : < > or |", change your world's folder name so that it doesn't contain these characters. Mineways is a Windows program masquerading as a Mac program, and Windows does not allow any of these characters in file names.</p>
+					<P>If when opening a world it says that the file name cannot contain the characters "/ : &lt; &gt; or |", change your world's folder name so that it doesn't contain these characters. Mineways is a Windows program masquerading as a Mac program, and Windows does not allow any of these characters in file names.</p>
 					<P>If you get the message "Couldn't find your Minecraft world saves directory..." you'll need to guide Mineways to wherever your world files are saved on your computer. Follow <a href="http://www.macinfo.us/how-to-find-minecraft-worlds-on-your-mac.php">these instructions</a>. If you are using a Mac with a language that is not English, Mineways may still have problems with the path to your files. One solution is to copy your world files to a USB flash drive - this avoids the path problems. Another solution <i>may</i> be to temporarily change the language to English.</p>
 					<P>
 						If you can't see the Application Support/minecraft folder, see <a href="http://www.macinfo.us/how-to-find-minecraft-worlds-on-your-mac.php">this page</a> for how to use the terminal utility to make it visible. Short version: search for "terminal" in spotlight, copy and paste this line into the terminal and hit Enter:
 						<PRE>	defaults write com.apple.Finder AppleShowAllFiles TRUE</PRE>
-					</p>
 					<P>
 						Then type or paste this line:
 						<PRE>	killall Finder</PRE>
-					</p>
 					<P>
 						to restart the finder. You can find your saves folder by opening Finder -> Go -> Go To Folder -> type ~/Library/Application Support/minecraft/saves. For future reference, it's best to make an alias for this folder and copy it to your desktop.
 					</p>
@@ -241,4 +239,4 @@
 	</div>
 
 </body>
-<html>
+</html>

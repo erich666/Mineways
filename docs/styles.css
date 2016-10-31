@@ -44,21 +44,21 @@
 
 
 .helpLightOuterSector {
-  background-color: #f1f1f1;
+  //background-color: #f1f1f1;
   padding: 10px 10px;
   border-style: double;
 }
 
 
 .helpDarkOuterSector {
-  background-color: #eeeeee;
+  //background-color: #eeeeee;
   padding: 10px 10px;
   border-style: double;
 }
 
 
 .helpInnerSector {
-  background-color: #eaeaea;
+  //background-color: #eaeaea;
   padding: 10px 10px;
   border-style: double;
 }
