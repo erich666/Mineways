@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang=''>
+<html lang="en">
 <head>
    <meta charset='utf-8'>
    <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -7,7 +7,7 @@
    <link rel="stylesheet" href="styles.css">
    <link rel="shortcut icon" href="icon.ico" type="image/x-icon" />
    <link rel="icon" href="icon.ico" type="image/x-icon" />
-   <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+   <script src="https://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
    <script src="script.js"></script>
    <title>Mineways Quick Reference</title>
 </head>
@@ -32,7 +32,11 @@
 				<li><a href="downloads.html#linuxlatformHelp">Linux Help</a></li>
 				<li><a href="downloads.html#generalTrouble">General Troubleshooting</a></li>
 				<li><a href="downloads.html#knownBugs">Known Bugs</a></li>
+<<<<<<< HEAD
 				<li><a href="downloads.html#howToPrint">How To Print</a></li>
+=======
+				<li><a href="downloads.html#howToPrint">How To 3D Print</a></li>
+>>>>>>> refs/remotes/erich666/master
 			</ul>
 		</li>
 		<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
@@ -62,8 +66,7 @@
 				<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
 			</ul>
 		</li>
-	   </li>
-	   <li class='last'><a href="contact.html"><span>Contact</span></a></li>
+		<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 	</ul>
 	</div>
 	
@@ -81,9 +84,9 @@
 -->
 
 Mineways features are explained in detail <a href="mineways.html">here</a>. Troubleshooting information is <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#platform">here</a> and <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#troubleshooting">here</a>.
-<a name="mmi">
-<h1>Mouse and Keyboard</h1>
-</a>
+
+
+<h1 id="mak">Mouse and Keyboard</h1>
 
 <UL>
 <LI>Left-click and drag - move around map.
@@ -103,9 +106,7 @@ Upper or lower case (Shift key) does not matter for most keys:
 More on mouse controls in the <a href="mineways.html#select">Selection section</a>. Full list of <a href="mineways.html#shortcuts">shortcut keys here</a>. 
 
 
-<a name="mmi">
-<h1>Mineways Menu Items</h1>
-</a>
+<h1 id="mmi">Mineways Menu Items</h1>
  
 <h2>File Menu</h2>
 <UL>
@@ -153,9 +154,7 @@ More on mouse controls in the <a href="mineways.html#select">Selection section</
 </UL>
 
 
-<a name="meo">
-<h1>Mineways Export Options</h1>
-</a>
+<h1 id="meo">Mineways Export Options</h1>
 
 You can usually ignore this scary dialog box and just click "OK" or hit the Enter key to skip it.
 <P>
@@ -166,10 +165,11 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <LI>Export no materials, etc.: whether the model has a single color, solid colors on blocks, or full textured colors.
 <LI>OBJ file export options: various <a href="mineways.html#obj_export_options">professional settings</a> allowing you to make the data easier to modify.
 <LI>Make Z up: <a href="https://youtu.be/W8hmWWoaUyU">some systems use Y as up, some Z</a>.
-<LI>Center model around the origin: if turned off, Minecraft coordinates are used instead. Useful for professionals.
+<LI><a href="mineways.html#composite">Create composite overlay faces</a>: ladders, vines, etc. will be separate, floating polygons.
+<LI><a href="mineways.html#center_model">Center model around the origin</a>: if turned off, Minecraft coordinates are used instead. Useful for professionals.
 <LI>Use biome: use the biome's attributes to color the blocks. Currently uses only the single biome at the center of the export.
-<LI>Create block faces: if you don't plan on seeing the sides of your export, uncheck to make the file smaller.
-<LI>Tree leaves solid: for interactive applications such as VR, exports noticeably fewer polygons.
+<LI><a href="mineways.html#border_faces">Create block faces</a>: if you don't plan on seeing the sides of your export, uncheck to make the file smaller.
+<LI><a href="mineways.html#leaves_solid">Tree leaves solid</a>: for interactive applications such as VR, exports noticeably fewer polygons.
 <LI>Rotate model clockwise: useful mostly to pick a view for display in Shapeways' store.
 </UL>
 <a href="mineways.html#print">3D Print related</a>:
@@ -197,32 +197,36 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 </UL>
 <LI>Melt snow blocks: pretty obscure, meant for making "weep holes" larger after all other processing.
 <LI><a href="#lesser">Export lesser, detailed blocks</a>: normally blocks are either printed as full blocks, or not at all. This allows many "partial" blocks to be printed.
-<UL>Fatten lesser blocks: some detailed blocks can be very thin and will not print well. This makes them thicker.
-<LI>
+<UL>
+<LI>Fatten lesser blocks: some detailed blocks can be very thin and will not print well. This makes them thicker.
 </UL>
 <LI>Debug: show floating parts...: any parts that are not fully attached to the main model will be made obvious.
 <LI>Debug: show weld blocks...: any blocks added by Mineways to make the model printable are shown as lava and pink wool.
 </UL>
 
-<a name="mf">
-<h1>Mineways <a href="scripting.html#clo">Command Line Options</a></h1>
-</a>
+
+<h1 id="mclo">Mineways <a href="scripting.html#clo">Command Line Options</a></h1>
+
 <P>
 <P>
 <div id="code">
-mineways.exe [-w X Y] [file1.mwscript [file2.mwscript [...]]]
+mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
 </div>
 <P>
-<i>script file</i><br>
+<i>file1.mwscript</i><br>
 Specify the file name and path for a script or model file to load on startup.
 <P>
 -w <i>X Y</i><br>
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
+<P>
+-s <i>UserSaveDirectory</i><br>
+Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
+<P>
+-l <i>mineways_exec.log</i><br>
+For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
 
 
-<a name="mf">
-<h1>Mineways Files</h1>
-</a>
+<h1 id="mf">Mineways Files</h1>
 
 <UL>
 <LI><b>Mineways.exe</b> - the main, 64-bit executable.
@@ -243,9 +247,9 @@ Specify the X and Y resolution in pixels of the startup window. Values must be p
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 7/5/2016</p>
+		<p id="lastUpdate">Last updated 10/30/2016</p>
 	</div>
 </div>
 
 </body>
-<html>
+</html>

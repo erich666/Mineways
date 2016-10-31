@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang=''>
+<html lang="en">
 <head>
    <meta charset='utf-8'>
    <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -32,7 +32,11 @@
 				<li><a href="downloads.html#linuxlatformHelp">Linux Help</a></li>
 				<li><a href="downloads.html#generalTrouble">General Troubleshooting</a></li>
 				<li><a href="downloads.html#knownBugs">Known Bugs</a></li>
+<<<<<<< HEAD
 				<li><a href="downloads.html#howToPrint">How To Print</a></li>
+=======
+				<li><a href="downloads.html#howToPrint">How To 3D Print</a></li>
+>>>>>>> refs/remotes/erich666/master
 			</ul>
 		</li>
 		<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
@@ -62,8 +66,7 @@
 				<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
 			</ul>
 		</li>
-	   </li>
-	   <li class='last'><a href="contact.html"><span>Contact</span></a></li>
+		<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 	</ul>
 	</div>
 	
@@ -100,10 +103,9 @@
 <LI><a href="#default">Default Rendering Options</a>
 <LI><a href="#pse">Perl Script Example</a>
 </UL>
-	
-<a name="msl">
-<h1>Mineways Scripting Language</h1>
-</a>
+
+
+<h1 id="msl">Mineways Scripting Language</h1>
 		The "Import Settings" item in the File menu has two uses. One is that you can read in a model previously created with Mineways. Doing so will set up Mineways to be identical to how it was when the file was exported: the world, terrain file, color scheme, and all export settings will be set to what you used when you exported the model. This is handy for continuing to work on a model you exported in a previous session.
 		<P>
 		However, "Import Settings" can do much more. As of version 4.18 of Mineways, you can make a text file of Mineways scripting commands and read it in to:
@@ -121,10 +123,10 @@
 		None of these functions will affect your original Minecraft world. Mineways considers that data unmodifiable. The changes are performed temporarily on whatever you next export, and not displayed on the map.
 		<P>
 		Script files have the suffix ".mwscript". When using "Import Settings" note that you can use the file filter of the import dialog to display only these types of files.
-		
-<a name="mfi">
-<h2>Model File Import</h2>
-</a>
+
+
+<h2 id="mfi">Model File Import</h2>
+
 		Model files have first lines such as:
 		<P>
 <div id="code">
@@ -137,17 +139,17 @@
 		Model export files have all their commands preceded by a "#", scripting language files do not. Script files are simple text files, and are usually stored with the suffix "*.mwscript". See the files that come with the Mineways distribution for examples. A file is considered to be a script if Mineways looks at it and doesn't think it's from a model.
 		<P>
 		One note on model import: for STL files the file you need to import is labeled *.txt. For example, if you export AwesomeCastle.stl, Mineways also creates an AwesomeCastle.txt file with statistics and settings about your export. OBJ and VRML files have these statistics contained at the top of their exported *.obj and *.wrl files.
+
 		
-<a name="so">
-<h1>Scripting Overview</h1>
-</a>
+<h1 id="so">Scripting Overview</h1>
+
 		Most commands consist of a single line, and usually have a colon in them. There are two classes of commands: those that are recognized when an exported model is read in, and those recognized when a script is read. Most, but not all, of the exported model commands are recognized as script commands.
 		<P>
 		You can take many of the export commands found in model files and use them in a script you're creating. Transferring text from the top of a exported model to a script file is an easy way to get properly-formed commands in place. Simply remove the "#" from in front of each command to use it in a script file. See <a href="#default">this section</a> for what the default settings are when exporting for rendering.
 		
-<a name="mec">
-<h2>Model Export Commands</h2>
-</a>
+		
+<h2 id="mec">Model Export Commands</h2>
+
 		Here is the full list of model export commands. When found in a model file, each line is preceded by a "#"; in scripting files the "#" is not used. Text in italics is shown as an example. "[deprecated]" means this format is output by older versions of Mineways.
 		<P>
 		
@@ -313,9 +315,9 @@ Booleans. Boolean values are set as YES/yes/TRUE/true/1; anything else found for
 
 </table>
 
-<a name="sqes">
-<h3>Example</h3>
-</a>
+
+<h3 id="sqes">Example</h3>
+
 Here is an example of a script using the commands above.
 <P>
 <div id="code">
@@ -329,9 +331,9 @@ Selection location min to max: -368, 83, 16 to -351, 255, 30<br>
 <P>
 This loads a world, changes its color scheme to "no glass", selects a terrain file, selects rendering to an OBJ file, turn biomes on, and finally selects a volume to export.	
 
-<a name="sic">
-<h2>Scripting Interface Commands</h2>
-</a>
+
+<h2 id="sic">Scripting Interface Commands</h2>
+
 The commands above are available for scripting, unless listed as <B>"Model only."</b> All script commands are used without a "#" in front of each line. Comments "//" and "/* */" are respected.
 <P>
 If you wish to set any export options, it's wise to first set the export mode and file type by using the "Set render type:" or "Set 3D print type:" command. If you don't, the export settings will be applied to whatever file type was last exported, if any, and a warning will pop up.
@@ -462,9 +464,9 @@ This command has a dramatic effect: it closes the program! This can be useful if
 
 </TABLE>
 
-<a name="uie">
-<h3>Example</h3>
-</a>
+
+<h3 id="uie">Example</h3>
+
 Here is an example of a script using the commands above.
 <P>
 <div id="code">
@@ -477,9 +479,9 @@ Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 <P>
 For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj 
 
-<a name="soc">
-<h2>Script-only Commands</h2>
-</a>
+
+<h2 id="soc">>Script-only Commands</h2>
+
 These are the value-added commands, things you simply can't do otherwise in Mineways. Want to turn your stone castle into diamond? Or have all the leaves disappear from your trees? Or add a giant pyramid to your spawn point? The Change blocks command is the genie that can made your dreams come true, if only for a short while.
 <P>
 The idea behind Change blocks is that you can specify extremely temporary changes to your world. These will not show up on the map, and they affect only the next export you perform. After the export the changes are cleared out; you have to load these changes again if you want to apply them again. No actual changes are made to your Minecraft world files.
@@ -542,9 +544,9 @@ Instead of displaying script errors, warnings, and completion messages to the sc
 
 </TABLE>
 
-<a name="cbce">
-<h3>Change blocks command examples</h3>
-</a>
+
+<h3 id="cbce">Change blocks command examples</h3>
+
 The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant.
 <P>
 <div id="code">
@@ -615,14 +617,14 @@ Change blocks: from 198-255 at -319,50,-1077 to -302,50,-1059
 <P>
 All blocks greater or equal in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
 
-<a name="c">
-<h2>Comments</h2>
-</a>
+
+<h2 id="c">Comments</h2>
+
 There is no comment syntax for model export files - usually it's better to not mess with these commands at all in the model file. For scripts you can use "//" and anything after is ignored. You can also use "/*" and "*/" to comment out blocks of text.
 <P>
-<a name="ce">
-<h3>Examples</h3>
-</a>
+
+
+<h3 id="ce">Examples</h3>
 
 <div id="code">
 // My little test script<br>
@@ -636,9 +638,9 @@ Set render type: Wavefront OBJ, absolute      // the exact text for the file typ
 Export for Rendering: c:\temp\mysave.obj      // forward slashes in the path specification are also OK
 </div>
 
-<a id="clo">
-<h1>Command Line Options</h1>
-</a>
+
+<h1 id="clo">Command Line Options</h1>
+
 You can use command-line options with Mineways so that it is customized on startup. For example, you could provide a different initial window size, then run a script that loads your favorite world and takes you to where you were last building.
 <P>
 You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">store this command line in a .bat file</a> and double-click that file, or <a href="http://windows.tips.net/T010869_Changing_Shortcut_Properties.html">change your options on the shortcut for Mineways itself</a>. See the file <b>mineways.bat</b> in Mineways for an example.
@@ -712,27 +714,27 @@ The close script simply closes the program:
 Close
 </div>
 
-<a name="amfwm">
-<H1>Associating .mwscript files with Mineways</H1>
-</a>
+
+<H1 id="amfwm">Associating .mwscript files with Mineways</H1>
+
 On Windows, run the batch file <b>register-Mineways-run-as-administrator.bat</b> as administrator. Go to the folder where the Mineways code is and right-click on <b>register-Mineways-run-as-administrator.bat</b> and then select "Run as administrator" from the list:
 <P>
   <div>
-    <img src="images/administrator.jpg">
+    <img src="images/administrator.jpg" alt="administrator">
   </div>
 <P>
 You should see any *.mwscript files with Mineways icons next to them:
   <div>
-    <img src="images/script_files.jpg">
+    <img src="images/script_files.jpg" alt="script files">
   </div>
 <P>
 Now when you double-click on a file ending with .mwscript, it will run this script on startup.
 <P>
 On the Mac, follow <a href="http://osxdaily.com/2013/08/08/change-default-application-open-files-mac-os-x/">these instructions</a>.
 
-<a name="default">	
-<h1>Default Rendering Options</h1>
-</a>
+	
+<h1 id="default">Default Rendering Options</h1>
+
 What follows are the default rendering options when Export for Rendering is performed. This list was created by exporting a sample rendering from a world, editing the OBJ file, grabbing the header and removing the "#" character at the beginning of each line, and commenting out the lines that are purely comments. This is provided here as a guide to all the export options available.
 <P>
 <div id="code">
@@ -774,9 +776,9 @@ Melt snow blocks: no<br>
   Debug: show weld blocks in bright colors: no<br>
 </div>
 
-<a name="pse">
-<h1>Perl Script Example</h1>
-</a>
+
+<h1 id="pse">Perl Script Example</h1>
+
 Here's a simple Perl script to generate a Mineways script. It shows the power of scripting to make models.
 <P>
 <div id="code">
@@ -794,9 +796,9 @@ $radius = 1;<br>
 printf "Minecraft world: [Block Test World]\n";<br>
 printf "Set render type: Wavefront OBJ absolute indices\n";<br>
 printf "selection location: -100,$minlevel,-100 to 100,$maxlevel,100\n";<br>
-for ($level = $minlevel; $level <= $maxlevel; $level++) {<br>
+for ($level = $minlevel; $level &lt;= $maxlevel; $level++) {<br>
 &nbsp;&nbsp;&nbsp;&nbsp;$time = 2 * 3.1415926 * ($level-$minlevel)/($maxlevel-$minlevel);<br>
-&nbsp;&nbsp;&nbsp;&nbsp;for ($cobra=0; $cobra < $Cobras; $cobra++) { <br>
+&nbsp;&nbsp;&nbsp;&nbsp;for ($cobra=0; $cobra &lt; $Cobras; $cobra++) { <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$objOffset = 3.1415926 * ($cobra/$Cobras);<br>
 <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Rotate the object around a center point, depending on the object number itself.<br>
@@ -812,7 +814,7 @@ for ($level = $minlevel; $level <= $maxlevel; $level++) {<br>
 <P>
 Running the script to set up the scene, then exporting (manually) to Sketchfab, you get this:
 <P>
-<iframe width="1280" height="960" src="https://sketchfab.com/models/ba2434c9ab934d8bbae463d09d3f799e/embed" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" onmousewheel=""></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
+<iframe width="1280" height="960" src="https://sketchfab.com/models/ba2434c9ab934d8bbae463d09d3f799e/embed"></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
     <a href="https://sketchfab.com/models/ba2434c9ab934d8bbae463d09d3f799e?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Scripting test</a>
     by <a href="https://sketchfab.com/erich?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Eric Haines</a>
     on <a href="https://sketchfab.com?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Sketchfab</a>
@@ -822,9 +824,9 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 10/17/2016</p>
+		<p id="lastUpdate">Last updated 10/30/2016</p>
 	</div>
 </div>
 
 </body>
-<html>
+</html>
