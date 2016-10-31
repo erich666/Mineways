@@ -43,22 +43,7 @@
 }
 
 
-.helpLightOuterSector {
-  //background-color: #f1f1f1;
-  padding: 10px 10px;
-  border-style: double;
-}
-
-
-.helpDarkOuterSector {
-  //background-color: #eeeeee;
-  padding: 10px 10px;
-  border-style: double;
-}
-
-
-.helpInnerSector {
-  //background-color: #eaeaea;
+.textSection {
   padding: 10px 10px;
   border-style: double;
 }
@@ -197,10 +182,6 @@
 }
 
 #getGoing {
-    //width: 50px;
-    //height: 50px;
-    //background: #999;
-    //display: inline-block;
     vertical-align: top;
 }
 
@@ -209,84 +190,71 @@
   border-style: double;
 }
 
-#helpLink {
+#helpImages {
+	text-align: center;
+}
+
+.spoiler {
+	position:relative;
+    overflow:hidden;
+	display: inline-block;
+	line-height: 0;
+    -webkit-transition:max-height .7s;
+    -moz-transition:max-height .7s;
+    -o-transition:max-height .7s;
+    -ms-transition:max-height .7s;
+    transition:max-height .7s;
+}
+
+.spoiler img {
 	-webkit-filter: grayscale(0%);
 	filter: grayscale(0%);
 	width: 100%;
+	z-index:-10; /* means the images don't go above the menu */
+    position:relative; /* makes z-index work */
 }
 
-#helpLink:hover {
+.spoiler img:hover {
 	-webkit-filter: grayscale(50%);
 	filter: grayscale(50%);
 }
 
-.imgWrap {
-	position: relative;
-	display: inline-block;
+.spoiler p {
+    background-color:#DDD;
+	overflow: hidden;
+	white-space: nowrap;
+    position:absolute;
+    top:0px;
+    left:100%;
+	line-height: 100%;
+	padding: 0;
+    -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=0);
+    filter:alpha(opacity=0);
+    opacity:0;
+    -webkit-transition:all .4s;
+    -moz-transition:all .4s;
+    -o-transition:all .4s;
+    -ms-transition:all .4s;
+    transition:all .4s;
 }
 
-.imgWrap .imgTitle {
-  visibility: visible;
-  opacity: 1;
-}
-
-.imgTitle {
-  position: absolute;
-  top: 0;
-  left: 1vw;
-  background: rgba(50, 169, 195, 0.72);
-  color: #fff;
-  //font-size: 200%;
-  font-size: 4vw;
-  margin: 1vw;
-  padding: 1vw;
-
-  visibility: hidden;
-  opacity: 0;
-}
-
-.imgDescription {
-  position: absolute;
-  //top: 50px;
-  top: 8vw;
-  left: 1vw;
-  background: rgba(50, 169, 195, 0.72);
-  color: #fff;
-  font-size: 3vw;
-  margin: 1vw;
-  padding: 1vs;
-
-  visibility: hidden;
-  opacity: 0;
-}
-
-
-.imgWrap:hover .imgDescription {
-  visibility: visible;
-  opacity: 1;
+.spoiler:hover p {
+    left:10px;
+    -ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity=100);
+    filter:alpha(opacity=100);
+    opacity:1;
 }
 
 @media screen and (min-width: 40rem) {
-	.imgWrap {
+	.spoiler {
 		max-width: 40rem;
 	}
-	
-	.imgTitle {
-		  left: 0.4rem;
-		  font-size: 1.6rem;
-		  margin: 0.4rem;
-		  padding: 0.4rem;
-	}
-
-	.imgDescription {
-		  top: 3.2rem;
-		  left: 0.4rem;
-		  font-size: 1.2rem;
-		  margin: 0.4rem;
-		  padding: 0.4rem;
+	.spoiler p{
+		//top: ;
+		//left: 0.4rem;
+		font-size: 1.2rem;
 	}
 }
-
 
 @import url(http://fonts.googleapis.com/css?family=Open+Sans:400,700);
 #cssmenu,
