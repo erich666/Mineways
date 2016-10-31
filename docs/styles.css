@@ -288,25 +288,26 @@
   opacity: 1;
 }
 
-@media screen and (min-width: 40rem) {
+@media screen and (min-width: 600px) {
 	.imgWrap {
-		max-width: 40rem;
+		max-width: 600px;
 	}
 	
 	.imgTitle {
-		  left: 0.4rem;
-		  font-size: 1.6rem;
-		  margin: 0.4rem;
-		  padding: 0.4rem;
+		  left: 6px;
+		  font-size: 24px;
+		  margin: 6px;
+		  padding: 6px;
 	}
 
 	.imgDescription {
-		  top: 3.2rem;
-		  left: 0.4rem;
-		  font-size: 1.2rem;
-		  margin: 0.4rem;
-		  padding: 0.4rem;
+		  top: 48px;
+		  left: 6px;
+		  font-size: 18px;
+		  margin: 6px;
+		  padding: 6px;
 	}
+	
 }
 
 
