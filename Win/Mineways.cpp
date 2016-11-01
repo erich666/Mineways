@@ -2120,8 +2120,6 @@ static void closeMineways()
 // Return true if successful (i.e. no error found) - does NOT mean a log file was opened, just that the parse was OK.
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount)
 {
-	argList = NULL;	// just to make compiler happy
-	argCount = 0;	// just to make compiler happy
 	// argument:
 	// -l log-file-name
 	int argIndex = 1;
