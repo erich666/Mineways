@@ -91,7 +91,8 @@ if (FH) { \
 HINSTANCE hInst;								// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
-TCHAR *gWorlds[1000];							// up to 1000 worlds
+#define MAX_WORLDS	1000
+TCHAR *gWorlds[MAX_WORLDS];							// up to 1000 worlds
 int gNumWorlds = 0;
 
 static Options gOptions = {0,   // which world is visible
@@ -511,7 +512,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     {
 		if (bRet == -1)
 		{
-			LOG_INFO(gExecutionLogfile, "  got error\n");
+			LOG_INFO(gExecutionLogfile, "  got error!\n");
 			// handle the error and possibly exit
 			DWORD dw = GetLastError();
 
@@ -705,29 +706,32 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		// get new directory for where world saves are located, if any: -s dir
 		if (getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount)) {
 			// path found on command line, try it out.
-			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine");
+			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
 		}
 		else {
 			// load default list of worlds
-			LOG_INFO(gExecutionLogfile, " setWorldPath");
+			LOG_INFO(gExecutionLogfile, " setWorldPath\n");
 			int retCode = setWorldPath(gWorldPathDefault);
 
 			if (retCode == 0)
 			{
-				MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-					_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+				LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
+				// this message will get popped up by loadWorldList
+				//MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+				//	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
 			}
 		}
 
-		LOG_INFO(gExecutionLogfile, " loadWorldList");
+		LOG_INFO(gExecutionLogfile, " loadWorldList\n");
         if ( loadWorldList(GetMenu(hWnd)) )
         {
-            MessageBox( NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
+			LOG_INFO(gExecutionLogfile, "   world not converted\n");
+			MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
 				_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         }
 		wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
 
-		LOG_INFO(gExecutionLogfile, " populateColorSchemes");
+		LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
 		populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
 
@@ -829,15 +833,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bmi.bmiHeader.biPlanes=1;
         bmi.bmiHeader.biBitCount=32;
         bmi.bmiHeader.biCompression=BI_RGB;
-		LOG_INFO(gExecutionLogfile, " CreateDIBSection");
+		LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
 		bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
 
 		// set standard custom color at startup.
-		LOG_INFO(gExecutionLogfile, " useCustomColor");
+		LOG_INFO(gExecutionLogfile, " useCustomColor\n");
 		useCustomColor(IDM_CUSTOMCOLOR, hWnd);
 
 		// finally, load any scripts on the command line.
-		LOG_INFO(gExecutionLogfile, " processCreateArguments");
+		LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
 		processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
         break;
     case WM_LBUTTONDOWN:
@@ -2235,7 +2239,7 @@ static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, co
 	int argIndex = 1;
 	while (argIndex < argCount)
 	{
-		// is it a script? get past it
+		// look for if the startup directory is specified on the command line
 		if (wcscmp(argList[argIndex], L"-s") == 0) {
 			// found window resize
 			argIndex++;
@@ -2243,6 +2247,7 @@ static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, co
 				wcscpy_s(saveWorldDirectory, MAX_PATH, argList[argIndex]);
 				argIndex++;
 				if (!PathFileExists(saveWorldDirectory)) {
+					LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
 					MessageBox(NULL, _T("Warning:\nThe path you specified on the command line for your saved worlds location does not exist. The default directory will be used instead."),
 						_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
 					return false;
@@ -2253,6 +2258,7 @@ static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, co
 				}
 			}
 			// if we got here, parsing didn't work
+			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
 			MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s directory\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 			return false;
 		}
@@ -2276,23 +2282,29 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
 	{
 		if (wcscmp(argList[argIndex], L"-w") == 0) {
 			// skip window resize
-			LOG_INFO(gExecutionLogfile, " skip window resize");
+			LOG_INFO(gExecutionLogfile, " skip window resize\n");
 			argIndex += 3;
 		}
 		else if (wcscmp(argList[argIndex], L"-s") == 0) {
 			// skip user world save directory
-			LOG_INFO(gExecutionLogfile, " skip user world save directory");
+			LOG_INFO(gExecutionLogfile, " skip user world save directory\n");
 			argIndex += 2;
 		}
 		else if (wcscmp(argList[argIndex], L"-l") == 0) {
 			// skip logging
-			LOG_INFO(gExecutionLogfile, " skip logging");
+			LOG_INFO(gExecutionLogfile, " skip logging\n");
 			argIndex += 2;
+		}
+		else if (*argList[argIndex] == '-') {
+			// unknown argument, so list out arguments
+			MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
+			// abort
+			return true;
 		}
 		// is it a script?
 		else {
 			// Load a script; if it works fine, don't pop up a dialog
-			LOG_INFO(gExecutionLogfile, " runImportOrScript");
+			LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
 			runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
 			argIndex++;
 		}
@@ -2812,6 +2824,7 @@ static int loadWorldList(HMENU menu)
     HANDLE hFind;
     WIN32_FIND_DATA ffd;
 
+	LOG_INFO(gExecutionLogfile, "   entered loadWorldList\n");
 	// first world is actually the block test world
 	gNumWorlds = 1;
 	memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
@@ -2822,35 +2835,41 @@ static int loadWorldList(HMENU menu)
     wcscpy_s(saveFilesPath,MAX_PATH,gWorldPathDefault);
 
     wchar_t msgString[1024];
-    if ( gDebug )
-    {
-        swprintf_s(msgString,1024,L"Found Minecraft saves directory successfully" );
-        MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
-    }
-
     wcscat_s(saveFilesPath,MAX_PATH,L"/*");
-    hFind=FindFirstFile(saveFilesPath,&ffd);
+	char outputString[1024];
+	char pConverted[1024];
+	int length = (int)wcslen(saveFilesPath) + 1;
+	WcharToChar(saveFilesPath, pConverted, length);
+	sprintf_s(outputString, 1024, "    saveFilesPath %s\n", pConverted);
+	LOG_INFO(gExecutionLogfile, outputString);
+	hFind = FindFirstFile(saveFilesPath, &ffd);
 
     // did we find the directory at all?
     if ( hFind == INVALID_HANDLE_VALUE )
     {
-        if ( gDebug )
-        {
-            swprintf_s(msgString,1024,L"Strange, saves search found nothing, %s", saveFilesPath );
-            MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
-        }
-        MessageBox( NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+		LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0\n");
+		MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
             _T("Informational"), MB_OK|MB_ICONINFORMATION);
         return 0;
     }
 
+	// Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
+	int count = 0;
     do
     {
-        if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
+		// Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
+		// cut searching short at 1000 files of any sort.
+		count++;
+		if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
         {
-            if ( gDebug )
+			length = (int)wcslen(ffd.cFileName) + 1;
+			WcharToChar(ffd.cFileName, pConverted, length);
+			sprintf_s(outputString, 1024, "    found potential world save directory %s\n", pConverted);
+			LOG_INFO(gExecutionLogfile, outputString);
+			
+			if (gDebug)
             {
-                swprintf_s(msgString,1024,L"Found world save directory %s", ffd.cFileName );
+                swprintf_s(msgString,1024,L"Found potential world save directory %s", ffd.cFileName );
                 MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
             }
 
@@ -2864,29 +2883,41 @@ static int loadWorldList(HMENU menu)
                 wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
                 wcscat_s(testAnvil, MAX_PATH, ffd.cFileName);
 
-                if ( gDebug )
+				length = (int)wcslen(testAnvil) + 1;
+				WcharToChar(testAnvil, pConverted, length);
+				sprintf_s(outputString, 1024, "      trying file %s\n", pConverted);
+				LOG_INFO(gExecutionLogfile, outputString);
+
+				if (gDebug)
                 {
                     swprintf_s(msgString,1024,L"Trying file %s", testAnvil );
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
-                if ( ( GetFileVersion(testAnvil,&version) != 0 ) || ( GetLevelName(testAnvil,levelName) != 0 ) )
+				LOG_INFO(gExecutionLogfile, "        checking version and level name\n");
+				if ((GetFileVersion(testAnvil, &version) != 0) || (GetLevelName(testAnvil, levelName, MAX_PATH) != 0))
                 {
                     // unreadable world, for some reason - couldn't read version and LevelName
                     continue;
                 }
 
-                if ( gDebug )
-                {
-					int versionId = 0;
-					char versionName[MAX_PATH];
-					versionName[0] = (char)0;
-					GetFileVersionId(testAnvil, &versionId);
-					GetFileVersionName(testAnvil, versionName);
-					GetLevelName(testAnvil, levelName);
+				int versionId = 0;
+				char versionName[MAX_PATH];
+				versionName[0] = (char)0;
+				LOG_INFO(gExecutionLogfile, "        try to get file version id\n" );
+				GetFileVersionId(testAnvil, &versionId);
+				LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
+				GetFileVersionName(testAnvil, versionName, MAX_PATH);
+				LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
+				GetLevelName(testAnvil, levelName, MAX_PATH);
 
+				sprintf_s(outputString, 1024, "      succeeded, which has version ID %d and version name %s, and folder level name %s\n", versionId, versionName, levelName);
+				LOG_INFO(gExecutionLogfile, outputString);
+
+				if (gDebug)
+				{
 					// 0 version ID means earlier than 1.9
-					swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and level %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
+					swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and version name %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
@@ -2903,7 +2934,8 @@ static int loadWorldList(HMENU menu)
                 // if version is pre-Anvil, show world but gray it out
                 if (version < 19133)
                 {
-                    oldVersionDetected = 1;
+					LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
+					oldVersionDetected = 1;
                     // gray it out
                     info.fMask |= MIIM_STATE;
                     info.fState = MFS_DISABLED;
@@ -2919,10 +2951,20 @@ static int loadWorldList(HMENU menu)
 				// was: setWorldPath(worlds[numWorlds]);
                 //PathAppend(worlds[numWorlds],ffd.cFileName);
                 gNumWorlds++;
-            }
+				sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
+				LOG_INFO(gExecutionLogfile, outputString);
+			}
         }
-    } while (FindNextFile(hFind,&ffd)!=0);
-    return oldVersionDetected;
+	} while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
+
+	if (count >= MAX_WORLDS)
+	{
+		LOG_INFO(gExecutionLogfile, "Warning: more than 1000 files detected in save directory!\n");
+		swprintf_s(msgString, 1024, L"Warning: more that 1000 files detected in %s. Not all worlds may have been read.", saveFilesPath);
+		MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+	}
+
+	return oldVersionDetected;
 }
 
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel )

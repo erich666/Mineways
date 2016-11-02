@@ -611,8 +611,9 @@ void nbtGetFileVersionId(bfFile bf, int *versionId)
 	*versionId = readDword(bf);
 }
 
-void nbtGetFileVersionName(bfFile bf, char *versionName)
+void nbtGetFileVersionName(bfFile bf, char *versionName, int stringLength)
 {
+	*versionName = '\0'; // initialize to empty string
 	int len;
 	//Data/version
 	bfseek(bf, 1, SEEK_CUR); //skip type
@@ -622,11 +623,19 @@ void nbtGetFileVersionName(bfFile bf, char *versionName)
 	if (nbtFindElement(bf, "Version") != 10) return;
 	if (nbtFindElement(bf, "Name") != 8) return;
 	len = readWord(bf);
-	bfread(bf, versionName, len);
+	if (len < stringLength) {
+		bfread(bf, versionName, len);
+	}
+	else {
+		// string too long; read some, discard the rest
+		bfread(bf, versionName, stringLength-1);	// save last position for string terminator
+		bfseek(bf, len - stringLength + 1, SEEK_CUR);
+		len = stringLength - 1;
+	}
 	versionName[len] = 0;
 }
 
-void nbtGetLevelName(bfFile bf, char *levelName)
+void nbtGetLevelName(bfFile bf, char *levelName, int stringLength)
 {
     *levelName = '\0'; // initialize to empty string
     int len;
@@ -638,8 +647,16 @@ void nbtGetLevelName(bfFile bf, char *levelName)
     // 8 means a string
     if (nbtFindElement(bf,"LevelName")!=8) return;
     len=readWord(bf);
-    bfread(bf,levelName,len);
-    levelName[len]=0;
+	if (len < stringLength) {
+		bfread(bf, levelName, len);
+	}
+	else {
+		// string too long; read some, discard the rest
+		bfread(bf, levelName, stringLength - 1);	// save last position for string terminator
+		bfseek(bf, len - stringLength + 1, SEEK_CUR);
+		len = stringLength - 1;
+	}
+	levelName[len] = 0;
 }
 
 //void nbtGetRandomSeed(bfFile bf,long long *seed)

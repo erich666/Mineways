@@ -3243,9 +3243,9 @@ int NeedToCheckUnknownBlock()
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 {
     bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcscat_s(filename,256,L"/level.dat");
+    wchar_t filename[300];
+    wcsncpy_s(filename,300,world,wcslen(world)+1);
+    wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
     if ( bf.gz == 0x0 ) return 1;
     nbtGetSpawn(bf,x,y,z);
@@ -3255,9 +3255,9 @@ int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
 int GetFileVersion(const wchar_t *world, int *version)
 {
 	bfFile bf;
-	wchar_t filename[256];
-	wcsncpy_s(filename, 256, world, 255);
-	wcscat_s(filename, 256, L"/level.dat");
+	wchar_t filename[300];
+	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+	wcscat_s(filename, 300, L"/level.dat");
 	bf = newNBT(filename);
 	if (bf.gz == 0x0) return 1;
 	nbtGetFileVersion(bf, version);
@@ -3267,45 +3267,45 @@ int GetFileVersion(const wchar_t *world, int *version)
 int GetFileVersionId(const wchar_t *world, int *versionId)
 {
 	bfFile bf;
-	wchar_t filename[256];
-	wcsncpy_s(filename, 256, world, 255);
-	wcscat_s(filename, 256, L"/level.dat");
+	wchar_t filename[300];
+	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+	wcscat_s(filename, 300, L"/level.dat");
 	bf = newNBT(filename);
 	if (bf.gz == 0x0) return 1;
 	nbtGetFileVersionId(bf, versionId);
 	nbtClose(bf);
 	return 0;
 }
-int GetFileVersionName(const wchar_t *world, char *versionName)
+int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength)
 {
 	bfFile bf;
-	wchar_t filename[256];
-	wcsncpy_s(filename, 256, world, 255);
-	wcscat_s(filename, 256, L"/level.dat");
+	wchar_t filename[300];
+	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+	wcscat_s(filename, 300, L"/level.dat");
 	bf = newNBT(filename);
 	if (bf.gz == 0x0) return 1;
-	nbtGetFileVersionName(bf, versionName);
+	nbtGetFileVersionName(bf, versionName, stringLength);
 	nbtClose(bf);
 	return 0;
 }
-int GetLevelName(const wchar_t *world, char *levelName)
+int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 {
     bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcscat_s(filename,256,L"/level.dat");
+    wchar_t filename[300];
+	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
     if ( bf.gz == 0x0 ) return 1;
-    nbtGetLevelName(bf,levelName);
+	nbtGetLevelName(bf, levelName, stringLength);
     nbtClose(bf);
     return 0;
 }
 //void GetRandomSeed(const wchar_t *world,long long *seed)
 //{
 //    bfFile bf;
-//    wchar_t filename[256];
-//    wcsncpy_s(filename,256,world,255);
-//    wcscat_s(filename,256,L"/level.dat");
+//    wchar_t filename[300];
+//    wcsncpy_s(filename,300,world,wcslen(world)+1);
+//    wcscat_s(filename,300,L"/level.dat");
 //    bf=newNBT(filename);
 //    nbtGetRandomSeed(bf,seed);
 //    gMapSeed = *seed;
@@ -3315,9 +3315,9 @@ int GetLevelName(const wchar_t *world, char *levelName)
 void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
 {
     bfFile bf;
-    wchar_t filename[256];
-    wcsncpy_s(filename,256,world,255);
-    wcscat_s(filename,256,L"/level.dat");
+    wchar_t filename[300];
+	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
     nbtGetPlayer(bf,px,py,pz);
     nbtClose(bf);
