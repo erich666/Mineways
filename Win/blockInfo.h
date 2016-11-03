@@ -94,7 +94,7 @@ typedef struct MaterialCost {
     // lame on my part: we really shouldn't be using wide characters in the dialog TODO
     wchar_t *wname;
     char *name;
-	wchar_t *currency;
+    wchar_t *currency;
     // minimum recommended wall thickness in mm, though usually you want to go 50% or more above this
     // Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
     // White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
@@ -335,7 +335,7 @@ typedef struct ExportFileData
     UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
     UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
     UINT chkBiome;
-	UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
+    UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
 
     UINT chkFillBubbles;
     UINT chkSealEntrances;
@@ -360,9 +360,9 @@ typedef struct ExportFileData
     UINT chkShowWelds;
 
     UINT chkMultipleObjects;
-	UINT chkIndividualBlocks;
-	UINT chkMaterialPerType;
-	UINT chkMaterialSubtypes;
+    UINT chkIndividualBlocks;
+    UINT chkMaterialPerType;
+    UINT chkMaterialSubtypes;
     UINT chkG3DMaterial;
 
     UINT flags;
@@ -496,7 +496,7 @@ typedef struct BlockDefinition {
     float alpha;
     int txrX;   // column and row, from upper left, of 16x16 tiles in terrainExt.png, for TOP view of block
     int txrY;
-	unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
+    unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
     unsigned int flags;
 } BlockDefinition;
 
@@ -595,7 +595,7 @@ enum block_types {
     BLOCK_JUKEBOX = 0x54,
     BLOCK_FENCE = 0x55,
     BLOCK_PUMPKIN = 0x56,
-	BLOCK_GLOWSTONE = 0x59,
+    BLOCK_GLOWSTONE = 0x59,
     BLOCK_JACK_O_LANTERN = 0x5b,
     BLOCK_CAKE = 0x5c,
     BLOCK_REDSTONE_REPEATER_OFF = 0x5d,
@@ -717,15 +717,15 @@ enum block_types {
     BLOCK_REPEATING_COMMAND_BLOCK = 0xD2,
     BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
     BLOCK_FROSTED_ICE = 0xD4,
-	BLOCK_MAGMA_BLOCK = 0xD5,
-	BLOCK_NETHER_WART_BLOCK = 0xD6,
-	BLOCK_NETHER_BRICK = 0xD7,
-	BLOCK_BONE_BLOCK = 0xD8,
-	BLOCK_STRUCTURE_VOID = 0xD9,
-	BLOCK_OBSERVER = 0xDA,
-	BLOCK_SHULKER_CHEST = 0xDB,
+    BLOCK_MAGMA_BLOCK = 0xD5,
+    BLOCK_NETHER_WART_BLOCK = 0xD6,
+    BLOCK_NETHER_BRICK = 0xD7,
+    BLOCK_BONE_BLOCK = 0xD8,
+    BLOCK_STRUCTURE_VOID = 0xD9,
+    BLOCK_OBSERVER = 0xDA,
+    BLOCK_SHULKER_CHEST = 0xDB,
 
-	BLOCK_FAKE = 0xFE,	// I hope we never get this far
+    BLOCK_FAKE = 0xFE,	// I hope we never get this far
 
     BLOCK_STRUCTURE_BLOCK = 0xFF,
 

@@ -49,9 +49,9 @@ MaterialCost gMtlCostTable[MTL_COST_TABLE_SIZE]={
     // old model, based on surface area: { L"Glazed Ceramics",    "glazed ceramics",    3.0f*MM_TO_METERS, 0.0f,               0.00f, 0.00f,    999.0f, 99999.0f,  1.00f,        0.18f,     30.0f,22.0f,17.0f },
     // I haven't figured out Sculpteo's cost model. Prices tend to be 20% higher, so that's what's here, but I think it also has to do with dimensions, which affects print time.
     // With full-sized rectangular blocks, the costPerCCM is more like 1.05
-	{ L"Sculpteo Multicolor", "Sculpteo multicolor", L"$", 2.0f*MM_TO_METERS, 0.0f*MM_TO_METERS, 3.00f, 1.20f*0.75f, 999.0f, 99999.0f, 3.00f,     0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
-	// typical home printer, 1.75 mm PLA: https://hwg.fictiv.com/fabricate/recommended-wall-thickness-for-3d-printing and http://www.fabbaloo.com/blog/2015/9/27/is-it-filament-weight-or-length
-	{ L"Custom Printer", "custom printer",       L"$", 1.5f*MM_TO_METERS,  0.0f*MM_TO_METERS,  0.00f, 0.03f,   999.0f, 99999.0f,  0.00f,        0.0f,      20.0f,20.0f,20.0f },	// Ultimaker, PLA
+    { L"Sculpteo Multicolor", "Sculpteo multicolor", L"$", 2.0f*MM_TO_METERS, 0.0f*MM_TO_METERS, 3.00f, 1.20f*0.75f, 999.0f, 99999.0f, 3.00f,     0.0f,      38.0f,25.0f,20.0f },	// Sculpteo sandstone
+    // typical home printer, 1.75 mm PLA: https://hwg.fictiv.com/fabricate/recommended-wall-thickness-for-3d-printing and http://www.fabbaloo.com/blog/2015/9/27/is-it-filament-weight-or-length
+    { L"Custom Printer", "custom printer",       L"$", 1.5f*MM_TO_METERS,  0.0f*MM_TO_METERS,  0.00f, 0.03f,   999.0f, 99999.0f,  0.00f,        0.0f,      20.0f,20.0f,20.0f },	// Ultimaker, PLA
 };
 
 UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
@@ -285,12 +285,12 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 210 */ "Repeating Command Block",0x8577B2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,24, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 211 */ "Chain Command Block",    0x8AA59A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,25, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 212 */ "Frosted Ice",            0x81AFFF, 0.613f, 0xff7711, 0xff7711, 0.12345f,   6,25, 0x0F, BLF_WHOLE|BLF_TRANSPARENT},
-	{ /* 213 */ "Magma Block",            0x9D4E1D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
-	{ /* 214 */ "Nether Wart Block",      0x770C0D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
+    { /* 213 */ "Magma Block",            0x9D4E1D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
+    { /* 214 */ "Nether Wart Block",      0x770C0D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 215 */ "Red Nether Brick",       0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 216 */ "Bone Block",             0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR}, // top location; side is previous tile
-	{ /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x0F, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY},	// uses red wool
-	{ /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 6, 0x00, BLF_WHOLE},	// TODO - for now use the dropper
+    { /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x0F, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY},	// uses red wool
+    { /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 6, 0x00, BLF_WHOLE},	// TODO - for now use the dropper
     { /* 219 */ "White Shulker Box",      0xDFDFDF, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
     { /* 220 */ "Orange Shulker Box",     0xDB7E40, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
     { /* 221 */ "Magenta Shulker Box",    0xB452BD, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool

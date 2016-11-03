@@ -75,29 +75,29 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // scripts can override the various blocks with other blocks while exporting
 typedef struct ChangeBlockCommand {
-	// from range
-	bool hasFrom;
-	unsigned char simpleFromTypeBegin;
-	unsigned char simpleFromTypeEnd;
-	unsigned short simpleFromDataBits;
-	bool useFromArray;
-	// if useFromArray is true, fromDataBits contains 256 entry array of bits of blocks to change
-	unsigned short *fromDataBitsArray;
+    // from range
+    bool hasFrom;
+    unsigned char simpleFromTypeBegin;
+    unsigned char simpleFromTypeEnd;
+    unsigned short simpleFromDataBits;
+    bool useFromArray;
+    // if useFromArray is true, fromDataBits contains 256 entry array of bits of blocks to change
+    unsigned short *fromDataBitsArray;
 
-	// to location - there is always only one
-	bool hasInto;
-	unsigned char intoType;
-	unsigned char intoData;
+    // to location - there is always only one
+    bool hasInto;
+    unsigned char intoType;
+    unsigned char intoData;
 
-	// location range
-	bool hasLocation;	// if not set, whole export volume is used
-	int minxVal;
-	int minyVal;
-	int minzVal;
-	int maxxVal;
-	int maxyVal;
-	int maxzVal;
-	struct ChangeBlockCommand *next;
+    // location range
+    bool hasLocation;	// if not set, whole export volume is used
+    int minxVal;
+    int minyVal;
+    int minzVal;
+    int maxxVal;
+    int maxyVal;
+    int maxzVal;
+    struct ChangeBlockCommand *next;
 } ChangeBlockCommand;
 
 
@@ -105,7 +105,7 @@ void ChangeCache( int size );
 void ClearCache();
 
 int SaveVolume(wchar_t *objFileName, int fileType, Options *options, WorldGuide *gWorldGuide, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
-	ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand *pCBC);
+    ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand *pCBC);
 int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy);
 
 void WcharToChar(const wchar_t *inWString, char *outString, int length);
