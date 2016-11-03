@@ -57,20 +57,20 @@ typedef void (*ProgressCallback)(float progress);
 #define WORLD_SCHEMATIC_TYPE	3
 
 typedef struct Schematic {
-	unsigned char *blocks;
-	unsigned char *data;
-	int width;	// X
-	int height; // Y
-	int length;	// Z
-	int numBlocks;	// width * height * length
-	bool repeat;	// should the object be repeated in the map?
+    unsigned char *blocks;
+    unsigned char *data;
+    int width;	// X
+    int height; // Y
+    int length;	// Z
+    int numBlocks;	// width * height * length
+    bool repeat;	// should the object be repeated in the map?
 } Schematic;
 
 typedef struct WorldGuide {
-	unsigned int type;
-	wchar_t world[260];		// MAX_PATH
-	wchar_t directory[260];
-	Schematic sch;
+    unsigned int type;
+    wchar_t world[260];		// MAX_PATH
+    wchar_t directory[260];
+    Schematic sch;
 } WorldGuide;
 
 
@@ -89,7 +89,7 @@ int GetFileVersion(const wchar_t *world,int *version);
 int GetFileVersionId(const wchar_t *world, int *versionId);
 int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength);
 int GetLevelName(const wchar_t *world, char *levelName, int stringLength);
-void GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
+int GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
 int GetSchematicWord(const wchar_t *schematic, char *field, int *word);
 int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
 // palette should be in RGBA format, num colors in the palette

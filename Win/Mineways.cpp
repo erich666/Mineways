@@ -47,9 +47,9 @@ static bool gAlwaysFail = false;
 #define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 
 #define MY_ASSERT(val) if ((val) == 0) { \
-	wchar_t assertbuf[1024]; \
-	wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
-	MessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
+    wchar_t assertbuf[1024]; \
+    wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
+    MessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
 } \
 
 // zoomed all the way in. We could allow this to be larger...
@@ -78,12 +78,12 @@ static bool gAlwaysFail = false;
 
 #define LOG_INFO( FH, OUTPUTSTRING ) \
 if (FH) { \
-	DWORD br; \
+    DWORD br; \
     if ( PortaWrite(FH, OUTPUTSTRING, strlen(OUTPUTSTRING))) { \
-		MessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
-		PortaClose(FH); \
-		(FH) = 0x0; \
-	} \
+        MessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
+        PortaClose(FH); \
+        (FH) = 0x0; \
+    } \
 }
 
 
@@ -223,45 +223,45 @@ static wchar_t *gCustomCurrency = NULL;
 
 // values passed in for the import and script command system, not to be touched by the system.
 typedef struct WindowSet {
-	HWND hWnd;
-	HWND hwndSlider;
-	HWND hwndBottomSlider;
-	HWND hwndLabel;
-	HWND hwndBottomLabel;
-	HWND hwndInfoLabel;
-	HWND hwndInfoBottomLabel;
-	HWND hwndStatus;
+    HWND hWnd;
+    HWND hwndSlider;
+    HWND hwndBottomSlider;
+    HWND hwndLabel;
+    HWND hwndBottomLabel;
+    HWND hwndInfoLabel;
+    HWND hwndInfoBottomLabel;
+    HWND hwndStatus;
 } WindowSet;
 
 typedef struct ImportedSet {
-	WindowSet ws;
-	int errorsFound;
-	bool closeProgram;
-	bool readingModel;
-	int exportTypeFound;
-	int minxVal;
-	int minyVal;
-	int minzVal;
-	int maxxVal;
-	int maxyVal;
-	int maxzVal;
-	ExportFileData *pEFD;		// where to directly save data, no deferral
-	ExportFileData *pSaveEFD;	// deferred save, for model load
-	char world[MAX_PATH];
-	char terrainFile[MAX_PATH];
-	char colorScheme[MAX_PATH];
-	wchar_t *importFile;
-	int lineNumber;
-	size_t errorMessagesStringSize;
-	wchar_t *errorMessages;
-	bool processData;
-	bool nether;
-	bool theEnd;
-	bool logging;
-	char logFileName[MAX_PATH];
-	HANDLE logfile;
-	ChangeBlockCommand *pCBChead;
-	ChangeBlockCommand *pCBClast;
+    WindowSet ws;
+    int errorsFound;
+    bool closeProgram;
+    bool readingModel;
+    int exportTypeFound;
+    int minxVal;
+    int minyVal;
+    int minzVal;
+    int maxxVal;
+    int maxyVal;
+    int maxzVal;
+    ExportFileData *pEFD;		// where to directly save data, no deferral
+    ExportFileData *pSaveEFD;	// deferred save, for model load
+    char world[MAX_PATH];
+    char terrainFile[MAX_PATH];
+    char colorScheme[MAX_PATH];
+    wchar_t *importFile;
+    int lineNumber;
+    size_t errorMessagesStringSize;
+    wchar_t *errorMessages;
+    bool processData;
+    bool nether;
+    bool theEnd;
+    bool logging;
+    char logFileName[MAX_PATH];
+    HANDLE logfile;
+    ChangeBlockCommand *pCBChead;
+    ChangeBlockCommand *pCBClast;
 } ImportedSet;
 
 static WindowSet gWS;
@@ -279,8 +279,8 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-	{_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
-	{_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
+    {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
 
     {_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<8
@@ -395,80 +395,80 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     int       nCmdShow)
 {
 #ifdef TEST_FOR_MEMORY_LEAKS
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 
-	// get version info
-	gMajorVersion = MINEWAYS_MAJOR_VERSION;
-	gMinorVersion = MINEWAYS_MINOR_VERSION;
+    // get version info
+    gMajorVersion = MINEWAYS_MAJOR_VERSION;
+    gMinorVersion = MINEWAYS_MINOR_VERSION;
 
-	GetCurrentDirectory(MAX_PATH, gCurrentDirectory);
-	// which sort of separator? If "\" found, use that one, else "/" assumed.
-	if (wcschr(gCurrentDirectory, (wchar_t)'\\') != NULL) {
-		gPreferredSeparator = (wchar_t)'\\';
-		gLesserSeparator = (wchar_t)'/';
-	}
-	else {
-		// Mac
-		gPreferredSeparator = (wchar_t)'/';
-		gLesserSeparator = (wchar_t)'\\';
-	}
-	gPreferredSeparatorString[0] = gPreferredSeparator;
-	gPreferredSeparatorString[1] = (wchar_t)0;
+    GetCurrentDirectory(MAX_PATH, gCurrentDirectory);
+    // which sort of separator? If "\" found, use that one, else "/" assumed.
+    if (wcschr(gCurrentDirectory, (wchar_t)'\\') != NULL) {
+        gPreferredSeparator = (wchar_t)'\\';
+        gLesserSeparator = (wchar_t)'/';
+    }
+    else {
+        // Mac
+        gPreferredSeparator = (wchar_t)'/';
+        gLesserSeparator = (wchar_t)'\\';
+    }
+    gPreferredSeparatorString[0] = gPreferredSeparator;
+    gPreferredSeparatorString[1] = (wchar_t)0;
 
-	// get argv, argc from command line.
-	gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
-	if (gArgList == NULL)
-	{
-		MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
-	}
+    // get argv, argc from command line.
+    gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
+    if (gArgList == NULL)
+    {
+        MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
+    }
 
-	//for (int i = 0; i < gArgCount; i++)
-	//{
-	//	MessageBox(NULL, gArgList[i], L"Arglist contents", MB_OK);
-	//}
+    //for (int i = 0; i < gArgCount; i++)
+    //{
+    //	MessageBox(NULL, gArgList[i], L"Arglist contents", MB_OK);
+    //}
 
-	// to force logging, no command line options needed, uncomment this line
-	//gExecutionLogfile = PortaCreate(L"mineways_exec.log");
+    // to force logging, no command line options needed, uncomment this line
+    //gExecutionLogfile = PortaCreate(L"mineways_exec.log");
 
-	// start logging system for application itself, to track down startup problems.
-	if (!startExecutionLogFile(gArgList, gArgCount)) {
-		// bad parse
-		exit(EXIT_FAILURE);
-	}
+    // start logging system for application itself, to track down startup problems.
+    if (!startExecutionLogFile(gArgList, gArgCount)) {
+        // bad parse
+        exit(EXIT_FAILURE);
+    }
 
-	char outputString[1024];
-	if (gExecutionLogfile) {
-		sprintf_s(outputString, 1024, "Preferred separator: %c\n", (char)gPreferredSeparator);
-		LOG_INFO(gExecutionLogfile, outputString);
-	}
+    char outputString[1024];
+    if (gExecutionLogfile) {
+        sprintf_s(outputString, 1024, "Preferred separator: %c\n", (char)gPreferredSeparator);
+        LOG_INFO(gExecutionLogfile, outputString);
+    }
 
     // assume terrainExt.png is in .exe's directory to start
     wcscpy_s(gSelectTerrainDir, MAX_PATH, gCurrentDirectory);
     wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, gCurrentDirectory);
     wcscat_s(gSelectTerrainPathAndName, MAX_PATH - wcslen(gSelectTerrainPathAndName), L"\\terrainExt.png");
 
-	// setting this to empty means the last path used (from last session, hopefully) will be used again
-	wcscpy_s(gImportPath, MAX_PATH, L"");
+    // setting this to empty means the last path used (from last session, hopefully) will be used again
+    wcscpy_s(gImportPath, MAX_PATH, L"");
 
-	gWorldGuide.type = WORLD_UNLOADED_TYPE;
-	gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
+    gWorldGuide.type = WORLD_UNLOADED_TYPE;
+    gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
 
     gImportFile[0] = (wchar_t)0;
-	gSchemeSelected[0] = (wchar_t)0;
+    gSchemeSelected[0] = (wchar_t)0;
 
-	// start it with something, anything...
-	gpEFD = &gExportViewData;
+    // start it with something, anything...
+    gpEFD = &gExportViewData;
 
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-	LOG_INFO(gExecutionLogfile, "execute initializeExportDialogData\n");
-	initializeExportDialogData();
+    LOG_INFO(gExecutionLogfile, "execute initializeExportDialogData\n");
+    initializeExportDialogData();
     // Initialize Skfb data
     memset(&gSkfbPData, 0, sizeof(PublishSkfbData));
 
-	memset(&gWS, 0, sizeof(gWS));
+    memset(&gWS, 0, sizeof(gWS));
 
     MSG msg;
     HACCEL hAccelTable;
@@ -476,27 +476,27 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     // Initialize global strings
     LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadString(hInstance, IDC_MINEWAYS, szWindowClass, MAX_LOADSTRING);
-	LOG_INFO(gExecutionLogfile, "execute MyRegisterClass\n");
-	MyRegisterClass(hInstance);
+    LOG_INFO(gExecutionLogfile, "execute MyRegisterClass\n");
+    MyRegisterClass(hInstance);
 
     // Perform application initialization:
-	LOG_INFO(gExecutionLogfile, "execute InitInstance\n");
-	if (!InitInstance(hInstance, nCmdShow))
+    LOG_INFO(gExecutionLogfile, "execute InitInstance\n");
+    if (!InitInstance(hInstance, nCmdShow))
     {
         return FALSE;
     }
 
-	LOG_INFO(gExecutionLogfile, "execute LoadAccelerators\n");
-	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
+    LOG_INFO(gExecutionLogfile, "execute LoadAccelerators\n");
+    hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
 
     // One-time initialization for mapping and object export
     // set the pcolors properly once. They'll change from color schemes.
-	LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
-	SetMapPremultipliedColors();
+    LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
+    SetMapPremultipliedColors();
 
     // Set biome colors - TODO: add texture support, etc.
-	LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
-	PrecomputeBiomeColors();
+    LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
+    PrecomputeBiomeColors();
 
     gArrowCursor = LoadCursor(NULL, IDC_ARROW);
     gNsCursor = LoadCursor(NULL, IDC_SIZENS);
@@ -505,53 +505,53 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
 
     // Main message loop:
-	LOG_INFO(gExecutionLogfile, "execute GetMessage while loop\n");
-	// see http://stackoverflow.com/questions/32768924/wm-quit-only-posts-for-thread-and-not-the-window
-	BOOL bRet;
-	while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
+    LOG_INFO(gExecutionLogfile, "execute GetMessage while loop\n");
+    // see http://stackoverflow.com/questions/32768924/wm-quit-only-posts-for-thread-and-not-the-window
+    BOOL bRet;
+    while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
     {
-		if (bRet == -1)
-		{
-			LOG_INFO(gExecutionLogfile, "  got error!\n");
-			// handle the error and possibly exit
-			DWORD dw = GetLastError();
+        if (bRet == -1)
+        {
+            LOG_INFO(gExecutionLogfile, "  got error!\n");
+            // handle the error and possibly exit
+            DWORD dw = GetLastError();
 
-			//LOG_INFO(gExecutionLogfile, "    about to format message\n");
-			//LPVOID lpMsgBuf;
-			//FormatMessage(
-			//	FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			//	FORMAT_MESSAGE_FROM_SYSTEM |
-			//	FORMAT_MESSAGE_IGNORE_INSERTS,
-			//	NULL,
-			//	dw,
-			//	MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			//	(LPTSTR)&lpMsgBuf,
-			//	0, NULL);
+            //LOG_INFO(gExecutionLogfile, "    about to format message\n");
+            //LPVOID lpMsgBuf;
+            //FormatMessage(
+            //	FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            //	FORMAT_MESSAGE_FROM_SYSTEM |
+            //	FORMAT_MESSAGE_IGNORE_INSERTS,
+            //	NULL,
+            //	dw,
+            //	MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            //	(LPTSTR)&lpMsgBuf,
+            //	0, NULL);
 
-			// Display the error message and exit the process.
-			// Look up code here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681381(v=vs.85).aspx
-			if (gExecutionLogfile) {
-				char outputString[1024];
-				sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
-				LOG_INFO(gExecutionLogfile, outputString);
-			}
-			wchar_t wString[1024];
-			swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
-			MessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-		}
-		else
-		{
-			LOG_INFO(gExecutionLogfile, "  got a message\n");
-			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-			{
-				LOG_INFO(gExecutionLogfile, "  translate accelerator passed\n");
-				TranslateMessage(&msg);
-				LOG_INFO(gExecutionLogfile, "  message translated\n");
-				DispatchMessage(&msg);
-				LOG_INFO(gExecutionLogfile, "  message dispatched\n");
-			}
-		}
-	}
+            // Display the error message and exit the process.
+            // Look up code here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681381(v=vs.85).aspx
+            if (gExecutionLogfile) {
+                char outputString[1024];
+                sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+                LOG_INFO(gExecutionLogfile, outputString);
+            }
+            wchar_t wString[1024];
+            swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+            MessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        }
+        else
+        {
+            LOG_INFO(gExecutionLogfile, "  got a message\n");
+            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+            {
+                LOG_INFO(gExecutionLogfile, "  translate accelerator passed\n");
+                TranslateMessage(&msg);
+                LOG_INFO(gExecutionLogfile, "  message translated\n");
+                DispatchMessage(&msg);
+                LOG_INFO(gExecutionLogfile, "  message dispatched\n");
+            }
+        }
+    }
 
     return (int) msg.wParam;
 }
@@ -608,11 +608,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     hInst = hInstance; // Store instance handle in our global variable
 
-	int x = 480;
-	int y = 582;
-	if (!modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount)) {
-		exit(EXIT_FAILURE);
-	}
+    int x = 480;
+    int y = 582;
+    if (!modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount)) {
+        exit(EXIT_FAILURE);
+    }
 
     hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, x, y, NULL, NULL, hInstance, NULL);
@@ -676,21 +676,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     DWORD pos;
     wchar_t text[4];
     RECT rect;
-	TCHAR path[MAX_PATH];
-	TCHAR pathAndFile[MAX_PATH];
-	OPENFILENAME ofn;
+    TCHAR path[MAX_PATH];
+    TCHAR pathAndFile[MAX_PATH];
+    OPENFILENAME ofn;
     int mx,my,mz,type,dataVal,biome;
     static LPARAM gHoldlParam;
     int on, minx, miny, minz, maxx, maxy, maxz;
     BOOL saveOK;
-	wchar_t msgString[1024];
+    wchar_t msgString[1024];
 
     // Show message
-	char outputString[1024];
-	if (gExecutionLogfile) {
-		sprintf_s(outputString, 1024, "process message %u\n", message);
-		LOG_INFO(gExecutionLogfile, outputString);
-	}
+    char outputString[1024];
+    if (gExecutionLogfile) {
+        sprintf_s(outputString, 1024, "process message %u\n", message);
+        LOG_INFO(gExecutionLogfile, outputString);
+    }
 //#ifdef _DEBUG
 //    wchar_t buf[100];
 //    swprintf( buf, 100, L"Message: %u\n", message);
@@ -703,36 +703,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         validateItems(GetMenu(hWnd));
 
-		// get new directory for where world saves are located, if any: -s dir
-		if (getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount)) {
-			// path found on command line, try it out.
-			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
-		}
-		else {
-			// load default list of worlds
-			LOG_INFO(gExecutionLogfile, " setWorldPath\n");
-			int retCode = setWorldPath(gWorldPathDefault);
+        // get new directory for where world saves are located, if any: -s dir
+        if (getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount)) {
+            // path found on command line, try it out.
+            LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
+        }
+        else {
+            // load default list of worlds
+            LOG_INFO(gExecutionLogfile, " setWorldPath\n");
+            int retCode = setWorldPath(gWorldPathDefault);
 
-			if (retCode == 0)
-			{
-				LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
-				// this message will get popped up by loadWorldList
-				//MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-				//	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
-			}
-		}
+            if (retCode == 0)
+            {
+                LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
+                // this message will get popped up by loadWorldList
+                //MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+                //	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+            }
+        }
 
-		LOG_INFO(gExecutionLogfile, " loadWorldList\n");
+        LOG_INFO(gExecutionLogfile, " loadWorldList\n");
         if ( loadWorldList(GetMenu(hWnd)) )
         {
-			LOG_INFO(gExecutionLogfile, "   world not converted\n");
-			MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
-				_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+            LOG_INFO(gExecutionLogfile, "   world not converted\n");
+            MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
+                _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         }
-		wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
+        wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
 
-		LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
-		populateColorSchemes(GetMenu(hWnd));
+        LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
+        populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
 
         ctlBrush=CreateSolidBrush(GetSysColor(COLOR_WINDOW));
@@ -814,14 +814,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SendMessage(progressBar,PBM_SETPOS,0,0);
         }
 
-		gWS.hWnd = hWnd;
-		gWS.hwndBottomSlider = hwndBottomSlider;
-		gWS.hwndBottomLabel = hwndBottomLabel;
-		gWS.hwndInfoBottomLabel = hwndInfoBottomLabel;
-		gWS.hwndInfoLabel = hwndInfoLabel;
-		gWS.hwndStatus = hwndStatus;
-		gWS.hwndSlider = hwndSlider;
-		gWS.hwndLabel = hwndLabel;
+        gWS.hWnd = hWnd;
+        gWS.hwndBottomSlider = hwndBottomSlider;
+        gWS.hwndBottomLabel = hwndBottomLabel;
+        gWS.hwndInfoBottomLabel = hwndInfoBottomLabel;
+        gWS.hwndInfoLabel = hwndInfoLabel;
+        gWS.hwndStatus = hwndStatus;
+        gWS.hwndSlider = hwndSlider;
+        gWS.hwndLabel = hwndLabel;
 
         rect.top+=MAIN_WINDOW_TOP;	// add in two sliders, 30 each
         bitWidth=rect.right-rect.left;
@@ -833,16 +833,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bmi.bmiHeader.biPlanes=1;
         bmi.bmiHeader.biBitCount=32;
         bmi.bmiHeader.biCompression=BI_RGB;
-		LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
-		bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
+        LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
+        bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
 
-		// set standard custom color at startup.
-		LOG_INFO(gExecutionLogfile, " useCustomColor\n");
-		useCustomColor(IDM_CUSTOMCOLOR, hWnd);
+        // set standard custom color at startup.
+        LOG_INFO(gExecutionLogfile, " useCustomColor\n");
+        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
 
-		// finally, load any scripts on the command line.
-		LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
-		processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
+        // finally, load any scripts on the command line.
+        LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
+        processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
         break;
     case WM_LBUTTONDOWN:
         // if control key is held down, consider left-click to be a right-click,
@@ -872,7 +872,7 @@ RButtonDown:
 
             // get mouse position in world space
             (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-				bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam=lParam;
 
             gStartHiX=mx;
@@ -882,7 +882,7 @@ RButtonDown:
             // these track whether a selection height volume has blocks in it,
             // low, medium, high, and minimum low-height found
             gHitsFound[0] = gHitsFound[1] = gHitsFound[2] = 0;
-			// no longer used - now we use a direct call for this very purpose
+            // no longer used - now we use a direct call for this very purpose
             gHitsFound[3] = MAP_MAX_HEIGHT+1;
 
             // now to check the corners: is this location near any of them?
@@ -979,7 +979,7 @@ RButtonDown:
             SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
             enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             validateItems(GetMenu(hWnd));
-			drawInvalidateUpdate(hWnd);
+            drawInvalidateUpdate(hWnd);
         }
         break;
     case WM_MOUSEWHEEL:
@@ -989,7 +989,7 @@ RButtonDown:
             // ratchet zoom up by 2x when zoom of 8 or higher is reached, so it zooms faster
             gCurScale+=((double)zDelta/WHEEL_DELTA)*(pow(gCurScale,1.2)/gCurScale);
             gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
-			drawInvalidateUpdate(hWnd);
+            drawInvalidateUpdate(hWnd);
         }
         break;
     case WM_LBUTTONUP:
@@ -1012,7 +1012,7 @@ RButtonDown:
         gLockMouseX = gLockMouseZ = 0;
         int mx,mz;
         gBlockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         gHoldlParam=lParam;
         if ( my >= 0 && my <= MAP_MAX_HEIGHT )
         {
@@ -1032,7 +1032,7 @@ RButtonDown:
             updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
 
             validateItems(GetMenu(hWnd));
-			drawInvalidateUpdate(hWnd);
+            drawInvalidateUpdate(hWnd);
         }
         break;
     case WM_RBUTTONUP:
@@ -1050,35 +1050,35 @@ RButtonUp:
         {
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
-			assert(on);
-			int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);
-			if (gHitsFound[0] && !gHitsFound[1])
+            assert(on);
+            int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);
+            if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
-				if (minHeightFound < gTargetDepth)	// was gHitsFound[3]
+                if (minHeightFound < gTargetDepth)	// was gHitsFound[3]
                 {
                     // send warning, set to min height found, then redo!
                     if ( gFullLow )
                     {
                         gFullLow = 0;
                         swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
-							gTargetDepth, minHeightFound);
+                            gTargetDepth, minHeightFound);
                     }
                     else
                     {
                         swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
-							gTargetDepth, minHeightFound);
+                            gTargetDepth, minHeightFound);
                     }
                     MessageBox( NULL, msgString,
                         _T("Informational"), MB_OK|MB_ICONINFORMATION);
                     //gTargetDepth = gHitsFound[3]; - no longer used.
-					gTargetDepth = minHeightFound;
+                    gTargetDepth = minHeightFound;
 
                     setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false );
                     // update target depth
                     SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-					drawInvalidateUpdate(hWnd);
+                    drawInvalidateUpdate(hWnd);
                 }
                 else
                 {
@@ -1122,10 +1122,10 @@ RButtonUp:
                             gTargetDepth, minHeightFound );
                     }
                 }
-				// System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
-				// We force it here, as it's OK if it gets ignored, but we want people to see it.
+                // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
+                // We force it here, as it's OK if it gets ignored, but we want people to see it.
                 retval = MessageBox( NULL, msgString,
-					_T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                    _T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                 if ( retval == IDYES )
                 {
                     gTargetDepth = minHeightFound;
@@ -1134,7 +1134,7 @@ RButtonUp:
                     // update target depth
                     SetHighlightState(gHighlightOn,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
                     enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-					drawInvalidateUpdate(hWnd);
+                    drawInvalidateUpdate(hWnd);
                 }
                 else if ( retval == IDCANCEL )
                 {
@@ -1161,7 +1161,7 @@ RButtonUp:
                 gCurX-=(mouseX-oldX)/gCurScale;
                 oldX=mouseX;
                 oldY=mouseY;
-				drawInvalidateUpdate(hWnd);
+                drawInvalidateUpdate(hWnd);
             }
             // for given mouse position and world center, determine
             // mx, mz, the world coordinates that the mouse is over,
@@ -1171,7 +1171,7 @@ RButtonUp:
             lParam &= 0x7fff7fff;
 
             gBlockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-				bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam=lParam;
             // is right mouse button down and we're dragging out a selection box?
             if (hdragging && gLoaded)
@@ -1196,7 +1196,7 @@ RButtonUp:
 //#endif
                 SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
                 enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-				drawInvalidateUpdate(hWnd);
+                drawInvalidateUpdate(hWnd);
             }
             updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
         }
@@ -1350,21 +1350,21 @@ RButtonUp:
                 changed=TRUE;
                 break;
             case VK_ESCAPE:
-				// deselect - remove selection
+                // deselect - remove selection
                 gHighlightOn=FALSE;
                 SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
                 changed=TRUE;
                 break;
-			case VK_SPACE:
-				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-				if (on) {
-					bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
-					gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque, maxy);
-					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-					REDRAW_ALL;
-				}
-				break;
-			default:
+            case VK_SPACE:
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                if (on) {
+                    bool useOnlyOpaque= !(GetKeyState(VK_SHIFT) < 0);
+                    gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque, maxy);
+                    setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+                    REDRAW_ALL;
+                }
+                break;
+            default:
                 // unknown key, don't move
                 moving=0;
                 break;
@@ -1426,10 +1426,10 @@ RButtonUp:
         SetHighlightState(on,minx,gTargetDepth,minz,maxx,gCurDepth,maxz);
         enableBottomControl( on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
         gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
         SetFocus(hWnd);
-		drawInvalidateUpdate(hWnd);
+        drawInvalidateUpdate(hWnd);
         break;
     case WM_CTLCOLORSTATIC: //color the label and the slider background
         {
@@ -1443,17 +1443,17 @@ RButtonUp:
         wmId    = LOWORD(wParam);
         // set but not used: wmEvent = HIWORD(wParam);
         // Parse the menu selections:
-		if (wmId >= IDM_CUSTOMCOLOR && wmId < IDM_CUSTOMCOLOR + 1000)
-		{
-			useCustomColor(wmId, hWnd);
-		}
+        if (wmId >= IDM_CUSTOMCOLOR && wmId < IDM_CUSTOMCOLOR + 1000)
+        {
+            useCustomColor(wmId, hWnd);
+        }
 
         if (wmId>IDM_WORLD && wmId<IDM_WORLD+999)
         {
-			// Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
-			
-			int loadErr;
-			//convert path to utf8
+            // Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
+            
+            int loadErr;
+            //convert path to utf8
             //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
             gSameWorld = (wcscmp(gWorldGuide.world,gWorlds[wmId-IDM_WORLD])==0);
             wcscpy_s(gWorldGuide.world,MAX_PATH,gWorlds[wmId-IDM_WORLD]);
@@ -1463,44 +1463,44 @@ RButtonUp:
             {
                 gotoSurface( hWnd, hwndSlider, hwndLabel);
             }
-			gWorldGuide.type = WORLD_LEVEL_TYPE;
+            gWorldGuide.type = WORLD_LEVEL_TYPE;
             loadErr = loadWorld(hWnd);
             if ( loadErr )
             {
                 // world not loaded properly
-				if (loadErr == 2)
+                if (loadErr == 2)
                 {
                     MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
-						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 }
                 else
                 {
                     MessageBox( NULL, _T("Error: cannot read world."),
-						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 }
 
                 return 0;
             }
-			setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+            setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
         }
         switch (wmId)
         {
         case IDM_ABOUT:
             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             break;
-		case ID_SELECT_ALL:
-			if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
-				gTargetDepth = 0;
-				gCurDepth = gWorldGuide.sch.height - 1;
+        case ID_SELECT_ALL:
+            if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+                gTargetDepth = 0;
+                gCurDepth = gWorldGuide.sch.height - 1;
 
-				setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-				// update target depth
-				gHighlightOn = TRUE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1);
-				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
-				drawInvalidateUpdate(hWnd);
-			}
-			break;
+                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+                // update target depth
+                gHighlightOn = TRUE;
+                SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1);
+                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                drawInvalidateUpdate(hWnd);
+            }
+            break;
         case IDM_COLOR:
             {
                 doColorSchemes(hInst,hWnd);
@@ -1508,26 +1508,26 @@ RButtonUp:
                 // always go back to the standard color scheme after editing, as editing
                 // could have removed the custom scheme being modified.
                 wchar_t *schemeSelected = getSelectedColorScheme();
-				int item = findColorScheme(schemeSelected);
-				if (item > 0)
-				{
-					// use item selected in color scheme's create/delete/edit dialog, if found
-					useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
-				}
-				else {
-					// nothing selected in color scheme edit system, so set previously-used scheme, if available
-					item = findColorScheme(gSchemeSelected);
-					if (item > 0)
-					{
-						//
-						useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
-					}
-					else
-					{
-						// no user-defined scheme found, must be Standard
-						useCustomColor(IDM_CUSTOMCOLOR, hWnd);
-					}
-				}
+                int item = findColorScheme(schemeSelected);
+                if (item > 0)
+                {
+                    // use item selected in color scheme's create/delete/edit dialog, if found
+                    useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
+                }
+                else {
+                    // nothing selected in color scheme edit system, so set previously-used scheme, if available
+                    item = findColorScheme(gSchemeSelected);
+                    if (item > 0)
+                    {
+                        //
+                        useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
+                    }
+                    else
+                    {
+                        // no user-defined scheme found, must be Standard
+                        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
+                    }
+                }
             }
             break;
         case IDM_CLOSE:
@@ -1539,86 +1539,86 @@ RButtonUp:
             gSameWorld = FALSE;
             sprintf_s(gSkfbPData.skfbName, "TestWorld");
             gotoSurface( hWnd, hwndSlider, hwndLabel);
-			gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
+            gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
             loadWorld(hWnd);
-			setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
-			break;
+            setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+            break;
         case IDM_WORLD:
         case IDM_OPEN:
             ZeroMemory(&ofn, sizeof(ofn));
             ofn.lStructSize = sizeof(ofn);
             ofn.hwndOwner = hWnd;
-			ofn.lpstrFile = pathAndFile;
-			ofn.lpstrFile[0] = (wchar_t)0;
-			ofn.nMaxFile = sizeof(pathAndFile);
-			ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
-			//ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
-			ofn.nFilterIndex = gOpenFilterIndex;
+            ofn.lpstrFile = pathAndFile;
+            ofn.lpstrFile[0] = (wchar_t)0;
+            ofn.nMaxFile = sizeof(pathAndFile);
+            ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
+            //ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
+            ofn.nFilterIndex = gOpenFilterIndex;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;
-			wcscpy_s(path, MAX_PATH, gWorldPathCurrent);
-			ofn.lpstrInitialDir = path;
+            wcscpy_s(path, MAX_PATH, gWorldPathCurrent);
+            ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-			if (GetOpenFileName(&ofn) == TRUE)
-			{
-				// first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
-				// This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
-				rationalizeFilePath(pathAndFile);
+            if (GetOpenFileName(&ofn) == TRUE)
+            {
+                // first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
+                // This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
+                rationalizeFilePath(pathAndFile);
 
-				// schematic or world?
-				wchar_t filename[MAX_PATH];
-				splitToPathAndName(pathAndFile, NULL, filename);
-				size_t len = wcslen(filename);
-				if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
-					// Read schematic as a world.
-					gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
-					gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
-					gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-					wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
-					if (loadWorld(hWnd)) {
-					//if (loadSchematic(pathAndFile)) {
-						// schematic world not loaded properly
-						gWorldGuide.type = WORLD_UNLOADED_TYPE;
-						MessageBox(NULL, _T("Error: cannot read Minecraft schematic."),
-							_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                // schematic or world?
+                wchar_t filename[MAX_PATH];
+                splitToPathAndName(pathAndFile, NULL, filename);
+                size_t len = wcslen(filename);
+                if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+                    // Read schematic as a world.
+                    gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
+                    gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+                    gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+                    wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
+                    if (loadWorld(hWnd)) {
+                    //if (loadSchematic(pathAndFile)) {
+                        // schematic world not loaded properly
+                        gWorldGuide.type = WORLD_UNLOADED_TYPE;
+                        MessageBox(NULL, _T("Error: cannot read Minecraft schematic."),
+                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
-						return 0;
-					}
-					UpdateWindow(hWnd);
-				}
-				else {
-					// read level.dat normal world
+                        return 0;
+                    }
+                    UpdateWindow(hWnd);
+                }
+                else {
+                    // read level.dat normal world
 
-					PathRemoveFileSpec(pathAndFile);
-					//convert path to utf8
-					//WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
-					gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-					wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
+                    PathRemoveFileSpec(pathAndFile);
+                    //convert path to utf8
+                    //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
+                    gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+                    wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
 
-					// if this is not the same world, switch back to the aboveground view.
-					if (!gSameWorld)
-					{
-						gotoSurface(hWnd, hwndSlider, hwndLabel);
-					}
+                    // if this is not the same world, switch back to the aboveground view.
+                    if (!gSameWorld)
+                    {
+                        gotoSurface(hWnd, hwndSlider, hwndLabel);
+                    }
 
-					UpdateWindow(hWnd);
-					gWorldGuide.type = WORLD_LEVEL_TYPE;
-					if (loadWorld(hWnd))
-					{
-						// world not loaded properly
-						MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
-							_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    UpdateWindow(hWnd);
+                    gWorldGuide.type = WORLD_LEVEL_TYPE;
+                    if (loadWorld(hWnd))
+                    {
+                        // world not loaded properly
+                        MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
+                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
-						return 0;
-					}
-				}
-				// the file read succeeded, so update path to it.
-				wcscpy_s(gWorldPathCurrent, MAX_PATH, pathAndFile);
-				setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                        return 0;
+                    }
+                }
+                // the file read succeeded, so update path to it.
+                wcscpy_s(gWorldPathCurrent, MAX_PATH, pathAndFile);
+                setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
             }
-			gOpenFilterIndex = ofn.nFilterIndex;
-			break;
+            gOpenFilterIndex = ofn.nFilterIndex;
+            break;
         case IDM_FILE_SELECTTERRAIN:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
@@ -1637,35 +1637,35 @@ RButtonUp:
             if (GetOpenFileName(&ofn)==TRUE)
             {
                 // copy file name, since it definitely appears to exist.
-				rationalizeFilePath(pathAndFile);
-				wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, pathAndFile);
-				splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+                rationalizeFilePath(pathAndFile);
+                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, pathAndFile);
+                splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
             }
             break;
         case ID_FILE_IMPORTSETTINGS:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-			wcscpy_s(pathAndFile, MAX_PATH, gImportFile);
-			ofn.lpstrFile = pathAndFile;
+            wcscpy_s(pathAndFile, MAX_PATH, gImportFile);
+            ofn.lpstrFile = pathAndFile;
             ofn.nMaxFile=MAX_PATH;
-			ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
-			ofn.nFilterIndex = gImportFilterIndex;
+            ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
+            ofn.nFilterIndex = gImportFilterIndex;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
-			wcscpy_s(path, MAX_PATH, gImportPath);
-			ofn.lpstrInitialDir = path;
+            wcscpy_s(path, MAX_PATH, gImportPath);
+            ofn.lpstrInitialDir = path;
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
             if (GetOpenFileName(&ofn)==TRUE)
             {
-				// copy file name, since it definitely appears to exist.
-				rationalizeFilePath(pathAndFile);
-				wcscpy_s(gImportFile, MAX_PATH, pathAndFile);
-				splitToPathAndName(gImportFile, gImportPath, NULL);
-				runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                // copy file name, since it definitely appears to exist.
+                rationalizeFilePath(pathAndFile);
+                wcscpy_s(gImportFile, MAX_PATH, pathAndFile);
+                splitToPathAndName(gImportFile, gImportPath, NULL);
+                runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
             }
-			gImportFilterIndex = ofn.nFilterIndex;
-			break;
+            gImportFilterIndex = ofn.nFilterIndex;
+            break;
         case IDM_FILE_PRINTOBJ:
         case IDM_FILE_SAVEOBJ:
         case IDM_FILE_SCHEMATIC:
@@ -1705,9 +1705,9 @@ RButtonUp:
                     ofn.nFilterIndex= 1;
                     ofn.lpstrFileTitle=NULL;
                     ofn.nMaxFileTitle=0;
-					wcscpy_s(path, MAX_PATH, gImportPath);
-					ofn.lpstrInitialDir = path;
-					ofn.lpstrTitle = L"Save Model to Schematic File";
+                    wcscpy_s(path, MAX_PATH, gImportPath);
+                    ofn.lpstrInitialDir = path;
+                    ofn.lpstrTitle = L"Save Model to Schematic File";
                     ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
                     saveOK = GetSaveFileName(&ofn);
@@ -1728,9 +1728,9 @@ RButtonUp:
                     ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
                     ofn.lpstrFileTitle=NULL;
                     ofn.nMaxFileTitle=0;
-					wcscpy_s(path, MAX_PATH, gImportPath);
-					ofn.lpstrInitialDir = path;
-					ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
+                    wcscpy_s(path, MAX_PATH, gImportPath);
+                    ofn.lpstrInitialDir = path;
+                    ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
                     ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
                     saveOK = GetSaveFileName(&ofn);
@@ -1750,10 +1750,10 @@ RButtonUp:
                 {
                     // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
                     gExported=0;
-					wcscpy_s(gImportFile, MAX_PATH, gExportPath);
+                    wcscpy_s(gImportFile, MAX_PATH, gExportPath);
 
             case IDM_FILE_REPEATPREVIOUSEXPORT:
-				gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported==0), gShowPrintStats);
+                gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported==0), gShowPrintStats);
 
                 SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
                 enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
@@ -1763,7 +1763,7 @@ RButtonUp:
                     gTargetDepth = gpEFD->minyVal;
                 }
                 gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-					bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                    bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
                 updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
                 setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
                 setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
@@ -1803,7 +1803,7 @@ RButtonUp:
                 swprintf_s(tempdir, MAX_PATH, L"\\tmp\\");
             }
             swprintf_s(filepath, MAX_PATH, L"%sMineways2Skfb", tempdir);
-			publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+            publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
             break;
         case IDM_JUMPSPAWN:
             gCurX=gSpawnX;
@@ -1854,18 +1854,18 @@ RButtonUp:
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&SHOWALL)?MF_CHECKED:MF_UNCHECKED);
             REDRAW_ALL;
             break;
-		case IDM_VIEW_SHOWBIOMES:
-			// toggles bit from its previous state
-			gOptions.worldType ^= BIOMES;
-			CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
-			REDRAW_ALL;
-			break;
-		case IDM_DEPTH:
-			gOptions.worldType ^= DEPTHSHADING;
-			CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType&DEPTHSHADING) ? MF_CHECKED : MF_UNCHECKED);
-			REDRAW_ALL;
-			break;
-		case IDM_LIGHTING:
+        case IDM_VIEW_SHOWBIOMES:
+            // toggles bit from its previous state
+            gOptions.worldType ^= BIOMES;
+            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
+            REDRAW_ALL;
+            break;
+        case IDM_DEPTH:
+            gOptions.worldType ^= DEPTHSHADING;
+            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType&DEPTHSHADING) ? MF_CHECKED : MF_UNCHECKED);
+            REDRAW_ALL;
+            break;
+        case IDM_LIGHTING:
             gOptions.worldType^=LIGHTING;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.worldType&LIGHTING)?MF_CHECKED:MF_UNCHECKED);
             REDRAW_ALL;
@@ -1884,11 +1884,11 @@ RButtonUp:
             // reload world, if loaded
             if ( gLoaded )
             {
-				if (loadWorld(hWnd))
+                if (loadWorld(hWnd))
                 {
                     // world not loaded properly
                     MessageBox( NULL, _T("Error: cannot read world."),
-						_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                     return 0;
                 }
@@ -1897,97 +1897,97 @@ RButtonUp:
                 // TODO: I couldn't figure out how to remove the existing world list,
                 // so this call just adds more and more copies of the original world list.
                 //loadWorldList(GetMenu(hWnd));
-				setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
-			}
-			else {
-				MessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
-			}
+                setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+            }
+            else {
+                MessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
+            }
             break;
         case IDM_HELL:
-			if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-				if (!(gOptions.worldType&HELL))
-				{
-					CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
-					gOptions.worldType |= HELL;
-					CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
-					gOptions.worldType &= ~ENDER;
-					// change scale as needed
-					gCurX /= 8.0;
-					gCurZ /= 8.0;
-					// it's useless to view Nether from MAP_MAX_HEIGHT
-					if (gCurDepth == MAP_MAX_HEIGHT)
-					{
-						gCurDepth = 126;
-						setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-					}
-					gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
-					gOptions.worldType |= HIDEOBSCURED;
-					//gTargetDepth=0;
-					// semi-useful, I'm not sure: zoom in when going to nether
-					//gCurScale *= 8.0;
-					//gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
-				}
-				else
-				{
-					// back to the overworld
-					gotoSurface(hWnd, hwndSlider, hwndLabel);
-				}
-				CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-				CloseAll();
-				// clear selection when you switch from somewhere else to The Nether, or vice versa
-				gHighlightOn = FALSE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+            if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+                if (!(gOptions.worldType&HELL))
+                {
+                    CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
+                    gOptions.worldType |= HELL;
+                    CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
+                    gOptions.worldType &= ~ENDER;
+                    // change scale as needed
+                    gCurX /= 8.0;
+                    gCurZ /= 8.0;
+                    // it's useless to view Nether from MAP_MAX_HEIGHT
+                    if (gCurDepth == MAP_MAX_HEIGHT)
+                    {
+                        gCurDepth = 126;
+                        setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+                    }
+                    gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
+                    gOptions.worldType |= HIDEOBSCURED;
+                    //gTargetDepth=0;
+                    // semi-useful, I'm not sure: zoom in when going to nether
+                    //gCurScale *= 8.0;
+                    //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+                }
+                else
+                {
+                    // back to the overworld
+                    gotoSurface(hWnd, hwndSlider, hwndLabel);
+                }
+                CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+                CloseAll();
+                // clear selection when you switch from somewhere else to The Nether, or vice versa
+                gHighlightOn = FALSE;
+                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
 
-				REDRAW_ALL;
-			}
+                REDRAW_ALL;
+            }
 
             break;
         case IDM_END:
-			if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-				if (!(gOptions.worldType&ENDER))
-				{
-					// entering Ender, turn off hell if need be
-					CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
-					gOptions.worldType |= ENDER;
-					if (gOptions.worldType&HELL)
-					{
-						// get out of hell zoom
-						gCurX *= 8.0;
-						gCurZ *= 8.0;
-						// and undo other hell stuff
-						if (gCurDepth == 126)
-						{
-							gCurDepth = MAP_MAX_HEIGHT;
-							setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-						}
-						// turn off obscured, then restore overworld's obscured status
-						gOptions.worldType &= ~HIDEOBSCURED;
-						CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-						gOptions.worldType |= gOverworldHideStatus;
-						// uncheck hell menu item
-						CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
-						gOptions.worldType &= ~HELL;
-					}
-				}
-				else
-				{
-					// exiting Ender, go back to overworld
-					gotoSurface(hWnd, hwndSlider, hwndLabel);
-				}
-				CloseAll();
-				// clear selection when you switch from somewhere else to The End, or vice versa
-				gHighlightOn = FALSE;
-				SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-				enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+            if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+                if (!(gOptions.worldType&ENDER))
+                {
+                    // entering Ender, turn off hell if need be
+                    CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
+                    gOptions.worldType |= ENDER;
+                    if (gOptions.worldType&HELL)
+                    {
+                        // get out of hell zoom
+                        gCurX *= 8.0;
+                        gCurZ *= 8.0;
+                        // and undo other hell stuff
+                        if (gCurDepth == 126)
+                        {
+                            gCurDepth = MAP_MAX_HEIGHT;
+                            setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+                        }
+                        // turn off obscured, then restore overworld's obscured status
+                        gOptions.worldType &= ~HIDEOBSCURED;
+                        CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
+                        gOptions.worldType |= gOverworldHideStatus;
+                        // uncheck hell menu item
+                        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
+                        gOptions.worldType &= ~HELL;
+                    }
+                }
+                else
+                {
+                    // exiting Ender, go back to overworld
+                    gotoSurface(hWnd, hwndSlider, hwndLabel);
+                }
+                CloseAll();
+                // clear selection when you switch from somewhere else to The End, or vice versa
+                gHighlightOn = FALSE;
+                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
 
-				REDRAW_ALL;
-			}
+                REDRAW_ALL;
+            }
             break;
         case IDM_HELP_GIVEMEMOREMEMORY:
             // If you are using the 32-bit version, this option can help give you more memory during export.
-			// It clears and reloads the world during this process, the freed memory can then be used for
-			// other export processing functions.
+            // It clears and reloads the world during this process, the freed memory can then be used for
+            // other export processing functions.
             gOptions.moreExportMemory = !gOptions.moreExportMemory;
             CheckMenuItem(GetMenu(hWnd),wmId,(gOptions.moreExportMemory)?MF_CHECKED:MF_UNCHECKED);
             break;
@@ -2075,7 +2075,7 @@ RButtonUp:
         break;
 
     case WM_DESTROY:
-		closeMineways();
+        closeMineways();
         break;
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -2096,237 +2096,237 @@ RButtonUp:
 
 static void closeMineways()
 {
-	int i;
-	if (gArgList) {
-		LocalFree(gArgList);
-		gArgList = NULL;
-	}
-	if (gExecutionLogfile) {
-		PortaClose(gExecutionLogfile);
-		gExecutionLogfile = 0x0;
-	}
-	// clear memory, if testing for memory leaks
-	for (i = 0; i < gNumWorlds; i++) {
-		if (gWorlds[i] != NULL) {
-			free(gWorlds[i]);
-			gWorlds[i] = NULL;
-		}
-	}
-	if (gCustomCurrency != NULL) {
-		free(gCustomCurrency);
-		gCustomCurrency = NULL;
-	}
-	Cache_Empty();
+    int i;
+    if (gArgList) {
+        LocalFree(gArgList);
+        gArgList = NULL;
+    }
+    if (gExecutionLogfile) {
+        PortaClose(gExecutionLogfile);
+        gExecutionLogfile = 0x0;
+    }
+    // clear memory, if testing for memory leaks
+    for (i = 0; i < gNumWorlds; i++) {
+        if (gWorlds[i] != NULL) {
+            free(gWorlds[i]);
+            gWorlds[i] = NULL;
+        }
+    }
+    if (gCustomCurrency != NULL) {
+        free(gCustomCurrency);
+        gCustomCurrency = NULL;
+    }
+    Cache_Empty();
 
-	PostQuitMessage(0);
+    PostQuitMessage(0);
 }
 // parse on startup, looking for an execution log file name.
 // Return true if successful (i.e. no error found) - does NOT mean a log file was opened, just that the parse was OK.
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount)
 {
-	// argument:
-	// -l log-file-name
-	int argIndex = 1;
+    // argument:
+    // -l log-file-name
+    int argIndex = 1;
 
-	// if execution log file already opened earlier (hard-wired in), just go to part where we write to the file.
-	if (gExecutionLogfile)
-		goto WriteFile;
-	while (argIndex < argCount)
-	{
-		// is it a script? get past it
-		if (wcscmp(argList[argIndex], L"-l") == 0) {
-			// found window resize
-			argIndex++;
-			if (argIndex < argCount) {
-				// take next argument as file name for logging
-				argList[argIndex];
-				// attempt to open file
-				// overwrite previous log file
-				gExecutionLogfile = PortaCreate(argList[argIndex]);
-				WriteFile:
-				if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
-					//// try the long file name, using current directory - not needed, it tries the local file anyway.
-					//wchar_t longFileName[MAX_PATH];
-					//wcscpy_s(longFileName, MAX_PATH, gCurrentDirectory);
-					//wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), gPreferredSeparatorString);
-					//wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), argList[argIndex]);
-					//gExecutionLogfile = PortaCreate(argList[argIndex]);
-					//if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
-					MessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-						return false;
-					//}
-				}
-				// write one line to start.
-				// Print local time as a string.
-				errno_t errNum;
-				struct tm newtime;
-				__time32_t aclock;
-				char timeString[256];
+    // if execution log file already opened earlier (hard-wired in), just go to part where we write to the file.
+    if (gExecutionLogfile)
+        goto WriteFile;
+    while (argIndex < argCount)
+    {
+        // is it a script? get past it
+        if (wcscmp(argList[argIndex], L"-l") == 0) {
+            // found window resize
+            argIndex++;
+            if (argIndex < argCount) {
+                // take next argument as file name for logging
+                argList[argIndex];
+                // attempt to open file
+                // overwrite previous log file
+                gExecutionLogfile = PortaCreate(argList[argIndex]);
+                WriteFile:
+                if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
+                    //// try the long file name, using current directory - not needed, it tries the local file anyway.
+                    //wchar_t longFileName[MAX_PATH];
+                    //wcscpy_s(longFileName, MAX_PATH, gCurrentDirectory);
+                    //wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), gPreferredSeparatorString);
+                    //wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), argList[argIndex]);
+                    //gExecutionLogfile = PortaCreate(argList[argIndex]);
+                    //if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
+                    MessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                        return false;
+                    //}
+                }
+                // write one line to start.
+                // Print local time as a string.
+                errno_t errNum;
+                struct tm newtime;
+                __time32_t aclock;
+                char timeString[256];
 
-				_time32(&aclock);   // Get time in seconds.
-				_localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
+                _time32(&aclock);   // Get time in seconds.
+                _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
 
-				errNum = asctime_s(timeString, 32, &newtime);
-				if (!errNum)
-				{
-					char outputString[256];
-					sprintf_s(outputString, 256, "Mineways version %d.%02d execution log begun %s\n", gMajorVersion, gMinorVersion, timeString);
-					LOG_INFO(gExecutionLogfile, outputString);
-				}
-				return true;
-			}
-			// if we got here, parsing didn't work
-			MessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-			return false;
-		}
-		else {
-			// skip whatever it is.
-			argIndex++;
-		}
-	}
-	return true;
+                errNum = asctime_s(timeString, 32, &newtime);
+                if (!errNum)
+                {
+                    char outputString[256];
+                    sprintf_s(outputString, 256, "Mineways version %d.%02d execution log begun %s\n", gMajorVersion, gMinorVersion, timeString);
+                    LOG_INFO(gExecutionLogfile, outputString);
+                }
+                return true;
+            }
+            // if we got here, parsing didn't work
+            MessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return false;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    return true;
 }
 
 // parse on startup, looking for a window size - has to be done before the window is created, etc.
 static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount)
 {
-	// arguments possible:
-	// -w x y
-	// script name. Put double quotes around script name if it has spaces in the file name or directory path
-	int argIndex = 1;
-	while (argIndex < argCount)
-	{
-		// is it a script? get past it
-		if (wcscmp(argList[argIndex], L"-w") == 0) {
-			// found window resize
-			argIndex++;
-			int valx = 0;
-			int valy = 0;
-			if (argIndex < argCount) {
-				// convert next argument to an integer
-				valx = _wtoi(argList[argIndex]);
-				argIndex++;
-				if (valx > 0) {
-					if (argIndex < argCount) {
-						valy = _wtoi(argList[argIndex]);
-						argIndex++;
-						if (valy > 0) {
-							// found it! Always use the first one found
-							*x = valx;
-							*y = valy;
-							return true;
-						}
-					}
-				}
-			}
-			// if we got here, parsing didn't work
-			MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-			return false;
-		}
-		else {
-			// skip whatever it is.
-			argIndex++;
-		}
-	}
-	return true;
+    // arguments possible:
+    // -w x y
+    // script name. Put double quotes around script name if it has spaces in the file name or directory path
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        // is it a script? get past it
+        if (wcscmp(argList[argIndex], L"-w") == 0) {
+            // found window resize
+            argIndex++;
+            int valx = 0;
+            int valy = 0;
+            if (argIndex < argCount) {
+                // convert next argument to an integer
+                valx = _wtoi(argList[argIndex]);
+                argIndex++;
+                if (valx > 0) {
+                    if (argIndex < argCount) {
+                        valy = _wtoi(argList[argIndex]);
+                        argIndex++;
+                        if (valy > 0) {
+                            // found it! Always use the first one found
+                            *x = valx;
+                            *y = valy;
+                            return true;
+                        }
+                    }
+                }
+            }
+            // if we got here, parsing didn't work
+            MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return false;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    return true;
 }
 
 // return true if a command line directory was found and it's valid, false means not found or not valid.
 // fill in saveWorldDirectory with user-specified directory
 static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount)
 {
-	// parse to get -s dir
-	int argIndex = 1;
-	while (argIndex < argCount)
-	{
-		// look for if the startup directory is specified on the command line
-		if (wcscmp(argList[argIndex], L"-s") == 0) {
-			// found window resize
-			argIndex++;
-			if (argIndex < argCount) {
-				wcscpy_s(saveWorldDirectory, MAX_PATH, argList[argIndex]);
-				argIndex++;
-				if (!PathFileExists(saveWorldDirectory)) {
-					LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
-					MessageBox(NULL, _T("Warning:\nThe path you specified on the command line for your saved worlds location does not exist. The default directory will be used instead."),
-						_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-					return false;
-				}
-				else {
-					// found it - done
-					return true;
-				}
-			}
-			// if we got here, parsing didn't work
-			LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-			MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s directory\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-			return false;
-		}
-		else {
-			// skip whatever it is.
-			argIndex++;
-		}
-	}
-	// we return false when we don't find a directory that was input on the command line
-	return false;
+    // parse to get -s dir
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        // look for if the startup directory is specified on the command line
+        if (wcscmp(argList[argIndex], L"-s") == 0) {
+            // found window resize
+            argIndex++;
+            if (argIndex < argCount) {
+                wcscpy_s(saveWorldDirectory, MAX_PATH, argList[argIndex]);
+                argIndex++;
+                if (!PathFileExists(saveWorldDirectory)) {
+                    LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
+                    MessageBox(NULL, _T("Warning:\nThe path you specified on the command line for your saved worlds location does not exist. The default directory will be used instead."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                    return false;
+                }
+                else {
+                    // found it - done
+                    return true;
+                }
+            }
+            // if we got here, parsing didn't work
+            LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
+            MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s directory\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return false;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    // we return false when we don't find a directory that was input on the command line
+    return false;
 }
 
 
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount)
 {
-	// arguments possible:
-	// -w x y
-	// script name. Put double quotes around script name if it has spaces in the file name or directory path
-	int argIndex = 1;
-	while (argIndex < argCount)
-	{
-		if (wcscmp(argList[argIndex], L"-w") == 0) {
-			// skip window resize
-			LOG_INFO(gExecutionLogfile, " skip window resize\n");
-			argIndex += 3;
-		}
-		else if (wcscmp(argList[argIndex], L"-s") == 0) {
-			// skip user world save directory
-			LOG_INFO(gExecutionLogfile, " skip user world save directory\n");
-			argIndex += 2;
-		}
-		else if (wcscmp(argList[argIndex], L"-l") == 0) {
-			// skip logging
-			LOG_INFO(gExecutionLogfile, " skip logging\n");
-			argIndex += 2;
-		}
-		else if (*argList[argIndex] == '-') {
-			// unknown argument, so list out arguments
-			MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
-			// abort
-			return true;
-		}
-		// is it a script?
-		else {
-			// Load a script; if it works fine, don't pop up a dialog
-			LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
-			runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
-			argIndex++;
-		}
-	}
-	return true;
+    // arguments possible:
+    // -w x y
+    // script name. Put double quotes around script name if it has spaces in the file name or directory path
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        if (wcscmp(argList[argIndex], L"-w") == 0) {
+            // skip window resize
+            LOG_INFO(gExecutionLogfile, " skip window resize\n");
+            argIndex += 3;
+        }
+        else if (wcscmp(argList[argIndex], L"-s") == 0) {
+            // skip user world save directory
+            LOG_INFO(gExecutionLogfile, " skip user world save directory\n");
+            argIndex += 2;
+        }
+        else if (wcscmp(argList[argIndex], L"-l") == 0) {
+            // skip logging
+            LOG_INFO(gExecutionLogfile, " skip logging\n");
+            argIndex += 2;
+        }
+        else if (*argList[argIndex] == '-') {
+            // unknown argument, so list out arguments
+            MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
+            // abort
+            return true;
+        }
+        // is it a script?
+        else {
+            // Load a script; if it works fine, don't pop up a dialog
+            LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
+            runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
+            argIndex++;
+        }
+    }
+    return true;
 }
 
 // kinda overkill, we should note it's loaded only once
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel)
 {
-	if (!gLoaded) {
-		gLoaded = TRUE;
-		EnableWindow(hwndSlider, TRUE);
-		EnableWindow(hwndLabel, TRUE);
-		EnableWindow(hwndInfoLabel, TRUE);
-		EnableWindow(hwndBottomSlider, TRUE);
-		EnableWindow(hwndBottomLabel, TRUE);
-	}
-	setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-	setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
-	validateItems(GetMenu(hWnd));
-	drawInvalidateUpdate(hWnd);
+    if (!gLoaded) {
+        gLoaded = TRUE;
+        EnableWindow(hwndSlider, TRUE);
+        EnableWindow(hwndLabel, TRUE);
+        EnableWindow(hwndInfoLabel, TRUE);
+        EnableWindow(hwndBottomSlider, TRUE);
+        EnableWindow(hwndBottomLabel, TRUE);
+    }
+    setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+    setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+    validateItems(GetMenu(hWnd));
+    drawInvalidateUpdate(hWnd);
 }
 
 
@@ -2343,7 +2343,7 @@ static void updateCursor( LPARAM lParam, BOOL hdragging)
 
         // get mouse position in world space
         (void)IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 
         // now to check the corners: is this location near any of them?
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz );
@@ -2444,11 +2444,11 @@ static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel)
         }
         // turn off obscured, then restore overworld's obscured status
         gOptions.worldType &= ~HIDEOBSCURED;
-		CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-		gOptions.worldType |= gOverworldHideStatus;
+        CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
+        gOptions.worldType |= gOverworldHideStatus;
         // uncheck hell menu item
-		gOptions.worldType &= ~HELL;
-		CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
+        gOptions.worldType &= ~HELL;
+        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
 
         // semi-useful, I'm not sure: zoom out when going back
         //gCurScale /= 8.0;
@@ -2539,17 +2539,17 @@ static void useCustomColor(int wmId,HWND hWnd)
         cs.id=(int)info.dwItemData;
         cm.load(&cs);
     }
-	else
-	{
-		ColorManager::Init(&cs);
-		cs.id = 0;
-		wcscpy_s(cs.name, 255, L"Standard");
-	}
+    else
+    {
+        ColorManager::Init(&cs);
+        cs.id = 0;
+        wcscpy_s(cs.name, 255, L"Standard");
+    }
     SetMapPalette(cs.colors,256);
-	drawInvalidateUpdate(hWnd);
+    drawInvalidateUpdate(hWnd);
 
-	// store away for our own use
-	wcscpy_s(gSchemeSelected, 255, cs.name);
+    // store away for our own use
+    wcscpy_s(gSchemeSelected, 255, cs.name);
 }
 static int findColorScheme(wchar_t* name)
 {
@@ -2577,13 +2577,13 @@ static void draw()
 {
     if (gLoaded)
         DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,gOptions,gHitsFound,updateProgress);
-	else {
-		// avoid clearing nothing at all.
-		if (bitWidth > 0 && bitHeight > 0)
-			memset(map, 0xff, bitWidth*bitHeight * 4);
-		else
-			return;	// nothing to draw
-	}
+    else {
+        // avoid clearing nothing at all.
+        if (bitWidth > 0 && bitHeight > 0)
+            memset(map, 0xff, bitWidth*bitHeight * 4);
+        else
+            return;	// nothing to draw
+    }
     SendMessage(progressBar,PBM_SETPOS,0,0);
     for (int i=0;i<bitWidth*bitHeight*4;i+=4)
     {
@@ -2595,93 +2595,94 @@ static void draw()
 
 static int loadSchematic(wchar_t *pathAndFile)
 {
-	// Always read again, even if read before, and recenter.
-	// Set spawn and player location to center of model.
-	// Read whole schematic in, then 
-	CloseAll();
+    // Always read again, even if read before, and recenter.
+    // Set spawn and player location to center of model.
+    // Read whole schematic in, then 
+    CloseAll();
 
 #define CHECK_READ_SCHEMATIC_QUIT( b )			\
-    if ( (b) != 0 ) {						\
-	    return 1;		\
-	}
+    if ( (b) != 1 ) {						\
+        return 1;		\
+    }
 
-	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Width", &gWorldGuide.sch.width));
-	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height));
-	CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length));
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Width", &gWorldGuide.sch.width));
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height));
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length));
 
-	gWorldGuide.sch.numBlocks = gWorldGuide.sch.width * gWorldGuide.sch.height * gWorldGuide.sch.length;
-	if (gWorldGuide.sch.numBlocks <= 0)
-		return 1;
+    gWorldGuide.sch.numBlocks = gWorldGuide.sch.width * gWorldGuide.sch.height * gWorldGuide.sch.length;
+    if (gWorldGuide.sch.numBlocks <= 0)
+        return 1;
 
-	gWorldGuide.sch.blocks = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
-	gWorldGuide.sch.data = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.blocks = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.data = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
 
-	CHECK_READ_SCHEMATIC_QUIT(GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data));
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data));
 
-	// All data's read in! Now we let the mapping system take over and load on demand.
-	gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-	gVersionId = 99999;	// always assumed to be the latest one.
+    // All data's read in! Now we let the mapping system take over and load on demand.
+    gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+    gVersionId = 99999;	// always assumed to be the latest one.
 
-	return 0;
+    return 0;
 }
 
 // return 1 or 2 or higher if world could not be loaded
 static int loadWorld(HWND hWnd)
 {
-	int version;
-	CloseAll();
+    int version;
+    CloseAll();
 
-	// delete schematic data stored, if any, since we're loading a new world
-	if (gWorldGuide.sch.blocks != NULL) {
-		free(gWorldGuide.sch.blocks);
-		gWorldGuide.sch.blocks = NULL;
-	}
-	if (gWorldGuide.sch.data != NULL) {
-		free(gWorldGuide.sch.data);
-		gWorldGuide.sch.data = NULL;
-	}
+    // delete schematic data stored, if any, since we're loading a new world
+    if (gWorldGuide.sch.blocks != NULL) {
+        free(gWorldGuide.sch.blocks);
+        gWorldGuide.sch.blocks = NULL;
+    }
+    if (gWorldGuide.sch.data != NULL) {
+        free(gWorldGuide.sch.data);
+        gWorldGuide.sch.data = NULL;
+    }
 
-	switch (gWorldGuide.type) {
-	case WORLD_TEST_BLOCK_TYPE:
-		// load test world
-		MY_ASSERT(gWorldGuide.world[0] == 0);
-		gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-		gVersionId = 99999;	// always assumed to be the latest one.
-		break;
+    switch (gWorldGuide.type) {
+    case WORLD_TEST_BLOCK_TYPE:
+        // load test world
+        MY_ASSERT(gWorldGuide.world[0] == 0);
+        gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+        gVersionId = 99999;	// always assumed to be the latest one.
+        break;
 
-	case WORLD_LEVEL_TYPE:
-		// Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
-		// world, then reload and carry on.
-		//gHighlightOn=FALSE;
-		//SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
-		// Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
-		if (GetFileVersion(gWorldGuide.world, &version) != 0) {
-			gWorldGuide.type = WORLD_UNLOADED_TYPE;
-			return 1;
-		}
-		if (version < 19133)
-		{
-			// world is old
-			gWorldGuide.type = WORLD_UNLOADED_TYPE;
-			return 2;
-		}
-		// it's not a good sign if we can't get the spawn location from the world - consider this a failure to load
-		if (GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 0) {
-			gWorldGuide.type = WORLD_UNLOADED_TYPE;
-			return 1;
-		}
-		GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ);
-		// Get the uppercase "Version" ID, which is > 0 if Minecraft is 1.9 or newer.
-		GetFileVersionId(gWorldGuide.world, &gVersionId);
-		break;
+    case WORLD_LEVEL_TYPE:
+        // Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
+        // world, then reload and carry on.
+        //gHighlightOn=FALSE;
+        //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+        // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
+        if (GetFileVersion(gWorldGuide.world, &version) != 1) {
+            gWorldGuide.type = WORLD_UNLOADED_TYPE;
+            return 1;
+        }
+        if (version < 19133)
+        {
+            // world is old
+            gWorldGuide.type = WORLD_UNLOADED_TYPE;
+            return 2;
+        }
+        // it's not a good sign if we can't get the spawn location etc. from the world - consider this a failure to load
+        if ((GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 1) ||
+            (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 1))
+        {
+            gWorldGuide.type = WORLD_UNLOADED_TYPE;
+            return 1;
+        }
+        // This may or may not work, so we ignore errors.
+        GetFileVersionId(gWorldGuide.world, &gVersionId);
+        break;
 
-	case WORLD_SCHEMATIC_TYPE:
-		loadSchematic(gWorldGuide.world);
-		break;
+    case WORLD_SCHEMATIC_TYPE:
+        loadSchematic(gWorldGuide.world);
+        break;
 
-	default:
-		MY_ASSERT(gAlwaysFail);
-	}
+    default:
+        MY_ASSERT(gAlwaysFail);
+    }
 
     // keep current state around, we use it to set new window title
     gHoldSameWorld = gSameWorld;
@@ -2696,24 +2697,24 @@ static int loadWorld(HWND hWnd)
         gCurScale=MINZOOM;
 
         gCurDepth = MAP_MAX_HEIGHT;
-		// set lower level height to sea level, or to 0 if it's a schematic
-		gTargetDepth = (gWorldGuide.type == WORLD_SCHEMATIC_TYPE ) ? 0x0 : MIN_OVERWORLD_DEPTH;
+        // set lower level height to sea level, or to 0 if it's a schematic
+        gTargetDepth = (gWorldGuide.type == WORLD_SCHEMATIC_TYPE ) ? 0x0 : MIN_OVERWORLD_DEPTH;
         gHighlightOn=FALSE;
         SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
         // turn on error checking for this new world, to warn of unknown blocks
         CheckUnknownBlock( true );
         // just to be safe, make sure flag is cleared for read check.
         ClearBlockReadCheck();
-		// because gSameWorld gets set to 1 by loadWorld()T
-		if (!gHoldSameWorld)
-		{
-			wchar_t title[MAX_PATH];
-			formTitle(&gWorldGuide, title);
-			sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorldGuide.world));
-			SetWindowTextW(hWnd, title);
-		}
-	}
-	// now done by setUIOnLoadWorld, which should always be called right after loadWorld
+        // because gSameWorld gets set to 1 by loadWorld()T
+        if (!gHoldSameWorld)
+        {
+            wchar_t title[MAX_PATH];
+            formTitle(&gWorldGuide, title);
+            sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorldGuide.world));
+            SetWindowTextW(hWnd, title);
+        }
+    }
+    // now done by setUIOnLoadWorld, which should always be called right after loadWorld
     //gLoaded=TRUE;
     return 0;
 }
@@ -2781,7 +2782,7 @@ static int setWorldPath(TCHAR *path)
     // failed
     if ( gDebug )
     {
-		MessageBox(NULL, L"Failed to find path", _T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+        MessageBox(NULL, L"Failed to find path", _T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
     }
     return 0;
 }
@@ -2813,6 +2814,17 @@ static int setWorldPath(TCHAR *path)
 //	//}
 //}
 
+void flagUnreadableWorld(wchar_t *wcWorld, char *charWorld)
+{
+    char outputString[1024];
+    sprintf_s(outputString, 1024, "      detected corrupt world file: %s\n", charWorld);
+    LOG_INFO(gExecutionLogfile, outputString);
+
+    wchar_t msgString[1024];
+    swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be corrupt or missing important information. World ignored.", wcWorld);
+    MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+}
+
 static int loadWorldList(HMENU menu)
 {
     int oldVersionDetected = 0;
@@ -2824,10 +2836,10 @@ static int loadWorldList(HMENU menu)
     HANDLE hFind;
     WIN32_FIND_DATA ffd;
 
-	LOG_INFO(gExecutionLogfile, "   entered loadWorldList\n");
-	// first world is actually the block test world
-	gNumWorlds = 1;
-	memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
+    LOG_INFO(gExecutionLogfile, "   entered loadWorldList\n");
+    // first world is actually the block test world
+    gNumWorlds = 1;
+    memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
 
     // uncomment next line to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
     //gDebug = true;
@@ -2836,38 +2848,38 @@ static int loadWorldList(HMENU menu)
 
     wchar_t msgString[1024];
     wcscat_s(saveFilesPath,MAX_PATH,L"/*");
-	char outputString[1024];
-	char pConverted[1024];
-	int length = (int)wcslen(saveFilesPath) + 1;
-	WcharToChar(saveFilesPath, pConverted, length);
-	sprintf_s(outputString, 1024, "    saveFilesPath %s\n", pConverted);
-	LOG_INFO(gExecutionLogfile, outputString);
-	hFind = FindFirstFile(saveFilesPath, &ffd);
+    char outputString[1024];
+    char pConverted[1024];
+    int length = (int)wcslen(saveFilesPath) + 1;
+    WcharToChar(saveFilesPath, pConverted, length);
+    sprintf_s(outputString, 1024, "    saveFilesPath %s\n", pConverted);
+    LOG_INFO(gExecutionLogfile, outputString);
+    hFind = FindFirstFile(saveFilesPath, &ffd);
 
     // did we find the directory at all?
     if ( hFind == INVALID_HANDLE_VALUE )
     {
-		LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0\n");
-		MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+        LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0\n");
+        MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
             _T("Informational"), MB_OK|MB_ICONINFORMATION);
         return 0;
     }
 
-	// Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
-	int count = 0;
+    // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
+    int count = 0;
     do
     {
-		// Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
-		// cut searching short at 1000 files of any sort.
-		count++;
-		if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
+        // Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
+        // cut searching short at 1000 files of any sort.
+        count++;
+        if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
         {
-			length = (int)wcslen(ffd.cFileName) + 1;
-			WcharToChar(ffd.cFileName, pConverted, length);
-			sprintf_s(outputString, 1024, "    found potential world save directory %s\n", pConverted);
-			LOG_INFO(gExecutionLogfile, outputString);
-			
-			if (gDebug)
+            length = (int)wcslen(ffd.cFileName) + 1;
+            WcharToChar(ffd.cFileName, pConverted, length);
+            sprintf_s(outputString, 1024, "    found potential world save directory %s\n", pConverted);
+            LOG_INFO(gExecutionLogfile, outputString);
+            
+            if (gDebug)
             {
                 swprintf_s(msgString,1024,L"Found potential world save directory %s", ffd.cFileName );
                 MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
@@ -2883,41 +2895,52 @@ static int loadWorldList(HMENU menu)
                 wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
                 wcscat_s(testAnvil, MAX_PATH, ffd.cFileName);
 
-				length = (int)wcslen(testAnvil) + 1;
-				WcharToChar(testAnvil, pConverted, length);
-				sprintf_s(outputString, 1024, "      trying file %s\n", pConverted);
-				LOG_INFO(gExecutionLogfile, outputString);
+                length = (int)wcslen(testAnvil) + 1;
+                WcharToChar(testAnvil, pConverted, length);
+                sprintf_s(outputString, 1024, "      trying file %s\n", pConverted);
+                LOG_INFO(gExecutionLogfile, outputString);
 
-				if (gDebug)
+                if (gDebug)
                 {
                     swprintf_s(msgString,1024,L"Trying file %s", testAnvil );
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
-				LOG_INFO(gExecutionLogfile, "        checking version and level name\n");
-				if ((GetFileVersion(testAnvil, &version) != 0) || (GetLevelName(testAnvil, levelName, MAX_PATH) != 0))
-                {
+                LOG_INFO(gExecutionLogfile, "        try to get file version\n");
+                if (GetFileVersion(testAnvil, &version) != 1) {
                     // unreadable world, for some reason - couldn't read version and LevelName
+                    flagUnreadableWorld(testAnvil, pConverted);
+                    continue;
+                }
+                LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
+                if (GetLevelName(testAnvil, levelName, MAX_PATH) != 1) {
+                    // unreadable world, for some reason - couldn't read version and LevelName
+                    flagUnreadableWorld(testAnvil, pConverted);
                     continue;
                 }
 
-				int versionId = 0;
-				char versionName[MAX_PATH];
-				versionName[0] = (char)0;
-				LOG_INFO(gExecutionLogfile, "        try to get file version id\n" );
-				GetFileVersionId(testAnvil, &versionId);
-				LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
-				GetFileVersionName(testAnvil, versionName, MAX_PATH);
-				LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
-				GetLevelName(testAnvil, levelName, MAX_PATH);
+                int versionId = 0;
+                char versionName[MAX_PATH];
+                versionName[0] = (char)0;
+                LOG_INFO(gExecutionLogfile, "        try to get file version id\n" );
+                // This is a newer tag for 1.9 and on, older worlds do not have them
+                if (GetFileVersionId(testAnvil, &versionId) != 1) {
+                    // older file type, does not have it.
+                    LOG_INFO(gExecutionLogfile, "   pre-1.9 file type detected, so no version id, which is fine\n");
+                }
+                LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
+                if (GetFileVersionName(testAnvil, versionName, MAX_PATH) != 1) {
+                    // older file type, does not have it.
+                    LOG_INFO(gExecutionLogfile, "   pre-1.9 file type detected, so no version name, which is fine\n");
+                }
 
-				sprintf_s(outputString, 1024, "      succeeded, which has version ID %d and version name %s, and folder level name %s\n", versionId, versionName, levelName);
-				LOG_INFO(gExecutionLogfile, outputString);
+                sprintf_s(outputString, 1024, "      succeeded, which has version ID %d and version name %s, and folder level name %s\n", versionId, versionName, levelName);
+                LOG_INFO(gExecutionLogfile, outputString);
 
-				if (gDebug)
-				{
-					// 0 version ID means earlier than 1.9
-					swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and version name %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
+                if (gDebug)
+                {
+                    // 0 version ID means earlier than 1.9
+                    swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and version name %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
                     MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 }
 
@@ -2934,8 +2957,8 @@ static int loadWorldList(HMENU menu)
                 // if version is pre-Anvil, show world but gray it out
                 if (version < 19133)
                 {
-					LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
-					oldVersionDetected = 1;
+                    LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
+                    oldVersionDetected = 1;
                     // gray it out
                     info.fMask |= MIIM_STATE;
                     info.fState = MFS_DISABLED;
@@ -2948,23 +2971,23 @@ static int loadWorldList(HMENU menu)
                 InsertMenuItem(menu,IDM_TEST_WORLD,FALSE,&info);
                 gWorlds[gNumWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
                 wcscpy_s(gWorlds[gNumWorlds], MAX_PATH, testAnvil);
-				// was: setWorldPath(worlds[numWorlds]);
+                // was: setWorldPath(worlds[numWorlds]);
                 //PathAppend(worlds[numWorlds],ffd.cFileName);
                 gNumWorlds++;
-				sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
-				LOG_INFO(gExecutionLogfile, outputString);
-			}
+                sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
+                LOG_INFO(gExecutionLogfile, outputString);
+            }
         }
-	} while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
+    } while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
 
-	if (count >= MAX_WORLDS)
-	{
-		LOG_INFO(gExecutionLogfile, "Warning: more than 1000 files detected in save directory!\n");
-		swprintf_s(msgString, 1024, L"Warning: more that 1000 files detected in %s. Not all worlds may have been read.", saveFilesPath);
-		MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
-	}
+    if (count >= MAX_WORLDS)
+    {
+        LOG_INFO(gExecutionLogfile, "Warning: more than 1000 files detected in save directory!\n");
+        swprintf_s(msgString, 1024, L"Warning: more that 1000 files detected in %s. Not all worlds may have been read.", saveFilesPath);
+        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+    }
 
-	return oldVersionDetected;
+    return oldVersionDetected;
 }
 
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel )
@@ -3035,15 +3058,15 @@ static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bo
     SetWindowText(hwndLabel,text);
     if ( update )
     {
-		drawInvalidateUpdate(hWnd);
+        drawInvalidateUpdate(hWnd);
     }
 }
 
 static void drawInvalidateUpdate(HWND hWnd)
 {
-	draw();
-	InvalidateRect(hWnd, NULL, FALSE);
-	UpdateWindow(hWnd);
+    draw();
+    InvalidateRect(hWnd, NULL, FALSE);
+    UpdateWindow(hWnd);
 }
 
 
@@ -3069,10 +3092,10 @@ static void syncCurrentHighlightDepth()
 // specific to the service, e.g. Z is up, and unit type used, so these are not copied.
 static void copyOverExportPrintData(ExportFileData *pEFD)
 {
-	if (pEFD == NULL) {
-		MY_ASSERT(gAlwaysFail);
-		return;
-	}
+    if (pEFD == NULL) {
+        MY_ASSERT(gAlwaysFail);
+        return;
+    }
     // Whatever is set for OBJ should be set for VRML, and vice versa,
     // so that Sculpteo and Shapeways can both be exported off a single setting, set once.
     // Similarly, do this for all the STL.
@@ -3125,9 +3148,9 @@ static void copyOverExportPrintData(ExportFileData *pEFD)
         copyMtl[0] = copyMtl[1] = 0;
         count = 2;
         break;
-	case FILE_TYPE_SCHEMATIC:
-		// just ignore, we don't really share a thing with print, etc.
-		break;
+    case FILE_TYPE_SCHEMATIC:
+        // just ignore, we don't really share a thing with print, etc.
+        break;
     default:
         // unknown, don't copy
         MY_ASSERT(gAlwaysFail);
@@ -3219,7 +3242,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
         BLF_FLATSIDE | BLF_3D_BIT;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
-	gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
+    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
 
     gOptions.exportFlags |=
         (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
@@ -3237,7 +3260,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
     outputFileList.count = 0;
     if ( on ) {
 
-		drawInvalidateUpdate(hWnd);
+        drawInvalidateUpdate(hWnd);
         gpEFD->radioScaleToHeight = 1;
         gpEFD->radioScaleByCost = 0;
         gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
@@ -3245,9 +3268,9 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
         if (skfbPData->skfbFilePath.empty()){
             int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
                 gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-				updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
-			deleteCommandBlockSet(gChangeBlockCommands);
-			gChangeBlockCommands = NULL;
+                updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+            deleteCommandBlockSet(gChangeBlockCommands);
+            gChangeBlockCommands = NULL;
 
             wchar_t wcZip[MAX_PATH];
 
@@ -3297,23 +3320,23 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
 
 static void addChangeBlockCommandsToGlobalList(ImportedSet & is)
 {
-	// if we imported block commands, add them to existing list, if any
-	if (is.pCBChead != NULL) {
-		if (gChangeBlockCommands != NULL) {
-			// need to find end of list and add to it.
-			ChangeBlockCommand *pCBC = gChangeBlockCommands;
-			while (pCBC->next != NULL) {
-				pCBC = pCBC->next;
-			}
-			// add to end of list
-			pCBC->next = is.pCBChead;
-		}
-		else {
-			gChangeBlockCommands = is.pCBChead;
-		}
-		// note it's transferred
-		is.pCBChead = is.pCBClast = NULL;
-	}
+    // if we imported block commands, add them to existing list, if any
+    if (is.pCBChead != NULL) {
+        if (gChangeBlockCommands != NULL) {
+            // need to find end of list and add to it.
+            ChangeBlockCommand *pCBC = gChangeBlockCommands;
+            while (pCBC->next != NULL) {
+                pCBC = pCBC->next;
+            }
+            // add to end of list
+            pCBC->next = is.pCBChead;
+        }
+        else {
+            gChangeBlockCommands = is.pCBChead;
+        }
+        // note it's transferred
+        is.pCBChead = is.pCBClast = NULL;
+    }
 }
 
 // returns number of files written on successful export, 0 files otherwise.
@@ -3333,13 +3356,13 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     else if ( printModel == 1 )
     {
         // print
-		gpEFD = &gExportPrintData;
+        gpEFD = &gExportPrintData;
         gOptions.exportFlags = EXPT_3DPRINT;
         gpEFD->flags = EXPT_3DPRINT;
     }
     else
     {
-		// render
+        // render
         gpEFD = &gExportViewData;
         gOptions.exportFlags = 0x0;
         gpEFD->flags = 0x0;
@@ -3391,14 +3414,14 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     {
         if ( printModel == 1 )
         {
-			// 3d printing
-			gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+            // 3d printing
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
                 BLF_FLATSIDE | BLF_3D_BIT;
         }
         else
         {
-			// rendering or schematic
-			gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+            // rendering or schematic
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
                 BLF_FLATSIDE | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
         }
     }
@@ -3410,12 +3433,12 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // export options
     if ( gpEFD->radioExportMtlColors[gpEFD->fileType] == 1 )
     {
-		// if color output is specified, we *must* put out multiple objects, each with its own material
-		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+        // if color output is specified, we *must* put out multiple objects, each with its own material
+        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
     else if ( gpEFD->radioExportSolidTexture[gpEFD->fileType] == 1 )
     {
-		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
     else if ( gpEFD->radioExportFullTexture[gpEFD->fileType] == 1 )
     {
@@ -3447,42 +3470,42 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // set OBJ group and material output state
     if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
     {
-		if (gpEFD->chkMultipleObjects)
-		{
-			MY_ASSERT(gpEFD->chkIndividualBlocks == 0);
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
+        if (gpEFD->chkMultipleObjects)
+        {
+            MY_ASSERT(gpEFD->chkIndividualBlocks == 0);
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
 
-			if (gpEFD->chkMaterialPerType)
-			{
-				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS;
-			}
-		}
-		else if (gpEFD->chkIndividualBlocks)
-		{
-			// these must be on for individual block export, plus grouping by block
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_GROUP_BY_BLOCK;
-			if (gpEFD->chkMaterialPerType == 1)
-			{
-				gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
-			}
-		}
+            if (gpEFD->chkMaterialPerType)
+            {
+                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS;
+            }
+        }
+        else if (gpEFD->chkIndividualBlocks)
+        {
+            // these must be on for individual block export, plus grouping by block
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_GROUP_BY_BLOCK;
+            if (gpEFD->chkMaterialPerType == 1)
+            {
+                gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
+            }
+        }
 
-		if (gpEFD->chkMaterialSubtypes)
-		{
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES;
-		}
+        if (gpEFD->chkMaterialSubtypes)
+        {
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES;
+        }
 
-		if (gpEFD->chkG3DMaterial)
-		{
-			// if G3D is chosen, we output the full material
-			gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
-			if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
-			{
-				// G3D - use this option only if textures are on.
-				gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
-			}
-		}
-		// if in debugging mode, force groups and material type
+        if (gpEFD->chkG3DMaterial)
+        {
+            // if G3D is chosen, we output the full material
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+            if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
+            {
+                // G3D - use this option only if textures are on.
+                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
+            }
+        }
+        // if in debugging mode, force groups and material type
 
         // check if we're exporting relative coordinates
         if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
@@ -3575,13 +3598,13 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     outputFileList.count = 0;
     if ( on ) {
         // redraw, in case the bounds were changed
-		drawInvalidateUpdate(hWnd);
+        drawInvalidateUpdate(hWnd);
 
-		int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
+        int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-			updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
-		deleteCommandBlockSet(gChangeBlockCommands);
-		gChangeBlockCommands = NULL;
+            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+        deleteCommandBlockSet(gChangeBlockCommands);
+        gChangeBlockCommands = NULL;
 
         // note how many files were output
         retCode = outputFileList.count;
@@ -3618,28 +3641,28 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 
 
         // output stats, if printing and there *are* stats
-		if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
+        if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
             // is not schematic?
             (gOptions.pEFD->fileType != FILE_TYPE_SCHEMATIC))
         {
-			wchar_t *currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
-			if (gCustomCurrency != NULL &&
-				gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL )
-			{
-				currency = gCustomCurrency;
-			}
+            wchar_t *currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
+            if (gCustomCurrency != NULL &&
+                gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL )
+            {
+                currency = gCustomCurrency;
+            }
             int retval;
             wchar_t msgString[2000];
             swprintf_s(msgString,2000,L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-				currency,
-				gOptions.cost,
+                currency,
+                gOptions.cost,
                 gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
                 gOptions.block_mm, gOptions.block_inch,
                 gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1], 
                 gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1], 
-				gOptions.totalBlocks, gOptions.totalBlocks*gOptions.block_mm*gOptions.block_mm*gOptions.block_mm/1000.0f);
+                gOptions.totalBlocks, gOptions.totalBlocks*gOptions.block_mm*gOptions.block_mm*gOptions.block_mm/1000.0f);
             retval = MessageBox( NULL, msgString,
-				_T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
             if ( retval != IDYES )
             {
                 gShowPrintStats = false;
@@ -3650,10 +3673,10 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         {
             PopupErrorDialogs( errCode );
         }
-		// clear progress bar
-		if (*updateProgress)
-			(*updateProgress)(0.0f);
-	}
+        // clear progress bar
+        if (*updateProgress)
+            (*updateProgress)(0.0f);
+    }
 
     return retCode;
 }
@@ -3711,7 +3734,7 @@ static void PopupErrorDialogs( int errCode )
 static const wchar_t *removePath( const wchar_t *src )
 {
     // find last \ in string
-	const wchar_t *strPtr = wcsrchr(src, (wchar_t)'\\');
+    const wchar_t *strPtr = wcsrchr(src, (wchar_t)'\\');
     if ( strPtr )
         // found a \, so move up past it
         strPtr++;
@@ -3741,108 +3764,108 @@ static const wchar_t *removePath( const wchar_t *src )
 
 static void initializeExportDialogData()
 {
-	initializePrintExportData(gExportPrintData);
-	initializeViewExportData(gExportViewData);
-	InitializeSchematicExportData(gExportSchematicData);
+    initializePrintExportData(gExportPrintData);
+    initializeViewExportData(gExportViewData);
+    InitializeSchematicExportData(gExportSchematicData);
 }
 
 static void initializePrintExportData(ExportFileData &printData)
 {
-	// by default, make everything 0 - off
-	memset(&printData, 0, sizeof(ExportFileData));
+    // by default, make everything 0 - off
+    memset(&printData, 0, sizeof(ExportFileData));
 
-	// turn stuff on
-	printData.fileType = FILE_TYPE_VRML2;
+    // turn stuff on
+    printData.fileType = FILE_TYPE_VRML2;
 
-	INIT_ALL_FILE_TYPES(printData.chkCreateZip, 1, 1, 0, 0, 0, 1, 0);
-	// I used to set the last value to 0, meaning only the zip would be created. The idea
-	// was that the naive user would then only have the zip, and so couldn't screw up
-	// when uploading the model file. But this setting is a pain if you want to preview
-	// the model file, you have to always remember to check the box so you can get the
-	// preview files. So, now it's off.
-	INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles, 1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES(printData.chkCreateZip, 1, 1, 0, 0, 0, 1, 0);
+    // I used to set the last value to 0, meaning only the zip would be created. The idea
+    // was that the naive user would then only have the zip, and so couldn't screw up
+    // when uploading the model file. But this setting is a pain if you want to preview
+    // the model file, you have to always remember to check the box so you can get the
+    // preview files. So, now it's off.
+    INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles, 1, 1, 1, 1, 1, 1, 1);
 
-	// OBJ and VRML have color, depending...
-	// order: Sculpteo OBJ, relative OBJ, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML
-	INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials, 0, 0, 0, 0, 1, 0, 1);
-	// might as well export color with OBJ and binary STL - nice for previewing
-	INIT_ALL_FILE_TYPES(printData.radioExportMtlColors, 0, 0, 1, 1, 0, 0, 0);
-	INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);
-	INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
+    // OBJ and VRML have color, depending...
+    // order: Sculpteo OBJ, relative OBJ, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML
+    INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials, 0, 0, 0, 0, 1, 0, 1);
+    // might as well export color with OBJ and binary STL - nice for previewing
+    INIT_ALL_FILE_TYPES(printData.radioExportMtlColors, 0, 0, 1, 1, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
 
-	printData.chkMergeFlattop = 1;
-	// Shapeways imports VRML files and displays them with Y up, that is, it
-	// rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
-	// STL uses Z is up, even though i.materialise's previewer shows Y is up.
-	INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 0, 0);
-	printData.chkCenterModel = 1;
-	printData.chkExportAll = 0;
-	printData.chkFatten = 0;
-	printData.chkBiome = 0;
-	printData.chkCompositeOverlay = 1;	// never allow 0 for 3D printing, as this would create tiles floating above the surface
-	printData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
-	printData.chkLeavesSolid = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold 
+    printData.chkMergeFlattop = 1;
+    // Shapeways imports VRML files and displays them with Y up, that is, it
+    // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
+    // STL uses Z is up, even though i.materialise's previewer shows Y is up.
+    INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 0, 0);
+    printData.chkCenterModel = 1;
+    printData.chkExportAll = 0;
+    printData.chkFatten = 0;
+    printData.chkBiome = 0;
+    printData.chkCompositeOverlay = 1;	// never allow 0 for 3D printing, as this would create tiles floating above the surface
+    printData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
+    printData.chkLeavesSolid = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold 
 
-	printData.radioRotate0 = 1;
+    printData.radioRotate0 = 1;
 
-	printData.radioScaleByBlock = 1;
-	printData.modelHeightVal = 5.0f;    // 5 cm target height
-	INIT_ALL_FILE_TYPES(printData.blockSizeVal,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
-	printData.costVal = 25.00f;
+    printData.radioScaleByBlock = 1;
+    printData.modelHeightVal = 5.0f;    // 5 cm target height
+    INIT_ALL_FILE_TYPES(printData.blockSizeVal,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
+    printData.costVal = 25.00f;
 
-	printData.chkSealEntrances = 0; // left off by default: useful, but the user should want to do this
-	printData.chkSealSideTunnels = 0; // left off by default: useful, but the user should want to do this
-	printData.chkFillBubbles = 1;
-	printData.chkConnectParts = 1;
-	printData.chkConnectCornerTips = 1;
-	// it's actually better to start with manifold off and see if there are lots of groups.
-	printData.chkConnectAllEdges = 0;
-	printData.chkDeleteFloaters = 1;
-	printData.chkMeltSnow = 0;
+    printData.chkSealEntrances = 0; // left off by default: useful, but the user should want to do this
+    printData.chkSealSideTunnels = 0; // left off by default: useful, but the user should want to do this
+    printData.chkFillBubbles = 1;
+    printData.chkConnectParts = 1;
+    printData.chkConnectCornerTips = 1;
+    // it's actually better to start with manifold off and see if there are lots of groups.
+    printData.chkConnectAllEdges = 0;
+    printData.chkDeleteFloaters = 1;
+    printData.chkMeltSnow = 0;
 
-	printData.chkShowParts = 0;
-	printData.chkShowWelds = 0;
+    printData.chkShowParts = 0;
+    printData.chkShowWelds = 0;
 
-	// should normally just have one material and group
-	printData.chkMultipleObjects = 0;
-	printData.chkIndividualBlocks = 0;
-	printData.chkMaterialPerType = 0;
-	printData.chkMaterialSubtypes = 0;
-	// shouldn't really matter, now that both versions don't use the diffuse color when texturing
-	printData.chkG3DMaterial = 0;
+    // should normally just have one material and group
+    printData.chkMultipleObjects = 0;
+    printData.chkIndividualBlocks = 0;
+    printData.chkMaterialPerType = 0;
+    printData.chkMaterialSubtypes = 0;
+    // shouldn't really matter, now that both versions don't use the diffuse color when texturing
+    printData.chkG3DMaterial = 0;
 
-	printData.floaterCountVal = 16;
-	INIT_ALL_FILE_TYPES(printData.chkHollow, 1, 1, 0, 0, 0, 1, 0);
-	INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 0, 0, 0, 1, 0);
-	INIT_ALL_FILE_TYPES(printData.hollowThicknessVal,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-		METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
+    printData.floaterCountVal = 16;
+    INIT_ALL_FILE_TYPES(printData.chkHollow, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.hollowThicknessVal,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
 
-	// materials selected
-	INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
-	// defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-	INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_CENTIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
+    // materials selected
+    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
+    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_CENTIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
-	printData.flags = EXPT_3DPRINT;
+    printData.flags = EXPT_3DPRINT;
 }
 
 static void initializeViewExportData(ExportFileData &viewData)
 {
     //////////////////////////////////////////////////////
     // copy view data from print, and change what's needed
-	initializePrintExportData(viewData);
+    initializePrintExportData(viewData);
 
     // Now that I've figured out that Blender can show materials OK, change to "true spec"
     viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
@@ -3881,34 +3904,34 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.chkHollow, 0,0,0,0,0,0,0);
     INIT_ALL_FILE_TYPES( viewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
-	viewData.chkMultipleObjects = 1;
-	viewData.chkIndividualBlocks = 0;
-	viewData.chkMaterialPerType = 1;
-	viewData.chkMaterialSubtypes = 0;
-	viewData.chkG3DMaterial = 0;
-	viewData.chkCompositeOverlay = 0;
-	viewData.chkBlockFacesAtBorders = 1;
+    viewData.chkMultipleObjects = 1;
+    viewData.chkIndividualBlocks = 0;
+    viewData.chkMaterialPerType = 1;
+    viewData.chkMaterialSubtypes = 0;
+    viewData.chkG3DMaterial = 0;
+    viewData.chkCompositeOverlay = 0;
+    viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
 
-	viewData.floaterCountVal = 16;
+    viewData.floaterCountVal = 16;
     // irrelevant for viewing
-	INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
-	INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
+    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     INIT_ALL_FILE_TYPES( viewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
     //gExportSchematicData.chkDeleteFloaters = 1;
 
-	viewData.flags = 0x0;
+    viewData.flags = 0x0;
 }
 
 static void InitializeSchematicExportData(ExportFileData &schematicData)
 {
-	//////////////////////////////////////////////////////
-	// copy schematic data from view, and change what's needed
-	initializeViewExportData(schematicData);
-	schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
-	schematicData.chkMergeFlattop = 0;
+    //////////////////////////////////////////////////////
+    // copy schematic data from view, and change what's needed
+    initializeViewExportData(schematicData);
+    schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+    schematicData.chkMergeFlattop = 0;
 }
 
 // Message handler for about box.
@@ -3933,2508 +3956,2508 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess)
 {
-	ImportedSet is;
-	is.ws = ws;
-	int retCode = importSettings(importFile, is, dialogOnSuccess);
-	wchar_t msgString[1024];
-	int mx, my, mz, type, dataVal, biome;
+    ImportedSet is;
+    is.ws = ws;
+    int retCode = importSettings(importFile, is, dialogOnSuccess);
+    wchar_t msgString[1024];
+    int mx, my, mz, type, dataVal, biome;
 
-	// not really necessary, since we're just trying to open the file, not output or compare its name to anything.
-	// rationalizeFilePath(importFile);
-	switch (retCode) {
-	case IMPORT_MODEL:
-		if (strlen(is.world) > 0)
-		{
-			if (!commandLoadWorld(is, msgString)) {
-				MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
-			}
-		}
+    // not really necessary, since we're just trying to open the file, not output or compare its name to anything.
+    // rationalizeFilePath(importFile);
+    switch (retCode) {
+    case IMPORT_MODEL:
+        if (strlen(is.world) > 0)
+        {
+            if (!commandLoadWorld(is, msgString)) {
+                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
 
-		// if world viewed is nether or The End, load here.
-		if (is.nether) {
-			if (switchToNether(is)) {
-				MessageBox(NULL, L"Attempt to switch to the Nether failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
-			}
-		}
-		else if (is.theEnd) {
-			assert(is.nether == false);
-			if (switchToTheEnd(is)) {
-				MessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
-			}
-		}
+        // if world viewed is nether or The End, load here.
+        if (is.nether) {
+            if (switchToNether(is)) {
+                MessageBox(NULL, L"Attempt to switch to the Nether failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
+        else if (is.theEnd) {
+            assert(is.nether == false);
+            if (switchToTheEnd(is)) {
+                MessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
 
-		// see if we can load the terrain file
-		if (strlen(is.terrainFile) > 0)
-		{
-			if (!commandLoadTerrainFile(is, msgString)) {
-				MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
-			}
-		}
+        // see if we can load the terrain file
+        if (strlen(is.terrainFile) > 0)
+        {
+            if (!commandLoadTerrainFile(is, msgString)) {
+                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
 
-		// see if we can load the color scheme
-		if (strlen(is.colorScheme) > 0)
-		{
-			if (!commandLoadColorScheme(is, msgString)) {
-				MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
-			}
-		}
+        // see if we can load the color scheme
+        if (strlen(is.colorScheme) > 0)
+        {
+            if (!commandLoadColorScheme(is, msgString)) {
+                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
 
 
-		// cross-over any values that are semi-shared to other file formats
-		copyOverExportPrintData(gpEFD);
+        // cross-over any values that are semi-shared to other file formats
+        copyOverExportPrintData(gpEFD);
 
-		gCurX = (gpEFD->minxVal + gpEFD->maxxVal) / 2;
-		gCurZ = (gpEFD->minzVal + gpEFD->maxzVal) / 2;
+        gCurX = (gpEFD->minxVal + gpEFD->maxxVal) / 2;
+        gCurZ = (gpEFD->minzVal + gpEFD->maxzVal) / 2;
 
-		if (gHighlightOn)
-		{
-			// reload world in order to clear out any previous selection displayed.
-			loadWorld(ws.hWnd);
-			setUIOnLoadWorld(ws.hWnd, ws.hwndSlider, ws.hwndLabel, ws.hwndInfoLabel, ws.hwndBottomSlider, ws.hwndBottomLabel);
-		}
+        if (gHighlightOn)
+        {
+            // reload world in order to clear out any previous selection displayed.
+            loadWorld(ws.hWnd);
+            setUIOnLoadWorld(ws.hWnd, ws.hwndSlider, ws.hwndLabel, ws.hwndInfoLabel, ws.hwndBottomSlider, ws.hwndBottomLabel);
+        }
 
-		gHighlightOn = true;
-		SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-		enableBottomControl(1, ws.hwndBottomSlider, ws.hwndBottomLabel, ws.hwndInfoBottomLabel);
-		// put target (bottom) depth to new depth set, if any
-		gTargetDepth = gpEFD->minyVal;
-		// adjust maximum height up, but not down. We export the maximum height at which
-		// something is found, when normally this height is *set* to 255.
-		// On second thought, no: if someone is importing an underground area, they want the height.
-		//if ( gCurDepth < gpEFD->maxyVal )
-		//{
-		gCurDepth = gpEFD->maxyVal;
-		//}
-		*pBlockLabel = IDBlock(LOWORD(holdlParam), HIWORD(holdlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-			bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-		updateStatus(mx, mz, my, *pBlockLabel, type, dataVal, biome, ws.hwndStatus);
-		setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
-		setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
+        gHighlightOn = true;
+        SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+        enableBottomControl(1, ws.hwndBottomSlider, ws.hwndBottomLabel, ws.hwndInfoBottomLabel);
+        // put target (bottom) depth to new depth set, if any
+        gTargetDepth = gpEFD->minyVal;
+        // adjust maximum height up, but not down. We export the maximum height at which
+        // something is found, when normally this height is *set* to 255.
+        // On second thought, no: if someone is importing an underground area, they want the height.
+        //if ( gCurDepth < gpEFD->maxyVal )
+        //{
+        gCurDepth = gpEFD->maxyVal;
+        //}
+        *pBlockLabel = IDBlock(LOWORD(holdlParam), HIWORD(holdlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+        updateStatus(mx, mz, my, *pBlockLabel, type, dataVal, biome, ws.hwndStatus);
+        setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
+        setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
 
-		// make biome display match biome setting
-		if (gpEFD->chkBiome)
-			// turn bit on
-			gOptions.worldType |= BIOMES;
-		else
-			// turn bit off
-			gOptions.worldType &= ~BIOMES;
-		CheckMenuItem(GetMenu(ws.hWnd), IDM_VIEW_SHOWBIOMES, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
+        // make biome display match biome setting
+        if (gpEFD->chkBiome)
+            // turn bit on
+            gOptions.worldType |= BIOMES;
+        else
+            // turn bit off
+            gOptions.worldType &= ~BIOMES;
+        CheckMenuItem(GetMenu(ws.hWnd), IDM_VIEW_SHOWBIOMES, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
 
-		// redraw, as selection bounds will change
-		drawInvalidateUpdate(ws.hWnd);
+        // redraw, as selection bounds will change
+        drawInvalidateUpdate(ws.hWnd);
 
-		// and note which import was done
-		if (dialogOnSuccess)
-		{
-			MessageBox(
-				NULL,
-				(gpEFD->flags & EXPT_3DPRINT) ?
-				_T("Previous settings for 3D printing imported.") :
-				_T("Previous settings for rendering imported."),
-				_T("Informational"),
-				MB_OK | MB_ICONINFORMATION
-				);
-		}
-		break;
+        // and note which import was done
+        if (dialogOnSuccess)
+        {
+            MessageBox(
+                NULL,
+                (gpEFD->flags & EXPT_3DPRINT) ?
+                _T("Previous settings for 3D printing imported.") :
+                _T("Previous settings for rendering imported."),
+                _T("Informational"),
+                MB_OK | MB_ICONINFORMATION
+                );
+        }
+        break;
 
-	case IMPORT_SCRIPT:
-		addChangeBlockCommandsToGlobalList(is);
-		break;
-	case IMPORT_FAILED:
-	default:
-		break;
-	}
+    case IMPORT_SCRIPT:
+        addChangeBlockCommandsToGlobalList(is);
+        break;
+    case IMPORT_FAILED:
+    default:
+        break;
+    }
 }
 
 // True means script ran successfully, false that something bad happened. This code generates and displays the error messages found.
 static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSuccess)
 {
-	// this will get initialized again by the readers, but since we check is.logging on exit here, initialize now anyway.
-	ExportFileData dummyEfd;
-	initializeImportedSet(is, &dummyEfd, importFile);
+    // this will get initialized again by the readers, but since we check is.logging on exit here, initialize now anyway.
+    ExportFileData dummyEfd;
+    initializeImportedSet(is, &dummyEfd, importFile);
 
-	// Read header of exported file, as written by writeStatistics(), and get export settings from it,
-	// or read file as a set of scripting commands.
-	int retCode = 0;
-	FILE *fh;
-	errno_t err = _wfopen_s(&fh, importFile, L"rt");
+    // Read header of exported file, as written by writeStatistics(), and get export settings from it,
+    // or read file as a set of scripting commands.
+    int retCode = 0;
+    FILE *fh;
+    errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
-	if (err != 0) {
-		wchar_t buf[MAX_PATH + 100];
-		wsprintf(buf, L"Error: could not read file %s", importFile);
-		MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-		retCode = 0;
-		goto Exit;
-	}
+    if (err != 0) {
+        wchar_t buf[MAX_PATH + 100];
+        wsprintf(buf, L"Error: could not read file %s", importFile);
+        MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        retCode = 0;
+        goto Exit;
+    }
 
-	// Read first line.
-	char lineString[IMPORT_LINE_LENGTH];
+    // Read first line.
+    char lineString[IMPORT_LINE_LENGTH];
 
-	readLine(fh, lineString, IMPORT_LINE_LENGTH);
-	fclose(fh);
+    readLine(fh, lineString, IMPORT_LINE_LENGTH);
+    fclose(fh);
 
-	//  Is it in export file format?
-	bool exported = false;
-	if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
-		(strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
-		(strstr(lineString, "# Minecraft world:") != NULL) ||	// stl
-		(strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
-		exported = true;
+    //  Is it in export file format?
+    bool exported = false;
+    if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
+        (strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
+        (strstr(lineString, "# Minecraft world:") != NULL) ||	// stl
+        (strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
+        exported = true;
 
-		// set up for export
-		retCode = importModelFile(importFile, is) ? IMPORT_MODEL : 0;
-	}
-	else
-	{
-		retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;
-	}
+        // set up for export
+        retCode = importModelFile(importFile, is) ? IMPORT_MODEL : 0;
+    }
+    else
+    {
+        retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;
+    }
 
-	Exit:
-	// deal with errors in a consistent way
-	if (is.logging) {
-		// output to error log
-		if (is.logfile) {
+    Exit:
+    // deal with errors in a consistent way
+    if (is.logging) {
+        // output to error log
+        if (is.logfile) {
 #ifdef WIN32
-			DWORD br;
+            DWORD br;
 #endif
-			char outputString[256];
-			char *pConverted = NULL;
-			size_t length = wcslen(is.errorMessages);
-			if (length == 0) {
-				sprintf_s(outputString, 256, "No errors or warnings");
-				if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnDone;
-			}
-			else {
-				// output errors and warnings
-				// convert to char
-				length++;
-				pConverted = (char*)malloc(length*sizeof(char));
-				WcharToChar(is.errorMessages, pConverted, (int)length);
-				if (PortaWrite(is.logfile, pConverted, strlen(pConverted))) {
-					goto OnDone;
-				}
-			}
+            char outputString[256];
+            char *pConverted = NULL;
+            size_t length = wcslen(is.errorMessages);
+            if (length == 0) {
+                sprintf_s(outputString, 256, "No errors or warnings");
+                if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnDone;
+            }
+            else {
+                // output errors and warnings
+                // convert to char
+                length++;
+                pConverted = (char*)malloc(length*sizeof(char));
+                WcharToChar(is.errorMessages, pConverted, (int)length);
+                if (PortaWrite(is.logfile, pConverted, strlen(pConverted))) {
+                    goto OnDone;
+                }
+            }
 
-			sprintf_s(outputString, 256, "\n========================================================\n\n");
-			if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnDone;
+            sprintf_s(outputString, 256, "\n========================================================\n\n");
+            if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnDone;
 
-		OnDone:
-			if (pConverted) {
-				free(pConverted);
-				pConverted = NULL;
-			}
-			PortaClose(is.logfile);
-			is.logfile = NULL;
+        OnDone:
+            if (pConverted) {
+                free(pConverted);
+                pConverted = NULL;
+            }
+            PortaClose(is.logfile);
+            is.logfile = NULL;
 
-			if (length > 0) {
-				wchar_t msgString[1024];
-				if (is.errorsFound > 0) {
-					swprintf_s(msgString, 1024, L"Errors found in script file - processing aborted. Check log file %S",
-						is.logFileName);
-					MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-				}
-				else {
-					swprintf_s(msgString, 1024, L"Processing finished. Warnings found in script file. Check log file %S",
-						is.logFileName);
-					MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR);
-				}
-			}
-		}
-		else {
-			MY_ASSERT(gAlwaysFail);
-		}
-	}
-	else {
-		// output to screen
-		// Are there errors, or just warnings?
-		if (is.errorsFound) {
-			// run-time error!
-			MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-			deleteCommandBlockSet(is.pCBChead);
-			is.pCBChead = is.pCBClast = NULL;
-			retCode = false;
-		}
-		else if (is.errorMessages && (is.errorMessages[0] != (wchar_t)0)) {
-			MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import warning") : _T("Script warning"), MB_OK | MB_ICONWARNING);
-		}
-		else {
-			if (!is.readingModel && dialogOnSuccess)
-				MessageBox(NULL, _T("Script successfully finished running."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
-		}
-	}
-	if (is.errorMessages != NULL)
-	{
-		free(is.errorMessages);
-		is.errorMessages = NULL;
-	}
+            if (length > 0) {
+                wchar_t msgString[1024];
+                if (is.errorsFound > 0) {
+                    swprintf_s(msgString, 1024, L"Errors found in script file - processing aborted. Check log file %S",
+                        is.logFileName);
+                    MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                }
+                else {
+                    swprintf_s(msgString, 1024, L"Processing finished. Warnings found in script file. Check log file %S",
+                        is.logFileName);
+                    MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR);
+                }
+            }
+        }
+        else {
+            MY_ASSERT(gAlwaysFail);
+        }
+    }
+    else {
+        // output to screen
+        // Are there errors, or just warnings?
+        if (is.errorsFound) {
+            // run-time error!
+            MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            deleteCommandBlockSet(is.pCBChead);
+            is.pCBChead = is.pCBClast = NULL;
+            retCode = false;
+        }
+        else if (is.errorMessages && (is.errorMessages[0] != (wchar_t)0)) {
+            MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import warning") : _T("Script warning"), MB_OK | MB_ICONWARNING);
+        }
+        else {
+            if (!is.readingModel && dialogOnSuccess)
+                MessageBox(NULL, _T("Script successfully finished running."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
+        }
+    }
+    if (is.errorMessages != NULL)
+    {
+        free(is.errorMessages);
+        is.errorMessages = NULL;
+    }
 
-	// after all that, should the program be closed?
-	if (is.closeProgram)
-	{
-		closeMineways();
-	}
-	return retCode;
+    // after all that, should the program be closed?
+    if (is.closeProgram)
+    {
+        closeMineways();
+    }
+    return retCode;
 }
 
 // true if all went well
 static bool importModelFile(wchar_t *importFile, ImportedSet & is)
 {
-	FILE *fh;
-	errno_t err = _wfopen_s(&fh, importFile, L"rt");
+    FILE *fh;
+    errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
-	if (err != 0) {
-		wchar_t buf[MAX_PATH + 100];
-		wsprintf(buf, L"Error: could not read file %s", importFile);
-		saveErrorMessage(is, buf);
-		return false;
-	}
+    if (err != 0) {
+        wchar_t buf[MAX_PATH + 100];
+        wsprintf(buf, L"Error: could not read file %s", importFile);
+        saveErrorMessage(is, buf);
+        return false;
+    }
 
-	char lineString[IMPORT_LINE_LENGTH];
+    char lineString[IMPORT_LINE_LENGTH];
 
-	ExportFileData efd;
-	// just to set some defaults that aren't bizarre; not sure this is needed
-	initializeViewExportData(efd);
-	initializeImportedSet(is, &efd, importFile);
+    ExportFileData efd;
+    // just to set some defaults that aren't bizarre; not sure this is needed
+    initializeViewExportData(efd);
+    initializeImportedSet(is, &efd, importFile);
 
-	// Read lines until done and process them.
-	int readCode;
-	int isRet;
-	int count = 0;
-	bool retCode = true;
+    // Read lines until done and process them.
+    int readCode;
+    int isRet;
+    int count = 0;
+    bool retCode = true;
 
-	do {
-		readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
-		is.lineNumber++;
+    do {
+        readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
+        is.lineNumber++;
 
-		if (readCode < 0)
-		{
-			fclose(fh);
-			saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
-			retCode = false;
-			goto Exit;
-		}
+        if (readCode < 0)
+        {
+            fclose(fh);
+            saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
+            retCode = false;
+            goto Exit;
+        }
 
-		// process line, since it's valid
-		char *cleanedLine = prepareLineData(lineString, true);
+        // process line, since it's valid
+        char *cleanedLine = prepareLineData(lineString, true);
 
-		isRet = interpretImportLine(cleanedLine, is);
-		if (isRet & (INTERPRETER_FOUND_VALID_LINE | INTERPRETER_FOUND_VALID_EXPORT_LINE)) {
-			// found a valid line
-			count = 0;
-		}
-		if ((isRet & INTERPRETER_FOUND_VALID_EXPORT_LINE) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND)) {
-			// trying to change an export setting, but the file type was never set.
-			// Note that flagging an error here will end the loop and show this error.
-			saveErrorMessage(is, L"cannot change an export setting until the export mode and file type are set. Expected to first see a line in the header starting 'Created for'.");
-		}
-		else if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
-			// if we read some number of lines in a row and there's no interpretation for them, end it.
-			count++;
-		}
-		// else, negative isRet means we immediately end, for whatever reason, e.g. we found something in the file that makes things want to terminate.
-	} while ((is.errorsFound == 0) && (readCode >= 1) && (is.logging || (count < MAX_ERRORS_DISPLAY)) && !(isRet & (INTERPRETER_FOUND_ERROR | INTERPRETER_END_READING)));
+        isRet = interpretImportLine(cleanedLine, is);
+        if (isRet & (INTERPRETER_FOUND_VALID_LINE | INTERPRETER_FOUND_VALID_EXPORT_LINE)) {
+            // found a valid line
+            count = 0;
+        }
+        if ((isRet & INTERPRETER_FOUND_VALID_EXPORT_LINE) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND)) {
+            // trying to change an export setting, but the file type was never set.
+            // Note that flagging an error here will end the loop and show this error.
+            saveErrorMessage(is, L"cannot change an export setting until the export mode and file type are set. Expected to first see a line in the header starting 'Created for'.");
+        }
+        else if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
+            // if we read some number of lines in a row and there's no interpretation for them, end it.
+            count++;
+        }
+        // else, negative isRet means we immediately end, for whatever reason, e.g. we found something in the file that makes things want to terminate.
+    } while ((is.errorsFound == 0) && (readCode >= 1) && (is.logging || (count < MAX_ERRORS_DISPLAY)) && !(isRet & (INTERPRETER_FOUND_ERROR | INTERPRETER_END_READING)));
 
-	// is data valid?
-	if ((is.errorsFound == 0) && (is.exportTypeFound != ISE_NO_DATA_TYPE_FOUND) && !(isRet & INTERPRETER_FOUND_ERROR)) {
-		// copy box over, since it was read in before we knew which EFD to use, 3d printing or "viewing" (rendering)
-		is.pEFD->minxVal = is.minxVal;
-		is.pEFD->minyVal = is.minyVal;
-		is.pEFD->minzVal = is.minzVal;
-		is.pEFD->maxxVal = is.maxxVal;
-		is.pEFD->maxyVal = is.maxyVal;
-		is.pEFD->maxzVal = is.maxzVal;
-		*is.pSaveEFD = *is.pEFD;
-		gpEFD = is.pSaveEFD;
-	}
-	else {
-		// if there are no other error messages, then check if there was a problem of no file type being found
-		if ((is.errorsFound == 0) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND) && !(isRet & INTERPRETER_FOUND_ERROR)) {
-			saveErrorMessage(is, L"Error: could not determine whether this file was a 3D printing file or rendering file. Expected to see a line in the header starting 'Created for'.");
-		}
-		retCode = false;
-	}
-	Exit:
-	fclose(fh);
-	return retCode;
+    // is data valid?
+    if ((is.errorsFound == 0) && (is.exportTypeFound != ISE_NO_DATA_TYPE_FOUND) && !(isRet & INTERPRETER_FOUND_ERROR)) {
+        // copy box over, since it was read in before we knew which EFD to use, 3d printing or "viewing" (rendering)
+        is.pEFD->minxVal = is.minxVal;
+        is.pEFD->minyVal = is.minyVal;
+        is.pEFD->minzVal = is.minzVal;
+        is.pEFD->maxxVal = is.maxxVal;
+        is.pEFD->maxyVal = is.maxyVal;
+        is.pEFD->maxzVal = is.maxzVal;
+        *is.pSaveEFD = *is.pEFD;
+        gpEFD = is.pSaveEFD;
+    }
+    else {
+        // if there are no other error messages, then check if there was a problem of no file type being found
+        if ((is.errorsFound == 0) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND) && !(isRet & INTERPRETER_FOUND_ERROR)) {
+            saveErrorMessage(is, L"Error: could not determine whether this file was a 3D printing file or rendering file. Expected to see a line in the header starting 'Created for'.");
+        }
+        retCode = false;
+    }
+    Exit:
+    fclose(fh);
+    return retCode;
 }
 
 // true if all went well
 static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
 {
-	FILE *fh;
-	errno_t err = _wfopen_s(&fh, importFile, L"rt");
+    FILE *fh;
+    errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
-	if (err != 0) {
-		wchar_t buf[MAX_PATH + 100];
-		wsprintf(buf, L"Error: could not read file %s", importFile);
-		saveErrorMessage(is, buf);
-		return false;
-	}
+    if (err != 0) {
+        wchar_t buf[MAX_PATH + 100];
+        wsprintf(buf, L"Error: could not read file %s", importFile);
+        saveErrorMessage(is, buf);
+        return false;
+    }
 
-	char lineString[IMPORT_LINE_LENGTH];
+    char lineString[IMPORT_LINE_LENGTH];
 
-	// Different than above: try to run through script once without execution.
-	// if no errors found, then run through for real.
-	// Also, /* and */ are used for comments.
-	ExportFileData dummyEfd;
-	initializeImportedSet(is, &dummyEfd, importFile);
-	is.readingModel = false;
-	is.processData = false;
+    // Different than above: try to run through script once without execution.
+    // if no errors found, then run through for real.
+    // Also, /* and */ are used for comments.
+    ExportFileData dummyEfd;
+    initializeImportedSet(is, &dummyEfd, importFile);
+    is.readingModel = false;
+    is.processData = false;
 
-	// check
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Checking script for syntax errors");
+    // check
+    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Checking script for syntax errors");
 
-	// First test: read lines until done
-	int readCode;
-	int isRet;
-	bool retCode = true;
+    // First test: read lines until done
+    int readCode;
+    int isRet;
+    bool retCode = true;
 
-	bool commentBlock = false;
-	char *cleanedLine;
-	do {
-		readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
-		is.lineNumber++;
+    bool commentBlock = false;
+    char *cleanedLine;
+    do {
+        readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
+        is.lineNumber++;
 
-		if (readCode < 0)
-		{
-			fclose(fh);
-			saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
-			retCode = false;
-			goto Exit;
-		}
+        if (readCode < 0)
+        {
+            fclose(fh);
+            saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
+            retCode = false;
+            goto Exit;
+        }
 
-		cleanedLine = lineString;
+        cleanedLine = lineString;
 
-		bool nextCommentBlock = dealWithCommentBlocks(cleanedLine, commentBlock);
+        bool nextCommentBlock = dealWithCommentBlocks(cleanedLine, commentBlock);
 
-		if (!commentBlock)
-		{
-			// process line, since it's valid
-			cleanedLine = prepareLineData(cleanedLine, false);
+        if (!commentBlock)
+        {
+            // process line, since it's valid
+            cleanedLine = prepareLineData(cleanedLine, false);
 
-			// first try to run various script commands
-			isRet = interpretScriptLine(cleanedLine, is);
-			// test if nothing on line. Errors will go into the error list, so we don't check isRet < 0
-			if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL)
-			{
-				// didn't find anything on line, so check importer flags
-				isRet = interpretImportLine(cleanedLine, is);
-				if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
-					// found something we can't ignore and can't process - warn.
-					saveErrorMessage(is, L"syntax error, cannot interpret command.", cleanedLine);
-				}
-			}
-			if (isRet & INTERPRETER_FOUND_CLOSE)
-			{
-				is.closeProgram = true;
-			}
-		}
-		commentBlock = nextCommentBlock;
-		// go until we've hit the end of the file, or hit the maximum error count of MAX_ERRORS_DISPLAY (more makes the dialog too long).
-	} while ((readCode >= 1) && (is.logging || (is.errorsFound < MAX_ERRORS_DISPLAY)) && !is.closeProgram);
+            // first try to run various script commands
+            isRet = interpretScriptLine(cleanedLine, is);
+            // test if nothing on line. Errors will go into the error list, so we don't check isRet < 0
+            if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL)
+            {
+                // didn't find anything on line, so check importer flags
+                isRet = interpretImportLine(cleanedLine, is);
+                if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
+                    // found something we can't ignore and can't process - warn.
+                    saveErrorMessage(is, L"syntax error, cannot interpret command.", cleanedLine);
+                }
+            }
+            if (isRet & INTERPRETER_FOUND_CLOSE)
+            {
+                is.closeProgram = true;
+            }
+        }
+        commentBlock = nextCommentBlock;
+        // go until we've hit the end of the file, or hit the maximum error count of MAX_ERRORS_DISPLAY (more makes the dialog too long).
+    } while ((readCode >= 1) && (is.logging || (is.errorsFound < MAX_ERRORS_DISPLAY)) && !is.closeProgram);
 
-	if (is.errorsFound) {
-		if (!is.logging && (is.errorsFound >= MAX_ERRORS_DISPLAY)) {
-			saveMessage(is, L"Error limit of 20 errors reached - scan aborted.", L"Error", 0);
-		}
-		retCode = false;
-		goto Exit;
-	}
-	
-	// OK, script looks good, read it for real and process it.
-	fclose(fh);
-	// clear out errors, ready for more
-	free(is.errorMessages);
-	is.errorMessages = NULL;
-	is.errorMessagesStringSize = 0;
+    if (is.errorsFound) {
+        if (!is.logging && (is.errorsFound >= MAX_ERRORS_DISPLAY)) {
+            saveMessage(is, L"Error limit of 20 errors reached - scan aborted.", L"Error", 0);
+        }
+        retCode = false;
+        goto Exit;
+    }
+    
+    // OK, script looks good, read it for real and process it.
+    fclose(fh);
+    // clear out errors, ready for more
+    free(is.errorMessages);
+    is.errorMessages = NULL;
+    is.errorMessagesStringSize = 0;
 
-	// set up real data to change, directly!
-	ExportFileData *pEFD = &gExportPrintData;
-	if (gpEFD == &gExportViewData)
-	{
-		pEFD = &gExportViewData;
-	}
-	initializeImportedSet(is, pEFD, importFile);
-	is.readingModel = false;
-	is.processData = true;
+    // set up real data to change, directly!
+    ExportFileData *pEFD = &gExportPrintData;
+    if (gpEFD == &gExportViewData)
+    {
+        pEFD = &gExportViewData;
+    }
+    initializeImportedSet(is, pEFD, importFile);
+    is.readingModel = false;
+    is.processData = true;
 
-	err = _wfopen_s(&fh, importFile, L"rt");
-	if (err != 0) {
-		wchar_t buf[MAX_PATH + 100];
-		wsprintf(buf, L"Error: could not read file %s", importFile);
-		saveErrorMessage(is, buf);
-		return false;
-	}
+    err = _wfopen_s(&fh, importFile, L"rt");
+    if (err != 0) {
+        wchar_t buf[MAX_PATH + 100];
+        wsprintf(buf, L"Error: could not read file %s", importFile);
+        saveErrorMessage(is, buf);
+        return false;
+    }
 
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
 
-	commentBlock = false;
-	do {
-		readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
-		is.lineNumber++;
+    commentBlock = false;
+    do {
+        readCode = readLine(fh, lineString, IMPORT_LINE_LENGTH);
+        is.lineNumber++;
 
-		if (readCode < 0)
-		{
-			fclose(fh);
-			// shouldn't reach here, already tested above, but just in case...
-			saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
-			retCode = false;
-			goto Exit;
-		}
+        if (readCode < 0)
+        {
+            fclose(fh);
+            // shouldn't reach here, already tested above, but just in case...
+            saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
+            retCode = false;
+            goto Exit;
+        }
 
-		cleanedLine = lineString;
+        cleanedLine = lineString;
 
-		bool nextCommentBlock = dealWithCommentBlocks(cleanedLine, commentBlock);
+        bool nextCommentBlock = dealWithCommentBlocks(cleanedLine, commentBlock);
 
-		if (!commentBlock)
-		{
-			// process line, since it's valid
-			cleanedLine = prepareLineData(cleanedLine, false);
+        if (!commentBlock)
+        {
+            // process line, since it's valid
+            cleanedLine = prepareLineData(cleanedLine, false);
 
-			// first try to run various script commands
-			isRet = interpretScriptLine(cleanedLine, is);
-			if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL)
-			{
-				// didn't find anything on line, so check importer flags
-				isRet = interpretImportLine(cleanedLine, is);
-				if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
-					// found something we can't ignore and can't process - warn.
-					// Should never reach here, this was supposed to be caught earlier in the first pass, but just in case...
-					saveErrorMessage(is, L"syntax error, cannot interpret command.", cleanedLine);
-				}
-			}
-			if ((isRet & INTERPRETER_FOUND_VALID_EXPORT_LINE) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND) && !gScriptExportWarning) {
-				drawInvalidateUpdate(is.ws.hWnd);
-				// trying to change an export setting, but the file type was never set.
-				saveWarningMessage(is, L"export option set, but you might want to use 'Set render type:' or 'Set 3D print type:' to first explicitly set the type of export. The export setting was changed for the last-used (or default) file type.");
-				// do this just once a session.
-				gScriptExportWarning = true;
-			}
-			if (isRet & INTERPRETER_REDRAW_SCREEN)
-			{
-				// main display should be redrawn.
-				drawInvalidateUpdate(is.ws.hWnd);
-			}
-			if (isRet & INTERPRETER_FOUND_CLOSE)
-			{
-				is.closeProgram = true;
-			}
-		}
-		commentBlock = nextCommentBlock;
-		// go until we've hit the end of the file, or any error was found, or we hit a Close
-	} while ((readCode >= 1) && (is.errorsFound == 0) && !is.closeProgram);
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script done");
+            // first try to run various script commands
+            isRet = interpretScriptLine(cleanedLine, is);
+            if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL)
+            {
+                // didn't find anything on line, so check importer flags
+                isRet = interpretImportLine(cleanedLine, is);
+                if (isRet & INTERPRETER_FOUND_NOTHING_USEFUL) {
+                    // found something we can't ignore and can't process - warn.
+                    // Should never reach here, this was supposed to be caught earlier in the first pass, but just in case...
+                    saveErrorMessage(is, L"syntax error, cannot interpret command.", cleanedLine);
+                }
+            }
+            if ((isRet & INTERPRETER_FOUND_VALID_EXPORT_LINE) && (is.exportTypeFound == ISE_NO_DATA_TYPE_FOUND) && !gScriptExportWarning) {
+                drawInvalidateUpdate(is.ws.hWnd);
+                // trying to change an export setting, but the file type was never set.
+                saveWarningMessage(is, L"export option set, but you might want to use 'Set render type:' or 'Set 3D print type:' to first explicitly set the type of export. The export setting was changed for the last-used (or default) file type.");
+                // do this just once a session.
+                gScriptExportWarning = true;
+            }
+            if (isRet & INTERPRETER_REDRAW_SCREEN)
+            {
+                // main display should be redrawn.
+                drawInvalidateUpdate(is.ws.hWnd);
+            }
+            if (isRet & INTERPRETER_FOUND_CLOSE)
+            {
+                is.closeProgram = true;
+            }
+        }
+        commentBlock = nextCommentBlock;
+        // go until we've hit the end of the file, or any error was found, or we hit a Close
+    } while ((readCode >= 1) && (is.errorsFound == 0) && !is.closeProgram);
+    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script done");
 
 Exit :
-	fclose(fh);
-	return retCode;
+    fclose(fh);
+    return retCode;
 }
 
 static void initializeImportedSet(ImportedSet & is, ExportFileData *pEFD, wchar_t *importFile)
 {
-	// The "constants" area is stuff that the calling method passes in, such as window locations, etc. These are never to be touched.
-	WindowSet ws = is.ws;
+    // The "constants" area is stuff that the calling method passes in, such as window locations, etc. These are never to be touched.
+    WindowSet ws = is.ws;
 
-	// these are the defaults for reading in a model as a script.
-	memset(&is, 0, sizeof(ImportedSet));
-	// restore the constants area
-	is.ws = ws;
+    // these are the defaults for reading in a model as a script.
+    memset(&is, 0, sizeof(ImportedSet));
+    // restore the constants area
+    is.ws = ws;
 
-	//is.errorsFound = 0;	// until proven otherwise
-	is.readingModel = true;
-	is.exportTypeFound = ISE_NO_DATA_TYPE_FOUND;
-	is.minxVal = is.minyVal = is.minzVal = is.maxxVal = is.maxyVal = is.maxzVal = 0;
-	is.pEFD = pEFD;
-	// set by what was last exported, if anything
-	if (gpEFD == &gExportViewData)
-	{
-		is.pSaveEFD = &gExportViewData;
-	}
-	else
-	{
-		// default if nothing exported
-		is.pSaveEFD = &gExportPrintData;
-	}
-	is.world[0] = (char)0;
-	is.terrainFile[0] = (char)0;
-	is.colorScheme[0] = (char)0;
-	is.importFile = importFile;
-	// set by memset
-	//is.lineNumber = 0;
-	//is.errorMessagesStringSize = 0;
-	//is.errorMessages = NULL;
-	is.processData = true;
+    //is.errorsFound = 0;	// until proven otherwise
+    is.readingModel = true;
+    is.exportTypeFound = ISE_NO_DATA_TYPE_FOUND;
+    is.minxVal = is.minyVal = is.minzVal = is.maxxVal = is.maxyVal = is.maxzVal = 0;
+    is.pEFD = pEFD;
+    // set by what was last exported, if anything
+    if (gpEFD == &gExportViewData)
+    {
+        is.pSaveEFD = &gExportViewData;
+    }
+    else
+    {
+        // default if nothing exported
+        is.pSaveEFD = &gExportPrintData;
+    }
+    is.world[0] = (char)0;
+    is.terrainFile[0] = (char)0;
+    is.colorScheme[0] = (char)0;
+    is.importFile = importFile;
+    // set by memset
+    //is.lineNumber = 0;
+    //is.errorMessagesStringSize = 0;
+    //is.errorMessages = NULL;
+    is.processData = true;
 }
 
 // Read line, does not include \n at end.
 // Returns 1 if valid line, 0 if valid and end of file detected, and -1 if line read was longer than buffer
 static int readLine(FILE *fh, char *inputString, int stringLength)
 {
-	MY_ASSERT(stringLength > 0);	// avoid killing memory we shouldn't touch
-	int pos = 0;
-	int c;
-	do {
-		c = fgetc(fh);
-		if (c != EOF)
-			inputString[pos++] = (char)c;
-		// line too long for input?
-		if (pos >= stringLength - 1)
-		{
-			inputString[stringLength - 1] = '\0';
-			return -1;
-		}
-	} while (c != EOF && c != '\n');
-	// subtract off end of line
-	if (c == '\n')
-		pos--;
-	inputString[pos] = '\0';
+    MY_ASSERT(stringLength > 0);	// avoid killing memory we shouldn't touch
+    int pos = 0;
+    int c;
+    do {
+        c = fgetc(fh);
+        if (c != EOF)
+            inputString[pos++] = (char)c;
+        // line too long for input?
+        if (pos >= stringLength - 1)
+        {
+            inputString[stringLength - 1] = '\0';
+            return -1;
+        }
+    } while (c != EOF && c != '\n');
+    // subtract off end of line
+    if (c == '\n')
+        pos--;
+    inputString[pos] = '\0';
 
-	return (c != EOF) ? 1 : 0;
+    return (c != EOF) ? 1 : 0;
 }
 
 // prepare line data: delete comment part of line, delete leading "#" if true and white space. Return new line start pointer.
 static char *prepareLineData(char *line, bool model)
 {
-	char *lineLoc = line;
-	char *strPtr = strstr(lineLoc, "//");
-	if (strPtr != NULL) {
-		// remove comment from end of line - note that this can also lose http:// data!
-		*strPtr = (char)0;
-	}
+    char *lineLoc = line;
+    char *strPtr = strstr(lineLoc, "//");
+    if (strPtr != NULL) {
+        // remove comment from end of line - note that this can also lose http:// data!
+        *strPtr = (char)0;
+    }
 
-	boolean cont = true;
-	while ((*lineLoc != (char)0) && cont) {
-		if ((*lineLoc == '#' && model) || (*lineLoc == ' ') || (*lineLoc == '\t')) {
-			lineLoc++;
-		}
-		else
-		{
-			cont = false;
-		}
-	}
-	return lineLoc;
+    boolean cont = true;
+    while ((*lineLoc != (char)0) && cont) {
+        if ((*lineLoc == '#' && model) || (*lineLoc == ' ') || (*lineLoc == '\t')) {
+            lineLoc++;
+        }
+        else
+        {
+            cont = false;
+        }
+    }
+    return lineLoc;
 }
 
 // Return true if we've entered a comment block. The line may still have useful stuff in it to process.
 static bool dealWithCommentBlocks(char *line, bool commentBlock)
 {
-	// are we currently in a comment block?
-	if (commentBlock) {
-		// inside a /* comment block - see if it ends with a */ in this line
-		line = closeCommentBlock(line);
-		if (line)
-		{
-			// found the end of a comment block, so check if another block is starting, and note this and continue
-			if (startCommentBlock(line))
-			{
-				// found the beginning of a comment block, so note this and continue;
-				// the line is cleaned of this start and can be processed
-				commentBlock = true;
-			}
-			else {
-				// really is closed, no new one started.
-				commentBlock = false;
-			}
-		}
-		// else, still in comment block, so ignore this line
-	}
+    // are we currently in a comment block?
+    if (commentBlock) {
+        // inside a /* comment block - see if it ends with a */ in this line
+        line = closeCommentBlock(line);
+        if (line)
+        {
+            // found the end of a comment block, so check if another block is starting, and note this and continue
+            if (startCommentBlock(line))
+            {
+                // found the beginning of a comment block, so note this and continue;
+                // the line is cleaned of this start and can be processed
+                commentBlock = true;
+            }
+            else {
+                // really is closed, no new one started.
+                commentBlock = false;
+            }
+        }
+        // else, still in comment block, so ignore this line
+    }
 
-	if (!commentBlock) {
-		if (startCommentBlock(line))
-		{
-			// found the beginning of a comment block, so note this and continue;
-			// the line is cleaned of this start and can be processed
-			commentBlock = true;
-		}
-	}
-	// true if we entered or are still in a comment block.
-	return commentBlock;
+    if (!commentBlock) {
+        if (startCommentBlock(line))
+        {
+            // found the beginning of a comment block, so note this and continue;
+            // the line is cleaned of this start and can be processed
+            commentBlock = true;
+        }
+    }
+    // true if we entered or are still in a comment block.
+    return commentBlock;
 }
 
 // Find if a comment block starts in this line. Comment it out. Leaves beginning location of line unchanged.
 static bool startCommentBlock(char *line)
 {
-	char *strPtr = strstr(line, "/*");
-	if (strPtr != NULL)
-	{
-		// found the start of a comment block
-		*strPtr = (char)0;
-		// do we now find the end of a comment block in what remains of the line?
-		char *endPtr = strstr(strPtr+2, "*/");
-		if (endPtr != NULL)
-		{
-			// started and ended comment block. Remove this comment from line and call again!
-			// (note: line length is overstated here, but we know it can fit, since we're using the line's contents shifted over)
-			strcat_s(line, IMPORT_LINE_LENGTH, endPtr + 2);
-			return startCommentBlock(line);
-		}
-		// comment block started, didn't end
-		return true;
-	}
-	return false;
+    char *strPtr = strstr(line, "/*");
+    if (strPtr != NULL)
+    {
+        // found the start of a comment block
+        *strPtr = (char)0;
+        // do we now find the end of a comment block in what remains of the line?
+        char *endPtr = strstr(strPtr+2, "*/");
+        if (endPtr != NULL)
+        {
+            // started and ended comment block. Remove this comment from line and call again!
+            // (note: line length is overstated here, but we know it can fit, since we're using the line's contents shifted over)
+            strcat_s(line, IMPORT_LINE_LENGTH, endPtr + 2);
+            return startCommentBlock(line);
+        }
+        // comment block started, didn't end
+        return true;
+    }
+    return false;
 }
 
 // comment block is open, so close it if possible. Return rest of line after closing block, else NULL means not closed.
 static char *closeCommentBlock(char *line)
 {
-	char *strPtr = strstr(line, "*/");
-	if (strPtr != NULL)
-	{
-		// found the end of a comment block
-		return strPtr+2;
-	}
-	return NULL;
+    char *strPtr = strstr(line, "*/");
+    if (strPtr != NULL)
+    {
+        // found the end of a comment block
+        return strPtr+2;
+    }
+    return NULL;
 }
 
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToNether(ImportedSet & is)
 {
-	if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-	{
-		saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
-		return INTERPRETER_FOUND_ERROR;
-	}
-	gOptions.worldType |= HELL;
-	gOptions.worldType &= ~ENDER;
-	// change scale as needed
-	gCurX /= 8.0;
-	gCurZ /= 8.0;
-	// it's useless to view Nether from MAP_MAX_HEIGHT
-	if (gCurDepth == MAP_MAX_HEIGHT)
-	{
-		gCurDepth = 126;
-		setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-	}
-	gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
-	gOptions.worldType |= HIDEOBSCURED;
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+    {
+        saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
+        return INTERPRETER_FOUND_ERROR;
+    }
+    gOptions.worldType |= HELL;
+    gOptions.worldType &= ~ENDER;
+    // change scale as needed
+    gCurX /= 8.0;
+    gCurZ /= 8.0;
+    // it's useless to view Nether from MAP_MAX_HEIGHT
+    if (gCurDepth == MAP_MAX_HEIGHT)
+    {
+        gCurDepth = 126;
+        setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+    }
+    gOverworldHideStatus = gOptions.worldType&HIDEOBSCURED;
+    gOptions.worldType |= HIDEOBSCURED;
 
-	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType&HELL) ? MF_CHECKED : MF_UNCHECKED);
-	if (gOptions.worldType&ENDER)
-	{
-		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-		gOptions.worldType &= ~ENDER;
-	}
-	CloseAll();
-	// clear selection when you switch from somewhere else to The Nether, or vice versa
-	gHighlightOn = FALSE;
-	SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-	enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType&HELL) ? MF_CHECKED : MF_UNCHECKED);
+    if (gOptions.worldType&ENDER)
+    {
+        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
+        gOptions.worldType &= ~ENDER;
+    }
+    CloseAll();
+    // clear selection when you switch from somewhere else to The Nether, or vice versa
+    gHighlightOn = FALSE;
+    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 
-	return 0;
+    return 0;
 }
 
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToTheEnd(ImportedSet & is)
 {
-	if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-	{
-		saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
-		return INTERPRETER_FOUND_ERROR;
-	}
-	CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
-	// entering Ender, turn off hell if need be
-	gOptions.worldType |= ENDER;
-	if (gOptions.worldType&HELL)
-	{
-		// get out of hell zoom
-		gCurX *= 8.0;
-		gCurZ *= 8.0;
-		// and undo other hell stuff
-		if (gCurDepth == 126)
-		{
-			gCurDepth = MAP_MAX_HEIGHT;
-			setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-		}
-		// turn off obscured, then restore overworld's obscured status
-		gOptions.worldType &= ~HIDEOBSCURED;
-		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
-		gOptions.worldType |= gOverworldHideStatus;
-		// uncheck hell menu item
-		CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
-		gOptions.worldType &= ~HELL;
-	}
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
+    {
+        saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
+        return INTERPRETER_FOUND_ERROR;
+    }
+    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
+    // entering Ender, turn off hell if need be
+    gOptions.worldType |= ENDER;
+    if (gOptions.worldType&HELL)
+    {
+        // get out of hell zoom
+        gCurX *= 8.0;
+        gCurZ *= 8.0;
+        // and undo other hell stuff
+        if (gCurDepth == 126)
+        {
+            gCurDepth = MAP_MAX_HEIGHT;
+            setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+        }
+        // turn off obscured, then restore overworld's obscured status
+        gOptions.worldType &= ~HIDEOBSCURED;
+        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
+        gOptions.worldType |= gOverworldHideStatus;
+        // uncheck hell menu item
+        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
+        gOptions.worldType &= ~HELL;
+    }
 
-	CloseAll();
-	// clear selection when you switch from somewhere else to The End, or vice versa
-	gHighlightOn = FALSE;
-	SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-	enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    CloseAll();
+    // clear selection when you switch from somewhere else to The End, or vice versa
+    gHighlightOn = FALSE;
+    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
 
-	return 0;
+    return 0;
 }
 
 static int interpretImportLine(char *line, ImportedSet & is)
 {
-	char *strPtr;
-	int i, ret;
-	char string1[100], string2[100], string3[100], string4[100];
-	wchar_t error[1024];
-	int modelStyle = ISE_NO_DATA_TYPE_FOUND;
-	//int mx, my, mz, type, dataVal, biome;
-
-	// if line is blank, let's move on, shall we?
-	if (line[0] == (char)0)
-		return INTERPRETER_FOUND_NOTHING_USEFUL;
-
-	// find save file name
-	// old style
-	strPtr = findLineDataNoCase(line, "Extracted from Minecraft world saves/");
-	if (strPtr == NULL)
-		// new script style:
-		strPtr = findLineDataNoCase(line, "Minecraft world: ");
-	if (strPtr != NULL) {
-		if (*strPtr == (char)0) {
-			saveErrorMessage(is, L"no world given.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			// model or scripting - save path
-			strcpy_s(is.world, MAX_PATH, strPtr);
-			if (!is.readingModel) {
-				// scripting: load it
-				if (!commandLoadWorld(is, error)) {
-					saveErrorMessage(is, error);
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	// find whether we're reading in a rendering or 3d printing file.
-	// Use this only when reading in a model.
-	strPtr = findLineDataNoCase(line, "Created for ");
-	if (strPtr != NULL)
-	{
-		// print or render?
-		if (*strPtr == '3') {
-			modelStyle = ISE_3D_PRINT_DATA_TYPE;
-		}
-		else if (*strPtr == 'V') {
-			modelStyle = ISE_RENDER_DATA_TYPE;
-		}
-		else {
-			saveErrorMessage(is, L"could not determine whether model file is for 3D printing or rendering (a.k.a. viewing).", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-	}
-	else {
-		// try script command instead
-		strPtr = findLineDataNoCase(line, "Set render type:");
-		if (strPtr != NULL) {
-			modelStyle = ISE_RENDER_DATA_TYPE;	// render
-		} else {
-			strPtr = findLineDataNoCase(line, "Set 3D print type:");
-			if (strPtr != NULL)
-				modelStyle = ISE_3D_PRINT_DATA_TYPE;	// 3d print
-		}
-	}
-	// did we find "Created for" or "Set render type:"?
-	if (strPtr != NULL) {
-		MY_ASSERT(modelStyle != ISE_NO_DATA_TYPE_FOUND);
-		is.exportTypeFound = modelStyle;
-		if (is.readingModel) {
-			if (is.exportTypeFound == ISE_3D_PRINT_DATA_TYPE) {
-				*is.pEFD = gExportPrintData;
-				is.pSaveEFD = &gExportPrintData;
-				initializePrintExportData(*is.pEFD);
-			}
-			else {
-				*is.pEFD = gExportViewData;
-				is.pSaveEFD = &gExportViewData;
-				initializeViewExportData(*is.pEFD);
-			}
-		}
-		// else scripting - save?
-		else if (is.processData) {
-			if (is.exportTypeFound == ISE_3D_PRINT_DATA_TYPE) {
-				is.pEFD = is.pSaveEFD = &gExportPrintData;
-			}
-			else {
-				is.pEFD = is.pSaveEFD = &gExportViewData;
-			}
-			// make it active
-			gpEFD = is.pEFD;
-		}
-			
-		// file type - if not found, abort;
-		// older files don't have this info
-		if (strstr(strPtr, "Wavefront OBJ absolute indices"))
-		{
-			is.pEFD->fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-		}
-		else if (strstr(strPtr, "Wavefront OBJ relative indices"))
-		{
-			is.pEFD->fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
-		}
-		else if (strstr(strPtr, "Binary STL iMaterialise"))
-		{
-			is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
-		}
-		else if (strstr(strPtr, "Binary STL VisCAM"))
-		{
-			is.pEFD->fileType = FILE_TYPE_BINARY_VISCAM_STL;
-		}
-		else if (strstr(strPtr, "ASCII STL"))
-		{
-			is.pEFD->fileType = FILE_TYPE_ASCII_STL;
-		}
-		else if (strstr(strPtr, "VRML 2.0"))
-		{
-			is.pEFD->fileType = FILE_TYPE_VRML2;
-		}
-		else
-		{
-			if (is.readingModel) {
-				// can't figure it out from the file (must be old style, before this info was added), so figure it out
-				// from the file name itself.
-				if (wcsstr(is.importFile, L".obj"))
-				{
-					is.pEFD->fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-				}
-				else if (wcsstr(is.importFile, L".txt"))
-				{
-					is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
-				}
-				else if (wcsstr(is.importFile, L".wrl"))
-				{
-					is.pEFD->fileType = FILE_TYPE_VRML2;
-				}
-				else {
-					saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is being read.", strPtr);
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-			else {
-				saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is desired.", strPtr);
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		// survived - return
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Terrain file name:");
-	if (strPtr != NULL) {
-		if (*strPtr == (char)0) {
-			saveErrorMessage(is, L"no terrain file given.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			strcpy_s(is.terrainFile, MAX_PATH, strPtr);
-			if (!is.readingModel) {
-				if (!commandLoadTerrainFile(is, error)) {
-					saveErrorMessage(is, error);
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	strPtr = findLineDataNoCase(line, "View Overworld");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			// simply ignored if read inside a model, since overworld is the default
-			if (!is.readingModel) {
-				if (gLoaded) {
-					gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
-					CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-					if (gOptions.worldType&ENDER)
-					{
-						CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-						gOptions.worldType &= ~ENDER;
-					}
-					CloseAll();
-					// clear selection when you switch from somewhere else to The Nether, or vice versa
-					gHighlightOn = FALSE;
-					SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-					enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-				}
-				else {
-					// warning: selection set but no world is loaded
-					saveErrorMessage(is, L"attempt to view Overworld but no world is loaded.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	strPtr = findLineDataNoCase(line, "View Nether");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			is.nether = true;
-			if (!is.readingModel) {
-				if (gLoaded) {
-					ret = switchToNether(is);
-					if (ret)
-						return ret;
-				}
-				else {
-					// warning: selection set but no world is loaded
-					saveErrorMessage(is, L"attempt to view Nether but no world is loaded.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	strPtr = findLineDataNoCase(line, "View The End");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			is.theEnd = true;
-			if (!is.readingModel) {
-				if (gLoaded) {
-					ret = switchToTheEnd(is);
-					if (ret)
-						return ret;
-				}
-				else {
-					// warning: selection set but no world is loaded
-					saveErrorMessage(is, L"attempt to view The End but no world is loaded.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	strPtr = findLineDataNoCase(line, "Color scheme:");
-	if (strPtr != NULL) {
-		if (*strPtr == (char)0) {
-			saveErrorMessage(is, L"no color scheme given.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			strcpy_s(is.colorScheme, MAX_PATH, strPtr);
-			if (!is.readingModel) {
-				if (!commandLoadColorScheme(is, error)) {
-					// we happen to know this method only returns warnings.
-					saveWarningMessage(is, error);
-					return INTERPRETER_FOUND_VALID_LINE;
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	// find size - we do this operation the same earlier in script interpretation, as it needs to immediately take effect.
-	strPtr = findLineDataNoCase(line, "Selection location min to max:");
-	// alternate format
-	if (strPtr == NULL)
-		strPtr = findLineDataNoCase(line, "Selection location:");
-	if (strPtr != NULL) {
-		bool noSelection = false;
-		// note we store the box separately, as it will get cleared when we run into 
-		int v[6];
-		char cleanString[1024];
-		cleanStringForLocations(cleanString, strPtr);
-		if (6 != sscanf_s(cleanString, "%d %d %d to %d %d %d",
-			&v[0], &v[1], &v[2],
-			&v[3], &v[4], &v[5])) {
-			if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1)))
-			{
-				if (_stricmp(string1, "none") == 0) {
-					noSelection = true;
-				}
-				else {
-					// bad parse - warn and quit
-					goto SelectionParseError;
-				}
-			}
-			else {
-				// bad parse - warn and quit
-				SelectionParseError:
-				saveErrorMessage(is, L"could not read selection values 'x, y, z to x, y, z' or 'none' tag.", strPtr);
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		if (is.processData) {
-			// two cases: scripting and model loading. Model loading defers loading the world, so process the data.
-			if (is.readingModel || gLoaded) {
-				if (noSelection) {
-					// for scripting we could test that there's no world loaded, but it's fine to call this then anyway.
-					gHighlightOn = FALSE;
-					SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0);
-				}
-				else {
-					// yes, a selection
-					is.minxVal = v[0];
-					is.minyVal = v[1];
-					is.minzVal = v[2];
-					is.maxxVal = v[3];
-					is.maxyVal = v[4];
-					is.maxzVal = v[5];
-					if (!is.readingModel) {
-						// is a world loaded? If not, then don't set the selection
-						if (gLoaded) {
-							gCurX = (is.minxVal + is.maxxVal) / 2;
-							gCurZ = (is.minzVal + is.maxzVal) / 2;
-
-							gHighlightOn = true;
-							SetHighlightState(1, is.minxVal, is.minyVal, is.minzVal, is.maxxVal, is.maxyVal, is.maxzVal);
-							enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-							// put target (bottom) depth to new depth set, if any
-							gTargetDepth = is.minyVal;
-							gCurDepth = is.maxyVal;
-
-							// don't bother updating status in commands, do that after all is done
-							//gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(1) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-							//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-							//updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, is.ws.hwndStatus);
-							setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-							setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
-						}
-						else {
-							saveErrorMessage(is, L"selection set but no world is loaded.");
-							return INTERPRETER_FOUND_ERROR;
-						}
-					}
-				}
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	// find whether we're reading in a rendering or 3d printing file
-	strPtr = findLineDataNoCase(line, "Units for the model vertex data itself:");
-	if (strPtr != NULL) {
-		// found selection, parse it
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find units for the model itself.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		for (i = 0; i < MODELS_UNITS_TABLE_SIZE; i++)
-		{
-			if (_stricmp(gUnitTypeTable[i].name, string1) == 0)
-			{
-				if (is.processData)
-					is.pEFD->comboModelUnits[is.pEFD->fileType] = i;
-				break;
-			}
-		}
-		// units found?
-		if (i >= MODELS_UNITS_TABLE_SIZE)
-		{
-			saveErrorMessage(is, L"could not interpret unit type for the model itself.", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "File type:");
-	if (strPtr != NULL) {
-		// found selection, parse it
-		if (1 != sscanf_s(strPtr, "Export %s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find Export string for file type (solid color, textured, etc.)."); return INTERPRETER_FOUND_ERROR;
-		}
-		// shortcut here, just look for first word
-		char *outputTypeString[] = {
-			"no", // "Export no materials",
-			"solid", // "Export solid material colors only (no textures)",
-			"richer", // "Export richer color textures",
-			"full", // "Export full color texture patterns"
-		};
-		for (i = 0; i < 4; i++)
-		{
-			if (_stricmp(outputTypeString[i], string1) == 0)
-			{
-				break;
-			}
-		}
-		if (i >= 4) {
-			saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 0;
-			is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 0;
-			is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 0;
-			is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
-			switch (i)
-			{
-			case 0:
-				is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 1;
-				break;
-			case 1:
-				is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 1;
-				break;
-			case 2:
-				is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 1;
-				break;
-			case 3:
-				is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 1;
-				break;
-			default:
-			case 4:
-				break;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Export separate objects:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Export separate objects command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkMultipleObjects = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Individual blocks:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Individual blocks command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkIndividualBlocks = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Material per object:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Material per object command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkMaterialPerType = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Split materials into subtypes command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkMaterialSubtypes = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "G3D full material:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for G3D full material command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkG3DMaterial = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Make Z command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkMakeZUp[is.pEFD->fileType] = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Create composite overlay faces:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Create composite overlay faces command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkCompositeOverlay = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Center model:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Center model command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkCenterModel = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Export lesser blocks:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Export lesser blocks command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkExportAll = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Fatten lesser blocks:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Fatten lesser blocks command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkFatten = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkLeavesSolid = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Create block faces at the borders:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Create block faces at the borders command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkBlockFacesAtBorders = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Use biomes:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Use biomes command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData) {
-			is.pEFD->chkBiome = interpretBoolean(string1);
-			if (!is.readingModel) {
-				if (is.pEFD->chkBiome)
-					// turn bit on
-					gOptions.worldType |= BIOMES;
-				else
-					// turn bit off
-					gOptions.worldType &= ~BIOMES;
-				CheckMenuItem(GetMenu(is.ws.hWnd), IDM_VIEW_SHOWBIOMES, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
-			}
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
-
-	float floatVal = 0.0f;
-	strPtr = findLineDataNoCase(line, "Rotate model ");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%f degrees", &floatVal))
-		{
-			saveErrorMessage(is, L"could not interpret degrees value.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if ((floatVal != 0.0f) && (floatVal != 90.0f) && (floatVal != 180.0f) && (floatVal != 270.0f)) {
-			saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-
-		if (is.processData) {
-			is.pEFD->radioRotate0 = is.pEFD->radioRotate90 = is.pEFD->radioRotate180 = is.pEFD->radioRotate270 = 0;
-
-			is.pEFD->radioRotate0 = (floatVal == 0.0f);
-			is.pEFD->radioRotate90 = (floatVal == 90.0f);
-			is.pEFD->radioRotate180 = (floatVal == 180.0f);
-			is.pEFD->radioRotate270 = (floatVal == 270.0f);
-
-			// just in case
-			if (!(is.pEFD->radioRotate90 || is.pEFD->radioRotate180 || is.pEFD->radioRotate270)) {
-				//if (!is.pEFD->radioRotate0) {
-					// nothing set, so set one
-					is.pEFD->radioRotate0 = 1;
-				//} // else 0 degrees is set
-			}
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Scale model by ");
-	if (strPtr != NULL) {
-		bool materialSet = false;
-		is.pEFD->radioScaleByBlock = is.pEFD->radioScaleByCost = is.pEFD->radioScaleToHeight = is.pEFD->radioScaleToMaterial = 0;
-		// oddly, "making each block 100 mmm high" passes - maybe the end of the string is ignored after %f?
-		if (1 == sscanf_s(strPtr, "making each block %f mm high", &floatVal))
-		{
-			if (floatVal <= 0.0f) {
-				saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-			}
-			if (is.processData) {
-				is.pEFD->radioScaleByBlock = 1;
-				is.pEFD->blockSizeVal[is.pEFD->fileType] = floatVal;
-			}
-
-			goto SetPrintMaterialType;
-		}
-		else
-		{
-			// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-			if (5 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
-			{
-				if (_stricmp(string4, "material") != 0)
-				{
-					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				if (floatVal <= 0.0f) {
-					saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				strcat_s(string1, _countof(string1), " ");
-				strcat_s(string1, _countof(string1), string2);
-				strcat_s(string1, _countof(string1), " ");
-				strcat_s(string1, _countof(string1), string3);
-				if (is.processData) {
-					is.pEFD->radioScaleByCost = 1;
-					is.pEFD->costVal = floatVal;
-				}
-				materialSet = true;
-
-				goto SetPrintMaterialType;
-			}
-			else if (4 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
-			{
-				if (_stricmp(string3, "material") != 0)
-				{
-					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				if (floatVal <= 0.0f) {
-					saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				strcat_s(string1, _countof(string1), " ");
-				strcat_s(string1, _countof(string1), string2);
-				if (is.processData) {
-					is.pEFD->radioScaleByCost = 1;
-					is.pEFD->costVal = floatVal;
-				}
-				materialSet = true;
-
-				goto SetPrintMaterialType;
-			}
-			else if (3 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2)))
-			{
-				if (_stricmp(string2, "material") != 0)
-				{
-					saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				if (floatVal <= 0.0f) {
-					saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				if (is.processData) {
-					is.pEFD->radioScaleByCost = 1;
-					is.pEFD->costVal = floatVal;
-				}
-				materialSet = true;
-
-				goto SetPrintMaterialType;
-			}
-			else if (1 == sscanf_s(strPtr, "fitting to a height of %f cm", &floatVal))
-			{
-				if (floatVal <= 0.0f) {
-					saveErrorMessage(is, L"height must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
-				}
-				if (is.processData) {
-					is.pEFD->radioScaleToHeight = 1;
-					is.pEFD->modelHeightVal = floatVal;
-				}
-
-				goto SetPrintMaterialType;
-			}
-			else
-			{
-				// terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-				if (4 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
-				{
-					if (_stricmp(string4, "material") != 0)
-					{
-						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-					}
-					strcat_s(string1, _countof(string1), " ");
-					strcat_s(string1, _countof(string1), string2);
-					strcat_s(string1, _countof(string1), " ");
-					strcat_s(string1, _countof(string1), string3);
-					if (is.processData) {
-						is.pEFD->radioScaleToMaterial = 1;
-					}
-					materialSet = true;
-
-					goto SetPrintMaterialType;
-				}
-				else if (3 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
-				{
-					if (_stricmp(string3, "material") != 0)
-					{
-						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-					}
-					strcat_s(string1, _countof(string1), " ");
-					strcat_s(string1, _countof(string1), string2);
-					if (is.processData) {
-						is.pEFD->radioScaleToMaterial = 1;
-					}
-					materialSet = true;
-
-					goto SetPrintMaterialType;
-				}
-				else if (2 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2)))
-				{
-					if (_stricmp(string2, "material") != 0)
-					{
-						saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-					}
-					if (is.processData) {
-						is.pEFD->radioScaleToMaterial = 1;
-					}
-					materialSet = true;
-
-					goto SetPrintMaterialType;
-				}
-			}
-		}
-		saveErrorMessage(is, L"could not understand scale line for Scale model command.", strPtr);
-		return INTERPRETER_FOUND_ERROR;
-
-	SetPrintMaterialType:
-		// if by cost or by material, need to set the material type.
-		if (materialSet)
-		{
-			for (i = 0; i < MTL_COST_TABLE_SIZE; i++)
-			{
-				// ignore case
-				if (_stricmp(string1, gMtlCostTable[i].name) == 0)
-				{
-					break;
-				}
-			}
-			if (i >= MTL_COST_TABLE_SIZE)
-			{
-				saveErrorMessage(is, L"could not find name of material for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
-			}
-
-			if (is.processData)
-				is.pEFD->comboPhysicalMaterial[is.pEFD->fileType] = i;
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Fill air bubbles:");
-	if (strPtr != NULL) {
-		if (3 != sscanf_s(strPtr, "%s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
-			string1, _countof(string1),
-			string2, _countof(string2),
-			string3, _countof(string3)
-			))
-		{
-			saveErrorMessage(is, L"could not find all boolean values for Fill air bubbles commands.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-		if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
-		if (!validBoolean(is, string3)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData) {
-			is.pEFD->chkFillBubbles = interpretBoolean(string1);
-			is.pEFD->chkSealEntrances = interpretBoolean(string2);
-			is.pEFD->chkSealSideTunnels = interpretBoolean(string3);
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Connect parts sharing an edge:");
-	if (strPtr != NULL) {
-		if (3 != sscanf_s(strPtr, "%s Connect corner tips: %s Weld all shared edges: %s",
-			string1, _countof(string1),
-			string2, _countof(string2),
-			string3, _countof(string3)
-			))
-		{
-			saveErrorMessage(is, L"could not find all boolean values for Connect parts commands.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-		if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
-		if (!validBoolean(is, string3)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData) {
-			is.pEFD->chkConnectParts = interpretBoolean(string1);
-			is.pEFD->chkConnectCornerTips = interpretBoolean(string2);
-			is.pEFD->chkConnectAllEdges = interpretBoolean(string3);
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	int intVal = 0;
-	strPtr = findLineDataNoCase(line, "Delete floating objects:");
-	if (strPtr != NULL) {
-		if (2 != sscanf_s(strPtr, "trees and parts smaller than %d blocks: %s",
-			&intVal,
-			string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find all parameters needed for Delete floating objects command.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if (intVal < 0) {
-			saveErrorMessage(is, L"number of blocks cannot be negative.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData) {
-			is.pEFD->chkDeleteFloaters = interpretBoolean(string1);
-			is.pEFD->floaterCountVal = intVal;
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-	strPtr = findLineDataNoCase(line, "Hollow out bottom of model, making the walls ");
-	if (strPtr != NULL) {
-		if (3 != sscanf_s(strPtr, "%f mm thick: %s Superhollow: %s",
-			&floatVal,
-			string1, _countof(string1),
-			string2, _countof(string2)
-			))
-		{
-			saveErrorMessage(is, L"could not find all parameters needed for Hollow commands.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-		if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData) {
-			is.pEFD->hollowThicknessVal[is.pEFD->fileType] = floatVal;
-			is.pEFD->chkHollow[is.pEFD->fileType] = interpretBoolean(string1);
-			is.pEFD->chkSuperHollow[is.pEFD->fileType] = interpretBoolean(string2);
-		}
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Melt snow blocks:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Melt snow blocks command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkMeltSnow = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Debug: show separate parts as colors:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Debug parts command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkShowParts = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	strPtr = findLineDataNoCase(line, "Debug: show weld blocks in bright colors:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Debug weld blocks command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-		if (is.processData)
-			is.pEFD->chkShowWelds = interpretBoolean(string1);
-		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-	}
-
-
-	// note end of file if reading a model
-	if (is.readingModel) {
-		if (findLineDataNoCase(line, "Full current path")) {
-			// end - not an error; we simply found a line that notes there's no model import settings past this line
-			return INTERPRETER_FOUND_VALID_EXPORT_LINE | INTERPRETER_END_READING;
-		}
-	}
-
-	// nothing found
-	return INTERPRETER_FOUND_NOTHING_USEFUL;
+    char *strPtr;
+    int i, ret;
+    char string1[100], string2[100], string3[100], string4[100];
+    wchar_t error[1024];
+    int modelStyle = ISE_NO_DATA_TYPE_FOUND;
+    //int mx, my, mz, type, dataVal, biome;
+
+    // if line is blank, let's move on, shall we?
+    if (line[0] == (char)0)
+        return INTERPRETER_FOUND_NOTHING_USEFUL;
+
+    // find save file name
+    // old style
+    strPtr = findLineDataNoCase(line, "Extracted from Minecraft world saves/");
+    if (strPtr == NULL)
+        // new script style:
+        strPtr = findLineDataNoCase(line, "Minecraft world: ");
+    if (strPtr != NULL) {
+        if (*strPtr == (char)0) {
+            saveErrorMessage(is, L"no world given.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            // model or scripting - save path
+            strcpy_s(is.world, MAX_PATH, strPtr);
+            if (!is.readingModel) {
+                // scripting: load it
+                if (!commandLoadWorld(is, error)) {
+                    saveErrorMessage(is, error);
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    // find whether we're reading in a rendering or 3d printing file.
+    // Use this only when reading in a model.
+    strPtr = findLineDataNoCase(line, "Created for ");
+    if (strPtr != NULL)
+    {
+        // print or render?
+        if (*strPtr == '3') {
+            modelStyle = ISE_3D_PRINT_DATA_TYPE;
+        }
+        else if (*strPtr == 'V') {
+            modelStyle = ISE_RENDER_DATA_TYPE;
+        }
+        else {
+            saveErrorMessage(is, L"could not determine whether model file is for 3D printing or rendering (a.k.a. viewing).", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+    }
+    else {
+        // try script command instead
+        strPtr = findLineDataNoCase(line, "Set render type:");
+        if (strPtr != NULL) {
+            modelStyle = ISE_RENDER_DATA_TYPE;	// render
+        } else {
+            strPtr = findLineDataNoCase(line, "Set 3D print type:");
+            if (strPtr != NULL)
+                modelStyle = ISE_3D_PRINT_DATA_TYPE;	// 3d print
+        }
+    }
+    // did we find "Created for" or "Set render type:"?
+    if (strPtr != NULL) {
+        MY_ASSERT(modelStyle != ISE_NO_DATA_TYPE_FOUND);
+        is.exportTypeFound = modelStyle;
+        if (is.readingModel) {
+            if (is.exportTypeFound == ISE_3D_PRINT_DATA_TYPE) {
+                *is.pEFD = gExportPrintData;
+                is.pSaveEFD = &gExportPrintData;
+                initializePrintExportData(*is.pEFD);
+            }
+            else {
+                *is.pEFD = gExportViewData;
+                is.pSaveEFD = &gExportViewData;
+                initializeViewExportData(*is.pEFD);
+            }
+        }
+        // else scripting - save?
+        else if (is.processData) {
+            if (is.exportTypeFound == ISE_3D_PRINT_DATA_TYPE) {
+                is.pEFD = is.pSaveEFD = &gExportPrintData;
+            }
+            else {
+                is.pEFD = is.pSaveEFD = &gExportViewData;
+            }
+            // make it active
+            gpEFD = is.pEFD;
+        }
+            
+        // file type - if not found, abort;
+        // older files don't have this info
+        if (strstr(strPtr, "Wavefront OBJ absolute indices"))
+        {
+            is.pEFD->fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+        }
+        else if (strstr(strPtr, "Wavefront OBJ relative indices"))
+        {
+            is.pEFD->fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
+        }
+        else if (strstr(strPtr, "Binary STL iMaterialise"))
+        {
+            is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
+        }
+        else if (strstr(strPtr, "Binary STL VisCAM"))
+        {
+            is.pEFD->fileType = FILE_TYPE_BINARY_VISCAM_STL;
+        }
+        else if (strstr(strPtr, "ASCII STL"))
+        {
+            is.pEFD->fileType = FILE_TYPE_ASCII_STL;
+        }
+        else if (strstr(strPtr, "VRML 2.0"))
+        {
+            is.pEFD->fileType = FILE_TYPE_VRML2;
+        }
+        else
+        {
+            if (is.readingModel) {
+                // can't figure it out from the file (must be old style, before this info was added), so figure it out
+                // from the file name itself.
+                if (wcsstr(is.importFile, L".obj"))
+                {
+                    is.pEFD->fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+                }
+                else if (wcsstr(is.importFile, L".txt"))
+                {
+                    is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
+                }
+                else if (wcsstr(is.importFile, L".wrl"))
+                {
+                    is.pEFD->fileType = FILE_TYPE_VRML2;
+                }
+                else {
+                    saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is being read.", strPtr);
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+            else {
+                saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is desired.", strPtr);
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        // survived - return
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Terrain file name:");
+    if (strPtr != NULL) {
+        if (*strPtr == (char)0) {
+            saveErrorMessage(is, L"no terrain file given.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            strcpy_s(is.terrainFile, MAX_PATH, strPtr);
+            if (!is.readingModel) {
+                if (!commandLoadTerrainFile(is, error)) {
+                    saveErrorMessage(is, error);
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "View Overworld");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            // simply ignored if read inside a model, since overworld is the default
+            if (!is.readingModel) {
+                if (gLoaded) {
+                    gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
+                    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType&HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+                    if (gOptions.worldType&ENDER)
+                    {
+                        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
+                        gOptions.worldType &= ~ENDER;
+                    }
+                    CloseAll();
+                    // clear selection when you switch from somewhere else to The Nether, or vice versa
+                    gHighlightOn = FALSE;
+                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+                }
+                else {
+                    // warning: selection set but no world is loaded
+                    saveErrorMessage(is, L"attempt to view Overworld but no world is loaded.");
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "View Nether");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            is.nether = true;
+            if (!is.readingModel) {
+                if (gLoaded) {
+                    ret = switchToNether(is);
+                    if (ret)
+                        return ret;
+                }
+                else {
+                    // warning: selection set but no world is loaded
+                    saveErrorMessage(is, L"attempt to view Nether but no world is loaded.");
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "View The End");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            is.theEnd = true;
+            if (!is.readingModel) {
+                if (gLoaded) {
+                    ret = switchToTheEnd(is);
+                    if (ret)
+                        return ret;
+                }
+                else {
+                    // warning: selection set but no world is loaded
+                    saveErrorMessage(is, L"attempt to view The End but no world is loaded.");
+                    return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "Color scheme:");
+    if (strPtr != NULL) {
+        if (*strPtr == (char)0) {
+            saveErrorMessage(is, L"no color scheme given.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            strcpy_s(is.colorScheme, MAX_PATH, strPtr);
+            if (!is.readingModel) {
+                if (!commandLoadColorScheme(is, error)) {
+                    // we happen to know this method only returns warnings.
+                    saveWarningMessage(is, error);
+                    return INTERPRETER_FOUND_VALID_LINE;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    // find size - we do this operation the same earlier in script interpretation, as it needs to immediately take effect.
+    strPtr = findLineDataNoCase(line, "Selection location min to max:");
+    // alternate format
+    if (strPtr == NULL)
+        strPtr = findLineDataNoCase(line, "Selection location:");
+    if (strPtr != NULL) {
+        bool noSelection = false;
+        // note we store the box separately, as it will get cleared when we run into 
+        int v[6];
+        char cleanString[1024];
+        cleanStringForLocations(cleanString, strPtr);
+        if (6 != sscanf_s(cleanString, "%d %d %d to %d %d %d",
+            &v[0], &v[1], &v[2],
+            &v[3], &v[4], &v[5])) {
+            if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1)))
+            {
+                if (_stricmp(string1, "none") == 0) {
+                    noSelection = true;
+                }
+                else {
+                    // bad parse - warn and quit
+                    goto SelectionParseError;
+                }
+            }
+            else {
+                // bad parse - warn and quit
+                SelectionParseError:
+                saveErrorMessage(is, L"could not read selection values 'x, y, z to x, y, z' or 'none' tag.", strPtr);
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        if (is.processData) {
+            // two cases: scripting and model loading. Model loading defers loading the world, so process the data.
+            if (is.readingModel || gLoaded) {
+                if (noSelection) {
+                    // for scripting we could test that there's no world loaded, but it's fine to call this then anyway.
+                    gHighlightOn = FALSE;
+                    SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0);
+                }
+                else {
+                    // yes, a selection
+                    is.minxVal = v[0];
+                    is.minyVal = v[1];
+                    is.minzVal = v[2];
+                    is.maxxVal = v[3];
+                    is.maxyVal = v[4];
+                    is.maxzVal = v[5];
+                    if (!is.readingModel) {
+                        // is a world loaded? If not, then don't set the selection
+                        if (gLoaded) {
+                            gCurX = (is.minxVal + is.maxxVal) / 2;
+                            gCurZ = (is.minzVal + is.maxzVal) / 2;
+
+                            gHighlightOn = true;
+                            SetHighlightState(1, is.minxVal, is.minyVal, is.minzVal, is.maxxVal, is.maxyVal, is.maxzVal);
+                            enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+                            // put target (bottom) depth to new depth set, if any
+                            gTargetDepth = is.minyVal;
+                            gCurDepth = is.maxyVal;
+
+                            // don't bother updating status in commands, do that after all is done
+                            //gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(1) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+                            //	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                            //updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, is.ws.hwndStatus);
+                            setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+                            setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
+                        }
+                        else {
+                            saveErrorMessage(is, L"selection set but no world is loaded.");
+                            return INTERPRETER_FOUND_ERROR;
+                        }
+                    }
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    // find whether we're reading in a rendering or 3d printing file
+    strPtr = findLineDataNoCase(line, "Units for the model vertex data itself:");
+    if (strPtr != NULL) {
+        // found selection, parse it
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find units for the model itself.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        for (i = 0; i < MODELS_UNITS_TABLE_SIZE; i++)
+        {
+            if (_stricmp(gUnitTypeTable[i].name, string1) == 0)
+            {
+                if (is.processData)
+                    is.pEFD->comboModelUnits[is.pEFD->fileType] = i;
+                break;
+            }
+        }
+        // units found?
+        if (i >= MODELS_UNITS_TABLE_SIZE)
+        {
+            saveErrorMessage(is, L"could not interpret unit type for the model itself.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "File type:");
+    if (strPtr != NULL) {
+        // found selection, parse it
+        if (1 != sscanf_s(strPtr, "Export %s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find Export string for file type (solid color, textured, etc.)."); return INTERPRETER_FOUND_ERROR;
+        }
+        // shortcut here, just look for first word
+        char *outputTypeString[] = {
+            "no", // "Export no materials",
+            "solid", // "Export solid material colors only (no textures)",
+            "richer", // "Export richer color textures",
+            "full", // "Export full color texture patterns"
+        };
+        for (i = 0; i < 4; i++)
+        {
+            if (_stricmp(outputTypeString[i], string1) == 0)
+            {
+                break;
+            }
+        }
+        if (i >= 4) {
+            saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 0;
+            is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 0;
+            is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 0;
+            is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
+            switch (i)
+            {
+            case 0:
+                is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 1;
+                break;
+            case 1:
+                is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 1;
+                break;
+            case 2:
+                is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 1;
+                break;
+            case 3:
+                is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 1;
+                break;
+            default:
+            case 4:
+                break;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Export separate objects:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Export separate objects command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMultipleObjects = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Individual blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Individual blocks command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkIndividualBlocks = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Material per object:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Material per object command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMaterialPerType = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Split materials into subtypes command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMaterialSubtypes = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "G3D full material:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for G3D full material command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkG3DMaterial = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Make Z command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMakeZUp[is.pEFD->fileType] = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Create composite overlay faces:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Create composite overlay faces command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkCompositeOverlay = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Center model:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Center model command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkCenterModel = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Export lesser blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Export lesser blocks command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkExportAll = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Fatten lesser blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Fatten lesser blocks command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkFatten = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkLeavesSolid = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Create block faces at the borders:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Create block faces at the borders command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkBlockFacesAtBorders = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Use biomes:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Use biomes command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData) {
+            is.pEFD->chkBiome = interpretBoolean(string1);
+            if (!is.readingModel) {
+                if (is.pEFD->chkBiome)
+                    // turn bit on
+                    gOptions.worldType |= BIOMES;
+                else
+                    // turn bit off
+                    gOptions.worldType &= ~BIOMES;
+                CheckMenuItem(GetMenu(is.ws.hWnd), IDM_VIEW_SHOWBIOMES, (gOptions.worldType&BIOMES) ? MF_CHECKED : MF_UNCHECKED);
+            }
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    float floatVal = 0.0f;
+    strPtr = findLineDataNoCase(line, "Rotate model ");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%f degrees", &floatVal))
+        {
+            saveErrorMessage(is, L"could not interpret degrees value.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if ((floatVal != 0.0f) && (floatVal != 90.0f) && (floatVal != 180.0f) && (floatVal != 270.0f)) {
+            saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            is.pEFD->radioRotate0 = is.pEFD->radioRotate90 = is.pEFD->radioRotate180 = is.pEFD->radioRotate270 = 0;
+
+            is.pEFD->radioRotate0 = (floatVal == 0.0f);
+            is.pEFD->radioRotate90 = (floatVal == 90.0f);
+            is.pEFD->radioRotate180 = (floatVal == 180.0f);
+            is.pEFD->radioRotate270 = (floatVal == 270.0f);
+
+            // just in case
+            if (!(is.pEFD->radioRotate90 || is.pEFD->radioRotate180 || is.pEFD->radioRotate270)) {
+                //if (!is.pEFD->radioRotate0) {
+                    // nothing set, so set one
+                    is.pEFD->radioRotate0 = 1;
+                //} // else 0 degrees is set
+            }
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Scale model by ");
+    if (strPtr != NULL) {
+        bool materialSet = false;
+        is.pEFD->radioScaleByBlock = is.pEFD->radioScaleByCost = is.pEFD->radioScaleToHeight = is.pEFD->radioScaleToMaterial = 0;
+        // oddly, "making each block 100 mmm high" passes - maybe the end of the string is ignored after %f?
+        if (1 == sscanf_s(strPtr, "making each block %f mm high", &floatVal))
+        {
+            if (floatVal <= 0.0f) {
+                saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+            }
+            if (is.processData) {
+                is.pEFD->radioScaleByBlock = 1;
+                is.pEFD->blockSizeVal[is.pEFD->fileType] = floatVal;
+            }
+
+            goto SetPrintMaterialType;
+        }
+        else
+        {
+            // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+            if (5 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
+            {
+                if (_stricmp(string4, "material") != 0)
+                {
+                    saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                if (floatVal <= 0.0f) {
+                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                strcat_s(string1, _countof(string1), " ");
+                strcat_s(string1, _countof(string1), string2);
+                strcat_s(string1, _countof(string1), " ");
+                strcat_s(string1, _countof(string1), string3);
+                if (is.processData) {
+                    is.pEFD->radioScaleByCost = 1;
+                    is.pEFD->costVal = floatVal;
+                }
+                materialSet = true;
+
+                goto SetPrintMaterialType;
+            }
+            else if (4 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
+            {
+                if (_stricmp(string3, "material") != 0)
+                {
+                    saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                if (floatVal <= 0.0f) {
+                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                strcat_s(string1, _countof(string1), " ");
+                strcat_s(string1, _countof(string1), string2);
+                if (is.processData) {
+                    is.pEFD->radioScaleByCost = 1;
+                    is.pEFD->costVal = floatVal;
+                }
+                materialSet = true;
+
+                goto SetPrintMaterialType;
+            }
+            else if (3 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2)))
+            {
+                if (_stricmp(string2, "material") != 0)
+                {
+                    saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                if (floatVal <= 0.0f) {
+                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                if (is.processData) {
+                    is.pEFD->radioScaleByCost = 1;
+                    is.pEFD->costVal = floatVal;
+                }
+                materialSet = true;
+
+                goto SetPrintMaterialType;
+            }
+            else if (1 == sscanf_s(strPtr, "fitting to a height of %f cm", &floatVal))
+            {
+                if (floatVal <= 0.0f) {
+                    saveErrorMessage(is, L"height must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                }
+                if (is.processData) {
+                    is.pEFD->radioScaleToHeight = 1;
+                    is.pEFD->modelHeightVal = floatVal;
+                }
+
+                goto SetPrintMaterialType;
+            }
+            else
+            {
+                // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
+                if (4 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
+                {
+                    if (_stricmp(string4, "material") != 0)
+                    {
+                        saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    }
+                    strcat_s(string1, _countof(string1), " ");
+                    strcat_s(string1, _countof(string1), string2);
+                    strcat_s(string1, _countof(string1), " ");
+                    strcat_s(string1, _countof(string1), string3);
+                    if (is.processData) {
+                        is.pEFD->radioScaleToMaterial = 1;
+                    }
+                    materialSet = true;
+
+                    goto SetPrintMaterialType;
+                }
+                else if (3 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
+                {
+                    if (_stricmp(string3, "material") != 0)
+                    {
+                        saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    }
+                    strcat_s(string1, _countof(string1), " ");
+                    strcat_s(string1, _countof(string1), string2);
+                    if (is.processData) {
+                        is.pEFD->radioScaleToMaterial = 1;
+                    }
+                    materialSet = true;
+
+                    goto SetPrintMaterialType;
+                }
+                else if (2 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2)))
+                {
+                    if (_stricmp(string2, "material") != 0)
+                    {
+                        saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    }
+                    if (is.processData) {
+                        is.pEFD->radioScaleToMaterial = 1;
+                    }
+                    materialSet = true;
+
+                    goto SetPrintMaterialType;
+                }
+            }
+        }
+        saveErrorMessage(is, L"could not understand scale line for Scale model command.", strPtr);
+        return INTERPRETER_FOUND_ERROR;
+
+    SetPrintMaterialType:
+        // if by cost or by material, need to set the material type.
+        if (materialSet)
+        {
+            for (i = 0; i < MTL_COST_TABLE_SIZE; i++)
+            {
+                // ignore case
+                if (_stricmp(string1, gMtlCostTable[i].name) == 0)
+                {
+                    break;
+                }
+            }
+            if (i >= MTL_COST_TABLE_SIZE)
+            {
+                saveErrorMessage(is, L"could not find name of material for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
+            }
+
+            if (is.processData)
+                is.pEFD->comboPhysicalMaterial[is.pEFD->fileType] = i;
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Fill air bubbles:");
+    if (strPtr != NULL) {
+        if (3 != sscanf_s(strPtr, "%s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
+            string1, _countof(string1),
+            string2, _countof(string2),
+            string3, _countof(string3)
+            ))
+        {
+            saveErrorMessage(is, L"could not find all boolean values for Fill air bubbles commands.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string3)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData) {
+            is.pEFD->chkFillBubbles = interpretBoolean(string1);
+            is.pEFD->chkSealEntrances = interpretBoolean(string2);
+            is.pEFD->chkSealSideTunnels = interpretBoolean(string3);
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Connect parts sharing an edge:");
+    if (strPtr != NULL) {
+        if (3 != sscanf_s(strPtr, "%s Connect corner tips: %s Weld all shared edges: %s",
+            string1, _countof(string1),
+            string2, _countof(string2),
+            string3, _countof(string3)
+            ))
+        {
+            saveErrorMessage(is, L"could not find all boolean values for Connect parts commands.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string3)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData) {
+            is.pEFD->chkConnectParts = interpretBoolean(string1);
+            is.pEFD->chkConnectCornerTips = interpretBoolean(string2);
+            is.pEFD->chkConnectAllEdges = interpretBoolean(string3);
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    int intVal = 0;
+    strPtr = findLineDataNoCase(line, "Delete floating objects:");
+    if (strPtr != NULL) {
+        if (2 != sscanf_s(strPtr, "trees and parts smaller than %d blocks: %s",
+            &intVal,
+            string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find all parameters needed for Delete floating objects command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (intVal < 0) {
+            saveErrorMessage(is, L"number of blocks cannot be negative.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData) {
+            is.pEFD->chkDeleteFloaters = interpretBoolean(string1);
+            is.pEFD->floaterCountVal = intVal;
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Hollow out bottom of model, making the walls ");
+    if (strPtr != NULL) {
+        if (3 != sscanf_s(strPtr, "%f mm thick: %s Superhollow: %s",
+            &floatVal,
+            string1, _countof(string1),
+            string2, _countof(string2)
+            ))
+        {
+            saveErrorMessage(is, L"could not find all parameters needed for Hollow commands.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string2)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData) {
+            is.pEFD->hollowThicknessVal[is.pEFD->fileType] = floatVal;
+            is.pEFD->chkHollow[is.pEFD->fileType] = interpretBoolean(string1);
+            is.pEFD->chkSuperHollow[is.pEFD->fileType] = interpretBoolean(string2);
+        }
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Melt snow blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Melt snow blocks command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMeltSnow = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Debug: show separate parts as colors:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Debug parts command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkShowParts = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    strPtr = findLineDataNoCase(line, "Debug: show weld blocks in bright colors:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Debug weld blocks command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkShowWelds = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+
+    // note end of file if reading a model
+    if (is.readingModel) {
+        if (findLineDataNoCase(line, "Full current path")) {
+            // end - not an error; we simply found a line that notes there's no model import settings past this line
+            return INTERPRETER_FOUND_VALID_EXPORT_LINE | INTERPRETER_END_READING;
+        }
+    }
+
+    // nothing found
+    return INTERPRETER_FOUND_NOTHING_USEFUL;
 }
 
 static int interpretScriptLine(char *line, ImportedSet & is)
 {
-	char *strPtr, *strPtr2;
-	char string1[100];
-	int on, minx, miny, minz, maxx, maxy, maxz;
-	wchar_t error[1024];
-	int retCode = INTERPRETER_FOUND_VALID_LINE;
+    char *strPtr, *strPtr2;
+    char string1[100];
+    int on, minx, miny, minz, maxx, maxy, maxz;
+    wchar_t error[1024];
+    int retCode = INTERPRETER_FOUND_VALID_LINE;
 
-	// if line is blank, let's move on, shall we? By saying this is valid, we say we have processed it.
-	if (line[0] == (char)0)
-		return INTERPRETER_FOUND_VALID_LINE;
+    // if line is blank, let's move on, shall we? By saying this is valid, we say we have processed it.
+    if (line[0] == (char)0)
+        return INTERPRETER_FOUND_VALID_LINE;
 
-	// export world, the king of commands...
-	strPtr = findLineDataNoCase(line, "Export ");
-	if (strPtr != NULL) {
-		int model = -1;
-		strPtr2 = findLineDataNoCase(strPtr, "for Rendering:");
-		if (strPtr2 != NULL) {
-			model = 0;
-		}
-		else {
-			strPtr2 = findLineDataNoCase(strPtr, "for 3D Printing:");
-			if (strPtr2 != NULL) {
-				model = 1;
-			}
-			else {
-				strPtr2 = findLineDataNoCase(strPtr, "Schematic:");
-				if (strPtr2 != NULL) {
-					model = 2;
-				}
-			}
-		}
-		if (model == -1) {
-			// didn't find a full match, so try other commands
-			goto JumpToSpawn;
-		}
-		// ok, have the model mode, is there a file name?
-		if (strPtr2[0] == (char)0) {
-			saveErrorMessage(is, L"no export file name provided.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			if (!commandExportFile(is, error, model, strPtr2)) {
-				saveErrorMessage(is, error);
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
-
-
-	JumpToSpawn:
-	strPtr = findLineDataNoCase(line, "Jump to Spawn");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				gCurX = gSpawnX;
-				gCurZ = gSpawnZ;
-				if (gOptions.worldType&HELL)
-				{
-					gCurX /= 8.0;
-					gCurZ /= 8.0;
-				}
-			}
-			else {
-				saveErrorMessage(is, L"Jump to Spawn command failed, as no world has been loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    // export world, the king of commands...
+    strPtr = findLineDataNoCase(line, "Export ");
+    if (strPtr != NULL) {
+        int model = -1;
+        strPtr2 = findLineDataNoCase(strPtr, "for Rendering:");
+        if (strPtr2 != NULL) {
+            model = 0;
+        }
+        else {
+            strPtr2 = findLineDataNoCase(strPtr, "for 3D Printing:");
+            if (strPtr2 != NULL) {
+                model = 1;
+            }
+            else {
+                strPtr2 = findLineDataNoCase(strPtr, "Schematic:");
+                if (strPtr2 != NULL) {
+                    model = 2;
+                }
+            }
+        }
+        if (model == -1) {
+            // didn't find a full match, so try other commands
+            goto JumpToSpawn;
+        }
+        // ok, have the model mode, is there a file name?
+        if (strPtr2[0] == (char)0) {
+            saveErrorMessage(is, L"no export file name provided.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            if (!commandExportFile(is, error, model, strPtr2)) {
+                saveErrorMessage(is, error);
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
 
 
-	strPtr = findLineDataNoCase(line, "Jump to Player");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				gCurX = gPlayerX;
-				gCurZ = gPlayerZ;
-				if (gOptions.worldType&HELL)
-				{
-					gCurX /= 8.0;
-					gCurZ /= 8.0;
-				}
-			}
-			else {
-				saveErrorMessage(is, L"Jump to Player command failed, as no world has been loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    JumpToSpawn:
+    strPtr = findLineDataNoCase(line, "Jump to Spawn");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            if (gLoaded) {
+                gCurX = gSpawnX;
+                gCurZ = gSpawnZ;
+                if (gOptions.worldType&HELL)
+                {
+                    gCurX /= 8.0;
+                    gCurZ /= 8.0;
+                }
+            }
+            else {
+                saveErrorMessage(is, L"Jump to Spawn command failed, as no world has been loaded.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
 
-	strPtr = findLineDataNoCase(line, "Jump to Model");
-	if (strPtr != NULL) {
-		if (is.processData) {
-			if (gLoaded) {
-				if (!gHighlightOn)
-				{
-					saveErrorMessage(is, L"Jump to Model command failed, as nothing has been selected.");
-					return INTERPRETER_FOUND_ERROR;
-				}
-				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-				// should always be on, but just in case...
-				if (on)
-				{
-					gCurX = (minx + maxx) / 2;
-					gCurZ = (minz + maxz) / 2;
-					if (gOptions.worldType&HELL)
-					{
-						gCurX /= 8.0;
-						gCurZ /= 8.0;
-					}
-				}
-				else {
-					MY_ASSERT(gAlwaysFail);
-				}
-			} 
-			else {
-				saveErrorMessage(is, L"Jump to Model command failed, as no world has been loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    strPtr = findLineDataNoCase(line, "Jump to Player");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            if (gLoaded) {
+                gCurX = gPlayerX;
+                gCurZ = gPlayerZ;
+                if (gOptions.worldType&HELL)
+                {
+                    gCurX /= 8.0;
+                    gCurZ /= 8.0;
+                }
+            }
+            else {
+                saveErrorMessage(is, L"Jump to Player command failed, as no world has been loaded.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
 
-	strPtr = findLineDataNoCase(line, "Reset export options:");
-	if (strPtr != NULL) {
-		if (strstr(strPtr, "Render")) {
-			if (is.processData) {
-				initializeViewExportData(gExportViewData);
-			}
-		}
-		else if (strstr(strPtr, "3D Print")) {
-			if (is.processData) {
-				initializePrintExportData(gExportPrintData);
-			}
-		}
-		else if (strstr(strPtr, "Schematic")) {
-			if (is.processData) {
-				InitializeSchematicExportData(gExportSchematicData);
-			}
-		}
-		else {
-			saveErrorMessage(is, L"could not determine what is to be reset. Options are 'Render', '3D Print', and 'Schematic'.", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
+    strPtr = findLineDataNoCase(line, "Jump to Model");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            if (gLoaded) {
+                if (!gHighlightOn)
+                {
+                    saveErrorMessage(is, L"Jump to Model command failed, as nothing has been selected.");
+                    return INTERPRETER_FOUND_ERROR;
+                }
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                // should always be on, but just in case...
+                if (on)
+                {
+                    gCurX = (minx + maxx) / 2;
+                    gCurZ = (minz + maxz) / 2;
+                    if (gOptions.worldType&HELL)
+                    {
+                        gCurX /= 8.0;
+                        gCurZ /= 8.0;
+                    }
+                }
+                else {
+                    MY_ASSERT(gAlwaysFail);
+                }
+            } 
+            else {
+                saveErrorMessage(is, L"Jump to Model command failed, as no world has been loaded.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
 
-	strPtr = findLineDataNoCase(line, "Focus view:");
-	if (strPtr != NULL) {
-		// note we store the box separately, as it will get cleared when we run into 
-		char cleanString[1024];
-		cleanStringForLocations(cleanString, strPtr);
-		int v[2];
-		if (2 != sscanf_s(cleanString, "%d %d", &v[0], &v[1])) {
-			// bad parse - warn and quit
-			saveErrorMessage(is, L"could not read 'Focus view' coordinates.", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			// is a world loaded? If not, then don't set the selection
-			if (gLoaded) {
-				gCurX = v[0];
-				gCurZ = v[1];
-			}
-			else {
-				// error: selection set but no world is loaded
-				saveErrorMessage(is, L"focus view set but no world is loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    strPtr = findLineDataNoCase(line, "Reset export options:");
+    if (strPtr != NULL) {
+        if (strstr(strPtr, "Render")) {
+            if (is.processData) {
+                initializeViewExportData(gExportViewData);
+            }
+        }
+        else if (strstr(strPtr, "3D Print")) {
+            if (is.processData) {
+                initializePrintExportData(gExportPrintData);
+            }
+        }
+        else if (strstr(strPtr, "Schematic")) {
+            if (is.processData) {
+                InitializeSchematicExportData(gExportSchematicData);
+            }
+        }
+        else {
+            saveErrorMessage(is, L"could not determine what is to be reset. Options are 'Render', '3D Print', and 'Schematic'.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
 
 
-	strPtr = findLineDataNoCase(line, "Zoom:");
-	if (strPtr != NULL) {
-		// note we store the box separately, as it will get cleared when we run into 
-		int v;
-		if (1 != sscanf_s(strPtr, "%d, %d", &v)) {
-			// bad parse - warn and quit
-			saveErrorMessage(is, L"could not read 'Zoom' value.", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if ((v < 1) || (v > 15)) {
-			saveErrorMessage(is, L"zoom factor must be from 1 to 40, inclusive.", strPtr);
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.processData) {
-			// is a world loaded? If not, then don't set the selection
-			if (gLoaded) {
-				gCurScale = v;
-			}
-			else {
-				// error: selection set but no world is loaded
-				saveErrorMessage(is, L"zoom set but no world is loaded.");
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    strPtr = findLineDataNoCase(line, "Focus view:");
+    if (strPtr != NULL) {
+        // note we store the box separately, as it will get cleared when we run into 
+        char cleanString[1024];
+        cleanStringForLocations(cleanString, strPtr);
+        int v[2];
+        if (2 != sscanf_s(cleanString, "%d %d", &v[0], &v[1])) {
+            // bad parse - warn and quit
+            saveErrorMessage(is, L"could not read 'Focus view' coordinates.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            // is a world loaded? If not, then don't set the selection
+            if (gLoaded) {
+                gCurX = v[0];
+                gCurZ = v[1];
+            }
+            else {
+                // error: selection set but no world is loaded
+                saveErrorMessage(is, L"focus view set but no world is loaded.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
-	if (findBitToggle(line, is, "Show all objects", SHOWALL, IDM_SHOWALLOBJECTS, &retCode)) return retCode;
-	if (findBitToggle(line, is, "Show biomes", BIOMES, IDM_VIEW_SHOWBIOMES, &retCode)) return retCode;
-	if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode)) return retCode;
-	if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode)) return retCode;
-	if (findBitToggle(line, is, "Cave mode", CAVEMODE, IDM_CAVEMODE, &retCode)) return retCode;
-	if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode)) return retCode;
 
-	strPtr = findLineDataNoCase(line, "Give more export memory:");
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Give more export memory command.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-		if (is.processData)
-		{
-			gOptions.moreExportMemory = interpretBoolean(string1);
-			CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELP_GIVEMEMOREMEMORY, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
-		}
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
+    strPtr = findLineDataNoCase(line, "Zoom:");
+    if (strPtr != NULL) {
+        // note we store the box separately, as it will get cleared when we run into 
+        int v;
+        if (1 != sscanf_s(strPtr, "%d, %d", &v)) {
+            // bad parse - warn and quit
+            saveErrorMessage(is, L"could not read 'Zoom' value.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if ((v < 1) || (v > 15)) {
+            saveErrorMessage(is, L"zoom factor must be from 1 to 40, inclusive.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            // is a world loaded? If not, then don't set the selection
+            if (gLoaded) {
+                gCurScale = v;
+            }
+            else {
+                // error: selection set but no world is loaded
+                saveErrorMessage(is, L"zoom set but no world is loaded.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
-	strPtr = findLineDataNoCase(line, "Close");
-	if (strPtr != NULL) {
-		removeLeadingWhitespace(strPtr);
-		if (strPtr[0] != (char)0)
-		{
-			saveErrorMessage(is, L"command Close must be the only word on the line, other than comments.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_FOUND_CLOSE;
-	}
+    if (findBitToggle(line, is, "Show all objects", SHOWALL, IDM_SHOWALLOBJECTS, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Show biomes", BIOMES, IDM_VIEW_SHOWBIOMES, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Cave mode", CAVEMODE, IDM_CAVEMODE, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode)) return retCode;
 
-	////////////////////////////////////
-	// Keyboard-related commands
+    strPtr = findLineDataNoCase(line, "Give more export memory:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Give more export memory command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            gOptions.moreExportMemory = interpretBoolean(string1);
+            CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELP_GIVEMEMOREMEMORY, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
 
-	strPtr = findLineDataNoCase(line, "Select minimum height:");
-	if (strPtr != NULL) {
-		// set value for testing
-		int minHeight = 0;
-		if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1))) {
-			// first, is it simply a number?
-			if (1 == sscanf_s(strPtr, "%d", &minHeight))
-			{
-				// it's simply a number. Is it + or -?
-				if ((string1[0] == (char)'+') || (string1[0] == (char)'-')) {
-					if (is.processData) {
-						// it's a relative offset
-						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-						minHeight += miny;
-						clamp(minHeight, 0, 255);
-					} else {
-						//ignore value for now, not processing yet, so reset it
-						minHeight = 0;
-					}
-				}
-			}
-			else {
-				// not a number - look for a V or v
-				if ((string1[0] == (char)'V') || (string1[0] == (char)'v')) {
-					// compare to value after, if any
-					if (is.processData) {
-						// "V" means ignore transparent blocks, such as ocean
-						GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-						if (on) {
-							int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'), maxy);
-							if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
-								minHeight = heightFound > minHeight ? heightFound : minHeight;
-							}
-							else {
-								// no number after, just use the height directly
-								minHeight = heightFound;
-							}
-						}
-						else {
-							saveErrorMessage(is, L"the V/v option for Select minimum height command requires that an area is selected."); return INTERPRETER_FOUND_ERROR;
-						}
-					}
-				}
-				else {
-					saveErrorMessage(is, L"could not find integer value or V/v, V#, or v# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
-				}
-			}
-		}
-		else {
-			saveErrorMessage(is, L"could not find integer value or V, V#, or V# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
-		}
+    strPtr = findLineDataNoCase(line, "Close");
+    if (strPtr != NULL) {
+        removeLeadingWhitespace(strPtr);
+        if (strPtr[0] != (char)0)
+        {
+            saveErrorMessage(is, L"command Close must be the only word on the line, other than comments.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_FOUND_CLOSE;
+    }
 
-		if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
-			saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select minimum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
+    ////////////////////////////////////
+    // Keyboard-related commands
 
-		if (is.processData) {
-			gTargetDepth = minHeight;
-			setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
-			GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-			SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-			enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+    strPtr = findLineDataNoCase(line, "Select minimum height:");
+    if (strPtr != NULL) {
+        // set value for testing
+        int minHeight = 0;
+        if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1))) {
+            // first, is it simply a number?
+            if (1 == sscanf_s(strPtr, "%d", &minHeight))
+            {
+                // it's simply a number. Is it + or -?
+                if ((string1[0] == (char)'+') || (string1[0] == (char)'-')) {
+                    if (is.processData) {
+                        // it's a relative offset
+                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                        minHeight += miny;
+                        clamp(minHeight, 0, 255);
+                    } else {
+                        //ignore value for now, not processing yet, so reset it
+                        minHeight = 0;
+                    }
+                }
+            }
+            else {
+                // not a number - look for a V or v
+                if ((string1[0] == (char)'V') || (string1[0] == (char)'v')) {
+                    // compare to value after, if any
+                    if (is.processData) {
+                        // "V" means ignore transparent blocks, such as ocean
+                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                        if (on) {
+                            int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'), maxy);
+                            if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
+                                minHeight = heightFound > minHeight ? heightFound : minHeight;
+                            }
+                            else {
+                                // no number after, just use the height directly
+                                minHeight = heightFound;
+                            }
+                        }
+                        else {
+                            saveErrorMessage(is, L"the V/v option for Select minimum height command requires that an area is selected."); return INTERPRETER_FOUND_ERROR;
+                        }
+                    }
+                }
+                else {
+                    saveErrorMessage(is, L"could not find integer value or V/v, V#, or v# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        else {
+            saveErrorMessage(is, L"could not find integer value or V, V#, or V# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
+        }
 
-	strPtr = findLineDataNoCase(line, "Select maximum height:");
-	if (strPtr != NULL) {
-		int minHeight;
-		if (1 != sscanf_s(strPtr, "%d", &minHeight))
-		{
-			saveErrorMessage(is, L"could not find boolean value for Select maximum height command."); return INTERPRETER_FOUND_ERROR;
-		}
-		if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
-			saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select maximum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
-		}
+        if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
+            saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select minimum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
 
-		if (is.processData) {
-			gCurDepth = minHeight;
-			setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
-			GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-			SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-			enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-		}
-		return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-	}
+        if (is.processData) {
+            gTargetDepth = minHeight;
+            setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+            enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
-	if (testChangeBlockCommand(line, is, &retCode)) return retCode;
+    strPtr = findLineDataNoCase(line, "Select maximum height:");
+    if (strPtr != NULL) {
+        int minHeight;
+        if (1 != sscanf_s(strPtr, "%d", &minHeight))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Select maximum height command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
+            saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select maximum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
 
-	strPtr = findLineDataNoCase(line, "Clear change block commands");
-	if (strPtr != NULL) {	
-		deleteCommandBlockSet(is.pCBChead);
-		is.pCBChead = is.pCBClast = NULL;
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
+        if (is.processData) {
+            gCurDepth = minHeight;
+            setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+            enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
 
-	strPtr = findLineDataNoCase(line, "Save log file:");
-	if (strPtr != NULL) {
-		if (*strPtr == (char)0) {
-			saveErrorMessage(is, L"no log file given.");
-			return INTERPRETER_FOUND_ERROR;
-		}
-		if (is.logging) {
-			saveWarningMessage(is, L"ignored: log file was opened earlier.");
-			return INTERPRETER_FOUND_VALID_LINE;
-		}
-		// so that we know, to flag errors later.
-		is.logging = true;
-		// NOTE: we open the log file immediately, not on the second pass
-		if (!is.processData) {
-			strcpy_s(is.logFileName, MAX_PATH, strPtr);
-			if (!openLogFile(is)) {
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
+    if (testChangeBlockCommand(line, is, &retCode)) return retCode;
 
-	strPtr = findLineDataNoCase(line, "Custom printer ");
-	if (strPtr != NULL) {
-		float floatVal, floatVal2, floatVal3;
-		char buf[MAX_PATH];
-		if (1 == sscanf_s(strPtr, "minimum wall thickness: %f", &floatVal))
-		{
-			if (is.processData) {
-				// this one is actually stored in meters.
-				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall = floatVal*MM_TO_METERS;
-				// for all exporters currently using this material, change their blockSizeVal to match this value.
-				for (int i = 0; i < 7; i++) {
-					// a bit sleazy, this happens directly on the 3d printer pEFDs
-					if (gExportPrintData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
-						gExportPrintData.blockSizeVal[i] = floatVal;
-					if (gExportViewData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
-						gExportViewData.blockSizeVal[i] = floatVal;
-				}
-			}
-		}
-		else if (1 == sscanf_s(strPtr, "cost per ccm: %f", &floatVal))
-		{
-			if (is.processData) {
-				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerCubicCentimeter = floatVal;
-			}
-		}
-		else if (1 == sscanf_s(strPtr, "cost per printer ccm: %f", &floatVal))
-		{
-			if (is.processData) {
-				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerMachineCC = floatVal;
-			}
-		}
-		else if (1 == sscanf_s(strPtr, "handling cost: %f", &floatVal))
-		{
-			if (is.processData) {
-				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costHandling = floatVal;
-			}
-		}
-		else if (1 == sscanf_s(strPtr, "minimum cost: %f", &floatVal))
-		{
-			if (is.processData) {
-				gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costMinimum = floatVal;
-			}
-		}
-		else if (1 == sscanf_s(strPtr, "currency: %s", &buf, _countof(buf)))
-		{
-			if (is.processData) {
-				if (gCustomCurrency) {
-					free(gCustomCurrency);
-					gCustomCurrency = NULL;
-				}
-				size_t size = (strlen(buf) + 1)*sizeof(wchar_t);
-				gCustomCurrency = (wchar_t *)malloc(size);
-				size_t dummySize = 0;
-				mbstowcs_s(&dummySize, gCustomCurrency, size/2, buf, (size/2)-1);
-			}
-		}
-		else {
-			char cleanString[1024];
-			cleanStringForLocations(cleanString, strPtr);
-			if (3 == sscanf_s(cleanString, "maximum size: %f %f %f", &floatVal, &floatVal2, &floatVal3))
-			{
-				if (is.processData) {
-					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[0] = floatVal;
-					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[1] = floatVal2;
-					gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[2] = floatVal3;
-				}
-			}
+    strPtr = findLineDataNoCase(line, "Clear change block commands");
+    if (strPtr != NULL) {	
+        deleteCommandBlockSet(is.pCBChead);
+        is.pCBChead = is.pCBClast = NULL;
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
 
-			else {
-				wchar_t error[1024];
-				wsprintf(error, L"could not understand command %S", line);
-				saveErrorMessage(is, error);
-				return INTERPRETER_FOUND_ERROR;
-			}
-		}
-		return INTERPRETER_FOUND_VALID_LINE;
-	}
+    strPtr = findLineDataNoCase(line, "Save log file:");
+    if (strPtr != NULL) {
+        if (*strPtr == (char)0) {
+            saveErrorMessage(is, L"no log file given.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.logging) {
+            saveWarningMessage(is, L"ignored: log file was opened earlier.");
+            return INTERPRETER_FOUND_VALID_LINE;
+        }
+        // so that we know, to flag errors later.
+        is.logging = true;
+        // NOTE: we open the log file immediately, not on the second pass
+        if (!is.processData) {
+            strcpy_s(is.logFileName, MAX_PATH, strPtr);
+            if (!openLogFile(is)) {
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
 
-	// something on line, but means nothing - warn user
-	return INTERPRETER_FOUND_NOTHING_USEFUL;
+    strPtr = findLineDataNoCase(line, "Custom printer ");
+    if (strPtr != NULL) {
+        float floatVal, floatVal2, floatVal3;
+        char buf[MAX_PATH];
+        if (1 == sscanf_s(strPtr, "minimum wall thickness: %f", &floatVal))
+        {
+            if (is.processData) {
+                // this one is actually stored in meters.
+                gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall = floatVal*MM_TO_METERS;
+                // for all exporters currently using this material, change their blockSizeVal to match this value.
+                for (int i = 0; i < 7; i++) {
+                    // a bit sleazy, this happens directly on the 3d printer pEFDs
+                    if (gExportPrintData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+                        gExportPrintData.blockSizeVal[i] = floatVal;
+                    if (gExportViewData.comboPhysicalMaterial[i] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+                        gExportViewData.blockSizeVal[i] = floatVal;
+                }
+            }
+        }
+        else if (1 == sscanf_s(strPtr, "cost per ccm: %f", &floatVal))
+        {
+            if (is.processData) {
+                gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerCubicCentimeter = floatVal;
+            }
+        }
+        else if (1 == sscanf_s(strPtr, "cost per printer ccm: %f", &floatVal))
+        {
+            if (is.processData) {
+                gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costPerMachineCC = floatVal;
+            }
+        }
+        else if (1 == sscanf_s(strPtr, "handling cost: %f", &floatVal))
+        {
+            if (is.processData) {
+                gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costHandling = floatVal;
+            }
+        }
+        else if (1 == sscanf_s(strPtr, "minimum cost: %f", &floatVal))
+        {
+            if (is.processData) {
+                gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costMinimum = floatVal;
+            }
+        }
+        else if (1 == sscanf_s(strPtr, "currency: %s", &buf, _countof(buf)))
+        {
+            if (is.processData) {
+                if (gCustomCurrency) {
+                    free(gCustomCurrency);
+                    gCustomCurrency = NULL;
+                }
+                size_t size = (strlen(buf) + 1)*sizeof(wchar_t);
+                gCustomCurrency = (wchar_t *)malloc(size);
+                size_t dummySize = 0;
+                mbstowcs_s(&dummySize, gCustomCurrency, size/2, buf, (size/2)-1);
+            }
+        }
+        else {
+            char cleanString[1024];
+            cleanStringForLocations(cleanString, strPtr);
+            if (3 == sscanf_s(cleanString, "maximum size: %f %f %f", &floatVal, &floatVal2, &floatVal3))
+            {
+                if (is.processData) {
+                    gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[0] = floatVal;
+                    gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[1] = floatVal2;
+                    gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].maxSize[2] = floatVal3;
+                }
+            }
+
+            else {
+                wchar_t error[1024];
+                wsprintf(error, L"could not understand command %S", line);
+                saveErrorMessage(is, error);
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    // something on line, but means nothing - warn user
+    return INTERPRETER_FOUND_NOTHING_USEFUL;
 }
 
 static bool findBitToggle(char *line, ImportedSet & is, char *type, unsigned int bitLocation, unsigned int windowID, int *pRetCode)
 {
-	*pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
-	char string1[100];
-	char commandString[1024];
-	strcpy_s(commandString, 1024, type);
-	strcat_s(commandString, 1024, ":");
-	char *strPtr = findLineDataNoCase(line, commandString);
-	if (strPtr != NULL) {
-		if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
-		{
-			wchar_t error[1024];
-			wsprintf(error, L"could not find boolean value for %S command.", type);
-			saveErrorMessage(is, error);
-			*pRetCode = INTERPRETER_FOUND_ERROR;
-			return true;
-		}
-		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-		if (is.processData)
-		{
-			if (interpretBoolean(string1))
-				gOptions.worldType |= bitLocation;	// turn bit on
-			else
-				gOptions.worldType &= ~bitLocation;	// turn bit off
-			CheckMenuItem(GetMenu(is.ws.hWnd), windowID, (gOptions.worldType & bitLocation) ? MF_CHECKED : MF_UNCHECKED);
-		}
-		*pRetCode = INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-		return true;
-	}
-	// didn't find anything
-	return false;
+    *pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
+    char string1[100];
+    char commandString[1024];
+    strcpy_s(commandString, 1024, type);
+    strcat_s(commandString, 1024, ":");
+    char *strPtr = findLineDataNoCase(line, commandString);
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        {
+            wchar_t error[1024];
+            wsprintf(error, L"could not find boolean value for %S command.", type);
+            saveErrorMessage(is, error);
+            *pRetCode = INTERPRETER_FOUND_ERROR;
+            return true;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            if (interpretBoolean(string1))
+                gOptions.worldType |= bitLocation;	// turn bit on
+            else
+                gOptions.worldType &= ~bitLocation;	// turn bit off
+            CheckMenuItem(GetMenu(is.ws.hWnd), windowID, (gOptions.worldType & bitLocation) ? MF_CHECKED : MF_UNCHECKED);
+        }
+        *pRetCode = INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+        return true;
+    }
+    // didn't find anything
+    return false;
 }
 
 static bool testChangeBlockCommand(char *line, ImportedSet & is, int *pRetCode)
 {
-	// types of commands:
-	// fromOne or fromMulti or fromAll - fromOne is a single block and perhaps data, from Multi is the bit table of everything, fromAll is everything except air
-	// to is always a single type and data
-	// location is always a range, even if identical
-	// linked list of these commands, one after another
+    // types of commands:
+    // fromOne or fromMulti or fromAll - fromOne is a single block and perhaps data, from Multi is the bit table of everything, fromAll is everything except air
+    // to is always a single type and data
+    // location is always a range, even if identical
+    // linked list of these commands, one after another
 
-	*pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
-	wchar_t error[1024];
-	bool keepLooking;
-	int fromBlockCount = 0;
-	int fromType, fromData, fromEndType, fromEndData;
-	unsigned short fromDataBits, fromEndDataBits;
-	int toType, toData;
-	bool foundSomething = false;
-	fromEndType = 0;	// make compiler happy
-	fromEndDataBits = 0xffff; // make compiler happy
+    *pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
+    wchar_t error[1024];
+    bool keepLooking;
+    int fromBlockCount = 0;
+    int fromType, fromData, fromEndType, fromEndData;
+    unsigned short fromDataBits, fromEndDataBits;
+    int toType, toData;
+    bool foundSomething = false;
+    fromEndType = 0;	// make compiler happy
+    fromEndDataBits = 0xffff; // make compiler happy
 
-	char *strPtr = findLineDataNoCase(line, "Change blocks:");
-	if (strPtr != NULL) {
-		// let the fun begin:
-		// [from "grass block","Sand"-"gravel",55:2] [to 76:3] [at x, y, z[ to x, y, z]]
-		//
-		// We need at least a from, a to, or a location
-		//
-		// look for "from"
-		if (strstr(strPtr, "from ") == strPtr){
-			// found "from ", so digest it.
-			foundSomething = true;
-			strPtr = findLineDataNoCase(strPtr, "from ");
-			MY_ASSERT(strPtr);
-			keepLooking = true;
-			boolean cbCreated = false;
-			do {
-				// is there an initial block type and optional data next?
-				// note: fromData and fromEndData really aren't used here; they're meant for "to" strings
-				strPtr = findBlockTypeAndData(strPtr, &fromType, &fromData, &fromDataBits, error);
-				if (error[0] != (wchar_t)0) {
-					saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
-				}
-				if (strPtr != NULL) {
-					// found one, is it a range?
-					fromBlockCount++;
-					if (*strPtr == (char)'-') {
-						// yes, so see if there's another, making a range
-						fromBlockCount++;
-						strPtr++;
-						strPtr = findBlockTypeAndData(strPtr, &fromEndType, &fromEndData, &fromEndDataBits, error);
-						if (error[0] != (wchar_t)0) {
-							saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
-						}
-						if (strPtr == NULL) {
-							// did not find a trailing block type and data
-							saveErrorMessage(is, L"found a starting block type for Change blocks command, but no ending block type.", strPtr);
-							*pRetCode = INTERPRETER_FOUND_ERROR;
-							return true;
-						}
-					}
-					else {
-						// not a range, so simply copy
-						fromEndType = fromType;
-						fromEndData = fromData;
-						fromEndDataBits = fromDataBits;
-					}
-				}
-				else {
-					// did not find an initial block type after the word "from"
-					if (fromBlockCount == 0)
-					{
-						saveErrorMessage(is, L"found 'from' for Change blocks command, but no block type follows it.", strPtr);
-						*pRetCode = INTERPRETER_FOUND_ERROR;
-						return true;
-					}
-					// else found one or more blocks, so we're good here.
-				}
-				if (fromDataBits != fromEndDataBits)
-				{
-					saveErrorMessage(is, L"found 'from' range of types in Change blocks command, but :data cannot be set for a range.", strPtr);
-					*pRetCode = INTERPRETER_FOUND_ERROR;
-					return true;
-				}
-				// at this point we know we have found some single or pair of found items, so add them in
-				if (!cbCreated) {
-					cbCreated = true;
-					if (is.processData)
-						createCB(is);
-				}
-				if (is.processData) {
-					if (fromType <= fromEndType) {
-						addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits);
-					} else {
-						// allowed, since it could be block name to block name
-						saveWarningMessage(is, L"the from range is saved from high to low; accepted as a range, but it's better to go low to high.");
-						addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits);
-					}
-				}
+    char *strPtr = findLineDataNoCase(line, "Change blocks:");
+    if (strPtr != NULL) {
+        // let the fun begin:
+        // [from "grass block","Sand"-"gravel",55:2] [to 76:3] [at x, y, z[ to x, y, z]]
+        //
+        // We need at least a from, a to, or a location
+        //
+        // look for "from"
+        if (strstr(strPtr, "from ") == strPtr){
+            // found "from ", so digest it.
+            foundSomething = true;
+            strPtr = findLineDataNoCase(strPtr, "from ");
+            MY_ASSERT(strPtr);
+            keepLooking = true;
+            boolean cbCreated = false;
+            do {
+                // is there an initial block type and optional data next?
+                // note: fromData and fromEndData really aren't used here; they're meant for "to" strings
+                strPtr = findBlockTypeAndData(strPtr, &fromType, &fromData, &fromDataBits, error);
+                if (error[0] != (wchar_t)0) {
+                    saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
+                }
+                if (strPtr != NULL) {
+                    // found one, is it a range?
+                    fromBlockCount++;
+                    if (*strPtr == (char)'-') {
+                        // yes, so see if there's another, making a range
+                        fromBlockCount++;
+                        strPtr++;
+                        strPtr = findBlockTypeAndData(strPtr, &fromEndType, &fromEndData, &fromEndDataBits, error);
+                        if (error[0] != (wchar_t)0) {
+                            saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
+                        }
+                        if (strPtr == NULL) {
+                            // did not find a trailing block type and data
+                            saveErrorMessage(is, L"found a starting block type for Change blocks command, but no ending block type.", strPtr);
+                            *pRetCode = INTERPRETER_FOUND_ERROR;
+                            return true;
+                        }
+                    }
+                    else {
+                        // not a range, so simply copy
+                        fromEndType = fromType;
+                        fromEndData = fromData;
+                        fromEndDataBits = fromDataBits;
+                    }
+                }
+                else {
+                    // did not find an initial block type after the word "from"
+                    if (fromBlockCount == 0)
+                    {
+                        saveErrorMessage(is, L"found 'from' for Change blocks command, but no block type follows it.", strPtr);
+                        *pRetCode = INTERPRETER_FOUND_ERROR;
+                        return true;
+                    }
+                    // else found one or more blocks, so we're good here.
+                }
+                if (fromDataBits != fromEndDataBits)
+                {
+                    saveErrorMessage(is, L"found 'from' range of types in Change blocks command, but :data cannot be set for a range.", strPtr);
+                    *pRetCode = INTERPRETER_FOUND_ERROR;
+                    return true;
+                }
+                // at this point we know we have found some single or pair of found items, so add them in
+                if (!cbCreated) {
+                    cbCreated = true;
+                    if (is.processData)
+                        createCB(is);
+                }
+                if (is.processData) {
+                    if (fromType <= fromEndType) {
+                        addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits);
+                    } else {
+                        // allowed, since it could be block name to block name
+                        saveWarningMessage(is, L"the from range is saved from high to low; accepted as a range, but it's better to go low to high.");
+                        addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits);
+                    }
+                }
 
-				// check if there is another block type in range; if so, continue search
-				if (*strPtr == (char)',') {
-					// yes, we'll keep looking
-					strPtr++;
-				}
-				else {
-					// we're done
-					keepLooking = false;
-				}
-			} while (keepLooking);
-		}
-		else {
-			// no "from" directive found, so the range is everything except air.
-			if (is.processData) {
-				createCB(is);
-				// set all 16 bits to be flagged for all solid stuff;
-				// if you want everything, you need to say "from 0-255"
-				setDefaultFromRangeToCB(is.pCBClast, 1, 255, 0xffff);
-			}
-		}
+                // check if there is another block type in range; if so, continue search
+                if (*strPtr == (char)',') {
+                    // yes, we'll keep looking
+                    strPtr++;
+                }
+                else {
+                    // we're done
+                    keepLooking = false;
+                }
+            } while (keepLooking);
+        }
+        else {
+            // no "from" directive found, so the range is everything except air.
+            if (is.processData) {
+                createCB(is);
+                // set all 16 bits to be flagged for all solid stuff;
+                // if you want everything, you need to say "from 0-255"
+                setDefaultFromRangeToCB(is.pCBClast, 1, 255, 0xffff);
+            }
+        }
 
-		// now look for "to".
-		if (strstr(strPtr, "to ") == strPtr){
-			// found "to ", so digest it.
-			foundSomething = true;
-			strPtr = findLineDataNoCase(strPtr, "to ");
-			MY_ASSERT(strPtr);
+        // now look for "to".
+        if (strstr(strPtr, "to ") == strPtr){
+            // found "to ", so digest it.
+            foundSomething = true;
+            strPtr = findLineDataNoCase(strPtr, "to ");
+            MY_ASSERT(strPtr);
 
-			// is there an initial block type and optional data next?
-			strPtr = findBlockTypeAndData(strPtr, &toType, &toData, NULL, error);
-			if (error[0] != (wchar_t)0) {
-				saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
-			}
-			if (strPtr == NULL) {
-				saveErrorMessage(is, L"found 'to' for Change blocks command, but no block type follows it.", strPtr);
-				*pRetCode = INTERPRETER_FOUND_ERROR;
-				return true;
-			}
-			// we're done
-			if (is.processData)
-				saveCBinto(is.pCBClast, (unsigned char)toType, (unsigned char)toData);
-		} // else, no "to" given, so air is assumed, which is the default 0:0
+            // is there an initial block type and optional data next?
+            strPtr = findBlockTypeAndData(strPtr, &toType, &toData, NULL, error);
+            if (error[0] != (wchar_t)0) {
+                saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
+            }
+            if (strPtr == NULL) {
+                saveErrorMessage(is, L"found 'to' for Change blocks command, but no block type follows it.", strPtr);
+                *pRetCode = INTERPRETER_FOUND_ERROR;
+                return true;
+            }
+            // we're done
+            if (is.processData)
+                saveCBinto(is.pCBClast, (unsigned char)toType, (unsigned char)toData);
+        } // else, no "to" given, so air is assumed, which is the default 0:0
 
-		// finally, look for location(s)
-		if (strstr(strPtr, "at ") == strPtr){
-			// found "at ", so digest it.
-			foundSomething = true;
-			strPtr = findLineDataNoCase(strPtr, "at ");
+        // finally, look for location(s)
+        if (strstr(strPtr, "at ") == strPtr){
+            // found "at ", so digest it.
+            foundSomething = true;
+            strPtr = findLineDataNoCase(strPtr, "at ");
 
-			int v[6];
-			char cleanString[1024];
-			cleanStringForLocations(cleanString, strPtr);
-				
-			if (3 == sscanf_s(cleanString, "%d %d %d",
-				&v[0], &v[1], &v[2])) {
-				v[3] = v[0];
-				v[4] = v[1];
-				v[5] = v[2];
-			}
-			else {
-				// bad parse of first location - warn and quit
-				saveErrorMessage(is, L"could not read location values 'x y z[ to x y z]'.", strPtr);
-				*pRetCode = INTERPRETER_FOUND_ERROR;
-				return true;
-			}
-			// get to "to", if possible
-			strPtr = strstr(cleanString, "to ");
-			if (strPtr != NULL) {
-				// found a "to"
-				strPtr = findLineDataNoCase(strPtr, "to ");
-				if (3 != sscanf_s(strPtr, "%d %d %d",
-					&v[3], &v[4], &v[5])) {
-					saveErrorMessage(is, L"could not read location values 'x y z to x y z'.", strPtr);
-					*pRetCode = INTERPRETER_FOUND_ERROR;
-					return true;
-				}
-			}
-			// survived, so save
-			if (is.processData) {
-				saveCBlocation(is.pCBClast, v);
-			}
-		}
-		else if (foundSomething && (*strPtr != (char)0)){
-			saveErrorMessage(is, L"the Change blocks command has some unknown data where the location should be.", strPtr);
-			*pRetCode = INTERPRETER_FOUND_ERROR;
-			return true;
-		}
-		if (!foundSomething) {
-			saveErrorMessage(is, L"For Change blocks command, nothing useful found after colon. Format is 'from 12 to 1 at 23,0,-18 to 24,255,44'.", strPtr);
-			*pRetCode = INTERPRETER_FOUND_ERROR;
-			return true;
-		}
-		// it's all good.
-		// Final little fix: if no from location is specified, to location is specified, and a volume is specified, the "from"
-		// range should be everything, including air.
-		if (is.processData) {
-			if (!is.pCBClast->hasFrom && is.pCBClast->hasInto && is.pCBClast->hasLocation) {
-				setDefaultFromRangeToCB(is.pCBClast, 0, 255, 0xffff);
-			}
-		}
-		*pRetCode = INTERPRETER_FOUND_VALID_LINE;
-		return true;
-	}
-	// didn't find anything
-	return false;
+            int v[6];
+            char cleanString[1024];
+            cleanStringForLocations(cleanString, strPtr);
+                
+            if (3 == sscanf_s(cleanString, "%d %d %d",
+                &v[0], &v[1], &v[2])) {
+                v[3] = v[0];
+                v[4] = v[1];
+                v[5] = v[2];
+            }
+            else {
+                // bad parse of first location - warn and quit
+                saveErrorMessage(is, L"could not read location values 'x y z[ to x y z]'.", strPtr);
+                *pRetCode = INTERPRETER_FOUND_ERROR;
+                return true;
+            }
+            // get to "to", if possible
+            strPtr = strstr(cleanString, "to ");
+            if (strPtr != NULL) {
+                // found a "to"
+                strPtr = findLineDataNoCase(strPtr, "to ");
+                if (3 != sscanf_s(strPtr, "%d %d %d",
+                    &v[3], &v[4], &v[5])) {
+                    saveErrorMessage(is, L"could not read location values 'x y z to x y z'.", strPtr);
+                    *pRetCode = INTERPRETER_FOUND_ERROR;
+                    return true;
+                }
+            }
+            // survived, so save
+            if (is.processData) {
+                saveCBlocation(is.pCBClast, v);
+            }
+        }
+        else if (foundSomething && (*strPtr != (char)0)){
+            saveErrorMessage(is, L"the Change blocks command has some unknown data where the location should be.", strPtr);
+            *pRetCode = INTERPRETER_FOUND_ERROR;
+            return true;
+        }
+        if (!foundSomething) {
+            saveErrorMessage(is, L"For Change blocks command, nothing useful found after colon. Format is 'from 12 to 1 at 23,0,-18 to 24,255,44'.", strPtr);
+            *pRetCode = INTERPRETER_FOUND_ERROR;
+            return true;
+        }
+        // it's all good.
+        // Final little fix: if no from location is specified, to location is specified, and a volume is specified, the "from"
+        // range should be everything, including air.
+        if (is.processData) {
+            if (!is.pCBClast->hasFrom && is.pCBClast->hasInto && is.pCBClast->hasLocation) {
+                setDefaultFromRangeToCB(is.pCBClast, 0, 255, 0xffff);
+            }
+        }
+        *pRetCode = INTERPRETER_FOUND_VALID_LINE;
+        return true;
+    }
+    // didn't find anything
+    return false;
 }
 
 // copy string, removing additional whitespace and commas
 static void cleanStringForLocations(char *cleanString, char *strPtr)
 {
-	bool firstSpace = true;
-	do {
-		if ((*strPtr == ' ') || (*strPtr == '\t')) {
-			if (firstSpace) {
-				*cleanString++ = ' ';
-				firstSpace = false;
-			} // else skip copying until whitespace is over
-		}
-		else if (*strPtr == ',') {
-			// substitute a ' ' for a ','
-			*cleanString++ = ' ';
-			firstSpace = false;
-		}
-		else {
-			*cleanString++ = *strPtr;
-			firstSpace = true;
-		}
-	} while (*strPtr++);
+    bool firstSpace = true;
+    do {
+        if ((*strPtr == ' ') || (*strPtr == '\t')) {
+            if (firstSpace) {
+                *cleanString++ = ' ';
+                firstSpace = false;
+            } // else skip copying until whitespace is over
+        }
+        else if (*strPtr == ',') {
+            // substitute a ' ' for a ','
+            *cleanString++ = ' ';
+            firstSpace = false;
+        }
+        else {
+            *cleanString++ = *strPtr;
+            firstSpace = true;
+        }
+    } while (*strPtr++);
 }
 
 
 // by default, assume nothing is set
 static void createCB(ImportedSet & is)
 {
-	ChangeBlockCommand *pCBC = (ChangeBlockCommand *)malloc(sizeof(ChangeBlockCommand));
-	memset(pCBC, 0, sizeof(ChangeBlockCommand));
+    ChangeBlockCommand *pCBC = (ChangeBlockCommand *)malloc(sizeof(ChangeBlockCommand));
+    memset(pCBC, 0, sizeof(ChangeBlockCommand));
 
-	if (is.pCBChead == NULL) {
-		// this is the first CBC, so save the first command there
-		is.pCBChead = pCBC;
-	}
-	else {
-		MY_ASSERT(is.pCBClast);
-		is.pCBClast->next = pCBC;
-	}
-	// store the last element in the list, ready to add on to it.
-	is.pCBClast = pCBC;
+    if (is.pCBChead == NULL) {
+        // this is the first CBC, so save the first command there
+        is.pCBChead = pCBC;
+    }
+    else {
+        MY_ASSERT(is.pCBClast);
+        is.pCBClast->next = pCBC;
+    }
+    // store the last element in the list, ready to add on to it.
+    is.pCBClast = pCBC;
 }
 
 static void addFromRangeToCB(ChangeBlockCommand *pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
 {
-	// two ways to store data:
-	// one is a simple range: 5-50, say, and the data bits must all be the same, e.g. 0xffff (all data)
-	// the other is complex, and so needs separate bits for every entry in a giant table
-	MY_ASSERT(pCBC);
-	MY_ASSERT(fromType <= fromEndType);
-	// what sort of data is already in the current change block command?
-	if (pCBC->hasFrom)
-	{
-		// We already have some "from" block(s) assigned, so we're adding to them.
-		// Are we in fact already using the bits array?
-		if (pCBC->useFromArray) {
-			// simply add to bits array
-			addRangeToDataBitsArray(pCBC, fromType, fromEndType, fromDataBits);
-		}
-		else {
-			// we have only one previous block type range stored.
-			// Does this new data use the same data bits? Or, do the ranges not overlap?
-			if ((fromDataBits != pCBC->simpleFromDataBits)||
-				(fromType > pCBC->simpleFromTypeEnd + 1) ||
-				(fromEndType < pCBC->simpleFromTypeBegin - 1)){
-				// no, so must add array and the different ranges
-				addDataBitsArray(pCBC);
-				pCBC->useFromArray = true;
-				addRangeToDataBitsArray(pCBC, pCBC->simpleFromTypeBegin, pCBC->simpleFromTypeEnd, pCBC->simpleFromDataBits);
-				addRangeToDataBitsArray(pCBC, fromType, fromEndType, fromDataBits);
-			}
-			// the data bits match, and the ranges overlap, so merge
-			else {
-				if (fromType < pCBC->simpleFromTypeBegin) {
-					pCBC->simpleFromTypeBegin = fromType;
-				}
-				if (fromEndType > pCBC->simpleFromTypeEnd) {
-					pCBC->simpleFromTypeEnd = fromEndType;
-				}
-			}
-		}
-	}
-	else
-	{
-		// no "from" already, this is the first.
-		pCBC->hasFrom = true;
-		pCBC->simpleFromTypeBegin = fromType;
-		pCBC->simpleFromTypeEnd = fromEndType;
-		pCBC->simpleFromDataBits = fromDataBits;
-	}
+    // two ways to store data:
+    // one is a simple range: 5-50, say, and the data bits must all be the same, e.g. 0xffff (all data)
+    // the other is complex, and so needs separate bits for every entry in a giant table
+    MY_ASSERT(pCBC);
+    MY_ASSERT(fromType <= fromEndType);
+    // what sort of data is already in the current change block command?
+    if (pCBC->hasFrom)
+    {
+        // We already have some "from" block(s) assigned, so we're adding to them.
+        // Are we in fact already using the bits array?
+        if (pCBC->useFromArray) {
+            // simply add to bits array
+            addRangeToDataBitsArray(pCBC, fromType, fromEndType, fromDataBits);
+        }
+        else {
+            // we have only one previous block type range stored.
+            // Does this new data use the same data bits? Or, do the ranges not overlap?
+            if ((fromDataBits != pCBC->simpleFromDataBits)||
+                (fromType > pCBC->simpleFromTypeEnd + 1) ||
+                (fromEndType < pCBC->simpleFromTypeBegin - 1)){
+                // no, so must add array and the different ranges
+                addDataBitsArray(pCBC);
+                pCBC->useFromArray = true;
+                addRangeToDataBitsArray(pCBC, pCBC->simpleFromTypeBegin, pCBC->simpleFromTypeEnd, pCBC->simpleFromDataBits);
+                addRangeToDataBitsArray(pCBC, fromType, fromEndType, fromDataBits);
+            }
+            // the data bits match, and the ranges overlap, so merge
+            else {
+                if (fromType < pCBC->simpleFromTypeBegin) {
+                    pCBC->simpleFromTypeBegin = fromType;
+                }
+                if (fromEndType > pCBC->simpleFromTypeEnd) {
+                    pCBC->simpleFromTypeEnd = fromEndType;
+                }
+            }
+        }
+    }
+    else
+    {
+        // no "from" already, this is the first.
+        pCBC->hasFrom = true;
+        pCBC->simpleFromTypeBegin = fromType;
+        pCBC->simpleFromTypeEnd = fromEndType;
+        pCBC->simpleFromDataBits = fromDataBits;
+    }
 }
 
 static void setDefaultFromRangeToCB(ChangeBlockCommand *pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
 {
-	//pCBC->hasFrom = false; - default, should already be set as such
-	pCBC->simpleFromTypeBegin = fromType;
-	pCBC->simpleFromTypeEnd = fromEndType;
-	pCBC->simpleFromDataBits = fromDataBits;
+    //pCBC->hasFrom = false; - default, should already be set as such
+    pCBC->simpleFromTypeBegin = fromType;
+    pCBC->simpleFromTypeEnd = fromEndType;
+    pCBC->simpleFromDataBits = fromDataBits;
 }
 
 static void addRangeToDataBitsArray(ChangeBlockCommand *pCBC, int fromType, int fromEndType, unsigned short fromDataBits)
 {
-	// go through range and add bits to each field
-	MY_ASSERT(fromType <= fromEndType);
-	for (int type = fromType; type <= fromEndType; type++) {
-		pCBC->fromDataBitsArray[type] |= fromDataBits;
-	}
+    // go through range and add bits to each field
+    MY_ASSERT(fromType <= fromEndType);
+    for (int type = fromType; type <= fromEndType; type++) {
+        pCBC->fromDataBitsArray[type] |= fromDataBits;
+    }
 }
 
 static void saveCBinto(ChangeBlockCommand *pCBC, unsigned char intoType, unsigned char intoData)
 {
-	pCBC->intoType = intoType;
-	pCBC->intoData = intoData;
-	pCBC->hasInto = true;
+    pCBC->intoType = intoType;
+    pCBC->intoData = intoData;
+    pCBC->hasInto = true;
 }
 
 static void addDataBitsArray(ChangeBlockCommand *pCBC)
 {
-	pCBC->fromDataBitsArray = (unsigned short *)malloc(256 * sizeof(unsigned short));
-	memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
+    pCBC->fromDataBitsArray = (unsigned short *)malloc(256 * sizeof(unsigned short));
+    memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
 static void saveCBlocation(ChangeBlockCommand *pCBC, int v[6])
 {
-	int tv;
-	//if ((v[0] == v[3]) && (v[1] == v[4]) && (v[2] == v[5]))
-	//{
-		// single location
-	//}
-	// set low to high
-	if (v[0] > v[3]) {
-		tv = v[0]; v[0] = v[3]; v[3] = tv;
-	}
-	if (v[1] > v[4]) {
-		tv = v[1]; v[1] = v[4]; v[4] = tv;
-	}
-	if (v[2] > v[5]) {
-		tv = v[2]; v[2] = v[5]; v[5] = tv;
-	}
-	pCBC->minxVal = v[0];
-	pCBC->minyVal = v[1];
-	pCBC->minzVal = v[2];
-	pCBC->maxxVal = v[3];
-	pCBC->maxyVal = v[4];
-	pCBC->maxzVal = v[5];
-	pCBC->hasLocation = true;
+    int tv;
+    //if ((v[0] == v[3]) && (v[1] == v[4]) && (v[2] == v[5]))
+    //{
+        // single location
+    //}
+    // set low to high
+    if (v[0] > v[3]) {
+        tv = v[0]; v[0] = v[3]; v[3] = tv;
+    }
+    if (v[1] > v[4]) {
+        tv = v[1]; v[1] = v[4]; v[4] = tv;
+    }
+    if (v[2] > v[5]) {
+        tv = v[2]; v[2] = v[5]; v[5] = tv;
+    }
+    pCBC->minxVal = v[0];
+    pCBC->minyVal = v[1];
+    pCBC->minzVal = v[2];
+    pCBC->maxxVal = v[3];
+    pCBC->maxyVal = v[4];
+    pCBC->maxzVal = v[5];
+    pCBC->hasLocation = true;
 }
 
 static void deleteCommandBlockSet(ChangeBlockCommand *pCBC)
 {
-	while (pCBC) {
-		if (pCBC->fromDataBitsArray) {
-			free(pCBC->fromDataBitsArray);
-		}
-		pCBC = pCBC->next;
-	}
+    while (pCBC) {
+        if (pCBC->fromDataBitsArray) {
+            free(pCBC->fromDataBitsArray);
+        }
+        pCBC = pCBC->next;
+    }
 }
 
 
@@ -6445,124 +6468,124 @@ static void deleteCommandBlockSet(ChangeBlockCommand *pCBC)
 // this method removes leading whitespace then go past any trailing whitespace
 static char *findBlockTypeAndData(char *line, int *pType, int *pData, unsigned short *pDataBits, wchar_t *error)
 {
-	error[0] = (wchar_t)0;
+    error[0] = (wchar_t)0;
 
-	char *strPtr = removeLeadingWhitespace(line);
+    char *strPtr = removeLeadingWhitespace(line);
 
-	// first find a block, if any
-	if (*strPtr == '\"') {
-		strPtr++;
-		// there might be a string block identifier
-		for (int type = 0; type <= 255; type++) {
-			// compare, caseless, to block types until we find a match
-			char *foundPtr = compareLCAndSkip(strPtr, gBlockDefinitions[type].name);
-			if (foundPtr != NULL) {
-				// found a match!
-				// now, is the next character a "? If not, it's not really a match
-				if (*foundPtr == '\"') {
-					// yes, it's really a block, we have our type
-					*pType = type;
-					// move beyond this part of the string and look for a data field
-					strPtr = foundPtr + 1;
-					// break out of loop
-					goto TestForDataString;
-				}
-				// else continue. For example, you might have found "glass" when in fact "glass pane" is specified.
-			}
-		}
-		// could not find type in list
-		wsprintf(error, L"block type is unknown. Rest of line: %S", strPtr); return line;
-	}
-	else {
-		// scan for an integer identifier
-		if (1 != sscanf_s(strPtr, "%d", pType))
-		{
-			wsprintf(error, L"block type number or name not found. Rest of line: %S", strPtr); return line;
-		}
-		// found it - is it legal?
-		if (*pType < 0 || *pType > 255) {
-			wsprintf(error, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
-		}
-		strPtr = skipPastUnsignedInteger(strPtr);
-	}
+    // first find a block, if any
+    if (*strPtr == '\"') {
+        strPtr++;
+        // there might be a string block identifier
+        for (int type = 0; type <= 255; type++) {
+            // compare, caseless, to block types until we find a match
+            char *foundPtr = compareLCAndSkip(strPtr, gBlockDefinitions[type].name);
+            if (foundPtr != NULL) {
+                // found a match!
+                // now, is the next character a "? If not, it's not really a match
+                if (*foundPtr == '\"') {
+                    // yes, it's really a block, we have our type
+                    *pType = type;
+                    // move beyond this part of the string and look for a data field
+                    strPtr = foundPtr + 1;
+                    // break out of loop
+                    goto TestForDataString;
+                }
+                // else continue. For example, you might have found "glass" when in fact "glass pane" is specified.
+            }
+        }
+        // could not find type in list
+        wsprintf(error, L"block type is unknown. Rest of line: %S", strPtr); return line;
+    }
+    else {
+        // scan for an integer identifier
+        if (1 != sscanf_s(strPtr, "%d", pType))
+        {
+            wsprintf(error, L"block type number or name not found. Rest of line: %S", strPtr); return line;
+        }
+        // found it - is it legal?
+        if (*pType < 0 || *pType > 255) {
+            wsprintf(error, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
+        }
+        strPtr = skipPastUnsignedInteger(strPtr);
+    }
 
 TestForDataString:
-	// now look for the optional data field or fields
-	if (*strPtr == ':') {
-		// there's indeed a data type.
-		strPtr++;
-		if (1 != sscanf_s(strPtr, "%d", pData))
-		{
-			wsprintf(error, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
-		}
-		if (*pData < 0 || *pData > 15) {
-			wsprintf(error, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
-		}
-		strPtr = skipPastUnsignedInteger(strPtr);
-		// so is there a range of data? Rare, but possible... Valid only if pDataBits is needed (i.e., is "from")
-		int secondData = *pData;
-		if (*strPtr == '-') {
-			if (pDataBits == NULL) {
-				wsprintf(error, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
-			}
-			strPtr++;
-			// look for second data type
-			if (1 != sscanf_s(strPtr, "%d", &secondData))
-			{
-				wsprintf(error, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
-			}
-			if (secondData < 0 || secondData > 15) {
-				wsprintf(error, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
-			}
-			if (*pData > secondData) {
-				wsprintf(error, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
-			}
-			strPtr = skipPastUnsignedInteger(strPtr);
-		}
-		// compute data bits, if needed
-		if (pDataBits != NULL) {
-			*pDataBits = 0;
-			for (int i = *pData; i <= secondData; i++) {
-				*pDataBits |= (0x1 << i);
-			}
-		}
-	}
-	else {
-		// no data field
-		if (pDataBits != NULL) {
-			// for "from" that means all of them
-			*pDataBits = 0xffff;	// all 16 bits on
-			*pData = -1;
-		}
-		else {
-			// for "to" that means data == 0
-			*pData = 0;
-		}
-	}
+    // now look for the optional data field or fields
+    if (*strPtr == ':') {
+        // there's indeed a data type.
+        strPtr++;
+        if (1 != sscanf_s(strPtr, "%d", pData))
+        {
+            wsprintf(error, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
+        }
+        if (*pData < 0 || *pData > 15) {
+            wsprintf(error, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
+        }
+        strPtr = skipPastUnsignedInteger(strPtr);
+        // so is there a range of data? Rare, but possible... Valid only if pDataBits is needed (i.e., is "from")
+        int secondData = *pData;
+        if (*strPtr == '-') {
+            if (pDataBits == NULL) {
+                wsprintf(error, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
+            }
+            strPtr++;
+            // look for second data type
+            if (1 != sscanf_s(strPtr, "%d", &secondData))
+            {
+                wsprintf(error, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
+            }
+            if (secondData < 0 || secondData > 15) {
+                wsprintf(error, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
+            }
+            if (*pData > secondData) {
+                wsprintf(error, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
+            }
+            strPtr = skipPastUnsignedInteger(strPtr);
+        }
+        // compute data bits, if needed
+        if (pDataBits != NULL) {
+            *pDataBits = 0;
+            for (int i = *pData; i <= secondData; i++) {
+                *pDataBits |= (0x1 << i);
+            }
+        }
+    }
+    else {
+        // no data field
+        if (pDataBits != NULL) {
+            // for "from" that means all of them
+            *pDataBits = 0xffff;	// all 16 bits on
+            *pData = -1;
+        }
+        else {
+            // for "to" that means data == 0
+            *pData = 0;
+        }
+    }
 
-	// at end, skip past remaining whitespace, if any
-	return removeLeadingWhitespace(strPtr);
+    // at end, skip past remaining whitespace, if any
+    return removeLeadingWhitespace(strPtr);
 } 
 
 // return character location in left string that is a character beyond right string, if matched.
 // if no match, return NULL.
 static char *compareLCAndSkip(char *a, char const *b)
 {
-	for (;*a && *b; a++, b++) {
-		int d = tolower(*a) - tolower(*b);
-		if (d != 0)
-			return NULL;
-	}
-	// survived: if we're not at the end of the "b" string, what we're comparing to, then we haven't parsed through and matched the whole string;
-	// else, return pointer to next character in our string.
-	return *b ? NULL : a++;
+    for (;*a && *b; a++, b++) {
+        int d = tolower(*a) - tolower(*b);
+        if (d != 0)
+            return NULL;
+    }
+    // survived: if we're not at the end of the "b" string, what we're comparing to, then we haven't parsed through and matched the whole string;
+    // else, return pointer to next character in our string.
+    return *b ? NULL : a++;
 }
 
 static char *skipPastUnsignedInteger(char *strPtr)
 {
-	while ((*strPtr >= '0') && (*strPtr <= '9'))
-		strPtr++;
-	return strPtr;
+    while ((*strPtr >= '0') && (*strPtr <= '9'))
+        strPtr++;
+    return strPtr;
 }
 
 // Go through line, delete comment part of line, delete leading "#" and white space, compare to string, if found then
@@ -6570,154 +6593,154 @@ static char *skipPastUnsignedInteger(char *strPtr)
 /*
 static char *findLineData(char *line, char *findStr)
 {
-	// we now have the tasty part of the line, so compare the test string and make sure it is exactly at the beginning of this prepared line
-	if (line != strstr(line, findStr))
-	{
-		// didn't find it at the beginning of this line - return
-		return NULL;
-	}
+    // we now have the tasty part of the line, so compare the test string and make sure it is exactly at the beginning of this prepared line
+    if (line != strstr(line, findStr))
+    {
+        // didn't find it at the beginning of this line - return
+        return NULL;
+    }
 
-	// found it! Move to beyond the content
-	line += strlen(findStr);
+    // found it! Move to beyond the content
+    line += strlen(findStr);
 
-	// get rid of leading white space of last bit of line after matched string
-	return removeLeadingWhitespace(line);
+    // get rid of leading white space of last bit of line after matched string
+    return removeLeadingWhitespace(line);
 }
 */
 
 static char *findLineDataNoCase(char *line, char *findStr)
 {
-	// we now have the tasty part of the line, so compare the test string and make sure it is exactly at the beginning of this prepared line
-	char *strPtr = compareLCAndSkip(line, findStr);
-	if (strPtr == NULL)
-	{
-		// didn't find it at the beginning of this line - return
-		return NULL;
-	}
+    // we now have the tasty part of the line, so compare the test string and make sure it is exactly at the beginning of this prepared line
+    char *strPtr = compareLCAndSkip(line, findStr);
+    if (strPtr == NULL)
+    {
+        // didn't find it at the beginning of this line - return
+        return NULL;
+    }
 
-	// found it! Move to beyond the content
-	// get rid of leading white space of last bit of line after matched string
-	return removeLeadingWhitespace(strPtr);
+    // found it! Move to beyond the content
+    // get rid of leading white space of last bit of line after matched string
+    return removeLeadingWhitespace(strPtr);
 }
 
 // line is assumed to exist, and returned pointer will exist
 static char *removeLeadingWhitespace(char *line)
 {
-	// get rid of leading white space of last bit of line after matched string
-	boolean cont = true;
-	while ((*line != (char)0) && cont) {
-		if ((*line == ' ') || (*line == '\t')) {
-			line++;
-		}
-		else
-		{
-			cont = false;
-		}
-	}
-	return line;
+    // get rid of leading white space of last bit of line after matched string
+    boolean cont = true;
+    while ((*line != (char)0) && cont) {
+        if ((*line == ' ') || (*line == '\t')) {
+            line++;
+        }
+        else
+        {
+            cont = false;
+        }
+    }
+    return line;
 }
 
 static void saveErrorMessage(ImportedSet & is, wchar_t *error, char *restOfLine)
 {
-	saveMessage(is, error, L"Error", 1, restOfLine);
+    saveMessage(is, error, L"Error", 1, restOfLine);
 }
 static void saveWarningMessage(ImportedSet & is, wchar_t *error)
 {
-	saveMessage(is, error, L"Warning", 0, NULL);
+    saveMessage(is, error, L"Warning", 0, NULL);
 }
 static void saveMessage(ImportedSet & is, wchar_t *error, wchar_t *msgType, int increment, char *restOfLine )
 {
-	if (is.errorMessages == NULL) {
-		is.errorMessagesStringSize = 1024;
-		is.errorMessages = (wchar_t *)malloc(is.errorMessagesStringSize*sizeof(wchar_t));
-		is.errorMessages[0] = (wchar_t)0;
-	}
+    if (is.errorMessages == NULL) {
+        is.errorMessagesStringSize = 1024;
+        is.errorMessages = (wchar_t *)malloc(is.errorMessagesStringSize*sizeof(wchar_t));
+        is.errorMessages[0] = (wchar_t)0;
+    }
 
-	size_t oldlength = wcslen(is.errorMessages);
-	size_t addlength = 50 + wcslen(error) + ((restOfLine != NULL) ? strlen(restOfLine) : 0);
-	// enough room?
-	if (is.errorMessagesStringSize < oldlength + addlength) {
-		is.errorMessagesStringSize *= 2;
-		// just to be really really sure, add some more
-		is.errorMessagesStringSize += addlength;
-		wchar_t *oldStr = is.errorMessages;
-		is.errorMessages = (wchar_t *)malloc(is.errorMessagesStringSize*sizeof(wchar_t));
-		memcpy(is.errorMessages, oldStr, (oldlength + 1)*sizeof(wchar_t));
-		free(oldStr);
-	}
-	// append error message
-	// If error does not start with "Error" or "Warning" then add this, and line number.
-	if (wcsstr(error, msgType) != error)
-	{
-		wchar_t buf[50];
-		wsprintf(buf, L"%s reading line %d: ", msgType, is.lineNumber);
-		wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
-	}
-	wcscat_s(is.errorMessages, is.errorMessagesStringSize, error);
-	if (restOfLine && (*restOfLine != (char)0))
-	{
-		wcscat_s(is.errorMessages, is.errorMessagesStringSize, L" Rest of line: ");
+    size_t oldlength = wcslen(is.errorMessages);
+    size_t addlength = 50 + wcslen(error) + ((restOfLine != NULL) ? strlen(restOfLine) : 0);
+    // enough room?
+    if (is.errorMessagesStringSize < oldlength + addlength) {
+        is.errorMessagesStringSize *= 2;
+        // just to be really really sure, add some more
+        is.errorMessagesStringSize += addlength;
+        wchar_t *oldStr = is.errorMessages;
+        is.errorMessages = (wchar_t *)malloc(is.errorMessagesStringSize*sizeof(wchar_t));
+        memcpy(is.errorMessages, oldStr, (oldlength + 1)*sizeof(wchar_t));
+        free(oldStr);
+    }
+    // append error message
+    // If error does not start with "Error" or "Warning" then add this, and line number.
+    if (wcsstr(error, msgType) != error)
+    {
+        wchar_t buf[50];
+        wsprintf(buf, L"%s reading line %d: ", msgType, is.lineNumber);
+        wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
+    }
+    wcscat_s(is.errorMessages, is.errorMessagesStringSize, error);
+    if (restOfLine && (*restOfLine != (char)0))
+    {
+        wcscat_s(is.errorMessages, is.errorMessagesStringSize, L" Rest of line: ");
 
-		wchar_t badCommand[IMPORT_LINE_LENGTH];
-		size_t convertedChars = 0;
-		mbstowcs_s(&convertedChars, badCommand, (size_t)IMPORT_LINE_LENGTH, restOfLine, IMPORT_LINE_LENGTH);
-		size_t lineLimit = 80;
-		if (wcslen(badCommand) > lineLimit)
-		{
-			// bad command line very long, add "..." to end.
-			badCommand[lineLimit - 3] = badCommand[lineLimit - 2] = badCommand[lineLimit - 1] = (wchar_t)'.';
-			badCommand[lineLimit] = (wchar_t)0;
-		}
-		wcscat_s(is.errorMessages, is.errorMessagesStringSize, badCommand);
-	}
-	wcscat_s(is.errorMessages, is.errorMessagesStringSize, L"\n");
-	is.errorsFound += increment;
+        wchar_t badCommand[IMPORT_LINE_LENGTH];
+        size_t convertedChars = 0;
+        mbstowcs_s(&convertedChars, badCommand, (size_t)IMPORT_LINE_LENGTH, restOfLine, IMPORT_LINE_LENGTH);
+        size_t lineLimit = 80;
+        if (wcslen(badCommand) > lineLimit)
+        {
+            // bad command line very long, add "..." to end.
+            badCommand[lineLimit - 3] = badCommand[lineLimit - 2] = badCommand[lineLimit - 1] = (wchar_t)'.';
+            badCommand[lineLimit] = (wchar_t)0;
+        }
+        wcscat_s(is.errorMessages, is.errorMessagesStringSize, badCommand);
+    }
+    wcscat_s(is.errorMessages, is.errorMessagesStringSize, L"\n");
+    is.errorsFound += increment;
 }
 
 static bool validBoolean(ImportedSet & is, char *string)
 {
-	if ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1') ||
-		(string[0] == 'N') || (string[0] == 'n') || (string[0] == 'F') || (string[0] == 'f') || (string[0] == '0')
-		) {
-		return true;
-	}
-	else {
-		saveErrorMessage(is, L"invalid boolean on line.");
-		return false;
-	}
+    if ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1') ||
+        (string[0] == 'N') || (string[0] == 'n') || (string[0] == 'F') || (string[0] == 'f') || (string[0] == '0')
+        ) {
+        return true;
+    }
+    else {
+        saveErrorMessage(is, L"invalid boolean on line.");
+        return false;
+    }
 }
 
 static bool interpretBoolean(char *string)
 {
-	// YES, yes, TRUE, true, 1
-	return ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1'));
+    // YES, yes, TRUE, true, 1
+    return ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1'));
 }
 
 static void formTitle(WorldGuide *pWorldGuide, wchar_t *title)
 {
     wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
 
-	if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
-	{
-		wcscat_s(title, MAX_PATH - 1, L"[Block Test World]");
-	}
-	else
+    if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
-		wcscat_s(title, MAX_PATH - 1, stripWorldName(pWorldGuide->world));
+        wcscat_s(title, MAX_PATH - 1, L"[Block Test World]");
+    }
+    else
+    {
+        wcscat_s(title, MAX_PATH - 1, stripWorldName(pWorldGuide->world));
     }
 }
 
 // change any '/' to '\', or vice versa, as preferred
 static void rationalizeFilePath(wchar_t *fileName)
 {
-	if (fileName != NULL) {
-		while (*fileName != (wchar_t)0) {
-			if (*fileName == gLesserSeparator) {
-				*fileName = gPreferredSeparator;
-			}
-			fileName++;
-		}
-	}
+    if (fileName != NULL) {
+        while (*fileName != (wchar_t)0) {
+            if (*fileName == gLesserSeparator) {
+                *fileName = gPreferredSeparator;
+            }
+            fileName++;
+        }
+    }
 }
 
 // internet check - sadly, does not link under x64. See stdafx.h for includes and for link errors
@@ -6784,304 +6807,304 @@ static void rationalizeFilePath(wchar_t *fileName)
 // return true if a path was found; note you can put NULL for path or name
 static bool splitToPathAndName( wchar_t *pathAndName, wchar_t *path, wchar_t *name)
 {
-	wchar_t tempPathAndName[1024];
-	wcscpy_s(tempPathAndName, pathAndName);
-	wchar_t *lastPtr = wcsrchr(tempPathAndName, (wchar_t)'\\');
-	if (lastPtr != NULL) {
-		if (name != NULL)
-			wcscpy_s(name, MAX_PATH, lastPtr + 1);
-		if (path != NULL) {
-			*lastPtr = (wchar_t)0;
-			wcscpy_s(path, MAX_PATH, tempPathAndName);
-		}
-	}
-	else {
-		lastPtr = wcsrchr(tempPathAndName, (wchar_t)'/');
-		if (lastPtr != NULL) {
-			if (name != NULL)
-				wcscpy_s(name, MAX_PATH, lastPtr + 1);
-			if (path != NULL) {
-				*lastPtr = (wchar_t)0;
-				wcscpy_s(path, MAX_PATH, tempPathAndName);
-			}
-		}
-		else {
-			// no path
-			if (name != NULL)
-				wcscpy_s(name, MAX_PATH, tempPathAndName);
-			if (path != NULL)
-				path[0] = (wchar_t)0;
-			return false;
-		}
-	}
-	return true;
+    wchar_t tempPathAndName[1024];
+    wcscpy_s(tempPathAndName, pathAndName);
+    wchar_t *lastPtr = wcsrchr(tempPathAndName, (wchar_t)'\\');
+    if (lastPtr != NULL) {
+        if (name != NULL)
+            wcscpy_s(name, MAX_PATH, lastPtr + 1);
+        if (path != NULL) {
+            *lastPtr = (wchar_t)0;
+            wcscpy_s(path, MAX_PATH, tempPathAndName);
+        }
+    }
+    else {
+        lastPtr = wcsrchr(tempPathAndName, (wchar_t)'/');
+        if (lastPtr != NULL) {
+            if (name != NULL)
+                wcscpy_s(name, MAX_PATH, lastPtr + 1);
+            if (path != NULL) {
+                *lastPtr = (wchar_t)0;
+                wcscpy_s(path, MAX_PATH, tempPathAndName);
+            }
+        }
+        else {
+            // no path
+            if (name != NULL)
+                wcscpy_s(name, MAX_PATH, tempPathAndName);
+            if (path != NULL)
+                path[0] = (wchar_t)0;
+            return false;
+        }
+    }
+    return true;
 }
 
 
 // true if it worked; false if there's an error, which is returned in *error.
 static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
 {
-	// see if we can load the world
-	size_t dummySize = 0;
-	wchar_t backupWorld[MAX_PATH];
-	wcscpy_s(backupWorld, MAX_PATH, gWorldGuide.world);
-	int backupWorldType = gWorldGuide.type;
-	mbstowcs_s(&dummySize, gWorldGuide.world, (size_t)MAX_PATH, is.world, MAX_PATH);
-	if (wcslen(gWorldGuide.world) > 0) {
-		// first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
-		// This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
-		rationalizeFilePath(gWorldGuide.world);
+    // see if we can load the world
+    size_t dummySize = 0;
+    wchar_t backupWorld[MAX_PATH];
+    wcscpy_s(backupWorld, MAX_PATH, gWorldGuide.world);
+    int backupWorldType = gWorldGuide.type;
+    mbstowcs_s(&dummySize, gWorldGuide.world, (size_t)MAX_PATH, is.world, MAX_PATH);
+    if (wcslen(gWorldGuide.world) > 0) {
+        // first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
+        // This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
+        rationalizeFilePath(gWorldGuide.world);
 
-		// world name found - can we load it?
-		wchar_t warningWorld[MAX_PATH];
-		wcscpy_s(warningWorld, MAX_PATH, gWorldGuide.world);
+        // world name found - can we load it?
+        wchar_t warningWorld[MAX_PATH];
+        wcscpy_s(warningWorld, MAX_PATH, gWorldGuide.world);
 
-		// first, is it the test world?
-		if (wcscmp(gWorldGuide.world, L"[Block Test World]") == 0)
-		{
-			// the test world is noted by the empty string.
-			gWorldGuide.world[0] = (wchar_t)0;
-			gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
-			gSameWorld = FALSE;
-			sprintf_s(gSkfbPData.skfbName, "TestWorld");
-		}
-		else {
-			// test if it's a schematic file or a normal world, and set TYPE appropriately.
-			wchar_t filename[MAX_PATH];
-			splitToPathAndName(gWorldGuide.world, NULL, filename);
-			size_t len = wcslen(filename);
-			if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
-				// Read schematic as a world.
-				gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
-				gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
-			}
-			else {
-				gWorldGuide.type = WORLD_LEVEL_TYPE;
-			}
-			// was the world passed in as just a directory name, or as a full path?
-			if (wcschr(gWorldGuide.world, gPreferredSeparator) == NULL) {
-				// just the name, so add the path.
-				// this gives us the whole path
-				wchar_t testAnvil[MAX_PATH];
-				wcscpy_s(testAnvil, MAX_PATH, gWorldPathDefault);
-				wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
-				wcscat_s(testAnvil, MAX_PATH, gWorldGuide.world);
-				wcscpy_s(gWorldGuide.world, MAX_PATH, testAnvil);
-			}
-		}
+        // first, is it the test world?
+        if (wcscmp(gWorldGuide.world, L"[Block Test World]") == 0)
+        {
+            // the test world is noted by the empty string.
+            gWorldGuide.world[0] = (wchar_t)0;
+            gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
+            gSameWorld = FALSE;
+            sprintf_s(gSkfbPData.skfbName, "TestWorld");
+        }
+        else {
+            // test if it's a schematic file or a normal world, and set TYPE appropriately.
+            wchar_t filename[MAX_PATH];
+            splitToPathAndName(gWorldGuide.world, NULL, filename);
+            size_t len = wcslen(filename);
+            if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+                // Read schematic as a world.
+                gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
+                gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+            }
+            else {
+                gWorldGuide.type = WORLD_LEVEL_TYPE;
+            }
+            // was the world passed in as just a directory name, or as a full path?
+            if (wcschr(gWorldGuide.world, gPreferredSeparator) == NULL) {
+                // just the name, so add the path.
+                // this gives us the whole path
+                wchar_t testAnvil[MAX_PATH];
+                wcscpy_s(testAnvil, MAX_PATH, gWorldPathDefault);
+                wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
+                wcscat_s(testAnvil, MAX_PATH, gWorldGuide.world);
+                wcscpy_s(gWorldGuide.world, MAX_PATH, testAnvil);
+            }
+        }
 
-		// if the world is already loaded, don't reload it.
-		if (wcscmp(backupWorld, gWorldGuide.world) != 0 || (gSameWorld == FALSE))
-		{
-			// not the same, attempt to load!
-			gSameWorld = FALSE;
-			if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
-			{
-				// could not load world, so restore old world, if any;
-				wcscpy_s(gWorldGuide.world, MAX_PATH, backupWorld);
-				if (gWorldGuide.world[0] != 0) {
-					gWorldGuide.type = backupWorldType;
-					loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
-				}
-				swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
-				return false;
-			} // else success with just world folder name, and it's already saved to gWorldGuide.world
-			// world loaded, so turn things on, etc.
-			setUIOnLoadWorld(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, is.ws.hwndInfoLabel, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel);
-		}
-	}
-	else {
-		// world didn't convert over - unlikely to hit this one
-		swprintf_s(error, 1024, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", is.world);
-		return false;
-	}
-	return true;
+        // if the world is already loaded, don't reload it.
+        if (wcscmp(backupWorld, gWorldGuide.world) != 0 || (gSameWorld == FALSE))
+        {
+            // not the same, attempt to load!
+            gSameWorld = FALSE;
+            if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
+            {
+                // could not load world, so restore old world, if any;
+                wcscpy_s(gWorldGuide.world, MAX_PATH, backupWorld);
+                if (gWorldGuide.world[0] != 0) {
+                    gWorldGuide.type = backupWorldType;
+                    loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
+                }
+                swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
+                return false;
+            } // else success with just world folder name, and it's already saved to gWorldGuide.world
+            // world loaded, so turn things on, etc.
+            setUIOnLoadWorld(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, is.ws.hwndInfoLabel, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel);
+        }
+    }
+    else {
+        // world didn't convert over - unlikely to hit this one
+        swprintf_s(error, 1024, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", is.world);
+        return false;
+    }
+    return true;
 }
 
 // true if it worked; false if there's an error, which is returned in *error.
 static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
 {
-	FILE *fh;
-	errno_t err;
-	wchar_t terrainFileName[MAX_PATH], tempPath[MAX_PATH], tempName[MAX_PATH];
+    FILE *fh;
+    errno_t err;
+    wchar_t terrainFileName[MAX_PATH], tempPath[MAX_PATH], tempName[MAX_PATH];
 
-	size_t dummySize = 0;
-	mbstowcs_s(&dummySize, terrainFileName, (size_t)MAX_PATH, is.terrainFile, MAX_PATH);
-	// first, "rationalize" the name: make it all \'s or all /'s, not both.
-	rationalizeFilePath(terrainFileName);
-	if (!splitToPathAndName(terrainFileName, tempPath, tempName)) {
-		// just a file name found, so make test path with directory
-		if (wcslen(tempName) > 0)
-		{
-			wcscpy_s(terrainFileName, MAX_PATH, gSelectTerrainDir);
-			wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), L"\\");
-			wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), tempName);
-		}
-		else {
-			// something odd happened - filename is empty
-			swprintf_s(error, 1024, L"terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
-			return false;
-		}
-		err = _wfopen_s(&fh, terrainFileName, L"rt");
-		if (err != 0) {
-			// can't find it at all, so generate error.
-			swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
-			return false;
-		}
-		// success, copy file and path (directory is fine)
-		wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
-	}
-	else {
-		// path found: try the file as a full path.
-		err = _wfopen_s(&fh, terrainFileName, L"rt");
-		if (err != 0) {
-			// can't find it at all, so generate error.
-			swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
-			return false;
-		}
-		// success, copy file name&path, and directory
-		wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
-		wcscpy_s(gSelectTerrainDir, MAX_PATH, tempPath);
-	}
-	fclose(fh);
-	return true;
+    size_t dummySize = 0;
+    mbstowcs_s(&dummySize, terrainFileName, (size_t)MAX_PATH, is.terrainFile, MAX_PATH);
+    // first, "rationalize" the name: make it all \'s or all /'s, not both.
+    rationalizeFilePath(terrainFileName);
+    if (!splitToPathAndName(terrainFileName, tempPath, tempName)) {
+        // just a file name found, so make test path with directory
+        if (wcslen(tempName) > 0)
+        {
+            wcscpy_s(terrainFileName, MAX_PATH, gSelectTerrainDir);
+            wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), L"\\");
+            wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), tempName);
+        }
+        else {
+            // something odd happened - filename is empty
+            swprintf_s(error, 1024, L"terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
+            return false;
+        }
+        err = _wfopen_s(&fh, terrainFileName, L"rt");
+        if (err != 0) {
+            // can't find it at all, so generate error.
+            swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+            return false;
+        }
+        // success, copy file and path (directory is fine)
+        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
+    }
+    else {
+        // path found: try the file as a full path.
+        err = _wfopen_s(&fh, terrainFileName, L"rt");
+        if (err != 0) {
+            // can't find it at all, so generate error.
+            swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+            return false;
+        }
+        // success, copy file name&path, and directory
+        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
+        wcscpy_s(gSelectTerrainDir, MAX_PATH, tempPath);
+    }
+    fclose(fh);
+    return true;
 }
 
 // true if it worked; false if there's an error, which is returned in *error.
 static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error)
 {
-	wchar_t backupColorScheme[255];
-	wcscpy_s(backupColorScheme, 255, gSchemeSelected);
-	size_t dummySize = 0;
-	mbstowcs_s(&dummySize, gSchemeSelected, 255, is.colorScheme, 255);
-	int item = findColorScheme(gSchemeSelected);
-	if (item > 0)
-	{
-		useCustomColor(IDM_CUSTOMCOLOR + item, is.ws.hWnd);
-	}
-	else if (wcscmp(gSchemeSelected, L"Standard") == 0)
-	{
-		useCustomColor(IDM_CUSTOMCOLOR, is.ws.hWnd);
-	}
-	else
-	{
-		// warning - not found, so don't use it.
-		swprintf_s(error, 1024, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
+    wchar_t backupColorScheme[255];
+    wcscpy_s(backupColorScheme, 255, gSchemeSelected);
+    size_t dummySize = 0;
+    mbstowcs_s(&dummySize, gSchemeSelected, 255, is.colorScheme, 255);
+    int item = findColorScheme(gSchemeSelected);
+    if (item > 0)
+    {
+        useCustomColor(IDM_CUSTOMCOLOR + item, is.ws.hWnd);
+    }
+    else if (wcscmp(gSchemeSelected, L"Standard") == 0)
+    {
+        useCustomColor(IDM_CUSTOMCOLOR, is.ws.hWnd);
+    }
+    else
+    {
+        // warning - not found, so don't use it.
+        swprintf_s(error, 1024, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
 
-		// restore old scheme
-		wcscpy_s(gSchemeSelected, 255, backupColorScheme);
-		findColorScheme(gSchemeSelected);
-		return false;
-	}
-	return true;
+        // restore old scheme
+        wcscpy_s(gSchemeSelected, 255, backupColorScheme);
+        findColorScheme(gSchemeSelected);
+        return false;
+    }
+    return true;
 }
 
 // true if it worked
 static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, char *fileName)
 {
-	if (!gHighlightOn)
-	{
-		// we keep the export options ungrayed now so that they're selectable when the world is loaded
-		swprintf_s(error, 1024, L"no volume is selected for export; click and drag using the right-mouse button.");
-		return false;
-	}
+    if (!gHighlightOn)
+    {
+        // we keep the export options ungrayed now so that they're selectable when the world is loaded
+        swprintf_s(error, 1024, L"no volume is selected for export; click and drag using the right-mouse button.");
+        return false;
+    }
 
-	// 0 - render, 1 - 3d print, 2 - schematic
-	gPrintModel = fileMode;
+    // 0 - render, 1 - 3d print, 2 - schematic
+    gPrintModel = fileMode;
 
-	wchar_t wcharFileName[MAX_PATH];
+    wchar_t wcharFileName[MAX_PATH];
 
-	size_t dummySize = 0;
-	mbstowcs_s(&dummySize, wcharFileName, (size_t)MAX_PATH, fileName, MAX_PATH);
-	// first, "rationalize" the name: make it all \'s or all /'s, not both.
-	rationalizeFilePath(wcharFileName);
+    size_t dummySize = 0;
+    mbstowcs_s(&dummySize, wcharFileName, (size_t)MAX_PATH, fileName, MAX_PATH);
+    // first, "rationalize" the name: make it all \'s or all /'s, not both.
+    rationalizeFilePath(wcharFileName);
 
-	// if there are any change commands, transfer them now for processing
-	addChangeBlockCommandsToGlobalList(is);
+    // if there are any change commands, transfer them now for processing
+    addChangeBlockCommandsToGlobalList(is);
 
-	// return number of files exported; 0 means failed
-	wchar_t statusbuf[MAX_PATH + 100];
-	wchar_t exportName[MAX_PATH];
-	splitToPathAndName(wcharFileName, NULL, exportName);
-	wsprintf(statusbuf, L"Script exporting %s", exportName);
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)statusbuf);
+    // return number of files exported; 0 means failed
+    wchar_t statusbuf[MAX_PATH + 100];
+    wchar_t exportName[MAX_PATH];
+    splitToPathAndName(wcharFileName, NULL, exportName);
+    wsprintf(statusbuf, L"Script exporting %s", exportName);
+    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)statusbuf);
 
-	gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
-	if (gExported == 0)
-	{
-		SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script export operation failed");
-		swprintf_s(error, 1024, L"export operation failed.");
-		return false;
-	}
-	// back to normal
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+    gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
+    if (gExported == 0)
+    {
+        SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script export operation failed");
+        swprintf_s(error, 1024, L"export operation failed.");
+        return false;
+    }
+    // back to normal
+    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
 
-	SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-	enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
-	// put target depth to new depth set, if any
-	if (gTargetDepth != gpEFD->maxyVal)
-	{
-		gTargetDepth = gpEFD->minyVal;
-	}
-	//gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-	//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-	//updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
-	setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-	setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);
+    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+    enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    // put target depth to new depth set, if any
+    if (gTargetDepth != gpEFD->maxyVal)
+    {
+        gTargetDepth = gpEFD->minyVal;
+    }
+    //gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+    //	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+    //updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+    setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+    setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);
 
-	return true;
+    return true;
 }
 
 static bool openLogFile(ImportedSet & is)
 {
 #ifdef WIN32
-	DWORD br;
+    DWORD br;
 #endif
-	// try to open log file, and write header to it.
-	// see if we can load the world
-	size_t dummySize = 0;
-	wchar_t wFileName[MAX_PATH];
-	char outputString[256];
-	mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH, is.logFileName, MAX_PATH);
-	rationalizeFilePath(wFileName);
-	if (wcslen(wFileName) > 0) {
-		// overwrite previous log file
-		is.logfile = PortaCreate(wFileName);
-		if (is.logfile == INVALID_HANDLE_VALUE) {
-			saveErrorMessage(is, L"cannot open script log file.", is.logFileName);
-			goto OnFail;
-		}
+    // try to open log file, and write header to it.
+    // see if we can load the world
+    size_t dummySize = 0;
+    wchar_t wFileName[MAX_PATH];
+    char outputString[256];
+    mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH, is.logFileName, MAX_PATH);
+    rationalizeFilePath(wFileName);
+    if (wcslen(wFileName) > 0) {
+        // overwrite previous log file
+        is.logfile = PortaCreate(wFileName);
+        if (is.logfile == INVALID_HANDLE_VALUE) {
+            saveErrorMessage(is, L"cannot open script log file.", is.logFileName);
+            goto OnFail;
+        }
 
-		strcpy_s(outputString, 256, "Start processing script\n");
-		if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
+        strcpy_s(outputString, 256, "Start processing script\n");
+        if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
 
-		// Print local time as a string.
-		errno_t errNum;
-		struct tm newtime;
-		__time32_t aclock;
-		char timeString[256];
+        // Print local time as a string.
+        errno_t errNum;
+        struct tm newtime;
+        __time32_t aclock;
+        char timeString[256];
 
-		_time32(&aclock);   // Get time in seconds.
-		_localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
+        _time32(&aclock);   // Get time in seconds.
+        _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
 
-		errNum = asctime_s(timeString, 32, &newtime);
-		if (!errNum)
-		{
-			sprintf_s(outputString, 256, "  %s\n", timeString);
-			if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
-		}
+        errNum = asctime_s(timeString, 32, &newtime);
+        if (!errNum)
+        {
+            sprintf_s(outputString, 256, "  %s\n", timeString);
+            if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
+        }
 
-		return true;
-	}
+        return true;
+    }
 
 OnFail:
-	is.logging = false;
-	is.logFileName[0] = (char)0;
-	if (is.logfile != 0)
-	{
-		PortaClose(is.logfile);
-		is.logfile = NULL;
-	}
-	return false;
+    is.logging = false;
+    is.logFileName[0] = (char)0;
+    if (is.logfile != 0)
+    {
+        PortaClose(is.logfile);
+        is.logfile = NULL;
+    }
+    return false;
 }
 

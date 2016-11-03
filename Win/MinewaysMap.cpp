@@ -214,14 +214,14 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
 
     if (shiftx<0)
     {
-		// essentially the floor function
+        // essentially the floor function
         startxblock--;
         shiftx+=blockScale;
     }
     if (shifty<0)
     {
-		// essentially the floor function
-		startzblock--;
+        // essentially the floor function
+        startzblock--;
         shifty+=blockScale;
     }
 
@@ -252,8 +252,8 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
     else
     {
         // empty
-		gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
-		gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
+        gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
+        gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
     }
 }
 
@@ -368,7 +368,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     int startzblock=(int)(startz/16);
     int shiftx=(int)((startx-startxblock*16)*zoom);
     int shifty=(int)((startz-startzblock*16)*zoom);
-	// someone could be more than 10000 blocks from spawn, so don't assert
+    // someone could be more than 10000 blocks from spawn, so don't assert
     //assert(cz < 10000);
     //assert(cz > -10000);
 
@@ -429,16 +429,16 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     if (y == (unsigned char)-1)
     {
         *oy=-1;
-		if (schematic) {
-			// act like the pixel is not there, vs. a block that has an empty location
-			*biome = -1;
-			*type = BLOCK_UNKNOWN;
-			return "Unknown";
-		}
-		else {
-			*type = BLOCK_AIR;
-			return "Empty";  // nothing was rendered here
-		}
+        if (schematic) {
+            // act like the pixel is not there, vs. a block that has an empty location
+            *biome = -1;
+            *type = BLOCK_UNKNOWN;
+            return "Unknown";
+        }
+        else {
+            *type = BLOCK_AIR;
+            return "Empty";  // nothing was rendered here
+        }
     }
 
     // there's a bug in the original code, sometimes xoff is negative.
@@ -1434,63 +1434,63 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     block=(WorldBlock *)Cache_Find(bx,bz);
 
-	if (block == NULL)
+    if (block == NULL)
     {
-		wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
-		wcscat_s(pWorldGuide->directory, 260, L"/");
+        wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
+        wcscat_s(pWorldGuide->directory, 260, L"/");
         if (opts.worldType&HELL)
         {
-			wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+            wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
         }
         if (opts.worldType&ENDER)
         {
-			wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+            wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
         }
 
-		block = LoadBlock(pWorldGuide, bx, bz);
-		if (block == NULL) //blank tile
-		{
-			// highlighting off, or fully outside real area? Use blank tile.
-			if (!gBoxHighlightUsed ||
-				(bx * 16 + 15 < gBoxMinX) || (bx * 16 > gBoxMaxX) ||
-				(bz * 16 + 15 < gBoxMinZ) || (bz * 16 > gBoxMaxZ))
-					return gBlankTile;
+        block = LoadBlock(pWorldGuide, bx, bz);
+        if (block == NULL) //blank tile
+        {
+            // highlighting off, or fully outside real area? Use blank tile.
+            if (!gBoxHighlightUsed ||
+                (bx * 16 + 15 < gBoxMinX) || (bx * 16 > gBoxMaxX) ||
+                (bz * 16 + 15 < gBoxMinZ) || (bz * 16 > gBoxMaxZ))
+                    return gBlankTile;
 
-			// fully inside? Use precomputed highlit area
-			static int flux = 0;
-			if ((bx * 16 > gBoxMinX) && (bx * 16 + 15 < gBoxMaxX) &&
-				(bz * 16 > gBoxMinZ) && (bz * 16 + 15 < gBoxMaxZ))
-				return gBlankHighlitTile;
+            // fully inside? Use precomputed highlit area
+            static int flux = 0;
+            if ((bx * 16 > gBoxMinX) && (bx * 16 + 15 < gBoxMaxX) &&
+                (bz * 16 > gBoxMinZ) && (bz * 16 + 15 < gBoxMaxZ))
+                return gBlankHighlitTile;
 
-			// draw the highlighted area
-			memcpy(gBlankTransitionTile, gBlankTile, 16 * 16 * 4);
-			// z increases south, decreases north
-			for (z = 0; z < 16; z++)
-			{
-				// x increases west, decreases east
-				for (x = 0; x < 16; x++)
-				{
-					int offset = (z * 16 + x) * 4;
-					// make selected area slightly red, if at right heightmap range
-					if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
-						bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
-					{
-						// blend in highlight color
-						blend = gHalpha;
-						// are we on a border? If so, change blend factor
-						if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-							bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
-						{
-							blend = gHalphaBorder;
-						}
-						gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset]*(1.0 - blend) + blend*(double)gHred);
-						gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHgreen);
-						gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHblue);
-					}
-				}
-			}
-			return gBlankTransitionTile;
-		}
+            // draw the highlighted area
+            memcpy(gBlankTransitionTile, gBlankTile, 16 * 16 * 4);
+            // z increases south, decreases north
+            for (z = 0; z < 16; z++)
+            {
+                // x increases west, decreases east
+                for (x = 0; x < 16; x++)
+                {
+                    int offset = (z * 16 + x) * 4;
+                    // make selected area slightly red
+                    if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
+                        bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+                    {
+                        // blend in highlight color
+                        blend = gHalpha;
+                        // are we on a border? If so, change blend factor
+                        if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
+                            bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                        {
+                            blend = gHalphaBorder;
+                        }
+                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset]*(1.0 - blend) + blend*(double)gHred);
+                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHgreen);
+                        gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend*(double)gHblue);
+                    }
+                }
+            }
+            return gBlankTransitionTile;
+        }
 
         //let's only update the progress bar if we're loading
         if (callback)
@@ -1501,9 +1501,9 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     // At this point the block is loaded.
 
-	// Is the block partially or fully inside the dirty area?
-	bool isOnOrInside = (bx * 16 + 15 >= gDirtyBoxMinX && bx * 16 <= gDirtyBoxMaxX &&
-		bz * 16 + 15 >= gDirtyBoxMinZ && bz * 16 <= gDirtyBoxMaxZ);
+    // Is the block partially or fully inside the dirty area?
+    bool isOnOrInside = (bx * 16 + 15 >= gDirtyBoxMinX && bx * 16 <= gDirtyBoxMaxX &&
+        bz * 16 + 15 >= gDirtyBoxMinZ && bz * 16 <= gDirtyBoxMaxZ);
 
     // already rendered?
     if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
@@ -1576,7 +1576,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             // go from top down through all voxels, looking for the first one visible.
             for (i=maxHeight;i>=0;i--,voxel-=16*16)
             {
-				type = block->grid[voxel];
+                type = block->grid[voxel];
                 // if block is air or something very small, note it's empty and continue to next voxel
                 if ( (type==BLOCK_AIR) ||
                     !(gBlockDefinitions[type].flags & viewFilterFlags ))
@@ -1663,7 +1663,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             // this higher height for these purposes.
             prevy=showAll ? saveHeight:i;
 
-			if (depthshading && prevy >= 0) // darken deeper blocks
+            if (depthshading && prevy >= 0) // darken deeper blocks
             {
                 // 50 kicks up the minimum darkness returned, so that it's not black.
                 // Note that setting the upper height of the selection box affects this view.
@@ -1739,8 +1739,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                     }
 
                     // in bounds, is the height good?
-					// First case is for if we hit nothing, all void, so it's black:
-					// always highlight that area, just for readability.
+                    // First case is for if we hit nothing, all void, so it's black:
+                    // always highlight that area, just for readability.
                     if ( (prevSely == -1) || (prevSely >= gBoxMinY && prevSely <= gBoxMaxY))
                     {
                         hitsFound[1] = 1;
@@ -1764,7 +1764,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                         if ( bx*16 + x == gBoxMinX || bx*16 + x == gBoxMaxX ||
                             bz*16 + z == gBoxMinZ || bz*16 + z == gBoxMaxZ )
                         {
-							double dim = 0.5;
+                            double dim = 0.5;
                             r = (unsigned char)((double)r*dim);
                             g = (unsigned char)((double)g*dim);
                             b = (unsigned char)((double)b*dim);
@@ -1780,22 +1780,39 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                         if ( bx*16 + x == gBoxMinX || bx*16 + x == gBoxMaxX ||
                             bz*16 + z == gBoxMinZ || bz*16 + z == gBoxMaxZ )
                         {
-							double brighten = 0.5;
+                            double brighten = 0.5;
                             r = (unsigned char)((double)r*(1.0-brighten) + brighten);
                             g = (unsigned char)((double)g*(1.0-brighten) + brighten);
                             b = (unsigned char)((double)b*(1.0-brighten) + brighten);
                         }
                     }
                 }
-			}
-			
-			if ((pWorldGuide->type == WORLD_SCHEMATIC_TYPE) && (prevy == -1)) {
-				// empty, not highlighted, so make it background color if we're drawing a schematic
-				unsigned char *clr = &gBlankTile[(x + z * 16)*4];
-				r = *clr++;
-				g = *clr++;
-				b = *clr; // ++ if you add alpha
-			}
+            }
+            
+            if (prevy == -1) {
+                // empty, so make it background color to start
+                unsigned char *clr = &gBlankTile[(x + z * 16) * 4];
+                r = *clr++;
+                g = *clr++;
+                b = *clr; // ++ if you add alpha
+                // highlight the block if in selected area, as otherwise it looks like it's missing with schematics.
+                // Make selected area slightly red
+                if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
+                    bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+                {
+                    // blend in highlight color
+                    blend = gHalpha;
+                    // are we on a border? If so, change blend factor
+                    if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
+                        bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                    {
+                        blend = gHalphaBorder;
+                    }
+                    r = (unsigned char)((double)r * (1.0 - blend) + blend*(double)gHred);
+                    g = (unsigned char)((double)g * (1.0 - blend) + blend*(double)gHgreen);
+                    b = (unsigned char)((double)b * (1.0 - blend) + blend*(double)gHblue);
+                }
+            }
 
             bits[ofs++]=r;
             bits[ofs++]=g;
@@ -1872,15 +1889,15 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         }
         break;
     case BLOCK_HEAD:
-		// uses 2-5
-		if (dataVal >= 2 && dataVal <= 5)
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_PUMPKIN:
-	case BLOCK_JACK_O_LANTERN:
-	case BLOCK_QUARTZ_BLOCK:
+        // uses 2-5
+        if (dataVal >= 2 && dataVal <= 5)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_PUMPKIN:
+    case BLOCK_JACK_O_LANTERN:
+    case BLOCK_QUARTZ_BLOCK:
         // uses 0-4
         if ( dataVal < 5 )
         {
@@ -1891,11 +1908,11 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_SAPLING:
     case BLOCK_CAKE:
-	case BLOCK_MONSTER_EGG:
-	case BLOCK_END_ROD:
+    case BLOCK_MONSTER_EGG:
+    case BLOCK_END_ROD:
     case BLOCK_CHORUS_FLOWER:
-	case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
-		// uses 0-5
+    case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
+        // uses 0-5
         if ( dataVal < 6 )
         {
             addBlock = 1;
@@ -1939,7 +1956,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_JUNGLE_WOOD_STAIRS:
     case BLOCK_QUARTZ_STAIRS:
     case BLOCK_SNOW:
-	case BLOCK_END_PORTAL_FRAME:
+    case BLOCK_END_PORTAL_FRAME:
     case BLOCK_FENCE_GATE:
     case BLOCK_SPRUCE_FENCE_GATE:
     case BLOCK_BIRCH_FENCE_GATE:
@@ -2012,13 +2029,13 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
         }
         break;
     case BLOCK_FLOWER_POT:
-		// uses 0-13 for old-style 1.7 flower pots
-		if (dataVal < 14)
-		{
-			addBlock = 1;
-		}
-		break;
-	case BLOCK_ANVIL:
+        // uses 0-13 for old-style 1.7 flower pots
+        if (dataVal < 14)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_ANVIL:
         // uses 0-11
         if ( dataVal < 12 )
         {
@@ -2044,23 +2061,23 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_STAINED_GLASS:
     case BLOCK_STANDING_BANNER:
     case BLOCK_WOOL:
-	case BLOCK_SHULKER_CHEST:
-	case BLOCK_SHULKER_CHEST + 1:
-	case BLOCK_SHULKER_CHEST + 2:
-	case BLOCK_SHULKER_CHEST + 3:
-	case BLOCK_SHULKER_CHEST + 4:
-	case BLOCK_SHULKER_CHEST + 5:
-	case BLOCK_SHULKER_CHEST + 6:
-	case BLOCK_SHULKER_CHEST + 7:
-	case BLOCK_SHULKER_CHEST + 8:
-	case BLOCK_SHULKER_CHEST + 9:
-	case BLOCK_SHULKER_CHEST + 10:
-	case BLOCK_SHULKER_CHEST + 11:
-	case BLOCK_SHULKER_CHEST + 12:
-	case BLOCK_SHULKER_CHEST + 13:
-	case BLOCK_SHULKER_CHEST + 14:
-	case BLOCK_SHULKER_CHEST + 15:
-		// uses all bits, 0-15
+    case BLOCK_SHULKER_CHEST:
+    case BLOCK_SHULKER_CHEST + 1:
+    case BLOCK_SHULKER_CHEST + 2:
+    case BLOCK_SHULKER_CHEST + 3:
+    case BLOCK_SHULKER_CHEST + 4:
+    case BLOCK_SHULKER_CHEST + 5:
+    case BLOCK_SHULKER_CHEST + 6:
+    case BLOCK_SHULKER_CHEST + 7:
+    case BLOCK_SHULKER_CHEST + 8:
+    case BLOCK_SHULKER_CHEST + 9:
+    case BLOCK_SHULKER_CHEST + 10:
+    case BLOCK_SHULKER_CHEST + 11:
+    case BLOCK_SHULKER_CHEST + 12:
+    case BLOCK_SHULKER_CHEST + 13:
+    case BLOCK_SHULKER_CHEST + 14:
+    case BLOCK_SHULKER_CHEST + 15:
+        // uses all bits, 0-15
         addBlock = 1;
         break;
     case BLOCK_WATER:
@@ -2771,7 +2788,7 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
 
     case BLOCK_HAY:
     case BLOCK_PURPUR_PILLAR:
-	case BLOCK_BONE_BLOCK:
+    case BLOCK_BONE_BLOCK:
         // uses 0,4,8
         if ( (dataVal == 0) || (dataVal == 4) || (dataVal == 8) ) {
             addBlock = 1;
@@ -2964,11 +2981,11 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
 // return NULL if no block loaded.
 WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
 {
-	// if there's no world, simply return
-	if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
-		return NULL;
+    // if there's no world, simply return
+    if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
+        return NULL;
 
-	WorldBlock *block = block_alloc();
+    WorldBlock *block = block_alloc();
 
     // out of memory? If so, clear cache and cross fingers
     if ( block == NULL )
@@ -2976,10 +2993,10 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
         Cache_Empty();
         block=block_alloc();
     }
-	// always set
-	block->rendery = -1; // force redraw
+    // always set
+    block->rendery = -1; // force redraw
 
-	if ( pWorldGuide->type == WORLD_TEST_BLOCK_TYPE )
+    if ( pWorldGuide->type == WORLD_TEST_BLOCK_TYPE )
     {
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
@@ -3088,56 +3105,56 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
             block_free(block);
             return NULL;
         }
-	}
-	else {
-		// it's a real world or schematic or no world is loaded
-		int gotBlock = 0;
+    }
+    else {
+        // it's a real world or schematic or no world is loaded
+        int gotBlock = 0;
 
-		if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
-			BlockEntity blockEntities[16 * 16 * 256];
+        if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
+            BlockEntity blockEntities[16 * 16 * 256];
 
-			gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities);
-			// got block successfully?
+            gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities);
+            // got block successfully?
 
-			if (gotBlock && block->numEntities > 0) {
-				// transfer the relevant part of the BlockEntity array to permanent block storage
-				block->entities = (BlockEntity *)malloc(block->numEntities*sizeof(BlockEntity));
+            if (gotBlock && block->numEntities > 0) {
+                // transfer the relevant part of the BlockEntity array to permanent block storage
+                block->entities = (BlockEntity *)malloc(block->numEntities*sizeof(BlockEntity));
 
-				if (block->entities)
-					memcpy(block->entities, blockEntities, block->numEntities*sizeof(BlockEntity));
-				else
-					// couldn't alloc data
-					return NULL;
-			}
-		}
-		else {
-			assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
-			gotBlock = createBlockFromSchematic(pWorldGuide, cx, cz, block);
-		}
+                if (block->entities)
+                    memcpy(block->entities, blockEntities, block->numEntities*sizeof(BlockEntity));
+                else
+                    // couldn't alloc data
+                    return NULL;
+            }
+        }
+        else {
+            assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
+            gotBlock = createBlockFromSchematic(pWorldGuide, cx, cz, block);
+        }
 
-		if ( gotBlock ) {
+        if ( gotBlock ) {
 
-			int i;
-			unsigned char *pBlockID = block->grid;
-			for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
-			{
-				if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
-				{
-					// some new version of Minecraft, block ID is unrecognized;
-					// turn this block into stone. dataVal will be ignored.
-					// flag assert only once
-					assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
-					*pBlockID = BLOCK_UNKNOWN;
-					// note that we always clean up bad blocks;
-					// whether we flag that a bad block was found is optional.
-					// This gets turned off once the user has been warned, once, that his map has some funky data.
-					if (gPerformUnknownBlockCheck)
-						gUnknownBlock = 1;
-				}
-			}
-			return block;
-		}
-	}
+            int i;
+            unsigned char *pBlockID = block->grid;
+            for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
+            {
+                if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
+                {
+                    // some new version of Minecraft, block ID is unrecognized;
+                    // turn this block into stone. dataVal will be ignored.
+                    // flag assert only once
+                    assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
+                    *pBlockID = BLOCK_UNKNOWN;
+                    // note that we always clean up bad blocks;
+                    // whether we flag that a bad block was found is optional.
+                    // This gets turned off once the user has been warned, once, that his map has some funky data.
+                    if (gPerformUnknownBlockCheck)
+                        gUnknownBlock = 1;
+                }
+            }
+            return block;
+        }
+    }
 
     block_free(block);
     return NULL;
@@ -3147,72 +3164,72 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
 // return 1 if real data is found, 0 if all empty
 int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock *block)
 {
-	if (!pWorldGuide->sch.repeat) {
-		// does block overlap the schematic?
-		if ((cx * 16 > pWorldGuide->sch.width) || (cx < 0))
-			return 0;
-		if ((cz * 16 > pWorldGuide->sch.length) || (cz < 0))
-			return 0;
-	}
+    if (!pWorldGuide->sch.repeat) {
+        // does block overlap the schematic?
+        if ((cx * 16 > pWorldGuide->sch.width) || (cx < 0))
+            return 0;
+        if ((cz * 16 > pWorldGuide->sch.length) || (cz < 0))
+            return 0;
+    }
 
-	// no biome, so that's easy
-	memset(block->biome, 0, 16 * 16);
-	// no light, so that's also easy
-	memset(block->light, 0, 16 * 16 * 128);
+    // no biome, so that's easy
+    memset(block->biome, 0, 16 * 16);
+    // no light, so that's also easy
+    memset(block->light, 0, 16 * 16 * 128);
 
-	// clear the rest, so we fill these in as found
-	memset(block->grid, 0, 16 * 16 * 256);
-	memset(block->data, 0, 16 * 16 * 128);
+    // clear the rest, so we fill these in as found
+    memset(block->grid, 0, 16 * 16 * 256);
+    memset(block->data, 0, 16 * 16 * 128);
 
-	static int border = 1;
-	if (pWorldGuide->sch.repeat) {
-		// loop through local block locations, 0-15,0-15
-		for (int y = 0; y < pWorldGuide->sch.height; y++) {
-			int zWorld = cz * 16;
-			for (int z = 0; z < 16; z++, zWorld++) {
-				int zMod = zWorld % (pWorldGuide->sch.length + border);
-				zMod = (zMod + pWorldGuide->sch.length + border) % (pWorldGuide->sch.length + border);
-				// leave a border
-				if (zMod < pWorldGuide->sch.length) {
-					int index = (y * 16 + z) * 16;
-					int xWorld = cx * 16;
-					for (int x = 0; x < 16; x++, index++, xWorld++) {
-						int xMod = xWorld % (pWorldGuide->sch.width + border);
-						xMod = (xMod + pWorldGuide->sch.width + border) % (pWorldGuide->sch.width + border);
-						if (xMod < pWorldGuide->sch.width) {
-							int schIndex = (y * pWorldGuide->sch.length + zMod) * pWorldGuide->sch.width + xMod;
-							assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
-							block->grid[index] = pWorldGuide->sch.blocks[schIndex];
-							block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
-						}
-					}
-				}
-			}
-		}
-	}
-	else {
-		// find the valid data's bounds inside the 16x16 area
-		int xlength = (cx * 16 + 16 > pWorldGuide->sch.width) ? pWorldGuide->sch.width - cx * 16 : 16;
-		int ylength = pWorldGuide->sch.height;
-		int zlength = (cz * 16 + 16 > pWorldGuide->sch.length) ? pWorldGuide->sch.length - cz * 16 : 16;
-		// the offset is how many 16x16 tiles into the schematic data itself we need to offset
-		int offset = 16 * cz * pWorldGuide->sch.width + 16 * cx;
+    static int border = 1;
+    if (pWorldGuide->sch.repeat) {
+        // loop through local block locations, 0-15,0-15
+        for (int y = 0; y < pWorldGuide->sch.height; y++) {
+            int zWorld = cz * 16;
+            for (int z = 0; z < 16; z++, zWorld++) {
+                int zMod = zWorld % (pWorldGuide->sch.length + border);
+                zMod = (zMod + pWorldGuide->sch.length + border) % (pWorldGuide->sch.length + border);
+                // leave a border
+                if (zMod < pWorldGuide->sch.length) {
+                    int index = (y * 16 + z) * 16;
+                    int xWorld = cx * 16;
+                    for (int x = 0; x < 16; x++, index++, xWorld++) {
+                        int xMod = xWorld % (pWorldGuide->sch.width + border);
+                        xMod = (xMod + pWorldGuide->sch.width + border) % (pWorldGuide->sch.width + border);
+                        if (xMod < pWorldGuide->sch.width) {
+                            int schIndex = (y * pWorldGuide->sch.length + zMod) * pWorldGuide->sch.width + xMod;
+                            assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
+                            block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+                            block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else {
+        // find the valid data's bounds inside the 16x16 area
+        int xlength = (cx * 16 + 16 > pWorldGuide->sch.width) ? pWorldGuide->sch.width - cx * 16 : 16;
+        int ylength = pWorldGuide->sch.height;
+        int zlength = (cz * 16 + 16 > pWorldGuide->sch.length) ? pWorldGuide->sch.length - cz * 16 : 16;
+        // the offset is how many 16x16 tiles into the schematic data itself we need to offset
+        int offset = 16 * cz * pWorldGuide->sch.width + 16 * cx;
 
-		// loop through local block locations, 0-15,0-15
-		for (int y = 0; y < ylength; y++) {
-			for (int z = 0; z < zlength; z++) {
-				int index = (y * 16 + z) * 16;
-				int schIndex = (y * pWorldGuide->sch.length + z) * pWorldGuide->sch.width + offset;
-				assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
-				for (int x = 0; x < xlength; x++, index++, schIndex++) {
+        // loop through local block locations, 0-15,0-15
+        for (int y = 0; y < ylength; y++) {
+            for (int z = 0; z < zlength; z++) {
+                int index = (y * 16 + z) * 16;
+                int schIndex = (y * pWorldGuide->sch.length + z) * pWorldGuide->sch.width + offset;
+                assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
+                for (int x = 0; x < xlength; x++, index++, schIndex++) {
 
-					block->grid[index] = pWorldGuide->sch.blocks[schIndex];
-					block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
-				}
-			}
-		}
-	}
-	return 1;
+                    block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+                    block->data[index / 2] |= pWorldGuide->sch.data[schIndex] << ((index % 2) * 4);
+                }
+            }
+        }
+    }
+    return 1;
 }
 
 // Clear that an unknown block was encountered. Good to do when loading a new world.
@@ -3240,7 +3257,8 @@ int NeedToCheckUnknownBlock()
     return gPerformUnknownBlockCheck;
 }
 
-int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
+// 0 fail, 1 succeed
+int GetSpawn(const wchar_t *world, int *x, int *y, int *z)
 {
     bfFile bf;
     wchar_t filename[300];
@@ -3248,57 +3266,61 @@ int GetSpawn(const wchar_t *world,int *x,int *y,int *z)
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
     if ( bf.gz == 0x0 ) return 1;
-    nbtGetSpawn(bf,x,y,z);
+    int retcode = nbtGetSpawn(bf, x, y, z);
     nbtClose(bf);
-    return 0;
+    return retcode;
 }
+// 0 fail, 1 succeed
 int GetFileVersion(const wchar_t *world, int *version)
 {
-	bfFile bf;
-	wchar_t filename[300];
-	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-	wcscat_s(filename, 300, L"/level.dat");
-	bf = newNBT(filename);
-	if (bf.gz == 0x0) return 1;
-	nbtGetFileVersion(bf, version);
-	nbtClose(bf);
-	return 0;
+    bfFile bf;
+    wchar_t filename[300];
+    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcscat_s(filename, 300, L"/level.dat");
+    bf = newNBT(filename);
+    if (bf.gz == 0x0) return 1;
+    int retcode = nbtGetFileVersion(bf, version);
+    nbtClose(bf);
+    return retcode;
 }
+// 0 fail, 1 succeed
 int GetFileVersionId(const wchar_t *world, int *versionId)
 {
-	bfFile bf;
-	wchar_t filename[300];
-	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-	wcscat_s(filename, 300, L"/level.dat");
-	bf = newNBT(filename);
-	if (bf.gz == 0x0) return 1;
-	nbtGetFileVersionId(bf, versionId);
-	nbtClose(bf);
-	return 0;
+    bfFile bf;
+    wchar_t filename[300];
+    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcscat_s(filename, 300, L"/level.dat");
+    bf = newNBT(filename);
+    if (bf.gz == 0x0) return 1;
+    int retcode = nbtGetFileVersionId(bf, versionId);
+    nbtClose(bf);
+    return retcode;
 }
+// 0 fail, 1 succeed
 int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength)
 {
-	bfFile bf;
-	wchar_t filename[300];
-	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-	wcscat_s(filename, 300, L"/level.dat");
-	bf = newNBT(filename);
-	if (bf.gz == 0x0) return 1;
-	nbtGetFileVersionName(bf, versionName, stringLength);
-	nbtClose(bf);
-	return 0;
+    bfFile bf;
+    wchar_t filename[300];
+    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcscat_s(filename, 300, L"/level.dat");
+    bf = newNBT(filename);
+    if (bf.gz == 0x0) return 1;
+    int retcode = nbtGetFileVersionName(bf, versionName, stringLength);
+    nbtClose(bf);
+    return retcode;
 }
+// 0 fail, 1 succeed
 int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 {
     bfFile bf;
     wchar_t filename[300];
-	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
     if ( bf.gz == 0x0 ) return 1;
-	nbtGetLevelName(bf, levelName, stringLength);
+    int retcode = nbtGetLevelName(bf, levelName, stringLength);
     nbtClose(bf);
-    return 0;
+    return retcode;
 }
 //void GetRandomSeed(const wchar_t *world,long long *seed)
 //{
@@ -3312,37 +3334,40 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 //    nbtClose(bf);
 //
 //}
-void GetPlayer(const wchar_t *world,int *px,int *py,int *pz)
+// 0 fail, 1 succeed
+int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
 {
     bfFile bf;
     wchar_t filename[300];
-	wcsncpy_s(filename, 300, world, wcslen(world) + 1);
+    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
-    nbtGetPlayer(bf,px,py,pz);
+    int retval = nbtGetPlayer(bf, px, py, pz);
     nbtClose(bf);
+    return retval;
 }
 
 /////////////////////////// Schematic read file
-// return 0 for OK, 1 for failure
+// return 1 for OK, 0 for failure
 int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
 {
-	bfFile bf;
-	bf = newNBT(schematic);
-	if (bf.gz == 0x0) return 1;
-	int retval = nbtGetSchematicWord(bf, field, value);
-	nbtClose(bf);
-	return retval;
+    bfFile bf;
+    bf = newNBT(schematic);
+    if (bf.gz == 0x0) return 1;
+    int retval = nbtGetSchematicWord(bf, field, value);
+    nbtClose(bf);
+    return retval;
 }
 
+// return 1 on success
 int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData)
 {
-	bfFile bf;
-	bf = newNBT(schematic);
-	if (bf.gz == 0x0) return 1;
-	int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
-	nbtClose(bf);
-	return retval;
+    bfFile bf;
+    bf = newNBT(schematic);
+    if (bf.gz == 0x0) return 1;
+    int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
+    nbtClose(bf);
+    return retval;
 }
 
 
@@ -3449,11 +3474,11 @@ static void initColors()
             gBlankTile[off+2] = (unsigned char)tone;
             gBlankTile[off+3] = (unsigned char)255;	// was 128 - why?
 
-			// fully inside highlight box
-			gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha*(double)gHred);
-			gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha*(double)gHgreen);
-			gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha*(double)gHblue);
-			gBlankHighlitTile[off + 3] = (unsigned char)255;
-		}
+            // fully inside highlight box
+            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha*(double)gHred);
+            gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha*(double)gHgreen);
+            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha*(double)gHblue);
+            gBlankHighlitTile[off + 3] = (unsigned char)255;
+        }
     }
 }
