@@ -3257,7 +3257,7 @@ int NeedToCheckUnknownBlock()
     return gPerformUnknownBlockCheck;
 }
 
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetSpawn(const wchar_t *world, int *x, int *y, int *z)
 {
     bfFile bf;
@@ -3265,12 +3265,12 @@ int GetSpawn(const wchar_t *world, int *x, int *y, int *z)
     wcsncpy_s(filename,300,world,wcslen(world)+1);
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return 1;
+    if ( bf.gz == 0x0 ) return -1;
     int retcode = nbtGetSpawn(bf, x, y, z);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetFileVersion(const wchar_t *world, int *version)
 {
     bfFile bf;
@@ -3278,12 +3278,12 @@ int GetFileVersion(const wchar_t *world, int *version)
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename, 300, L"/level.dat");
     bf = newNBT(filename);
-    if (bf.gz == 0x0) return 1;
+    if (bf.gz == 0x0) return -1;
     int retcode = nbtGetFileVersion(bf, version);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetFileVersionId(const wchar_t *world, int *versionId)
 {
     bfFile bf;
@@ -3291,12 +3291,12 @@ int GetFileVersionId(const wchar_t *world, int *versionId)
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename, 300, L"/level.dat");
     bf = newNBT(filename);
-    if (bf.gz == 0x0) return 1;
+    if (bf.gz == 0x0) return -1;
     int retcode = nbtGetFileVersionId(bf, versionId);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength)
 {
     bfFile bf;
@@ -3304,12 +3304,12 @@ int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename, 300, L"/level.dat");
     bf = newNBT(filename);
-    if (bf.gz == 0x0) return 1;
+    if (bf.gz == 0x0) return -1;
     int retcode = nbtGetFileVersionName(bf, versionName, stringLength);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 {
     bfFile bf;
@@ -3317,7 +3317,7 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return 1;
+    if ( bf.gz == 0x0 ) return -1;
     int retcode = nbtGetLevelName(bf, levelName, stringLength);
     nbtClose(bf);
     return retcode;
@@ -3334,7 +3334,7 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 //    nbtClose(bf);
 //
 //}
-// 0 fail, 1 succeed
+// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
 int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
 {
     bfFile bf;
@@ -3342,29 +3342,30 @@ int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
     wcscat_s(filename,300,L"/level.dat");
     bf=newNBT(filename);
+    if (bf.gz == 0x0) return -1;
     int retval = nbtGetPlayer(bf, px, py, pz);
     nbtClose(bf);
     return retval;
 }
 
 /////////////////////////// Schematic read file
-// return 1 for OK, 0 for failure
+// return 1 for OK, 0 for failure, -1 means schematic doesn't exist or can't be opened.
 int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
 {
     bfFile bf;
     bf = newNBT(schematic);
-    if (bf.gz == 0x0) return 1;
+    if (bf.gz == 0x0) return -1;
     int retval = nbtGetSchematicWord(bf, field, value);
     nbtClose(bf);
     return retval;
 }
 
-// return 1 on success
+// return 1 on success, 0 for failure, -1 means schematic doesn't exist or can't be opened.
 int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData)
 {
     bfFile bf;
     bf = newNBT(schematic);
-    if (bf.gz == 0x0) return 1;
+    if (bf.gz == 0x0) return -1;
     int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
     nbtClose(bf);
     return retval;

@@ -2661,7 +2661,7 @@ static int loadWorld(HWND hWnd)
         }
         if (version < 19133)
         {
-            // world is old
+            // world is really old, pre Anvil
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 2;
         }
@@ -2821,7 +2821,7 @@ void flagUnreadableWorld(wchar_t *wcWorld, char *charWorld)
     LOG_INFO(gExecutionLogfile, outputString);
 
     wchar_t msgString[1024];
-    swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be corrupt or missing important information. World ignored.", wcWorld);
+    swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored.", wcWorld);
     MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
 }
 
@@ -2909,13 +2909,17 @@ static int loadWorldList(HMENU menu)
                 LOG_INFO(gExecutionLogfile, "        try to get file version\n");
                 if (GetFileVersion(testAnvil, &version) != 1) {
                     // unreadable world, for some reason - couldn't read version and LevelName
-                    flagUnreadableWorld(testAnvil, pConverted);
+                    if (GetFileVersion(testAnvil, &version) != -1)
+                        // 0 means level.dat exists, but data could not be found
+                        flagUnreadableWorld(testAnvil, pConverted);
                     continue;
                 }
                 LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
                 if (GetLevelName(testAnvil, levelName, MAX_PATH) != 1) {
                     // unreadable world, for some reason - couldn't read version and LevelName
-                    flagUnreadableWorld(testAnvil, pConverted);
+                    if (GetLevelName(testAnvil, levelName, MAX_PATH) != -1)
+                        // 0 means level.dat exists, but data could not be found
+                        flagUnreadableWorld(testAnvil, pConverted);
                     continue;
                 }
 
@@ -2926,12 +2930,12 @@ static int loadWorldList(HMENU menu)
                 // This is a newer tag for 1.9 and on, older worlds do not have them
                 if (GetFileVersionId(testAnvil, &versionId) != 1) {
                     // older file type, does not have it.
-                    LOG_INFO(gExecutionLogfile, "   pre-1.9 file type detected, so no version id, which is fine\n");
+                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version id, which is fine\n");
                 }
                 LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
                 if (GetFileVersionName(testAnvil, versionName, MAX_PATH) != 1) {
                     // older file type, does not have it.
-                    LOG_INFO(gExecutionLogfile, "   pre-1.9 file type detected, so no version name, which is fine\n");
+                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version name, which is fine\n");
                 }
 
                 sprintf_s(outputString, 1024, "      succeeded, which has version ID %d and version name %s, and folder level name %s\n", versionId, versionName, levelName);
