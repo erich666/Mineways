@@ -2437,7 +2437,18 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Bug fix: Areas with X or Z coordinates outside of the -1,000,000 to 1,000,000 range would give an out of memory error, due to some lazy bounds testing I put in. Changed 999999 to INT_MAX, -999999 to INT_MIN throughout the code. <I>(Thanks to David Ng for reporting this bug.)</I>
 </UL>
 
-<LI>Future Version 5.05, ??/??/201?  - possible near-term future features:
+
+<LI>Version 5.05, 11/2/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV505.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Fix the <a href="scripting.html#clo">command line options</a>: these were getting entirely ignored due to some dumb code I added in a previous release.
+<LI>Serious bug-proofing: avoid hanging if a bad level.dat file is encountered. Instead, ignore the world and warn the user. <I>(Thanks to AttackPlayz for helping me track this down.)</I>
+<LI>Fix highlight selection so that empty block locations (holes to infinity) are highlighted when selected, in keeping with 5.04's new highlighting display.
+<LI>Now that the G3D viewer doesn't need it, don't double the Ke material attribute values in OBJ output when the G3D material is used.
+<LI>Make transparent materials in OBJ output with a tiny bit of Ks reflectivity by default, which looks nicer in G3D.
+</UL>
+
+<LI>Future Version 5.06, ??/??/201?  - possible near-term future features:
 <BR>
 <UL>
 <LI>Now that the G3D viewer doesn't need it, don't double the Ke material in OBJ output when the G3D material is used.
@@ -2523,7 +2534,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 10/30/2016</p>
+		<p id="lastUpdate">Last updated 11/3/2016</p>
 	</div>
 </div>
 
