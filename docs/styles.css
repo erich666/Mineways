@@ -64,6 +64,23 @@
 }
 
 
+#logoImgs {
+  text-align: center;
+}
+#logoImgs .eiffelContainer {
+  display: inline-block;
+}
+#logoImgs .eiffelContainer img {
+  margin-bottom: 10px;
+}
+#logoImgs .eiffelContainer p {
+  margin-top: 10px;
+}
+#logoImgs p, body #logoImgs a, body #logoImgs span {
+  font-family: "Arial Black", Gadget, sans-serif;
+  font-weight: 100;
+}
+
 #eiffelImgs {
   text-align: center;
 }
