@@ -1607,7 +1607,7 @@ RButtonUp:
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
-                        MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in a Pocket Edition world? Mineways cannot read these (yet)."),
+                        MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in an Education Edition, Pocket Edition, or Windows 10 Minecraft Beta world? Mineways cannot read these, as they are in a different format. You can manually convert your world to the 'classic' Minecraft format, which Mineways can read. Go to http://mineways.com/mineways.html, search on `pocket edition', click on the link, and follow those instructions."),
                             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                         return 0;

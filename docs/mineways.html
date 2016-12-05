@@ -119,7 +119,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#models">Stuff to Print</a> - where to get models and worlds.
  <LI><a href="#packages">Other Packages</a> - other model exporters and related software.
 </UL>
-<LI><a href="#mcpe">Minecraft Pocket Edition Support</a> - how to open one of these worlds in Mineways.
+<LI><a href="#mcpe">Minecraft Pocket Edition and Education Edition Support</a> - how to open one of these worlds in Mineways.
 <LI><a href="#shortcuts">Keyboard Shortcut Keys</a> - along with quick descriptions of various features.
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
 <LI><a href="#versions">Version History</a>
@@ -1199,21 +1199,29 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li>
 </ul>
 
-<h2 id="mcpe">Minecraft Pocket Edition Support</h2>
+<h2 id="mcpe">Minecraft Education Edition and Pocket Edition Support</h2>
 
-This section describes how to open a <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. The format used by Minecraft Pocket Edition is different from the standard Minecraft format. To  open these worlds in Mineways, some extra steps are required to copy the world to your PC or  Mac and to convert it to a format that Mineways can read.
+This section describes how to open a <a href="https://education.minecraft.net/">Minecraft Education Edition</a> or <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. This also includes the <a href="https://www.microsoft.com/en-us/store/p/minecraft-windows-10-edition-beta/9nblggh2jhxj">Minecraft: Windows 10 Edition Beta</a>. The format used by Minecraft Pocket/Beta and Education is different from the standard <a href="https://minecraft.net/">"classic" Minecraft</a> format (it's called LevelDB), so we have to convert to the "Classic" (NBT) format. Mineways currently can't do this conversion. Some extra steps are required to open these worlds in Mineways or in classic Minecraft.
 <P>
 You'll need:
 <UL>
-<LI><a href="http://mineways.com/downloads.html">Mineways</a></LI>
-<LI><a href="http://www.mcedit-unified.net/">MCEdit</a></LI>
-<LI>USB cable to connect your device to your PC</LI>
-<LI>For an iOS device, you will also need a program on your Mac or PC called <a href="http://www.macroplant.com/iexplorer/">iExplorer</a></LI>
+<LI><a href="http://www.mcedit-unified.net/">MCEdit</a>.</LI>
+<LI>If you're playing Minecraft on a tablet or phone, a USB cable to connect your device to your PC.</LI>
+<UL>
+<LI>For an iOS device, you will also need a program on your Mac or PC called <a href="http://www.macroplant.com/iexplorer/">iExplorer</a>. There may be other methods for transferring files from an iOS device, but iExplorer is the one I see recommended on the Internet. (I am not an iOS user). Also, I have not tested the iOS instructions personally. They are based on information I found on the Web.</LI>
+</UL>
 </UL>
 <P>
-Author's note: There may be other (free?) methods for transferring files from an iOS device, but  iExplorer is the one I see recommended on the Internet. (I am not an iOS user). Also, I have not  tested the iOS instructions personally. They are based on information I found on the Web.
 
-<h3>Copying the world folder from your mobile device</h3>
+<h3>For Windows 10 Edition of Minecraft: Education Edition or Beta</h3>
+<OL>
+<LI><b>For the Education Edition:</b> your worlds are saved in %localappdata%\Packages\Microsoft.MinecraftEducationEdition_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds
+
+<LI><b>For the Beta:</b> your worlds are saved in %localappdata%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds
+</OL>
+To check, press Windows-R and paste this long line in. The oddly-named folders there are your worlds. Click in to each one and you should see a level.dat file.
+
+<h3>For Mobile only: Copying the world folder from your mobile device</h3>
 <h4>Android</h4>
 <OL>
 <LI>Connect your device to your computer via USB cable as a media/storage device.</LI>
@@ -1228,33 +1236,31 @@ Author's note: There may be other (free?) methods for transferring files from an
 <LI>Click on "Documents", then "Games", then "Com.Mojang", then "minecraftWorlds".</LI>
 <LI>Drag the file for your world onto a location on the computer.</LI>
 </OL>
-<h4>Windows 10 Edition Beta of Minecraft</h4>
-<OL>
-<LI>Look in %localappdata%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds (press Windows-R and paste that in). The folders there are your worlds.
-</OL>
 
 <h3>Converting the world in MCEdit</h3>
 <OL>
 <LI>Run <a href="http://www.mcedit-unified.net/">MCEdit</a> by double-clicking the file "mcedit.exe".</LI>
 <LI>Select "Open...".</LI>
 <LI>Browse to your world folder, select the file "level.dat" and click "Open".</LI>
-<LI>In the upper left of the MCEdit window, click on "MCEdit" to open the menu.</LI>
+<LI>In the upper left of the MCEdit window, click on "Menu" to open the menu.</LI>
 <LI>Click on "Select All" (or use the shortcut Ctrl-A without opening the menu).</LI>
-<LI>Click on "MCEdit" again to close the menu.</LI>
+<LI>Click on "Menu" again to close the menu.</LI>
 <LI>In the selection menu on the left, click on "Copy".</LI>
-<LI>Click "MCEdit" to open the menu.</LI>
+<LI>Click "Menu" to open the menu.</LI>
 <LI>Click "Create New World".</LI>
 <LI>Under "Generator:", click on "Minecraft Server" and change it to "Flatland".</LI>
 <LI>Change the "Height" to 1.</LI>
-<LI>Click "Create". (Accept the message that appears with "OK").</LI>
-<LI>Browse to a location on your computer, name the new world and click "Save".</LI>
+<LI>Click "Create" at the bottom of this menu.</LI>
+<LI>Browse to a location on your computer, name the new world and click "Save". See the note at "Classic Minecraft save folder" if you want to save where your other "Classic" worlds are. (Accept the message that appears with "OK").</LI>
 <LI>Click "Select All" and close the menu (or press Ctrl-A).</LI>
-<LI>Click "Paste" in the menu on the left. Wait a bit for your world to load, then click to lock in the position.</LI>
-<LI>Click "Import".</LI>
-<LI>When the import is finished, open the MCEdit menu and click "Save" (or press Ctrl+S). Wait a bit.</LI>
+<LI>Click "Paste" in the menu on the left, then click on the world itself to position your world. Wait a bit for your world to load. (You can move around with the mouse and the WASD keys whille it loads.)</LI>
+<LI>Click "Import" at the bottom of the menu on the left.</LI>
+<LI>When the import is finished, click on "Menu" in the upper left again and click "Save" (or just press Ctrl+S). Wait a bit.</LI>
 </OL>
 
-Note: To move around in MCEdit, use the WASD keys (W=Forward, S=Back, A=Left,  D=Right). To look around with the camera, click the Right Mouse Button  once to toggle camera look on. Click again to turn it off. Point up and move forward (W) to move up, etc. The WASD keys are also used to move the paste blocks before clicking Import. See <a href="http://www.mcedit.net/">this site</a> for more information.
+Note: To move around in MCEdit, use the WASD keys (W=Forward, S=Back, A=Left,  D=Right). To look around with the camera, click the Right Mouse Button  once to toggle camera look on. Click again to turn it off. Point up and move forward (W) to move up, etc. The WASD keys are also used to move the paste blocks before clicking Import. See <a href="http://www.mcedit-unified.net/tutorial.html">the MCEdit site</a> for a tutorial and more information.
+<P>
+Classic Minecraft save folder: For "Classic" Minecraft your world saves folder on Windows is "%appdata%\.minecraft\saves". Another way to locate your hidden world saves directory for "Classic" Minecraft is via the Minecraft launcher. On the lower left of the launcher window (do not click "Play"), click on "Edit Profile". At the bottom of the dialog that appears, click "Open Game Dir", then open the "saves" folder. Copy your converted world folder here.
 
 <h3>Opening the world in Mineways</h3>
 <OL>
@@ -1266,7 +1272,7 @@ Note: To move around in MCEdit, use the WASD keys (W=Forward, S=Back, A=Left,  D
 
 <h3>Optional MCEdit steps for playing your world in standard Minecraft</h3>
 
-If you also want to play your converted world in Minecraft, you can remove the extra "flatland".
+If you also want to play your converted world in Minecraft, you can optionally remove the extra "flatland" you placed at the bottom level.
 <OL>
 <LI>Click on "Chunk view" at the top of the MCEdit window.</LI>
 <LI>Click and drag with the Left Mouse Button to select just the chunks of your imported world.</LI>
@@ -1274,8 +1280,6 @@ If you also want to play your converted world in Minecraft, you can remove the e
 <LI>In the MCEdit menu, click "Save" (or press Ctrl-S).</LI>
 <LI>Copy the world folder to your Minecraft saves directory.</LI>
 </OL>
-
-Note: The easiest way to locate this hidden directory is via the Minecraft launcher. On the  lower left of the launcher window (do not click "Play"), click on "Edit Profile". At the bottom  of the dialog that appears, click "Open Game Dir", then open the "saves" folder. Copy your  converted world folder here.
 
 <h2 id="shortcuts">Keyboard Shortcut Keys</h2>
 Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. More on mouse controls in the <a href="#select">Selection section</a>.
@@ -2536,7 +2540,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 11/3/2016</p>
+		<p id="lastUpdate">Last updated 12/5/2016</p>
 	</div>
 </div>
 
