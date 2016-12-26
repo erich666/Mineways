@@ -1,0 +1,86 @@
+Pixilate stars in night shader (removed because it required tracking to the camera)
+
+Improved nether portal shader including transparency and light emittence
+
+Special ice shader
+
+Additional lighting styles based on time of day
+
+Nether and end environment shaders
+
+Better glass shader
+
+Additional user-controllable variables for water shaders (Turbitity option, waviness option, color and/or volume absorsion/clarity option)
+  Probably requires restructuring water shader
+
+Proper texturing for wood logs (all surfaces use outer texture)
+  Might require with new texturing pieces
+
+Rotation of sunflowers based on time of day
+  Requires altering geometry
+  Requires basic trig calculations
+
+Varying light levels for emitting blocks
+  Might require restructuring of block metadata to be feasible
+
+Animated background stars
+  Requires scripting of parts of the engine not yet explored (timeline)
+  
+Sprites for sun and moon
+  Requires access to texture files that aren't currently provided
+
+Restructuring block metadata
+  Large amounts of work
+  Proper data structure needs to be better defined
+    Arrays vs. objects vs. dictionaries, etc.
+    What best suits legibility, extensibility, and features?
+  Massively alters codebase
+  Needs to contain fields of some sort for varying intensities (light intensities, fresnel values)
+
+Lower noise lighting (possibly using invisible light emitters that only show on diffuse rays)
+  Difficult to figure out what the issue is
+    Might require using geometry
+  On light blocks that do not take up the entire block space:
+     Need to use invisible light emitters that only show in shadows
+  Requires knowledge of how Cycles works and how to reduce noise
+
+GUI for options and execution
+  Requires exploring portions of Blender Python not explored
+
+Support for connected textures
+  Requires texture files not currently passed by Mineways
+  This will likely be an all-Mineways addtion (no extra python scripting)
+
+Clouds (2D and 3D)
+  2D and 3D, Minecrafty and "real"
+  Difficult to understand and write
+    The way how light reflects off clouds in the real world is very complex
+    The way how minecraft's clouds are formed shouldn't be too hard node-tree wise
+  Will likely require changing geometry
+
+Animated textures
+  Defaults from Minecraft
+  Grass, leaves, fire, and torches will need animations
+  Difficult to structure
+  Might require access to animated texture files which isn't currently provided
+  Requires scripting of parts of the engine not yet explored (timeline)
+
+Support for different weather types
+  Difficult to understand and write
+  Rain sources need to be placed somewhere if particles are used
+    Requires adding geometry
+  Might require scripting of parts of the engine not yet explored (physics, particles, timeline)
+
+Better fire including embers, in the spirit of both Minecraft and real fire using the builtin engine
+  Difficult to understand and write
+    Setting up fire in blender is overly complex node-tree wise at the moment; will requre lots of work
+  Likely requires changing geometry
+  Requires scripting of parts of the engine not yet explored (physics, particles, timeline, smoke and fire)
+
+Better grass using inbuilt hair engine
+  Requires scripting of parts of the engine not yet explored (physics, hair "particles")
+  Likely requires changing geometry
+  When the user scales their world model, the hair will not go with it
+
+Importing other models (such as characters and mobs)
+  Requires large amounts of information not currently passed by Mineways
