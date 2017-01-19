@@ -671,7 +671,7 @@ The "show weld blocks" option shows what blocks are added by the various "connec
 <H3 id="tilemaker">
 TileMaker
 </H3>
-TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note: currently the program works only on the PC.</B> If you figure out a way to run it on the Mac for free (not through <a href="http://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator"</a>, which should work but costs money), let me know.
+TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note: currently the program works only on the PC.</B> If you figure out a way to run it on the Mac for free (not through <a href="http://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator</a>, which should work but costs money), let me know.
 <P>
 TileMaker works by using a few different textures from Minecraft or from a resource pack to create a new texture to feed to Mineways. Specifically, here's how to set things up:
 <UL>
@@ -2443,7 +2443,6 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Bug fix: Areas with X or Z coordinates outside of the -1,000,000 to 1,000,000 range would give an out of memory error, due to some lazy bounds testing I put in. Changed 999999 to INT_MAX, -999999 to INT_MIN throughout the code. <I>(Thanks to David Ng for reporting this bug.)</I>
 </UL>
 
-
 <LI>Version 5.05, 11/2/2016 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV505.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
@@ -2454,10 +2453,16 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Make transparent materials in OBJ output with a tiny bit of Ks reflectivity by default, which looks nicer in G3D.
 </UL>
 
-<LI>Future Version 5.06, ??/??/201?  - possible near-term future features:
+<LI>Version 5.06, 1/19/2017 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV506.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Now that the G3D viewer doesn't need it, don't double the Ke material in OBJ output when the G3D material is used.
+<LI>Fix the test for player location so that purely server-side worlds can be loaded. <I>(Thanks to Shannon Vaughn for help in finding this bug.)</I>
+<LI>Give a better warning if an Education Edition world is detected, explaining how to proceed.
+</UL>
+
+<LI>Future Version 5.07, ??/??/201?  - possible near-term future features:
+<BR>
+<UL>
 <LI>I might add yet another checkbox for having transparent surfaces always generate faces...
 <LI>Real shulker box and observer textures, once 1.11 is released and stable.
 <LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
@@ -2540,7 +2545,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/5/2016</p>
+		<p id="lastUpdate">Last updated 1/19/2017</p>
 	</div>
 </div>
 

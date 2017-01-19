@@ -234,20 +234,20 @@ extern UnitType gUnitTypeTable[];
 
 // Special modifiers for material output for OBJ, only:
 // when exporting textures with OBJ, output a uniform material: Ka and Kd set to white (G3D likes this)
-#define EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL	0x200000
+// no longer used for anything #define EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL	0x200000
 // when exporting materials with OBJ, output the extra values (G3D likes this)
-#define EXPT_OUTPUT_OBJ_FULL_MATERIAL		0x400000
+#define EXPT_OUTPUT_OBJ_FULL_MATERIAL		0x200000
 
 // relative or absolute coordinates for OBJ
-#define EXPT_OUTPUT_OBJ_REL_COORDINATES		0x800000
+#define EXPT_OUTPUT_OBJ_REL_COORDINATES		0x400000
 
 // should subtypes (types differentiated by the data value bits) be output as separate textures?
-#define EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES	0x1000000
+#define EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES	0x800000
 
 // use biomes for export
-#define EXPT_BIOME							0x2000000
+#define EXPT_BIOME							0x1000000
 // Sketchfab export (to export only RGBA texture)
-#define EXPT_SKFB							0x4000000
+#define EXPT_SKFB							0x2000000
 
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20

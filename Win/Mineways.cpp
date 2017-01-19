@@ -2666,11 +2666,19 @@ static int loadWorld(HWND hWnd)
             return 2;
         }
         // it's not a good sign if we can't get the spawn location etc. from the world - consider this a failure to load
-        if ((GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 1) ||
-            (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 1))
+        if (GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 1)
         {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 1;
+        }
+        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 1) {
+            // if this fails, it's a server world, so set the values equal to the spawn location
+            // from http://minecraft.gamepedia.com/Level_format
+            // Player: The state of the Singleplayer player.This overrides the <player>.dat file with the same name as the
+            // Singleplayer player. This is only saved by Servers if it already exists, otherwise it is not saved for server worlds.See Player.dat Format.
+            gPlayerX = gSpawnX;
+            gPlayerY = gSpawnY;
+            gPlayerZ = gSpawnZ;
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionId);
@@ -3503,11 +3511,11 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         {
             // if G3D is chosen, we output the full material
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
-            if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
-            {
-                // G3D - use this option only if textures are on.
-                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
-            }
+            //if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
+            //{
+            //    // G3D - use this option only if textures are on.
+            //    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
+            //}
         }
         // if in debugging mode, force groups and material type
 
