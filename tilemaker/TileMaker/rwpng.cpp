@@ -44,7 +44,9 @@ int readpng(progimage_info *im, wchar_t *filename)
 
 	//decode
 	unsigned int width, height;
-	unsigned int error = lodepng::decode(im->image_data, width, height, filename);
+    std::wstring ws(filename);
+    std::string fileString(ws.begin(), ws.end());
+    unsigned int error = lodepng::decode(im->image_data, width, height, fileString);
 
 	//if there's an error, display it
 	if (error)
@@ -85,16 +87,18 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 
 	//Encode the image, depending on type
 	unsigned int error = 1;	// 1 means didn't reach lodepng
-	if ( channels == 4 )
+    std::wstring ws(filename);
+    std::string fileString(ws.begin(), ws.end());
+    if (channels == 4)
 	{
 		// 32 bit RGBA, the default - note, we could leave off the last arg, and lodepng
 		// will then find the best compact format (e.g. 8 bits), but that kills G3D.
-		error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
+        error = lodepng::encode(fileString, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA);
 	}
 	else if ( channels == 3 )
 	{
 		// 24 bit RGB
-		error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
+        error = lodepng::encode(fileString, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB);
 	}
 	else
 	{

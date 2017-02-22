@@ -223,7 +223,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.03\n");
+			wprintf( L"TileMaker version 2.04\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -242,6 +242,9 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		argLoc++;
 	}
+
+    if ( verbose )
+        wprintf(L"TileMaker version 2.04\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -475,7 +478,6 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// Now for the chests, if any. Look for each chest image file, and use bits as found
-	bool giveChestWarning = true;
 	for (i = 0; i < 3; i++) {
 		// single chest, double chest, ender chest in \textures\entity\chest
 		Chest *pChest = &gChest[i];
@@ -494,15 +496,9 @@ int wmain(int argc, wchar_t* argv[])
 		if (rc != 0)
 		{
 			// file not found
-			if (giveChestWarning) {
-				wprintf(L"Note: TileMaker also now reads files in the chest subdirectory and uses\nnormal.png, normal_double.png, and ender.png.\n  - Copy the texture resources from assets\\minecraft\\textures\\entity\\chest\n    directory to Mineways' subdirectory blocks\\chest.\n");
-				giveChestWarning = false;
-			}
-
-			continue;
+			wprintf(L"Note: TileMaker also now reads files in the chest subdirectory and uses\nthe images normal.png, normal_double.png, and ender.png.\n  - Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n    directory to Mineways' subdirectory blocks\\chest.\n");
+			break;
 		}
-		// if we read one chest successfully, don't give warning if others are missing.
-		giveChestWarning = false;
 		readpng_cleanup(0, &chestImage);
 
 		if (verbose)
@@ -617,18 +613,22 @@ static void reportReadError( int rc, wchar_t *filename )
 {
 	switch (rc) {
 	case 1:
-		wprintf(L"[%S] is not a PNG file: incorrect signature\n", filename);
+		wprintf(L"[%s] is not a PNG file: incorrect signature.\n", filename);
 		break;
 	case 2:
-		wprintf(L"[%S] has bad IHDR (libpng longjmp)\n", filename);
+		wprintf(L"[%s] has bad IHDR (libpng longjmp).\n", filename);
 		break;
-	case 4:
-		wprintf(L"[%S] read failed - insufficient memory\n", filename);
-		break;
-	default:
-		wprintf(L"[%S] read failed - unknown readpng_init() error\n", filename);
+    case 4:
+        wprintf(L"[%s] read failed - insufficient memory.\n", filename);
+        break;
+    case 63:
+        wprintf(L"[%s] read failed - chunk too long.\n", filename);
+        break;
+    default:
+		wprintf(L"[%s] read failed - unknown readpng_init() error.", filename);
 		break;
 	}
+    wprintf(L"Often this means the PNG file has some small bit of information that TileMaker cannot handle. You might be able to fix this error by opening this PNG file in Irfanview or other viewer and then saving it again. This has been known to clear out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
 }
 
 

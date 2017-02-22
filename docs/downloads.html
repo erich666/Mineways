@@ -134,11 +134,14 @@
 				<h1 id="platform">Platform-Specific Problems and Fixes</h1>
 				<div id="windowsPlatformHelp" class="helpInnerSector">
 					<h2 id="windows">Windows</h2>
+						<P>
+						If Mineways doesn't run for you, make sure you've downloaded the whole .zip file (it should be about 19 megabytes), that you have unzipped the file to some directory, and that you're running mineways.exe. Read on for more things to try.
+						<P>
 						If you get "Windows protected your PC" when running Mineways, click on "More info" and then "Run anyway". <a href="http://erichaines.com">I'm trustworthy</a>.
 						<P>
 						If Mineways gives you an error on startup, try Mineways32. If nothing starts up, try running the "mineways_without_worlds.bat" file (i.e., double-click it). This starts up Mineways without looking
 						at your Minecraft world saves directory. Sometimes corrupt or incomplete world data can cause Mineways
-						problems. If Mineways is still not working, please run "mineways_debug_log.bat" and <a href="contact.html">send me</a> the resulting mineways_exec.log file, which will help me debug your problem.
+						problems. If Mineways is still not working, please run "mineways_debug_log.bat" and look at or <a href="contact.html">send me</a> the resulting mineways_exec.log file, which will help me debug your problem.
 						</p>
 						<P>
 						If you get an error about MSVCR120.DLL being missing, install the <a href="https://www.microsoft.com/en-us/download/details.aspx?id=40784">Microsoft Visual C++ 2013 Redistributable Package</a> for your system. You <i>may</i> find you need to open that link in Microsoft's Internet Explorer or Edge browsers. Select vcredist_x64.exe for a 64-bit system, vcredist_x86.exe if your system is 32 bits. If you don't know whether your system is 32 or 64 bits, follow <a href="http://www.computerhope.com/issues/ch001121.htm">the instructions here</a>, which boil down to "hold down the Windows key and then click the Pause|Break key, then look for System type". Mineways32.exe should run on any PC, but export size is somewhat limited (this usually doesn't matter for 3D printing); Mineways.exe is 64-bit and will run on only 64-bit systems. Sorry for this annoyance, but Microsoft does not make this easy, and it even <a href="https://en.wikipedia.org/wiki/DLL_Hell">has a name</a>.
@@ -149,13 +152,17 @@
 						<P>
 						If Mineways is blocked by Norton Antivirus, e.g., you get an error that Windows is not being able to "access the specified device, path or file": First, make sure you are downloading Mineways from this site, i.e., the links above. If the download is being autodeleted, <a href="http://community.norton.com/comment/3833313#comment-3833313">here's how to turn Norton off temporarily</a>. Otherwise, just run Mineways and ignore the warnings. <a href="https://www.virustotal.com/en/url/e46760f7ae06728c171b532c301b85057b1584937a6225c586503f32afcf8f72/analysis/">No other antivirus software</a> reports Mineways as having a virus, so I believe it's a flaw in Norton. I won't be insulted if you are cautious and don't follow my advice, but Mineways is <a href="https://github.com/erich666/Mineways">open source</a>, and <a href="http://erichaines.com">I have a reputation as a good person</a>. You can also try running <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions">older versions of Mineways</a>, as these have been known to work and to not be identified as viruses.
 						</p>
+						<P>
+						Feel free <a href="contact.html">to write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.
 				</div>
 				<div id="macPlatformHelp" class="helpInnerSector">
 					<h2 id="mac">Mac</h2>
 					<p>
+					If Mineways doesn't run for you, make sure you've downloaded the whole .zip file (it should be about 84 megabytes), that you have unzipped the file to some directory (this should happen automatically on download), and that you're running the Mineways application.
+					<p>
 					Download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Mineways for Mac</a> and double-click on this zip file. Mineways should unzip and run. If the download doesn't unzip, you may not have downloaded the whole thing - your zip download file should be about 86 megabytes.
 					<P>
-					Currently Mineways does not run on Sierra; it runs on whatever <a href="http://winebottler.kronenberg.org/">WineBottler</a> supports.</p>
+					You <i>may</i> have problems running Mineways on macOS Sierra, or you may not. If you do have problems, you might try installing <a href="http://winebottler.kronenberg.org/">WineBottler</a> and then try to run Mineways again. The next thing to try is to download the <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Windows version of Mineways</a>, right click on the Mineways32.exe, hover over "Open With", then click on Wine (<i>thanks to heptake for this method</i>).
 					<p>Once installed, run Mineways - it'll take awhile to start the first time and you'll get a notice about <a href="http://www.winehq.org/">Wine</a>, so be patient. To load your world, use "File | Open World". If none of your worlds are listed, you'll get a warning and will need to use "File | Open..." and navigate to /users/<I>&lt;your name&gt;</I>/Library/Application Support/minecraft/saves/<I>&lt;your world's name&gt;</I> and select the level.dat file there.</p>
 					<P>If Mineways gives you an error on startup on the Mac, version 5.x may not work for you (and please let me know why, if you figure it out): try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac416.zip">version 4.16</a> if all else fails.</p>
 					<P>By default, Mineways now uses its own tile textures that are stored in the program itself. Other "terrainExt.png" can be used - a number of these come with the program. Use "File | Set Terrain File" and select the terrainExt.png in /users/<I>&lt;your name&gt;</I>/Downloads/MinewaysMac or wherever you put Mineways. You might need to search for these files, just use <a href="http://www.macworld.co.uk/how-to/mac/how-find-lost-mac-os-x-files-3613260/">Spotlight</a> and search on "terrainExt.png". <a href="mineways.html#terrain_png">The other terrainExt*.png files</a> will be found in this directory.</p>
@@ -182,10 +189,12 @@
 					</p>
 					<P>
 						We use <a href="http://winebottler.kronenberg.org/">WineBottler</a> to make mineways32.exe into a Mac app - it's pretty easy! Start it up and click on "Advanced", the rightmost icon at the top of the application. <a href="images/winebottler.png">Here's a screenshot of the settings</a> I use; I've renamed mineways32.exe to be Mineways.exe for this example. Click "Install", save to the "Documents" directory, and "Save As: Mineways". Wait a while, and then you can run (and redistribute) the Mineways.app produced. Note: do <I>not</I> save to the original Mineways directory where the mineways32.exe file is located, as this will cause a loop and the program will never finish. Note to self: download the original to the desktop. Output to Documents. Zip it up. Upload the zip, that's what gets distributed. Test by copying zip to Applications and double-clicking - should just run.
+					<P>
+						Feel free <a href="contact.html">to write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.
 				</div>
 				<div id="linuxPlatformHelp" class="helpInnerSector">
 					<h2 id="linux">Linux</h2>
-					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. My advice: try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">Version 4.17</a>.</p>
+					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows while running the 32-bit mineways32.exe version. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. My advice: try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">Version 4.17</a>. Linux is not "supported" by Mineways; I don't have Linux on any machine, I've never tried Mineways on Linux, I've been told it sometimes works. Basically, you're on your own.</p>
 				</div>
 			</div>
 			<div id="troubleshooting" class="helpLightOuterSector">
@@ -206,7 +215,7 @@
 						<LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Sometimes, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> normally bother with trying STL instead of VRML; STL will not print at Shapeways with color.</LI>
 						<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure the "Model's units" on the export dialog says "Millimeters".</LI>
 						<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.</LI>
-						<LI> "It (still) doesn't work" - please <a href="contact.html">email me</a>.</LI>
+						<LI> "It (still) doesn't work" - <a href="contact.html">write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.</LI>
 					</UL>
 				</div>
 				<div id="knownBugs" class="helpInnerSector">
@@ -243,7 +252,7 @@
 
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/22/2016</p>
+		<p id="lastUpdate">Last updated 2/5/2017</p>
 	</div>
 
 </body>
