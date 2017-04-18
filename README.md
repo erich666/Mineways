@@ -1,4 +1,4 @@
-#Mineways, a Minecraft mapper and exporter.
+# Mineways, a Minecraft mapper and exporter.
 **by Eric Haines, erich@acm.org**
 
 **begun 11/14/2011**
