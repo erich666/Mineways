@@ -123,7 +123,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#shortcuts">Keyboard Shortcut Keys</a> - along with quick descriptions of various features.
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
 <LI><a href="#versions">Version History</a>
-<LI><a href="#wishlist">Wishlist</a>
+<LI><a href="#wishlist">Wish List</a>
 <LI><a href="#offsite">Links</a> - useful links to Mineways-related information.
 <LI><a href="#credits">Credits</a> - who did what.
 </UL>
@@ -1172,6 +1172,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 </li><li><a href="http://www.minecraftforum.net/forums/mapping-and-modding/minecraft-mods/2520465-1-10-1-9-4-1-8-9-world-downloader-mod-create">Minecraft world exporter</a> (<a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">old thread</a>) - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
 
+</li><li><a href="https://ephtracy.github.io/">MagicaVoxel</a> read Minecraft schematics and gives a nice rendering of them. It's best for large models, as it converts everything to colored blocks, no details.
+
 </li><li><a href="http://www.minecraftforum.net/topic/249637-125-optifine-hd-c3-fps-boost-hd-textures-aa-af-and-much-more">OptiFine</a> is a mod that gives you some great additional rendering effects, <a href="http://www.minecraftforum.net/topic/120261-125-glsl-shaders-dof-bump-mapping-waving-wheat-dynamic-shadows-and-more/">GLSL Shaders</a> works with it and gives even more rendering styles, and <a href="http://www.minecraftforum.net/topic/940974-110sonic-ethers-unbelievable-shaders-glsl-shaders-dynamic-shadows-more/">Unbelievable Shaders</a> modifies these shaders further. Also give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. <a href="http://ephtracy.github.io/index.html?page=mv_renderer">MagicaVoxel Viewer</a> reads in schematic files and does a nice job displaying the blocks (always as full blocks, though, no detail). Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is snappy. A very cool thing is that it works in multiplayer, and you don't need access to the world files! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>, perhaps fixed by now. But, this software can all but improve over time - if it gets people trying out 3D printing, great! <a href="http://www.wired.com/2012/11/3-d-printed-minecraft/">Photos and more here</a>.
@@ -1202,6 +1204,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 <h2 id="mcpe">Minecraft Education Edition and Pocket Edition Support</h2>
 
 This section describes how to open a <a href="https://education.minecraft.net/">Minecraft Education Edition</a> or <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. This also includes the <a href="https://www.microsoft.com/en-us/store/p/minecraft-windows-10-edition-beta/9nblggh2jhxj">Minecraft: Windows 10 Edition Beta</a>. The format used by Minecraft Pocket/Beta and Education is different from the standard <a href="https://minecraft.net/">"classic" Minecraft</a> format (it's called LevelDB), so we have to convert to the "Classic" (NBT) format. Mineways currently can't do this conversion. Some extra steps are required to open these worlds in Mineways or in classic Minecraft.
+<P>
+For PlayStation 3 or Xbox 360, you might try out <a href="http://minecraftmapconverter.com/">this utility</a> or similar. I have not tried this myself, I merely noticed it on the web.
 <P>
 You'll need:
 <UL>
@@ -2460,7 +2464,14 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Give a better warning if an Education Edition world is detected, explaining how to proceed.
 </UL>
 
-<LI>Future Version 5.07, ??/??/201?  - possible near-term future features:
+<LI>Version 5.07, 6/4/2017 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV507.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Properly cull unneeded geometry for inverted stairs. <I>(Thanks to Vervez for reporting this bug.)</I>
+<LI>Properly make stairs and other complex blocks have tops and bottoms output if at border when "create block faces at the borders" is on.
+</UL>
+
+<LI>Future Version 5.08, ?/?/2017  - possible near-term future features:
 <BR>
 <UL>
 <LI>I might add yet another checkbox for having transparent surfaces always generate faces...
@@ -2477,7 +2488,6 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render.
-<LI>Separate materials for individual block types. For example, Dirt has three types: dirt, coarse dirt, and podzol. Each could have its own material.
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a lot of work to emulate and would soak up tons of texture memory.
 <LI>Add Pocket Edition/Education Edition support. Right now MCEdit properly reads such files. This turns out to be a bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
 <LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
@@ -2545,7 +2555,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 1/19/2017</p>
+		<p id="lastUpdate">Last updated 6/4/2017</p>
 	</div>
 </div>
 

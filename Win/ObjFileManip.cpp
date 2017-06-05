@@ -3826,9 +3826,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // Other blocks will clear faces as needed, by the save system itself (i.e. if a small face is next to a full block,
             // it'll be remove if and only if we're rendering).
+            // Save the 2x2 block, bottom or top.
             saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, miny, maxy, 0, 16);
 
-            // Now create the larger 2x1 box, if found
+            // Now create the 2x1 box, if found
             minx = minz = 0;
             maxx = maxz = 16;
             assert( (stepMask != 0) && (stepMask != 0xff) );
@@ -3954,7 +3955,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
             }
 
-            // anything left? output that little box
+            // anything left? output that little 1x1 box
             if ( stepMask != 0x0 )
             {
                 // TODO: we could get mad fancy here: we could check the direction of the 2x1 step (if it exists at all) and mask another side face from this little
@@ -7734,11 +7735,35 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, float
         return 0;
     }
 
+    // If we are maintaining borders, we need to ignore neighbors above and below that are in air space.
+    neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
+    neighborType = gBoxData[neighborBoxIndex].type;
+    // super-quick out: is neighbor air? Common enough case, let's test for it.
+    if (neighborType == BLOCK_AIR)
+        return 0;
+
+    // If we are sealing borders, we haven't yet clears "air" blocks above and below, as these are needed sometimes for
+    // two-block-high plants, doors, etc. But, we should ignore them for coverage tess.
+    if (gOptions->pEFD->chkBlockFacesAtBorders) {
+        if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+            IPoint anchor;
+            boxIndexToLoc(anchor, neighborBoxIndex);
+            if (faceDirection == DIRECTION_BLOCK_TOP) {
+                // limit above
+                if (anchor[Y] == gAirBox.max[Y])
+                    return 0;
+            }
+            else {
+                // below
+                if (anchor[Y] == gAirBox.min[Y])
+                    return 0;
+            }
+        }
+    }
+
     // check for easy case: if neighbor is a full block, neighbor covers all, so return 1
     // (or, for printing, return 1 if the block being covered *exactly* matches)
     type = gBoxData[boxIndex].type;
-    neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
-    neighborType = gBoxData[neighborBoxIndex].type;
     if ( gBlockDefinitions[neighborType].flags & BLF_WHOLE )
     {
         // special cases for viewing (rendering), having to do with semitransparency or cutouts
@@ -7906,7 +7931,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
                 // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
                 // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
                 
-                if ( dataVal & 0x8 )
+                if ( dataVal & 0x4 )
                 {
                     // upper slab
                     setBottom = 8;
@@ -11607,7 +11632,7 @@ SaveFullBlock:
     return retCode;
 }
 
-// Called for lava and water faces, and for 
+// Called for lava and water faces 
 // Assumes the following: billboards and lesser stuff has been output and their blocks made into air -
 //   this then means that if any neighbor is found, it must be a full block and so will cover the face.
 // Check if we should make a face: return 1 if face should be output

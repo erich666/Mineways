@@ -1468,15 +1468,23 @@ RButtonUp:
             if ( loadErr )
             {
                 // world not loaded properly
-                if (loadErr == 2)
-                {
-                    MessageBox( NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+                switch (loadErr) {
+                case 1:
+                    MessageBox(NULL, _T("Error: cannot read world's file version."),
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-                }
-                else
-                {
-                    MessageBox( NULL, _T("Error: cannot read world."),
+                    break;
+                case 2:
+                    MessageBox(NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    break;
+                case 3:
+                    MessageBox(NULL, _T("Error: cannot read world's spawn location - every world should have one."),
+                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    break;
+                default:
+                    MessageBox( NULL, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file."),
+                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    break;
                 }
 
                 return 0;
@@ -1887,7 +1895,7 @@ RButtonUp:
                 if (loadWorld(hWnd))
                 {
                     // world not loaded properly
-                    MessageBox( NULL, _T("Error: cannot read world."),
+                    MessageBox( NULL, _T("Error: cannot reload world."),
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                     return 0;
@@ -2669,7 +2677,7 @@ static int loadWorld(HWND hWnd)
         if (GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 1)
         {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
-            return 1;
+            return 3;
         }
         if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 1) {
             // if this fails, it's a server world, so set the values equal to the spawn location
