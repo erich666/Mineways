@@ -7910,6 +7910,23 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
             {
             case BLOCK_STONE_SLAB:
             case BLOCK_WOODEN_SLAB:
+            case BLOCK_RED_SANDSTONE_SLAB:
+            case BLOCK_PURPUR_SLAB:
+                // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+                // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+                if (dataVal & 0x8)
+                {
+                    // upper slab
+                    setBottom = 8;
+                    setTop = 16;
+                }
+                else
+                {
+                    // lower slab
+                    setBottom = 0;
+                    setTop = 8;
+                }
+                break;
 
             case BLOCK_OAK_WOOD_STAIRS:
             case BLOCK_COBBLESTONE_STAIRS:
