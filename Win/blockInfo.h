@@ -380,7 +380,7 @@ typedef struct Options {
     int worldType;          // what world we're looking at: HELL, ENDER, etc., and other option toggles
     int saveFilterFlags;	// what objects should be kept - basic difference is flatsides get shown
     int exportFlags;		// exporting options
-    int moreExportMemory;             // use more memory for caching or not?
+    int moreExportMemory;   // use more memory for caching or not?
     int currentCacheSize;
     ExportFileData *pEFD;   // print or view option values, etc.
     ///// these are really statistics, but let's shove them in here - so sloppy!
@@ -394,7 +394,7 @@ typedef struct Options {
 } Options;
 
 // number of official Minecraft blocks (take highest valid block ID and add 1)
-#define NUM_BLOCKS_STANDARD 235
+#define NUM_BLOCKS_STANDARD 253
 // number of blocks we want to show on the map (includes the unknown one)
 #define NUM_BLOCKS_MAP (NUM_BLOCKS_STANDARD+1)
 // number of blocks with entries in block info table - now that 255 is used, we need this
@@ -404,9 +404,6 @@ typedef struct Options {
 // until the code settles down.
 // NOTE! if we ever go past 256, search for 256 in code and start fixing!
 #define NUM_BLOCKS NUM_BLOCKS_MAP
-
-// number of texture swatches
-#define NUM_SWATCHES (NUM_BLOCKS+256)
 
 // absolute max the 2x2 * 16x16 space of swatches could have (without borders)
 #define NUM_MAX_SWATCHES (4*16*16)
@@ -724,6 +721,9 @@ enum block_types {
     BLOCK_STRUCTURE_VOID = 0xD9,
     BLOCK_OBSERVER = 0xDA,
     BLOCK_SHULKER_CHEST = 0xDB,
+    BLOCK_GLAZED_TERRACOTTA = 0xEB,
+    BLOCK_CONCRETE = 0xFB,
+    BLOCK_CONCRETE_POWDER = 0xFC,
 
     BLOCK_FAKE = 0xFE,	// I hope we never get this far
 

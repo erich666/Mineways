@@ -290,42 +290,42 @@ BlockDefinition gBlockDefinitions[256]={	// IMPORTANT: do not change 256 size he
     { /* 215 */ "Red Nether Brick",       0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 216 */ "Bone Block",             0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR}, // top location; side is previous tile
     { /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x0F, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY},	// uses red wool
-    { /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 6, 0x00, BLF_WHOLE},	// TODO - for now use the dropper
-    { /* 219 */ "White Shulker Box",      0xDFDFDF, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 220 */ "Orange Shulker Box",     0xDB7E40, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 221 */ "Magenta Shulker Box",    0xB452BD, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 222 */ "Light Blue Shulker Box", 0x6D8BC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 223 */ "Yellow Shulker Box",     0xB2A728, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 224 */ "Lime Shulker Box",       0x42AF39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 225 */ "Pink Shulker Box",       0xC9738B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 226 */ "Gray Shulker Box",       0x414141, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 227 */ "Light Grey Shulker Box", 0x9CA2A2, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 228 */ "Cyan Shulker Box",       0x2F6F8A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 229 */ "Purple Shulker Box",     0x7F3EB6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 230 */ "Blue Shulker Box",       0x2E398E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 231 */ "Brown Shulker Box",      0x50331F, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 232 */ "Green Shulker Box",      0x35471C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 233 */ "Red Shulker Box",        0x983431, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 234 */ "Black Shulker Box",      0x1B1717, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x00, BLF_WHOLE},	// TODO - for now use wool
-    { /* 235 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 236 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 237 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 238 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 239 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 240 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 241 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 242 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 243 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 244 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 245 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 246 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 247 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 248 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 249 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 250 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 251 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 252 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 253 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock
-    { /* 254 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	// same as bedrock - BLOCK_FAKE is used here
+    { /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,33, 0x00, BLF_WHOLE},
+    { /* 219 */ "White Shulker Box",      0xD8DDDE, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,27, 0x00, BLF_WHOLE},
+    { /* 220 */ "Orange Shulker Box",     0xEB6B0B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,27, 0x00, BLF_WHOLE},
+    { /* 221 */ "Magenta Shulker Box",    0xAE37A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,27, 0x00, BLF_WHOLE},
+    { /* 222 */ "Light Blue Shulker Box", 0x32A5D4, 1.000f, 0xff7711, 0xff7711, 0.12345f, 3, 27, 0x00, BLF_WHOLE },
+    { /* 223 */ "Yellow Shulker Box",     0xF8BD1E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,27, 0x00, BLF_WHOLE},
+    { /* 224 */ "Lime Shulker Box",       0x65AE17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5,27, 0x00, BLF_WHOLE},
+    { /* 225 */ "Pink Shulker Box",       0xE77B9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,27, 0x00, BLF_WHOLE},
+    { /* 226 */ "Gray Shulker Box",       0x383B3F, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,27, 0x00, BLF_WHOLE},
+    { /* 227 */ "Light Grey Shulker Box", 0x7E7E75, 1.000f, 0xff7711, 0xff7711, 0.12345f, 8, 27, 0x00, BLF_WHOLE },
+    { /* 228 */ "Cyan Shulker Box",       0x147A88, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9,27, 0x00, BLF_WHOLE},
+    { /* 229 */ "Purple Shulker Box",     0x8C618C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,27, 0x00, BLF_WHOLE},
+    { /* 230 */ "Blue Shulker Box",       0x2C2E8D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,27, 0x00, BLF_WHOLE},
+    { /* 231 */ "Brown Shulker Box",      0x6B4224, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,27, 0x00, BLF_WHOLE},
+    { /* 232 */ "Green Shulker Box",      0x4F6520, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,27, 0x00, BLF_WHOLE},
+    { /* 233 */ "Red Shulker Box",        0x8E201F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,27, 0x00, BLF_WHOLE},
+    { /* 234 */ "Black Shulker Box",      0x1A1A1E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,27, 0x00, BLF_WHOLE},
+    { /* 235 */ "White Glazed Terracotta",      0xD4DBD7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,28, 0x00, BLF_WHOLE },
+    { /* 236 */ "Orange Glazed Terracotta",     0xC09A7F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,28, 0x00, BLF_WHOLE },
+    { /* 237 */ "Magenta Glazed Terracotta",    0xD26FC1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2,28, 0x00, BLF_WHOLE },
+    { /* 238 */ "Light Blue Glazed Terracotta", 0x80B3D4, 1.000f, 0xff7711, 0xff7711, 0.12345f, 3, 28, 0x00, BLF_WHOLE },
+    { /* 239 */ "Yellow Glazed Terracotta",     0xEDC671, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4,28, 0x00, BLF_WHOLE },
+    { /* 240 */ "Lime Glazed Terracotta",       0xB0C84F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5,28, 0x00, BLF_WHOLE },
+    { /* 241 */ "Pink Glazed Terracotta",       0xEC9EB7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6,28, 0x00, BLF_WHOLE },
+    { /* 242 */ "Gray Glazed Terracotta",       0x5B6164, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7,28, 0x00, BLF_WHOLE },
+    { /* 243 */ "Light Grey Glazed Terracotta", 0x9FACAD, 1.000f, 0xff7711, 0xff7711, 0.12345f, 8, 28, 0x00, BLF_WHOLE },
+    { /* 244 */ "Cyan Glazed Terracotta",       0x4F8288, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9,28, 0x00, BLF_WHOLE },
+    { /* 245 */ "Purple Glazed Terracotta",     0x7633A5, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10,28, 0x00, BLF_WHOLE },
+    { /* 246 */ "Blue Glazed Terracotta",       0x324D98, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11,28, 0x00, BLF_WHOLE },
+    { /* 247 */ "Brown Glazed Terracotta",      0x896E60, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12,28, 0x00, BLF_WHOLE },
+    { /* 248 */ "Green Glazed Terracotta",      0x7F9563, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13,28, 0x00, BLF_WHOLE },
+    { /* 249 */ "Red Glazed Terracotta",        0xB8433B, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14,28, 0x00, BLF_WHOLE },
+    { /* 250 */ "Black Glazed Terracotta",      0x592225, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15,28, 0x00, BLF_WHOLE },
+    { /* 251 */ "Concrete",               0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f, 0,29, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 252 */ "Concrete Powder",        0xE2E4E4, 1.000f, 0xff7711, 0xff7711, 0.12345f, 0,30, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 253 */ "Unknown Block", 0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f, 1, 1, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as bedrock
+    { /* 254 */ "Unknown Block", 0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f, 1, 1, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as bedrock - BLOCK_FAKE is used here
     { /* 255 */ "Structure Block",        0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,25, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR}
 };

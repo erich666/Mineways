@@ -29,13 +29,16 @@ static void reportReadError( int rc, wchar_t *filename );
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
 static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src, int dst_x_lo, int dst_y_lo, int dst_x_hi, int dst_y_hi, int src_x_lo, int src_y_lo, float zoom);
+static void multPNGTileByColor(progimage_info *dst, int dst_x, int dst_y, int *color);
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
+static void getBrightestPNGPixel(progimage_info *src, int col, int row, int res, unsigned char *color, int *locc, int *locr);
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile);
 static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y );
 static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y);
 static void makeSolidTile(progimage_info *dst, int chosenTile, int solid);
 
-static void copyPNGArea(progimage_info *dst, progimage_info *src);
+static void copyPNG(progimage_info *dst, progimage_info *src);
+static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info *src, int src_x_min, int src_y_min);
 
 typedef struct ChestData {
 	int fromX;
@@ -94,6 +97,7 @@ static struct Chest {
 	{ L"ender", 6, 64, 64, NULL }
 };
 
+// given array of tiles read in index, return gTile index:
 static int tilesFoundArray[TOTAL_TILES];
 static progimage_info tile[TOTAL_TILES];
 
@@ -110,7 +114,7 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info destination;
 	progimage_info *destination_ptr = &destination;
 
-	int i;
+	int i, j;
 	int index;
 	int width;
 
@@ -138,6 +142,8 @@ int wmain(int argc, wchar_t* argv[])
     int solid = 0;
     int solidcutout = 0;
 
+    bool shulkerSide[16], shulkerBottom[16];
+
 	gChest[0].data = gNormalChest;
 	gChest[1].data = gNormalDoubleChest;
 	gChest[2].data = gEnderChest;
@@ -146,7 +152,9 @@ int wmain(int argc, wchar_t* argv[])
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
 	wcscpy_s(terrainExtOutput, MAX_PATH, OUTPUT_FILENAME );
 
-	memset( tilesMissingSet, 0, 4*TOTAL_TILES );
+    memset(tilesMissingSet, 0, 4 * TOTAL_TILES);
+    memset(shulkerSide, 0, 16 * sizeof(bool));
+    memset(shulkerBottom, 0, 16 * sizeof(bool));
 
 	// usage: [-i terrainBase.png] [-d tiles] [-o terrainExt.png] [-t tileSize]
 	// single argument is alternate subdirectory other than "tiles"
@@ -333,7 +341,7 @@ int wmain(int argc, wchar_t* argv[])
 					while ( index >= 0 )
 					{
 						// tile is one we care about.
-						tilesFoundArray[tilesFound] = index;
+                        tilesFoundArray[tilesFound] = index;
 
 						{
 							// read image file - build path
@@ -390,6 +398,30 @@ int wmain(int argc, wchar_t* argv[])
 			FindClose(hFind);
 		}
 	}
+
+    // look through tiles missing: if shulker tiles found, note they don't need to be generated
+    for (i = 0; i < TOTAL_TILES; i++)
+    {
+        if (wcsncmp(gTiles[i].filename, L"shulker_side_", 13) == 0) {
+            if (tilesMissingSet[i] == 0) {
+                // it's missing, but optional, so ignore it.
+                tilesMissingSet[i] = 1;
+            }
+            else {
+                shulkerSide[gTiles[i].txrX] = 1;
+            }
+        }
+        else if (wcsncmp(gTiles[i].filename, L"shulker_bottom_", 15) == 0) {
+            if (tilesMissingSet[i] == 0) {
+                // it's missing, but optional, so ignore it.
+                tilesMissingSet[i] = 1;
+            }
+            else {
+                shulkerBottom[gTiles[i].txrX] = 1;
+            }
+        }
+    }
+
 
 	// look for tiles not input?
 	if ( checkmissing )
@@ -450,7 +482,7 @@ int wmain(int argc, wchar_t* argv[])
 	{
 		// copy base texture over
 		destination_ptr->image_data.resize(outputXResolution*outputYResolution*4*sizeof(unsigned char),0x0);
-		copyPNGArea(destination_ptr, &basicterrain);
+		copyPNG(destination_ptr, &basicterrain);
 		if ( verbose )
 			wprintf (L"Base texture %s copied to output.\n", terrainBase);
 	}
@@ -476,6 +508,46 @@ int wmain(int argc, wchar_t* argv[])
 		if ( verbose )
 			wprintf (L"File %s merged.\n", gTiles[index].filename);
 	}
+
+    // Compute shulker box sides and bottoms, if not input
+    // Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
+    unsigned char box_color[4];
+    int neutral_color[4], mult_color[4];
+    // which tile to use: get the bottommost
+    index = findTile(L"shulker_top_white", 0);
+    int side_index = findTile(L"MW_SHULKER_SIDE", 0);
+    int bottom_index = findTile(L"MW_SHULKER_BOTTOM", 0);
+    int pick_row = outputTileSize / 2;
+    int pick_col = outputTileSize / 2;
+    for (i = 0; i < 16; i++) {
+        // compute side and bottom color
+        // First, find brightest pixel
+        if (i == 0) {
+            getBrightestPNGPixel(destination_ptr, gTiles[index].txrX * outputTileSize, gTiles[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
+            for (j = 0; j < 4; j++) {
+                neutral_color[j] = box_color[j];
+                mult_color[j] = 255;
+            }
+        }
+        else {
+            getPNGPixel(destination_ptr, gTiles[index].txrX * outputTileSize + pick_col, gTiles[index].txrY * outputTileSize + pick_row, box_color);
+            for (j = 0; j < 4; j++) {
+                mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
+            }
+        }
+        // we now have the multiplier color, so multiply base tile by it
+        if (shulkerSide[i] == false) {
+            copyPNGArea(destination_ptr, gTiles[index].txrX * outputTileSize, (gTiles[index].txrY + 4)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTiles[side_index].txrX * outputTileSize, gTiles[side_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTiles[index].txrX, gTiles[index].txrY + 4, mult_color);
+        }
+        if (shulkerBottom[i] == false) {
+            copyPNGArea(destination_ptr, gTiles[index].txrX * outputTileSize, (gTiles[index].txrY + 5)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTiles[bottom_index].txrX * outputTileSize, gTiles[bottom_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTiles[index].txrX, gTiles[index].txrY + 5, mult_color);
+        }
+        index++;
+    }
 
 	// Now for the chests, if any. Look for each chest image file, and use bits as found
 	for (i = 0; i < 3; i++) {
@@ -818,6 +890,28 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 	}
 }
 
+static void multPNGTileByColor(progimage_info *dst, int dst_x, int dst_y, int *color)
+{
+    int row, col, i;
+    unsigned char* dst_data;
+
+    int tileSize = dst->width / 16;
+
+    for (row = 0; row < tileSize; row++)
+    {
+        dst_data = &dst->image_data[0] + ((dst_y*tileSize + row) * dst->width + dst_x*tileSize) * 4;
+        for (col = 0; col < tileSize; col++)
+        {
+            for (i = 0; i < 3; i++) {
+                int val = color[i] * (int)*dst_data / 255;
+                *dst_data++ = (val > 255) ? 255 : (unsigned char)val;
+            }
+            // ignore alpha - assumed solid, and that we wouldn't want to multiply anyway
+            dst_data++;
+        }
+    }
+}
+
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile)
 {
 	int offset = 0;
@@ -886,6 +980,29 @@ static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *co
 	//}
 }
 
+static void getBrightestPNGPixel(progimage_info *src, int col, int row, int res, unsigned char *color, int *locc, int *locr)
+{
+    int r, c;
+    unsigned char testColor[4];
+    int maxSum, testSum;
+    maxSum = -1;
+    color[3] = 255;
+    for (r = 0; r < res; r++) {
+        for (c = 0; c < res; c++) {
+            getPNGPixel(src, col + c, row + r, testColor);
+            testSum = (int)testColor[0] + (int)testColor[1] + (int)testColor[2];
+            if (testSum > maxSum) {
+                maxSum = testSum;
+                *locr = r;
+                *locc = c;
+                color[0] = testColor[0];
+                color[1] = testColor[1];
+                color[2] = testColor[2];
+            }
+        }
+    }
+}
+
 static int isPNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
@@ -926,7 +1043,7 @@ static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 };
 
 // assumes we want to match the source to fit the destination
-static void copyPNGArea(progimage_info *dst, progimage_info *src)
+static void copyPNG(progimage_info *dst, progimage_info *src)
 {
 	int row,col,zoomrow,zoomcol;
 	unsigned char *dst_data;
@@ -1003,6 +1120,20 @@ static void copyPNGArea(progimage_info *dst, progimage_info *src)
 		}
 	}
 }
+
+static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info *src, int src_x_min, int src_y_min)
+{
+    int row;
+    int dst_offset, src_offset;
+
+    for (row = 0; row < size_y; row++)
+    {
+        dst_offset = ((dst_y_min + row)*dst->width + dst_x_min) * 4;
+        src_offset = ((src_y_min + row)*src->width + src_x_min) * 4;
+        memcpy(&dst->image_data[dst_offset], &src->image_data[src_offset], size_x * 4);
+    }
+}
+
 
 static void makeSolidTile(progimage_info *dst, int chosenTile, int solid)
 {

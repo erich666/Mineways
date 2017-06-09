@@ -1284,6 +1284,132 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         affectedByBiome = 3;
         break;
 
+    case BLOCK_CONCRETE:
+        // from upper left corner
+        dataVal = block->data[voxel / 2];
+        if (voxel & 0x01)
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0xE06101;
+            break;
+        case 2:
+            color = 0xA9309F;
+            break;
+        case 3:
+            color = 0x2489C7;
+            break;
+        case 4:
+            color = 0xF1AF15;
+            break;
+        case 5:
+            color = 0x5EA919;
+            break;
+        case 6:
+            color = 0xD6658F;
+            break;
+        case 7:
+            color = 0x373A3E;
+            break;
+        case 8:
+            color = 0x7D7D73;
+            break;
+        case 9:
+            color = 0x157788;
+            break;
+        case 10:
+            color = 0x64209C;
+            break;
+        case 11:
+            color = 0x2D2F8F;
+            break;
+        case 12:
+            color = 0x603C20;
+            break;
+        case 13:
+            color = 0x495B24;
+            break;
+        case 14:
+            color = 0x8E2121;
+            break;
+        case 15:
+            color = 0x080A0F;
+            break;
+        }
+        break;
+
+    case BLOCK_CONCRETE_POWDER:
+        // from upper left corner
+        dataVal = block->data[voxel / 2];
+        if (voxel & 0x01)
+            dataVal = dataVal >> 4;
+        else
+            dataVal &= 0xf;
+        switch (dataVal)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0xE38423;
+            break;
+        case 2:
+            color = 0xC155B9;
+            break;
+        case 3:
+            color = 0x4BB5D6;
+            break;
+        case 4:
+            color = 0xE9C739;
+            break;
+        case 5:
+            color = 0x7EBD2B;
+            break;
+        case 6:
+            color = 0xE59AB6;
+            break;
+        case 7:
+            color = 0x4D5155;
+            break;
+        case 8:
+            color = 0x9B9B95;
+            break;
+        case 9:
+            color = 0x25959D;
+            break;
+        case 10:
+            color = 0x8438B2;
+            break;
+        case 11:
+            color = 0x474AA7;
+            break;
+        case 12:
+            color = 0x7E5536;
+            break;
+        case 13:
+            color = 0x61782D;
+            break;
+        case 14:
+            color = 0xA93633;
+            break;
+        case 15:
+            color = 0x1B1C21;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -1882,6 +2008,22 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_CAULDRON:
     case BLOCK_FROSTED_ICE:
     case BLOCK_STRUCTURE_BLOCK:
+    case BLOCK_GLAZED_TERRACOTTA:
+    case BLOCK_GLAZED_TERRACOTTA + 1:
+    case BLOCK_GLAZED_TERRACOTTA + 2:
+    case BLOCK_GLAZED_TERRACOTTA + 3:
+    case BLOCK_GLAZED_TERRACOTTA + 4:
+    case BLOCK_GLAZED_TERRACOTTA + 5:
+    case BLOCK_GLAZED_TERRACOTTA + 6:
+    case BLOCK_GLAZED_TERRACOTTA + 7:
+    case BLOCK_GLAZED_TERRACOTTA + 8:
+    case BLOCK_GLAZED_TERRACOTTA + 9:
+    case BLOCK_GLAZED_TERRACOTTA + 10:
+    case BLOCK_GLAZED_TERRACOTTA + 11:
+    case BLOCK_GLAZED_TERRACOTTA + 12:
+    case BLOCK_GLAZED_TERRACOTTA + 13:
+    case BLOCK_GLAZED_TERRACOTTA + 14:
+    case BLOCK_GLAZED_TERRACOTTA + 15:
         // uses 0-3
         if ( dataVal < 4 )
         {
@@ -2061,22 +2203,8 @@ void testBlock( WorldBlock *block, int type, int y, int dataVal )
     case BLOCK_STAINED_GLASS:
     case BLOCK_STANDING_BANNER:
     case BLOCK_WOOL:
-    case BLOCK_SHULKER_CHEST:
-    case BLOCK_SHULKER_CHEST + 1:
-    case BLOCK_SHULKER_CHEST + 2:
-    case BLOCK_SHULKER_CHEST + 3:
-    case BLOCK_SHULKER_CHEST + 4:
-    case BLOCK_SHULKER_CHEST + 5:
-    case BLOCK_SHULKER_CHEST + 6:
-    case BLOCK_SHULKER_CHEST + 7:
-    case BLOCK_SHULKER_CHEST + 8:
-    case BLOCK_SHULKER_CHEST + 9:
-    case BLOCK_SHULKER_CHEST + 10:
-    case BLOCK_SHULKER_CHEST + 11:
-    case BLOCK_SHULKER_CHEST + 12:
-    case BLOCK_SHULKER_CHEST + 13:
-    case BLOCK_SHULKER_CHEST + 14:
-    case BLOCK_SHULKER_CHEST + 15:
+    case BLOCK_CONCRETE:
+    case BLOCK_CONCRETE_POWDER:
         // uses all bits, 0-15
         addBlock = 1;
         break;

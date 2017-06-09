@@ -13220,63 +13220,96 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_OBSERVER:
-            // TODO use real tiles. For now: piston back by default on sides:
-            swatchLoc = SWATCH_INDEX(13, 6);
             // I suspect the top bit is whether the observer is firing, but don't know. 
+            swatchLoc = (dataVal & 0x8) ? SWATCH_INDEX(1, 33) : SWATCH_INDEX(0, 33);
             switch (dataVal & 0x7)
             {
-            case 0:	// facing down
+            case 0:	// back side facing down
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
-                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
-                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(2, 33); break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33);
+                    if (uvIndices) { 
+                        rotateIndices(localIndices, 90);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
                 default: break;
                 }
                 break;
             case 1: // facing up
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(2, 33);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 90);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); 
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
+                default: break;
+                }
+                break;
+            case 2: // North -Z
+                switch (faceDirection) {
+                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33); break;
+                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(2, 33); break;
+                default: break;
+                }
+                break;
+            case 3: // South +Z
+                switch (faceDirection) {
+                case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
-                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(14, 14); break;
-                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(14, 14); break;
-                default: break;
-                }
-                break;
-            case 2: // North
-                switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 0); break;
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 0); break;
-                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
-                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
-                default: break;
-                }
-                break;
-            case 3: // South, which is really the west side, i.e. HI_Z
-                switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 180); break;
-                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
-                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33); break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(2, 33); break;
                 default: break;
                 }
                 break;
             case 4: // West
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 270); break;
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 270); break;
-                case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
-                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
+                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 90);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(2, 33); break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(3, 33); break;
                 default: break;
                 }
                 break;
             case 5: // East
             default:
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 90); break;
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(14, 14); rotateIndices(localIndices, 90); break;
-                case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(8, 15); rotateIndices(localIndices, 90); break;
-                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 270);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(2, 33); break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(3, 33); break;
                 default: break;
                 }
                 break;
@@ -13298,8 +13331,87 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_SHULKER_CHEST + 13:
         case BLOCK_SHULKER_CHEST + 14:
         case BLOCK_SHULKER_CHEST + 15:
-            // TODO: look above for up/down/right/left/etc. sides. Add the tiles (and, ugh, item tiles) when the beta becomes real
-            swatchLoc = retrieveWoolSwatch(type - BLOCK_SHULKER_CHEST);
+            if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 5);
+            }
+            else if (faceDirection != DIRECTION_BLOCK_TOP) {
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 4);
+            }
+            break;
+        case BLOCK_GLAZED_TERRACOTTA:
+        case BLOCK_GLAZED_TERRACOTTA + 1:
+        case BLOCK_GLAZED_TERRACOTTA + 2:
+        case BLOCK_GLAZED_TERRACOTTA + 3:
+        case BLOCK_GLAZED_TERRACOTTA + 4:
+        case BLOCK_GLAZED_TERRACOTTA + 5:
+        case BLOCK_GLAZED_TERRACOTTA + 6:
+        case BLOCK_GLAZED_TERRACOTTA + 7:
+        case BLOCK_GLAZED_TERRACOTTA + 8:
+        case BLOCK_GLAZED_TERRACOTTA + 9:
+        case BLOCK_GLAZED_TERRACOTTA + 10:
+        case BLOCK_GLAZED_TERRACOTTA + 11:
+        case BLOCK_GLAZED_TERRACOTTA + 12:
+        case BLOCK_GLAZED_TERRACOTTA + 13:
+        case BLOCK_GLAZED_TERRACOTTA + 14:
+        case BLOCK_GLAZED_TERRACOTTA + 15:
+            if (uvIndices) {
+                switch (faceDirection)
+                {
+                case DIRECTION_BLOCK_BOTTOM:
+                    switch (dataVal & 0x3) {
+                    case 0: rotateIndices(localIndices, 180); break;
+                    case 1: rotateIndices(localIndices, 270); break;
+                    case 2: break;
+                    case 3: rotateIndices(localIndices, 90); break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_TOP: // done
+                    switch (dataVal & 0x3) {
+                    case 0: break;
+                    case 1: rotateIndices(localIndices, 90); break;
+                    case 2: rotateIndices(localIndices, 180); break;
+                    case 3: rotateIndices(localIndices, 270); break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                    switch (dataVal & 0x3) {
+                    case 0: rotateIndices(localIndices, 90); break;
+                    case 1: break;
+                    case 2: rotateIndices(localIndices, 270); break;
+                    case 3: rotateIndices(localIndices, 180); break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_Z:
+                    switch (dataVal & 0x3) {
+                    case 0: rotateIndices(localIndices, 270); break;
+                    case 1: rotateIndices(localIndices, 180); break;
+                    case 2: rotateIndices(localIndices, 90); break;
+                    case 3: break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X: // done
+                    switch (dataVal & 0x3) {
+                    case 0: break;
+                    case 1: rotateIndices(localIndices, 270); break;
+                    case 2: rotateIndices(localIndices, 180); break;
+                    case 3: rotateIndices(localIndices, 90); break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_X: // done
+                    switch (dataVal & 0x3) {
+                    case 0: rotateIndices(localIndices, 180); break;
+                    case 1: rotateIndices(localIndices, 90); break;
+                    case 2: break;
+                    case 3: rotateIndices(localIndices, 270); break;
+                    }
+                    break;
+                }
+                break;
+            }
+            break;
+        case BLOCK_CONCRETE:
+        case BLOCK_CONCRETE_POWDER:
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX + dataVal, gBlockDefinitions[type].txrY);
             break;
         case BLOCK_POWERED_RAIL:						// getSwatch
         case BLOCK_DETECTOR_RAIL:

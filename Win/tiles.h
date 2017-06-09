@@ -37,7 +37,7 @@
 
 
 // If this number changes, also change warning #6 in gPopupInfo in Mineways.cpp
-#define VERTICAL_TILES 27
+#define VERTICAL_TILES 34
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -475,12 +475,124 @@ static struct {
     { 7, 26, L"MW_CHEST_LATCH", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 8, 26, L"water_flow", L"", SWATCH_CLAMP_ALL },	// special: double-wide
     { 9, 26, L"lava_flow", L"", SWATCH_CLAMP_ALL },		// special: double-wide
-    { 10, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_VERT_OFF
-    { 11, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_HORIZ_OFF
-    { 12, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_DOT_OFF
-    { 13, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_ANGLED_2_OFF
-    { 14, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_3_OFF
-    { 15, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// REDSTONE_WIRE_4_OFF
+    { 10, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF
+    { 11, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF
+    { 12, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_DOT_OFF
+    { 13, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_ANGLED_2_OFF
+    { 14, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_3_OFF
+    { 15, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_4_OFF
+    { 0, 27, L"shulker_top_white", L"", SWATCH_REPEAT_ALL },
+    { 1, 27, L"shulker_top_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 27, L"shulker_top_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 27, L"shulker_top_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 27, L"shulker_top_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 27, L"shulker_top_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 27, L"shulker_top_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 27, L"shulker_top_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 27, L"shulker_top_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 27, L"shulker_top_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 27, L"shulker_top_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 27, L"shulker_top_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 27, L"shulker_top_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 27, L"shulker_top_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 27, L"shulker_top_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 27, L"shulker_top_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 28, L"glazed_terracotta_white", L"", SWATCH_REPEAT_ALL },
+    { 1, 28, L"glazed_terracotta_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 28, L"glazed_terracotta_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 28, L"glazed_terracotta_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 28, L"glazed_terracotta_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 28, L"glazed_terracotta_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 28, L"glazed_terracotta_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 28, L"glazed_terracotta_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 28, L"glazed_terracotta_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 28, L"glazed_terracotta_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 28, L"glazed_terracotta_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 28, L"glazed_terracotta_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 28, L"glazed_terracotta_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 28, L"glazed_terracotta_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 28, L"glazed_terracotta_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 28, L"glazed_terracotta_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 29, L"concrete_white", L"", SWATCH_REPEAT_ALL },
+    { 1, 29, L"concrete_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 29, L"concrete_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 29, L"concrete_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 29, L"concrete_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 29, L"concrete_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 29, L"concrete_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 29, L"concrete_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 29, L"concrete_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 29, L"concrete_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 29, L"concrete_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 29, L"concrete_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 29, L"concrete_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 29, L"concrete_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 29, L"concrete_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 29, L"concrete_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 30, L"concrete_powder_white", L"", SWATCH_REPEAT_ALL },
+    { 1, 30, L"concrete_powder_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 30, L"concrete_powder_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 30, L"concrete_powder_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 30, L"concrete_powder_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 30, L"concrete_powder_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 30, L"concrete_powder_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 30, L"concrete_powder_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 30, L"concrete_powder_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 30, L"concrete_powder_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 30, L"concrete_powder_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 30, L"concrete_powder_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 30, L"concrete_powder_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 30, L"concrete_powder_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 30, L"concrete_powder_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 30, L"concrete_powder_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 31, L"shulker_side_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    { 1, 31, L"shulker_side_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 31, L"shulker_side_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 31, L"shulker_side_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 31, L"shulker_side_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 31, L"shulker_side_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 31, L"shulker_side_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 31, L"shulker_side_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 31, L"shulker_side_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 31, L"shulker_side_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 31, L"shulker_side_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 31, L"shulker_side_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 31, L"shulker_side_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 31, L"shulker_side_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 31, L"shulker_side_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 31, L"shulker_side_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 32, L"shulker_bottom_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    { 1, 32, L"shulker_bottom_orange", L"", SWATCH_REPEAT_ALL },
+    { 2, 32, L"shulker_bottom_magenta", L"", SWATCH_REPEAT_ALL },
+    { 3, 32, L"shulker_bottom_light_blue", L"", SWATCH_REPEAT_ALL },
+    { 4, 32, L"shulker_bottom_yellow", L"", SWATCH_REPEAT_ALL },
+    { 5, 32, L"shulker_bottom_lime", L"", SWATCH_REPEAT_ALL },
+    { 6, 32, L"shulker_bottom_pink", L"", SWATCH_REPEAT_ALL },
+    { 7, 32, L"shulker_bottom_gray", L"", SWATCH_REPEAT_ALL },
+    { 8, 32, L"shulker_bottom_silver", L"", SWATCH_REPEAT_ALL },
+    { 9, 32, L"shulker_bottom_cyan", L"", SWATCH_REPEAT_ALL },
+    { 10, 32, L"shulker_bottom_purple", L"", SWATCH_REPEAT_ALL },
+    { 11, 32, L"shulker_bottom_blue", L"", SWATCH_REPEAT_ALL },
+    { 12, 32, L"shulker_bottom_brown", L"", SWATCH_REPEAT_ALL },
+    { 13, 32, L"shulker_bottom_green", L"", SWATCH_REPEAT_ALL },
+    { 14, 32, L"shulker_bottom_red", L"", SWATCH_REPEAT_ALL },
+    { 15, 32, L"shulker_bottom_black", L"", SWATCH_REPEAT_ALL },
+    { 0, 33, L"observer_back", L"", SWATCH_REPEAT_ALL },
+    { 1, 33, L"observer_back_lit", L"", SWATCH_REPEAT_ALL },
+    { 2, 33, L"observer_front", L"", SWATCH_REPEAT_ALL },
+    { 3, 33, L"observer_side", L"", SWATCH_REPEAT_ALL },
+    { 4, 33, L"observer_top", L"observer_top_u", SWATCH_REPEAT_ALL },   // alternate name is Sphax BD Craft
+    { 5, 33, L"MW_SHULKER_SIDE", L"", SWATCH_REPEAT_ALL },      // TEMPLATE for sides and bottoms of shulker boxes
+    { 6, 33, L"MW_SHULKER_BOTTOM", L"", SWATCH_REPEAT_ALL },    // TEMPLATE for sides and bottoms of shulker boxes
+    { 7, 33, L"", L"", SWATCH_REPEAT_ALL },  // Unused
+    { 8, 33, L"", L"", SWATCH_REPEAT_ALL },  // Unused
+    { 9, 33, L"", L"", SWATCH_REPEAT_ALL },  // Unused
+    { 10, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+    { 11, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+    { 12, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+    { 13, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+    { 14, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+    { 15, 33, L"", L"", SWATCH_REPEAT_ALL }, // Unused
 };
 
 // tiles we know we don't use
