@@ -101,7 +101,8 @@ typedef struct ChangeBlockCommand {
 } ChangeBlockCommand;
 
 
-void ChangeCache( int size );
+void SetSeparatorObj(const wchar_t *separator);
+void ChangeCache(int size);
 void ClearCache();
 
 int SaveVolume(wchar_t *objFileName, int fileType, Options *options, WorldGuide *gWorldGuide, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,

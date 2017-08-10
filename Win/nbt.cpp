@@ -64,15 +64,14 @@ int bfseek(bfFile bf, int offset, int whence)
     return offset;
 } 
 
-bfFile newNBT(const wchar_t *filename)
+bfFile newNBT(const wchar_t *filename, int *err)
 {
     bfFile ret;
-    int err;
     FILE *fptr;
     ret.type = BF_GZIP;
 
-    err = _wfopen_s(&fptr,filename, L"rb");
-    if (fptr == NULL || err != 0)
+    *err = _wfopen_s(&fptr,filename, L"rb");
+    if (fptr == NULL || *err != 0)
     {
         ret.gz = 0x0;
         return ret;
@@ -294,11 +293,11 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     //int found;
 
     //Level/Blocks
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
     if (nbtFindElement(bf,"Level")!=10)
-        return 0;
+        return -3;
 
     // For some reason, on most maps the biome info is before the Sections;
     // on others they're after. So, read biome data, then rewind to find Sections.
@@ -306,22 +305,22 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     biome_save = *bf.offset;
     memset(biome, 0, 16*16);
     if (nbtFindElement(bf,"Biomes")!=7)
-        return 0;
+        return -4;
 
     {
         len=readDword(bf); //array length
-        if ( bfread(bf,biome,len) < 0 ) return 0;
+        if ( bfread(bf,biome,len) < 0 ) return -5;
     }
-    if (bfseek(bf, biome_save, SEEK_SET) < 0) return 0; //rewind to start of section
+    if (bfseek(bf, biome_save, SEEK_SET) < 0) return -6; //rewind to start of section
 
     if (nbtFindElement(bf,"Sections")!= 9)
-        return 0;
+        return -7;
 
     {
         unsigned char type=0;
-        if (bfread(bf, &type, 1) < 0) return 0;
+        if (bfread(bf, &type, 1) < 0) return -8;
         if (type != 10)
-            return 0;
+            return -9;
     }
 
     memset(buff, 0, 16*16*256);
@@ -329,7 +328,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
     memset(blockLight, 0, 16*16*128);
 
     nsections=readDword(bf);
-    if (nsections < 0) return 0;
+    if (nsections < 0) return -10;
 
     char thisName[MAX_NAME_LENGTH];
 
@@ -340,8 +339,8 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
         int save = *bf.offset;
         if (nbtFindElement(bf,"Y")!=1) //which section of the block stack is this?
             return 0;
-        if (bfread(bf, &y, 1) < 0) return 0;
-        if (bfseek(bf, save, SEEK_SET) < 0) return 0; //rewind to start of section
+        if (bfread(bf, &y, 1) < 0) return -11;
+        if (bfseek(bf, save, SEEK_SET) < 0) return -12; //rewind to start of section
 
         //found=0;
         // read all the arrays in this section
@@ -349,35 +348,35 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
         {
             int ret=0;
             unsigned char type=0;
-            if (bfread(bf, &type, 1) < 0) return 0;
+            if (bfread(bf, &type, 1) < 0) return -13;
             if (type==0) 
                 break;
             len=readWord(bf);
-            if (bfread(bf, thisName, len) < 0) return 0;
+            if (bfread(bf, thisName, len) < 0) return -14;
             thisName[len]=0;
             if (strcmp(thisName,"BlockLight")==0)
             {
                 //found++;
                 ret=1;
                 len=readDword(bf); //array length
-                if (bfread(bf, blockLight + 16 * 16 * 8 * y, len) < 0) return 0;
+                if (bfread(bf, blockLight + 16 * 16 * 8 * y, len) < 0) return -15;
             }
             if (strcmp(thisName,"Blocks")==0)
             {
                 //found++;
                 ret=1;
                 len=readDword(bf); //array length
-                if (bfread(bf, buff + 16 * 16 * 16 * y, len) < 0) return 0;
+                if (bfread(bf, buff + 16 * 16 * 16 * y, len) < 0) return -16;
             }
             else if (strcmp(thisName,"Data")==0)
             {
                 //found++;
                 ret=1;
                 len=readDword(bf); //array length
-                if (bfread(bf, data + 16 * 16 * 8 * y, len) < 0) return 0;
+                if (bfread(bf, data + 16 * 16 * 8 * y, len) < 0) return -17;
             }
             if (!ret)
-                if (skipType(bf, type) < 0) return 0;
+                if (skipType(bf, type) < 0) return -18;
         }
     }
     if (nbtFindElement(bf, "TileEntities") != 9)
@@ -386,7 +385,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 
     {
         unsigned char type = 0;
-        if (bfread(bf, &type, 1) < 0) return 0;
+        if (bfread(bf, &type, 1) < 0) return -19;
         if (type != 10)
             return 1;
 
@@ -414,7 +413,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
             for (;;)
             {
                 unsigned char type = 0;
-                if (bfread(bf, &type, 1) < 0) return 0;
+                if (bfread(bf, &type, 1) < 0) return -20;
                 if (type == 0) {
                     // end of list, so process data, if any valid data found
                     if (!skipSection) {
@@ -441,11 +440,11 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 
                 // always read name of field
                 int len = readWord(bf);
-                if (bfread(bf, thisName, len) < 0) return 0;
+                if (bfread(bf, thisName, len) < 0) return -21;
 
                 // if the id is one we don't care about, skip the rest of the data
                 if (skipSection) {
-                    if (skipType(bf, type) < 0) return 0;
+                    if (skipType(bf, type) < 0) return -22;
                 }
                 else {
                     thisName[len] = 0;			
@@ -465,7 +464,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
                     {
                         len = readWord(bf);
                         char idName[MAX_NAME_LENGTH];
-                        if (bfread(bf, idName, len) < 0) return 0;
+                        if (bfread(bf, idName, len) < 0) return -23;
                         idName[len] = 0;
 
                         // is it a skull or a flowerpot?
@@ -485,7 +484,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
                     {
                         len = readWord(bf);
                         char idName[MAX_NAME_LENGTH];
-                        if (bfread(bf, idName, len) < 0) return 0;
+                        if (bfread(bf, idName, len) < 0) return -24;
                         idName[len] = 0;
                         /*
                         Flower Pot Contents
@@ -528,11 +527,11 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
                     }
                     else if (strcmp(thisName, "Rot") == 0 && type == 1)
                     {
-                        if (bfread(bf, &dataRot, 1) < 0) return 0;
+                        if (bfread(bf, &dataRot, 1) < 0) return -25;
                     }
                     else if (strcmp(thisName, "SkullType") == 0 && type == 1)
                     {
-                        if (bfread(bf, &dataSkullType, 1) < 0) return 0;
+                        if (bfread(bf, &dataSkullType, 1) < 0) return -26;
                     }
                     else if (strcmp(thisName, "Data") == 0 && type == 3)
                     {
@@ -563,33 +562,33 @@ int nbtGetSpawn(bfFile bf, int *x, int *y, int *z)
     //Data/SpawnX
     // don't really need this first seek to beginning of file
     //bfseek(bf,0,SEEK_SET);
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
-    if (nbtFindElement(bf,"SpawnX")!=3) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -3;
+    if (nbtFindElement(bf,"SpawnX")!=3) return -4;
     *x=readDword(bf);
 
     // Annoyingly, SpawnY can come before SpawnX, so we need to re-find each time.
     // For some reason, seeking to a stored offset does not work.
     // So we seek to beginning of file and find "Data" again.
-    if (bfseek(bf, 0, SEEK_SET) < 0) return 0;
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 0, SEEK_SET) < 0) return -5;
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -6; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
-    if (nbtFindElement(bf,"SpawnY")!=3) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -7; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -8;
+    if (nbtFindElement(bf,"SpawnY")!=3) return -9;
     *y=readDword(bf);
 
     // We seek to beginning of file and find "Data" again.
-    if (bfseek(bf, 0, SEEK_SET) < 0) return 0;
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 0, SEEK_SET) < 0) return -10;
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -11; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
-    if (nbtFindElement(bf,"SpawnZ")!=3) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -12; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -13;
+    if (nbtFindElement(bf,"SpawnZ")!=3) return -14;
     *z=readDword(bf);
-    return 1;
+    return 0;
 }
 
 //  The NBT version of the level, 19133. See http://minecraft.gamepedia.com/Level_format#level.dat_format
@@ -598,13 +597,13 @@ int nbtGetFileVersion(bfFile bf, int *version)
     *version = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
-    if (nbtFindElement(bf,"version")!=3) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -3;
+    if (nbtFindElement(bf,"version")!=3) return -4;
     *version=readDword(bf);
-    return 1;
+    return 0;
 }
 
 // From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom
@@ -614,14 +613,14 @@ int nbtGetFileVersionId(bfFile bf, int *versionId)
     *versionId = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len = readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf, "Data") != 10) return 0;
-    if (nbtFindElement(bf, "Version") != 10) return 0;
-    if (nbtFindElement(bf, "Id") != 3) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf, "Data") != 10) return -3;
+    if (nbtFindElement(bf, "Version") != 10) return -4;
+    if (nbtFindElement(bf, "Id") != 3) return -5;
     *versionId = readDword(bf);
-    return 1;
+    return 0;
 }
 
 int nbtGetFileVersionName(bfFile bf, char *versionName, int stringLength)
@@ -629,24 +628,24 @@ int nbtGetFileVersionName(bfFile bf, char *versionName, int stringLength)
     *versionName = '\0'; // initialize to empty string
     int len;
     //Data/version
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len = readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf, "Data") != 10) return 0;
-    if (nbtFindElement(bf, "Version") != 10) return 0;
-    if (nbtFindElement(bf, "Name") != 8) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf, "Data") != 10) return -3;
+    if (nbtFindElement(bf, "Version") != 10) return -4;
+    if (nbtFindElement(bf, "Name") != 8) return -5;
     len = readWord(bf);
     if (len < stringLength) {
-        if (bfread(bf, versionName, len) < 0) return 0;
+        if (bfread(bf, versionName, len) < 0) return -6;
     }
     else {
         // string too long; read some, discard the rest
-        if (bfread(bf, versionName, stringLength - 1) < 0) return 0;	// save last position for string terminator
-        if (bfseek(bf, len - stringLength + 1, SEEK_CUR) < 0) return 0;
+        if (bfread(bf, versionName, stringLength - 1) < 0) return -7;	// save last position for string terminator
+        if (bfseek(bf, len - stringLength + 1, SEEK_CUR) < 0) return -8;
         len = stringLength - 1;
     }
     versionName[len] = 0;
-    return 1;
+    return 0;
 }
 
 int nbtGetLevelName(bfFile bf, char *levelName, int stringLength)
@@ -654,24 +653,24 @@ int nbtGetLevelName(bfFile bf, char *levelName, int stringLength)
     *levelName = '\0'; // initialize to empty string
     int len;
     //Data/levelName
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -3;
     // 8 means a string
-    if (nbtFindElement(bf,"LevelName")!=8) return 0;
+    if (nbtFindElement(bf,"LevelName")!=8) return -4;
     len=readWord(bf);
     if (len < stringLength) {
-        if (bfread(bf, levelName, len) < 0) return 0;
+        if (bfread(bf, levelName, len) < 0) return -5;
     }
     else {
         // string too long; read some, discard the rest
-        if (bfread(bf, levelName, stringLength - 1) < 0) return 0;	// save last position for string terminator
-        if (bfseek(bf, len - stringLength + 1, SEEK_CUR) < 0) return 0;
+        if (bfread(bf, levelName, stringLength - 1) < 0) return -6;	// save last position for string terminator
+        if (bfseek(bf, len - stringLength + 1, SEEK_CUR) < 0) return -7;
         len = stringLength - 1;
     }
     levelName[len] = 0;
-    return 1;
+    return 0;
 }
 
 //void nbtGetRandomSeed(bfFile bf,long long *seed)
@@ -691,17 +690,17 @@ int nbtGetPlayer(bfFile bf, int *px, int *py, int *pz)
     int len;
     *px=*py=*pz=0;
     //Data/Player/Pos
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len=readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf,"Data")!=10) return 0;
-    if (nbtFindElement(bf,"Player")!=10) return 0;
-    if (nbtFindElement(bf,"Pos")!=9) return 0;
-    if (bfseek(bf, 5, SEEK_CUR) < 0) return 0; //skip subtype and num items
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf,"Data")!=10) return -3;
+    if (nbtFindElement(bf,"Player")!=10) return -4;
+    if (nbtFindElement(bf,"Pos")!=9) return -5;
+    if (bfseek(bf, 5, SEEK_CUR) < 0) return -6; //skip subtype and num items
     *px=(int)readDouble(bf);
     *py=(int)readDouble(bf);
     *pz=(int)readDouble(bf);
-    return 1;
+    return 0;
 }
 
 //////////// schematic
@@ -712,10 +711,10 @@ int nbtGetSchematicWord(bfFile bf, char *field, int *value)
     *value = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len = readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
-    if (nbtFindElement(bf, field) != 2) return 0;
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (nbtFindElement(bf, field) != 2) return -3;
     *value = readWord(bf);
     return 1;
 }
@@ -725,21 +724,21 @@ int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schema
 {
     int len;
     //Data/version
-    if (bfseek(bf, 1, SEEK_CUR) < 0) return 0; //skip type
+    if (bfseek(bf, 1, SEEK_CUR) < 0) return -1; //skip type
     len = readWord(bf); //name length
-    if (bfseek(bf, len, SEEK_CUR) < 0) return 0; //skip name ()
+    if (bfseek(bf, len, SEEK_CUR) < 0) return -2; //skip name ()
 
     int found = 0;
     while (found < 2)
     {
         int ret = 0;
         unsigned char type = 0;
-        if (bfread(bf, &type, 1) < 0) return 0;
+        if (bfread(bf, &type, 1) < 0) return -3;
         if (type == 0)
             break;
         len = readWord(bf);
         char thisName[MAX_NAME_LENGTH];
-        if (bfread(bf, thisName, len) < 0) return 0;
+        if (bfread(bf, thisName, len) < 0) return -4;
         thisName[len] = 0;
         if (strcmp(thisName, "Blocks") == 0)
         {
@@ -749,7 +748,7 @@ int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schema
             // check that array is the right size
             if (len != numBlocks)
                 return 0;
-            if (bfread(bf, schematicBlocks, len) < 0) return 0;
+            if (bfread(bf, schematicBlocks, len) < 0) return -5;
             found++;
         }
         else if (strcmp(thisName, "Data") == 0)
@@ -760,14 +759,14 @@ int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schema
             // check that array is the right size
             if (len != numBlocks)
                 return 0;
-            if (bfread(bf, schematicBlockData, len) < 0) return 0;
+            if (bfread(bf, schematicBlockData, len) < 0) return -6;
             found++;
         }
         if (!ret)
-            if (skipType(bf, type) < 0) return 0;
+            if (skipType(bf, type) < 0) return -7;
     }
     // Did we find two things? If so, return 1, success
-    return ((found == 2) ? 1 : 0);
+    return ((found == 2) ? 1 : -8);
 }
 
 

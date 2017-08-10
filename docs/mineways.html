@@ -2425,9 +2425,18 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Added observer and shulker box texture support, along with 1.12 beta glazed terracotta, concrete, and concrete powder textures.
 </UL>
 
-<LI>Future Version 5.10, ?/?/2017  - possible near-term future features:
+<LI>Version 5.10, 8/10/2017 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV510.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI>Limited world list to 50 entries, as there seems to be <a href="https://github.com/erich666/Mineways/issues/31">a problem checking files</a> if there are too many worlds in the "saves" directory.
+<LI>Provide more detailed and explicit instructions and information about errors when opening files.
+<LI>Use the backslash everywhere in the path for opening files, just in case that's a problem on some systems.
+</UL>
+
+<LI>Future Version 5.11, ?/?/2017  - possible near-term future features:
+<BR>
+<UL>
+<LI>Go to location dialog, where you give a location and the view is centered on it.
 <LI>I might add yet another checkbox for having transparent surfaces always generate faces...
 <LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
 <LI>Improve the error reporting system to give more information, etc.
@@ -2440,6 +2449,7 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
+<LI>Go to location. Pops up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location.
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render.
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a lot of work to emulate and would soak up tons of texture memory.
 <LI>Add Pocket Edition/Education Edition support. Right now MCEdit properly reads such files. This turns out to be a bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.

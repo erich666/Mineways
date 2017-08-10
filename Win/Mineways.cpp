@@ -91,8 +91,8 @@ if (FH) { \
 HINSTANCE hInst;								// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
-#define MAX_WORLDS	1000
-TCHAR *gWorlds[MAX_WORLDS];							// up to 1000 worlds
+#define MAX_WORLDS	50
+TCHAR *gWorlds[MAX_WORLDS];							// number of worlds in initial world list
 int gNumWorlds = 0;
 
 static Options gOptions = {0,   // which world is visible
@@ -106,11 +106,12 @@ static WorldGuide gWorldGuide;
 static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 static BOOL gSameWorld=FALSE;
 static BOOL gHoldSameWorld=FALSE;
-static wchar_t gSelectTerrainPathAndName[MAX_PATH];				//path and file name to selected terrainExt.png file, if any
-static wchar_t gSelectTerrainDir[MAX_PATH];				//path (no file name) to selected terrainExt.png file, if any
-static wchar_t gImportFile[MAX_PATH];					//import file for settings
-static wchar_t gImportPath[MAX_PATH];					//path to import file for settings
-static BOOL gLoaded=FALSE;								//world loaded?
+static wchar_t gSelectTerrainPathAndName[MAX_PATH_AND_FILE];				//path and file name to selected terrainExt.png file, if any
+static wchar_t gSelectTerrainDir[MAX_PATH_AND_FILE];				//path (no file name) to selected terrainExt.png file, if any
+static wchar_t gImportFile[MAX_PATH_AND_FILE];					//import file for settings
+static wchar_t gImportPath[MAX_PATH_AND_FILE];					//path to import file for settings
+static wchar_t gFileOpened[MAX_PATH_AND_FILE];					// world file, for error reporting
+static BOOL gLoaded = FALSE;								//world loaded?
 static double gCurX,gCurZ;								//current X and Z
 static int gLockMouseX=0;                               // if true, don't allow this coordinate to change with mouse, 
 static int gLockMouseZ=0;
@@ -140,12 +141,12 @@ static ExportFileData *gpEFD = NULL;
 
 static int gOverworldHideStatus=0x0;
 
-static wchar_t gCurrentDirectory[MAX_PATH];
-static wchar_t gWorldPathDefault[MAX_PATH];
-static wchar_t gWorldPathCurrent[MAX_PATH];
+static wchar_t gCurrentDirectory[MAX_PATH_AND_FILE];
+static wchar_t gWorldPathDefault[MAX_PATH_AND_FILE];
+static wchar_t gWorldPathCurrent[MAX_PATH_AND_FILE];
 
-LPTSTR filepath = new TCHAR[MAX_PATH];
-LPTSTR tempdir = new TCHAR[MAX_PATH];
+LPTSTR filepath = new TCHAR[MAX_PATH_AND_FILE];
+LPTSTR tempdir = new TCHAR[MAX_PATH_AND_FILE];
 
 // low, inside, high for selection area, fourth value is minimum height found below selection box
 static int gHitsFound[4];
@@ -158,7 +159,7 @@ static int gBottomControlEnabled = FALSE;
 
 static int gPrintModel = 0;	// 1 is print, 0 is render, 2 is schematic
 static BOOL gExported=0;
-static TCHAR gExportPath[MAX_PATH] = _T("");
+static TCHAR gExportPath[MAX_PATH_AND_FILE] = _T("");
 
 static WORD gMajorVersion = 0;
 static WORD gMinorVersion = 0;
@@ -190,6 +191,8 @@ static LPWSTR *gArgList = NULL;
 static HANDLE gExecutionLogfile = 0x0;
 
 static wchar_t *gCustomCurrency = NULL;
+
+static int gSubError = 0;
 
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
@@ -247,9 +250,9 @@ typedef struct ImportedSet {
     int maxzVal;
     ExportFileData *pEFD;		// where to directly save data, no deferral
     ExportFileData *pSaveEFD;	// deferred save, for model load
-    char world[MAX_PATH];
-    char terrainFile[MAX_PATH];
-    char colorScheme[MAX_PATH];
+    char world[MAX_PATH_AND_FILE];
+    char terrainFile[MAX_PATH_AND_FILE];
+    char colorScheme[MAX_PATH_AND_FILE];
     wchar_t *importFile;
     int lineNumber;
     size_t errorMessagesStringSize;
@@ -258,7 +261,7 @@ typedef struct ImportedSet {
     bool nether;
     bool theEnd;
     bool logging;
-    char logFileName[MAX_PATH];
+    char logFileName[MAX_PATH_AND_FILE];
     HANDLE logfile;
     ChangeBlockCommand *pCBChead;
     ChangeBlockCommand *pCBClast;
@@ -314,11 +317,12 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
 static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
-static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount);
+static int getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t *pathAndFile);
 static int loadWorld(HWND hWnd);
+static void strcpyLimited(char *dst, int len, const char *src);
 static int setWorldPath(TCHAR *path);
 //static void homePathMac(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
@@ -388,6 +392,7 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error);
 static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error);
 static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, char *fileName);
 static bool openLogFile(ImportedSet & is);
+//static void logHandles();
 
 int APIENTRY _tWinMain(HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
@@ -402,7 +407,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     gMajorVersion = MINEWAYS_MAJOR_VERSION;
     gMinorVersion = MINEWAYS_MINOR_VERSION;
 
-    GetCurrentDirectory(MAX_PATH, gCurrentDirectory);
+    GetCurrentDirectory(MAX_PATH_AND_FILE, gCurrentDirectory);
     // which sort of separator? If "\" found, use that one, else "/" assumed.
     if (wcschr(gCurrentDirectory, (wchar_t)'\\') != NULL) {
         gPreferredSeparator = (wchar_t)'\\';
@@ -415,6 +420,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     }
     gPreferredSeparatorString[0] = gPreferredSeparator;
     gPreferredSeparatorString[1] = (wchar_t)0;
+    SetSeparatorMap(gPreferredSeparatorString);
+    SetSeparatorObj(gPreferredSeparatorString);
 
     // get argv, argc from command line.
     gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
@@ -444,12 +451,12 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     }
 
     // assume terrainExt.png is in .exe's directory to start
-    wcscpy_s(gSelectTerrainDir, MAX_PATH, gCurrentDirectory);
-    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, gCurrentDirectory);
-    wcscat_s(gSelectTerrainPathAndName, MAX_PATH - wcslen(gSelectTerrainPathAndName), L"\\terrainExt.png");
+    wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, gCurrentDirectory);
+    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
+    wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), L"\\terrainExt.png");
 
     // setting this to empty means the last path used (from last session, hopefully) will be used again
-    wcscpy_s(gImportPath, MAX_PATH, L"");
+    wcscpy_s(gImportPath, MAX_PATH_AND_FILE, L"");
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
     gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
@@ -676,8 +683,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     DWORD pos;
     wchar_t text[4];
     RECT rect;
-    TCHAR path[MAX_PATH];
-    TCHAR pathAndFile[MAX_PATH];
+    TCHAR path[MAX_PATH_AND_FILE];
+    TCHAR pathAndFile[MAX_PATH_AND_FILE];
     OPENFILENAME ofn;
     int mx,my,mz,type,dataVal,biome;
     static LPARAM gHoldlParam;
@@ -700,149 +707,155 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_CREATE:
+        {
+            validateItems(GetMenu(hWnd));
 
-        validateItems(GetMenu(hWnd));
-
-        // get new directory for where world saves are located, if any: -s dir
-        if (getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount)) {
-            // path found on command line, try it out.
-            LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
-        }
-        else {
-            // load default list of worlds
-            LOG_INFO(gExecutionLogfile, " setWorldPath\n");
-            int retCode = setWorldPath(gWorldPathDefault);
-
-            if (retCode == 0)
-            {
-                LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
-                // this message will get popped up by loadWorldList
-                //MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-                //	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+            // get new directory for where world saves are located, if any: -s dir
+            int val = getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount);
+            if (val > 0) {
+                // path found on command line, try it out.
+                LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
             }
+            else if (val < 0) {
+                // path set to none on command line.
+                LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successfully set to 'none,' with no worlds to be loaded\n");
+            }
+            else {
+                // load default list of worlds
+                LOG_INFO(gExecutionLogfile, " setWorldPath\n");
+                int retCode = setWorldPath(gWorldPathDefault);
+
+                if (retCode == 0)
+                {
+                    LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
+                    // this message will get popped up by loadWorldList
+                    //MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+                    //	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+                }
+            }
+
+            LOG_INFO(gExecutionLogfile, " loadWorldList\n");
+            if (loadWorldList(GetMenu(hWnd)))
+            {
+                LOG_INFO(gExecutionLogfile, "   world not converted\n");
+                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
+                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+            }
+            wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
+
+            LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
+            populateColorSchemes(GetMenu(hWnd));
+            CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCOLOR, MF_CHECKED);
+
+            ctlBrush = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+
+            ice.dwSize = sizeof(INITCOMMONCONTROLSEX);
+            ice.dwICC = ICC_BAR_CLASSES;
+            InitCommonControlsEx(&ice);
+            GetClientRect(hWnd, &rect);
+            hwndSlider = CreateWindowEx(
+                0, TRACKBAR_CLASS, L"Trackbar Control",
+                WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+                SLIDER_LEFT, 0, rect.right - rect.left - 40 - SLIDER_LEFT, 30,
+                hWnd, (HMENU)ID_LAYERSLIDER, NULL, NULL);
+            SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, MAP_MAX_HEIGHT));
+            SendMessage(hwndSlider, TBM_SETPAGESIZE, 0, 10);
+            EnableWindow(hwndSlider, FALSE);
+
+            hwndLabel = CreateWindowEx(
+                0, L"STATIC", NULL,
+                WS_CHILD | WS_VISIBLE | ES_RIGHT,
+                rect.right - 40, 5, 30, 20,
+                hWnd, (HMENU)ID_LAYERLABEL, NULL, NULL);
+            SetWindowText(hwndLabel, MAP_MAX_HEIGHT_STRING);
+            EnableWindow(hwndLabel, FALSE);
+
+            hwndBottomSlider = CreateWindowEx(
+                0, TRACKBAR_CLASS, L"Trackbar Control",
+                WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
+                SLIDER_LEFT, 30, rect.right - rect.left - 40 - SLIDER_LEFT, 30,
+                hWnd, (HMENU)ID_LAYERBOTTOMSLIDER, NULL, NULL);
+            SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, MAP_MAX_HEIGHT));
+            SendMessage(hwndBottomSlider, TBM_SETPAGESIZE, 0, 10);
+            EnableWindow(hwndBottomSlider, FALSE);
+
+            hwndBottomLabel = CreateWindowEx(
+                0, L"STATIC", NULL,
+                WS_CHILD | WS_VISIBLE | ES_RIGHT,
+                rect.right - 40, 35, 30, 20,
+                hWnd, (HMENU)ID_LAYERBOTTOMLABEL, NULL, NULL);
+            SetWindowText(hwndBottomLabel, SEA_LEVEL_STRING);
+            EnableWindow(hwndBottomLabel, FALSE);
+
+            setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+
+            // label to left
+            hwndInfoLabel = CreateWindowEx(
+                0, L"STATIC", NULL,
+                WS_CHILD | WS_VISIBLE | ES_LEFT,
+                5, 5, SLIDER_LEFT, 20,
+                hWnd, (HMENU)ID_LAYERINFOLABEL, NULL, NULL);
+            SetWindowText(hwndInfoLabel, L"Max height");
+            EnableWindow(hwndInfoLabel, FALSE);
+
+            hwndInfoBottomLabel = CreateWindowEx(
+                0, L"STATIC", NULL,
+                WS_CHILD | WS_VISIBLE | ES_LEFT,
+                5, 35, SLIDER_LEFT, 20,
+                hWnd, (HMENU)ID_LAYERINFOBOTTOMLABEL, NULL, NULL);
+            SetWindowText(hwndInfoBottomLabel, L"Lower depth");
+            EnableWindow(hwndInfoBottomLabel, FALSE);
+
+            hwndStatus = CreateWindowEx(
+                0, STATUSCLASSNAME, NULL,
+                WS_CHILD | WS_VISIBLE | WS_BORDER,
+                -100, -100, 10, 10,
+                hWnd, (HMENU)ID_STATUSBAR, NULL, NULL);
+            {
+                int parts[] = { 300, -1 };
+                RECT rect;
+                SendMessage(hwndStatus, SB_SETPARTS, 2, (LPARAM)parts);
+
+                progressBar = CreateWindowEx(
+                    0, PROGRESS_CLASS, NULL,
+                    WS_CHILD | WS_VISIBLE,
+                    0, 0, 10, 10, hwndStatus, (HMENU)ID_PROGRESS, NULL, NULL);
+                SendMessage(hwndStatus, SB_GETRECT, 1, (LPARAM)&rect);
+                MoveWindow(progressBar, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
+                SendMessage(progressBar, PBM_SETSTEP, (WPARAM)5, 0);
+                SendMessage(progressBar, PBM_SETPOS, 0, 0);
+            }
+
+            gWS.hWnd = hWnd;
+            gWS.hwndBottomSlider = hwndBottomSlider;
+            gWS.hwndBottomLabel = hwndBottomLabel;
+            gWS.hwndInfoBottomLabel = hwndInfoBottomLabel;
+            gWS.hwndInfoLabel = hwndInfoLabel;
+            gWS.hwndStatus = hwndStatus;
+            gWS.hwndSlider = hwndSlider;
+            gWS.hwndLabel = hwndLabel;
+
+            rect.top += MAIN_WINDOW_TOP;	// add in two sliders, 30 each
+            bitWidth = rect.right - rect.left;
+            bitHeight = rect.bottom - rect.top;
+            ZeroMemory(&bmi.bmiHeader, sizeof(BITMAPINFOHEADER));
+            bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+            bmi.bmiHeader.biWidth = bitWidth;
+            bmi.bmiHeader.biHeight = -bitHeight; //flip
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biBitCount = 32;
+            bmi.bmiHeader.biCompression = BI_RGB;
+            LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
+            bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
+
+            // set standard custom color at startup.
+            LOG_INFO(gExecutionLogfile, " useCustomColor\n");
+            useCustomColor(IDM_CUSTOMCOLOR, hWnd);
+
+            // finally, load any scripts on the command line.
+            LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
+            processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
         }
-
-        LOG_INFO(gExecutionLogfile, " loadWorldList\n");
-        if ( loadWorldList(GetMenu(hWnd)) )
-        {
-            LOG_INFO(gExecutionLogfile, "   world not converted\n");
-            MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
-                _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-        }
-        wcscpy_s(gWorldPathCurrent, MAX_PATH, gWorldPathDefault);
-
-        LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
-        populateColorSchemes(GetMenu(hWnd));
-        CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR,MF_CHECKED);
-
-        ctlBrush=CreateSolidBrush(GetSysColor(COLOR_WINDOW));
-
-        ice.dwSize=sizeof(INITCOMMONCONTROLSEX);
-        ice.dwICC=ICC_BAR_CLASSES;
-        InitCommonControlsEx(&ice);
-        GetClientRect(hWnd,&rect);
-        hwndSlider=CreateWindowEx(
-            0,TRACKBAR_CLASS,L"Trackbar Control",
-            WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-            SLIDER_LEFT,0,rect.right-rect.left-40-SLIDER_LEFT,30,
-            hWnd,(HMENU)ID_LAYERSLIDER,NULL,NULL);
-        SendMessage(hwndSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
-        SendMessage(hwndSlider,TBM_SETPAGESIZE,0,10);
-        EnableWindow(hwndSlider,FALSE);
-
-        hwndLabel=CreateWindowEx(
-            0,L"STATIC",NULL,
-            WS_CHILD | WS_VISIBLE | ES_RIGHT,
-            rect.right-40,5,30,20,
-            hWnd,(HMENU)ID_LAYERLABEL,NULL,NULL);
-        SetWindowText(hwndLabel,MAP_MAX_HEIGHT_STRING);
-        EnableWindow(hwndLabel,FALSE);
-
-        hwndBottomSlider=CreateWindowEx(
-            0,TRACKBAR_CLASS,L"Trackbar Control",
-            WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-            SLIDER_LEFT,30,rect.right-rect.left-40-SLIDER_LEFT,30,
-            hWnd,(HMENU)ID_LAYERBOTTOMSLIDER,NULL,NULL);
-        SendMessage(hwndBottomSlider,TBM_SETRANGE,TRUE,MAKELONG(0,MAP_MAX_HEIGHT));
-        SendMessage(hwndBottomSlider,TBM_SETPAGESIZE,0,10);
-        EnableWindow(hwndBottomSlider,FALSE);
-
-        hwndBottomLabel=CreateWindowEx(
-            0,L"STATIC",NULL,
-            WS_CHILD | WS_VISIBLE | ES_RIGHT,
-            rect.right-40,35,30,20,
-            hWnd,(HMENU)ID_LAYERBOTTOMLABEL,NULL,NULL);
-        SetWindowText(hwndBottomLabel,SEA_LEVEL_STRING);
-        EnableWindow(hwndBottomLabel,FALSE);
-
-        setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
-
-        // label to left
-        hwndInfoLabel=CreateWindowEx(
-            0,L"STATIC",NULL,
-            WS_CHILD | WS_VISIBLE | ES_LEFT,
-            5,5,SLIDER_LEFT,20,
-            hWnd,(HMENU)ID_LAYERINFOLABEL,NULL,NULL);
-        SetWindowText(hwndInfoLabel,L"Max height");
-        EnableWindow(hwndInfoLabel,FALSE);
-
-        hwndInfoBottomLabel=CreateWindowEx(
-            0,L"STATIC",NULL,
-            WS_CHILD | WS_VISIBLE | ES_LEFT,
-            5,35,SLIDER_LEFT,20,
-            hWnd,(HMENU)ID_LAYERINFOBOTTOMLABEL,NULL,NULL);
-        SetWindowText(hwndInfoBottomLabel,L"Lower depth");
-        EnableWindow(hwndInfoBottomLabel,FALSE);
-
-        hwndStatus=CreateWindowEx(
-            0,STATUSCLASSNAME,NULL,
-            WS_CHILD | WS_VISIBLE | WS_BORDER,
-            -100,-100,10,10,
-            hWnd,(HMENU)ID_STATUSBAR,NULL,NULL);
-        {
-            int parts[]={300,-1};
-            RECT rect;
-            SendMessage(hwndStatus,SB_SETPARTS,2,(LPARAM)parts);
-
-            progressBar=CreateWindowEx(
-                0,PROGRESS_CLASS,NULL,
-                WS_CHILD | WS_VISIBLE,
-                0,0,10,10,hwndStatus,(HMENU)ID_PROGRESS,NULL,NULL);
-            SendMessage(hwndStatus,SB_GETRECT,1,(LPARAM)&rect);
-            MoveWindow(progressBar,rect.left,rect.top,rect.right-rect.left,rect.bottom-rect.top,TRUE);
-            SendMessage(progressBar,PBM_SETSTEP,(WPARAM)5,0);
-            SendMessage(progressBar,PBM_SETPOS,0,0);
-        }
-
-        gWS.hWnd = hWnd;
-        gWS.hwndBottomSlider = hwndBottomSlider;
-        gWS.hwndBottomLabel = hwndBottomLabel;
-        gWS.hwndInfoBottomLabel = hwndInfoBottomLabel;
-        gWS.hwndInfoLabel = hwndInfoLabel;
-        gWS.hwndStatus = hwndStatus;
-        gWS.hwndSlider = hwndSlider;
-        gWS.hwndLabel = hwndLabel;
-
-        rect.top+=MAIN_WINDOW_TOP;	// add in two sliders, 30 each
-        bitWidth=rect.right-rect.left;
-        bitHeight=rect.bottom-rect.top;
-        ZeroMemory(&bmi.bmiHeader,sizeof(BITMAPINFOHEADER));
-        bmi.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
-        bmi.bmiHeader.biWidth=bitWidth;
-        bmi.bmiHeader.biHeight=-bitHeight; //flip
-        bmi.bmiHeader.biPlanes=1;
-        bmi.bmiHeader.biBitCount=32;
-        bmi.bmiHeader.biCompression=BI_RGB;
-        LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
-        bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void **)&map, NULL, 0);
-
-        // set standard custom color at startup.
-        LOG_INFO(gExecutionLogfile, " useCustomColor\n");
-        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
-
-        // finally, load any scripts on the command line.
-        LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
-        processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
         break;
     case WM_LBUTTONDOWN:
         // if control key is held down, consider left-click to be a right-click,
@@ -1443,20 +1456,20 @@ RButtonUp:
         wmId    = LOWORD(wParam);
         // set but not used: wmEvent = HIWORD(wParam);
         // Parse the menu selections:
-        if (wmId >= IDM_CUSTOMCOLOR && wmId < IDM_CUSTOMCOLOR + 1000)
+        if (wmId >= IDM_CUSTOMCOLOR && wmId < IDM_CUSTOMCOLOR + MAX_WORLDS)
         {
             useCustomColor(wmId, hWnd);
         }
 
-        if (wmId>IDM_WORLD && wmId<IDM_WORLD+999)
+        if (wmId>IDM_WORLD && wmId<IDM_WORLD+MAX_WORLDS-1)
         {
             // Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
             
             int loadErr;
             //convert path to utf8
-            //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
+            //WideCharToMultiByte(CP_UTF8,0,worlds[wmId-IDM_WORLD],-1,gWorldGuide.world,MAX_PATH_AND_FILE,NULL,NULL);
             gSameWorld = (wcscmp(gWorldGuide.world,gWorlds[wmId-IDM_WORLD])==0);
-            wcscpy_s(gWorldGuide.world,MAX_PATH,gWorlds[wmId-IDM_WORLD]);
+            wcscpy_s(gWorldGuide.world,MAX_PATH_AND_FILE,gWorlds[wmId-IDM_WORLD]);
             // if this is not the same world, switch back to the aboveground view.
             // TODO: this code is repeated, should really be a subroutine.
             if (!gSameWorld)
@@ -1468,21 +1481,33 @@ RButtonUp:
             if ( loadErr )
             {
                 // world not loaded properly
+                wchar_t fullbuf[2048];
+                wchar_t extrabuf[1024];
+                wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, tell me the error message and sub-error code and what directories your world and mineways.exe is located in."), gSubError);
                 switch (loadErr) {
                 case 1:
-                    MessageBox(NULL, _T("Error: cannot read world's file version."),
+                    if (gSubError > 0) {
+                        wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
+                    }
+                    else {
+                        wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
+                    }
+                    MessageBox(NULL, fullbuf,
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     break;
                 case 2:
-                    MessageBox(NULL, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site."),
+                    wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site.\n\n%s"), extrabuf);
+                    MessageBox(NULL, fullbuf,
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     break;
                 case 3:
-                    MessageBox(NULL, _T("Error: cannot read world's spawn location - every world should have one."),
+                    wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
+                    MessageBox(NULL, fullbuf,
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     break;
                 default:
-                    MessageBox( NULL, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file."),
+                    wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
+                    MessageBox(NULL, fullbuf,
                         _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     break;
                 }
@@ -1564,7 +1589,7 @@ RButtonUp:
             ofn.nFilterIndex = gOpenFilterIndex;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;
-            wcscpy_s(path, MAX_PATH, gWorldPathCurrent);
+            wcscpy_s(path, MAX_PATH_AND_FILE, gWorldPathCurrent);
             ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
@@ -1575,7 +1600,7 @@ RButtonUp:
                 rationalizeFilePath(pathAndFile);
 
                 // schematic or world?
-                wchar_t filename[MAX_PATH];
+                wchar_t filename[MAX_PATH_AND_FILE];
                 splitToPathAndName(pathAndFile, NULL, filename);
                 size_t len = wcslen(filename);
                 if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
@@ -1583,7 +1608,7 @@ RButtonUp:
                     gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
                     gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
                     gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-                    wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
+                    wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
                     if (loadWorld(hWnd)) {
                     //if (loadSchematic(pathAndFile)) {
                         // schematic world not loaded properly
@@ -1600,9 +1625,9 @@ RButtonUp:
 
                     PathRemoveFileSpec(pathAndFile);
                     //convert path to utf8
-                    //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH,NULL,NULL);
+                    //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH_AND_FILE,NULL,NULL);
                     gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-                    wcscpy_s(gWorldGuide.world, MAX_PATH, pathAndFile);
+                    wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
 
                     // if this is not the same world, switch back to the aboveground view.
                     if (!gSameWorld)
@@ -1615,14 +1640,15 @@ RButtonUp:
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
-                        MessageBox(NULL, _T("Error: cannot read world. Perhaps you are trying to read in an Education Edition, Pocket Edition, or Windows 10 Minecraft Beta world? Mineways cannot read these, as they are in a different format. You can manually convert your world to the 'classic' Minecraft format, which Mineways can read. Go to http://mineways.com/mineways.html, search on `pocket edition', click on the link, and follow those instructions."),
-                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-
+                        wchar_t fullbuf[2048];
+                        wsprintf(fullbuf, _T("Error: cannot read world or cannot find file \"%s\", sub-error code %d. Perhaps you are trying to read in an Education Edition, Pocket Edition, or Windows 10 Minecraft Beta world? Mineways cannot read these, as they are in a different format. You can manually convert your world to the 'classic' Minecraft format, which Mineways can read. Go to http://mineways.com/mineways.html, search on `pocket edition', click on the link, and follow those instructions."), gFileOpened, gSubError);
+                        MessageBox(NULL, fullbuf,
+                                _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                         return 0;
                     }
                 }
                 // the file read succeeded, so update path to it.
-                wcscpy_s(gWorldPathCurrent, MAX_PATH, pathAndFile);
+                wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, pathAndFile);
                 setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
             }
             gOpenFilterIndex = ofn.nFilterIndex;
@@ -1631,22 +1657,22 @@ RButtonUp:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-            wcscpy_s(pathAndFile,MAX_PATH,gSelectTerrainPathAndName);
+            wcscpy_s(pathAndFile,MAX_PATH_AND_FILE,gSelectTerrainPathAndName);
             ofn.lpstrFile = pathAndFile;
             //path[0]=0;
-            ofn.nMaxFile=MAX_PATH;
+            ofn.nMaxFile=MAX_PATH_AND_FILE;
             ofn.lpstrFilter=L"Terrain File (terrainExt.png)\0*.png\0";
             ofn.nFilterIndex=1;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
-            wcscpy_s(path, MAX_PATH, gSelectTerrainDir);
+            wcscpy_s(path, MAX_PATH_AND_FILE, gSelectTerrainDir);
             ofn.lpstrInitialDir = path;
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
             if (GetOpenFileName(&ofn)==TRUE)
             {
                 // copy file name, since it definitely appears to exist.
                 rationalizeFilePath(pathAndFile);
-                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, pathAndFile);
+                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
             }
             break;
@@ -1654,21 +1680,21 @@ RButtonUp:
             ZeroMemory(&ofn,sizeof(OPENFILENAME));
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
-            wcscpy_s(pathAndFile, MAX_PATH, gImportFile);
+            wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gImportFile);
             ofn.lpstrFile = pathAndFile;
-            ofn.nMaxFile=MAX_PATH;
+            ofn.nMaxFile=MAX_PATH_AND_FILE;
             ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
             ofn.nFilterIndex = gImportFilterIndex;
             ofn.lpstrFileTitle=NULL;
             ofn.nMaxFileTitle=0;
-            wcscpy_s(path, MAX_PATH, gImportPath);
+            wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
             ofn.lpstrInitialDir = path;
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
             if (GetOpenFileName(&ofn)==TRUE)
             {
                 // copy file name, since it definitely appears to exist.
                 rationalizeFilePath(pathAndFile);
-                wcscpy_s(gImportFile, MAX_PATH, pathAndFile);
+                wcscpy_s(gImportFile, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gImportFile, gImportPath, NULL);
                 runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
             }
@@ -1708,12 +1734,12 @@ RButtonUp:
                     ofn.hwndOwner=hWnd;
                     ofn.lpstrFile=gExportPath;
                     //gExportPath[0]=0;
-                    ofn.nMaxFile=MAX_PATH;
+                    ofn.nMaxFile=MAX_PATH_AND_FILE;
                     ofn.lpstrFilter= L"Schematic file (*.schematic)\0*.schematic\0";
                     ofn.nFilterIndex= 1;
                     ofn.lpstrFileTitle=NULL;
                     ofn.nMaxFileTitle=0;
-                    wcscpy_s(path, MAX_PATH, gImportPath);
+                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
                     ofn.lpstrInitialDir = path;
                     ofn.lpstrTitle = L"Save Model to Schematic File";
                     ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
@@ -1730,13 +1756,13 @@ RButtonUp:
                     ofn.hwndOwner=hWnd;
                     ofn.lpstrFile=gExportPath;
                     //gExportPath[0]=0;
-                    ofn.nMaxFile=MAX_PATH;
+                    ofn.nMaxFile=MAX_PATH_AND_FILE;
                     ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
                         L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
                     ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
                     ofn.lpstrFileTitle=NULL;
                     ofn.nMaxFileTitle=0;
-                    wcscpy_s(path, MAX_PATH, gImportPath);
+                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
                     ofn.lpstrInitialDir = path;
                     ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
                     ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
@@ -1758,7 +1784,7 @@ RButtonUp:
                 {
                     // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
                     gExported=0;
-                    wcscpy_s(gImportFile, MAX_PATH, gExportPath);
+                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
 
             case IDM_FILE_REPEATPREVIOUSEXPORT:
                 gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported==0), gShowPrintStats);
@@ -1793,7 +1819,7 @@ RButtonUp:
             ofn.lStructSize=sizeof(OPENFILENAME);
             ofn.hwndOwner=hWnd;
             ofn.lpstrFile=gExportPath;
-            ofn.nMaxFile=MAX_PATH;
+            ofn.nMaxFile=MAX_PATH_AND_FILE;
 
             ofn.nFilterIndex=gExportViewData.fileType+1;
             ofn.lpstrFileTitle=NULL;
@@ -1802,15 +1828,15 @@ RButtonUp:
             ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
             // Write zip in temp directory
-            GetTempPath(MAX_PATH, tempdir);
+            GetTempPath(MAX_PATH_AND_FILE, tempdir);
 
             // OSX workaround since tempdir will not be ok
             // TODO: find a better way to detect OSX + Wine vs Windows
             if ( !PathFileExists(tempdir) )
             {
-                swprintf_s(tempdir, MAX_PATH, L"\\tmp\\");
+                swprintf_s(tempdir, MAX_PATH_AND_FILE, L"\\tmp\\");
             }
-            swprintf_s(filepath, MAX_PATH, L"%sMineways2Skfb", tempdir);
+            swprintf_s(filepath, MAX_PATH_AND_FILE, L"%sMineways2Skfb", tempdir);
             publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
             break;
         case IDM_JUMPSPAWN:
@@ -2154,10 +2180,10 @@ static bool startExecutionLogFile(const LPWSTR *argList, int argCount)
                 WriteFile:
                 if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
                     //// try the long file name, using current directory - not needed, it tries the local file anyway.
-                    //wchar_t longFileName[MAX_PATH];
-                    //wcscpy_s(longFileName, MAX_PATH, gCurrentDirectory);
-                    //wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), gPreferredSeparatorString);
-                    //wcscat_s(longFileName, MAX_PATH - wcslen(longFileName), argList[argIndex]);
+                    //wchar_t longFileName[MAX_PATH_AND_FILE];
+                    //wcscpy_s(longFileName, MAX_PATH_AND_FILE, gCurrentDirectory);
+                    //wcscat_s(longFileName, MAX_PATH_AND_FILE - wcslen(longFileName), gPreferredSeparatorString);
+                    //wcscat_s(longFileName, MAX_PATH_AND_FILE - wcslen(longFileName), argList[argIndex]);
                     //gExecutionLogfile = PortaCreate(argList[argIndex]);
                     //if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
                     MessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
@@ -2241,7 +2267,7 @@ static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argLis
 
 // return true if a command line directory was found and it's valid, false means not found or not valid.
 // fill in saveWorldDirectory with user-specified directory
-static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount)
+static int getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount)
 {
     // parse to get -s dir
     int argIndex = 1;
@@ -2252,31 +2278,38 @@ static bool getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, co
             // found window resize
             argIndex++;
             if (argIndex < argCount) {
-                wcscpy_s(saveWorldDirectory, MAX_PATH, argList[argIndex]);
+                wcscpy_s(saveWorldDirectory, MAX_PATH_AND_FILE, argList[argIndex]);
                 argIndex++;
+                if (wcscmp(saveWorldDirectory,L"none") == 0) {
+                    // empty path
+                    wcscpy_s(saveWorldDirectory, MAX_PATH_AND_FILE, L"");
+                    return -1;
+                }
                 if (!PathFileExists(saveWorldDirectory)) {
                     LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
-                    MessageBox(NULL, _T("Warning:\nThe path you specified on the command line for your saved worlds location does not exist. The default directory will be used instead."),
+                    wchar_t message[1024];
+                    wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
+                    MessageBox(NULL, message,
                         _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                    return false;
+                    return 0;
                 }
                 else {
                     // found it - done
-                    return true;
+                    return 1;
                 }
             }
             // if we got here, parsing didn't work
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-            MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s directory\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-            return false;
+            MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s <directory>\". Use \"-s none\" to load no worlds. Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return 0;
         }
         else {
             // skip whatever it is.
             argIndex++;
         }
     }
-    // we return false when we don't find a directory that was input on the command line
-    return false;
+    // we return 0 when we don't find a directory that was input on the command line
+    return 0;
 }
 
 
@@ -2663,7 +2696,8 @@ static int loadWorld(HWND hWnd)
         //gHighlightOn=FALSE;
         //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
         // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
-        if (GetFileVersion(gWorldGuide.world, &version) != 1) {
+        gSubError = GetFileVersion(gWorldGuide.world, &version, gFileOpened, MAX_PATH_AND_FILE);
+        if (gSubError != 0) {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 1;
         }
@@ -2674,13 +2708,14 @@ static int loadWorld(HWND hWnd)
             return 2;
         }
         // it's not a good sign if we can't get the spawn location etc. from the world - consider this a failure to load
-        if (GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ) != 1)
+        gSubError = GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ);
+        if (gSubError != 0)
         {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 3;
         }
-        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 1) {
-            // if this fails, it's a server world, so set the values equal to the spawn location
+        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 0) {
+            // if this fails, it's a server world, so set the values equal to the spawn location; return no error
             // from http://minecraft.gamepedia.com/Level_format
             // Player: The state of the Singleplayer player.This overrides the <player>.dat file with the same name as the
             // Singleplayer player. This is only saved by Servers if it already exists, otherwise it is not saved for server worlds.See Player.dat Format.
@@ -2724,15 +2759,29 @@ static int loadWorld(HWND hWnd)
         // because gSameWorld gets set to 1 by loadWorld()T
         if (!gHoldSameWorld)
         {
-            wchar_t title[MAX_PATH];
+            wchar_t title[MAX_PATH_AND_FILE];
             formTitle(&gWorldGuide, title);
-            sprintf_s(gSkfbPData.skfbName, "%ws", stripWorldName(gWorldGuide.world));
+            char tmpString[1024];
+            sprintf_s(tmpString, "%ws", stripWorldName(gWorldGuide.world));
+            strcpyLimited(gSkfbPData.skfbName, 49, tmpString);
+            // just in case name was too long
+            gSkfbPData.skfbName[48] = (char)0;
             SetWindowTextW(hWnd, title);
         }
     }
     // now done by setUIOnLoadWorld, which should always be called right after loadWorld
     //gLoaded=TRUE;
     return 0;
+}
+
+// strcpy_s asserts if string is too long. Sketchfab wants a 48 character name (plus 0 char at end).
+static void strcpyLimited(char *dst, int len, const char *src)
+{
+    int i;
+    for (i = 0; i < len - 1 || src[i] == (char)0; i++) {
+        dst[i] = src[i];
+    }
+    dst[i] = (char)0;
 }
 
 //static void minecraftJarPath(TCHAR *path)
@@ -2753,19 +2802,19 @@ static int setWorldPath(TCHAR *path)
         return 1;
 
     // try Mac path
-    TCHAR newPath[MAX_PATH];
+    TCHAR newPath[MAX_PATH_AND_FILE];
     // Workaround for OSX minecraft worlds path
     // Get the username and check in user's Library directory
     wchar_t user[1024];
     DWORD username_len = 1025;
     GetUserName(user, &username_len);
-    swprintf_s(path, MAX_PATH, L"Z:\\Users\\%s\\Library\\Application Support\\minecraft\\saves", user);
+    swprintf_s(path, MAX_PATH_AND_FILE, L"Z:\\Users\\%s\\Library\\Application Support\\minecraft\\saves", user);
 
     if ( PathFileExists( path ) )
         return 1;
 
     // Back to the old method. Not sure if we should keep this method...
-    wcscpy_s(path, MAX_PATH, L"./Library/Application Support/minecraft/saves");
+    wcscpy_s(path, MAX_PATH_AND_FILE, L"./Library/Application Support/minecraft/saves");
     wchar_t msgString[1024];
 
     // keep on trying and trying...
@@ -2780,8 +2829,8 @@ static int setWorldPath(TCHAR *path)
         if ( PathFileExists( path ) )
         {
             // convert path to absolute path
-            wcscpy_s(newPath, MAX_PATH, path);
-            TCHAR *ret_code = _wfullpath( path, newPath, MAX_PATH );
+            wcscpy_s(newPath, MAX_PATH_AND_FILE, path);
+            TCHAR *ret_code = _wfullpath( path, newPath, MAX_PATH_AND_FILE );
             if ( gDebug )
             {
                 swprintf_s(msgString,1024,L"Found! Ret code %s, Converted path to %s", (ret_code ? L"OK": L"NULL"), path );
@@ -2790,9 +2839,9 @@ static int setWorldPath(TCHAR *path)
             return i+2;
         }
 
-        wcscpy_s(newPath, MAX_PATH, L"./.");
-        wcscat_s(newPath, MAX_PATH, path);
-        wcscpy_s(path, MAX_PATH, newPath);
+        wcscpy_s(newPath, MAX_PATH_AND_FILE, L"./.");
+        wcscat_s(newPath, MAX_PATH_AND_FILE, path);
+        wcscpy_s(path, MAX_PATH_AND_FILE, newPath);
     }
 
     // failed
@@ -2815,7 +2864,7 @@ static int setWorldPath(TCHAR *path)
 //	// just to test a real env variable: _wdupenv_s( &home, &len, L"DXSDK_DIR" );
 //	if ( home != NULL )
 //	{
-//		wcscpy_s(path,MAX_PATH,home);
+//		wcscpy_s(path,MAX_PATH_AND_FILE,home);
 //		//PathAppend(path,L"Library");
 //		//PathAppend(path,L"Application Support");
 //		//PathAppend(path,L"minecraft");
@@ -2826,18 +2875,23 @@ static int setWorldPath(TCHAR *path)
 //	//{
 //	//	// try something crazy, I really don't know what the Mac wants... TODO! Need someone who knows...
 //	//	// ~/Library/Application Support/minecraft/saves/
-//	//	wcscpy_s(path,MAX_PATH,L"~/Library/Application Support/minecraft/saves/*");
+//	//	wcscpy_s(path,MAX_PATH_AND_FILE,L"~/Library/Application Support/minecraft/saves/*");
 //	//}
 //}
 
-void flagUnreadableWorld(wchar_t *wcWorld, char *charWorld)
+void flagUnreadableWorld(wchar_t *wcWorld, char *charWorld, int errCode)
 {
     char outputString[1024];
-    sprintf_s(outputString, 1024, "      detected corrupt world file: %s\n", charWorld);
+    sprintf_s(outputString, 1024, "      detected inability to read or corrupt world file: %s\n", charWorld);
     LOG_INFO(gExecutionLogfile, outputString);
 
     wchar_t msgString[1024];
-    swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored.", wcWorld);
+    if (errCode < 0) {
+        swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored, error code %d.", wcWorld, errCode);
+    }
+    else {
+        swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s could not be read, error code %d. World ignored. Please report this problem to erich@acm.org if you think it is in error.", wcWorld, errCode);
+    }
     MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
 }
 
@@ -2848,22 +2902,22 @@ static int loadWorldList(HMENU menu)
     info.cbSize=sizeof(MENUITEMINFO);
     info.fMask=MIIM_FTYPE|MIIM_ID|MIIM_STRING|MIIM_DATA;
     info.fType=MFT_STRING;
-    TCHAR saveFilesPath[MAX_PATH];
+    TCHAR saveFilesPath[MAX_PATH_AND_FILE];
     HANDLE hFind;
     WIN32_FIND_DATA ffd;
 
     LOG_INFO(gExecutionLogfile, "   entered loadWorldList\n");
     // first world is actually the block test world
     gNumWorlds = 1;
-    memset(gWorlds, 0x0, 1000*sizeof(TCHAR *));
+    memset(gWorlds, 0x0, MAX_WORLDS*sizeof(TCHAR *));
 
     // uncomment next line to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
     //gDebug = true;
 
-    wcscpy_s(saveFilesPath,MAX_PATH,gWorldPathDefault);
+    wcscpy_s(saveFilesPath,MAX_PATH_AND_FILE,gWorldPathDefault);
 
     wchar_t msgString[1024];
-    wcscat_s(saveFilesPath,MAX_PATH,L"/*");
+    wcscat_s(saveFilesPath,MAX_PATH_AND_FILE,L"/*");
     char outputString[1024];
     char pConverted[1024];
     int length = (int)wcslen(saveFilesPath) + 1;
@@ -2883,127 +2937,132 @@ static int loadWorldList(HMENU menu)
 
     // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
     int count = 0;
-    do
-    {
-        // Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
-        // cut searching short at 1000 files of any sort.
-        count++;
-        if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
+    // If path is empty, don't search, worlds are not to be loaded.
+    if (wcslen(gWorldPathDefault) > 0) {
+        do
         {
-            length = (int)wcslen(ffd.cFileName) + 1;
-            WcharToChar(ffd.cFileName, pConverted, length);
-            sprintf_s(outputString, 1024, "    found potential world save directory %s\n", pConverted);
-            LOG_INFO(gExecutionLogfile, outputString);
-            
-            if (gDebug)
+            // Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
+            // cut searching short at MAX_WORLDS files of any sort.
+            count++;
+            if (ffd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)
             {
-                swprintf_s(msgString,1024,L"Found potential world save directory %s", ffd.cFileName );
-                MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
-            }
-
-            if (ffd.cFileName[0]!='.')
-            {
-                // test if world is in Anvil format
-                int version;
-                TCHAR testAnvil[MAX_PATH];
-                char levelName[MAX_PATH];
-                wcscpy_s(testAnvil, MAX_PATH, gWorldPathDefault);
-                wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
-                wcscat_s(testAnvil, MAX_PATH, ffd.cFileName);
-
-                length = (int)wcslen(testAnvil) + 1;
-                WcharToChar(testAnvil, pConverted, length);
-                sprintf_s(outputString, 1024, "      trying file %s\n", pConverted);
+                length = (int)wcslen(ffd.cFileName) + 1;
+                WcharToChar(ffd.cFileName, pConverted, length);
+                sprintf_s(outputString, 1024, "    found potential world save directory %s\n", pConverted);
                 LOG_INFO(gExecutionLogfile, outputString);
 
                 if (gDebug)
                 {
-                    swprintf_s(msgString,1024,L"Trying file %s", testAnvil );
-                    MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
+                    swprintf_s(msgString, 1024, L"Found potential world save directory %s", ffd.cFileName);
+                    MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
 
-                LOG_INFO(gExecutionLogfile, "        try to get file version\n");
-                if (GetFileVersion(testAnvil, &version) != 1) {
-                    // unreadable world, for some reason - couldn't read version and LevelName
-                    if (GetFileVersion(testAnvil, &version) != -1)
-                        // 0 means level.dat exists, but data could not be found
-                        flagUnreadableWorld(testAnvil, pConverted);
-                    continue;
-                }
-                LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
-                if (GetLevelName(testAnvil, levelName, MAX_PATH) != 1) {
-                    // unreadable world, for some reason - couldn't read version and LevelName
-                    if (GetLevelName(testAnvil, levelName, MAX_PATH) != -1)
-                        // 0 means level.dat exists, but data could not be found
-                        flagUnreadableWorld(testAnvil, pConverted);
-                    continue;
-                }
-
-                int versionId = 0;
-                char versionName[MAX_PATH];
-                versionName[0] = (char)0;
-                LOG_INFO(gExecutionLogfile, "        try to get file version id\n" );
-                // This is a newer tag for 1.9 and on, older worlds do not have them
-                if (GetFileVersionId(testAnvil, &versionId) != 1) {
-                    // older file type, does not have it.
-                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version id, which is fine\n");
-                }
-                LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
-                if (GetFileVersionName(testAnvil, versionName, MAX_PATH) != 1) {
-                    // older file type, does not have it.
-                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version name, which is fine\n");
-                }
-
-                sprintf_s(outputString, 1024, "      succeeded, which has version ID %d and version name %s, and folder level name %s\n", versionId, versionName, levelName);
-                LOG_INFO(gExecutionLogfile, outputString);
-
-                if (gDebug)
+                if (ffd.cFileName[0] != '.')
                 {
-                    // 0 version ID means earlier than 1.9
-                    swprintf_s(msgString, 1024, L"Succeeded with file %s, which has version ID %d and version name %S, and folder level name %S", testAnvil, versionId, versionName, levelName);
-                    MessageBox( NULL, msgString, _T("Informational"), MB_OK|MB_ICONINFORMATION);
-                }
+                    // test if world is in Anvil format
+                    int version = 0;
+                    TCHAR testAnvil[MAX_PATH_AND_FILE];
+                    char levelName[MAX_PATH_AND_FILE];
+                    wcscpy_s(testAnvil, MAX_PATH_AND_FILE, gWorldPathDefault);
+                    wcscat_s(testAnvil, MAX_PATH_AND_FILE, gPreferredSeparatorString);
+                    wcscat_s(testAnvil, MAX_PATH_AND_FILE, ffd.cFileName);
 
-                info.wID=IDM_WORLD+gNumWorlds;
+                    length = (int)wcslen(testAnvil) + 1;
+                    WcharToChar(testAnvil, pConverted, length);
+                    sprintf_s(outputString, 1024, "      trying file %s\n", pConverted);
+                    LOG_INFO(gExecutionLogfile, outputString);
 
-                // display the "given name" followed by / the world folder name; both can be useful
-                TCHAR worldIDString[MAX_PATH], wLevelName[MAX_PATH];
-                MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,levelName,-1,wLevelName,MAX_PATH);
-                wsprintf(worldIDString,L"%s\t/ %s", wLevelName, ffd.cFileName);
+                    if (gDebug)
+                    {
+                        swprintf_s(msgString, 1024, L"Trying file %s", testAnvil);
+                        MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    }
+                    
+                    LOG_INFO(gExecutionLogfile, "        try to get file version\n");
+                    int errCode = GetFileVersion(testAnvil, &version, gFileOpened, MAX_PATH_AND_FILE);
+                    if (errCode != 0) {
+                        // unreadable world, for some reason - couldn't read version and LevelName
+                        flagUnreadableWorld(testAnvil, pConverted, errCode);
+                        continue;
+                    }
+                    LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
+                    errCode = GetLevelName(testAnvil, levelName, MAX_PATH_AND_FILE);
+                    if (errCode != 0) {
+                        // unreadable world, for some reason - couldn't read version and LevelName
+                        flagUnreadableWorld(testAnvil, pConverted, errCode);
+                        continue;
+                    }
 
-                info.cch=(UINT)wcslen(worldIDString);
-                info.dwTypeData=worldIDString;
-                info.dwItemData=gNumWorlds;
-                // if version is pre-Anvil, show world but gray it out
-                if (version < 19133)
-                {
-                    LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
-                    oldVersionDetected = 1;
-                    // gray it out
-                    info.fMask |= MIIM_STATE;
-                    info.fState = MFS_DISABLED;
+                    /* Only needed for debug. Trying to minimize these calls, see issue https://github.com/erich666/Mineways/issues/31
+                    int versionId = 0;
+                    char versionName[MAX_PATH_AND_FILE];
+                    versionName[0] = (char)0;
+                    LOG_INFO(gExecutionLogfile, "        try to get file version id\n");
+                    // This is a newer tag for 1.9 and on, older worlds do not have them
+                    if (GetFileVersionId(testAnvil, &versionId) != 0) {
+                        // older file type, does not have it.
+                        LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version id, which is fine\n");
+                    }
+                    LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
+                    if (GetFileVersionName(testAnvil, versionName, MAX_PATH_AND_FILE) != 0) {
+                        // older file type, does not have it.
+                        LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version name, which is fine\n");
+                    }
+                    */
+
+                    sprintf_s(outputString, 1024, "      succeeded, which has folder level name %s\n", levelName);
+                    LOG_INFO(gExecutionLogfile, outputString);
+
+                    if (gDebug)
+                    {
+                        // 0 version ID means earlier than 1.9
+                        swprintf_s(msgString, 1024, L"Succeeded with file %s, which has folder level name %S", testAnvil, levelName);
+                        MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    }
+
+                    info.wID = IDM_WORLD + gNumWorlds;
+
+                    // display the "given name" followed by / the world folder name; both can be useful
+                    TCHAR worldIDString[MAX_PATH_AND_FILE], wLevelName[MAX_PATH_AND_FILE];
+                    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, levelName, -1, wLevelName, MAX_PATH_AND_FILE);
+                    wsprintf(worldIDString, L"%s\t/ %s", wLevelName, ffd.cFileName);
+
+                    info.cch = (UINT)wcslen(worldIDString);
+                    info.dwTypeData = worldIDString;
+                    info.dwItemData = gNumWorlds;
+                    // if version is pre-Anvil, show world but gray it out
+                    if (version < 19133)
+                    {
+                        LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
+                        oldVersionDetected = 1;
+                        // gray it out
+                        info.fMask |= MIIM_STATE;
+                        info.fState = MFS_DISABLED;
+                    }
+                    else
+                    {
+                        //info.fMask |= MIIM_STATE;
+                        info.fState = 0x0; // MFS_CHECKED;
+                    }
+                    InsertMenuItem(menu, IDM_TEST_WORLD, FALSE, &info);
+                    gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH_AND_FILE);
+                    wcscpy_s(gWorlds[gNumWorlds], MAX_PATH_AND_FILE, testAnvil);
+                    // was: setWorldPath(worlds[numWorlds]);
+                    //PathAppend(worlds[numWorlds],ffd.cFileName);
+                    gNumWorlds++;
+                    sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
+                    LOG_INFO(gExecutionLogfile, outputString);
                 }
-                else
-                {
-                    //info.fMask |= MIIM_STATE;
-                    info.fState = 0x0; // MFS_CHECKED;
-                }
-                InsertMenuItem(menu,IDM_TEST_WORLD,FALSE,&info);
-                gWorlds[gNumWorlds]=(TCHAR*)malloc(sizeof(TCHAR)*MAX_PATH);
-                wcscpy_s(gWorlds[gNumWorlds], MAX_PATH, testAnvil);
-                // was: setWorldPath(worlds[numWorlds]);
-                //PathAppend(worlds[numWorlds],ffd.cFileName);
-                gNumWorlds++;
-                sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
-                LOG_INFO(gExecutionLogfile, outputString);
             }
-        }
-    } while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
+        } while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
+    }
 
     if (count >= MAX_WORLDS)
     {
-        LOG_INFO(gExecutionLogfile, "Warning: more than 1000 files detected in save directory!\n");
-        swprintf_s(msgString, 1024, L"Warning: more that 1000 files detected in %s. Not all worlds may have been read.", saveFilesPath);
+        char charMsgString[1024];
+        sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to list.\n", MAX_WORLDS);
+        LOG_INFO(gExecutionLogfile, charMsgString);
+        swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to list.", MAX_WORLDS, saveFilesPath);
         MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
 
@@ -3292,9 +3351,9 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
             deleteCommandBlockSet(gChangeBlockCommands);
             gChangeBlockCommands = NULL;
 
-            wchar_t wcZip[MAX_PATH];
+            wchar_t wcZip[MAX_PATH_AND_FILE];
 
-            swprintf_s(wcZip, MAX_PATH, L"%s.zip", outputFileList.name[0]);
+            swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
             DeleteFile(wcZip);
 
             HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
@@ -3633,9 +3692,9 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         // file saved in ObjManip.c is the one used as the zip file's name.
         if ( gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0) )
         {
-            wchar_t wcZip[MAX_PATH];
+            wchar_t wcZip[MAX_PATH_AND_FILE];
             // we add .zip not (just) out of laziness, but this helps differentiate obj from wrl from stl.
-            swprintf_s(wcZip,MAX_PATH,L"%s.zip",outputFileList.name[0]);
+            swprintf_s(wcZip,MAX_PATH_AND_FILE,L"%s.zip",outputFileList.name[0]);
 
             DeleteFile(wcZip);
             HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
@@ -4103,7 +4162,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
     if (err != 0) {
-        wchar_t buf[MAX_PATH + 100];
+        wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         retCode = 0;
@@ -4226,7 +4285,7 @@ static bool importModelFile(wchar_t *importFile, ImportedSet & is)
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
     if (err != 0) {
-        wchar_t buf[MAX_PATH + 100];
+        wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
@@ -4308,7 +4367,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
     if (err != 0) {
-        wchar_t buf[MAX_PATH + 100];
+        wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
@@ -4403,7 +4462,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
 
     err = _wfopen_s(&fh, importFile, L"rt");
     if (err != 0) {
-        wchar_t buf[MAX_PATH + 100];
+        wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
@@ -4733,7 +4792,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         }
         if (is.processData) {
             // model or scripting - save path
-            strcpy_s(is.world, MAX_PATH, strPtr);
+            strcpy_s(is.world, MAX_PATH_AND_FILE, strPtr);
             if (!is.readingModel) {
                 // scripting: load it
                 if (!commandLoadWorld(is, error)) {
@@ -4865,7 +4924,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             return INTERPRETER_FOUND_ERROR;
         }
         if (is.processData) {
-            strcpy_s(is.terrainFile, MAX_PATH, strPtr);
+            strcpy_s(is.terrainFile, MAX_PATH_AND_FILE, strPtr);
             if (!is.readingModel) {
                 if (!commandLoadTerrainFile(is, error)) {
                     saveErrorMessage(is, error);
@@ -4952,7 +5011,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             return INTERPRETER_FOUND_ERROR;
         }
         if (is.processData) {
-            strcpy_s(is.colorScheme, MAX_PATH, strPtr);
+            strcpy_s(is.colorScheme, MAX_PATH_AND_FILE, strPtr);
             if (!is.readingModel) {
                 if (!commandLoadColorScheme(is, error)) {
                     // we happen to know this method only returns warnings.
@@ -5995,7 +6054,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
         is.logging = true;
         // NOTE: we open the log file immediately, not on the second pass
         if (!is.processData) {
-            strcpy_s(is.logFileName, MAX_PATH, strPtr);
+            strcpy_s(is.logFileName, MAX_PATH_AND_FILE, strPtr);
             if (!openLogFile(is)) {
                 return INTERPRETER_FOUND_ERROR;
             }
@@ -6006,7 +6065,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
     strPtr = findLineDataNoCase(line, "Custom printer ");
     if (strPtr != NULL) {
         float floatVal, floatVal2, floatVal3;
-        char buf[MAX_PATH];
+        char buf[MAX_PATH_AND_FILE];
         if (1 == sscanf_s(strPtr, "minimum wall thickness: %f", &floatVal))
         {
             if (is.processData) {
@@ -6738,15 +6797,15 @@ static bool interpretBoolean(char *string)
 
 static void formTitle(WorldGuide *pWorldGuide, wchar_t *title)
 {
-    wcscpy_s( title, MAX_PATH-1, L"Mineways: " );
+    wcscpy_s( title, MAX_PATH_AND_FILE-1, L"Mineways: " );
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
-        wcscat_s(title, MAX_PATH - 1, L"[Block Test World]");
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, L"[Block Test World]");
     }
     else
     {
-        wcscat_s(title, MAX_PATH - 1, stripWorldName(pWorldGuide->world));
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, stripWorldName(pWorldGuide->world));
     }
 }
 
@@ -6832,26 +6891,26 @@ static bool splitToPathAndName( wchar_t *pathAndName, wchar_t *path, wchar_t *na
     wchar_t *lastPtr = wcsrchr(tempPathAndName, (wchar_t)'\\');
     if (lastPtr != NULL) {
         if (name != NULL)
-            wcscpy_s(name, MAX_PATH, lastPtr + 1);
+            wcscpy_s(name, MAX_PATH_AND_FILE, lastPtr + 1);
         if (path != NULL) {
             *lastPtr = (wchar_t)0;
-            wcscpy_s(path, MAX_PATH, tempPathAndName);
+            wcscpy_s(path, MAX_PATH_AND_FILE, tempPathAndName);
         }
     }
     else {
         lastPtr = wcsrchr(tempPathAndName, (wchar_t)'/');
         if (lastPtr != NULL) {
             if (name != NULL)
-                wcscpy_s(name, MAX_PATH, lastPtr + 1);
+                wcscpy_s(name, MAX_PATH_AND_FILE, lastPtr + 1);
             if (path != NULL) {
                 *lastPtr = (wchar_t)0;
-                wcscpy_s(path, MAX_PATH, tempPathAndName);
+                wcscpy_s(path, MAX_PATH_AND_FILE, tempPathAndName);
             }
         }
         else {
             // no path
             if (name != NULL)
-                wcscpy_s(name, MAX_PATH, tempPathAndName);
+                wcscpy_s(name, MAX_PATH_AND_FILE, tempPathAndName);
             if (path != NULL)
                 path[0] = (wchar_t)0;
             return false;
@@ -6866,18 +6925,18 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
 {
     // see if we can load the world
     size_t dummySize = 0;
-    wchar_t backupWorld[MAX_PATH];
-    wcscpy_s(backupWorld, MAX_PATH, gWorldGuide.world);
+    wchar_t backupWorld[MAX_PATH_AND_FILE];
+    wcscpy_s(backupWorld, MAX_PATH_AND_FILE, gWorldGuide.world);
     int backupWorldType = gWorldGuide.type;
-    mbstowcs_s(&dummySize, gWorldGuide.world, (size_t)MAX_PATH, is.world, MAX_PATH);
+    mbstowcs_s(&dummySize, gWorldGuide.world, (size_t)MAX_PATH_AND_FILE, is.world, MAX_PATH_AND_FILE);
     if (wcslen(gWorldGuide.world) > 0) {
         // first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
         // This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
         rationalizeFilePath(gWorldGuide.world);
 
         // world name found - can we load it?
-        wchar_t warningWorld[MAX_PATH];
-        wcscpy_s(warningWorld, MAX_PATH, gWorldGuide.world);
+        wchar_t warningWorld[MAX_PATH_AND_FILE];
+        wcscpy_s(warningWorld, MAX_PATH_AND_FILE, gWorldGuide.world);
 
         // first, is it the test world?
         if (wcscmp(gWorldGuide.world, L"[Block Test World]") == 0)
@@ -6890,7 +6949,7 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
         }
         else {
             // test if it's a schematic file or a normal world, and set TYPE appropriately.
-            wchar_t filename[MAX_PATH];
+            wchar_t filename[MAX_PATH_AND_FILE];
             splitToPathAndName(gWorldGuide.world, NULL, filename);
             size_t len = wcslen(filename);
             if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
@@ -6905,11 +6964,11 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
             if (wcschr(gWorldGuide.world, gPreferredSeparator) == NULL) {
                 // just the name, so add the path.
                 // this gives us the whole path
-                wchar_t testAnvil[MAX_PATH];
-                wcscpy_s(testAnvil, MAX_PATH, gWorldPathDefault);
-                wcscat_s(testAnvil, MAX_PATH, gPreferredSeparatorString);
-                wcscat_s(testAnvil, MAX_PATH, gWorldGuide.world);
-                wcscpy_s(gWorldGuide.world, MAX_PATH, testAnvil);
+                wchar_t testAnvil[MAX_PATH_AND_FILE];
+                wcscpy_s(testAnvil, MAX_PATH_AND_FILE, gWorldPathDefault);
+                wcscat_s(testAnvil, MAX_PATH_AND_FILE, gPreferredSeparatorString);
+                wcscat_s(testAnvil, MAX_PATH_AND_FILE, gWorldGuide.world);
+                wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, testAnvil);
             }
         }
 
@@ -6921,12 +6980,12 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
             if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
             {
                 // could not load world, so restore old world, if any;
-                wcscpy_s(gWorldGuide.world, MAX_PATH, backupWorld);
+                wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, backupWorld);
                 if (gWorldGuide.world[0] != 0) {
                     gWorldGuide.type = backupWorldType;
                     loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
                 }
-                swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
+                swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
                 return false;
             } // else success with just world folder name, and it's already saved to gWorldGuide.world
             // world loaded, so turn things on, etc.
@@ -6946,19 +7005,19 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
 {
     FILE *fh;
     errno_t err;
-    wchar_t terrainFileName[MAX_PATH], tempPath[MAX_PATH], tempName[MAX_PATH];
+    wchar_t terrainFileName[MAX_PATH_AND_FILE], tempPath[MAX_PATH_AND_FILE], tempName[MAX_PATH_AND_FILE];
 
     size_t dummySize = 0;
-    mbstowcs_s(&dummySize, terrainFileName, (size_t)MAX_PATH, is.terrainFile, MAX_PATH);
+    mbstowcs_s(&dummySize, terrainFileName, (size_t)MAX_PATH_AND_FILE, is.terrainFile, MAX_PATH_AND_FILE);
     // first, "rationalize" the name: make it all \'s or all /'s, not both.
     rationalizeFilePath(terrainFileName);
     if (!splitToPathAndName(terrainFileName, tempPath, tempName)) {
         // just a file name found, so make test path with directory
         if (wcslen(tempName) > 0)
         {
-            wcscpy_s(terrainFileName, MAX_PATH, gSelectTerrainDir);
-            wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), L"\\");
-            wcscat_s(terrainFileName, MAX_PATH - wcslen(terrainFileName), tempName);
+            wcscpy_s(terrainFileName, MAX_PATH_AND_FILE, gSelectTerrainDir);
+            wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), L"\\");
+            wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), tempName);
         }
         else {
             // something odd happened - filename is empty
@@ -6972,7 +7031,7 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
             return false;
         }
         // success, copy file and path (directory is fine)
-        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
+        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
     }
     else {
         // path found: try the file as a full path.
@@ -6983,8 +7042,8 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
             return false;
         }
         // success, copy file name&path, and directory
-        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH, terrainFileName);
-        wcscpy_s(gSelectTerrainDir, MAX_PATH, tempPath);
+        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+        wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, tempPath);
     }
     fclose(fh);
     return true;
@@ -7032,10 +7091,10 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
     // 0 - render, 1 - 3d print, 2 - schematic
     gPrintModel = fileMode;
 
-    wchar_t wcharFileName[MAX_PATH];
+    wchar_t wcharFileName[MAX_PATH_AND_FILE];
 
     size_t dummySize = 0;
-    mbstowcs_s(&dummySize, wcharFileName, (size_t)MAX_PATH, fileName, MAX_PATH);
+    mbstowcs_s(&dummySize, wcharFileName, (size_t)MAX_PATH_AND_FILE, fileName, MAX_PATH_AND_FILE);
     // first, "rationalize" the name: make it all \'s or all /'s, not both.
     rationalizeFilePath(wcharFileName);
 
@@ -7043,8 +7102,8 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
     addChangeBlockCommandsToGlobalList(is);
 
     // return number of files exported; 0 means failed
-    wchar_t statusbuf[MAX_PATH + 100];
-    wchar_t exportName[MAX_PATH];
+    wchar_t statusbuf[MAX_PATH_AND_FILE];
+    wchar_t exportName[MAX_PATH_AND_FILE];
     splitToPathAndName(wcharFileName, NULL, exportName);
     wsprintf(statusbuf, L"Script exporting %s", exportName);
     SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)statusbuf);
@@ -7083,9 +7142,9 @@ static bool openLogFile(ImportedSet & is)
     // try to open log file, and write header to it.
     // see if we can load the world
     size_t dummySize = 0;
-    wchar_t wFileName[MAX_PATH];
+    wchar_t wFileName[MAX_PATH_AND_FILE];
     char outputString[256];
-    mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH, is.logFileName, MAX_PATH);
+    mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH_AND_FILE, is.logFileName, MAX_PATH_AND_FILE);
     rationalizeFilePath(wFileName);
     if (wcslen(wFileName) > 0) {
         // overwrite previous log file
@@ -7127,4 +7186,15 @@ OnFail:
     }
     return false;
 }
+
+/* for debugging https://github.com/erich666/Mineways/issues/31
+static void logHandles()
+{
+    DWORD handles_count;
+    GetProcessHandleCount(GetCurrentProcess(), &handles_count);
+    char outputString[1024];
+    sprintf_s(outputString, 1024, "Log handles: %d", (int)handles_count);
+    LOG_INFO(gExecutionLogfile, outputString);
+}
+*/
 

@@ -372,7 +372,7 @@ typedef struct ExportFileData
 
 typedef struct FileList {
     int count;
-    wchar_t name[MAX_OUTPUT_FILES][260];  // output file list, MAX_PATH == 260
+    wchar_t name[MAX_OUTPUT_FILES][520];  // output file list, MAX_PATH == 260
 } FileList;
 
 

@@ -51,7 +51,7 @@ typedef struct BlockEntity {
     unsigned char data;	// major and minor data in one byte
 } BlockEntity;
 
-bfFile newNBT(const wchar_t *filename);
+bfFile newNBT(const wchar_t *filename, int *err);
 int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities);
 int nbtGetSpawn(bfFile bf,int *x,int *y,int *z);
 int nbtGetFileVersion(bfFile bf, int *version);

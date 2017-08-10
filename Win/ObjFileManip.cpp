@@ -368,10 +368,10 @@ static int gUsingTransform=0;
 #define SWATCH_WORKSPACE        SWATCH_INDEX( 8, 2 )
 
 
-wchar_t gOutputFilePath[MAX_PATH];
-wchar_t gOutputFileRoot[MAX_PATH];
-wchar_t gOutputFileRootClean[MAX_PATH]; // used by all files that are referenced inside text files
-char gOutputFileRootCleanChar[MAX_PATH];
+wchar_t gOutputFilePath[MAX_PATH_AND_FILE];
+wchar_t gOutputFileRoot[MAX_PATH_AND_FILE];
+wchar_t gOutputFileRootClean[MAX_PATH_AND_FILE]; // used by all files that are referenced inside text files
+char gOutputFileRootCleanChar[MAX_PATH_AND_FILE];
 
 // how many blocks are needed to make a thick enough wall
 static int gWallBlockThickness = UNINITIALIZED_INT;
@@ -741,6 +741,12 @@ static double myrand();
 
 static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
 
+static wchar_t gSeparator[3];
+
+void SetSeparatorObj(const wchar_t *separator)
+{
+    wcscpy_s(gSeparator, 3, separator);
+}
 
 void ChangeCache( int size )
 {
@@ -824,10 +830,10 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     // that are referenced, such as material and texture files. We will
     // use these elements to then build up the output names.
     getPathAndRoot( saveFileName, fileType, gOutputFilePath, gOutputFileRoot );
-    wcscpy_s(gOutputFileRootClean,MAX_PATH,gOutputFileRoot);
+    wcscpy_s(gOutputFileRootClean,MAX_PATH_AND_FILE,gOutputFileRoot);
     wcharCleanse(gOutputFileRootClean);
     spacesToUnderlines(gOutputFileRootClean);
-    WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH);
+    WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
 
 
     // start exporting for real
@@ -1213,9 +1219,9 @@ Exit:
             if ( needDifferentTextures )
             {
                 // need all three
-                wchar_t textureRGB[MAX_PATH];
-                wchar_t textureRGBA[MAX_PATH];
-                wchar_t textureAlpha[MAX_PATH];
+                wchar_t textureRGB[MAX_PATH_AND_FILE];
+                wchar_t textureRGBA[MAX_PATH_AND_FILE];
+                wchar_t textureAlpha[MAX_PATH_AND_FILE];
 
                 // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
                 // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
@@ -1254,7 +1260,7 @@ Exit:
             else
             {
                 // just the one (for VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
-                wchar_t textureFileName[MAX_PATH];
+                wchar_t textureFileName[MAX_PATH_AND_FILE];
                 concatFileName3(textureFileName,gOutputFilePath,gOutputFileRootClean,L".png");
                 if ( gPrint3D && !(gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS) )
                 {
@@ -1303,7 +1309,7 @@ Exit:
 // assumes same length (or longer) for both strings
 void WcharToChar(const wchar_t *inWString, char *outString, int length)
 {
-    //WideCharToMultiByte(CP_UTF8,0,inWString,-1,outString,MAX_PATH,NULL,NULL);
+    //WideCharToMultiByte(CP_UTF8,0,inWString,-1,outString,MAX_PATH_AND_FILE,NULL,NULL);
     int i;
     int oct = 0;
 
@@ -1452,7 +1458,7 @@ static int initializeModelData()
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t *selectedTerrainFileName )
 {
     // file should be in same directory as .exe, sort of
-    wchar_t defaultTerrainFileName[MAX_PATH];
+    wchar_t defaultTerrainFileName[MAX_PATH_AND_FILE];
     int rc=0;
 
     if ( wcslen(selectedTerrainFileName) > 0 )
@@ -1520,10 +1526,10 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
 #ifdef WIN32
         DWORD br;
 #endif
-        char outputString[MAX_PATH];
+        char outputString[MAX_PATH_AND_FILE];
         int size = 4 * pITI->width * pITI->height;
 
-        wchar_t codeFileNameWithSuffix[MAX_PATH];
+        wchar_t codeFileNameWithSuffix[MAX_PATH_AND_FILE];
         concatFileName3(codeFileNameWithSuffix,gOutputFilePath,gOutputFileRoot,L".h");
 
         // create the Wavefront OBJ file
@@ -1749,7 +1755,7 @@ static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *
 }
 
 // test relevant part of a given chunk to find its size
-static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox )
+static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox)
 {
     int chunkX, chunkZ;
 
@@ -1767,16 +1773,17 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
 
     if (block==NULL)
     {
-        wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
-        wcscat_s(pWorldGuide->directory, 260, L"/");
+        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE-1);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
         if (gOptions->worldType&HELL)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
         }
         if (gOptions->worldType&ENDER)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
         }
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz);
         if (block==NULL) //blank tile, nothing to do
@@ -1846,16 +1853,17 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 
     if (block==NULL)
     {
-        wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260 - 1);
-        wcscat_s(pWorldGuide->directory, 260, L"/");
+        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
         if (gOptions->worldType&HELL)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
         }
         if (gOptions->worldType&ENDER)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
         }
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz);
         if (block==NULL) //blank tile, nothing to do
@@ -15431,10 +15439,10 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 #ifdef WIN32
     DWORD br;
 #endif
-    wchar_t objFileNameWithSuffix[MAX_PATH];
+    wchar_t objFileNameWithSuffix[MAX_PATH_AND_FILE];
 
-    char outputString[MAX_PATH];
-    char mtlName[MAX_PATH];
+    char outputString[MAX_PATH_AND_FILE];
+    char mtlName[MAX_PATH_AND_FILE];
 
     int i, groupCount;
 
@@ -15449,7 +15457,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 
     FaceRecord *pFace;
 
-    char worldChar[MAX_PATH];
+    char worldChar[MAX_PATH_AND_FILE];
 
 #define OUTPUT_NORMALS
 #ifdef OUTPUT_NORMALS
@@ -15471,7 +15479,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
     const char *justWorldFileName;
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
+    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
 
     retCode |= writeStatistics(gModelFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
@@ -15481,8 +15489,8 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     // If we use materials, say where the file is
     if ( exportMaterials )
     {
-        char justMtlFileName[MAX_PATH];
-        sprintf_s(justMtlFileName, MAX_PATH, "%s.mtl", gOutputFileRootCleanChar);
+        char justMtlFileName[MAX_PATH_AND_FILE];
+        sprintf_s(justMtlFileName, MAX_PATH_AND_FILE, "%s.mtl", gOutputFileRootCleanChar);
 
         sprintf_s(outputString,256,"\nmtllib %s\n", justMtlFileName );
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -15582,7 +15590,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                         // add a dataval suffix
                         // TODO: if I ever have way too much time on my hands, turn these data values
                         // into the actual sub-material type names. Hours of fun typing!
-                        char tempString[MAX_PATH];
+                        char tempString[MAX_PATH_AND_FILE];
                         sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
                         strcpy_s(mtlName, 256, tempString);
                     }
@@ -15925,12 +15933,12 @@ static int writeOBJMtlFile()
 #ifdef WIN32
     DWORD br;
 #endif
-    wchar_t mtlFileName[MAX_PATH];
+    wchar_t mtlFileName[MAX_PATH_AND_FILE];
     char outputString[2048];
 
-    char textureRGB[MAX_PATH];
-    char textureRGBA[MAX_PATH];
-    char textureAlpha[MAX_PATH];
+    char textureRGB[MAX_PATH_AND_FILE];
+    char textureRGBA[MAX_PATH_AND_FILE];
+    char textureAlpha[MAX_PATH_AND_FILE];
 
     concatFileName3(mtlFileName, gOutputFilePath, gOutputFileRootClean, L".mtl");
 
@@ -15948,9 +15956,9 @@ static int writeOBJMtlFile()
         // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
         // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
         // The all-alpha image is needed for various renderers to properly read cutouts, since map_d is poorly defined
-        sprintf_s(textureRGB,MAX_PATH,"%s%s.png",gOutputFileRootCleanChar,PNG_RGB_SUFFIXCHAR);
-        sprintf_s(textureRGBA,MAX_PATH,"%s%s.png",gOutputFileRootCleanChar,PNG_RGBA_SUFFIXCHAR);
-        sprintf_s(textureAlpha,MAX_PATH,"%s%s.png",gOutputFileRootCleanChar,PNG_ALPHA_SUFFIXCHAR);
+        sprintf_s(textureRGB,MAX_PATH_AND_FILE,"%s%s.png",gOutputFileRootCleanChar,PNG_RGB_SUFFIXCHAR);
+        sprintf_s(textureRGBA,MAX_PATH_AND_FILE,"%s%s.png",gOutputFileRootCleanChar,PNG_RGBA_SUFFIXCHAR);
+        sprintf_s(textureAlpha,MAX_PATH_AND_FILE,"%s%s.png",gOutputFileRootCleanChar,PNG_ALPHA_SUFFIXCHAR);
     }
 
     if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
@@ -16014,7 +16022,7 @@ static int writeOBJMtlFile()
             char mapdString[256];
             char mapKeString[256];
             char keString[256];
-            char mtlName[MAX_PATH];
+            char mtlName[MAX_PATH_AND_FILE];
             char *typeTextureFileName;
             char fullMtl[256];
             double alpha;
@@ -16042,7 +16050,7 @@ static int writeOBJMtlFile()
             strcpy_s(mtlName,256,gBlockDefinitions[type].name);
             if (subtypeMaterial && (dataVal != 0)) {
                 // add a dataval suffix
-                char tempString[MAX_PATH];
+                char tempString[MAX_PATH_AND_FILE];
                 sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
                 strcpy_s(mtlName, 256, tempString);
             }
@@ -16978,9 +16986,9 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tigh
     DWORD br;
 #endif
 
-    wchar_t stlFileNameWithSuffix[MAX_PATH];
+    wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char *justWorldFileName;
-    char worldNameUnderlined[MAX_PATH];
+    char worldNameUnderlined[MAX_PATH_AND_FILE];
 
     char outputString[256];
 
@@ -17000,11 +17008,11 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tigh
     // export color if file format mode set that way
     int writeColor = (gOptions->exportFlags & (EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_TEXTURE));
 
-    wchar_t statsFileName[MAX_PATH];
+    wchar_t statsFileName[MAX_PATH_AND_FILE];
 
     HANDLE statsFile;
 
-    char worldChar[MAX_PATH];
+    char worldChar[MAX_PATH_AND_FILE];
 
     // if no color output, don't use isMagics
     int isMagics = writeColor && (gOptions->pEFD->fileType == FILE_TYPE_BINARY_MAGICS_STL);
@@ -17018,7 +17026,7 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tigh
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
+    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -17148,10 +17156,10 @@ static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tight
     DWORD br;
 #endif
 
-    wchar_t stlFileNameWithSuffix[MAX_PATH];
+    wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char *justWorldFileName;
-    char worldNameUnderlined[MAX_PATH];
-    wchar_t statsFileName[MAX_PATH];
+    char worldNameUnderlined[MAX_PATH_AND_FILE];
+    wchar_t statsFileName[MAX_PATH_AND_FILE];
 
     HANDLE statsFile;
 
@@ -17165,7 +17173,7 @@ static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tight
     FaceRecord *pFace;
     Point *vertex[4],*pt;
 
-    char worldChar[MAX_PATH];
+    char worldChar[MAX_PATH_AND_FILE];
 
     concatFileName3(stlFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".stl");
 
@@ -17176,7 +17184,7 @@ static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tight
         return MW_CANNOT_CREATE_FILE;
 
     // find last \ in world string
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
+    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
 
     // replace spaces with underscores for world name output
@@ -17284,9 +17292,9 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
     DWORD br;
 #endif
 
-    wchar_t wrlFileNameWithSuffix[MAX_PATH];
+    wchar_t wrlFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char *justWorldFileName;
-    char justTextureFileName[MAX_PATH];	// without path
+    char justTextureFileName[MAX_PATH_AND_FILE];	// without path
 
     char outputString[256];
     char textureDefOutputString[256];
@@ -17300,7 +17308,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
 
     FaceRecord *pFace;
 
-    char worldChar[MAX_PATH];
+    char worldChar[MAX_PATH_AND_FILE];
 
 #define HEADER_COUNT 8
     char *header[HEADER_COUNT] = {
@@ -17328,7 +17336,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
     // if you want each separate textured object to be its own shape, do this line instead:
     exportSingleMaterial = !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE);
 
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);
+    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString,256,"#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion );
@@ -17357,7 +17365,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
     {
         // prepare output texture file name string
         // get texture name to export, if needed
-        sprintf_s(justTextureFileName,MAX_PATH,"%s.png",gOutputFileRootCleanChar);
+        sprintf_s(justTextureFileName,MAX_PATH_AND_FILE,"%s.png",gOutputFileRootCleanChar);
         // DEF/USE should be legal, http://castle-engine.sourceforge.net/vrml_engine_doc/output/xsl/html/section.def_use.html, but Shapeways doesn't like it for some reason.
         //sprintf_s(textureUseOutputString,256,"        texture USE image_Craft\n", justTextureFileName );
         sprintf_s(textureDefOutputString,256,"        texture ImageTexture { url \"%s\" }\n", justTextureFileName );
@@ -17717,7 +17725,7 @@ static int writeSchematicBox()
     int err;
     gzFile gz;
 
-    wchar_t schematicFileNameWithSuffix[MAX_PATH];
+    wchar_t schematicFileNameWithSuffix[MAX_PATH_AND_FILE];
 
     int retCode = MW_NO_ERROR;
 
@@ -18082,11 +18090,11 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
     float inCM = gModel.scale * METERS_TO_CM;
     float inCM3 = inCM * inCM * inCM;
 
-    char outChar[MAX_PATH];
+    char outChar[MAX_PATH_AND_FILE];
 
     // Path info (originally just meant for debugging)
-    char worldChar[MAX_PATH];
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH);	// don't touch worldChar after this, as justWorldFileName depends on it
+    char worldChar[MAX_PATH_AND_FILE];
+    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);	// don't touch worldChar after this, as justWorldFileName depends on it
     const char *justWorldFileName = removePathChar(worldChar);
 
     if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
@@ -18098,7 +18106,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
     }
     WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
-    WcharToChar(terrainFileName, outChar, MAX_PATH);
+    WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
     // this code removes the path, but the path is now useful for scripting, so keep it in.
     //char *outPtr = strrchr(outChar, '\\');
     //if (outPtr == NULL)
@@ -18133,7 +18141,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
     }
     else
     {
-        WcharToChar(schemeSelected, outChar, MAX_PATH);
+        WcharToChar(schemeSelected, outChar, MAX_PATH_AND_FILE);
         sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
@@ -18532,11 +18540,11 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
     sprintf_s(outputString, 256, "\n# Full world path: %s\n", worldChar);
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    WcharToChar(terrainFileName, outChar, MAX_PATH);
+    WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
     sprintf_s(outputString, 256, "# Full terrainExt.png path: %s\n", outChar);
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    WcharToChar(curDir, outChar, MAX_PATH);
+    WcharToChar(curDir, outChar, MAX_PATH_AND_FILE);
     sprintf_s(outputString, 256, "# Full current path: %s\n", outChar);
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -18613,7 +18621,7 @@ static void addOutputFilenameToList(wchar_t *filename)
 {
     assert ( gOutputFileList->count < MAX_OUTPUT_FILES );
 
-    wcsncpy_s(gOutputFileList->name[gOutputFileList->count],MAX_PATH,filename,MAX_PATH);
+    wcsncpy_s(gOutputFileList->name[gOutputFileList->count],MAX_PATH_AND_FILE,filename,MAX_PATH_AND_FILE);
     gOutputFileList->count++;
 }
 
@@ -19293,19 +19301,19 @@ static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffi
     int hasSuffix=0;
 
     // Prep file name: see if it has suffix already
-    if ( wcsnlen(src,MAX_PATH) > wcsnlen(suffix,MAX_PATH) )
+    if ( wcsnlen(src,MAX_PATH_AND_FILE) > wcsnlen(suffix,MAX_PATH_AND_FILE) )
     {
         // look for suffix
-        wchar_t foundSuffix[MAX_PATH];
-        wcsncpy_s(foundSuffix,MAX_PATH,src + wcsnlen(src,MAX_PATH)-wcsnlen(suffix,MAX_PATH),20);
-        _wcslwr_s(foundSuffix,MAX_PATH);
+        wchar_t foundSuffix[MAX_PATH_AND_FILE];
+        wcsncpy_s(foundSuffix,MAX_PATH_AND_FILE,src + wcsnlen(src,MAX_PATH_AND_FILE)-wcsnlen(suffix,MAX_PATH_AND_FILE),20);
+        _wcslwr_s(foundSuffix,MAX_PATH_AND_FILE);
         if (wcscmp(foundSuffix,suffix) == 0)
         {
             hasSuffix = 1;
         }
     }
 
-    wcscpy_s(dst,MAX_PATH,src);
+    wcscpy_s(dst,MAX_PATH_AND_FILE,src);
     // was the suffix found?
     if ( !hasSuffix )
     {
@@ -19318,7 +19326,7 @@ static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffi
         //    *dstDot = (wchar_t)0;
         //}
         // and add the suffix
-        wcscat_s(dst,MAX_PATH,suffix);
+        wcscat_s(dst,MAX_PATH_AND_FILE,suffix);
     }
 }
 
@@ -19376,9 +19384,9 @@ static const char *removePathChar( const char *src )
 static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wchar_t *root )
 {
     wchar_t *rootPtr;
-    wchar_t tfilename[MAX_PATH];
+    wchar_t tfilename[MAX_PATH_AND_FILE];
 
-    wcscpy_s(path,MAX_PATH,src);
+    wcscpy_s(path,MAX_PATH_AND_FILE,src);
     // find last \ in string
     rootPtr = wcsrchr(path,(wchar_t)'\\');
     if ( rootPtr )
@@ -19396,7 +19404,7 @@ static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wch
             rootPtr = path;
     }
     // split at rootPtr
-    wcscpy_s(tfilename,MAX_PATH,rootPtr);
+    wcscpy_s(tfilename,MAX_PATH_AND_FILE,rootPtr);
     // this sets last character of path to null (end it)
     *rootPtr = (wchar_t)0;
 
@@ -19423,35 +19431,35 @@ static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wch
 
 static void concatFileName2(wchar_t *dst, const wchar_t *src1, const wchar_t *src2)
 {
-    wcscpy_s(dst,MAX_PATH,src1);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src2);
+    wcscpy_s(dst,MAX_PATH_AND_FILE,src1);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src2);
 }
 
 static void concatFileName3(wchar_t *dst, const wchar_t *src1, const wchar_t *src2, const wchar_t *src3)
 {
-    wcscpy_s(dst,MAX_PATH,src1);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src2);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src3);
+    wcscpy_s(dst,MAX_PATH_AND_FILE,src1);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src2);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src3);
 }
 
 static void concatFileName4(wchar_t *dst, const wchar_t *src1, const wchar_t *src2, const wchar_t *src3, const wchar_t *src4)
 {
-    wcscpy_s(dst,MAX_PATH,src1);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src2);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src3);
-    wcscat_s(dst,MAX_PATH-wcslen(dst),src4);
+    wcscpy_s(dst,MAX_PATH_AND_FILE,src1);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src2);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src3);
+    wcscat_s(dst,MAX_PATH_AND_FILE-wcslen(dst),src4);
 }
 
 static void charToWchar( char *inString, wchar_t *outWString )
 {
-    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,inString,-1,outWString,MAX_PATH);
-    //MultiByteToWideChar(CP_UTF8,0,inString,-1,outWString,MAX_PATH);
+    MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,inString,-1,outWString,MAX_PATH_AND_FILE);
+    //MultiByteToWideChar(CP_UTF8,0,inString,-1,outWString,MAX_PATH_AND_FILE);
 }
 
 static void wcharCleanse( wchar_t *wstring )
 {
-    char tempString[MAX_PATH];
-    WcharToChar(wstring, tempString, MAX_PATH);
+    char tempString[MAX_PATH_AND_FILE];
+    WcharToChar(wstring, tempString, MAX_PATH_AND_FILE);
     charToWchar( tempString, wstring );
 }
 
@@ -19530,16 +19538,17 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
 
     if (block == NULL)
     {
-        wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260 - 1);
-        wcscat_s(pWorldGuide->directory, 260, L"/");
+        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
         if (pOptions->worldType&HELL)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
         }
         if (pOptions->worldType&ENDER)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
         }
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz);
         if (block == NULL) //blank tile, nothing to do

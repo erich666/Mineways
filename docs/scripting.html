@@ -83,7 +83,7 @@
 </UL>
 <LI><a href="#sic">Scripting Interface Commands</a>
 <UL>
-<LI><a href="#uie">Example</a>
+<LI><a href="#uie">Examples</a>
 </UL>
 <LI><a href="#soc">Script-only Commands</a>
 <UL>
@@ -461,7 +461,7 @@ This command has a dramatic effect: it closes the program! This can be useful if
 </TABLE>
 
 
-<h3 id="uie">Example</h3>
+<h3 id="uie">Examples</h3>
 
 Here is an example of a script using the commands above.
 <P>
@@ -473,10 +473,28 @@ Zoom: 9<br>
 Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 </div>
 <P>
-For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj 
+For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj
+<P>
+Note that you could use this type of command sequence to export a set of tiles.
+<P>
+<div id="code">
+Set render type: Wavefront OBJ absolute indices<br>
+Center model: no<br>
+Use biomes: no<br>
+Create block faces at the borders: no<br>
+Selection location min to max: 0, 50, 0 to 99, 255, 99<br>
+Export for Rendering: C:\Users\erich\Desktop\tile00.obj<br>
+Selection location min to max: 0, 50, 100 to 99, 255, 199<br>
+Export for Rendering: C:\Users\erich\Desktop\tile01.obj<br>
+Selection location min to max: 100, 50, 0 to 199, 255, 99<br>
+Export for Rendering: C:\Users\erich\Desktop\tile10.obj<br>
+Selection location min to max: 100, 50, 100 to 199, 255, 199<br>
+Export for Rendering: C:\Users\erich\Desktop\tile11.obj<br>
+</div>
+<P>
+Load your world, run this script, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely mesh. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can set this as you wish, of course. Biomes are off, since the biome is computed for the center of each tile and so will differ. Block faces at the borders being off means that the polygons where the tiles join are not output, saving on polygon count. The one gotcha (I should solve this, probably by providing a "Specify texture output name" option, or even a "Specify MTL file name" option) is that different PNG texture files are made for each separate model, but that's easy enough to fix by modifying each OBJ or MTL file.
 
-
-<h2 id="soc">>Script-only Commands</h2>
+<h2 id="soc">Script-only Commands</h2>
 
 These are the value-added commands, things you simply can't do otherwise in Mineways. Want to turn your stone castle into diamond? Or have all the leaves disappear from your trees? Or add a giant pyramid to your spawn point? The Change blocks command is the genie that can made your dreams come true, if only for a short while.
 <P>
@@ -644,7 +662,7 @@ You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">stor
 Syntax:
 <P>
 <div id="code">
-mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
+mineways.exe [-w X Y] [-s UserSaveDirectory|none] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
 </div>
 <P>
 The command-line options are:
@@ -656,7 +674,7 @@ Specify the file name and path for a script or model file to load on startup.
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
 <P>
 -s <i>UserSaveDirectory</i><br>
-Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
+Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
@@ -696,8 +714,11 @@ Start with a tiny window and run the specified scripts at startup. The "Load Eif
 mineways.exe -s C:\MyWorlds
 </div>
 <P>
-Load the world folders contained in C:\MyWorlds so that they appear in the "File | Open World" menu list.
-
+Load the world folders contained in C:\MyWorlds so that they appear in the "File | Open World" menu list. If you want to not load any list of worlds, use:
+<div id="code">
+mineways.exe -s none
+</div>
+This can be useful if mineways does not start properly, to rule out world files causing the problem, or if you're running a script on startup and do not need the world list loaded.
 
 <H1 id="amfwm">Associating .mwscript files with Mineways</H1>
 

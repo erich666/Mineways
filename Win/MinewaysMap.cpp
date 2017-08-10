@@ -78,6 +78,13 @@ static int gHighlightID=0;
 static int gUnknownBlock = 0;
 static int gPerformUnknownBlockCheck = 1;
 
+static wchar_t gSeparator[3];
+
+void SetSeparatorMap(const wchar_t *separator)
+{
+    wcscpy_s(gSeparator, 3, separator);
+}
+
 void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz )
 {
     // we don't really require one to be min or max, we take the range
@@ -1562,15 +1569,15 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     if (block == NULL)
     {
-        wcsncpy_s(pWorldGuide->directory, 260, pWorldGuide->world, 260-1);
-        wcscat_s(pWorldGuide->directory, 260, L"/");
+        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE-1);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
         if (opts.worldType&HELL)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM-1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
         }
         if (opts.worldType&ENDER)
         {
-            wcscat_s(pWorldGuide->directory, 260, L"DIM1/");
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
         block = LoadBlock(pWorldGuide, bx, bz);
@@ -1721,7 +1728,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                 // non-flowing water does not count when finding the displayed height, so that we can reveal what is
                 // underneath the water.
                 if (type==BLOCK_STATIONARY_WATER)
-                    seenempty=1;
+                    seenempty = 1;
 
                 // if showobscured is on, or voxel is air or water (seenempty)
                 // AND the voxel id is valid (in our array of known values)
@@ -1940,7 +1947,15 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                 }
             }
 
-            bits[ofs++]=r;
+// to make the map look like a heightfield instead
+//#define HEIGHTMAP
+#ifdef HEIGHTMAP
+            if (depthshading) {
+                r = g = b = (unsigned char)((prevy >= 0) ? prevy : 0);
+            }
+#endif
+
+            bits[ofs++] = r;
             bits[ofs++]=g;
             bits[ofs++]=b;
             bits[ofs++]=0xff;
@@ -3244,7 +3259,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
             gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities);
             // got block successfully?
 
-            if (gotBlock && block->numEntities > 0) {
+            if ((gotBlock>0) && (block->numEntities > 0)) {
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity *)malloc(block->numEntities*sizeof(BlockEntity));
 
@@ -3260,7 +3275,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
             gotBlock = createBlockFromSchematic(pWorldGuide, cx, cz, block);
         }
 
-        if ( gotBlock ) {
+        if ( gotBlock>0 ) {
 
             int i;
             unsigned char *pBlockID = block->grid;
@@ -3385,67 +3400,76 @@ int NeedToCheckUnknownBlock()
     return gPerformUnknownBlockCheck;
 }
 
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetSpawn(const wchar_t *world, int *x, int *y, int *z)
 {
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename,300,world,wcslen(world)+1);
-    wcscat_s(filename,300,L"/level.dat");
-    bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return -1;
+    wcscat_s(filename, 300, gSeparator);
+    wcscat_s(filename, 300, L"level.dat");
+    int err = 0;
+    bf = newNBT(filename, &err);
+    if ( bf.gz == 0x0 ) return err;
     int retcode = nbtGetSpawn(bf, x, y, z);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
-int GetFileVersion(const wchar_t *world, int *version)
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
+int GetFileVersion(const wchar_t *world, int *version, wchar_t *fileOpened, rsize_t size)
 {
     bfFile bf;
-    wchar_t filename[300];
-    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, L"/level.dat");
-    bf = newNBT(filename);
-    if (bf.gz == 0x0) return -1;
+    wcsncpy_s(fileOpened, size, world, wcslen(world) + 1);
+    wcscat_s(fileOpened, size, gSeparator);
+    wcscat_s(fileOpened, size, L"level.dat");
+    int err = 0;
+    bf = newNBT(fileOpened, &err);
+    if (bf.gz == 0x0) return err;
     int retcode = nbtGetFileVersion(bf, version);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetFileVersionId(const wchar_t *world, int *versionId)
 {
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, L"/level.dat");
-    bf = newNBT(filename);
-    if (bf.gz == 0x0) return -1;
+    wcscat_s(filename, 300, gSeparator);
+    wcscat_s(filename, 300, L"level.dat");
+    int err = 0;
+    bf = newNBT(filename, &err);
+    if (bf.gz == 0x0) return err;
     int retcode = nbtGetFileVersionId(bf, versionId);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength)
 {
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, L"/level.dat");
-    bf = newNBT(filename);
-    if (bf.gz == 0x0) return -1;
+    wcscat_s(filename, 300, gSeparator);
+    wcscat_s(filename, 300, L"level.dat");
+    int err = 0;
+    bf = newNBT(filename, &err);
+    if (bf.gz == 0x0) return err;
     int retcode = nbtGetFileVersionName(bf, versionName, stringLength);
     nbtClose(bf);
     return retcode;
 }
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 {
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename,300,L"/level.dat");
-    bf=newNBT(filename);
-    if ( bf.gz == 0x0 ) return -1;
+    wcscat_s(filename, 300, gSeparator);
+    wcscat_s(filename, 300, L"level.dat");
+    int err = 0;
+    bf = newNBT(filename, &err);
+    if (bf.gz == 0x0) return err;
     int retcode = nbtGetLevelName(bf, levelName, stringLength);
     nbtClose(bf);
     return retcode;
@@ -3462,15 +3486,17 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 //    nbtClose(bf);
 //
 //}
-// 0 fail, 1 succeed, -1 means level.dat doesn't exist or can't be opened.
+// 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
 {
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename,300,L"/level.dat");
-    bf=newNBT(filename);
-    if (bf.gz == 0x0) return -1;
+    wcscat_s(filename, 300, gSeparator);
+    wcscat_s(filename, 300, L"level.dat");
+    int err = 0;
+    bf = newNBT(filename, &err);
+    if (bf.gz == 0x0) return err;
     int retval = nbtGetPlayer(bf, px, py, pz);
     nbtClose(bf);
     return retval;
@@ -3481,7 +3507,8 @@ int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
 int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
 {
     bfFile bf;
-    bf = newNBT(schematic);
+    int err = 0;
+    bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
     int retval = nbtGetSchematicWord(bf, field, value);
     nbtClose(bf);
@@ -3492,7 +3519,8 @@ int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
 int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData)
 {
     bfFile bf;
-    bf = newNBT(schematic);
+    int err = 0;
+    bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
     int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
     nbtClose(bf);

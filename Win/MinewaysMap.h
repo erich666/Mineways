@@ -68,13 +68,14 @@ typedef struct Schematic {
 
 typedef struct WorldGuide {
     unsigned int type;
-    wchar_t world[260];		// MAX_PATH
-    wchar_t directory[260];
+    wchar_t world[520];		// 2*MAX_PATH
+    wchar_t directory[520];
     Schematic sch;
 } WorldGuide;
 
 
-void SetHighlightState( int on, int minx, int miny, int minz, int maxx, int maxy, int maxz );
+void SetSeparatorMap(const wchar_t *separator);
+void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz);
 void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz );
 void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options opts, int hitsFound[3], ProgressCallback callback);
 const char * IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int *ox, int *oy, int *oz, int *type, int *dataVal, int *biome, bool schematic);
@@ -85,7 +86,7 @@ int UnknownBlockRead();
 void CheckUnknownBlock( int check );
 int NeedToCheckUnknownBlock();
 int GetSpawn(const wchar_t *world,int *x,int *y,int *z);
-int GetFileVersion(const wchar_t *world,int *version);
+int GetFileVersion(const wchar_t *world, int *version, wchar_t *fileOpened, rsize_t size);
 int GetFileVersionId(const wchar_t *world, int *versionId);
 int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength);
 int GetLevelName(const wchar_t *world, char *levelName, int stringLength);

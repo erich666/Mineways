@@ -65,7 +65,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 
 #define MINEWAYS_MAJOR_VERSION 5
-#define MINEWAYS_MINOR_VERSION 9
+#define MINEWAYS_MINOR_VERSION 10
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))
@@ -83,6 +83,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define swapint(a,b)	{int tempint = (a); (a)=(b); (b)=tempint;}
 #endif
 
+#define MAX_PATH_AND_FILE (2*MAX_PATH)
 
 #ifdef WIN32
 #define PORTAFILE HANDLE
