@@ -1227,13 +1227,17 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         break;
 
     case BLOCK_DOUBLE_FLOWER:
-        // subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
-        dataVal = block->data[(voxel-256)/2];
-        if ( voxel & 0x01 )
+        // Subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
+        // Guard against a negative voxel value. Use the top half if the bottom half doesn't exist;
+        // this is entirely bogus, as we really need the bottom half to get the right bits, but perhaps
+        // some modded data uses the bottom three bits in this way...
+        dataVal = (voxel >= 256) ? block->data[(voxel - 256) / 2] : block->data[voxel / 2];
+        if (voxel & 0x01)
             dataVal = dataVal >> 4;
         else
             dataVal &= 0xf;
-        switch (dataVal)
+        // masking just in case it's a top half (and probably bogus)
+        switch (dataVal & 0x7)
         {
         default:
         case 0:	// sunflower
