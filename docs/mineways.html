@@ -922,7 +922,7 @@ A problem with jmc2obj is that each material must be adjusted by hand. One optio
 <P><H4 id="c4d">Cinema 4D</H4><p>
 <a href="https://www.maxon.net/en-us/products/cinema-4d/overview/"><img id="productLogo" src="images/cinema4d_icon.png" alt="Cinema 4D icon"></a>
 <P>
-Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R17; older versions may need additional steps, as shown.
+Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R18; older versions may need additional steps, as shown.
 <P>
 That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
 <P>
@@ -941,6 +941,12 @@ You may wish to change the OBJ file export options in the upper right of the dia
 <b>Step 4:</b> Once the model is exported, open Cinema4D and drag into the main window the .obj file generated. <B>Make sure the "Presets" at the top of the OBJ Import dialog is set to Default.</b> (If you don't, your grass blocks will import upside-down.) Hit "OK".
 </P>
 <P>
+Here is what the defaults are, just in case:
+</P>
+<P>
+<img src="images/c4d_export.png" alt="Cinema 4D object load"></a>
+</P>
+<P>
 To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
 </P>
 <P>
@@ -950,13 +956,22 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 <b>Step 6:</b> On the material options, in the right lower window, select the "Basic" button. In the Basic Properties uncheck the Reflectance (in older versions, "Specular") option, and check the Alpha option.
 </P>
 <P>
-<b>Step 7:</b> In older versions of Cinema 4D all objects will be white, as the texture is not attached. If this occurs, select the "Color" settings, and towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
+<img src="images/c4d_basic.png" alt="Cinema 4D object basic material"></a>
 </P>
 <P>
-<b>Step 8:</b> Select the "Alpha" settings, and at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel; this means you have no transparent objects in your scene. Otherwise, all transparent objects should now appear so.
+<b>Step 7:</b> If you want to make textures look blocky, like they do in Minecraft, click on the Color settings box. In this area you will see "Color," below that "Texture," and below that "Sampling." In the menu list for this option choose "None." When you are done selecting, it will still say "&lt;&lt;Multi", but don't worry, you have changed it. See the figure below. For a quick render to see the effect, click Ctrl-R.
 </P>
 <P>
-<b>Step 9:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered will be blocky. Also, you'll see "Multiple Values" before and after picking "None" - have faith, you've chosen correctly. Or click on the "Multiple Values" line to the right of "Texture...." to see the settings, and the back arrow button above the menu to exit this menu. For a quick render to see the effect, click Ctrl-R.
+<img src="images/c4d_texture.png" alt="Cinema 4D color material"></a>
+</P>
+<P>
+<b>Step 7a (older versions only):</b> In older versions of Cinema 4D all objects will be white, as the texture is not attached. If this occurs, select the "Color" settings, and towards the bottom is the Texture setting. Click on the three dots button to the far right of "Texture" and choose the corresponding image file with the suffix "-RGB.png". For example, if your model name is "castle.obj", select "castle-RGB.png". Objects should now have textures.
+</P>
+<P>
+<b>Step 7b (older versions only):</b> Select the "Alpha" settings, and at the bottom is the Texture setting. Again, click on the three dots button to the far right of "Texture". This time pick the image file with the suffix "-RGBA.png". If none exists, just cancel; this means you have no transparent objects in your scene. Otherwise, all transparent objects should now appear so.
+</P>
+<P>
+<b>Step 7c (older versions only):</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture, change the Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none". Click on the "Color" button and change the Texture Sampling from "&lt;&lt;Multiple values&gt;&gt;" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered will be blocky. Also, you'll see "Multiple Values" before and after picking "None" - have faith, you've chosen correctly. Or click on the "Multiple Values" line to the right of "Texture...." to see the settings, and the back arrow button above the menu to exit this menu. For a quick render to see the effect, click Ctrl-R.
 </P>
 <P>
 <B>Alternate method: VRML</B>: If you have problems with OBJ import, or would prefer a single material for the whole scene, you can also import using VRML. (Note: there is also an OBJ plugin for C4D with a free trial, <a href="http://skinprops.com/riptide.php">Riptide</a>). Here are steps from <a href="mailto:james_christien@hotmail.com">James Christien</a> (<a href="http://www.youtube.com/user/jamesdarandom">icecruiser xD</a>; example C4D result <a href="http://www.youtube.com/watch?v=SYfqp9807no&list=PL3AE7AB94E9114715&index=14&feature=plpp_video">here</a>), with help from <a href="http://www.youtube.com/watch?v=BMgxB1a6YAc">Huskyiee</a> on alpha.
