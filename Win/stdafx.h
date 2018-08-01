@@ -33,6 +33,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define _CRTDBG_MAP_ALLOC
 #endif
 
+#define SKETCHFAB
+
 // For internet update, sadly does not link under x64:
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __wargv
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __argc
@@ -64,8 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <tchar.h>
 #include <stdio.h>
 
-#define MINEWAYS_MAJOR_VERSION 5
-#define MINEWAYS_MINOR_VERSION 10
+#define MINEWAYS_MAJOR_VERSION 6
+#define MINEWAYS_MINOR_VERSION 0
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))

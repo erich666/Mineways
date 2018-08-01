@@ -30,7 +30,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Mineways.h"
 #include "ColorSchemes.h"
 #include "ExportPrint.h"
+#ifdef SKETCHFAB
 #include "publishSkfb.h"
+#endif
 #include "XZip.h"
 #include "lodepng.h"
 #include <assert.h>
@@ -39,6 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <CommDlg.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
 // trick so that there is not a warning that there's a constant value being tested by an "if"
@@ -135,7 +138,9 @@ static int gTargetDepth=MIN_OVERWORLD_DEPTH;								//how far down the depth is 
 static ExportFileData gExportPrintData;
 static ExportFileData gExportViewData;
 static ExportFileData gExportSchematicData;
+#ifdef SKETCHFAB
 static PublishSkfbData gSkfbPData;
+#endif
 // this one is set to whichever is active for export or import, 3D printing or rendering
 static ExportFileData *gpEFD = NULL;
 
@@ -341,7 +346,9 @@ static void drawInvalidateUpdate(HWND hWnd);
 static void syncCurrentHighlightDepth();
 static void copyOverExportPrintData( ExportFileData *pEFD );
 static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, wchar_t *schemeSelected, bool showDialog, bool showStatistics);
+#ifdef SKETCHFAB
 static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected);
+#endif
 static void addChangeBlockCommandsToGlobalList(ImportedSet & is);
 static void PopupErrorDialogs( int errCode );
 static const wchar_t *removePath( const wchar_t *src );
@@ -460,6 +467,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
     gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
+	gWorldGuide.nbtVersion = 0;
 
     gImportFile[0] = (wchar_t)0;
     gSchemeSelected[0] = (wchar_t)0;
@@ -472,8 +480,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
 
     LOG_INFO(gExecutionLogfile, "execute initializeExportDialogData\n");
     initializeExportDialogData();
+#ifdef SKETCHFAB
     // Initialize Skfb data
     memset(&gSkfbPData, 0, sizeof(PublishSkfbData));
+#endif
 
     memset(&gWS, 0, sizeof(gWS));
 
@@ -499,7 +509,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     // One-time initialization for mapping and object export
     // set the pcolors properly once. They'll change from color schemes.
     LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
-    SetMapPremultipliedColors();
+    SetMapPremultipliedColors(0);
 
     // Set biome colors - TODO: add texture support, etc.
     LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
@@ -538,7 +548,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
             // Display the error message and exit the process.
             // Look up code here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681381(v=vs.85).aspx
             if (gExecutionLogfile) {
-                char outputString[1024];
                 sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
                 LOG_INFO(gExecutionLogfile, outputString);
             }
@@ -813,7 +822,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 hWnd, (HMENU)ID_STATUSBAR, NULL, NULL);
             {
                 int parts[] = { 300, -1 };
-                RECT rect;
                 SendMessage(hwndStatus, SB_SETPARTS, 2, (LPARAM)parts);
 
                 progressBar = CreateWindowEx(
@@ -986,9 +994,11 @@ RButtonDown:
 //#endif
                 }
             }
-            // Reset Sketchfab path so that we rewrite obj/mtl/PNG + zip when publishing
+#ifdef SKETCHFAB
+			// Reset Sketchfab path so that we rewrite obj/mtl/PNG + zip when publishing
             deleteFile();
             gSkfbPData.skfbFilePath = "";
+#endif
             SetHighlightState(gHighlightOn,gStartHiX,gTargetDepth,gStartHiZ,mx,gCurDepth,mz);
             enableBottomControl( gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
             validateItems(GetMenu(hWnd));
@@ -1023,7 +1033,6 @@ RButtonDown:
         hdragging=FALSE;
         dragging=FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
-        int mx,mz;
         gBlockLabel=IDBlock(LOWORD(lParam),HIWORD(lParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
             bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         gHoldlParam=lParam;
@@ -1564,13 +1573,17 @@ RButtonUp:
             }
             break;
         case IDM_CLOSE:
-            deleteFile();
+#ifdef SKETCHFAB
+			deleteFile();
+#endif
             DestroyWindow(hWnd);
             break;
         case IDM_TEST_WORLD:
             gWorldGuide.world[0] = 0;
             gSameWorld = FALSE;
+#ifdef SKETCHFAB
             sprintf_s(gSkfbPData.skfbName, "TestWorld");
+#endif
             gotoSurface( hWnd, hwndSlider, hwndLabel);
             gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
             loadWorld(hWnd);
@@ -1805,6 +1818,7 @@ RButtonUp:
             }
             break;
         case IDM_PUBLISH_SKFB:
+#ifdef SKETCHFAB
             if ( !gHighlightOn )
             {
                 // we keep the export options ungrayed now so that they're selectable when the world is loaded
@@ -1838,8 +1852,13 @@ RButtonUp:
             }
             swprintf_s(filepath, MAX_PATH_AND_FILE, L"%sMineways2Skfb", tempdir);
             publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
-            break;
-        case IDM_JUMPSPAWN:
+#else
+			MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
+				_T("Informational"), MB_OK | MB_ICONINFORMATION);
+
+#endif
+			break;
+		case IDM_JUMPSPAWN:
             gCurX=gSpawnX;
             gCurZ=gSpawnZ;
             if (gOptions.worldType&HELL)
@@ -2586,7 +2605,7 @@ static void useCustomColor(int wmId,HWND hWnd)
         cs.id = 0;
         wcscpy_s(cs.name, 255, L"Standard");
     }
-    SetMapPalette(cs.colors,256);
+    SetMapPalette(cs.colors,NUM_BLOCKS_CS);
     drawInvalidateUpdate(hWnd);
 
     // store away for our own use
@@ -2669,7 +2688,6 @@ static int loadSchematic(wchar_t *pathAndFile)
 // return 1 or 2 or higher if world could not be loaded
 static int loadWorld(HWND hWnd)
 {
-    int version;
     CloseAll();
 
     // delete schematic data stored, if any, since we're loading a new world
@@ -2682,6 +2700,7 @@ static int loadWorld(HWND hWnd)
         gWorldGuide.sch.data = NULL;
     }
 
+	gWorldGuide.nbtVersion = 0;
     switch (gWorldGuide.type) {
     case WORLD_TEST_BLOCK_TYPE:
         // load test world
@@ -2696,12 +2715,12 @@ static int loadWorld(HWND hWnd)
         //gHighlightOn=FALSE;
         //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
         // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
-        gSubError = GetFileVersion(gWorldGuide.world, &version, gFileOpened, MAX_PATH_AND_FILE);
+        gSubError = GetFileVersion(gWorldGuide.world, &gWorldGuide.nbtVersion, gFileOpened, MAX_PATH_AND_FILE);
         if (gSubError != 0) {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 1;
         }
-        if (version < 19133)
+        if (gWorldGuide.nbtVersion < 19133)
         {
             // world is really old, pre Anvil
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
@@ -2763,10 +2782,12 @@ static int loadWorld(HWND hWnd)
             formTitle(&gWorldGuide, title);
             char tmpString[1024];
             sprintf_s(tmpString, "%ws", stripWorldName(gWorldGuide.world));
+#ifdef SKETCHFAB
             strcpyLimited(gSkfbPData.skfbName, 49, tmpString);
             // just in case name was too long
             gSkfbPData.skfbName[48] = (char)0;
-            SetWindowTextW(hWnd, title);
+#endif
+			SetWindowTextW(hWnd, title);
         }
     }
     // now done by setUIOnLoadWorld, which should always be called right after loadWorld
@@ -2774,6 +2795,7 @@ static int loadWorld(HWND hWnd)
     return 0;
 }
 
+#ifdef SKETCHFAB
 // strcpy_s asserts if string is too long. Sketchfab wants a 48 character name (plus 0 char at end).
 static void strcpyLimited(char *dst, int len, const char *src)
 {
@@ -2783,6 +2805,7 @@ static void strcpyLimited(char *dst, int len, const char *src)
     }
     dst[i] = (char)0;
 }
+#endif
 
 //static void minecraftJarPath(TCHAR *path)
 //{
@@ -3103,7 +3126,11 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
         EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
         EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
-        EnableMenuItem(menu,IDM_PUBLISH_SKFB,MF_ENABLED);
+#ifdef SKETCHFAB
+		EnableMenuItem(menu,IDM_PUBLISH_SKFB,MF_ENABLED);
+#else
+		EnableMenuItem(menu, IDM_PUBLISH_SKFB, MF_DISABLED);
+#endif
     }
     else
     {
@@ -3267,6 +3294,7 @@ static void copyOverExportPrintData(ExportFileData *pEFD)
     }
 }
 
+#ifdef SKETCHFAB
 static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected)
 {
     int on;
@@ -3384,8 +3412,8 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
 
             // Set filepath to skfb data
             std::wstring file(wcZip);
-            std::string filepath(file.begin(), file.end());
-            skfbPData->skfbFilePath = filepath;
+            std::string skfbfilepath(file.begin(), file.end());
+            skfbPData->skfbFilePath = skfbfilepath;
             setPublishSkfbData(skfbPData);
         }
 
@@ -3396,6 +3424,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
 
     return retCode;
 }
+#endif
 
 static void addChangeBlockCommandsToGlobalList(ImportedSet & is)
 {
@@ -5037,7 +5066,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         if (6 != sscanf_s(cleanString, "%d %d %d to %d %d %d",
             &v[0], &v[1], &v[2],
             &v[3], &v[4], &v[5])) {
-            if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1)))
+            if (1 == sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
             {
                 if (_stricmp(string1, "none") == 0) {
                     noSelection = true;
@@ -5105,7 +5134,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
     strPtr = findLineDataNoCase(line, "Units for the model vertex data itself:");
     if (strPtr != NULL) {
         // found selection, parse it
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find units for the model itself.");
             return INTERPRETER_FOUND_ERROR;
@@ -5131,7 +5160,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
     strPtr = findLineDataNoCase(line, "File type:");
     if (strPtr != NULL) {
         // found selection, parse it
-        if (1 != sscanf_s(strPtr, "Export %s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "Export %s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find Export string for file type (solid color, textured, etc.)."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5182,7 +5211,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Export separate objects:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Export separate objects command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5195,7 +5224,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Individual blocks:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Individual blocks command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5208,7 +5237,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Material per object:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Material per object command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5221,7 +5250,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Split materials into subtypes command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5234,7 +5263,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "G3D full material:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for G3D full material command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5247,7 +5276,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Make Z command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5260,7 +5289,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Create composite overlay faces:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Create composite overlay faces command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5273,7 +5302,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Center model:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Center model command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5287,7 +5316,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Export lesser blocks:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Export lesser blocks command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5300,7 +5329,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Fatten lesser blocks:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Fatten lesser blocks command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5313,7 +5342,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5326,7 +5355,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Create block faces at the borders:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Create block faces at the borders command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5339,7 +5368,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Use biomes:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Use biomes command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5411,7 +5440,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         else
         {
             // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-            if (5 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
+            if (5 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s %s", &floatVal, string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2), string3, (unsigned)_countof(string3), string4, (unsigned)_countof(string4)))
             {
                 if (_stricmp(string4, "material") != 0)
                 {
@@ -5432,7 +5461,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
                 goto SetPrintMaterialType;
             }
-            else if (4 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
+            else if (4 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s %s", &floatVal, string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2), string3, (unsigned)_countof(string3)))
             {
                 if (_stricmp(string3, "material") != 0)
                 {
@@ -5451,7 +5480,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
                 goto SetPrintMaterialType;
             }
-            else if (3 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s", &floatVal, string1, _countof(string1), string2, _countof(string2)))
+            else if (3 == sscanf_s(strPtr, "aiming for a cost of %f for the %s %s", &floatVal, string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2)))
             {
                 if (_stricmp(string2, "material") != 0)
                 {
@@ -5483,7 +5512,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             else
             {
                 // terrible hackery and laziness: look for 3, 2, or 1 word materials. fgets or read() might be better...
-                if (4 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3), string4, _countof(string4)))
+                if (4 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s %s", string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2), string3, (unsigned)_countof(string3), string4, (unsigned)_countof(string4)))
                 {
                     if (_stricmp(string4, "material") != 0)
                     {
@@ -5500,7 +5529,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
                     goto SetPrintMaterialType;
                 }
-                else if (3 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s", string1, _countof(string1), string2, _countof(string2), string3, _countof(string3)))
+                else if (3 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s %s", string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2), string3, (unsigned)_countof(string3)))
                 {
                     if (_stricmp(string3, "material") != 0)
                     {
@@ -5515,7 +5544,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
                     goto SetPrintMaterialType;
                 }
-                else if (2 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s", string1, _countof(string1), string2, _countof(string2)))
+                else if (2 == sscanf_s(strPtr, "using the minimum wall thickness for the %s %s", string1, (unsigned)_countof(string1), string2, (unsigned)_countof(string2)))
                 {
                     if (_stricmp(string2, "material") != 0)
                     {
@@ -5560,9 +5589,9 @@ static int interpretImportLine(char *line, ImportedSet & is)
     strPtr = findLineDataNoCase(line, "Fill air bubbles:");
     if (strPtr != NULL) {
         if (3 != sscanf_s(strPtr, "%s Seal off entrances: %s Fill in isolated tunnels in base of model: %s",
-            string1, _countof(string1),
-            string2, _countof(string2),
-            string3, _countof(string3)
+            string1, (unsigned)_countof(string1),
+            string2, (unsigned)_countof(string2),
+            string3, (unsigned)_countof(string3)
             ))
         {
             saveErrorMessage(is, L"could not find all boolean values for Fill air bubbles commands.", strPtr); return INTERPRETER_FOUND_ERROR;
@@ -5583,9 +5612,9 @@ static int interpretImportLine(char *line, ImportedSet & is)
     strPtr = findLineDataNoCase(line, "Connect parts sharing an edge:");
     if (strPtr != NULL) {
         if (3 != sscanf_s(strPtr, "%s Connect corner tips: %s Weld all shared edges: %s",
-            string1, _countof(string1),
-            string2, _countof(string2),
-            string3, _countof(string3)
+            string1, (unsigned)_countof(string1),
+            string2, (unsigned)_countof(string2),
+            string3, (unsigned)_countof(string3)
             ))
         {
             saveErrorMessage(is, L"could not find all boolean values for Connect parts commands.", strPtr); return INTERPRETER_FOUND_ERROR;
@@ -5608,7 +5637,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
     if (strPtr != NULL) {
         if (2 != sscanf_s(strPtr, "trees and parts smaller than %d blocks: %s",
             &intVal,
-            string1, _countof(string1)))
+            string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find all parameters needed for Delete floating objects command.", strPtr); return INTERPRETER_FOUND_ERROR;
         }
@@ -5628,8 +5657,8 @@ static int interpretImportLine(char *line, ImportedSet & is)
     if (strPtr != NULL) {
         if (3 != sscanf_s(strPtr, "%f mm thick: %s Superhollow: %s",
             &floatVal,
-            string1, _countof(string1),
-            string2, _countof(string2)
+            string1, (unsigned)_countof(string1),
+            string2, (unsigned)_countof(string2)
             ))
         {
             saveErrorMessage(is, L"could not find all parameters needed for Hollow commands.", strPtr); return INTERPRETER_FOUND_ERROR;
@@ -5648,7 +5677,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Melt snow blocks:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Melt snow blocks command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5662,7 +5691,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Debug: show separate parts as colors:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Debug parts command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5676,7 +5705,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Debug: show weld blocks in bright colors:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Debug weld blocks command."); return INTERPRETER_FOUND_ERROR;
         }
@@ -5884,7 +5913,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
     if (strPtr != NULL) {
         // note we store the box separately, as it will get cleared when we run into 
         int v;
-        if (1 != sscanf_s(strPtr, "%d, %d", &v)) {
+        if (1 != sscanf_s(strPtr, "%d", &v)) {
             // bad parse - warn and quit
             saveErrorMessage(is, L"could not read 'Zoom' value.", strPtr);
             return INTERPRETER_FOUND_ERROR;
@@ -5916,7 +5945,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 
     strPtr = findLineDataNoCase(line, "Give more export memory:");
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             saveErrorMessage(is, L"could not find boolean value for Give more export memory command.");
             return INTERPRETER_FOUND_ERROR;
@@ -5948,7 +5977,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
     if (strPtr != NULL) {
         // set value for testing
         int minHeight = 0;
-        if (1 == sscanf_s(strPtr, "%s", string1, _countof(string1))) {
+        if (1 == sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1))) {
             // first, is it simply a number?
             if (1 == sscanf_s(strPtr, "%d", &minHeight))
             {
@@ -6105,7 +6134,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
                 gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].costMinimum = floatVal;
             }
         }
-        else if (1 == sscanf_s(strPtr, "currency: %s", &buf, _countof(buf)))
+        else if (1 == sscanf_s(strPtr, "currency: %s", &buf, (unsigned)_countof(buf)))
         {
             if (is.processData) {
                 if (gCustomCurrency) {
@@ -6131,7 +6160,6 @@ static int interpretScriptLine(char *line, ImportedSet & is)
             }
 
             else {
-                wchar_t error[1024];
                 wsprintf(error, L"could not understand command %S", line);
                 saveErrorMessage(is, error);
                 return INTERPRETER_FOUND_ERROR;
@@ -6153,7 +6181,7 @@ static bool findBitToggle(char *line, ImportedSet & is, char *type, unsigned int
     strcat_s(commandString, 1024, ":");
     char *strPtr = findLineDataNoCase(line, commandString);
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, _countof(string1)))
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             wchar_t error[1024];
             wsprintf(error, L"could not find boolean value for %S command.", type);
@@ -6555,7 +6583,7 @@ static char *findBlockTypeAndData(char *line, int *pType, int *pData, unsigned s
     if (*strPtr == '\"') {
         strPtr++;
         // there might be a string block identifier
-        for (int type = 0; type <= 255; type++) {
+        for (int type = 0; type < NUM_BLOCKS_DEFINED; type++) {
             // compare, caseless, to block types until we find a match
             char *foundPtr = compareLCAndSkip(strPtr, gBlockDefinitions[type].name);
             if (foundPtr != NULL) {
@@ -6945,7 +6973,9 @@ static bool commandLoadWorld(ImportedSet & is, wchar_t *error)
             gWorldGuide.world[0] = (wchar_t)0;
             gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
             gSameWorld = FALSE;
+#ifdef SKETCHFAB
             sprintf_s(gSkfbPData.skfbName, "TestWorld");
+#endif
         }
         else {
             // test if it's a schematic file or a normal world, and set TYPE appropriately.

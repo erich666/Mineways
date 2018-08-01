@@ -71,6 +71,7 @@ typedef struct WorldGuide {
     wchar_t world[520];		// 2*MAX_PATH
     wchar_t directory[520];
     Schematic sch;
+	int nbtVersion;
 } WorldGuide;
 
 
@@ -94,7 +95,7 @@ int GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
 int GetSchematicWord(const wchar_t *schematic, char *field, int *word);
 int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
 // palette should be in RGBA format, num colors in the palette
-void SetMapPremultipliedColors();
+void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int *palette,int num);
 
 

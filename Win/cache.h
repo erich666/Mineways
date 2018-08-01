@@ -43,7 +43,7 @@ typedef struct WorldBlock {
     unsigned char grid[16*16*256];  // blockid array [y+(z+x*16)*256]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char data[16*16*128];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
+    unsigned char data[16*16*256];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
     unsigned char light[16*16*128]; // half-byte lighting data
 
     unsigned char rendercache[16*16*4]; // bitmap of last render
@@ -51,6 +51,8 @@ typedef struct WorldBlock {
     unsigned char biome[16*16];
     BlockEntity *entities;	// block entities, http://minecraft.gamepedia.com/Chunk_format#Block_entity_format
     int numEntities;	// number in the list, maximum of 16x16x256
+	// a waste to do per block, but so be it.
+	int mcVersion;		// type of block opened: 12 for 1.12 and earlier, 13 for 1.13 and on
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render

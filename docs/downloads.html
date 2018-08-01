@@ -37,6 +37,7 @@
 				</li>
 				<li class='has-sub'><a href="mineways.html"><span>Documentation</span></a>
 					<ul>
+				        <li><a href="mineways.html"><span>Full page</span></a></li>
 						<li><a href="reference.html"><span>Quick Reference</span></a></li>
 						<li><a href="downloads.html#troubleshooting"><span>Troubleshooting</span></a></li>
 						<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
@@ -158,6 +159,10 @@
 						<P>
 						If a particular world is not loading, note that Mineways is less likely to work on modded worlds. Mineways assumes certain things about how blocks can connect, and if those rules are modified, all bets are off.
 						<P>
+						If you are still using Windows XP, the last version that will work for you is <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">4.17</a>.
+						<P>
+						One user had a problem where the left mouse did not drag the map. He found unzipping the zip again fixed it - strange. Me, I'd also try rebooting.
+						<P>
 						Feel free <a href="contact.html">to write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.
 				</div>
 				<div id="macPlatformHelp" class="helpInnerSector">
@@ -200,7 +205,7 @@
 				</div>
 				<div id="linuxPlatformHelp" class="helpInnerSector">
 					<h2 id="linux">Linux</h2>
-					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows while running the 32-bit mineways32.exe version. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. My advice: try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">Version 4.17</a>. Linux is not "supported" by Mineways; I don't have Linux on any machine, I've never tried Mineways on Linux, I've been told it sometimes works. Basically, you're on your own.</p>
+					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows while running the 32-bit mineways32.exe version. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. My advice: try <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV417.zip">Version 4.17</a>. Linux is not "supported" by Mineways; I don't have Linux on any machine, I've never tried Mineways on Linux, I've been told it sometimes works. Basically, you're on your own. One other bit of advice: try starting up with "mineways -s none" if you get a warning about the worlds directory not being found.</p>
 				</div>
 			</div>
 			<div id="troubleshooting" class="helpLightOuterSector">
@@ -213,6 +218,7 @@
 						<LI>Did you read any warnings from the program carefully?
 						<LI>Reboot and try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertently checked, or untangles some hidden program bug.
 						<LI>Run through the platform-specific problems for <a href="#windows">Windows</a>, <a href="#mac">Mac</a>, and <a href="#linux">Linux</a>.
+						<LI>Try starting from the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a>, e.g. <a href="scripting.html#clo">"mineways -s none"</a>.
 					</UL>
 					<P>Here are some common problems:</p>
 					<UL>
@@ -222,6 +228,7 @@
 						<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure the "Model's units" on the export dialog says "Millimeters".</LI>
 						<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.</LI>
 						<LI> "It (still) doesn't work" - <a href="contact.html">write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.</LI>
+						<LI> "I get a long error message about Mineways not finding my worlds directory, then nothing else shows up." I'm not sure the cause of this one, but it's been seen when running on Linux. Starting Mineways by doing <a href="scripting.html#clo">"mineways -s none"</a> has been known to get around this problem.
 					</UL>
 				</div>
 				<div id="knownBugs" class="helpInnerSector">
@@ -258,7 +265,7 @@
 
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 4/16/2017</p>
+		<p id="lastUpdate">Last updated 4/30/2018</p>
 	</div>
 
 </body>

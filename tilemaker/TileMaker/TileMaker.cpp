@@ -138,7 +138,7 @@ int wmain(int argc, wchar_t* argv[])
 	int onlyreplace = 0;
 	int verbose = 0;
 	int checkmissing = 0;
-    int alternate = 0;
+    int alternate = 1;  // always include alternate names; needed for 1.13
     int solid = 0;
     int solidcutout = 0;
 
@@ -208,12 +208,18 @@ int wmain(int argc, wchar_t* argv[])
 			// in the tile directory. This lets people know what tiles they need to add.
 			checkmissing = 1;
 		}
-        else if ( wcscmp(argv[argLoc],L"-a") == 0 )
+        else if (wcscmp(argv[argLoc], L"-a") == 0)
         {
             // alternate: use names such as "blockIron" when "iron_block" is not found
-            alternate = 1;
+            //alternate = 1;
+            wprintf(L"Note: alternate names are always on now, so -a is no longer needed.\n");
         }
-        else if ( wcscmp(argv[argLoc],L"-s") == 0 )
+        else if (wcscmp(argv[argLoc], L"-na") == 0)
+        {
+            // turn alternate names off
+			wprintf(L"Note: alternate names are needed for 1.13, so -na is no longer supported.\n");
+		}
+        else if (wcscmp(argv[argLoc], L"-s") == 0)
         {
             // solid: take the average color of the incoming tile and output this solid color
             solid = 1;
@@ -231,7 +237,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.04\n");  // change version below, too
+			wprintf( L"TileMaker version 2.06\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -242,7 +248,6 @@ int wmain(int argc, wchar_t* argv[])
 			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
             wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
-            wprintf( L"  -a - include alternate texture names when files are not found.\n");
             wprintf( L"  -s - take the average color of the incoming tile and output this solid color.\n");
             wprintf( L"  -S - as above, but preserve the cutout transparent areas.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
@@ -252,7 +257,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.04\n");  // change version above, too
+        wprintf(L"TileMaker version 2.06\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -335,7 +340,7 @@ int wmain(int argc, wchar_t* argv[])
 					{
                         // see if tile is on unneeded list
                         if ( findUnneededTile( ffd.cFileName ) < 0 )
-						    wprintf (L"WARNING: %s is a tile name that TileMaker does not understand. Perhaps you need to rename it?\nSee https://github.com/erich666/Mineways/blob/master/tilemaker/TileMaker/tiles.h for the image file names used.\n", ffd.cFileName);
+						    wprintf (L"WARNING: %s is a tile name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
 					}
 
 					while ( index >= 0 )
@@ -358,11 +363,11 @@ int wmain(int argc, wchar_t* argv[])
 							readpng_cleanup(0,&tile[tilesFound]);
 
 							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
-								wprintf(L"ERROR: file %s has a width that is not a power of two. This will cause copying errors!\n", ffd.cFileName);
+								wprintf(L"ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors!\n", ffd.cFileName);
 								return 1;
 							}
 							if (tile[tilesFound].width > tile[tilesFound].height) {
-								wprintf(L"ERROR: file %s has a height that is less than its width. This will cause copying errors!\n", ffd.cFileName);
+								wprintf(L"ERROR: file %s has a height that is less than its width.\n  This will cause copying errors!\n", ffd.cFileName);
 								return 1;
 							}
 						}
@@ -568,7 +573,7 @@ int wmain(int argc, wchar_t* argv[])
 		if (rc != 0)
 		{
 			// file not found
-			wprintf(L"Note: TileMaker also now reads files in the chest subdirectory and uses\nthe images normal.png, normal_double.png, and ender.png.\n  - Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n    directory to Mineways' subdirectory blocks\\chest.\n");
+			wprintf(L"  This error means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_double.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
 			break;
 		}
 		readpng_cleanup(0, &chestImage);
@@ -700,7 +705,7 @@ static void reportReadError( int rc, wchar_t *filename )
 		wprintf(L"[%s] read failed - unknown readpng_init() error.", filename);
 		break;
 	}
-    wprintf(L"Often this means the PNG file has some small bit of information that TileMaker cannot handle. You might be able to fix this error by opening this PNG file in Irfanview or other viewer and then saving it again. This has been known to clear out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
+    wprintf(L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
 }
 
 

@@ -37,6 +37,7 @@
 		</li>
 		<li class='active has-sub'><a href="mineways.html"><span>Documentation</span></a>
 			<ul>
+				<li><a href="mineways.html"><span>Full page</span></a></li>
 				<li><a href="reference.html"><span>Quick Reference</span></a></li>
 				<li><a href="downloads.html#troubleshooting"><span>Troubleshooting</span></a></li>
 				<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
@@ -144,7 +145,7 @@ Opening Worlds and Schematics
 </H2>
 There are many ways to open a Minecraft world or schematic file in Mineways. If one doesn't work for you, try the next.
 <P>
-<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders. If you want to specify a different directory for where your world saves are located, use the "-s" option on the command line on startup; see the <a href="scripting.html#clo">command line options</a>.
+<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders. If you want to specify a different directory for where your world saves are located, use the "-s" option on the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a> on startup; see the <a href="scripting.html#clo">command line options</a>.
 <P>
 <a id="blocktestworld">
 If you want to export any particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in <a href="http://minecraft.gamepedia.com/Block_ids">block ID</a> order, and with variants shown from north to south by their <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>. To select a single block, find it, right-click it, then hit "[" to move the bottom level up by one, thus selecting only the block itself and not the surrounding grass.
@@ -219,7 +220,7 @@ By default, the heights used for the rectangular block are from y=63 (sea level)
 <P>
 The lower depth can be changed in a number of ways, even when no area is selected. The lower slider is the simplest way to modify this value. If you click the middle mouse button on a location, the lower depth is set to its height.  The <b>[</b> and <b>]</b> keys shift the lower depth by one, and so are useful for tuning. The spacebar will also select a reasonable lower depth for your selection volume; shift-space will treat water and glass as solid. See <a href="#shortcuts">the shortcut key list</a> for more program options.
 <P>
-<B>Key tip:</B> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="#g3d">G3D</a> (which reloads the viewed file when you tap the "r" key) or, for .WRL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> (unfortunately, their Alt-R reload doesn't clear out the previously-loaded file) to see the results.
+<B>Key tip:</B> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="#g3d">G3D</a> (which reloads the viewed file when you tap the "r" key) or, for .WRL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> (unfortunately, their Alt-R reload doesn't clear out the previously-loaded file) to see the results. Another option is the built-in <a href="https://www.microsoft.com/en-us/store/p/mixed-reality-viewer/9nblggh42ths">Mixed Reality Viewer</a>, a part of Windows 10.
 
 <H2 id="export">
 Exporting Models
@@ -675,26 +676,27 @@ TileMaker is a command-line utility for making a terrainExt.png file, which is t
 <P>
 TileMaker works by using a few different textures from Minecraft or from a resource pack to create a new texture to feed to Mineways. Specifically, here's how to set things up:
 <UL>
-<LI>Locate TileMaker.exe and the file terrainBase.png. The terrainBase.png has the default textures for when replacements are not found.
-<LI>In this directory where TileMaker.exe is located, make a directory called "blocks". This is where you'll put the textures you want to use instead. Copy files from assets\minecraft\textures\blocks to this directory.
+<LI>Locate TileMaker.exe and the file terrainBase.png. The terrainBase.png has the default textures for when replacement tiles in your texture pack are not found.
+<LI>In this directory where TileMaker.exe is located, make a directory called "blocks". This is where you'll put the textures you want to use instead. Copy all files from your texture pack's assets\minecraft\textures\blocks to this directory.
 <LI>While you're at it, copy "barrier.png" to the block folder from assets\minecraft\textures\items or wherever it's located.
 <LI>Copy the "chest" folder itself at assets\minecraft\textures\entity\chest to the "blocks" folder.
-<LI>Double-click TileMaker and the file terrainExt.png should be created.
+<LI>Double-click TileMaker and the file terrainExt.png should be created. Cross fingers.
 </UL>
 You can then feed this file to Mineways using "File | Set Terrain File". If you want this new file to be the default used at startup, simply replace the terrainExt.png file that comes with Mineways. To sum up:
 <PRE>
 TileMaker.exe and terrainBase.png
 blocks directory filled with files from assets\minecraft\textures\blocks and barrier.png perhaps from assets\minecraft\textures\items
-    chest directory inside a copy of the assets\minecraft\textures\entity\chest directory
+chest directory inside a copy of the assets\minecraft\textures\entity\chest directory
 </PRE>
 <P>
+A problem with this approach is that TileMaker will run, popping up a window briefly and then disappearing. There are often warnings and sometimes errors, which you will miss. Better is to use the <a href="https://www.lifewire.com/how-to-open-command-prompt-2618089">CMD window</a>, go to the directory where TileMaker is located (using <a href="https://www.digitalcitizen.life/command-prompt-how-use-basic-commands">the "cd" command</a>), then type "TileMaker" and see what warnings and errors you get. Any error will halt execution, at which point you'll want to fix the error and run again. You can usually use the "up arrow" key to bring up the last command you typed in, e.g., "TileMaker". <P>
 A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your Minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g. 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 What TileMaker does by default is pretty simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), extracts the chests from "blocks\chest", then writes out this new image as terrainExt.png. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size. Chests' sizes are ignored during this resizing calculation.
 <P>
 TileMaker does do some special processing. The "chest" subdirectory normally has three chest tiles: ender.png, normal.png, and normal_double.png, to generate chest tiles - see the _readme.txt file there. The main directory has some "guide" tiles that are not standard Minecraft tiles. These have the prefix "MW_" and are pretty self-explanatory (or search this page for more information).
 <P>
-There are many options available for doing more elaborate operations (such as forcing a particular tile size, using a different input directory or output file name, etc.), but then you need to run TileMaker from the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a> or in a .bat file. In the command line you use "cd" to go to the directory where the TileMaker.exe file is located, then do something along these lines:
+If you use the command line, there are many options available for doing more elaborate operations (such as forcing a particular tile size, using a different input directory or output file name, etc.), but then you need to run TileMaker from the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a> or in a .bat file. In the command line you use "cd" to go to the directory where the TileMaker.exe file is located, then do something along these lines:
 <PRE>
 TileMaker -d blocks_doku -o terrainExtDoku.png
 </PRE>
@@ -755,7 +757,11 @@ Rendering Tips
 </H3>
 <div id="renderTips">
   <p>
-  This section covers the basics on importing Mineways files into various renderers.
+  This section covers the basics on importing Mineways files into various renderers:
+  <a href="#blender">Blender</a>,
+  <a href="#3dsmax">3DS MAX</a>,
+  <a href="#maya">Maya</a>, and
+  <a href="#c4d">Cinema 4D</a>.
   To be honest, if you want better geometry for some blocks, you should consider using <a href="#packages">jmc2obj</a>. Mineways' focus is on 3D printing more than rendering, so has limitations such as using a single texture for the model. The one feature that Mineways offers animators that is currently not in other exporters is the
   <a href="#individual">"individual blocks" option</a>, which exports each block as a separate object.</p> 
   <P>
@@ -2440,7 +2446,7 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Added observer and shulker box texture support, along with 1.12 beta glazed terracotta, concrete, and concrete powder textures.
 </UL>
 
-<LI>Version 5.10, 8/10/2017 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV510.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 5.10, 8/10/2017 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV510.zip">exe</a>,  <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac510.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Limited world list to 50 entries, as there seems to be <a href="https://github.com/erich666/Mineways/issues/31">a problem checking files</a> if there are too many worlds in the "saves" directory.
@@ -2449,15 +2455,20 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Properly truncated world's name for Sketchfab title.
 </UL>
 
-<LI>Future Version 5.11, ?/?/2017  - possible near-term future features:
+<LI><b>Version 6.00, 8/1/2018</b> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV600.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Moved to Visual Studio 2017, Windows SDK 10.0.17134.12. Added 1.13 translation - note that schematic export from 1.13 is iffy, since schematic does not support the new blocks. Added brown and red mushroom blocks "all cap" and "all stem" modes. Podzol with snow on it now properly turns snowy on its sides. Properly show bin direction for activated hoppers. Placed the active comparator output torch down two pixels to proper position. Fixed missing polygon bug of cobblestone walls connecting to fences. Connected fences together, even if of different types (this fixes one error, introduces another; nether fences should not join with wood, for example). Proper icons for the "structure block" block type is now shown. Fixed bad placement of mob head facing west (but, no, I have not added heads, it's still the pumpkin). Biome names updated, and a few temperatures updated.
+On the TODO list: The Windows 32 version crashes on startup; need to fix that so the Mac version can be made. The custom terrain packs are not updated in this version. The "[Block Test World]" is not updated with 1.13 content, nor are Color Schemes. On export, <a href="https://minecraft.gamepedia.com/Waterlogging">Waterlogging</a> is not fully supported, and 3D prints should translate waterlogged plants to be water. Chests next to each other, not allowed in 1.12.2, will cause odd, faulty exports. Bed colors are ignored. Biomes 40-50 rainfall values are not known. Sea pickles do not have their tendril when in water. Flattened coral fans don't appear to composite correctly. Turtle eggs and sea pickles don't have the exact patterns seen, nor are quite the right sizes and textures. Conduit does not have the exact textures used. The nether portal should not fill the block. Basic scripting works, but block editing is not tested (and 1.13 blocks need to be documented). These problems are all fixable, but each will take some time and effort.
+
+<LI>Future Version 6.+, ?/?/201*  - possible future features:
 <BR>
 <UL>
 <LI>Go to location dialog, where you give a location and the view is centered on it.
 <LI>I might add yet another checkbox for having transparent surfaces always generate faces...
 <LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
-<LI>Improve the error reporting system to give more information, etc.
+<LI>Improve the error reporting system to give more information, etc. The negative return values in nbt.cpp are not really well handled, or even unique.
 <LI>Export texture to individual tiles.
-<LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill?
+<LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill? Probably.
 <LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed.
 </UL>
 </UL>
@@ -2534,7 +2545,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 6/9/2017</p>
+		<p id="lastUpdate">Last updated 4/30/2018</p>
 	</div>
 </div>
 

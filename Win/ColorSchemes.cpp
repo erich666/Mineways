@@ -54,11 +54,12 @@ ColorManager::~ColorManager()
 void ColorManager::Init(ColorScheme *cs)
 {
     int i;
-    for (i=0;i<NUM_BLOCKS;i++)
+    for (i=0;i<NUM_BLOCKS_CS;i++)
     {
         cs->colors[i]=blockColor(i);
     }
-    for (int i=NUM_BLOCKS; i < 256; i++)
+	// fill in rest, if NUM_BLOCKS_CS is higher than NUM_BLOCKS
+    for (i=NUM_BLOCKS; i < NUM_BLOCKS_CS; i++)
     {
         // fill the rest with almost-black; if we detect this color on loading
         // a color scheme in a place that should have been a normal color, then
@@ -404,7 +405,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
             item.state=0;
             item.stateMask=0;
             item.pszText=LPSTR_TEXTCALLBACK;
-            for (int i=0;i<NUM_BLOCKS;i++)
+            for (int i=0;i<NUM_BLOCKS_CS;i++)
             {
                 item.iItem=i;
                 ListView_InsertItem(lv,&item);
@@ -504,12 +505,12 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
         case IDC_HIDE_ALL_BLOCKS:
             {
                 // set all blocks' alphas to zero. Useful for printing out just one material
-                for (int i=0;i<NUM_BLOCKS;i++)
+                for (int i=0;i<NUM_BLOCKS_CS;i++)
                 {
                     curCS.colors[i] &= ~0xff;
                 }
                 HWND lv=GetDlgItem(hDlg,IDC_COLORLIST);
-                ListView_RedrawItems(lv,0,NUM_BLOCKS-1);
+                ListView_RedrawItems(lv,0,NUM_BLOCKS_CS-1);
             }
             break;
         case IDC_HIDE_TREE_BLOCKS:
@@ -521,7 +522,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
                 curCS.colors[BLOCK_AD_LEAVES] &= ~0xff;
 
                 HWND lv=GetDlgItem(hDlg,IDC_COLORLIST);
-                ListView_RedrawItems(lv,0,NUM_BLOCKS-1);
+                ListView_RedrawItems(lv,0,NUM_BLOCKS_CS-1);
             }
             break;
         case IDCANCEL:

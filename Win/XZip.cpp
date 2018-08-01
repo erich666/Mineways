@@ -2522,7 +2522,7 @@ unsigned int TZip::write(const char *buf,unsigned int size)
 #endif // -----------------------------------------------------------
 
 //+++1.2
-unsigned int TZip::write(const char *buf, unsigned int size)
+unsigned int TZip::write(const char *bufval, unsigned int size)
 { 
 	if (obuf != 0)
 	{ 
@@ -2551,15 +2551,15 @@ unsigned int TZip::write(const char *buf, unsigned int size)
 			obuf = obuf2;
 			hmapout = hmapout2;
 		}
-		memcpy(obuf+opos, buf, size);
+		memcpy(obuf+opos, bufval, size);
 		opos += size;
 		return size;
 	}
 	else if (hfout!=0)
 	{ 
-		DWORD writ = 0; 
-		WriteFile(hfout,buf,size,&writ,NULL);
-		return writ;
+		DWORD writval = 0; 
+		WriteFile(hfout, bufval,size,&writval,NULL);
+		return writval;
 	}
 	oerr = ZR_NOTINITED; 
 	return 0;
@@ -2678,23 +2678,23 @@ unsigned TZip::sread(TState &s,char *buf,unsigned size)
   return zip->read(buf,size);
 }
 
-unsigned TZip::read(char *buf, unsigned size)
+unsigned TZip::read(char *bufval, unsigned size)
 { if (bufin!=0)
   { if (posin>=lenin) return 0; // end of input
     ulg red = lenin-posin;
     if (red>size) red=size;
-    memcpy(buf, bufin+posin, red);
+    memcpy(bufval, bufin+posin, red);
     posin += red;
     ired += red;
-    crc = xzip_crc32(crc, (uch*)buf, red);
+    crc = xzip_crc32(crc, (uch*)bufval, red);
     return red;
   }
   else if (hfin!=0)
   { DWORD red;
-    BOOL ok = ReadFile(hfin,buf,size,&red,NULL);
+    BOOL ok = ReadFile(hfin, bufval,size,&red,NULL);
     if (!ok) return 0;
     ired += red;
-    crc = xzip_crc32(crc, (uch*)buf, red);
+    crc = xzip_crc32(crc, (uch*)bufval, red);
     return red;
   }
   else {oerr=ZR_NOTINITED; return 0;}

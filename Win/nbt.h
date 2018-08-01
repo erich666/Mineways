@@ -52,7 +52,7 @@ typedef struct BlockEntity {
 } BlockEntity;
 
 bfFile newNBT(const wchar_t *filename, int *err);
-int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities);
+int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int *mcversion);
 int nbtGetSpawn(bfFile bf,int *x,int *y,int *z);
 int nbtGetFileVersion(bfFile bf, int *version);
 int nbtGetFileVersionId(bfFile bf, int *versionId);

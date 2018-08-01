@@ -30,7 +30,7 @@ typedef struct
 {
     int id;
     wchar_t name[255];
-    unsigned int colors[256];   // RGBA, unmultiplied by A
+    unsigned int colors[NUM_BLOCKS_CS];   // RGBA, unmultiplied by A
 } ColorScheme;
 
 class ColorManager
