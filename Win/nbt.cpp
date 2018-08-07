@@ -356,8 +356,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 161,           0, "acacia_leaves", LEAF_PROP },
 { 0, 161,           1, "dark_oak_leaves", LEAF_PROP },
 { 0,  32,           0, "dead_bush", NO_PROP },
-{ 0,  31,           0, "grass", NO_PROP }, // tall grass
-{ 0,  31,           1, "fern", NO_PROP },
+{ 0,  31,           1, "grass", NO_PROP }, // tall grass
+{ 0,  31,           2, "fern", NO_PROP },
 { 0,  19,           0, "sponge", NO_PROP },
 { 0,  19,           1, "wet_sponge", NO_PROP },
 { 0,  20,           0, "glass", NO_PROP },
