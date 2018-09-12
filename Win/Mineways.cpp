@@ -150,9 +150,6 @@ static wchar_t gCurrentDirectory[MAX_PATH_AND_FILE];
 static wchar_t gWorldPathDefault[MAX_PATH_AND_FILE];
 static wchar_t gWorldPathCurrent[MAX_PATH_AND_FILE];
 
-LPTSTR filepath = new TCHAR[MAX_PATH_AND_FILE];
-LPTSTR tempdir = new TCHAR[MAX_PATH_AND_FILE];
-
 // low, inside, high for selection area, fourth value is minimum height found below selection box
 static int gHitsFound[4];
 static int gFullLow=1;
@@ -347,7 +344,12 @@ static void syncCurrentHighlightDepth();
 static void copyOverExportPrintData( ExportFileData *pEFD );
 static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t *terrainFileName, wchar_t *schemeSelected, bool showDialog, bool showStatistics);
 #ifdef SKETCHFAB
+static int setSketchfabExportSettings();
+static LPTSTR prepareSketchfabExportFile(HWND hWnd);
+static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected);
 static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected);
+static bool commandSketchfabPublish(ImportedSet& is/*,  wchar_t *error*/);
+static bool isSketchfabFieldSizeValid(char* field, int size, bool exact=false);
 #endif
 static void addChangeBlockCommandsToGlobalList(ImportedSet & is);
 static void PopupErrorDialogs( int errCode );
@@ -712,6 +714,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //    swprintf( buf, 100, L"Message: %u\n", message);
 //    OutputDebugStringW( buf );
 //#endif
+
+#ifdef SKETCHFAB
+    LPTSTR filepath = prepareSketchfabExportFile(hWnd);
+#endif
 
     switch (message)
     {
@@ -1828,29 +1834,6 @@ RButtonUp:
             }
             // Force it to be an rendering export: Relative obj
             gPrintModel=0;
-            gExportViewData.fileType=FILE_TYPE_WAVEFRONT_REL_OBJ;
-            ZeroMemory(&ofn,sizeof(OPENFILENAME));
-            ofn.lStructSize=sizeof(OPENFILENAME);
-            ofn.hwndOwner=hWnd;
-            ofn.lpstrFile=gExportPath;
-            ofn.nMaxFile=MAX_PATH_AND_FILE;
-
-            ofn.nFilterIndex=gExportViewData.fileType+1;
-            ofn.lpstrFileTitle=NULL;
-            ofn.nMaxFileTitle=0;
-            ofn.lpstrInitialDir=NULL;
-            ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-            // Write zip in temp directory
-            GetTempPath(MAX_PATH_AND_FILE, tempdir);
-
-            // OSX workaround since tempdir will not be ok
-            // TODO: find a better way to detect OSX + Wine vs Windows
-            if ( !PathFileExists(tempdir) )
-            {
-                swprintf_s(tempdir, MAX_PATH_AND_FILE, L"\\tmp\\");
-            }
-            swprintf_s(filepath, MAX_PATH_AND_FILE, L"%sMineways2Skfb", tempdir);
             publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
 #else
 			MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
@@ -3295,6 +3278,157 @@ static void copyOverExportPrintData(ExportFileData *pEFD)
 }
 
 #ifdef SKETCHFAB
+
+static bool isSketchfabFieldSizeValid(char* field, int size, bool exact)
+{
+    int length = (int)strlen(field);
+    if(length > size)
+    {
+        return false;
+    }
+    if(exact && length != size)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+static bool commandSketchfabPublish(ImportedSet& is/*,  wchar_t *error*/)
+{
+    // Report export type and selection
+    gPrintModel=0;
+    is.pEFD->minxVal = is.minxVal;
+    is.pEFD->minyVal = is.minyVal;
+    is.pEFD->minzVal = is.minzVal;
+    is.pEFD->maxxVal = is.maxxVal;
+    is.pEFD->maxyVal = is.maxyVal;
+    is.pEFD->maxzVal = is.maxzVal;
+    *is.pSaveEFD = *is.pEFD;
+    gpEFD = is.pSaveEFD;
+    gOptions.pEFD = gpEFD;
+
+    LPTSTR filepath = prepareSketchfabExportFile(is.ws.hWnd);
+    setSketchfabExportSettings();
+    processSketchfabExport(&gSkfbPData, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+    setPublishSkfbData(&gSkfbPData);
+    uploadToSketchfab(hInst, is.ws.hWnd);
+
+    return true;
+}
+
+static int setSketchfabExportSettings()
+{
+    // export all ellements for Skfb
+    gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
+        BLF_FLATSIDE | BLF_3D_BIT;
+
+    // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
+    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
+
+    gOptions.exportFlags |=
+        (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
+        ((gpEFD->chkHollow[gpEFD->fileType] && gpEFD->chkSuperHollow[gpEFD->fileType]) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0);
+
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS; // export groups
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS; // the norm, instead of single material
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL; // Full material (output the extra values)
+    gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_IMAGES; // Export block full texture
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES; // OBj relative coordinates
+    gOptions.exportFlags |= EXPT_BIOME; // Use biome for export. Currently only the biome at the center of the zone is supported
+
+    return 0;
+}
+
+static LPTSTR prepareSketchfabExportFile(HWND hWnd)
+{
+    OPENFILENAME ofn;
+    // Force it to be an rendering export: Relative obj
+    gPrintModel=0;
+    gExportViewData.fileType=FILE_TYPE_WAVEFRONT_REL_OBJ;
+    ZeroMemory(&ofn,sizeof(OPENFILENAME));
+    ofn.lStructSize=sizeof(OPENFILENAME);
+    ofn.hwndOwner=hWnd;
+    ofn.lpstrFile=gExportPath;
+    ofn.nMaxFile=MAX_PATH_AND_FILE;
+
+    ofn.nFilterIndex=gExportViewData.fileType+1;
+    ofn.lpstrFileTitle=NULL;
+    ofn.nMaxFileTitle=0;
+    ofn.lpstrInitialDir=NULL;
+    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+    // Write zip in temp directory
+    LPTSTR tempdir = new TCHAR[MAX_PATH_AND_FILE];
+    LPTSTR filepath = new TCHAR[MAX_PATH_AND_FILE];
+    GetTempPath(MAX_PATH_AND_FILE, tempdir);
+
+    // OSX workaround since tempdir will not be ok
+    // TODO: find a better way to detect OSX + Wine vs Windows
+    if ( !PathFileExists(tempdir) )
+    {
+        swprintf_s(tempdir, MAX_PATH_AND_FILE, L"\\tmp\\");
+    }
+    swprintf_s(filepath, MAX_PATH_AND_FILE, L"%sMineways2Skfb", tempdir);
+
+    return filepath;
+}
+
+static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected)
+{
+    FileList outputFileList;
+    outputFileList.count = 0;
+
+    gpEFD->radioScaleToHeight = 1;
+    gpEFD->radioScaleByCost = 0;
+    gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
+
+    int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
+    gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
+    updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+    deleteCommandBlockSet(gChangeBlockCommands);
+    gChangeBlockCommands = NULL;
+
+    wchar_t wcZip[MAX_PATH_AND_FILE];
+
+    swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
+    DeleteFile(wcZip);
+
+    HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
+	
+    for ( int i = 0; i < outputFileList.count; i++ )
+    {
+        const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
+
+        if (*updateProgress)
+        { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
+
+        ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
+
+        // delete model files if not needed
+        if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
+        {
+            DeleteFile(outputFileList.name[i]);
+        }
+    }
+    CloseZip(hz);
+
+    if (*updateProgress)
+        (*updateProgress)(1.0f);
+
+    if ( errCode != MW_NO_ERROR )
+    {
+        PopupErrorDialogs( errCode );
+    }
+
+    // Set filepath to skfb data
+    std::wstring file(wcZip);
+    std::string skfbfilepath(file.begin(), file.end());
+    skfbPData->skfbFilePath = skfbfilepath;
+
+    return 0;
+}
+
 static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected)
 {
     int on;
@@ -3343,77 +3477,15 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
 
     // get zone bounds
     SetHighlightState(on, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
-
-    // export all ellements for Skfb
-    gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
-        BLF_FLATSIDE | BLF_3D_BIT;
-
-    // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
-    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
-
-    gOptions.exportFlags |=
-        (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
-        ((gpEFD->chkHollow[gpEFD->fileType] && gpEFD->chkSuperHollow[gpEFD->fileType]) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0);
-
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS; // export groups
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS; // the norm, instead of single material
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL; // Full material (output the extra values)
-    gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_IMAGES; // Export block full texture
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES; // OBj relative coordinates
-    gOptions.exportFlags |= EXPT_BIOME; // Use biome for export. Currently only the biome at the center of the zone is supported
+    setSketchfabExportSettings();
 
     // Generate files
-    FileList outputFileList;
-    outputFileList.count = 0;
     if ( on ) {
 
         drawInvalidateUpdate(hWnd);
-        gpEFD->radioScaleToHeight = 1;
-        gpEFD->radioScaleByCost = 0;
-        gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
-        // if skfbFilePath is empty, that means that it has not been created yet or selection has changed
+
         if (skfbPData->skfbFilePath.empty()){
-            int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
-                gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-                updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
-            deleteCommandBlockSet(gChangeBlockCommands);
-            gChangeBlockCommands = NULL;
-
-            wchar_t wcZip[MAX_PATH_AND_FILE];
-
-            swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
-            DeleteFile(wcZip);
-
-            HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
-            for ( int i = 0; i < outputFileList.count; i++ )
-            {
-                const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
-
-                if (*updateProgress)
-                { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
-
-                ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
-
-                // delete model files if not needed
-                if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
-                {
-                    DeleteFile(outputFileList.name[i]);
-                }
-            }
-            CloseZip(hz);
-
-            if (*updateProgress)
-                (*updateProgress)(1.0f);
-
-            if ( errCode != MW_NO_ERROR )
-            {
-                PopupErrorDialogs( errCode );
-            }
-
-            // Set filepath to skfb data
-            std::wstring file(wcZip);
-            std::string skfbfilepath(file.begin(), file.end());
-            skfbPData->skfbFilePath = skfbfilepath;
+            processSketchfabExport(skfbPData, objFileName, terrainFileName, schemeSelected);
             setPublishSkfbData(skfbPData);
         }
 
@@ -5779,6 +5851,92 @@ static int interpretScriptLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_LINE;
     }
 
+#ifdef SKETCHFAB
+
+
+
+
+
+    strPtr = findLineDataNoCase(line, "Sketchfab token: ");
+    if (strPtr != NULL) {
+        strcpy_s(gSkfbPData.skfbApiToken, SKFB_TOKEN_LIMIT + 1, strPtr);
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+        
+    strPtr = findLineDataNoCase(line, "Sketchfab title: ");
+    if (strPtr != NULL) {
+        if(!isSketchfabFieldSizeValid(strPtr, SKFB_NAME_LIMIT))
+        {
+            saveErrorMessage(is, L"Sketchfab title is too long (max 48 char.)");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        strcpy_s(gSkfbPData.skfbName, SKFB_NAME_LIMIT + 1, strPtr);
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Sketchfab description: ");
+    if (strPtr != NULL) {
+        if(!isSketchfabFieldSizeValid(strPtr, SKFB_DESC_LIMIT))
+        {
+            saveErrorMessage(is, L"Sketchfab title is too long (max 1024 char.)");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        strcpy_s(gSkfbPData.skfbDescription, SKFB_DESC_LIMIT + 1, strPtr);
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Sketchfab tags: ");
+    if (strPtr != NULL) {
+        if(!isSketchfabFieldSizeValid(strPtr, SKFB_TAG_LIMIT))
+        {
+            saveErrorMessage(is, L"Sketchfab tags is too long (max 29 char.)");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        strcpy_s(gSkfbPData.skfbTags, SKFB_TAG_LIMIT + 1, strPtr);
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Sketchfab private");
+    if (strPtr != NULL) {
+        gSkfbPData.skfbPrivate = true;
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Sketchfab password: ");
+    if (strPtr != NULL) {
+        if(!isSketchfabFieldSizeValid(strPtr, SKFB_PASSWORD_LIMIT))
+        {
+            saveErrorMessage(is, L"Sketchfab password is too long (max 64 char.)");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        strcpy_s(gSkfbPData.skfbPassword, SKFB_PASSWORD_LIMIT + 1, strPtr);
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Publish to Sketchfab");
+    if (strPtr != NULL) {
+        if (gSkfbPData.skfbApiToken[0] == '\0') {
+            saveErrorMessage(is, L"No API Token provided.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        else if(!isSketchfabFieldSizeValid(&gSkfbPData.skfbApiToken[0], SKFB_TOKEN_LIMIT, true))
+        {
+            saveErrorMessage(is, L"Sketchfab api token is invalid (should be 32 char)");
+            return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            if (!commandSketchfabPublish(is)) {
+                saveErrorMessage(is, error);
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
+
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+	
+#endif
 
     JumpToSpawn:
     strPtr = findLineDataNoCase(line, "Jump to Spawn");

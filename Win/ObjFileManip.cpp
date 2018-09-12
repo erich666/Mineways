@@ -9340,11 +9340,12 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 
     totalVertexCount = gModel.vertexCount;
 
-    // now output, if anything found (redstone wire may not actually have any sides)
-    if (faceCount>0) {
-        // box value
-        boxIndexToLoc(anchor, boxIndex);
+	// box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+	// but is still considered a billboard - I forget why...).
+	boxIndexToLoc(anchor, boxIndex);
 
+	// now output, if anything found (redstone wire may not actually have any sides)
+    if (faceCount>0) {
         // get the four UV texture vertices, based on type of block
         saveTextureCorners(swatchLoc, type, uvIndices);
 
@@ -17376,21 +17377,20 @@ static int createBaseMaterialTexture()
                 );
         }
 
-		// if 1.13, the water is grayscale, so force it to blue before using it
-		if (gModel.mcVersion >= 13) {
-			idx = SWATCH_INDEX(15, 13);
-			SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
-			bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
-			idx = SWATCH_INDEX(15, 25);
-			SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
-			bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
-			idx = SWATCH_INDEX(8, 26);
-			SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
-			bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
-			//{ BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
-			//{ BLOCK_WATER /* water */, 15, 25,{ 0, 0, 0 } },
-			//{ BLOCK_WATER /* water */, 8, 26,{ 0, 0, 0 } },
-		}
+		// The tile for water in 1.13 is gray now, so for all worlds we need to make it blue
+		idx = SWATCH_INDEX(15, 13);
+		SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
+		bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
+		idx = SWATCH_INDEX(15, 25);
+		SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
+		bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
+		idx = SWATCH_INDEX(8, 26);
+		SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
+		bluePNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, 55, 90, 245); // water_still
+		//{ BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
+		//{ BLOCK_WATER /* water */, 15, 25,{ 0, 0, 0 } },
+		//{ BLOCK_WATER /* water */, 8, 26,{ 0, 0, 0 } },
+
 		
 		// These tiles come in grayscale and must be multiplied by some color.
         // They're grass, redstone wire, leaves, stems, etc.
