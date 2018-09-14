@@ -2459,9 +2459,14 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <BR>
 Moved to Visual Studio 2017, Windows SDK 10.0.17134.12. Added 1.13 translation - note that schematic export from 1.13 is iffy, since schematic does not support the new blocks. Added brown and red mushroom blocks "all cap" and "all stem" modes. Podzol with snow on it now properly turns snowy on its sides. Properly show bin direction for activated hoppers. Placed the active comparator output torch down two pixels to proper position. Fixed missing polygon bug of cobblestone walls connecting to fences. Connected fences together, even if of different types (this fixes one error, introduces another; nether fences should not join with wood, for example). Proper icons for the "structure block" block type is now shown. Fixed bad placement of mob head facing west (but, no, I have not added heads, it's still the pumpkin). Biome names updated, and a few temperatures updated.
 On the TODO list: The Windows 32 version crashes on startup; need to fix that so the Mac version can be made. The custom terrain packs are not updated in this version. The "[Block Test World]" is not updated with 1.13 content, nor are Color Schemes. On export, <a href="https://minecraft.gamepedia.com/Waterlogging">Waterlogging</a> is not fully supported, and 3D prints should translate waterlogged plants to be water. Chests next to each other, not allowed in 1.12.2, will cause odd, faulty exports. Bed colors are ignored. Biomes 40-50 rainfall values are not known. Sea pickles do not have their tendril when in water. Flattened coral fans don't appear to composite correctly. Turtle eggs and sea pickles don't have the exact patterns seen, nor are quite the right sizes and textures. Conduit does not have the exact textures used. The nether portal should not fill the block. Basic scripting works, but block editing is not tested (and 1.13 blocks need to be documented). These problems are all fixable, but each will take some time and effort.
+
 <LI>Version 6.01, 8/6/2018 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV601.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 Fixed dead bush bug; grass was getting converted to dead bushes, due to a data value error in nbt.cpp <I>(thanks to Ebrahim Hamama for reporting this)</I>.
+
+<LI>Version 6.02, 9/14/2018 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV602.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Fixed critical tiny model bug: models with torches were scaled down to a tiny size. Added <a href="http://mineways.com/scripting.html#sketchfab">Sketchfab scripting</a> <I>(thanks, Aur&3acute;lien!), moved to zlib 1.2.11 (sadly, doing so does not fix the 32 bit version's crash on startup in this library)</I>.
 
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
@@ -2549,7 +2554,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 4/30/2018</p>
+		<p id="lastUpdate">Last updated 9/14/2018</p>
 	</div>
 </div>
 

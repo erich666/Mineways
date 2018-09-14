@@ -1,0 +1,20 @@
+// sketchfab_upload.mwscript - how to upload to Sketchfab
+//
+// version 1.00
+//
+// Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
+// Read more about each command at http://mineways.com/scripting.html#sketchfab
+//
+// This is a script to upload your current selection to Sketchfab
+
+// This first command is critical; find yours at ="https://sketchfab.com/settings/password
+Sketchfab token: <put yours here, see line above>
+Sketchfab title: Best Castle Ever
+Sketchfab description: This is the finest castle ever made, with indoor plumbing, lighting, and wifi-enabled drawbridges.
+Sketchfab tags: castle wifi
+// optional privacy settings, if you have a Pro account:
+//Sketchfab private
+//Sketchfab password: Hogfood1!
+
+// the bit that actually does the work
+Publish to Sketchfab

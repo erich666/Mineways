@@ -1,0 +1,14 @@
+// simple_export.mwscript - A simple export script
+//
+// version 1.00
+//
+// Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
+// Read more about each command at http://mineways.com/scripting.html
+//
+// This is a simple script to export your current selection to the file c:\temp\test_export.obj
+
+Set render type: Wavefront OBJ absolute indices
+Create block faces at the borders: NO
+// If you want, you could set the selection here. If not set, the current selection in the program is used.
+//Selection location: 0, 0, 0 to 99, 255, 99
+Export for rendering: c:\temp\test_export.obj

@@ -348,7 +348,7 @@ static int setSketchfabExportSettings();
 static LPTSTR prepareSketchfabExportFile(HWND hWnd);
 static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected);
 static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainFileName, wchar_t *schemeSelected);
-static bool commandSketchfabPublish(ImportedSet& is/*,  wchar_t *error*/);
+static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error);
 static bool isSketchfabFieldSizeValid(char* field, int size, bool exact=false);
 #endif
 static void addChangeBlockCommandsToGlobalList(ImportedSet & is);
@@ -3294,8 +3294,15 @@ static bool isSketchfabFieldSizeValid(char* field, int size, bool exact)
     return true;
 }
 
-static bool commandSketchfabPublish(ImportedSet& is/*,  wchar_t *error*/)
+static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
 {
+	if (!gHighlightOn)
+	{
+		// we keep the export options ungrayed now so that they're selectable when the world is loaded
+		swprintf_s(error, 1024, L"no volume is selected for export; click and drag using the right-mouse button.");
+		return false;
+	}
+
     // Report export type and selection
     gPrintModel=0;
     is.pEFD->minxVal = is.minxVal;
@@ -3314,7 +3321,23 @@ static bool commandSketchfabPublish(ImportedSet& is/*,  wchar_t *error*/)
     setPublishSkfbData(&gSkfbPData);
     uploadToSketchfab(hInst, is.ws.hWnd);
 
-    return true;
+	// back to normal
+	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+
+	SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+	enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+	// put target depth to new depth set, if any
+	if (gTargetDepth != gpEFD->maxyVal)
+	{
+		gTargetDepth = gpEFD->minyVal;
+	}
+	//gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+	//	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+	//updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+	setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
+	setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);
+	
+	return true;
 }
 
 static int setSketchfabExportSettings()
@@ -4646,8 +4669,10 @@ static void initializeImportedSet(ImportedSet & is, ExportFileData *pEFD, wchar_
     //is.errorsFound = 0;	// until proven otherwise
     is.readingModel = true;
     is.exportTypeFound = ISE_NO_DATA_TYPE_FOUND;
-    is.minxVal = is.minyVal = is.minzVal = is.maxxVal = is.maxyVal = is.maxzVal = 0;
-    is.pEFD = pEFD;
+	// set bounds to current values, if any
+	int on = true;	// dummy
+	GetHighlightState(&on, &is.minxVal, &is.minyVal, &is.minzVal, &is.maxxVal, &is.maxyVal, &is.maxzVal);
+	is.pEFD = pEFD;
     // set by what was last exported, if anything
     if (gpEFD == &gExportViewData)
     {
@@ -5878,7 +5903,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
     if (strPtr != NULL) {
         if(!isSketchfabFieldSizeValid(strPtr, SKFB_DESC_LIMIT))
         {
-            saveErrorMessage(is, L"Sketchfab title is too long (max 1024 char.)");
+            saveErrorMessage(is, L"Sketchfab description is too long (max 1024 char.)");
             return INTERPRETER_FOUND_ERROR;
         }
         strcpy_s(gSkfbPData.skfbDescription, SKFB_DESC_LIMIT + 1, strPtr);
@@ -5926,7 +5951,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
         }
 
         if (is.processData) {
-            if (!commandSketchfabPublish(is)) {
+            if (!commandSketchfabPublish(is,error)) {
                 saveErrorMessage(is, error);
                 return INTERPRETER_FOUND_ERROR;
             }

@@ -86,6 +86,10 @@
 <UL>
 <LI><a href="#uie">Examples</a>
 </UL>
+<LI><a href="#sketchfab">Sketchfab Export Commands</a>
+<UL>
+<LI><a href="#sketchfabe">Example</a>
+</UL>
 <LI><a href="#soc">Script-only Commands</a>
 <UL>
 <LI><a href="#cbce">Change blocks command examples</a>
@@ -494,6 +498,106 @@ Export for Rendering: C:\Users\erich\Desktop\tile11.obj<br>
 </div>
 <P>
 Load your world, run this script, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely mesh. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can set this as you wish, of course. Biomes are off, since the biome is computed for the center of each tile and so will differ. Block faces at the borders being off means that the polygons where the tiles join are not output, saving on polygon count. The one gotcha (I should solve this, probably by providing a "Specify texture output name" option, or even a "Specify MTL file name" option) is that different PNG texture files are made for each separate model, but that's easy enough to fix by modifying each OBJ or MTL file.
+
+
+<h2 id="sketchfab">Sketchfab Script Commands</h2>
+
+You can use script commands to upload models to <a href="https://sketchfab.com">Sketchfab</a>, where you can set up a free account. The one element you must set is the token.
+
+<P>
+<TABLE id="scriptingTable" border="1">
+<tr>
+<td WIDTH="50%">
+<B>Script command syntax</B>
+</td>
+<td>
+<B>Notes</B>
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab token: <i>32 character token from your account</i><br>
+</td>
+<td>
+The API token from your <a href="https://sketchfab.com/settings/password">Sketchfab account</a>. Must be present. <B>Keep your API Token SECRET.</B>
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab title: <i>title</i><br>
+</td>
+<td>
+Title for your upload, maximum of 48 characters.
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab description: <i>description</i><br>
+</td>
+<td>
+Description for your upload, maximum of 1024 characters.
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab tags: <i>tag1 tag2 ...</i><br>
+</td>
+<td>
+Tags for your upload, e.g., "castle waterfall". The tags "minecraft" and "mineways" are always added. Maximum of only 29 characters.
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab private</i><br>
+</td>
+<td>
+If present, the "Private (Pro only)" box is checked.
+</td>
+</tr>
+
+<tr>
+<td>
+Sketchfab password: <i>password</i><br>
+</td>
+<td>
+If "private" is set, as above, then you can also specify a password, up to 32 characters long.
+</td>
+</tr>
+
+<tr>
+<td>
+Publish to Sketchfab</i><br>
+</td>
+<td>
+As it says. Once the API token and any other options are set, the currently-selected volume is exported to Sketchfab.
+</td>
+</tr>
+
+</TABLE>
+
+<P>
+These commands can set almost all the fields that Sketchfab permits. The one exception is "Categories" - if you want to set these, you will need to do so manually on Sketchfab's site. 
+
+
+<h3 id="sketchfabe">Example</h3>
+
+Here is an example of a script using the Sketchfab commands above.
+<P>
+<div id="code">
+Sketchfab token: <a href="https://sketchfab.com/settings/password">your 32-character API token here</a><br>
+Sketchfab title: Best Castle Ever<br>
+Sketchfab description: This is the finest castle ever made, with indoor plumbing, lighting, and wifi-enabled drawbridges.<br>
+Sketchfab tags: castle wifi<br>
+Publish to Sketchfab<br>
+</div>
+<P>
+The description and tags are optional. The proper strings are set, and then the model is uploaded to Sketchfab.
+
 
 <h2 id="soc">Script-only Commands</h2>
 
