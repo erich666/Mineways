@@ -1744,61 +1744,65 @@ RButtonUp:
                 MY_ASSERT(gAlwaysFail);
                 gPrintModel = 0;
             }
-            {
-                if ( gPrintModel == 2 )
-                {
-                    // schematic
-                    ZeroMemory(&ofn,sizeof(OPENFILENAME));
-                    ofn.lStructSize=sizeof(OPENFILENAME);
-                    ofn.hwndOwner=hWnd;
-                    ofn.lpstrFile=gExportPath;
-                    //gExportPath[0]=0;
-                    ofn.nMaxFile=MAX_PATH_AND_FILE;
-                    ofn.lpstrFilter= L"Schematic file (*.schematic)\0*.schematic\0";
-                    ofn.nFilterIndex= 1;
-                    ofn.lpstrFileTitle=NULL;
-                    ofn.nMaxFileTitle=0;
-                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-                    ofn.lpstrInitialDir = path;
-                    ofn.lpstrTitle = L"Save Model to Schematic File";
-                    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+			{
+				{
+					int savePrintModelSleaze = gPrintModel;
+					if (savePrintModelSleaze == 2)
+					{
+						// schematic
+						ZeroMemory(&ofn, sizeof(OPENFILENAME));
+						ofn.lStructSize = sizeof(OPENFILENAME);
+						ofn.hwndOwner = hWnd;
+						ofn.lpstrFile = gExportPath;
+						//gExportPath[0]=0;
+						ofn.nMaxFile = MAX_PATH_AND_FILE;
+						ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
+						ofn.nFilterIndex = 1;
+						ofn.lpstrFileTitle = NULL;
+						ofn.nMaxFileTitle = 0;
+						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+						ofn.lpstrInitialDir = path;
+						ofn.lpstrTitle = L"Save Model to Schematic File";
+						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-                    saveOK = GetSaveFileName(&ofn);
+						saveOK = GetSaveFileName(&ofn);
 
-                    gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
-                }
-                else
-                {
-                    // print model or render model - quite similar
-                    ZeroMemory(&ofn,sizeof(OPENFILENAME));
-                    ofn.lStructSize=sizeof(OPENFILENAME);
-                    ofn.hwndOwner=hWnd;
-                    ofn.lpstrFile=gExportPath;
-                    //gExportPath[0]=0;
-                    ofn.nMaxFile=MAX_PATH_AND_FILE;
-                    ofn.lpstrFilter= gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-                        L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-                    ofn.nFilterIndex=(gPrintModel ? gExportPrintData.fileType+1 : gExportViewData.fileType+1);
-                    ofn.lpstrFileTitle=NULL;
-                    ofn.nMaxFileTitle=0;
-                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-                    ofn.lpstrInitialDir = path;
-                    ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
-                    ofn.Flags=OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+						gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+					}
+					else
+					{
+						// print model or render model - quite similar
+						ZeroMemory(&ofn, sizeof(OPENFILENAME));
+						ofn.lStructSize = sizeof(OPENFILENAME);
+						ofn.hwndOwner = hWnd;
+						ofn.lpstrFile = gExportPath;
+						//gExportPath[0]=0;
+						ofn.nMaxFile = MAX_PATH_AND_FILE;
+						ofn.lpstrFilter = savePrintModelSleaze ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+							L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
+						ofn.lpstrFileTitle = NULL;
+						ofn.nMaxFileTitle = 0;
+						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+						ofn.lpstrInitialDir = path;
+						ofn.lpstrTitle = savePrintModelSleaze ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
+						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-                    saveOK = GetSaveFileName(&ofn);
-                    // save file type selected, no matter what (even on cancel); we
-                    // always set it because even if someone cancels a save, he probably still
-                    // wanted the file type chosen.
-                    if ( gPrintModel )
-                    {
-                        gExportPrintData.fileType = ofn.nFilterIndex-1;
-                    }
-                    else
-                    {
-                        gExportViewData.fileType = ofn.nFilterIndex-1;
-                    }
-                }
+						saveOK = GetSaveFileName(&ofn);
+						// save file type selected, no matter what (even on cancel); we
+						// always set it because even if someone cancels a save, he probably still
+						// wanted the file type chosen.
+						if (savePrintModelSleaze)
+						{
+							gExportPrintData.fileType = ofn.nFilterIndex - 1;
+						}
+						else
+						{
+							gExportViewData.fileType = ofn.nFilterIndex - 1;
+						}
+					}
+					gPrintModel = savePrintModelSleaze;
+				}
                 if ( saveOK )
                 {
                     // if we got this far, then previous export is off, and we also want to ask for export dialog itself.

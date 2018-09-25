@@ -754,6 +754,7 @@ static void drawPNGTileLetterR( progimage_info *dst, int x, int y, int tileSize 
 static void setColorPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned int value);
 static void addNoisePNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a, float noise );
 static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+static void multiplyClampPNGTile(progimage_info *dst, int x, int y, int tileSize, int r, int g, int b, unsigned char a);
 static void bluePNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b);
 static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize );
 static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha );
@@ -13850,33 +13851,49 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             else
             {
-                // top or bottom face: is it a dispenser or dropper?
-                if ( ( type == BLOCK_DISPENSER ) || ( type == BLOCK_DROPPER ) )
-                {
-                    switch ( dataVal )
-                    {
-                    case 0:	// dispenser/dropper facing down, can't be anything else
-                        if (faceDirection == DIRECTION_BLOCK_BOTTOM)
-                        {
-                            swatchLoc = ( type == BLOCK_DISPENSER ) ? SWATCH_INDEX( 15, 2 ) : SWATCH_INDEX( 8,15 ) ;
-                        }
-                        else
-                        {
-                            swatchLoc = SWATCH_INDEX( 14, 3 );
-                        }
-                        break;
-                    case 1: // dispenser/dropper facing up, can't be anything else
-                        if (faceDirection == DIRECTION_BLOCK_TOP)
-                        {
-                            swatchLoc = ( type == BLOCK_DISPENSER ) ? SWATCH_INDEX( 15, 2 ) : SWATCH_INDEX( 8,15 ) ;
-                        }
-                        else
-                        {
-                            swatchLoc = SWATCH_INDEX( 14, 3 );
-                        }
-                        break;
-                    }
-                }
+                // top or bottom face.
+				switch (dataVal)
+				{
+				case 0:	// dispenser/dropper facing down, can't be anything else
+					if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+					{
+						swatchLoc = (type == BLOCK_DISPENSER) ? SWATCH_INDEX(15, 2) : SWATCH_INDEX(8, 15);
+					}
+					else
+					{
+						swatchLoc = SWATCH_INDEX(14, 3);
+					}
+					break;
+				case 1: // dispenser/dropper facing up, can't be anything else
+					if (faceDirection == DIRECTION_BLOCK_TOP)
+					{
+						swatchLoc = (type == BLOCK_DISPENSER) ? SWATCH_INDEX(15, 2) : SWATCH_INDEX(8, 15);
+					}
+					else
+					{
+						swatchLoc = SWATCH_INDEX(14, 3);
+					}
+					break;
+				case 2: // North -Z
+					// no rotation needed
+					break;
+				case 3: // South +Z
+					if (uvIndices) {
+						rotateIndices(localIndices, 180);
+					}
+					break;
+				case 4: // West
+					if (uvIndices) {
+						rotateIndices(localIndices, 270);
+					}
+					break;
+				case 5: // East
+				default:
+					if (uvIndices) {
+						rotateIndices(localIndices, 90);
+					}
+					break;
+				}
             }
             break;
         case BLOCK_OBSERVER:
@@ -13925,6 +13942,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
+						flipIndicesLeftRight(localIndices);
                         rotateIndices(localIndices, 180);
                     }
                     break;
@@ -13937,8 +13955,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 3: // South +Z
                 switch (faceDirection) {
                 case DIRECTION_BLOCK_BOTTOM:
-                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
-                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+					if (uvIndices) {
+						flipIndicesLeftRight(localIndices);
+					}
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33); break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(2, 33); break;
                 default: break;
@@ -13949,7 +13971,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
-                        rotateIndices(localIndices, 90);
+						flipIndicesLeftRight(localIndices);
+						rotateIndices(localIndices, 90);
                     }
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(2, 33); break;
@@ -13964,7 +13987,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
-                        rotateIndices(localIndices, 270);
+						flipIndicesLeftRight(localIndices);
+						rotateIndices(localIndices, 270);
                     }
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(2, 33); break;
@@ -15861,28 +15885,31 @@ static void flipIndicesLeftRight( int localIndices[4] )
 
 static void rotateIndices( int localIndices[4], int angle )
 {
-    switch ( (angle+360)%360 )
+	int tmp;
+	tmp = localIndices[0];
+	switch ( (angle+360)%360 )
     {
     case 0: // do nothing
         break;
     case 90: // rotate 90 clockwise - you rotate the UV's counterclockwise
-        localIndices[0] = 1;
-        localIndices[1] = 2;
-        localIndices[2] = 3;
-        localIndices[3] = 0;
+        localIndices[0] = localIndices[1];
+        localIndices[1] = localIndices[2];
+        localIndices[2] = localIndices[3];
+		localIndices[3] = tmp;
         break;
     case 180:
-        localIndices[0] = 2;
-        localIndices[1] = 3;
-        localIndices[2] = 0;
-        localIndices[3] = 1;
+        localIndices[0] = localIndices[2];
+		localIndices[2] = tmp;
+		tmp = localIndices[1];
+		localIndices[1] = localIndices[3];
+        localIndices[3] = tmp;
         break;
     case 270:
-        localIndices[0] = 3;
-        localIndices[1] = 0;
-        localIndices[2] = 1;
-        localIndices[3] = 2;
-        break;
+		localIndices[0] = localIndices[3];
+		localIndices[3] = localIndices[2];
+		localIndices[2] = localIndices[1];
+		localIndices[1] = tmp;
+		break;
     }
 }
 
@@ -17048,7 +17075,8 @@ static int createBaseMaterialTexture()
     int keepGoing;
     int i,adj,idx;
     //int faTableCount;
-    unsigned char r,g,b,a;
+	int ir, ig, ib;
+	unsigned char r, g, b, a;
     unsigned int color;
     int useTextureImage;
     int addNoise = 0;
@@ -17445,31 +17473,49 @@ static int createBaseMaterialTexture()
             if (multTable[i].type == BLOCK_WATER)
             {
                 color = waterColor;
-            }
+			}
 
             // check if there's no override color; if not, we can indeed use the color retrieved.
             if ( (multTable[i].colorReplace[0] == 0) && (multTable[i].colorReplace[1] == 0) && (multTable[i].colorReplace[2] == 0) )
             {
-                r=(unsigned char)(color>>16);
-                g=(unsigned char)((color>>8)&0xff);
-                b=(unsigned char)(color&0xff);
+                ir=(color>>16);
+                ig=((color>>8)&0xff);
+                ib=(color&0xff);
             }
             else
             {
                 // overridden color - spruce and birch leaves, currently
-                r = multTable[i].colorReplace[0];
-                g = multTable[i].colorReplace[1];
-                b = multTable[i].colorReplace[2];
+                ir = multTable[i].colorReplace[0];
+                ig = multTable[i].colorReplace[1];
+                ib = multTable[i].colorReplace[2];
             }
             a = (unsigned char)(gBlockDefinitions[adj].alpha * 255);
 
-            idx = SWATCH_INDEX( multTable[i].col, multTable[i].row );
+			if (multTable[i].type == BLOCK_GRASS || multTable[i].type == BLOCK_TALL_GRASS || 
+				multTable[i].type == BLOCK_DOUBLE_FLOWER || multTable[i].type == BLOCK_LILY_PAD ||
+				multTable[i].type == BLOCK_LEAVES || multTable[i].type == BLOCK_AD_LEAVES)
+			{
+				// funny stuff: (A) Minecraft makes sides of blocks dimmer than tops, even under full light,
+				// (B) the color set for Grass in the color scheme is used to multiply the grayscale texture,
+				// (C) this color wants to be fairly "average" for display, but wants to be bright for multiplying
+				// this textures. So we boost it here.
+				ir = (int)(ir * 1.34);
+				ig = (int)(ig * 1.34);
+				ib = (int)(ib * 1.34);
+			}
+			
+			idx = SWATCH_INDEX( multTable[i].col, multTable[i].row );
             SWATCH_TO_COL_ROW( idx, dstCol, dstRow );
 
             // save a little work: if color is 0xffffff, no multiplication needed
-            if ( r != 255 || g != 255 || b != 255 )
+            if ( ir != 255 || ig != 255 || ib != 255 )
             {
-                multiplyPNGTile(mainprog, dstCol,dstRow, gModel.swatchSize, r, g, b, a );
+				if (ir > 255 || ig > 255 || ib > 255) {
+					multiplyClampPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, ir, ig, ib, a);
+				}
+				else {
+					multiplyPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, (unsigned char)ir, (unsigned char)ig, (unsigned char)ib, a);
+				}
             }
         }
 
@@ -19600,25 +19646,60 @@ static void addNoisePNGTile(progimage_info *dst, int x, int y, int tileSize, uns
     }
 }
 
-static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a )
+static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
-    int row, col;
-    unsigned int *di;
+	int row, col;
+	unsigned int *di;
 
-    assert( x*tileSize+tileSize-1 < (int)dst->width );
+	assert(x*tileSize + tileSize - 1 < (int)dst->width);
 
-    for ( row = 0; row < tileSize; row++ )
-    {
-        di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x*tileSize);
-        for ( col = 0; col < tileSize; col++ )
-        {
-            unsigned int value = *di;
-            unsigned char dr,dg,db,da;
-            GET_PNG_TEXEL(dr,dg,db,da, value);
-            SET_PNG_TEXEL(*di, (unsigned char)(dr * r / 255), (unsigned char)(dg * g / 255), (unsigned char)(db * b / 255), (unsigned char)(da * a / 255));
-            di++;
-        }
-    }
+	for (row = 0; row < tileSize; row++)
+	{
+		di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x * tileSize);
+		for (col = 0; col < tileSize; col++)
+		{
+			unsigned int value = *di;
+			unsigned char dr, dg, db, da;
+			GET_PNG_TEXEL(dr, dg, db, da, value);
+			SET_PNG_TEXEL(*di, (unsigned char)(dr * r / 255), (unsigned char)(dg * g / 255), (unsigned char)(db * b / 255), (unsigned char)(da * a / 255));
+			di++;
+		}
+	}
+}
+
+// more a rescale than a clamp, but that's fine
+static void multiplyClampPNGTile(progimage_info *dst, int x, int y, int tileSize, int r, int g, int b, unsigned char a)
+{
+	int row, col;
+	unsigned int *di;
+	int idr, idg, idb, imax;
+
+	assert(x*tileSize + tileSize - 1 < (int)dst->width);
+
+	for (row = 0; row < tileSize; row++)
+	{
+		di = ((unsigned int *)(&dst->image_data[0])) + ((y*tileSize + row) * dst->width + x * tileSize);
+		for (col = 0; col < tileSize; col++)
+		{
+			unsigned int value = *di;
+			unsigned char dr, dg, db, da;
+			GET_PNG_TEXEL(dr, dg, db, da, value);
+			idr = dr * r / 255;
+			idg = dg * g / 255;
+			idb = db * b / 255;
+			imax = max(idr, idg);
+			imax = max(imax, idb);
+			if (imax > 255) {
+				// scale results to be in 0-255 range and maintain hue, more or less
+				// recalculate from scratch, to avoid precision problems
+				idr = dr * r / imax;
+				idg = dg * g / imax;
+				idb = db * b / imax;
+			}
+			SET_PNG_TEXEL(*di, (unsigned char)idr, (unsigned char)idg, (unsigned char)idb, (unsigned char)(da * a / 255));
+			di++;
+		}
+	}
 }
 
 // very special purpose, for water: the blue channel wants to be the value set, the red and green get multiplied by the grayscale value of the tile

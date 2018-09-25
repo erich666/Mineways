@@ -808,7 +808,7 @@ If you cannot select Wavefront from the Import dialog, you have to activate this
 <P>
 <b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render | Render Image" from the menu and have a look.
 <P>
-<B>8) Material Conversion:</B>Material Conversion: You'll probably notice a few problems with the render: transparent objects aren't transparent, flowers and torches are on billboards, etc. At this point you have three choices: easy, easy, and hard. The easy routes are to use one of two scripts provided with the Mineways distribution: <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>, or <a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways.py</a>, created by Jonathan Edelman.
+<B>8) Material Conversion:</B>Material Conversion: You'll probably notice a few problems with the render: transparent objects aren't transparent, flowers and torches are on billboards, etc. At this point you have three choices: easy, easy, and hard. The easy routes are to use one of two scripts provided with the Mineways distribution: <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>, or <a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways.py</a>.
 
 <UL>
 <LI>
@@ -2467,6 +2467,10 @@ Fixed dead bush bug; grass was getting converted to dead bushes, due to a data v
 <LI>Version 6.02, 9/14/2018 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV602.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 Fixed critical tiny model bug: models with torches were scaled down to a tiny size. Added <a href="http://mineways.com/scripting.html#sketchfab">Sketchfab scripting</a> <I>(thanks, Aur&3acute;lien!), moved to zlib 1.2.11 (sadly, doing so does not fix the 32 bit version's crash on startup in this library)</I>.
+
+<LI>Version 6.03, 9/24/2018 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV603.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Worked around critical export bug: strange memory corruption from GetSaveFileName() that makes 3D print export not work correctly. "Fixed" by saving value before and restoring it after these calls. Ugh. Brightened grass and leaf color export to more closely match Minecraft; old code multiplied the tile's average green by its grayscale texture, when the brightest green should have been used. If too bright for you, use a color scheme to make the leaf color darker. Fixed furnace, dispenser, dropper, and observer tiles so that their tops perfectly match Minecraft's orientation.
 
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
