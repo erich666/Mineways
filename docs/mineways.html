@@ -2472,6 +2472,10 @@ Fixed critical tiny model bug: models with torches were scaled down to a tiny si
 <BR>
 Worked around critical export bug: strange memory corruption from GetSaveFileName() that makes 3D print export not work correctly. "Fixed" by saving value before and restoring it after these calls. Ugh. Brightened grass and leaf color export to more closely match Minecraft; old code multiplied the tile's average green by its grayscale texture, when the brightest green should have been used. If too bright for you, use a color scheme to make the leaf color darker. Fixed furnace, dispenser, dropper, and observer tiles so that their tops perfectly match Minecraft's orientation.
 
+<LI>Version 6.04, 10/10/2018 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV604.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Critical fix for 1.13 content: potted cactus and dragon head models were not treated properly, causing bad data interpretation. Fix [Block Test World] to show 1.13 content properly, along with other data fixes in it. Make sea pickle model sealed on the top and add the "tendrils" when in water. Update documentation about <a href="downloads.html#mac">how to run under Mac</a> and <a href="downloads.html#linux">Linux</a>. Updated custom texture packs and included bed part names in Tilemaker, which has a new minor release, 2.07. 32-bit versions removed entirely.
+
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
 <BR>
@@ -2489,6 +2493,7 @@ Worked around critical export bug: strange memory corruption from GetSaveFileNam
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
+<LI>Waterlogged stairs and slabs. When these are underwater, I do not properly pay attention to keeping them "wet", I believe.
 <LI>Go to location. Pops up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location.
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render.
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a lot of work to emulate and would soak up tons of texture memory.
@@ -2501,6 +2506,7 @@ This is the wish list, in order of personal interest and bang for the buck; if y
 <LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
 <LI>Vines really should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks, etc., they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inwards from whatever block it's in to the one it's touching, but intervening properly is tricky.
+<LI>Shulker boxes would be nice to process, as we do with chests.
 <LI><a href="http://www.minecraftforum.net/forums/mapping-and-modding/minecraft-mods/1272765-1-2-5-connected-textures-mod-v1-4-1">Connected textures</a> would give more continuous results for surfaces such as glass and bookshelves. One problem with this idea is that these are custom tiles, so this feature could be added for the default texture set, but not the various other texture packs.
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, etc. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>. That said, this option is at the bottom of the list because I think it's the wrong workflow. Normally you want to export from Mineways and then use MeshLab or other program to preview the model to make sure it looks right, then you want to upload. Not checking the model before uploading seems over-optimistic to me in most situations.
 </UL>
@@ -2558,7 +2564,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 9/14/2018</p>
+		<p id="lastUpdate">Last updated 10/10/2018</p>
 	</div>
 </div>
 

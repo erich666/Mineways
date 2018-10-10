@@ -1948,7 +1948,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
                 unsigned char dataVal = block->data[chunkIndex];
 				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13 block of some sort,
 				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-				if (is13 && (dataVal & 0x80) && (gBoxData[boxIndex].origType != BLOCK_HEAD) && (gBoxData[boxIndex].origType != BLOCK_FLOWER_POT)) {
+				if (is13 && (dataVal & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
 					gBoxData[boxIndex].data = dataVal & 0x7F;
 					blockID = gBoxData[boxIndex].origType =
 						gBoxData[boxIndex].type = block->grid[chunkIndex] | 0x100;
@@ -2231,6 +2231,16 @@ gBoxData[boxIndex].data = 0x0;
 					type = gBoxData[boxIndex].type;
 					if (type != BLOCK_AIR)
 					{
+						if (type >= NUM_BLOCKS_DEFINED) {
+							// convert to bedrock, I guess...
+							// This check is more a symptom than a cure;
+							// there seems to be some error where data gets read and is too large, for some reason.
+							// But it's flakey - seems more like uninitialized or corrupted memory. Ugh.
+							type = BLOCK_BEDROCK;
+							gBoxData[boxIndex].type = BLOCK_BEDROCK;
+							gBoxData[boxIndex].data = 0x0;
+							gBadBlocksInModel = true;
+						}
 						int flags = gBlockDefinitions[type].flags;
 						// check: is it a billboard we can export? Clear it out if so.
 						int blockProcessed = 0;
@@ -3342,6 +3352,57 @@ static int firstFaceModifier( int isFirst, int faceIndex )
         return -faceIndex;
     else
         return faceIndex;
+}
+
+// output 8 vertices of pickle top
+static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
+{
+	if (!gPrint3D && IS_WATERLOGGED(BLOCK_SEA_PICKLE, boxIndex)) {
+		float mtx[4][4];
+		int totalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry(boxIndex, BLOCK_SEA_PICKLE, 0x0, swatchLoc, swatchLoc, swatchLoc, 0,
+			DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT,
+			FLIP_Z_FACE_VERTICALLY, 0, 4, 11, 16, 8, 8);
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		translateMtx(mtx, 6.0f / 16.0f, 0.0f, 0.0f);
+		rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+		translateMtx(mtx, -6.0f / 16.0f, (shift-1.0f) / 16.0f, -2.0f / 16.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(totalVertexCount, mtx);
+
+		totalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry(boxIndex, BLOCK_SEA_PICKLE, 0x0, swatchLoc, swatchLoc, swatchLoc, 0,
+			DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT,
+			FLIP_Z_FACE_VERTICALLY, 0, 4, 11, 16, 8, 8);
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		translateMtx(mtx, 6.0f / 16.0f, 0.0f, 0.0f);
+		rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+		translateMtx(mtx, -6.0f / 16.0f, (shift-1.0f)  / 16.0f, -2.0f / 16.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(totalVertexCount, mtx);
+
+		// I would have thought the upper right part of the tendrils for the sea pickle would be used. That's this:
+		//saveBoxMultitileGeometry(boxIndex, BLOCK_SEA_PICKLE, 0x0, swatchLoc, swatchLoc, swatchLoc, 0,
+		//	DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT,
+		//	FLIP_Z_FACE_VERTICALLY, 12, 16, 11, 16, 8, 8);
+		//totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+		//identityMtx(mtx);
+		//static float x = -6.0f;
+		//static float z = -2.0f;
+		//translateToOriginMtx(mtx, boxIndex);
+		//translateMtx(mtx, -6.0f / 16.0f, 0.0f, 0.0f);
+		//rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+		//translateMtx(mtx, x / 16.0f, -1.0f / 16.0f, z / 16.0f);
+		//translateFromOriginMtx(mtx, boxIndex);
+		//transformVertices(totalVertexCount, mtx);
+	}
 }
 
 // return 1 if block processed as a billboard or true geometry
@@ -7016,44 +7077,66 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// 1,2,3,4
 		// 4x6, 4x4, 4x6, 4x7
 
+		totalVertexCount = gModel.vertexCount;
+
 		// make a pickle
 		// modify z
 		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
-		// set top:
+		// set top
 		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
 		// set bottom:
 		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
 
+		// output pickle top billboards, since we're in the water
+		outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
 		identityMtx(mtx);
 		translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
-		transformVertices(8, mtx);
+
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		transformVertices(totalVertexCount, mtx);
 
 		if (itemCount > 1) {
 			// pickle 2 - 4 high
+			totalVertexCount = gModel.vertexCount;
 			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, -1.0f);
+
 			identityMtx(mtx);
 			translateMtx(mtx, 10.0f / 16.0f, -6.0f / 16.0f, -1.0f / 16.0f);
-			transformVertices(8, mtx);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
 		}
 		if (itemCount > 2) {
 			// pickle 3 - 6 high
+			totalVertexCount = gModel.vertexCount;
 			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
 			identityMtx(mtx);
 			translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, -1.0f / 16.0f);
-			transformVertices(8, mtx);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
 		}
 		if (itemCount > 3) {
 			// pickle 4 - 7 high
+			totalVertexCount = gModel.vertexCount;
 			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
 			identityMtx(mtx);
 			translateMtx(mtx, 8.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
-			transformVertices(8, mtx);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
 		}
 
 		// if waterlogged, we put up the tendrils - TODO
@@ -17236,6 +17319,18 @@ static int createBaseMaterialTexture()
                 gModel.swatchSize*dstRow + SWATCH_BORDER + gModel.tileSize * 1 / 16 // copy from one row down
                 );
         }
+
+		// Copy middle of top of sea pickle to fill in hole in top of sea pickle
+		SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_SEA_PICKLE].txrX, gBlockDefinitions[BLOCK_SEA_PICKLE].txrY), dstCol, dstRow);
+		copyPNGArea(mainprog,
+			gModel.swatchSize*dstCol + gModel.tileSize * 5 / 16 + SWATCH_BORDER,
+			gModel.swatchSize*dstRow + gModel.tileSize * 2 / 16 + SWATCH_BORDER,
+			gModel.tileSize * 2 / 16, gModel.tileSize * 2 / 16,		// 2x2 area
+			mainprog,
+			gModel.swatchSize*dstCol + gModel.tileSize * 10 / 16 + SWATCH_BORDER,
+			gModel.swatchSize*dstRow + gModel.tileSize * 3 / 16 + SWATCH_BORDER
+			);
+
 
         // For rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
         // better fringes when bilinear interpolation is done (it's a flaw of the PNG format, that it uses unassociated alphas).

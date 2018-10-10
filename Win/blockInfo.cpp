@@ -398,8 +398,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={	// IMPORTANT: do not cha
 	{ /* 320 */ "Tube Coral Wall Fan",    0x3257CA, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 35, 0x0F, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },
 	{ /* 321 */ "Dead Coral Wall Fan",    0x857E79, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 36, 0x0F, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },
 	{ /* 322 */ "Conduit",                0xA5927A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 36, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_WATERLOG }, // TODO: really, should not export at all during 3D print
-	{ /* 322 */ "Sea Pickle",             0xA5927A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 33, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_3D_BIT | BLF_MAYWATERLOG },
-	{ /* 322 */ "Turtle Egg",             0xA5927A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 36, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_3D_BIT },
+	{ /* 323 */ "Sea Pickle",             0xA5927A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 33, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_3D_BIT | BLF_MAYWATERLOG },
+	{ /* 324 */ "Turtle Egg",             0xA5927A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 36, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_3D_BIT },
 
 	/* */
 	// Note: skip 396 if we get there, it's the BLOCK_HEAD, also skip 400, flower pot
