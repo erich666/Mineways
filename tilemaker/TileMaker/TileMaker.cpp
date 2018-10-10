@@ -237,7 +237,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.07\n");  // change version below, too
+			wprintf( L"TileMaker version 2.07a\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -257,7 +257,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.07\n");  // change version above, too
+        wprintf(L"TileMaker version 2.07a\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -537,7 +537,12 @@ int wmain(int argc, wchar_t* argv[])
         else {
             getPNGPixel(destination_ptr, gTiles[index].txrX * outputTileSize + pick_col, gTiles[index].txrY * outputTileSize + pick_row, box_color);
             for (j = 0; j < 4; j++) {
-                mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
+				if (neutral_color[j] > 0) {
+					mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
+				} else {
+					// avoid division by zero
+					mult_color[j] = 0;
+				}
             }
         }
         // we now have the multiplier color, so multiply base tile by it
@@ -798,13 +803,13 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 
 		// 16x16 is assumed, so scale up all our lo and hi values if not the case
 		if (tileSize != 16) {
-			int rescale = tileSize / 16;
-			dst_x_lo *= rescale;
-			dst_y_lo *= rescale;
-			dst_x_hi *= rescale;
-			dst_y_hi *= rescale;
-			src_x_lo *= rescale;
-			src_y_lo *= rescale;
+			int rescale = 16 / tileSize;
+			dst_x_lo /= rescale;
+			dst_y_lo /= rescale;
+			dst_x_hi /= rescale;
+			dst_y_hi /= rescale;
+			src_x_lo /= rescale;
+			src_y_lo /= rescale;
 		}
 
 		// could check that zoom factor is an integer (really should be a power of two)
