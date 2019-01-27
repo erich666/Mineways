@@ -9,6 +9,7 @@
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
 There are different major versions of Mineways. You usually want the latest version; version 1.15 can be used on older worlds.
+* **Version 6.** works on Minecraft 1.2 to 1.13 and beyond, but is 64-bit only.
 * **Version 5.** works on Minecraft 1.2 to 1.9 and beyond, adds scripting language.
 * **Version 4.** works on Minecraft 1.2 to 1.9-ish and beyond, 64-bit for large exports.
 * **Version 3.** works on Minecraft 1.2 to 1.7 worlds (Anvil, stair geometry changes, and new texturing).
