@@ -193,7 +193,7 @@ Here's basic map use:
 <H2 id="select">
 Selecting a Region
 </H2>
-To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle. Hit the space bar to automatically adjust the lower height to something reasonable, if need be.
+To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle. Hit the space bar to automatically adjust the lower height to something reasonable, if need be. <B>Pro users:</B> Using the mousewheel with the Control key down changes the lower height, with Shift down changes the max. height (this second mode can be slow, since the map is regenerated). 
 <P>
 Once you make a selection, you may get a dialog as shown below.
 <P>
@@ -932,7 +932,7 @@ Here is how to import a model and set the textures for Cinema 4D. The steps are 
 <P>
 That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
 <P>
-<b>Step 0:</b> Make sure you have the latest update of Cinema 4D, at least version R18.057. If you don't, the Mineways file may import to give you <a href="images/cinema4d_radial.png">this interesting radial pattern</a> for the texture map (I don't know why). Newer versions do not have this problem.
+<b>Step 0:</b> Make sure you have the latest update of Cinema 4D, at least version R18.057. If you don't, the Mineways file may import to give you <a href="images/cinema4d_radial.png">this interesting radial pattern</a> for the texture map (I don't know why; it appears to be a bug with Cinema 4D, as such files will display in other applications just fine). Newer versions do not have this problem.
 <P>
 <b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
 </P>
@@ -1228,7 +1228,9 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 <h2 id="mcpe">Minecraft Education Edition and Pocket Edition Support</h2>
 
-This section describes how to open a <a href="https://education.minecraft.net/">Minecraft Education Edition</a> or <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. This also includes the <a href="https://www.microsoft.com/en-us/store/p/minecraft-windows-10-edition-beta/9nblggh2jhxj">Minecraft: Windows 10 Edition Beta</a>. The format used by Minecraft Pocket/Beta and Education is different from the standard <a href="https://minecraft.net/">"classic" Minecraft</a> format (it's called LevelDB), so we have to convert to the "Classic" (NBT) format. Mineways currently can't do this conversion. Some extra steps are required to open these worlds in Mineways or in classic Minecraft.
+This section describes how to open a <a href="https://education.minecraft.net/">Minecraft Education Edition</a> or <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. This also includes the <a href="https://www.microsoft.com/en-us/store/p/minecraft-windows-10-edition-beta/9nblggh2jhxj">Minecraft: Windows 10 Edition Beta</a>. The format used by Minecraft Pocket/Beta and Education (it's called LevelDB) is different from the standard <a href="https://minecraft.net/">Java Minecraft</a> format, so we have to convert to the (NBT) format. Mineways currently can't do this conversion. Some extra steps are required to open these worlds in Mineways or in classic Minecraft.
+<P>
+Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads.
 <P>
 For consoles, you might try out <a href="https://mcctoolchest.weebly.com/tutorial.html">this utility</a>, or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>. I have not tried these myself, I have simply heard of them.
 <P>
@@ -1311,7 +1313,7 @@ If you also want to play your converted world in Minecraft, you can optionally r
 </OL>
 
 <h2 id="shortcuts">Keyboard Shortcut Keys</h2>
-Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse button for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. More on mouse controls in the <a href="#select">Selection section</a>.
+Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse click for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. Instead of using the height sliders at the top, using the mousewheel with the Control key down changes the lower height, with Shift down changes the max. height (this second mode can be slow, since the map is regenerated). More on mouse controls in the <a href="#select">Selection section</a>.
 <ul>
 <li><b>[</b> and <b>]</b> moves the lower depth up/down by one level.
 </li><li><b>Space bar</b> adjusts the bottom level to the lowest solid block visible in the selection area, plus a border of one block. Holding shift will adjust to the lowest visible block level (includes transparent blocks).
@@ -2478,6 +2480,10 @@ Worked around critical export bug: strange memory corruption from GetSaveFileNam
 <BR>
 Critical fix for 1.13 content: potted cactus and dragon head models were not treated properly, causing bad data interpretation. Fix [Block Test World] to show 1.13 content properly, along with other data fixes in it. Make sea pickle model sealed on the top and add the "tendrils" when in water. Update documentation about <a href="downloads.html#mac">how to run under Mac</a> and <a href="downloads.html#linux">Linux</a>. Updated custom texture packs and included bed part names in Tilemaker, which has a new minor release, 2.07. 32-bit versions removed entirely.
 
+<LI>Version 6.05, 1/27/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV605.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+New control: Holding the control key while using the mouse wheel changes the lower height; holding the shift key while using the mouse wheel changes the max. height (this latter mode can be slow and laggy, since the map is regenerated on each click). TileMaker 2.08: work with 8x8 tiles properly, give more information about how to continue when a tile is not a power of two, and avoid crashing when given extremely large tiles. <i>(Thanks to Bear Bear, Raoul, and Felix Brekelmans for reporting these problems and suggesting new features</I>.)
+
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
 <BR>
@@ -2496,13 +2502,15 @@ Critical fix for 1.13 content: potted cactus and dragon head models were not tre
 This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
 <LI>Waterlogged stairs and slabs. When these are underwater, I do not properly pay attention to keeping them "wet", I believe.
-<LI>Go to location. Pops up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location.
+<LI>TileMaker should handle non-power-of-two tiles, such as found in the <a href="https://www.mediafire.com/file/bjmdte5insbh6na/BPN--FLOWS+1.13.2.zip">BPN--FLOWS</a> texture pack.
+<LI>Go to location. Pops up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
 <LI>Individual texture export: I export to a single texture for a few reasons. First, it's compact - just a few versions of a single texture, vs. hundreds of tiles. Second, I <i>think</i> 3D printers prefer it (but should check...). Third, it's easier to import into Cinema 4D and Blender (now that there's a Blender and Cycles to Mineways script). But, individual textures would make mipmapping work and let people change textures easily after an export. It would also open the door to having a TIN post-process, where flat surfaces could be merged into larger triangles, making for less data to read and render.
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a lot of work to emulate and would soak up tons of texture memory.
 <LI>Add Pocket Edition/Education Edition support. Right now MCEdit properly reads such files. This turns out to be a bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
 <LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
 <LI>Biome support: get biome color and use it to change terrain's output color. Currently only the biome at the center of the export is used to set the color of all blocks in the export. The hard part is blending (and saving all the resulting textures, a potentially large number) at biome margins.
 <LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g. pumpkin and melon stems color, farmland wetness. This will use up more texture tiles, but that might be acceptable.
+<LI>Zoom out: Some people use Mineways for mapping. Being able to zoom out further has been requested. The downside: more map chunks to read so it might be slow, I'd have to mess with code I don't know well, selection could be funky. My advice is to use <a href="https://seancode.com/minutor/">Minutor</a>, which has parallelized map chunk reading and is optimized for mapping.
 <LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks fairly easy, as well as letting users make their own custom block descriptions. That said, it's a lot of work to add this.
 <LI>Full "lesser" block merging for 3D printing: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together; I recommend using <a href="http://cloud.netfabb.com">netfabb's free cloud solution</a> for basic single-color-model cleanup. Some software does poorly with the current geometry, e.g., Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
 <LI>Work on Mac and Linux: my code is very much a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
@@ -2566,7 +2574,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 11/14/2018</p>
+		<p id="lastUpdate">Last updated 1/27/2019</p>
 	</div>
 </div>
 

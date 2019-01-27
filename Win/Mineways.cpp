@@ -1014,11 +1014,35 @@ RButtonDown:
     case WM_MOUSEWHEEL:
         if (gLoaded)
         {
+			// if shift is held down, change maximum height
+			// if control is held down, change minimum height
             int zDelta=GET_WHEEL_DELTA_WPARAM(wParam);
-            // ratchet zoom up by 2x when zoom of 8 or higher is reached, so it zooms faster
-            gCurScale+=((double)zDelta/WHEEL_DELTA)*(pow(gCurScale,1.2)/gCurScale);
-            gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
-            drawInvalidateUpdate(hWnd);
+			bool useControl = (GetKeyState(VK_CONTROL) < 0);
+			if (useControl) {
+				gTargetDepth += (int)((double)zDelta / WHEEL_DELTA);
+				gTargetDepth = clamp(gTargetDepth, 0, MAP_MAX_HEIGHT);
+				setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+				GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+				SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+				enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+				REDRAW_ALL;
+			}
+			else {
+				bool useShift = (GetKeyState(VK_SHIFT) < 0);
+				if (useShift) {
+					gCurDepth += (int)((double)zDelta / WHEEL_DELTA);
+					gCurDepth = clamp(gCurDepth, 0, MAP_MAX_HEIGHT);
+					setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+					REDRAW_ALL;
+				}
+				else {
+					// The usual case
+					// ratchet zoom up by 2x when zoom of 8 or higher is reached, so it zooms faster
+					gCurScale += ((double)zDelta / WHEEL_DELTA)*(pow(gCurScale, 1.2) / gCurScale);
+					gCurScale = clamp(gCurScale, MINZOOM, MAXZOOM);
+					drawInvalidateUpdate(hWnd);
+				}
+			}
         }
         break;
     case WM_LBUTTONUP:

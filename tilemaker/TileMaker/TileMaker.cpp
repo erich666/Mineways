@@ -28,17 +28,18 @@ int trueWidth(int tileLoc);
 static void reportReadError( int rc, wchar_t *filename );
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
-static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src, int dst_x_lo, int dst_y_lo, int dst_x_hi, int dst_y_hi, int src_x_lo, int src_y_lo, float zoom);
+static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
+	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, float zoom);
 static void multPNGTileByColor(progimage_info *dst, int dst_x, int dst_y, int *color);
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
-static void getBrightestPNGPixel(progimage_info *src, int col, int row, int res, unsigned char *color, int *locc, int *locr);
+static void getBrightestPNGPixel(progimage_info *src, unsigned long col, unsigned long row, unsigned long res, unsigned char *color, int *locc, int *locr);
 static int computeVerticalTileOffset(progimage_info *src, int chosenTile);
 static int isPNGTileEmpty( progimage_info *dst, int dst_x, int dst_y );
 static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y);
 static void makeSolidTile(progimage_info *dst, int chosenTile, int solid);
 
 static void copyPNG(progimage_info *dst, progimage_info *src);
-static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info *src, int src_x_min, int src_y_min);
+static void copyPNGArea(progimage_info *dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info *src, int src_x_min, int src_y_min);
 
 typedef struct ChestData {
 	int fromX;
@@ -121,7 +122,8 @@ int wmain(int argc, wchar_t* argv[])
 	int tilesFound = 0;
 	int tilesMissingSet[TOTAL_TILES];
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
-	int outputTileSize, outputYTiles, outputXResolution, outputYResolution;
+	int outputTileSize, outputYTiles;
+	unsigned long outputXResolution, outputYResolution;
 
 	wchar_t terrainBase[MAX_PATH];
 	wchar_t terrainExtOutput[MAX_PATH];
@@ -237,12 +239,12 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.07a\n");  // change version below, too
+			wprintf( L"TileMaker version 2.08\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
 			wprintf( L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
-			wprintf( L"  -t tileSize - force a power of 2 tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
+			wprintf( L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
 			wprintf( L"  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),\n    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
 			wprintf( L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
 			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
@@ -257,7 +259,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.07a\n");  // change version above, too
+        wprintf(L"TileMaker version 2.08\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -363,11 +365,11 @@ int wmain(int argc, wchar_t* argv[])
 							readpng_cleanup(0,&tile[tilesFound]);
 
 							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
-								wprintf(L"ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors!\n", ffd.cFileName);
+								wprintf(L"ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors!\n  Operation aborted - remove or resize this file.\n", ffd.cFileName);
 								return 1;
 							}
 							if (tile[tilesFound].width > tile[tilesFound].height) {
-								wprintf(L"ERROR: file %s has a height that is less than its width.\n  This will cause copying errors!\n", ffd.cFileName);
+								wprintf(L"ERROR: file %s has a height that is less than its width.\n  This will cause copying errors!\n  Operation aborted - remove or resize this file.\n", ffd.cFileName);
 								return 1;
 							}
 						}
@@ -466,7 +468,15 @@ int wmain(int argc, wchar_t* argv[])
 		outputTileSize = forcedTileSize;
 
 		if ( verbose )
-			wprintf (L"Output texture is forced to have tiles %d pixels wide.\n", forcedTileSize);
+			wprintf (L"Output texture is forced to have tiles %d pixels wide.\n", outputTileSize);
+	}
+	else {
+		wprintf(L"Output texture will have tiles %d pixels wide.\n", outputTileSize);
+	}
+
+	// warn user of large tiles
+	if (outputTileSize > 256) {
+		wprintf(L"WARNING: with a texture tile size of %d X %d, you could be waiting a long time\n    for TileMaker to complete. Consider quitting and using the '-t tileSize'\n    option, choosing a power of two value less than this, such as 256.\n", outputTileSize, outputTileSize);
 	}
 
 	// allocate output image and fill it up
@@ -477,6 +487,13 @@ int wmain(int argc, wchar_t* argv[])
 
 	destination_ptr->width = outputXResolution;
 	destination_ptr->height = outputYResolution;
+
+	// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
+	if (destination_ptr->width > 16384 ) {
+		wprintf(L"ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n    value less than this, such as 256, 512, or 1024.\n",
+			destination_ptr->width/16, destination_ptr->width/16);
+		return 1;
+	}
 
 	if ( nobase )
 	{
@@ -509,7 +526,9 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			setBlackAlphaPNGTile( chosenTile, &tile[i] );
 		}
-		copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16));
+		if (copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
+			return 1;
+		}
 		if ( verbose )
 			wprintf (L"File %s merged.\n", gTiles[index].filename);
 	}
@@ -578,7 +597,7 @@ int wmain(int argc, wchar_t* argv[])
 		if (rc != 0)
 		{
 			// file not found
-			wprintf(L"  This error means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_double.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
+			wprintf(L"  This warning means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_double.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
 			break;
 		}
 		readpng_cleanup(0, &chestImage);
@@ -719,9 +738,9 @@ static void reportReadError( int rc, wchar_t *filename )
 // if color is black, set alpha to 0
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
 {
-	int row,col,src_start;
+	unsigned long row,col,src_start;
 	unsigned char *src_data;
-	int tileSize;
+	unsigned long tileSize;
 
 	//tile matches destination tile size - copy
 	tileSize = src->width;
@@ -745,15 +764,16 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
 	}
 }
 
-static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTile, progimage_info *src, int dst_x_lo, int dst_y_lo, int dst_x_hi, int dst_y_hi, int src_x_lo, int src_y_lo, float zoom )
+static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
+	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, float zoom )
 {
-    int row,col,src_start;
+	unsigned long row,col,src_start;
     unsigned char* dst_data;
 	unsigned char color[4];
-	int tileSize,zoomTileSize;
-	int zoomrow,zoomcol,izoom;
+	unsigned long tileSize,zoomTileSize;
+	unsigned long zoomrow,zoomcol,izoom;
 	unsigned int sumR,sumG,sumB,sumA;
-	int zoom2;
+	unsigned long zoom2;
 
 	if ( zoom == 1.0f ) // dst->width == src->width * 16 )
 	{
@@ -771,7 +791,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 			src_y_lo *= rescale;
 		}
 
-		assert( dst_y*tileSize < dst->height );	// destination can't hold tile
+		assert( dst_y*tileSize < (unsigned long)dst->height );	// destination can't hold tile
 
 		// which tile to use: get the bottommost
 		src_start = computeVerticalTileOffset( src, chosenTile );
@@ -801,15 +821,20 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 		// magnify
 		tileSize = (int)((float)dst->width / zoom)/16;
 
+		if (tileSize <= 0) {
+			wprintf(L"ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			return 1;
+		}
+
 		// 16x16 is assumed, so scale up all our lo and hi values if not the case
 		if (tileSize != 16) {
-			int rescale = 16 / tileSize;
-			dst_x_lo /= rescale;
-			dst_y_lo /= rescale;
-			dst_x_hi /= rescale;
-			dst_y_hi /= rescale;
-			src_x_lo /= rescale;
-			src_y_lo /= rescale;
+			float rescale = (float)tileSize / 16;
+			dst_x_lo = (int)((float)dst_x_lo*rescale);
+			dst_y_lo = (int)((float)dst_y_lo*rescale);
+			dst_x_hi = (int)((float)dst_x_hi*rescale);
+			dst_y_hi = (int)((float)dst_y_hi*rescale);
+			src_x_lo = (int)((float)src_x_lo*rescale);
+			src_y_lo = (int)((float)src_y_lo*rescale);
 		}
 
 		// could check that zoom factor is an integer (really should be a power of two)
@@ -832,7 +857,7 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 				}
 				for ( zoomrow = 0; zoomrow < izoom; zoomrow++ )
 				{
-					dst_data = &dst->image_data[0] + ((dst_y*zoomTileSize + row * izoom + zoomrow ) * dst->width + dst_x*zoomTileSize + col * izoom) * 4;
+					dst_data = &dst->image_data[0] + ((dst_y*zoomTileSize + row * izoom + zoomrow ) * (unsigned long)dst->width + dst_x*zoomTileSize + col * izoom) * 4;
 					for ( zoomcol = 0; zoomcol < izoom; zoomcol++ )
 					{
 						memcpy(dst_data,color,4);
@@ -898,14 +923,15 @@ static void copyPNGTile(progimage_info *dst, int dst_x, int dst_y, int chosenTil
 			}
 		}
 	}
+	return 0;
 }
 
 static void multPNGTileByColor(progimage_info *dst, int dst_x, int dst_y, int *color)
 {
-    int row, col, i;
+	unsigned long row, col, i;
     unsigned char* dst_data;
 
-    int tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / 16;
 
     for (row = 0; row < tileSize; row++)
     {
@@ -990,11 +1016,11 @@ static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *co
 	//}
 }
 
-static void getBrightestPNGPixel(progimage_info *src, int col, int row, int res, unsigned char *color, int *locc, int *locr)
+static void getBrightestPNGPixel(progimage_info *src, unsigned long col, unsigned long row, unsigned long res, unsigned char *color, int *locc, int *locr)
 {
-    int r, c;
+	unsigned long r, c;
     unsigned char testColor[4];
-    int maxSum, testSum;
+	int maxSum, testSum;
     maxSum = -1;
     color[3] = 255;
     for (r = 0; r < res; r++) {
@@ -1016,9 +1042,9 @@ static void getBrightestPNGPixel(progimage_info *src, int col, int row, int res,
 static int isPNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
-	int tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / 16;
 	unsigned char *dst_data;
-	int row, col;
+	unsigned long row, col;
 
 	for (row = 0; row < tileSize; row++)
 	{
@@ -1038,9 +1064,9 @@ static int isPNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
-	int tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / 16;
 	unsigned int *dst_data;
-	int row, col;
+	unsigned long row, col;
 
 	for (row = 0; row < tileSize; row++)
 	{
@@ -1055,11 +1081,12 @@ static void makePNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 // assumes we want to match the source to fit the destination
 static void copyPNG(progimage_info *dst, progimage_info *src)
 {
-	int row,col,zoomrow,zoomcol;
+	unsigned long row,col,zoomrow,zoomcol;
 	unsigned char *dst_data;
 	unsigned char *src_data, *src_loc;
-	int zoom,zoom2;
+	unsigned long zoom,zoom2;
 	unsigned int sumR,sumG,sumB,sumA;
+	unsigned long numrow,numcol;
 
 	if ( dst->width == src->width )
 	{
@@ -1072,19 +1099,21 @@ static void copyPNG(progimage_info *dst, progimage_info *src)
 		// check that zoom factor is an integer (really should be a power of two)
 		assert( (dst->width / src->width) == (float)((int)(dst->width / src->width)));
 		zoom = dst->width / src->width;
-		assert( dst->height >= src->height*zoom );
+		assert( (unsigned long)dst->height >= src->height*zoom );
 
 		src_data = &src->image_data[0];
-		for ( row = 0; row < src->height; row++ )
+		numrow = (unsigned long)src->height;
+		numcol = (unsigned long)src->width;
+		for ( row = 0; row < numrow; row++ )
 		{
-			dst_data = &dst->image_data[0] + row * dst->width * zoom * 4;
-			for ( col = 0; col < src->width; col++ )
+			dst_data = &dst->image_data[0] + row * (unsigned long)dst->width * zoom * 4;
+			for ( col = 0; col < numcol; col++ )
 			{
 				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
 				{
 					for ( zoomcol = 0; zoomcol < zoom; zoomcol++ )
 					{
-						memcpy(dst_data + (zoomrow * dst->width + zoomcol) * 4, src_data, 4);
+						memcpy(dst_data + (zoomrow * (unsigned long)dst->width + zoomcol) * 4, src_data, 4);
 					}
 				}
 				dst_data += zoom*4;	// move to next column
@@ -1099,14 +1128,16 @@ static void copyPNG(progimage_info *dst, progimage_info *src)
 		// check that zoom factor is an integer (really should be a power of two)
 		assert( (src->width / dst->width) == (float)((int)(src->width / dst->width)));
 		zoom = src->width / dst->width;
-		assert( dst->height*zoom >= src->height );
+		assert( (unsigned long)dst->height*zoom >= (unsigned long)src->height );
 		zoom2 = zoom * zoom;
 
 		dst_data = &dst->image_data[0];
-		for ( row = 0; row < dst->height; row++ )
+		numrow = (unsigned long)dst->height;
+		numcol = (unsigned long)dst->width;
+		for ( row = 0; row < numrow; row++ )
 		{
 			src_data = &src->image_data[0] + row * src->width * zoom * 4;
-			for ( col = 0; col < dst->width; col++ )
+			for ( col = 0; col < numcol; col++ )
 			{
 				sumR = sumG = sumB = sumA = 0;
 				for ( zoomrow = 0; zoomrow < zoom; zoomrow++ )
@@ -1131,10 +1162,10 @@ static void copyPNG(progimage_info *dst, progimage_info *src)
 	}
 }
 
-static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info *src, int src_x_min, int src_y_min)
+static void copyPNGArea(progimage_info *dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info *src, int src_x_min, int src_y_min)
 {
-    int row;
-    int dst_offset, src_offset;
+	unsigned long row;
+	unsigned long dst_offset, src_offset;
 
     for (row = 0; row < size_y; row++)
     {
@@ -1147,13 +1178,13 @@ static void copyPNGArea(progimage_info *dst, int dst_x_min, int dst_y_min, int s
 
 static void makeSolidTile(progimage_info *dst, int chosenTile, int solid)
 {
-    int row,col,dst_offset;
+	unsigned long row,col,dst_offset;
     unsigned char* dst_data;
 
     unsigned char color[4];
     double dcolor[4];
     double sum_color[3],sum;
-    int tileSize;
+	unsigned long tileSize;
 
     tileSize = dst->width / 16;
 

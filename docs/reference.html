@@ -88,8 +88,8 @@ Mineways features are explained in detail <a href="mineways.html">here</a>. Trou
 <UL>
 <LI>Left-click and drag - move around map.
 <LI>Right-click and drag - select or resize volume to export. Left-click and control-key also works.
-<LI>Middle-click - Change the lower height of the volume selected.
-<LI>Mouse wheel - zoom in and out.
+<LI>Middle-click - change the lower height of the volume selected.
+<LI>Mouse wheel - zoom in and out. Hold shift and you modify the maximum height shown; hold control and you modify the lower height.
 </UL>
 
 Upper or lower case (Shift key) does not matter for most keys:
@@ -227,26 +227,26 @@ For debugging startup problems, you'll normally never use this. Saves startup an
 
 <UL>
 <LI><b>Mineways.exe</b> - the main, 64-bit executable.
-<LI>Mineways32.exe - the 32-bit version, if the 64-bit does not run on your machine.
 <LI>terrainExt.png - the default Minecraft block tiles texture read by Mineways, if present.
 <LI>terrainExt_*.png - various popular <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a> block textures.
 <LI>docs/index.html - the starting spot for documentation; same page as <a href="http://mineways.com">mineways.com</a>.
 <LI>mineways.bat - run Mineways and first apply whatever scripting commands are in scripting/startup.mwscript (empty by default).
 <LI>mineways_debug_log.bat - run Mineways and generate a mineways_exec.log file showing diagnostics.
 <LI>mineways_without_worlds.bat - an "if startup fails" way to run Mineways; avoids reading worlds from your default location.
+<LI>mineways_min_debug.bat - run Mineways without reading worlds and generate a mineways_exec.log file showing diagnostics.
 <LI>register-Mineways-run-as-administrator.bat - run once to associate *.mwscript scripting files with Mineways.exe. More <a href="scripting.html#amfwm">here</a>.
 <LI>README.txt - some quick notes, mostly leading you to documentation.
-<LI>scripting/*.mwscript - script files for automatically controlling Mineways in various ways. View the script itself to see comments about what it does. More <a href="scripting.html">here</a>.
+<LI>scripting/*.mwscript - script files for automatically controlling Mineways in various ways. View the script itself to see comments about what it does. More about scripting <a href="scripting.html">here</a>.
 <LI>BlenderScripts/* - useful scripts for importing into Blender. More <a href="mineways.html#blender">here</a>.
-<LI>TileMaker/TileMaker.exe and TileMaker32.exe - a program to make a new terrain block texture set (terrainExt*.png) from a <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a>. More <a href="mineways.html#tilemaker">here</a>.
+<LI>TileMaker/TileMaker.exe - a program to make a new terrain block texture set (terrainExt*.png) from a <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a>. More <a href="mineways.html#tilemaker">here</a>.
 <LI>TileMaker/terrainBase.png - the basic template for textures. The same file as terrainExt.png, just to be safe.
-<LI>TileMaker/blocks - the directory where tiles (block textures) for TileMaker are put for processing. You provide the blocks you want to change.
+<LI>TileMaker/blocks - the directory where tiles (block textures) for <a href="mineways.html#tilemaker">TileMaker</a> are put for processing. You provide the blocks you want to change. Also see the _readme.txt file there.
 </UL>
 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 11/3/2016</p>
+		<p id="lastUpdate">Last updated 1/27/2019</p>
 	</div>
 </div>
 
