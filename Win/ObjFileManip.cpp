@@ -18785,6 +18785,7 @@ static int writeSchematicBox()
 				else {
 					type = BLOCK_GRASS;
 					data = 0x0;
+					retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
 				}
                 if ( gBoxData[boxIndex].type >= BLOCK_UNKNOWN )
                 {

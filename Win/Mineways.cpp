@@ -283,7 +283,7 @@ static struct {
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
+    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13 blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
     {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
 
@@ -1652,14 +1652,19 @@ RButtonUp:
                     gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
                     gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
                     wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
-                    if (loadWorld(hWnd)) {
+					int error = loadWorld(hWnd);
+                    if (error) {
                     //if (loadSchematic(pathAndFile)) {
                         // schematic world not loaded properly
                         gWorldGuide.type = WORLD_UNLOADED_TYPE;
-                        MessageBox(NULL, _T("Error: cannot read Minecraft schematic."),
-                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-
-                        return 0;
+						if (error == 100 + 5) {
+							MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported; this is a known issue (and is a lot of work to support, so don't hold your breath)."),
+								_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+						} else {
+							MessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
+								_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+						}
+						return 0;
                     }
                     UpdateWindow(hWnd);
                 }
@@ -2151,6 +2156,7 @@ RButtonUp:
         CheckUnknownBlock( false );
         ClearBlockReadCheck();
 
+		// note how this is different that the write schematic message, which notes 1.13 export problems
         MessageBox( NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
             _T("Read error"), MB_OK|MB_ICONERROR);
     }
@@ -2671,23 +2677,33 @@ static int loadSchematic(wchar_t *pathAndFile)
     // Read whole schematic in, then 
     CloseAll();
 
-#define CHECK_READ_SCHEMATIC_QUIT( b )			\
-    if ( (b) != 1 ) {						\
-        return 1;		\
+#define CHECK_READ_SCHEMATIC_QUIT( b, e )			\
+    if ( (b) != 1 ) {								\
+        return (e);		\
     }
 
-    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Width", &gWorldGuide.sch.width));
-    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height));
-    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length));
+	// arbitrarily adding 100 to error numbers to keep them different than loadWorld error numbers
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Width", &gWorldGuide.sch.width), 100 + 1);
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height), 100 + 2);
+    CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length), 100 + 3);
 
     gWorldGuide.sch.numBlocks = gWorldGuide.sch.width * gWorldGuide.sch.height * gWorldGuide.sch.length;
     if (gWorldGuide.sch.numBlocks <= 0)
-        return 1;
+        return 100 + 4;
 
     gWorldGuide.sch.blocks = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
     gWorldGuide.sch.data = (unsigned char *)malloc(gWorldGuide.sch.numBlocks);
 
-    CHECK_READ_SCHEMATIC_QUIT(GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data));
+	// explicit CHECK_READ_SCHEMATIC_QUIT( b, e ) since we want to take a corrective action
+	// This is where things will fail when the schematic is a FAWE file for 1.13 or newer. See issue https://github.com/erich666/Mineways/issues/40
+	if (GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data) != 1) {
+		// free allocated memory, as it could be a lot
+		free(gWorldGuide.sch.blocks);
+		gWorldGuide.sch.blocks = NULL;
+		free(gWorldGuide.sch.data);
+		gWorldGuide.sch.data = NULL;
+		return 100 + 5;
+	}
 
     // All data's read in! Now we let the mapping system take over and load on demand.
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
@@ -2758,7 +2774,13 @@ static int loadWorld(HWND hWnd)
         break;
 
     case WORLD_SCHEMATIC_TYPE:
-        loadSchematic(gWorldGuide.world);
+		{
+			int error = loadSchematic(gWorldGuide.world);
+			if (error) {
+				// not differentiated for now
+				return error;
+			}
+		}
         break;
 
     default:
