@@ -52,16 +52,16 @@ typedef struct BlockEntity {
 } BlockEntity;
 
 bfFile newNBT(const wchar_t *filename, int *err);
-int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int *mcversion);
-int nbtGetSpawn(bfFile bf,int *x,int *y,int *z);
-int nbtGetFileVersion(bfFile bf, int *version);
-int nbtGetFileVersionId(bfFile bf, int *versionId);
-int nbtGetFileVersionName(bfFile bf, char *versionName, int stringLength);
-int nbtGetLevelName(bfFile bf, char *levelName, int stringLength);
-int nbtGetPlayer(bfFile bf, int *px, int *py, int *pz);
-//void nbtGetRandomSeed(bfFile bf,long long *seed);
-int nbtGetSchematicWord(bfFile bf, char *field, int *value);
-int nbtGetSchematicBlocksAndData(bfFile bf, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
-void nbtClose(bfFile bf);
+int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int *mcversion);
+int nbtGetSpawn(bfFile *pbf,int *x,int *y,int *z);
+int nbtGetFileVersion(bfFile *pbf, int *version);
+int nbtGetFileVersionId(bfFile *pbf, int *versionId);
+int nbtGetFileVersionName(bfFile *pbf, char *versionName, int stringLength);
+int nbtGetLevelName(bfFile *pbf, char *levelName, int stringLength);
+int nbtGetPlayer(bfFile *pbf, int *px, int *py, int *pz);
+//void nbtGetRandomSeed(bfFile *pbf,long long *seed);
+int nbtGetSchematicWord(bfFile *pbf, char *field, int *value);
+int nbtGetSchematicBlocksAndData(bfFile *pbf, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
+void nbtClose(bfFile *pbf);
 
 #endif

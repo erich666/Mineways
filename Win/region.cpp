@@ -158,5 +158,5 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
     bf._offset = 0;
     bf.offset = &bf._offset;
 
-	return nbtGetBlocks(bf, block, data, blockLight, biome, entities, numEntities, mcversion);
+	return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcversion);
 }

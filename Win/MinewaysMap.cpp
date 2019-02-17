@@ -3674,8 +3674,8 @@ int GetSpawn(const wchar_t *world, int *x, int *y, int *z)
     int err = 0;
     bf = newNBT(filename, &err);
     if ( bf.gz == 0x0 ) return err;
-    int retcode = nbtGetSpawn(bf, x, y, z);
-    nbtClose(bf);
+    int retcode = nbtGetSpawn(&bf, x, y, z);
+    nbtClose(&bf);
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
@@ -3688,8 +3688,8 @@ int GetFileVersion(const wchar_t *world, int *version, wchar_t *fileOpened, rsiz
     int err = 0;
     bf = newNBT(fileOpened, &err);
     if (bf.gz == 0x0) return err;
-    int retcode = nbtGetFileVersion(bf, version);
-    nbtClose(bf);
+    int retcode = nbtGetFileVersion(&bf, version);
+    nbtClose(&bf);
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
@@ -3703,8 +3703,8 @@ int GetFileVersionId(const wchar_t *world, int *versionId)
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
-    int retcode = nbtGetFileVersionId(bf, versionId);
-    nbtClose(bf);
+    int retcode = nbtGetFileVersionId(&bf, versionId);
+    nbtClose(&bf);
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
@@ -3718,8 +3718,8 @@ int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
-    int retcode = nbtGetFileVersionName(bf, versionName, stringLength);
-    nbtClose(bf);
+    int retcode = nbtGetFileVersionName(&bf, versionName, stringLength);
+    nbtClose(&bf);
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
@@ -3733,8 +3733,8 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
-    int retcode = nbtGetLevelName(bf, levelName, stringLength);
-    nbtClose(bf);
+    int retcode = nbtGetLevelName(&bf, levelName, stringLength);
+    nbtClose(&bf);
     return retcode;
 }
 //void GetRandomSeed(const wchar_t *world,long long *seed)
@@ -3744,9 +3744,9 @@ int GetLevelName(const wchar_t *world, char *levelName, int stringLength)
 //    wcsncpy_s(filename,300,world,wcslen(world)+1);
 //    wcscat_s(filename,300,L"/level.dat");
 //    bf=newNBT(filename);
-//    nbtGetRandomSeed(bf,seed);
+//    nbtGetRandomSeed(&bf,seed);
 //    gMapSeed = *seed;
-//    nbtClose(bf);
+//    nbtClose(&bf);
 //
 //}
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
@@ -3760,8 +3760,8 @@ int GetPlayer(const wchar_t *world, int *px, int *py, int *pz)
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
-    int retval = nbtGetPlayer(bf, px, py, pz);
-    nbtClose(bf);
+    int retval = nbtGetPlayer(&bf, px, py, pz);
+    nbtClose(&bf);
     return retval;
 }
 
@@ -3773,8 +3773,8 @@ int GetSchematicWord(const wchar_t *schematic, char *field, int *value)
     int err = 0;
     bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
-    int retval = nbtGetSchematicWord(bf, field, value);
-    nbtClose(bf);
+    int retval = nbtGetSchematicWord(&bf, field, value);
+    nbtClose(&bf);
     return retval;
 }
 
@@ -3785,8 +3785,8 @@ int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned 
     int err = 0;
     bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
-    int retval = nbtGetSchematicBlocksAndData(bf, numBlocks, schematicBlocks, schematicBlockData);
-    nbtClose(bf);
+    int retval = nbtGetSchematicBlocksAndData(&bf, numBlocks, schematicBlocks, schematicBlockData);
+    nbtClose(&bf);
     return retval;
 }
 
