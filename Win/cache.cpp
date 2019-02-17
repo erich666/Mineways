@@ -205,6 +205,8 @@ WorldBlock* block_alloc()
     }
     else {
         ret = (WorldBlock*)malloc(sizeof(WorldBlock));
+		if (ret == NULL)
+			return NULL;
         ret->entities = NULL;
         ret->numEntities = 0;
         return ret;

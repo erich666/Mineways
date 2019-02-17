@@ -3396,6 +3396,10 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
     {
         Cache_Empty();
         block=block_alloc();
+		if (block == NULL) {
+			// oh well, out of luck
+			return NULL;
+		}
     }
     // always set
     block->rendery = -1; // force redraw
