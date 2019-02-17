@@ -15659,8 +15659,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_BONE_BLOCK:						// getSwatch
             // bit tricksy: rotate by rotating face direction itself
             newFaceDirection = faceDirection;
-            angle = 0;
-            flip = 0;
+            //angle = 0;
+            //flip = 0;
             switch (dataVal & 0xC)
             {
             default:
@@ -15676,18 +15676,18 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     newFaceDirection = DIRECTION_BLOCK_TOP;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
-                    angle = 270;
-                    flip = 1;
+                    //angle = 270;
+                    //flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
-                    angle = 90;
+                    //angle = 90;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
-                    angle = 270;
+                    //angle = 270;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 case DIRECTION_BLOCK_TOP:
-                    angle = 90;
+                    //angle = 90;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 }
@@ -15697,11 +15697,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:
-                    angle = 90;
+                    //angle = 90;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X:
-                    angle = 270;
-                    flip = 1;
+                    //angle = 270;
+                    //flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -20055,8 +20055,9 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
     unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + drow*swatchSize*dst->width + dcol*swatchSize;
 
     int row,col;
-    unsigned char or,og,ob,oa;
-    unsigned char ur,ug,ub,ua;
+	//unsigned char or,og,ob,oa;
+	unsigned char oa;
+	unsigned char ur,ug,ub,ua;
     unsigned int *coveri,*cunderi,*cdsti;
 
     for ( row = 0; row < swatchSize; row++ )
@@ -20067,7 +20068,9 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
         cdsti = dsti + offset;
         for ( col = 0; col < swatchSize; col++ )
         {
-            GET_PNG_TEXEL( or,og,ob,oa, *coveri );
+            //GET_PNG_TEXEL( or,og,ob,oa, *coveri );
+			// need only oa
+			oa = (unsigned char)(((*coveri) >> 24) & 0xff);
             GET_PNG_TEXEL( ur,ug,ub,ua, *cunderi );
 
             if ( forceSolid == FORCE_SOLID )

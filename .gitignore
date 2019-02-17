@@ -34,7 +34,7 @@ TileMaker/TileMaker/MW_BLOCKS
 TileMaker/TileMaker/code*
 TileMaker/TileMaker/make_*.bat
 TileMaker/TileMaker/output.*
-TileMaker/TileMaker/terrainBase_*
+TileMaker/TileMaker/terrainBase*
 TileMaker/TileMaker/terrainExt*
 TileMaker/Debug
 TileMaker/ipch
@@ -44,5 +44,3 @@ TileMaker/TileMaker/Debug
 TileMaker/TileMaker/ipch
 TileMaker/TileMaker/Release
 TileMaker/TileMaker/x64
-TileMaker/TileMaker/terrainBase _old1.12beta.png
-TileMaker/TileMaker/terrainBaseMarked.png
