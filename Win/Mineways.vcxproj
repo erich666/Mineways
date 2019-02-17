@@ -187,9 +187,11 @@
     <ClInclude Include="MinewaysMap.h" />
     <ClInclude Include="nbt.h" />
     <ClInclude Include="ObjFileManip.h" />
+    <ClInclude Include="PublishSkfb.h" />
     <ClInclude Include="region.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="rwpng.h" />
+    <ClInclude Include="SketchfabUploader.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="terrainExtData.h" />

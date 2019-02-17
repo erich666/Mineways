@@ -64,7 +64,7 @@ public:
                                         const bool setPrivate = false,
                                         const std::string& password = std::string())
     {
-        std::string modelid;
+        //std::string modelid;
         std::map<std::string, std::string> parameters, files;
         HWND pprogressBar = GetDlgItem(progressBar, IDC_SKFB_UPLOAD_PROGRESS);
 
@@ -175,7 +175,7 @@ std::pair<int, std::string> get(const std::string& url,
 {
     CURL *curl;
     CURLcode res;
-    std::string model_url;
+    //std::string model_url;
     std::string response;
     long http_code;
 
@@ -228,7 +228,8 @@ std::string model_url(const std::string& modelid) const {
 protected:
     std::string get_json_key(const std::string& json, const std::string& key) const {
         picojson::value v;
-        std::string err = picojson::parse(v, json);
+        //std::string err = 
+		picojson::parse(v, json);
 
         if (v.is<picojson::object>()) {
             picojson::object obj = v.get<picojson::object>();

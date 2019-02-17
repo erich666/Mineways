@@ -483,7 +483,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
     LOG_INFO(gExecutionLogfile, "execute initializeExportDialogData\n");
     initializeExportDialogData();
 #ifdef SKETCHFAB
-    // Initialize Skfb data
+    // Initialize Skfb data - not good practice, as std::string is involved
     memset(&gSkfbPData, 0, sizeof(PublishSkfbData));
 #endif
 
@@ -550,11 +550,11 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
             // Display the error message and exit the process.
             // Look up code here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms681381(v=vs.85).aspx
             if (gExecutionLogfile) {
-                sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+                sprintf_s(outputString, 1024, "Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", (int)dw);
                 LOG_INFO(gExecutionLogfile, outputString);
             }
             wchar_t wString[1024];
-            swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", dw);
+            swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", (int)dw);
             MessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         }
         else
@@ -2270,10 +2270,10 @@ static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argLis
         if (wcscmp(argList[argIndex], L"-w") == 0) {
             // found window resize
             argIndex++;
-            int valx = 0;
-            int valy = 0;
             if (argIndex < argCount) {
-                // convert next argument to an integer
+				int valx;
+				int valy;
+				// convert next argument to an integer
                 valx = _wtoi(argList[argIndex]);
                 argIndex++;
                 if (valx > 0) {
@@ -3112,6 +3112,7 @@ static int loadWorldList(HMENU menu)
             }
         } while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
     }
+	FindClose(hFind);
 
     if (count >= MAX_WORLDS)
     {
@@ -3297,33 +3298,33 @@ static void copyOverExportPrintData(ExportFileData *pEFD)
     }
 
     // copy!
-    for ( int i = 0; i < count; i++ )
-    {
-        if ( copyMtl[i] )
-        {
-            pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
-            pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
-            pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
-            pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
-        }
+	for (int i = 0; i < count; i++)
+	{
+		if (copyMtl[i])
+		{
+			pEFD->radioExportNoMaterials[dest[i]] = pEFD->radioExportNoMaterials[source];
+			pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
+			pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
+			pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+		}
 
-        // don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
-        if ( service == 0 )
-            pEFD->chkMakeZUp[dest[i]] = pEFD->chkMakeZUp[source];
+		// don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
+		if (service == 0)
+			pEFD->chkMakeZUp[dest[i]] = pEFD->chkMakeZUp[source];
 
-        pEFD->blockSizeVal[dest[i]] = pEFD->blockSizeVal[source];
+		pEFD->blockSizeVal[dest[i]] = pEFD->blockSizeVal[source];
 
-        // don't do, as this seems file type specific: chkCreateZip[FILE_TYPE_TOTAL];
-        // don't do, as this seems file type specific: chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
+		// don't do, as this seems file type specific: chkCreateZip[FILE_TYPE_TOTAL];
+		// don't do, as this seems file type specific: chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
 
-        pEFD->hollowThicknessVal[dest[i]] = pEFD->hollowThicknessVal[source];
+		pEFD->hollowThicknessVal[dest[i]] = pEFD->hollowThicknessVal[source];
 
-        // don't do, as Sculpteo sandstone stats are different than Shapeways':
-        if ( service == 0 )
-            pEFD->comboPhysicalMaterial[dest[i]] = pEFD->comboPhysicalMaterial[source];
-        // for service, don't do, as Sculpteo and Shapeways use centimeters vs. millimeters
-        if ( service == 0 )
-            pEFD->comboModelUnits[dest[i]] = pEFD->comboModelUnits[source];
+		// don't do, as Sculpteo sandstone stats are different than Shapeways':
+		if (service == 0) {
+			pEFD->comboPhysicalMaterial[dest[i]] = pEFD->comboPhysicalMaterial[source];
+			// for service, don't do, as Sculpteo and Shapeways use centimeters vs. millimeters
+			pEFD->comboModelUnits[dest[i]] = pEFD->comboModelUnits[source];
+		}
     }
 }
 
@@ -5548,8 +5549,6 @@ static int interpretImportLine(char *line, ImportedSet & is)
         }
 
         if (is.processData) {
-            is.pEFD->radioRotate0 = is.pEFD->radioRotate90 = is.pEFD->radioRotate180 = is.pEFD->radioRotate270 = 0;
-
             is.pEFD->radioRotate0 = (floatVal == 0.0f);
             is.pEFD->radioRotate90 = (floatVal == 90.0f);
             is.pEFD->radioRotate180 = (floatVal == 180.0f);
@@ -6408,13 +6407,13 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 static bool findBitToggle(char *line, ImportedSet & is, char *type, unsigned int bitLocation, unsigned int windowID, int *pRetCode)
 {
     *pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
-    char string1[100];
     char commandString[1024];
     strcpy_s(commandString, 1024, type);
     strcat_s(commandString, 1024, ":");
     char *strPtr = findLineDataNoCase(line, commandString);
     if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+		char string1[100];
+		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             wchar_t error[1024];
             wsprintf(error, L"could not find boolean value for %S command.", type);
@@ -6447,13 +6446,9 @@ static bool testChangeBlockCommand(char *line, ImportedSet & is, int *pRetCode)
     // linked list of these commands, one after another
 
     *pRetCode = INTERPRETER_FOUND_NOTHING_USEFUL;	// until proven otherwise
-    wchar_t error[1024];
-    bool keepLooking;
-    int fromBlockCount = 0;
     int fromType, fromData, fromEndType, fromEndData;
     unsigned short fromDataBits, fromEndDataBits;
     int toType, toData;
-    bool foundSomething = false;
     fromEndType = 0;	// make compiler happy
     fromEndDataBits = 0xffff; // make compiler happy
 
@@ -6465,17 +6460,20 @@ static bool testChangeBlockCommand(char *line, ImportedSet & is, int *pRetCode)
         // We need at least a from, a to, or a location
         //
         // look for "from"
-        if (strstr(strPtr, "from ") == strPtr){
+		wchar_t error[1024];
+		bool foundSomething = false;
+		if (strstr(strPtr, "from ") == strPtr){
             // found "from ", so digest it.
             foundSomething = true;
             strPtr = findLineDataNoCase(strPtr, "from ");
             MY_ASSERT(strPtr);
-            keepLooking = true;
+            bool keepLooking = true;
             boolean cbCreated = false;
-            do {
+			int fromBlockCount = 0;
+			do {
                 // is there an initial block type and optional data next?
                 // note: fromData and fromEndData really aren't used here; they're meant for "to" strings
-                strPtr = findBlockTypeAndData(strPtr, &fromType, &fromData, &fromDataBits, error);
+				strPtr = findBlockTypeAndData(strPtr, &fromType, &fromData, &fromDataBits, error);
                 if (error[0] != (wchar_t)0) {
                     saveErrorMessage(is, error); *pRetCode = INTERPRETER_FOUND_ERROR; return true;
                 }

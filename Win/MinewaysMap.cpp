@@ -182,7 +182,7 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options opts, int *hitsFound, ProgressCallback callback)
+void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, const Options opts, int *hitsFound, ProgressCallback callback)
 {
     /* We're converting between coordinate systems: 
     *
@@ -1203,7 +1203,6 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             lightComputed = true;
             color = gBlockColors[type*16+light];
         }
-        affectedByBiome = 2;
         break;
 
     case BLOCK_TALL_GRASS:
@@ -1571,7 +1570,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         int elevation;
         if ( useElevation )
         {
-            elevation = max( 0, (voxel >> 8) - 64 );	// y location
+            elevation = (voxel >> 8) - 64;	// y location
         }
         else
         {
@@ -1976,7 +1975,6 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             if (cavemode && prevy >= 0)
             {
                 seenempty=0;
-                assert(voxel>=0);
 				type = retrieveType(block, voxel);
 
                 if (type==BLOCK_LEAVES || type==BLOCK_LOG || type==BLOCK_AD_LEAVES || type==BLOCK_AD_LOG ) //special case surface trees
@@ -2811,15 +2809,16 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         trimVal = dataVal & 0x7;
         if ( trimVal < 6 )
         {
-            int bx = 0;
-            int by = 0;
-            int bz = 0;
-            addBlock = 1;
+			addBlock = 1;
 
-            // is piston extended?
+			// is piston extended?
             if ( dataVal & 0x8 )
             {
-                switch ( trimVal )
+				int bx = 0;
+				int by = 0;
+				int bz = 0;
+				
+				switch ( trimVal )
                 {
                 case 0: // pointing down
                     bx = 4+(type%2)*8;
@@ -3408,7 +3407,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
-        int x, y, z;
+        int x, z;
         int bedrockHeight = 60;
         int grassHeight = 62;
         int blockHeight = 63;
@@ -3428,7 +3427,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
                 {
                     // make the grass two blocks thick, and then "impenetrable" below, for test border code
                     block->grid[BLOCK_INDEX(x,bedrockHeight,z)] = BLOCK_BEDROCK;
-                    for ( y = bedrockHeight+1; y < grassHeight; y++ )
+                    for ( int y = bedrockHeight+1; y < grassHeight; y++ )
                         block->grid[BLOCK_INDEX(x,y,z)] = BLOCK_DIRT;
                     block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
                 }
@@ -3796,22 +3795,16 @@ int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned 
 // done from the saved colors, not from the color scheme
 void SetMapPremultipliedColors( int start )
 {
-    unsigned int color;
-    unsigned char r,g,b;
-    unsigned char ra,ga,ba;
-    float a;
-    int i;
-
-    for (i= start;i<NUM_BLOCKS_DEFINED;i++)
+    for ( int i= start;i<NUM_BLOCKS_DEFINED;i++)
     {
-        color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
-        r=(unsigned char)((color>>16)&0xff);
-        g=(unsigned char)((color>>8)&0xff);
-        b=(unsigned char)color&0xff;
-        a= gBlockDefinitions[i].alpha = gBlockDefinitions[i].read_alpha;
-        ra=(unsigned char)(r*a); //premultiply alpha
-        ga=(unsigned char)(g*a);
-        ba=(unsigned char)(b*a);
+		unsigned int color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
+		unsigned char r=(unsigned char)((color>>16)&0xff);
+		unsigned char g=(unsigned char)((color>>8)&0xff);
+		unsigned char b=(unsigned char)color&0xff;
+		float a= gBlockDefinitions[i].alpha = gBlockDefinitions[i].read_alpha;
+		unsigned char ra=(unsigned char)(r*a); //premultiply alpha
+		unsigned char ga=(unsigned char)(g*a);
+		unsigned char ba=(unsigned char)(b*a);
         gBlockDefinitions[i].pcolor=(ra<<16)|(ga<<8)|ba;
 
         // reality check: every block except the first one (air) should have *some* sort of "it exists" flag set for it.
@@ -3824,21 +3817,16 @@ void SetMapPremultipliedColors( int start )
 // done from the color scheme, as possible
 void SetMapPalette(unsigned int *palette,int num)
 {
-    unsigned char r,g,b;
-    unsigned char ra,ga,ba;
-    float a;
-    int i;
-
     gColormap++;
-    for (i=0;i<num;i++)
+    for (int i=0;i<num;i++)
     {
-        r=(unsigned char)(palette[i]>>24);
-        g=(unsigned char)(palette[i]>>16);
-        b=(unsigned char)(palette[i]>>8);
-        a=((float)(palette[i]&0xff))/255.0f;
-        ra=(unsigned char)(r*a); //premultiply alpha
-        ga=(unsigned char)(g*a);
-        ba=(unsigned char)(b*a);
+		unsigned char r=(unsigned char)(palette[i]>>24);
+		unsigned char g=(unsigned char)(palette[i]>>16);
+		unsigned char b=(unsigned char)(palette[i]>>8);
+        float a=((float)(palette[i]&0xff))/255.0f;
+		unsigned char ra=(unsigned char)(r*a); //premultiply alpha
+		unsigned char ga=(unsigned char)(g*a);
+		unsigned char ba=(unsigned char)(b*a);
         gBlockDefinitions[i].color=(r<<16)|(g<<8)|b;
         gBlockDefinitions[i].pcolor=(ra<<16)|(ga<<8)|ba;
         gBlockDefinitions[i].alpha=a;
@@ -3850,31 +3838,26 @@ void SetMapPalette(unsigned int *palette,int num)
 // for each block color, calculate light levels 0-15
 static void initColors()
 {
-    unsigned int r,g,b,i,shade;
-    double y,u,v,delta;
-    unsigned int color;
-    int rx, ry;
-
     gColorsInited=1;
-    for (i=0;i<NUM_BLOCKS_DEFINED;i++)
+    for (unsigned int i=0;i<NUM_BLOCKS_DEFINED;i++)
     {
-        color=gBlockDefinitions[i].pcolor;
-        r=color>>16;
-        g=(color>>8)&0xff;
-        b=color&0xff;
+		unsigned int color=gBlockDefinitions[i].pcolor;
+		unsigned int r=color>>16;
+		unsigned int g=(color>>8)&0xff;
+		unsigned int b=color&0xff;
         //we'll use YUV to darken the blocks.. gives a nice even
         //coloring
-        y=0.299*r+0.587*g+0.114*b;
-        u=(b-y)*0.565;
-        v=(r-y)*0.713;
-        delta=y/15;
+		double y=0.299*r+0.587*g+0.114*b;
+		double u=(b-y)*0.565;
+		double v=(r-y)*0.713;
+		double delta=y/15;
 
-        for (shade=0;shade<16;shade++)
+        for (unsigned int shade=0;shade<16;shade++)
         {
             y=shade*delta;
-            r=(unsigned int)clamp(y+1.403*v,0,255);
-            g=(unsigned int)clamp(y-0.344*u-0.714*v,0,255);
-            b=(unsigned int)clamp(y+1.770*u,0,255);
+			r=(unsigned int)clamp(y+1.403*v,0,255);
+			g=(unsigned int)clamp(y-0.344*u-0.714*v,0,255);
+			b=(unsigned int)clamp(y+1.770*u,0,255);
             gBlockColors[i*16+shade]=(r<<16)|(g<<8)|b;
         }
     }
@@ -3885,9 +3868,9 @@ static void initColors()
     gEmptyB = (unsigned char)(gBlockColors[15]&0xff);
 
     // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
-    for (rx = 0; rx < 16; ++rx)
+    for (int rx = 0; rx < 16; ++rx)
     {
-        for (ry = 0; ry < 16; ++ry)
+        for (int ry = 0; ry < 16; ++ry)
         {
             int off = (rx+ry*16)*4;
             int tone = 150;

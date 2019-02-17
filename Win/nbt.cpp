@@ -289,6 +289,8 @@ static bool hashMade = false;
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
 // hash is computed once when 1.13 data is first read in.
+// first column is high-order bit; second column is "traditional" value, as found in blockInfo.cpp
+// and https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
 { 0,   0,           0, "air", NO_PROP },
 { 0, 166,           0, "barrier", NO_PROP },
 { 0,   1,           0, "stone", NO_PROP },
@@ -336,7 +338,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  13,           0, "gravel", NO_PROP },
 { 0,  14,           0, "gold_ore", NO_PROP },
 { 0,  15,           0, "iron_ore", NO_PROP },
-{ 0,  15,           0, "coal_ore", NO_PROP },
+{ 0,  16,           0, "coal_ore", NO_PROP },
 { 0,   5,           0, "oak_wood", NO_PROP },
 { 0,   5,           1, "spruce_wood", NO_PROP },
 { 0,   5,           2, "birch_wood", NO_PROP },
@@ -639,7 +641,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 213,           0, "magma_block", NO_PROP },
 { 0, 214,           0, "nether_wart_block", NO_PROP },
 { 0, 215,           0, "red_nether_bricks", NO_PROP },
-{ 0, 216,           0, "bone_block", NO_PROP },
+{ 0, 216,           0, "bone_block", AXIS_PROP },
 { 0, 218,           0, "observer", OBSERVER_PROP },
 { 0, 219,           0, "shulker_box", NO_PROP },
 { 0, 219,           0, "white_shulker_box", NO_PROP },	// same as above, I guess?
@@ -1051,7 +1053,7 @@ static double readDouble(bfFile bf)
     }
     return fl.f;
 }
-static int skipType(bfFile bf,int type)
+static int skipType(bfFile bf, int type)
 {
     int len;
     switch (type)
@@ -1166,7 +1168,7 @@ static int skipCompound(bfFile bf)
 }
 
 // 1 they match, 0 they don't, -1 there was a read error
-static int compare(bfFile bf,char *name)
+static int compare(bfFile bf, char *name)
 {
     int ret=0;
     int len=readWord(bf);
@@ -1182,7 +1184,7 @@ static int compare(bfFile bf,char *name)
 // this finds an element in a composite list.
 // it works progressively, so it only finds elements it hasn't come
 // across yet.
-static int nbtFindElement(bfFile bf,char *name)
+static int nbtFindElement(bfFile bf, char *name)
 {
     for (;;)
     {
@@ -1258,7 +1260,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 		for (int i = 0; i < 256; i++) {
 			// wild guess as to the biome - looks like the topmost byte right now. TODO
 			int grab = 4 * i + 3;
-			biome[i] = (biomeint[grab] > 255) ? 255 : ((biomeint[grab] < 0) ? 0 : (unsigned char)biomeint[grab]);
+			biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
 		}
 	}
 
@@ -1460,8 +1462,6 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 								}
 							}
 							else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
-
-								int retcode = 0;
 								do {
 									if (bfread(bf, &type, 1) < 0) return -1;
 									if (type)
@@ -1556,6 +1556,7 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 										}
 										// frosted ice, crops, cocoa (which needs age separate)
 										else if (strcmp(token, "age") == 0) {
+											// AGE_PROP
 											// 0-3
 											age = dataVal = atoi(value);
 										}
@@ -1683,10 +1684,6 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 										}
 										// WIRE_PROP
 										else if (strcmp(token, "power") == 0) {
-											dataVal = atoi(value);
-										}
-										// AGE_PROP
-										else if (strcmp(token, "age") == 0) {
 											dataVal = atoi(value);
 										}
 										// BITES_PROP
@@ -1817,13 +1814,13 @@ int nbtGetBlocks(bfFile bf, unsigned char *buff, unsigned char *data, unsigned c
 												// unknown property, let's show it: put a break here and
 												// put text in "Actions":
 												// token is {token} and value is {value}
-												token[0] = token[0];
-												value[0] = value[0];
+												token[0] = token[0];	// here for debug
+												value[0] = value[0];	// here for debug
 											}
 										}
 #endif
 									}
-								} while (type && (retcode >= 0));
+								} while (type);
 							}
 							else if (skipType(bf, type) < 0)
 								return -18;

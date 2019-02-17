@@ -291,7 +291,6 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam
                 validateButtons(hDlg);
             }
             break;
-            break;
         case IDC_REMOVE:
             {
                 ColorManager cm;
@@ -423,7 +422,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
                     curSel=item->iItem;
                     swprintf(row,255,L"#%06x",curCS.colors[item->iItem]>>8);
                     SetDlgItemText(hDlg,IDC_CURCOLOR,row);
-                    swprintf(row,255,L"%d",curCS.colors[item->iItem]&0xff);
+                    swprintf(row,255,L"%d",(int)curCS.colors[item->iItem]&0xff);
                     SetDlgItemText(hDlg,IDC_CURALPHA,row);
                     HWND ctl=GetDlgItem(hDlg,IDC_CURCOLOR);
                     EnableWindow(ctl,TRUE);
@@ -446,7 +445,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg,UINT message,WPARAM wParam,LPARAM lPa
                 swprintf(row,255,L"#%06x",curCS.colors[info->item.iItem]>>8);
                 break;
             case 3:
-                swprintf(row,255,L"%d",curCS.colors[info->item.iItem]&0xff);
+                swprintf(row,255,L"%d",(int)curCS.colors[info->item.iItem]&0xff);
                 break;
             }
             info->item.pszText=row;

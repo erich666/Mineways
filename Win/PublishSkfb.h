@@ -145,7 +145,6 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
 
         EndDialog(hDlg, (INT_PTR)TRUE);
         return (INT_PTR)TRUE;
-        break;
     }
     case WM_COMMAND:
         switch (LOWORD(wParam))

@@ -366,8 +366,6 @@ void PrecomputeBiomeColors()
 // or 64 high or below. 
 int ComputeBiomeColor( int biome, int elevation, int isGrass )
 {
-    int color;
-
     switch ( biome & 0x7 )
     {
     case SWAMPLAND_BIOME:
@@ -397,7 +395,7 @@ int ComputeBiomeColor( int biome, int elevation, int isGrass )
     case ROOFED_FOREST_BIOME:	// forestType 3
         if ( isGrass )
         {
-            color = BiomeGrassColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation );
+            int color = BiomeGrassColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation );
             // the fefefe makes it so that carries are copied to the low bit,
             // then their magic "go to green" color offset is added in, then
             // divide by two gives a carry that will nicely go away.

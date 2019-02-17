@@ -61,7 +61,8 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
     { L"Inches", "inches", 100.0f/2.54f }
 };
 
-// if you add new blocks, also set NUM_BLOCKS_STANDARD in the blockInfo.h file
+// If you add new blocks, also set NUM_BLOCKS_STANDARD in the blockInfo.h file
+// First column "comment" number is from https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={	// IMPORTANT: do not change 256 size here. Crazy as it sounds, this is important: color schemes use this hard-wired size to copy stuff over.
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags

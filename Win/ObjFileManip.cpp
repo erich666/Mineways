@@ -227,12 +227,6 @@ typedef struct Model {
 
 static Model gModel;
 
-typedef struct CompositeSwatchPreset
-{
-    int cutoutSwatch;
-    int backgroundSwatch;
-} CompositeSwatchPreset;
-
 typedef struct FillAlpha {
     int cutout;
     int underlay;
@@ -1498,7 +1492,6 @@ static int initializeModelData()
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t *selectedTerrainFileName )
 {
     // file should be in same directory as .exe, sort of
-    wchar_t defaultTerrainFileName[MAX_PATH_AND_FILE];
     int rc=0;
 
     if ( wcslen(selectedTerrainFileName) > 0 )
@@ -1509,7 +1502,8 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
     {
         // Really, we shouldn't ever hit this branch, as the terrain file name is now always set
         // at the start. Left just in case...
-        concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
+		wchar_t defaultTerrainFileName[MAX_PATH_AND_FILE];
+		concatFileName2(defaultTerrainFileName,curDir,L"\\terrainExt.png");
         rc = readpng(pITI,defaultTerrainFileName);
     }
 
@@ -3732,7 +3726,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // this fence connects to the neighboring block, so output the fence pieces
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
-                firstFace = 0;
+                firstFace = 0;	// not necessary, but for consistency in case code is added below
             }
         }
         else
@@ -3878,7 +3872,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
-            firstFace = 0;
+            firstFace = 0;	// not necessary, but for consistency in case code is added below
         }
         break; // saveBillboardOrGeometry
 
@@ -4103,10 +4097,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // their step masks and levels. The short version: are their data values exactly the same as this block's?
                 // If so, then mask out that 1x1 side face. This then covers the easy and common case where two identical steps are
                 // next to each other and continuing.
-                int neighborData;
                 if (stepMask == 0x0)
                 {
-                    // OK, this is a 2x1 block. Does it go north-south or east-west?
+					int neighborData;
+					// OK, this is a 2x1 block. Does it go north-south or east-west?
                     if (northSouth) {
                         // Goes north-south.
                         // Check north neighbor.
@@ -6243,33 +6237,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_END_ROD:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         yrot = zrot = 0.0f;
-        dir = DIRECTION_BLOCK_TOP;
+        //dir = DIRECTION_BLOCK_TOP;
         switch ( dataVal )
         {
         case 0: // pointing down
-            dir = DIRECTION_BLOCK_BOTTOM;
+            //dir = DIRECTION_BLOCK_BOTTOM;
             zrot = 180.0f;
             break;
         case 1: // pointing up
-            dir = DIRECTION_BLOCK_TOP;
+            //dir = DIRECTION_BLOCK_TOP;
             break;
         case 2: // pointing north
-            dir = DIRECTION_BLOCK_SIDE_LO_Z;
+            //dir = DIRECTION_BLOCK_SIDE_LO_Z;
             zrot = 90.0f;
             yrot = 270.0f;
             break;
         case 3: // pointing south
-            dir = DIRECTION_BLOCK_SIDE_HI_Z;
+            //dir = DIRECTION_BLOCK_SIDE_HI_Z;
             zrot = 90.0f;
             yrot = 90.0f;
             break;
         case 4: // pointing west
-            dir = DIRECTION_BLOCK_SIDE_LO_X;
+            //dir = DIRECTION_BLOCK_SIDE_LO_X;
             zrot = 90.0f;
             yrot = 180.0f;
             break;
         case 5: // pointing east
-            dir = DIRECTION_BLOCK_SIDE_HI_X;
+            //dir = DIRECTION_BLOCK_SIDE_HI_X;
             zrot = 90.0f;
             break;
         default:
@@ -7659,8 +7653,6 @@ static unsigned short getSignificantMaterial(int type, int dataVal)
 static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3] )
 {
     FaceRecord *face;
-    int j;
-    int uvIndices[3];
     int retCode = MW_NO_ERROR;
     float rect[4];
 
@@ -7675,7 +7667,8 @@ static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int dataVal,
         !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect) )
     {
         // output the triangle
-        if ( gExportTexture )
+		int uvIndices[3];
+		if ( gExportTexture )
         {
             // get the three UV texture vertices, stored by swatch type
             uvIndices[0] = saveTextureUV( swatchLoc, type, uvs[0][X], uvs[0][Y] );
@@ -7702,7 +7695,7 @@ static int saveTriangleFace( int boxIndex, int swatchLoc, int type, int dataVal,
         face->normalIndex = gUsingTransform ? COMPUTE_NORMAL : (short)faceDirection;
 
         // get three face indices for the three corners of the triangular face, and always create each
-        for ( j = 0; j < 3; j++ )
+        for ( int j = 0; j < 3; j++ )
         {
             face->vertexIndex[j] = startVertexIndex + vindex[j];
             if (gExportTexture)
@@ -8504,19 +8497,18 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
 // rotUVs rotates the face: 0 - no rotation, 1 - 90 degrees (I forget if it's CCW or CW), 2 - 180, 3 - 270
 static int saveBoxFace( int swatchLoc, int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int reverseLoop, int rotUVs, float minu, float maxu, float minv, float maxv )
 {
-    int j;
-    int uvIndices[4];
-    int orderedUvIndices[4];
-    int retCode = MW_NO_ERROR;
+	int retCode = MW_NO_ERROR;
+	int uvIndices[4];
+	int orderedUvIndices[4];
 
     if ( gExportTexture )
     {
         // output each face
-        // get the four UV texture vertices, stored by swatch type
+		// get the four UV texture vertices, stored by swatch type
         saveRectangleTextureUVs( swatchLoc, type, minu, maxu, minv, maxv, uvIndices );
 
         // get four face indices for the four corners of the face, and always create each
-        for ( j = 0; j < 4; j++ )
+        for ( int j = 0; j < 4; j++ )
         {
             if ( reverseLoop )
             {
@@ -12735,11 +12727,12 @@ static int cornerHeights( int type, int boxIndex, float heights[4] )
     {
         // OK, compute heights.
         int i;
-        int dataHeight = gBoxData[boxIndex].data;
-        if ( dataHeight >= 8 )
-        {
-            dataHeight = 0;
-        }
+		// hmmmm, not sure what this was for, but dataHeight is no longer accessed...
+        //int dataHeight = gBoxData[boxIndex].data;
+        //if ( dataHeight >= 8 )
+        //{
+        //    dataHeight = 0;
+        //}
         for ( i = 0; i < 4; i++ )
         {
             heights[i] = computeUpperCornerHeight(type, boxIndex, i>>1, i%2);
@@ -15726,10 +15719,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
                 break;
             }
-            SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
+			SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
                 gBlockDefinitions[BLOCK_BONE_BLOCK].txrX-1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
                 gBlockDefinitions[BLOCK_BONE_BLOCK].txrX, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY);	// top
-            break;
+			break;
         
         case BLOCK_STRUCTURE_BLOCK:						// getSwatch
             // use data to figure out which type of structure block
@@ -17474,11 +17467,12 @@ static int createBaseMaterialTexture()
         // involved corrective: truly tile between double-chest front, back, top shared edges, grabbing samples from *adjacent* swatch
         for ( i = 0; i < 3; i++ )
         {
-            if (i < 3) {
+            if (i < 2) {
+				// i=0 is front at 14,1 in output, i=1 is back at 2,2 in output
                 SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 2 + i), col, row);
             }
             else {
-                // MW_DCHEST_TOP_RIGHT
+                // MW_DCHEST_TOP_RIGHT - to 10,8 (column 10, row 8, starting at 0,0) in output
                 SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 14), col, row);
             }
             // copy left edge from left side of tile
@@ -20452,7 +20446,7 @@ int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int mi
         for (int blockZ = edgestartzblock; blockZ <= edgeendzblock; blockZ++)
         {
             if (pOptions == NULL) {
-                pOptions = pOptions;
+                pOptions = gOptions;
             }
 
             int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent);

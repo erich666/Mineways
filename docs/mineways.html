@@ -156,7 +156,7 @@ Here's a view of a small portion of [Block Test World] exported to OBJ and rende
 <P>
 If you can't find your world in the list, you can select "Find your world..." at the bottom, which is the same as doing...
 <P>
-<b>File | Open...:</b> This option is for opening schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". A pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g. rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
+<b>File | Open...:</b> This option is for opening schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". A pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g. rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model. NOTE: the new schematic file format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> for 1.13 data is currently not supported in Mineways.
 <P>
 <b>File | <a id="importsettings">Import Settings:</a></b> If you've previously exported a model from your world or schematic, you can actually select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. This will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen.
 <P>
@@ -238,7 +238,7 @@ The last option is "Export Schematic", which allows you to then import your mode
 <P>
 <a id="schematic">
 Mineways' schematic export option</a> allows you to easily grab a volume of your world and turn it into a schematic file. This type of file is commonly used to share constructions among builders. Tools such as <a href="http://wiki.sk89q.com/wiki/WorldEdit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. I'd avoid it...
+<a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
 <P>
 <h3 id="g3d">Displaying with G3D</h3>
 Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default), I highly recommend the free G3D viewer. In fact, it now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look (pro tip: hold the Alt key down and use WASD to move fast in G3D). If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. Avoid <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a>, which comes with Windows 10, if you use colors; it's fine for STLs.
@@ -2484,6 +2484,11 @@ Critical fix for 1.13 content: potted cactus and dragon head models were not tre
 <BR>
 New control: Holding the control key while using the mouse wheel changes the lower height; holding the shift key while using the mouse wheel changes the max. height (this latter mode can be slow and laggy, since the map is regenerated on each click). TileMaker 2.08: work with 8x8 tiles properly, give more information about how to continue when a tile is not a power of two, and avoid crashing when given extremely large tiles. <i>(Thanks to Bear Bear, Raoul, and Felix Brekelmans for reporting these problems and suggesting new features</I>.)
 
+<LI>Version 6.06, 2/17/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV606.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Coal ore in 1.13 was getting exported as iron ore, due to a "5" that should have been a "6". Bone blocks imported from 1.13 were not getting an axis direction, due to a missing AXIS_PROP flag. The new schematic format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> crashed Mineways. No support for this new (and quite different than the previous) schematic format, but such files will generate a warning when read. A warning is now generated if 1.13 data is present when exporting a schematic (to the standard, old schematic file format). Properly tiled top of double chests so that level one mipmap looks better (i.e., for distant chests). Made many cppcheck cleanups to code.
+<i>(Thanks to Maker26 and Hubert Theodore for reporting some of these problems</I>.)
+
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
 <BR>
@@ -2574,7 +2579,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 1/27/2019</p>
+		<p id="lastUpdate">Last updated 2/16/2019</p>
 	</div>
 </div>
 
