@@ -36,7 +36,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <string.h>
 
-static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int topy,Options opts,
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int topy,Options *pOpts,
     ProgressCallback callback,float percent,int *hitsFound);
 static void blit(unsigned char *block,unsigned char *bits,int px,int py,
     double zoom,int w,int h);
@@ -182,7 +182,7 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, const Options opts, int *hitsFound, ProgressCallback callback)
+void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int *hitsFound, ProgressCallback callback)
 {
     /* We're converting between coordinate systems: 
     *
@@ -241,7 +241,7 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         // z increases west, decreases east
         for (x=0,px=-shiftx;x<=hBlocks;x++,px+=blockScale)
         {
-            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,opts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
+            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,pOpts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
             blit(blockbits,bits,px,py,zoom,w,h);
         }
     }
@@ -1675,7 +1675,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options opts,ProgressCallback callback,float percent,int *hitsFound)
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options *pOpts,ProgressCallback callback,float percent,int *hitsFound)
 {
     WorldBlock *block, *prevblock;
     int ofs=0,prevy,prevSely,blockSolid,saveHeight;
@@ -1690,18 +1690,18 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
     char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, showAll;
     unsigned char *bits;
 
-    //    if ((opts.worldType&(HELL|ENDER|SLIME))==SLIME)
+    //    if ((pOpts->worldType&(HELL|ENDER|SLIME))==SLIME)
     //            hasSlime = isSlimeChunk(bx, bz);
 
-    useBiome=!!(opts.worldType&BIOMES);
-    cavemode=!!(opts.worldType&CAVEMODE);
-    showobscured=!(opts.worldType&HIDEOBSCURED);
-    useElevation=!!(opts.worldType&DEPTHSHADING);
-    showAll=!!(opts.worldType&SHOWALL);
+    useBiome=!!(pOpts->worldType&BIOMES);
+    cavemode=!!(pOpts->worldType&CAVEMODE);
+    showobscured=!(pOpts->worldType&HIDEOBSCURED);
+    useElevation=!!(pOpts->worldType&DEPTHSHADING);
+    showAll=!!(pOpts->worldType&SHOWALL);
     // use depthshading only if biome shading is off
     //depthshading= !useBiome && useElevation;
     depthshading= useElevation;
-    lighting=!!(opts.worldType&LIGHTING);
+    lighting=!!(pOpts->worldType&LIGHTING);
     viewFilterFlags= BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |   // what's visible
         (showAll?(BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
 
@@ -1711,11 +1711,11 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
     {
         wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE-1);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
-        if (opts.worldType&HELL)
+        if (pOpts->worldType&HELL)
         {
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
         }
-        if (opts.worldType&ENDER)
+        if (pOpts->worldType&ENDER)
         {
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
@@ -1779,7 +1779,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
         bz * 16 + 15 >= gDirtyBoxMinZ && bz * 16 <= gDirtyBoxMaxZ);
 
     // already rendered?
-    if (block->rendery==maxHeight && block->renderopts==opts.worldType && block->colormap==gColormap)
+    if (block->rendery==maxHeight && block->renderopts==pOpts->worldType && block->colormap==gColormap)
     {
         if (block->rendermissing // wait, the last render was incomplete
             && Cache_Find(bx, bz+block->rendermissing) != NULL) {
@@ -1801,7 +1801,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
     }
 
     block->rendery=maxHeight;
-    block->renderopts=opts.worldType;
+    block->renderopts=pOpts->worldType;
     // if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
     // when we come back next time, the code above will note the rendering is OK.
     block->renderhilitID= isOnOrInside ? gHighlightID : 0;
@@ -1815,7 +1815,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     if (prevblock==NULL)
         block->rendermissing=1; //note no loaded block to west
-    else if (prevblock->rendery!=maxHeight || prevblock->renderopts!=opts.worldType) {
+    else if (prevblock->rendery!=maxHeight || prevblock->renderopts!=pOpts->worldType) {
         block->rendermissing=1; //note improperly rendered block to west
         prevblock = NULL; //block was rendered at a different y level, ignore
     }

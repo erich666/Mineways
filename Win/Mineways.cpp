@@ -2653,7 +2653,7 @@ static void updateProgress(float progress)
 static void draw()
 {
     if (gLoaded)
-        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,gOptions,gHitsFound,updateProgress);
+        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,&gOptions,gHitsFound,updateProgress);
     else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
