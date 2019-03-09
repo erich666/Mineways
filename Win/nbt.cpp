@@ -1305,7 +1305,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 	// read all slices that exist for this vertical block and process each
     while (nsections--)
     {	
-        unsigned char y;
+        signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf,"Y")!=1) //which section of the block stack is this?
             return 0;
@@ -1363,7 +1363,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			// walk through all elements of each Palette array element
 			int dataVal = 0;
 			// for doors
-			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed, 
+			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
 				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall;
 			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch;
 			// to avoid Release build warning =but should always be set by code in practice
@@ -1391,7 +1391,16 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 				{
 					ret = 1;
 					len = readDword(pbf); //array length
-					if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0) return -15;
+					// really need just y < 16 at this point, level y = -1 doesn't have much on it, but let's future proof it here
+					if (y >= 0 && y < 16) {
+						if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0) return -15;
+					}
+					else {
+						// dummy read - the 1.14 format has blocks at Y = -1 and Y = 16 that have no data
+						// except for BlockLight and SkyLight
+						unsigned char dummyBlockLight[16 * 16 * 128];
+						if (bfread(pbf, dummyBlockLight, len) < 0) return -15;
+					}
 				}
 				else if (strcmp(thisName, "BlockStates") == 0)
 				{
@@ -1437,7 +1446,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							if (bfread(pbf, thisBlockName, len) < 0) return -14;
 							thisBlockName[len] = 0;
 
-							if ( (type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
+							if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
 
 								len = readWord(pbf);
 								if (len < MAX_NAME_LENGTH) {
@@ -1455,7 +1464,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								if (typeIndex > -1) {
 									paletteBlockEntry[entry_index] = BlockTranslations[typeIndex].blockId;
 									paletteDataEntry[entry_index] = BlockTranslations[typeIndex].dataVal;
-								} else {
+								}
+								else {
 									// unknown type - call it bedrock, by tradition
 									paletteBlockEntry[entry_index] = 7;
 									paletteDataEntry[entry_index] = 0;
@@ -1806,10 +1816,18 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 
 #ifdef _DEBUG
 										else {
-											// ignore, not used by Mineways
+											// ignore, not used by Mineways for now, BlockTranslations[typeIndex]
 											if (strcmp(token, "distance") == 0) {} // for leaves, see https://minecraft.gamepedia.com/Leaves
 											else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
 											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore
+											else if (strcmp(token, "note") == 0) {}	// TODO 1.14 here on down
+											else if (strcmp(token, "instrument") == 0) {}
+											else if (strcmp(token, "drag") == 0) {}
+											else if (strcmp(token, "bottom") == 0) {}
+											else if (strcmp(token, "attachment") == 0) {}
+											else if (strcmp(token, "signal_fire") == 0) {}
+											else if (strcmp(token, "hanging") == 0) {}
+											else if (strcmp(token, "has_book") == 0) {}
 											else {
 												// unknown property, let's show it: put a break here and
 												// put text in "Actions":
@@ -1827,10 +1845,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						}
 						// done, so determine and fold in dataVal
 						int tf = BlockTranslations[typeIndex].translateFlags;
-						switch ( tf ) {
+						switch (tf) {
 						case SLAB_PROP:
 							// everything is fine if double is false
-							if (doubleSlab)	{
+							if (doubleSlab) {
 								// turn single slabs into double slabs
 								paletteBlockEntry[entry_index]--;
 							}
@@ -1850,7 +1868,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							}
 							break;
 						case STAIRS_PROP:
-							dataVal = (dataVal-1) | (half ? 4 : 0);
+							dataVal = (dataVal - 1) | (half ? 4 : 0);
 							break;
 						case RAIL_PROP:
 							dataVal = rails;
@@ -1973,7 +1991,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							dataVal |= powered ? 8 : 0;
 							break;
 						case TRAPDOOR_PROP:
-							dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4-dataVal);
+							dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
 							break;
 						case TALL_FLOWER_PROP:
 							// Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
@@ -2113,7 +2131,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							dataVal = ((door_facing + 3) % 4) | (eye ? 4 : 0);
 							break;
 						case COMMAND_BLOCK_PROP:
-							dataVal = dropper_facing | (conditional ? 8:0);
+							dataVal = dropper_facing | (conditional ? 8 : 0);
 							break;
 						case OBSERVER_PROP:
 							// note that powered is ignored in 1.12
@@ -2161,7 +2179,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							dataVal |= (waterlogged ? 0x10 : 0x0);
 							break;
 						case EGG_PROP:
-							dataVal |= (hatch<<2);
+							dataVal |= (hatch << 2);
 							break;
 						case TRULY_NO_PROP:
 							dataVal = 0x0;
@@ -2182,7 +2200,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			if (bigbufflen > 0 && entry_index > 0) {
 				// compute number of bits
 				int bitlength = bigbufflen / 64;
-				unsigned long int bitmask = (1<<bitlength) - 1;
+				unsigned long int bitmask = (1 << bitlength) - 1;
 
 				unsigned char *bout = buff + 16 * 16 * 16 * y;
 				unsigned char *dout = data + 16 * 16 * 16 * y;

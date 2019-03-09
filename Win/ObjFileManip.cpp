@@ -15659,8 +15659,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_BONE_BLOCK:						// getSwatch
             // bit tricksy: rotate by rotating face direction itself
             newFaceDirection = faceDirection;
-            //angle = 0;
-            //flip = 0;
+            angle = 0;
+            flip = 0;
             switch (dataVal & 0xC)
             {
             default:
@@ -15676,18 +15676,18 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     newFaceDirection = DIRECTION_BLOCK_TOP;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
-                    //angle = 270;
-                    //flip = 1;
+                    angle = 270;
+                    flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
-                    //angle = 90;
+                    angle = 90;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
-                    //angle = 270;
+                    angle = 270;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 case DIRECTION_BLOCK_TOP:
-                    //angle = 90;
+                    angle = 90;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 }
@@ -15697,11 +15697,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:
-                    //angle = 90;
+                    angle = 90;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X:
-                    //angle = 270;
-                    //flip = 1;
+                    angle = 270;
+                    flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -15722,6 +15722,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
                 gBlockDefinitions[BLOCK_BONE_BLOCK].txrX-1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
                 gBlockDefinitions[BLOCK_BONE_BLOCK].txrX, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY);	// top
+			// probably not quite right, but better than not doing this; at least all the sides, regardless of direction,
+			// follow the axis, though may be flipped vertically or horizontally (for the NS and EW axis blocks)
+			if (angle != 0 && uvIndices)
+				rotateIndices(localIndices, angle);
+			if (flip && uvIndices)
+				flipIndicesLeftRight(localIndices);
 			break;
         
         case BLOCK_STRUCTURE_BLOCK:						// getSwatch

@@ -158,13 +158,16 @@ void Cache_Empty()
         while (entry != NULL) {
             next = entry->next;
             // so hacky
-            if (entry->data->entities != NULL) {
-                free(entry->data->entities);
-                // shouldn't be needed, but for safety's sake
-                entry->data->entities = NULL;
-                entry->data->numEntities = 0;
-            }
-            free(entry->data);
+			if (entry->data != NULL) {
+				if (entry->data->entities != NULL) {
+					free(entry->data->entities);
+					// shouldn't be needed, but for safety's sake
+					entry->data->entities = NULL;
+					entry->data->numEntities = 0;
+				}
+				free(entry->data);
+				entry->data = NULL;
+			}
             free(entry);
             entry = next;
         }
@@ -173,6 +176,7 @@ void Cache_Empty()
     free(gBlockCache);
     free(gCacheHistory);
     gBlockCache = NULL;
+	gCacheHistory = NULL;
 }
 
 /* a simple malloc wrapper, based on the observation that a common
@@ -195,7 +199,7 @@ WorldBlock* block_alloc()
     if (last_block != NULL)
     {
         ret = last_block;
-        if (ret->numEntities > 0) {
+        if (ret->entities != NULL) {
             free(ret->entities);
             ret->entities = NULL;
             ret->numEntities = 0;
@@ -215,9 +219,10 @@ WorldBlock* block_alloc()
 
 void block_free(WorldBlock* block)
 {
+	// keep latest freed block available in "last_block", so free the one already there
     if (last_block != NULL)
     {
-        if (last_block->numEntities > 0) {
+        if (last_block->entities != NULL) {
             free(last_block->entities);
             last_block->entities = NULL;
             last_block->numEntities = 0;

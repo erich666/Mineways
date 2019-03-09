@@ -2944,11 +2944,13 @@ void flagUnreadableWorld(wchar_t *wcWorld, char *charWorld, int errCode)
     wchar_t msgString[1024];
     if (errCode < 0) {
         swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored, error code %d.", wcWorld, errCode);
-    }
-    else {
-        swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s could not be read, error code %d. World ignored. Please report this problem to erich@acm.org if you think it is in error.", wcWorld, errCode);
-    }
-    MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+		MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+	}
+    //else {
+		// most likely it's a directory where there is no level.dat, i.e., just some other random directory, so leave off this message.
+        //swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s could not be read, error code %d. World ignored. Please report this problem to erich@acm.org if you think it is in error.", wcWorld, errCode);
+		//MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+	//}
 }
 
 static int loadWorldList(HMENU menu)

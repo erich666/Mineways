@@ -2487,7 +2487,13 @@ New control: Holding the control key while using the mouse wheel changes the low
 <LI>Version 6.06, 2/17/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV606.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 Coal ore in 1.13 was getting exported as iron ore, due to a "5" that should have been a "6". Bone blocks imported from 1.13 were not getting an axis direction, due to a missing AXIS_PROP flag. The new schematic format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> crashed Mineways. No support for this new (and quite different than the previous) schematic format, but such files will generate a warning when read. A warning is now generated if 1.13 data is present when exporting a schematic (to the standard, old schematic file format). Properly tiled top of double chests so that level one mipmap looks better (i.e., for distant chests). Made many cppcheck cleanups to code; pass by value changed to pass by reference in world read and map display functions, which should be a bit faster.
-<i>(Thanks to Maker26 and Hubert Theodore for reporting some of these problems</I>.)
+(<I>Thanks to Maker26 and Hubert Theodore for reporting some of these problems</I>.)
+
+<LI>Version 6.07, 3/8/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV607.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+Modify reader to handle (pre) 1.14 file format change, namely, that there are now up to 18 horizontal sections and these can have -1 or 16 (out of bounds normally) for the Y value. Now Mineways can properly read pre-1.14 worlds with towers up to the maximum height without crashing.
+Turn off warning that a directory in the world saves directory is not a world, since some users intermingle world and non-world directories.
+(<I>Thanks to Justis for reporting the "bad world directory" problem</I>.)
 
 <P>
 <LI>Future Version 6.+, ?/?/201*  - possible future features:
@@ -2506,6 +2512,7 @@ Coal ore in 1.13 was getting exported as iron ore, due to a "5" that should have
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in order of personal interest and bang for the buck; if you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you <i>really</i> want a feature and I can't do it, add it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>, so I'm happy to take pull requests. 
 <UL>
+<LI>Analyze name of file given on command line. If it's a world level.dat file (or single world directory), load that world.
 <LI>Waterlogged stairs and slabs. When these are underwater, I do not properly pay attention to keeping them "wet", I believe.
 <LI>TileMaker should handle non-power-of-two tiles, such as found in the <a href="https://www.mediafire.com/file/bjmdte5insbh6na/BPN--FLOWS+1.13.2.zip">BPN--FLOWS</a> texture pack.
 <LI>Go to location. Pops up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
@@ -2579,7 +2586,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/16/2019</p>
+		<p id="lastUpdate">Last updated 3/8/2019</p>
 	</div>
 </div>
 

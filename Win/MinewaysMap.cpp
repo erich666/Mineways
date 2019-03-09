@@ -3526,12 +3526,12 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
             gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, &block->mcVersion);
             // got block successfully?
 
-            if ((gotBlock>0) && (block->numEntities > 0)) {
+            if ((gotBlock > 0) && (block->numEntities > 0)) {
                 // transfer the relevant part of the BlockEntity array to permanent block storage
-                block->entities = (BlockEntity *)malloc(block->numEntities*sizeof(BlockEntity));
+                block->entities = (BlockEntity *)malloc(block->numEntities * sizeof(BlockEntity));
 
                 if (block->entities)
-                    memcpy(block->entities, blockEntities, block->numEntities*sizeof(BlockEntity));
+                    memcpy(block->entities, blockEntities, block->numEntities * sizeof(BlockEntity));
                 else
                     // couldn't alloc data
                     return NULL;
