@@ -251,11 +251,14 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_SKFB							0x2000000
 #endif
 
+// output tile per texture (and sort by this, too)
+#define EXPT_TILE_PER_TEXTURE				0x4000000
+
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
 
 // linked to the ofn.lpstrFilter in Mineways.cpp
-// This is a variant: some viewers (e.g. Deep View) will multiply the material color by the texture;
+// This is a variant: some viewers (e.g. Deep Vie# OBJ relative coordinatesw) will multiply the material color by the texture;
 // use this variant if you notice textures getting shaded different colors.
 #define FILE_TYPE_WAVEFRONT_ABS_OBJ 0
 #define FILE_TYPE_WAVEFRONT_REL_OBJ 1
@@ -307,6 +310,11 @@ typedef struct ExportFileData
 	UINT radioExportMtlColors[FILE_TYPE_TOTAL];
 	UINT radioExportSolidTexture[FILE_TYPE_TOTAL];
 	UINT radioExportFullTexture[FILE_TYPE_TOTAL];
+	UINT radioExportTileTextures[FILE_TYPE_TOTAL];
+
+	UINT chkTextureRGB;
+	UINT chkTextureA;
+	UINT chkTextureRGBA;
 
 	// I decided to make flattening always on; the only use I've seen to not flattening is to make the torches on the
 	// Eiffel tower become yellow blocks, when not exporting textures.

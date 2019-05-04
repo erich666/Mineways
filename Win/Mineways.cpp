@@ -138,6 +138,7 @@ static int gTargetDepth=MIN_OVERWORLD_DEPTH;								//how far down the depth is 
 static ExportFileData gExportPrintData;
 static ExportFileData gExportViewData;
 static ExportFileData gExportSchematicData;
+static ExportFileData gExportSketchfabData;
 #ifdef SKETCHFAB
 static PublishSkfbData gSkfbPData;
 #endif
@@ -159,7 +160,13 @@ static int gAutocorrectDepth=1;
 
 static int gBottomControlEnabled = FALSE;
 
-static int gPrintModel = 0;	// 1 is print, 0 is render, 2 is schematic
+// export type selected in menu
+#define	RENDERING_EXPORT	0
+#define	PRINTING_EXPORT		1
+#define SCHEMATIC_EXPORT	2
+#define SKETCHFAB_EXPORT	3
+
+static int gPrintModel = RENDERING_EXPORT;
 static BOOL gExported=0;
 static TCHAR gExportPath[MAX_PATH_AND_FILE] = _T("");
 
@@ -303,13 +310,13 @@ static struct {
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
     // {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
     {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK|MB_ICONERROR},	// << 20
     {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// <<21
 };
 
 #define RUNNING_SCRIPT_STATUS_MESSAGE L"Running script commands"
 
 #define IMPORT_LINE_LENGTH	1024
+
 
 // Forward declarations of functions included in this code module:
 ATOM				MyRegisterClass(HINSTANCE hInstance);
@@ -358,6 +365,7 @@ static void initializeExportDialogData();
 static void initializePrintExportData(ExportFileData &printData);
 static void initializeViewExportData(ExportFileData &viewData);
 static void InitializeSchematicExportData(ExportFileData &schematicData);
+static void InitializeSketchfabExportData(ExportFileData &sketchfabData);
 static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSuccess);
 static bool importModelFile(wchar_t *importFile, ImportedSet & is);
 static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is);
@@ -1138,8 +1146,11 @@ RButtonUp:
                     // means lower section not really set. Don't do any warning, I guess.
                 }
             }
-            // else, test if there's something in both volumes and offer to adjust.
-            else if ( gAutocorrectDepth &&
+            // Else, test if there's something in both volumes and offer to adjust.
+			// Don't adjust if target depth is 0, at the bottom; that's the default for schematics,
+			// for example, and people want to export the whole schematic.
+			// If set otherwise to 0, it was set that way for a good reason.
+            else if ( gAutocorrectDepth && (gTargetDepth>0) &&
                 ((  gHitsFound[0] && gHitsFound[1] && ( minHeightFound < gTargetDepth ) ) ||
                 ( !gHitsFound[0] && gHitsFound[1] && ( minHeightFound > gTargetDepth) )) )
             {
@@ -1162,17 +1173,17 @@ RButtonUp:
                 }
                 else
                 {
-                    if ( gFullLow )
-                    {
-                        gFullLow = 0;
-                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
-                            gTargetDepth, minHeightFound );
-                    }
-                    else
-                    {
-                        swprintf_s(msgString,1024,L"The current selection Lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
-                            gTargetDepth, minHeightFound );
-                    }
+						if (gFullLow)
+						{
+							gFullLow = 0;
+							swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+								gTargetDepth, minHeightFound);
+						}
+						else
+						{
+							swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+								gTargetDepth, minHeightFound);
+						}
                 }
                 // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
                 // We force it here, as it's OK if it gets ignored, but we want people to see it.
@@ -1761,22 +1772,22 @@ RButtonUp:
             switch ( wmId )
             {
             case IDM_FILE_SAVEOBJ:
-                gPrintModel = 0;
+                gPrintModel = RENDERING_EXPORT;
                 break;
             case IDM_FILE_PRINTOBJ:
-                gPrintModel = 1;
+                gPrintModel = PRINTING_EXPORT;
                 break;
             case IDM_FILE_SCHEMATIC:
-                gPrintModel = 2;
+                gPrintModel = SCHEMATIC_EXPORT;
                 break;
             default:
                 MY_ASSERT(gAlwaysFail);
-                gPrintModel = 0;
+                gPrintModel = RENDERING_EXPORT;
             }
 			{
 				{
 					int savePrintModelSleaze = gPrintModel;
-					if (savePrintModelSleaze == 2)
+					if (savePrintModelSleaze == SCHEMATIC_EXPORT)
 					{
 						// schematic
 						ZeroMemory(&ofn, sizeof(OPENFILENAME));
@@ -1809,7 +1820,7 @@ RButtonUp:
 						ofn.nMaxFile = MAX_PATH_AND_FILE;
 						ofn.lpstrFilter = savePrintModelSleaze ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
 							L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
+						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1: gExportViewData.fileType + 1);
 						ofn.lpstrFileTitle = NULL;
 						ofn.nMaxFileTitle = 0;
 						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
@@ -1866,7 +1877,7 @@ RButtonUp:
                 break;
             }
             // Force it to be an rendering export: Relative obj
-            gPrintModel=0;
+            gPrintModel = SKETCHFAB_EXPORT;
             publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
 #else
 			MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
@@ -3308,6 +3319,7 @@ static void copyOverExportPrintData(ExportFileData *pEFD)
 			pEFD->radioExportMtlColors[dest[i]] = pEFD->radioExportMtlColors[source];
 			pEFD->radioExportSolidTexture[dest[i]] = pEFD->radioExportSolidTexture[source];
 			pEFD->radioExportFullTexture[dest[i]] = pEFD->radioExportFullTexture[source];
+			pEFD->radioExportTileTextures[dest[i]] = pEFD->radioExportTileTextures[source];
 		}
 
 		// don't adjust Z up if (Sculpteo vs. Shapeways) specific, i.e. if service is true
@@ -3357,7 +3369,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
 	}
 
     // Report export type and selection
-    gPrintModel=0;
+    gPrintModel=SKETCHFAB_EXPORT;
     is.pEFD->minxVal = is.minxVal;
     is.pEFD->minyVal = is.minyVal;
     is.pEFD->minzVal = is.minzVal;
@@ -3420,15 +3432,16 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
 {
     OPENFILENAME ofn;
     // Force it to be an rendering export: Relative obj
-    gPrintModel=0;
-    gExportViewData.fileType=FILE_TYPE_WAVEFRONT_REL_OBJ;
+    gPrintModel=SKETCHFAB_EXPORT;
+	// done by InitializeSketchfabExportData
+    //gExportSketchfabData.fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
     ZeroMemory(&ofn,sizeof(OPENFILENAME));
     ofn.lStructSize=sizeof(OPENFILENAME);
     ofn.hwndOwner=hWnd;
     ofn.lpstrFile=gExportPath;
     ofn.nMaxFile=MAX_PATH_AND_FILE;
 
-    ofn.nFilterIndex=gExportViewData.fileType+1;
+    ofn.nFilterIndex = gExportSketchfabData.fileType+1;
     ofn.lpstrFileTitle=NULL;
     ofn.nMaxFileTitle=0;
     ofn.lpstrInitialDir=NULL;
@@ -3512,7 +3525,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t *objFileName, wchar_t *terrainF
 
     PublishSkfbData* skfbPData = &gSkfbPData;
     // set 'export for rendering' settings
-    gpEFD = &gExportViewData;
+    gpEFD = &gExportSketchfabData;
     gOptions.exportFlags = 0x0;
     gpEFD->flags = 0x0;
 
@@ -3602,14 +3615,21 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     int on;
     int retCode = 0;
 
-    if ( printModel == 2 )
-    {
-        // schematic file - treat sort of like a render
-        gpEFD = &gExportSchematicData;
-        gOptions.exportFlags = 0x0;
-        gpEFD->flags = 0x0;
-    }
-    else if ( printModel == 1 )
+	if (printModel == SKETCHFAB_EXPORT)
+	{
+		// sketchfab file - treat sort of like a render
+		gpEFD = &gExportSketchfabData;
+		gOptions.exportFlags = 0x0;
+		gpEFD->flags = 0x0;
+	}
+	else if (printModel == SCHEMATIC_EXPORT)
+	{
+		// schematic file - treat sort of like a render
+		gpEFD = &gExportSchematicData;
+		gOptions.exportFlags = 0x0;
+		gpEFD->flags = 0x0;
+	}
+	else if (printModel == PRINTING_EXPORT)
     {
         // print
         gpEFD = &gExportPrintData;
@@ -3618,6 +3638,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     }
     else
     {
+		MY_ASSERT(printModel == RENDERING_EXPORT);
         // render
         gpEFD = &gExportViewData;
         gOptions.exportFlags = 0x0;
@@ -3696,12 +3717,16 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     {
         gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
-    else if ( gpEFD->radioExportFullTexture[gpEFD->fileType] == 1 )
-    {
-        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
-        // TODO: if we're *viewing* full textures, output all the billboards!
-        //  gOptions.saveFilterFlags |= BLF_SMALL_BILLBOARD;
-    }
+	else if (gpEFD->radioExportFullTexture[gpEFD->fileType] == 1)
+	{
+		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+		// TODO: if we're *viewing* full textures, output all the billboards!
+		//  gOptions.saveFilterFlags |= BLF_SMALL_BILLBOARD;
+	}
+	else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
+	{
+		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_TILE_PER_TEXTURE;
+	}
 
     gOptions.exportFlags |=
         (gpEFD->chkFillBubbles ? EXPT_FILL_BUBBLES : 0x0) |
@@ -4022,7 +4047,8 @@ static void initializeExportDialogData()
 {
     initializePrintExportData(gExportPrintData);
     initializeViewExportData(gExportViewData);
-    InitializeSchematicExportData(gExportSchematicData);
+	InitializeSchematicExportData(gExportSchematicData);
+	InitializeSketchfabExportData(gExportSketchfabData);
 }
 
 static void initializePrintExportData(ExportFileData &printData)
@@ -4047,7 +4073,12 @@ static void initializePrintExportData(ExportFileData &printData)
     // might as well export color with OBJ and binary STL - nice for previewing
     INIT_ALL_FILE_TYPES(printData.radioExportMtlColors, 0, 0, 1, 1, 0, 0, 0);
     INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
+	INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
+	INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
+
+	printData.chkTextureRGB = 1;
+	printData.chkTextureA = 0;
+	printData.chkTextureRGBA = 0;
 
     printData.chkMergeFlattop = 1;
     // Shapeways imports VRML files and displays them with Y up, that is, it
@@ -4111,8 +4142,8 @@ static void initializePrintExportData(ExportFileData &printData)
 
     // materials selected
     INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
-    // defaults: for Sculpteo OBJ, cm; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_CENTIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
+    // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
+    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
     printData.flags = EXPT_3DPRINT;
 }
@@ -4133,9 +4164,14 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.radioExportNoMaterials,  0, 0, 0, 0, 1, 0, 1);  
     INIT_ALL_FILE_TYPES( viewData.radioExportMtlColors,    0, 0, 1, 1, 0, 0, 0);  
     INIT_ALL_FILE_TYPES( viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);  
-    INIT_ALL_FILE_TYPES( viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 1, 0);  
+	INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
+	INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
 
-    viewData.chkExportAll = 1; 
+	viewData.chkTextureRGB = 1;
+	viewData.chkTextureA = 1;
+	viewData.chkTextureRGBA = 1;
+	
+	viewData.chkExportAll = 1;
     // for renderers, assume Y is up, which is the norm
     INIT_ALL_FILE_TYPES( viewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0);  
 
@@ -4189,6 +4225,15 @@ static void InitializeSchematicExportData(ExportFileData &schematicData)
     schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
     schematicData.chkMergeFlattop = 0;
 }
+
+static void InitializeSketchfabExportData(ExportFileData &sketchfabData)
+{
+	//////////////////////////////////////////////////////
+	// copy sketchfab data from view, and change what's needed
+	initializeViewExportData(sketchfabData);
+	sketchfabData.fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;	// always
+}
+
 
 // Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -5320,6 +5365,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             "solid", // "Export solid material colors only (no textures)",
             "richer", // "Export richer color textures",
             "full", // "Export full color texture patterns"
+			"tiles" // "Export tiles for textures"
         };
         for (i = 0; i < 4; i++)
         {
@@ -5336,8 +5382,9 @@ static int interpretImportLine(char *line, ImportedSet & is)
             is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 0;
             is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 0;
             is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 0;
-            is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
-            switch (i)
+			is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
+			is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 0;
+			switch (i)
             {
             case 0:
                 is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 1;
@@ -5348,11 +5395,13 @@ static int interpretImportLine(char *line, ImportedSet & is)
             case 2:
                 is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 1;
                 break;
-            case 3:
-                is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 1;
-                break;
-            default:
-            case 4:
+			case 3:
+				is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 1;
+				break;
+			case 4:
+				is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
+				break;
+			default:
                 break;
             }
         }
@@ -5928,10 +5977,6 @@ static int interpretScriptLine(char *line, ImportedSet & is)
     }
 
 #ifdef SKETCHFAB
-
-
-
-
 
     strPtr = findLineDataNoCase(line, "Sketchfab token: ");
     if (strPtr != NULL) {
@@ -7351,7 +7396,7 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
         return false;
     }
 
-    // 0 - render, 1 - 3d print, 2 - schematic
+    // 0 - render, 1 - 3d print, 2 - schematic (,3 - sketchfab, but that should not reach here)
     gPrintModel = fileMode;
 
     wchar_t wcharFileName[MAX_PATH_AND_FILE];

@@ -113,12 +113,18 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_CREATE_ZIP,epd.chkCreateZip[epd.fileType]);
             CheckDlgButton(hDlg,IDC_CREATE_FILES,epd.chkCreateModelFiles[epd.fileType]);
 
-            CheckDlgButton(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS,epd.radioExportNoMaterials[epd.fileType]);
-            CheckDlgButton(hDlg,IDC_RADIO_EXPORT_MTL_COLORS_ONLY,epd.radioExportMtlColors[epd.fileType]);
-            CheckDlgButton(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES,epd.radioExportSolidTexture[epd.fileType]);
-            CheckDlgButton(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES,epd.radioExportFullTexture[epd.fileType]);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, epd.radioExportNoMaterials[epd.fileType]);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, epd.radioExportMtlColors[epd.fileType]);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
+			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, epd.radioExportFullTexture[epd.fileType]);
+			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, epd.radioExportTileTextures[epd.fileType]);
 
-            // OBJ options: gray out if OBJ not in use
+			// if 3D printing, A and RGBA are not options
+			CheckDlgButton(hDlg, IDC_TEXTURE_RGB, epd.chkTextureRGB);
+			CheckDlgButton(hDlg, IDC_TEXTURE_A, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkTextureA);
+			CheckDlgButton(hDlg, IDC_TEXTURE_RGBA, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkTextureRGBA);
+
+			// OBJ options: enable, or gray out if OBJ not in use
             if ( epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
             {
                 CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, epd.chkMultipleObjects);
@@ -146,8 +152,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             // these next two options are only available for rendering
             CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkLeavesSolid);
             CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkBlockFacesAtBorders);
-            // disallow biome color if full texture is off
-            CheckDlgButton(hDlg,IDC_BIOME,epd.radioExportFullTexture[epd.fileType]?epd.chkBiome:BST_INDETERMINATE);
+            // disallow biome color if full texture and tile texture is off
+            CheckDlgButton(hDlg,IDC_BIOME,(epd.radioExportFullTexture[epd.fileType]||epd.radioExportTileTextures[epd.fileType])?epd.chkBiome:BST_INDETERMINATE);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -332,7 +338,36 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             goto ChangeMaterial;
 
-        case IDC_COMBO_PHYSICAL_MATERIAL:
+		case IDC_TEXTURE_A:
+			{
+				if (epd.flags & EXPT_3DPRINT)
+				{
+					CheckDlgButton(hDlg, IDC_TEXTURE_A, BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_A) == BST_INDETERMINATE);
+					if (isIndeterminate)
+						CheckDlgButton(hDlg, IDC_TEXTURE_A, BST_UNCHECKED);
+				}
+			}
+			break;
+		case IDC_TEXTURE_RGBA:
+			{
+				if (epd.flags & EXPT_3DPRINT)
+				{
+					CheckDlgButton(hDlg, IDC_TEXTURE_RGBA, BST_INDETERMINATE);
+				}
+				else
+				{
+					UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGBA) == BST_INDETERMINATE);
+					if (isIndeterminate)
+						CheckDlgButton(hDlg, IDC_TEXTURE_RGBA, BST_UNCHECKED);
+				}
+			}
+			break;
+
+		case IDC_COMBO_PHYSICAL_MATERIAL:
 ChangeMaterial:
             {
                 // combo box selection will change the thickness, if previous value is set to the default
@@ -786,9 +821,14 @@ ChangeMaterial:
                 lepd.radioExportNoMaterials[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS);
                 lepd.radioExportMtlColors[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_MTL_COLORS_ONLY);
                 lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES);
-                lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_FULL_TEXTURES);
+				lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES);
+				lepd.radioExportTileTextures[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TILES);
 
-                // OBJ options
+				lepd.chkTextureRGB = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGB) == BST_CHECKED);
+				lepd.chkTextureA = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_A) == BST_CHECKED);
+				lepd.chkTextureRGBA = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGBA) == BST_CHECKED);
+
+				// OBJ options
                 if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
                 {
                     lepd.chkMultipleObjects = (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) == BST_CHECKED);
@@ -805,7 +845,7 @@ ChangeMaterial:
                     lepd.chkG3DMaterial = origEpd.chkG3DMaterial;
                 }
                 // 3D printing should never use this option.
-                lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);
+				lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);
 
                 //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
                 lepd.chkMakeZUp[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_MAKE_Z_UP) == BST_CHECKED);

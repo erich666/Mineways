@@ -66,12 +66,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_BEGIN_PNG_ERRORS                        (1<<20)
 
 #define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<20)
-#define MW_CANNOT_READ_DEFAULT_TERRAIN_FILE         (1<<21)
-#define MW_CANNOT_CREATE_PNG_FILE                   (1<<22)
+#define MW_CANNOT_CREATE_PNG_FILE                   (1<<21)
 
-#define MW_ERRORS                                 (1<<22)
+#define MW_ERRORS                                 (1<<21)
 
-#define MW_NUM_CODES                                23
+#define MW_NUM_CODES                                22
 
 // scripts can override the various blocks with other blocks while exporting
 typedef struct ChangeBlockCommand {

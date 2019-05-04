@@ -195,7 +195,7 @@ Selecting a Region
 </H2>
 To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle. Hit the space bar to automatically adjust the lower height to something reasonable, if need be. <B>Pro users:</B> Using the mousewheel with the Control key down changes the lower height, with Shift down changes the max. height (this second mode can be slow, since the map is regenerated). 
 <P>
-Once you make a selection, you may get a dialog as shown below.
+Once you make a selection, you may get a dialog as shown below. Mineways will detect when what you see is not what you'll get. It will ask if you want to set the lower depth so that everything you can see from above that you have selected will be exported.
 <P>
 
 <div id="terrainSelection">
@@ -218,9 +218,10 @@ Once you make a selection, you may get a dialog as shown below.
 <P>
 By default, the heights used for the rectangular block are from y=63 (sea level) to y=255. The upper slider determines the maximum height, but usually you'll leave this one alone. You'll normally use it for viewing or selecting areas fully underground or in the Nether.
 <P>
-The lower depth can be changed in a number of ways, even when no area is selected. The lower slider is the simplest way to modify this value. If you click the middle mouse button on a location, the lower depth is set to its height.  The <b>[</b> and <b>]</b> keys shift the lower depth by one, and so are useful for tuning. The spacebar will also select a reasonable lower depth for your selection volume; shift-space will treat water and glass as solid. See <a href="#shortcuts">the shortcut key list</a> for more program options.
+The lower depth can be changed in a number of ways, even when no area is selected. The lower slider is the simplest way to modify this value. If you click the middle mouse button on a location, the lower depth is set to its height.  The <b>[</b> and <b>]</b> keys shift the lower depth by one, and so are useful for tuning. The spacebar will also select a reasonable lower depth for your selection volume; Holding shift while hitting the spacebar will treat water and glass as opaque. See <a href="#shortcuts">the shortcut key list</a> for more program options.
 <P>
-<B>Key tip:</B> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="#g3d">G3D</a> (which reloads the viewed file when you tap the "r" key) or, for .WRL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> (unfortunately, their Alt-R reload doesn't clear out the previously-loaded file) to see the results. Another option is the built-in <a href="https://www.microsoft.com/en-us/store/p/mixed-reality-viewer/9nblggh42ths">Mixed Reality Viewer</a>, a part of Windows 10.
+<a id="viewers">
+<B>Key tip:</B></a> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="#g3d">G3D</a> (which reloads the viewed file when you tap the "r" key) or, for .WRL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> (unfortunately, their Alt-R reload doesn't clear out the previously-loaded file) to see the results. Another option is the built-in <a href="https://www.microsoft.com/en-us/p/3d-viewer/9nblggh42ths">3D Viewer</a>, a part of Windows 10. Microsoft's free <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a> is also usable, but when exporting from Mineways you'll need to check the "Make Z the up direction instead of Y" option in the lower left of the export dialog.
 
 <H2 id="export">
 Exporting Models
@@ -241,7 +242,7 @@ Mineways' schematic export option</a> allows you to easily grab a volume of your
 <a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, etc. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting", etc. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
 <P>
 <h3 id="g3d">Displaying with G3D</h3>
-Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default), I highly recommend the free G3D viewer. In fact, it now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look (pro tip: hold the Alt key down and use WASD to move fast in G3D). If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. Avoid <a href="https://www.microsoft.com/en-us/store/apps/3d-builder/9wzdncrfj3t6">3D Builder</a>, which comes with Windows 10, if you use colors; it's fine for STLs.
+Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default), I highly recommend the free G3D viewer. In fact, it now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look (pro tip: hold the Alt key down and use WASD to move fast in G3D). If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. See some <a href="#viewers">other viewer options here</a>.
 <P>
 <B>Download <a href="http://mineways.com/g3d.zip">this special version of G3D here</a>.</B> Unzip and run, then drop your .OBJ file on to the window to view it. Simpler yet, you can set up your Windows system to view .OBJ files with G3D when double-clicked. Just run register-G3D-viewer64-run-as-administrator.bat one time as administrator (see <a href="scripting.html#amfwm">these instructions</a> to learn how).
 <P>
@@ -313,7 +314,20 @@ There is a bewildering dialog that pops up on export, with a ton of options. You
 <b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default, this option is off for VRML 3d printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 <P>
 <a id="terrain_png">
-<b>Material export:</b></a> these are pretty much as they say. The "no materials" option is just that. "Solid material colors" will give solid swatches of color for each material. "Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. "Full color textures patterns" requires the terrainExt.png file, reading this file to create full textures for each block, as possible. Some blocks are not yet supported for export, so are rendered as solid blocks. Remember that for any format you can always turn off a block from being output by setting its alpha to zero in your own <i>color scheme</i>. For "full textures" the color scheme has no other effect, other than affecting the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
+<b>Material export:</b></a><br>
+Remember that for any format you can turn off a block from being output (and being visible) by setting its alpha to zero in your own <a href="#schemes">color scheme</a>.
+<P>
+On the left of the dialog are texture options:
+<UL>
+<LI>"Export no materials" option is just that.
+<LI>"Solid material colors" will give solid swatches of color for each material. The <a href="#schemes">color scheme's</a> colors controls these.
+<LI>"Richer color textures" gives texture tiles that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. The <a href="#schemes">color scheme's</a> colors controls these.
+<LI>"Full color textures patterns" requires the terrainExt.png file, reading this file to create full textures for each block, as possible. The <a href="#schemes">color scheme</a> affects only the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g. 200.
+</UL>
+<P>
+<a id="texture_output"><B>Texture output:</B></a> If you export textures, there are three types of files that can be output to PNG files, as needed. "RGB" is a colors-only file, "RGBA" is colors and transparency, "A" is just the transparency values. For 3D printing, only the RGB file is exported. For rendering export, if any blocks needing transparency are found in your model, then the "RGBA" and "A" files are also exported. Most rendering systems need only one or two of these file types, not all three. You can turn off output of any of these file types by unchecking the corresponding box.
+<P>
+This option can save you much time if you are exporting again and again while using a large custom terrainExt file (the next paragraph explains what this file is). You can export your model once with textures on, then modify your export and, by exporting to the same file name, you don't need to export the textures again.
 <P>
 The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. Mineways comes with a number of premade terrainExt.png files for you to try. If you have a terrainExt.png file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there.
 <P>
@@ -672,7 +686,7 @@ The "show weld blocks" option shows what blocks are added by the various "connec
 <H3 id="tilemaker">
 TileMaker
 </H3>
-TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note: currently the program works only on the PC.</B> If you figure out a way to run it on the Mac for free (not through <a href="http://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator</a>, which should work but costs money), let me know.
+TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note: currently the program works only on the PC.</B> I have heard you can run it through WINE or <a href="http://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator</a> (which should work but costs money).
 <P>
 TileMaker works by using a few different textures from Minecraft or from a resource pack to create a new texture to feed to Mineways. Specifically, here's how to set things up:
 <UL>
@@ -931,8 +945,6 @@ A problem with jmc2obj is that each material must be adjusted by hand. One optio
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="http://www.minecraftforum.net/topic/1299424-making-amazing-minecraft-scenes-in-cinema-4d/">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="http://www.minecraftforum.net/topic/852235-minecraft-3d-essentials-cinema-4d/">one more useful post</a>. The instructions have been updated for Cinema 4D R18; older versions may need additional steps, as shown.
 <P>
 That said, you may want to use <a href="http://code.google.com/p/j-mc-2-obj/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
-<P>
-<b>Step 0:</b> Make sure you have the latest update of Cinema 4D, at least version R18.057. If you don't, the Mineways file may import to give you <a href="images/cinema4d_radial.png">this interesting radial pattern</a> for the texture map (I don't know why; it appears to be a bug with Cinema 4D, as such files will display in other applications just fine). Newer versions do not have this problem.
 <P>
 <b>Step 1:</b> Get your world and region selected in Mineways, then select 'Export Model for 3D Rendering'.
 </P>
@@ -1316,7 +1328,7 @@ If you also want to play your converted world in Minecraft, you can optionally r
 Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse click for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. Instead of using the height sliders at the top, using the mousewheel with the Control key down changes the lower height, with Shift down changes the max. height (this second mode can be slow, since the map is regenerated). More on mouse controls in the <a href="#select">Selection section</a>.
 <ul>
 <li><b>[</b> and <b>]</b> moves the lower depth up/down by one level.
-</li><li><b>Space bar</b> adjusts the bottom level to the lowest solid block visible in the selection area, plus a border of one block. Holding shift will adjust to the lowest visible block level (includes transparent blocks).
+</li><li><b>Space bar</b> adjusts the bottom level to the lowest solid block visible in the selection area, minus one. Holding shift will adjust to the lowest visible block level (treating transparent blocks as solid, i.e., the level will be adjusted to the highest level of a lake, not the blocks below its lowest level).
 </li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level. (Note the Shift key is not needed.)
 </li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
 </li><li><b>WASD</b> and <b>the arrow keys</b> move around.
@@ -2493,19 +2505,29 @@ Coal ore in 1.13 was getting exported as iron ore, due to a "5" that should have
 <BR>
 Modify reader to handle (pre) 1.14 file format change, namely, that there are now up to 18 horizontal sections and these can have -1 or 16 (out of bounds normally) for the Y value. Now Mineways can properly read pre-1.14 worlds with towers up to the maximum height without crashing.
 Turn off warning that a directory in the world saves directory is not a world, since some users intermingle world and non-world directories.
-(<I>Thanks to Justis for reporting the "bad world directory" problem</I>.)
+(<I>Thanks to Justis for reporting the "bad world directory" problem, and Brian Jia for the 1.14 crash repro files.</I>)
+
+<LI>Version 6.08, 5/3/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV608.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+For power users, especially if you use large texture tiles: added <a href="#texture_output">"Texture output"</a> checkboxes to dialog that suppresses the output textures being generated. //
+Fixed the long-standing bug that OBJ exports for older versions of Cinema 4D would import with the textures applied radially. The problem was that Sketchfab set the OBJ export for rendering to be relative, not absolute, coordinates. For some reason, older versions of Cinema 4D would fail to read these; version R18.057 does not. Fixed by separating Sketchfab export values from the normal rendering export values. //
+Improved user experience by having autocorrection of the bottom height be off by default for schematics or whenever the user has set the lower depth to 0.
+Updated <a href="https://lodev.org/lodepng/">LodePNG</a> and modified it to use wide character strings, to fix a crash when terrainExt.png files with extremely large block textures, e.g., 512x512, were read in.
+Change default for exporting models for Sculpteo to be millimeters, as their default has changed to this from centimeters.
+Make TileMaker a bit more robust, giving an error if a non-power-of-two or other erroneous tile is found, but skipping the tile instead of aborting.
+(<I>Thanks to Kevin Niestrat for showing how TileMaker mysteriously fails, to SolarPH for helping solve the Cinema 4D problem and for pointing out the flaw with autocorrection and schematics, and another user for reporting the large-tile problem.</I>)
 
 <P>
-<LI>Future Version 6.+, ?/?/201*  - possible future features:
+<LI>Future Version 6.+, ?/?/20**  - possible future features:
 <BR>
 <UL>
-<LI>Go to location dialog, where you give a location and the view is centered on it.
-<LI>I might add yet another checkbox for having transparent surfaces always generate faces...
-<LI>Export model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
-<LI>Improve the error reporting system to give more information, etc. The negative return values in nbt.cpp are not really well handled, or even unique.
 <LI>Export texture to individual tiles.
+<LI>Zoom further out, allowing a wider view of the world. The main problems with this idea are that Mineways does not read blocks quickly (it really should multithread block reading like the newer version of Minutor does) and that selection becomes a bit imprecise.
+<LI>Improve the error reporting system to give more information, etc. The negative return values in nbt.cpp are not really well handled, or even unique.
+<LI>Go to location dialog, where you give a location and the view is centered on it.
+<LI>Export all exported model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
 <LI>Undo/redo for selected area, Control-Z and Control-Y. Is this overkill? Probably.
-<LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed.
+<LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed. One more level of complication, though.
 </UL>
 </UL>
 
@@ -2586,7 +2608,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/8/2019</p>
+		<p id="lastUpdate">Last updated 5/3/2019</p>
 	</div>
 </div>
 

@@ -406,6 +406,9 @@ static int gDebugTransparentType = UNINITIALIZED_INT;
 
 static long gMySeed = 12345;
 
+// number in lode_png when file not found
+#define PNG_FILE_DOES_NOT_EXIST		78
+
 
 // these should not be relied on for much of anything during processing,
 // the fields are filled out until writing.
@@ -1264,30 +1267,31 @@ Exit:
                 concatFileName4(textureRGBA, gOutputFilePath, gOutputFileRootClean, PNG_RGBA_SUFFIX, L".png");
                 concatFileName4(textureAlpha, gOutputFilePath, gOutputFileRootClean, PNG_ALPHA_SUFFIX, L".png");
 
-                if ( gModel.usesRGBA )
+                if ( gModel.usesRGBA && gOptions->pEFD->chkTextureRGBA )
                 {
                     // output RGBA version
                     rc = writepng(gModel.pPNGtexture,4,textureRGBA);
-                    addOutputFilenameToList(textureRGBA);
-                    assert(rc == 0);
+					assert(rc == 0);
+					addOutputFilenameToList(textureRGBA);
                     retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
-                if ( gModel.usesRGB )
+                if ( gModel.usesRGB && gOptions->pEFD->chkTextureRGB )
                 {
                     // output RGB version
                     rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureRGB);
                     assert(rc == 0);
-                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
+					// not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
+					retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
-                if ( gModel.usesAlpha )
+                if ( gModel.usesAlpha && gOptions->pEFD->chkTextureA )
                 {
                     // output Alpha version, which is actually RGBA, to make 3DS MAX happy
                     convertAlphaToGrayscale( gModel.pPNGtexture );
                     rc = writepng(gModel.pPNGtexture,4,textureAlpha);
-                    addOutputFilenameToList(textureAlpha);
-                    assert(rc == 0);
+					assert(rc == 0);
+					addOutputFilenameToList(textureAlpha);
                     retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
             }
@@ -1508,7 +1512,7 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
     }
 
     // test if terrainExt.png file does not exist
-    if ( rc == 48 )
+    if ( rc == PNG_FILE_DOES_NOT_EXIST)
     {
         //FILE DOESN'T EXIST - read memory file, setting all fields
         pITI->width = gTerrainExtWidth;
@@ -16790,6 +16794,9 @@ static int writeOBJMtlFile()
         sprintf_s(textureAlpha,MAX_PATH_AND_FILE,"%s%s.png",gOutputFileRootCleanChar,PNG_ALPHA_SUFFIXCHAR);
     }
 
+	// for 3D prints, only usesRGB is true, if texture is output
+	// for Sketchfab export, only RGBA is needed
+	// for other rendering, either only RGB is needed (no alphas found), or RGBA/RGB/A are all output
     if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
     {
         // output a single material
@@ -18973,7 +18980,8 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
         "Export no materials",
         "Export solid material colors only (no textures)",
         "Export richer color textures",
-        "Export full color texture patterns"
+        "Export full color texture patterns",
+		"Export tiles for textures"
     };
 
     float inCM = gModel.scale * METERS_TO_CM;
@@ -19221,7 +19229,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
     {
         if ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
         {
-            strcpy_s(outputString,256,"# OBJ relative coordinates" );
+            strcpy_s(outputString,256,"# OBJ relative coordinates\n" );
             WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
         }
 

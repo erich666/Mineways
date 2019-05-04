@@ -317,7 +317,7 @@ int wmain(int argc, wchar_t* argv[])
 
 		if (hFind == INVALID_HANDLE_VALUE) 
 		{
-			printf ("ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
+			printf ("***** ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
 			wprintf (L"No files found - please put your new blocks in the directory %s.\n", tilePath);
 			return 1;
 		} 
@@ -347,6 +347,8 @@ int wmain(int argc, wchar_t* argv[])
 
 					while ( index >= 0 )
 					{
+						int fail_code = 0;
+
 						// tile is one we care about.
                         tilesFoundArray[tilesFound] = index;
 
@@ -360,17 +362,17 @@ int wmain(int argc, wchar_t* argv[])
 							if ( rc != 0 )
 							{
 								reportReadError(rc,readFileName);
-								return 1;
+								fail_code = 1;
 							}
 							readpng_cleanup(0,&tile[tilesFound]);
 
 							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
-								wprintf(L"ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors!\n  Operation aborted - remove or resize this file.\n", ffd.cFileName);
-								return 1;
+								wprintf(L"***** ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
+								fail_code = 1;
 							}
 							if (tile[tilesFound].width > tile[tilesFound].height) {
-								wprintf(L"ERROR: file %s has a height that is less than its width.\n  This will cause copying errors!\n  Operation aborted - remove or resize this file.\n", ffd.cFileName);
-								return 1;
+								wprintf(L"***** ERROR: file %s has a height that is less than its width.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
+								fail_code = 1;
 							}
 						}
 
@@ -381,6 +383,7 @@ int wmain(int argc, wchar_t* argv[])
 						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
 						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
 						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
+						if (fail_code == 0)
 						{
 							tilesMissingSet[index] = 1;	// note tile is used
 							tilesFound++;
@@ -490,7 +493,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
 	if (destination_ptr->width > 16384 ) {
-		wprintf(L"ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n    value less than this, such as 256, 512, or 1024.\n",
+		wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n    value less than this, such as 256, 512, or 1024.\n",
 			destination_ptr->width/16, destination_ptr->width/16);
 		return 1;
 	}
@@ -714,19 +717,19 @@ static void reportReadError( int rc, wchar_t *filename )
 {
 	switch (rc) {
 	case 1:
-		wprintf(L"[%s] is not a PNG file: incorrect signature.\n", filename);
+		wprintf(L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
 		break;
 	case 2:
-		wprintf(L"[%s] has bad IHDR (libpng longjmp).\n", filename);
+		wprintf(L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
 		break;
     case 4:
-        wprintf(L"[%s] read failed - insufficient memory.\n", filename);
+        wprintf(L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
         break;
     case 63:
-        wprintf(L"[%s] read failed - chunk too long.\n", filename);
+        wprintf(L"***** ERROR [%s] read failed - chunk too long.\n", filename);
         break;
     default:
-		wprintf(L"[%s] read failed - unknown readpng_init() error.", filename);
+		wprintf(L"***** ERROR [%s] read failed - unknown readpng_init() error.", filename);
 		break;
 	}
     wprintf(L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
@@ -822,7 +825,7 @@ static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long d
 		tileSize = (int)((float)dst->width / zoom)/16;
 
 		if (tileSize <= 0) {
-			wprintf(L"ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			wprintf(L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
 			return 1;
 		}
 

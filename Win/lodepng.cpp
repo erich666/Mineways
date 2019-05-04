@@ -360,7 +360,7 @@ unsigned lodepng_load_file(unsigned char** out, size_t* outsize, const wchar_t* 
 unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const wchar_t* filename) {
   FILE* file;
   errno_t err = _wfopen_s(&file, filename, L"wb" );
-  if(!err) return 79;
+  if(err) return 79;
   fwrite(buffer, 1, buffersize, file);
   fclose(file);
   return 0;
