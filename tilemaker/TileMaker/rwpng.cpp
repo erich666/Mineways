@@ -38,40 +38,37 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // return 0 on success
 int readpng(progimage_info *im, wchar_t *filename)
 {
-	// TODOTODO need to switch to wifstream, etc.
-	//char filename[MAX_PATH];
-	//dumb_wcharToChar(wfilename,filename);
+    //char filename[MAX_PATH];
+    //dumb_wcharToChar(wfilename,filename);
 
-	//decode
-	unsigned int width, height;
-    std::wstring ws(filename);
-    std::string fileString(ws.begin(), ws.end());
-    unsigned int error = lodepng::decode(im->image_data, width, height, fileString);
+    //decode
+    unsigned int width, height;
+    unsigned int error = lodepng::decode(im->image_data, width, height, filename);
 
-	//if there's an error, display it
-	if (error)
-	{
-		im->width = 0;
-		im->height = 0;
-		std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
-		return (int)error;
-	}
+    //if there's an error, display it
+    if (error)
+    {
+        im->width = 0;
+        im->height = 0;
+        //std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        return (int)error;
+    }
 
-	im->width = (int)width;
-	im->height = (int)height;
+    im->width = (int)width;
+    im->height = (int)height;
 
-	//the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
+    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 
     return 0;
 }
 
 void readpng_cleanup(int mode, progimage_info *im)
 {
-	// was important back when libpng was in use
-	if ( mode == 1 )
-	{
-		im->image_data.clear();
-	}
+    // mode was important back when libpng was in use
+    if ( mode == 1 )
+    {
+        im->image_data.clear();
+    }
 }
 
 // from http://lodev.org/lodepng/example_encode.cpp
@@ -81,36 +78,32 @@ void readpng_cleanup(int mode, progimage_info *im)
 // return 0 on success
 int writepng(progimage_info *im, int channels, wchar_t *filename)
 {
-	// TODOTODO need to switch to wifstream, etc.
-	//char filename[MAX_PATH];
-	//dumb_wcharToChar(wfilename,filename);
+    //char filename[MAX_PATH];
+    //dumb_wcharToChar(wfilename,filename);
 
-	//Encode the image, depending on type
-	unsigned int error = 1;	// 1 means didn't reach lodepng
-    std::wstring ws(filename);
-    std::string fileString(ws.begin(), ws.end());
-    if (channels == 4)
-	{
-		// 32 bit RGBA, the default - note, we could leave off the last arg, and lodepng
-		// will then find the best compact format (e.g. 8 bits), but that kills G3D.
-        error = lodepng::encode(fileString, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA);
-	}
-	else if ( channels == 3 )
-	{
-		// 24 bit RGB
-        error = lodepng::encode(fileString, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB);
-	}
-	else
-	{
-		assert(0);
-	}
+    //Encode the image, depending on type
+    unsigned int error = 1;	// 1 means didn't reach lodepng
+    if ( channels == 4 )
+    {
+        // 32 bit RGBA, the default
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
+    }
+    else if ( channels == 3 )
+    {
+        // 24 bit RGB
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
+    }
+    else
+    {
+        assert(0);
+    }
 
-	//if there's an error, display it
-	if (error)
-	{
-		std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-		return (int)error;
-	}
+    //if there's an error, display it
+    if (error)
+    {
+        //std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+        return (int)error;
+    }
 
     return 0;
 }
@@ -118,7 +111,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 
 void writepng_cleanup(progimage_info *im)
 {
-	im->image_data.clear();
+    im->image_data.clear();
 }
 
 

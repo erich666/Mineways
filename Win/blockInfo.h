@@ -406,7 +406,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 325
+#define NUM_BLOCKS_DEFINED 329
 // number of official Minecraft blocks (take highest valid block ID and add 1)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (includes the unknown one)
@@ -816,6 +816,28 @@ enum block_types {
 	BLOCK_CONDUIT = 322,
 	BLOCK_SEA_PICKLE = 323,
 	BLOCK_TURTLE_EGG = 324,
+
+	// 1.14: we give each new block type a number, trying to make it sensible. Put in blockinfo.cpp.
+	// in BlockTranslations in nbt.cpp put the name used by Minecraft to convert to a number.
+	BLOCK_DEAD_CORAL = 325, // 5 different types
+	BLOCK_ACACIA_SIGN_POST = 326,
+	BLOCK_SWEET_BERRY_BUSH = 327,
+	BLOCK_BAMBOO = 328,
+		/*
+	BLOCK_SCAFFOLDING = 327,
+	BLOCK_COMPOSTER = 329,
+	BLOCK_LOOM = 330,
+	BLOCK_BARREL = 331,
+	BLOCK_SMOKER = 332,
+	BLOCK_BLAST_FURNACE = 333,
+	BLOCK_TABLE = 334,	// cartography, fletching, smithing
+	BLOCK_GRINDSTONE = 335,
+	BLOCK_LECTERN = 336,
+	BLOCK_STONECUTTER = 337,
+	BLOCK_BELL = 338,
+	BLOCK_LANTERN = 339,
+	BLOCK_CAMPFIRE = 340,
+	*/
 };
 
 #endif

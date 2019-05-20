@@ -521,10 +521,8 @@ static int gFaceDirectionVector[6][3] =
 #define IS_NOT_FLUID(tval)	(((tval) < BLOCK_WATER) || ((tval) > BLOCK_STATIONARY_LAVA))
 #define IS_WATER(tval)	(((tval) == BLOCK_WATER) || ((tval) == BLOCK_STATIONARY_WATER))
 
-// bit 5: 00010000
-#define WATERLOG_BIT	0x10
 #define IS_WATERLOGGED(tval,bi) ((gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
-								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && (gBoxData[bi].data & WATERLOG_BIT)))
+								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
 
 
 
@@ -2864,6 +2862,7 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DEAD_CORAL_FAN:
 	case BLOCK_CORAL_WALL_FAN:
 	case BLOCK_DEAD_CORAL_WALL_FAN:
+	case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
 		gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
@@ -2911,7 +2910,7 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_GREEN_WALL_BANNER:
 	case BLOCK_RED_WALL_BANNER:
 	case BLOCK_BLACK_WALL_BANNER:
-		switch ( gBoxData[boxIndex].data)
+		switch ( gBoxData[boxIndex].data & 0x7)
         {
         case 2: // north, -Z
             gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
@@ -3447,6 +3446,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_DOUBLE_FLOWER:
 	case BLOCK_KELP:
 	case BLOCK_CORAL:
+	case BLOCK_DEAD_CORAL:
 		return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
         break;	// saveBillboardOrGeometry
 
@@ -4411,7 +4411,34 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
-        switch (dataVal)
+		switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
+		default:
+		case 0:
+			// oak
+			swatchLoc = SWATCH_INDEX(4, 0);
+			break;
+		case BIT_8:
+			// spruce
+			swatchLoc = SWATCH_INDEX(6, 12);
+			break;
+		case BIT_16:
+			// birch
+			swatchLoc = SWATCH_INDEX(6, 13);
+			break;
+		case (BIT_16|BIT_8):
+			// jungle
+			swatchLoc = SWATCH_INDEX(7, 12);
+			break;
+		case BIT_32:
+			// acacia
+			swatchLoc = SWATCH_INDEX(0, 22);
+			break;
+		case (BIT_32 | BIT_8):
+			// dark oak
+			swatchLoc = SWATCH_INDEX(1, 22);
+			break;
+		}
+        switch (dataVal&0x7)
         {
         default:    // make compiler happy
         case 2: // north
@@ -4428,7 +4455,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             break;
         }
         gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 12, 7, 9);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 12, 7, 9);
         gUsingTransform = 0;
         // Scale sign down, move slightly away from wall
         identityMtx(mtx);
@@ -4616,14 +4643,65 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
+	case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
+	case BLOCK_ACACIA_SIGN_POST:						// saveBillboardOrGeometry
+		// set top to plank, bottom to log end
+		if (type == BLOCK_SIGN_POST) {
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0:
+				// oak
+				topSwatchLoc = SWATCH_INDEX(4,0);
+				bottomSwatchLoc = SWATCH_INDEX(5, 1);
+				sideSwatchLoc = SWATCH_INDEX(4, 1);    // log
+				break;
+
+			case BIT_16:
+				// spruce
+				topSwatchLoc = SWATCH_INDEX(6, 12);
+				bottomSwatchLoc = SWATCH_INDEX(11, 11);
+				sideSwatchLoc = SWATCH_INDEX(4, 7);    // log
+				break;
+
+			case BIT_32:
+				// birch
+				topSwatchLoc = SWATCH_INDEX(6, 13);
+				bottomSwatchLoc = SWATCH_INDEX(12, 11);
+				sideSwatchLoc = SWATCH_INDEX(5,7);    // log
+				break;
+
+			case (BIT_32 | BIT_16):
+				// jungle
+				topSwatchLoc = SWATCH_INDEX(7, 12);
+				bottomSwatchLoc = SWATCH_INDEX(13, 11);
+				sideSwatchLoc = SWATCH_INDEX(9, 9);    // log
+				break;
+			}
+		}
+		else {
+			// acacia, dark oak
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0:
+				// acacia
+				topSwatchLoc = SWATCH_INDEX(0, 22);
+				bottomSwatchLoc = SWATCH_INDEX(13, 19);
+				sideSwatchLoc = SWATCH_INDEX(5, 11);    // log
+				break;
+
+			case BIT_16:
+				// dark oak
+				topSwatchLoc = SWATCH_INDEX(1, 22);
+				bottomSwatchLoc = SWATCH_INDEX(15, 19);
+				sideSwatchLoc = SWATCH_INDEX(14, 19);    // log
+				break;
+			}
+		}
         // sign is two parts:
         // bottom post is output first, which saves one translation
-        topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_LOG].txrX, gBlockDefinitions[BLOCK_LOG].txrY );
-        sideSwatchLoc = SWATCH_INDEX( 4,1 );    // log
         gUsingTransform = 1;
         // if printing, seal the top of the post
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7 - fatten, 9 + fatten, 0, 14, 7 - fatten, 9 + fatten);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7 - fatten, 9 + fatten, 0, 14, 7 - fatten, 9 + fatten);
         gUsingTransform = 0;
         // scale sign down, move slightly away from wall
         identityMtx(mtx);
@@ -4632,7 +4710,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateMtx(mtx, 0.0f, 0.5f, 0.0f);
         // scale down in Y, and make post thinner if rendering
         scaleMtx(mtx, gPrint3D ? 1.0f : 2.0f / 3.0f, 16.0f / 24.0f, gPrint3D ? 1.0f : 2.0f / 3.0f);
-        rotateMtx(mtx, 0.0f, dataVal*22.5f, 0.0f);
+        rotateMtx(mtx, 0.0f, (dataVal&0xf)*22.5f, 0.0f);
         // undo translation
         translateMtx(mtx, 0.0f, -0.5f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
@@ -4640,14 +4718,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
         // top is 12 high, extends 2 blocks above. Scale down by 16/24 and move up by 14/24
         gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 16, 0, 12, 7 - fatten, 9 + fatten);
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, topSwatchLoc, topSwatchLoc, 0, 0x0, 0, 0, 16, 0, 12, 7 - fatten, 9 + fatten);
         gUsingTransform = 0;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         translateMtx(mtx, 0.0f, 0.5f, 0.0f);
         // scale down in Y, and make sign thinner only in Z direction
         scaleMtx(mtx, 1.0f, 16.0f / 24.0f, gPrint3D ? 1.0f : 2.0f / 3.0f);
-        rotateMtx(mtx, 0.0f, dataVal*22.5f, 0.0f);
+        rotateMtx(mtx, 0.0f, (dataVal&0xf)*22.5f, 0.0f);
         // undo translation
         translateMtx(mtx, 0.0f, 14.0f / 24.0f - 0.5f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
@@ -8910,7 +8988,14 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		if (dataVal > 0)
 		{
 			// add to get to tile
-			swatchLoc = SWATCH_INDEX(5 + (dataVal&0x7), 36);
+			swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
+		}
+		break;
+	case BLOCK_DEAD_CORAL:				// saveBillboardFacesExtraData
+		if (dataVal > 0)
+		{
+			// add to get to tile
+			swatchLoc = SWATCH_INDEX(14 + (dataVal & 0x7), 36);
 		}
 		break;
 	case BLOCK_REDSTONE_WIRE:				// saveBillboardFacesExtraData
@@ -9341,7 +9426,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 							// two paired billboards
 
 			// time for some brute force; let's not get too clever
-			switch ((dataVal >> 5) & 0x3) {
+			switch ((dataVal >> 4) & 0x3) {	// set in nbt.cpp with FAN_PROP
 			case 0:
 				// attached to wall north of block, facing south
 				faceDir[0] = DIRECTION_UP_TOP_NORTH;
@@ -15502,7 +15587,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_PRISMARINE:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal&0x7 )
             {
             default:
                 assert(0);

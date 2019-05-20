@@ -1860,7 +1860,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
                 // special selection height: we want to be able to select water
                 float currentAlpha = gBlockDefinitions[type].alpha;
-                blockSolid = (currentAlpha!=0.0); // ((type<NUM_BLOCKS_MAP) || (type ==255)) && 
+				// water is considered "solid"
+                blockSolid = (currentAlpha!=0.0f); // ((type<NUM_BLOCKS_MAP) || (type ==255)) && 
                 if ((showobscured || seenempty) && blockSolid)
                     if (prevSely==-1) 
                         prevSely=i;
@@ -2008,6 +2009,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                     // test and save minimum height found
                     if ( prevSely >= 0 && prevSely < hitsFound[3] )
                     {
+						// the minimum visible selected height found so far
                         hitsFound[3] = prevSely;
                     }
 
@@ -2216,6 +2218,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_CORAL:
 	case BLOCK_CORAL_FAN:
 	case BLOCK_DEAD_CORAL_FAN:
+	case BLOCK_DEAD_CORAL:
 		// uses 0-4
 		if (dataVal < 5)
 		{
@@ -2409,6 +2412,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_STRIPPED_OAK_WOOD:
 	case BLOCK_STONE_SLAB:
     case BLOCK_SIGN_POST:
+	case BLOCK_ACACIA_SIGN_POST:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
@@ -2556,7 +2560,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         }
         break;
     case BLOCK_LADDER:
-    case BLOCK_WALL_SIGN:
+    case BLOCK_WALL_SIGN:	// NODO could add some other wood for 1.14 for other values, I suppose - not vital, and probably confusing
     case BLOCK_WALL_BANNER:
 	case BLOCK_ORANGE_WALL_BANNER:
 	case BLOCK_MAGENTA_WALL_BANNER:
@@ -2573,7 +2577,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_GREEN_WALL_BANNER:
 	case BLOCK_RED_WALL_BANNER:
 	case BLOCK_BLACK_WALL_BANNER:
-		if ( dataVal >= 2 && dataVal <= 5 )
+		if ( (dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5 )
         {
             addBlock = 1;
             switch ( dataVal )
@@ -3196,7 +3200,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		{
 			addBlock = 1;
 			if (dataVal >= 4) {
-				finalDataVal = (dataVal & 0x3) | 0x90;	// waterlogged, and high bit
+				finalDataVal = (dataVal & 0x3) | (WATERLOGGED_BIT|HIGH_BIT);	// waterlogged, and high bit
 			}
 		}
 		break;

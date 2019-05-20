@@ -31,7 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "lodepng.h"
 
 typedef struct _progimage_info {
-	std::vector<unsigned char> image_data; //the raw pixels
+    std::vector<unsigned char> image_data; //the raw pixels
     int width;
     int height;
 } progimage_info;

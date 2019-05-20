@@ -46,15 +46,10 @@ typedef struct BlockTranslator {
 	unsigned long translateFlags;
 } BlockTranslator;
 
-#define NUM_TRANS 594
-
 // our bit shift code reader can read only up to 2^9 entries right now. TODO
 #define MAX_PALETTE	512
 
 static bool hashMade = false;
-
-// for another 256 block types, this bit gets set in the dataVal field (we're out of bits with block IDs)
-#define HIGH_BIT 0x80
 
 // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
 // so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
@@ -94,6 +89,7 @@ static bool hashMade = false;
 // in_wall: fence gate TODO
 // inverted: DAYLIGHT_PROP
 // layers: SNOW_PROP
+// leaves: LEAF_SIZE_PROP
 // level: FLUID_PROP
 // lit: TORCH_PROP (redstone only), FURNACE_PROP, REDSTONE_ORE_PROP
 // locked: REPEATER_PROP
@@ -114,7 +110,7 @@ static bool hashMade = false;
 // stage: SAPLING_PROP
 // triggered: DROPPER_PROP
 // type: SLAB_PROP, CHEST_PROP, PISTON_HEAD_PROP
-// waterlogged: a bunch... SLAB_PROP, TRAPDOOR_PROP - not stairs? That would be nice...
+// waterlogged: so common that we always add it in and use the dedicated bit 0x10
 
 // various properties of palette entries, can be used to differentiate how to use properties
 #define NO_PROP				  0
@@ -275,22 +271,27 @@ static bool hashMade = false;
 // clear out dataVal, which might get "age" etc. before saving
 #define TRULY_NO_PROP		 51
 // waterlogged: true|false, 1 HIGH bit
-#define WATERLOGGED_PROP	 52
-// waterlogged: true|false, 1 HIGH bit
 // facing: south|north|west|east - 2 HIGH bits
-#define FAN_PROP			 53
+#define FAN_PROP			 52
 // pickles: 1-4
 // waterlogged: true|false
-#define PICKLE_PROP			 54
+#define PICKLE_PROP			 53
 // eggs: 1-4
-#define EGG_PROP			 55
+#define EGG_PROP			 54
+// leaves: leaf size prop (for bamboo) - none/small/larg
+#define LEAF_SIZE_PROP		 55
+// for wall signs - basically a dropper, without the other stuff such as up, etc.
+#define WALL_SIGN_PROP		 56
 
+
+#define NUM_TRANS 616
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
 // hash is computed once when 1.13 data is first read in.
-// first column is high-order bit; second column is "traditional" value, as found in blockInfo.cpp
+// second column is "traditional" type value, as found in blockInfo.cpp; third column is high-order bit and data value, fourth is Minecraft name
 // and https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
+//hash,ID,BIT|dataval,  name, common properties flags
 { 0,   0,           0, "air", NO_PROP },
 { 0, 166,           0, "barrier", NO_PROP },
 { 0,   1,           0, "stone", NO_PROP },
@@ -460,8 +461,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  59,           0, "wheat", AGE_PROP },
 { 0,  60,           0, "farmland", FARMLAND_PROP },
 { 0,  61,           0, "furnace", FURNACE_PROP },
-{ 0,  63,           0, "sign", STANDING_SIGN_PROP },
-{ 0,  68,           0, "wall_sign", FACING_PROP },
+{ 0,  63,           0, "sign", STANDING_SIGN_PROP }, // 1.13 - in 1.14 it's oak_sign, acacia_sign, etc.
+{ 0,  68,           0, "wall_sign", WALL_SIGN_PROP }, // 1.13 - in 1.14 it's oak_wall_sign, acacia_wall_sign, etc.
 { 0,  65,           0, "ladder", FACING_PROP },
 { 0,  66,           0, "rail", RAIL_PROP },   /* 200 */
 { 0,  27,           0, "powered_rail", RAIL_PROP },
@@ -847,16 +848,16 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  61,  HIGH_BIT|2, "bubble_coral", NO_PROP },
 { 0,  61,  HIGH_BIT|3, "fire_coral", NO_PROP },
 { 0,  61,  HIGH_BIT|4, "horn_coral", NO_PROP },
-{ 0,  62,  HIGH_BIT|0, "tube_coral_fan", WATERLOGGED_PROP },	// here's where we go nuts: using 7 bits (one waterlogged)
-{ 0,  62,  HIGH_BIT|1, "brain_coral_fan", WATERLOGGED_PROP },
-{ 0,  62,  HIGH_BIT|2, "bubble_coral_fan", WATERLOGGED_PROP },
-{ 0,  62,  HIGH_BIT|3, "fire_coral_fan", WATERLOGGED_PROP },
-{ 0,  62,  HIGH_BIT|4, "horn_coral_fan", WATERLOGGED_PROP },
-{ 0,  63,  HIGH_BIT|0, "dead_tube_coral_fan", WATERLOGGED_PROP },
-{ 0,  63,  HIGH_BIT|1, "dead_brain_coral_fan", WATERLOGGED_PROP },
-{ 0,  63,  HIGH_BIT|2, "dead_bubble_coral_fan", WATERLOGGED_PROP },
-{ 0,  63,  HIGH_BIT|3, "dead_fire_coral_fan", WATERLOGGED_PROP },
-{ 0,  63,  HIGH_BIT|4, "dead_horn_coral_fan", WATERLOGGED_PROP },
+{ 0,  62,  HIGH_BIT|0, "tube_coral_fan", NO_PROP },	// here's where we go nuts: using 7 bits (one waterlogged)
+{ 0,  62,  HIGH_BIT|1, "brain_coral_fan", NO_PROP },
+{ 0,  62,  HIGH_BIT|2, "bubble_coral_fan", NO_PROP },
+{ 0,  62,  HIGH_BIT|3, "fire_coral_fan", NO_PROP },
+{ 0,  62,  HIGH_BIT|4, "horn_coral_fan", NO_PROP },
+{ 0,  63,  HIGH_BIT|0, "dead_tube_coral_fan", NO_PROP },
+{ 0,  63,  HIGH_BIT|1, "dead_brain_coral_fan", NO_PROP },
+{ 0,  63,  HIGH_BIT|2, "dead_bubble_coral_fan", NO_PROP },
+{ 0,  63,  HIGH_BIT|3, "dead_fire_coral_fan", NO_PROP },
+{ 0,  63,  HIGH_BIT|4, "dead_horn_coral_fan", NO_PROP },
 { 0,  64,  HIGH_BIT|0, "tube_coral_wall_fan", FAN_PROP },
 { 0,  64,  HIGH_BIT|1, "brain_coral_wall_fan", FAN_PROP },
 { 0,  64,  HIGH_BIT|2, "bubble_coral_wall_fan", FAN_PROP },
@@ -870,7 +871,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  66,    HIGH_BIT, "conduit", NO_PROP },
 { 0,  67,    HIGH_BIT, "sea_pickle", PICKLE_PROP },
 { 0,  68,    HIGH_BIT, "turtle_egg", EGG_PROP },
-{ 0,  26,           0, "black_bed", BED_PROP }, // TODO+ bed colors should have separate blocks
+{ 0,  26,           0, "black_bed", BED_PROP }, // TODOTODO+ bed colors should have separate blocks or whatever
 { 0,  26,           0, "red_bed", BED_PROP },
 { 0,  26,           0, "green_bed", BED_PROP },
 { 0,  26,           0, "brown_bed", BED_PROP },
@@ -886,6 +887,31 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  26,           0, "magenta_bed", BED_PROP },
 { 0,  26,           0, "orange_bed", BED_PROP },
 { 0,  26,           0, "white_bed", BED_PROP },
+
+// 1.14
+{ 0,  69,  HIGH_BIT | 0, "dead_tube_coral", NO_PROP },
+{ 0,  69,  HIGH_BIT | 1, "dead_brain_coral", NO_PROP },
+{ 0,  69,  HIGH_BIT | 2, "dead_bubble_coral", NO_PROP },
+{ 0,  69,  HIGH_BIT | 3, "dead_fire_coral", NO_PROP },
+{ 0,  69,  HIGH_BIT | 4, "dead_horn_coral", NO_PROP },
+{ 0,  63,           0, "oak_sign", STANDING_SIGN_PROP }, // in 1.14 it's no longer just "sign", it's oak_sign, acacia_sign, etc. - use bits 16, 32, 64 for the 6 types
+{ 0,  63,      BIT_16, "spruce_sign", STANDING_SIGN_PROP },
+{ 0,  63,      BIT_32, "birch_sign", STANDING_SIGN_PROP },
+{ 0,  63,BIT_32 | BIT_16, "jungle_sign", STANDING_SIGN_PROP },
+{ 0,  70,      HIGH_BIT, "acacia_sign", STANDING_SIGN_PROP },
+{ 0,  70,HIGH_BIT | BIT_16, "dark_oak_sign", STANDING_SIGN_PROP },
+{ 0,  68,           0, "oak_wall_sign", WALL_SIGN_PROP }, // in 1.14 it's oak_wall_sign, acacia_wall_sign, etc.
+{ 0,  68,       BIT_8, "spruce_wall_sign", WALL_SIGN_PROP },
+{ 0,  68,      BIT_16, "birch_wall_sign", WALL_SIGN_PROP },
+{ 0,  68,BIT_16 | BIT_8, "jungle_wall_sign", WALL_SIGN_PROP },
+{ 0,  68,      BIT_32, "acacia_wall_sign", WALL_SIGN_PROP },
+{ 0,  68,BIT_32 | BIT_8, "dark_oak_wall_sign", WALL_SIGN_PROP },
+{ 0,  38,           9, "cornflower", NO_PROP },
+{ 0,  38,          10, "lily_of_the_valley", NO_PROP },
+{ 0,  38,          11, "wither_rose", NO_PROP },
+{ 0,  71,    HIGH_BIT, "sweet_berry_bush", AGE_PROP },
+{ 0,  72,    HIGH_BIT, "bamboo", AGE_PROP | LEAF_SIZE_PROP },
+
 };
 
 #define HASH_SIZE 512
@@ -944,11 +970,15 @@ int findIndexFromName(char *name)
 	if (strcmp("air", name) == 0) {
 		return 0;
 	}
-	// get hash number
+#ifdef _DEBUG
+	if (strcmp("smooth_sandstone", name) == 0) {
+		name[0] = name[0];
+	}
+#endif
 	int hashNum = computeHash(name);
 	int *hl = HashArray[hashNum & HASH_MASK];
 
-	// now compare entries one by one until a match is found
+	// now compare entries one by one in hash table list until a match is found
 	while (*hl > -1) {
 		if (hashNum == BlockTranslations[*hl].hashSum) {
 			// OK, do full string compare
@@ -1434,6 +1464,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 					while (nentries--) {
 						// clear, so that NO_PROP doesn't inherit from other blocks, etc.
 						dataVal = 0;
+						// avoid inheriting this property, which is always folded in (false if not found in block, so does no harm)
+						waterlogged = false;
 
 						for (;;)
 						{
@@ -1467,6 +1499,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								}
 								else {
 									// unknown type - call it bedrock, by tradition
+									//  THIS IS WHERE TO PUT A BREAK TO SEE WHAT NAME IS UNKNOWN
 									paletteBlockEntry[entry_index] = 7;
 									paletteDataEntry[entry_index] = 0;
 								}
@@ -1817,7 +1850,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 #ifdef _DEBUG
 										else {
 											// ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-											if (strcmp(token, "distance") == 0) {} // for leaves, see https://minecraft.gamepedia.com/Leaves
+											if (strcmp(token, "distance") == 0) {} // for leaves and bells, see https://minecraft.gamepedia.com/Leaves
 											else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
 											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore
 											else if (strcmp(token, "note") == 0) {}	// TODO 1.14 here on down
@@ -2029,6 +2062,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							// type is used to set dataVal above to 8 if sticky
 							dataVal = dropper_facing | sticky;
 							break;
+						case WALL_SIGN_PROP:
+							// just NSWE = 2345
+							dataVal = dropper_facing;
+							break;
 						case VINE_PROP:
 							dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
 							break;
@@ -2165,18 +2202,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								break;
 							}
 							break;
-						case WATERLOGGED_PROP:
-							dataVal = (waterlogged ? 0x10 : 0x0);
-							break;
 						case FAN_PROP:
-							// low 3 are the subtype
-							// fourth bit empty
-							// fifth bit waterlogged
-							// 2 bits facing: NESW
-							dataVal = (waterlogged ? 0x10 : 0x0) | ((door_facing + 3) % 4) << 5;
-							break;
-						case PICKLE_PROP:
-							dataVal |= (waterlogged ? 0x10 : 0x0);
+							// low 3 bits are the subtype
+							// fourth bit unused
+							// 2 bits facing for the fan: NESW
+							// next bit waterlogged (done below)
+							dataVal = ((door_facing + 3) % 4) << 4;
 							break;
 						case EGG_PROP:
 							dataVal |= (hatch << 2);
@@ -2188,6 +2219,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						default:
 							break;
 						}
+						// always check for waterlogged
+						dataVal |= (waterlogged ? BIT_16 : 0x0);
+
 						paletteDataEntry[entry_index] |= dataVal;
 						entry_index++;
 					}

@@ -291,7 +291,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13 blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK|MB_ICONINFORMATION},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 24 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 42 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
 
     {_T("Error: no solid blocks found; no file output"), _T("Export warning"), MB_OK|MB_ICONWARNING},	// <<7
@@ -915,7 +915,7 @@ RButtonDown:
             gHighlightOn=TRUE;
 
             // these track whether a selection height volume has blocks in it,
-            // low, medium, high, and minimum low-height found
+            // low, medium, high ("medium" means in selected range), and minimum low-height found
             gHitsFound[0] = gHitsFound[1] = gHitsFound[2] = 0;
             // no longer used - now we use a direct call for this very purpose
             gHitsFound[3] = MAP_MAX_HEIGHT+1;
@@ -1111,7 +1111,7 @@ RButtonUp:
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
             assert(on);
-            int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);
+            int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);	// note we favor rendering here - for 3D printing the next to last option should be "false"
             if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some lower depth to use to replace current target depth
@@ -1149,9 +1149,9 @@ RButtonUp:
             // Else, test if there's something in both volumes and offer to adjust.
 			// Don't adjust if target depth is 0, at the bottom; that's the default for schematics,
 			// for example, and people want to export the whole schematic.
-			// If set otherwise to 0, it was set that way for a good reason.
+			// If already set to 0, it was set that way for a good reason.
             else if ( gAutocorrectDepth && (gTargetDepth>0) &&
-                ((  gHitsFound[0] && gHitsFound[1] && ( minHeightFound < gTargetDepth ) ) ||
+                (( gHitsFound[1] && ( minHeightFound < gTargetDepth ) ) ||	// we used to also test "gHitsFound[0] &&" at the start, but if the water level just happens to match our current level, we then wouldn't go lower. Always allow lower.
                 ( !gHitsFound[0] && gHitsFound[1] && ( minHeightFound > gTargetDepth) )) )
             {
                 // send warning
@@ -1173,17 +1173,17 @@ RButtonUp:
                 }
                 else
                 {
-						if (gFullLow)
-						{
-							gFullLow = 0;
-							swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
-								gTargetDepth, minHeightFound);
-						}
-						else
-						{
-							swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
-								gTargetDepth, minHeightFound);
-						}
+					if (gFullLow)
+					{
+						gFullLow = 0;
+						swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+							gTargetDepth, minHeightFound);
+					}
+					else
+					{
+						swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+							gTargetDepth, minHeightFound);
+					}
                 }
                 // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
                 // We force it here, as it's OK if it gets ignored, but we want people to see it.

@@ -404,7 +404,7 @@ int wmain(int argc, wchar_t* argv[])
 							if ( outputYTiles-1 < gTiles[index].txrY )
 							{
 								outputYTiles = gTiles[index].txrY + 1;
-								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: go update VERTICAL_TILES.\n", ffd.cFileName);
+								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
 							}
 						}
 						//else
