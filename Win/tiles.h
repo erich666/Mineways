@@ -18,26 +18,42 @@
 #define SBIT_DECAL				0x40
 // if tile is cutout geometry, note this so it's bled out for 3D printing and rendering
 #define SBIT_CUTOUT_GEOMETRY	0x80
+// if tile has full transparency for some other reason, e.g., it's an overlay, tag it here so that we know that's the case 
+#define SBIT_ALPHA_OVERLAY		0x100
 
 // special bit: if the tile is a leaf tile, Mineways itself can optionally make it solid
-#define SBIT_LEAVES				0x100
+#define SBIT_LEAVES				0x200
 
 // If set, the incoming .png's black pixels should be treated as having an alpha of 0.
 // Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
+// Currently not needed - they've cleaned up their act.
 #define SBIT_BLACK_ALPHA		0x8000
 
 // types of blocks: tiling, billboard, and sides (which tile only horizontally)
+// Internally, an 18x18 tile is made from a 16x16, and the four border edges of this new tile are each classified as of three things:
+// 1. Repeat the opposite edge's content. This is done for grass or decorative tiles, for example.
+// 2. Clamp the edge, i.e., take the edge of the 16x16 and copy to the border. If interpolation occurs, this edge then properly
+//    gets the color if interpolation occurs.
+// 3. Do neither. If not repeated or clamped, it means the edge is made entirely transparent. This is the norm for most decals.
+// Repeat all is for things like grass.
 #define SWATCH_REPEAT_ALL                   (SBIT_REPEAT_SIDES|SBIT_REPEAT_TOP_BOTTOM)
+// Repeat sides else clamp is for tiles like the sides of grass, where top and bottom should be clamped.
 #define SWATCH_REPEAT_SIDES_ELSE_CLAMP      (SBIT_REPEAT_SIDES|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
+// Repeat top and bottom is for cactus sides and rails
 #define SWATCH_TILE_BOTTOM_AND_TOP          SBIT_REPEAT_TOP_BOTTOM
+// Bottom and right is for the curved rail
 #define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
+// Bottom and top clamp only (no repeat) for double-height (two block high) plants, kelp, tall sea grass
 #define SWATCH_CLAMP_BOTTOM_AND_TOP         (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
+// Clamp bottom and sides for bed and enchanting table
 #define SWATCH_CLAMP_ALL_BUT_TOP            (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
+// Clamp all is normally used for "geometric" cutout tiles SBIT_CUTOUT_GEOMETRY where just a part of the tile is selected. For 3D printing
+// and for interpolation, you want to have "invisible" texels off the edges to be clamp copied so that they are properly interpolated.
 #define SWATCH_CLAMP_ALL                    (SBIT_CLAMP_TOP|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
 
 
-// If this number changes, also change warning #6 in gPopupInfo in Mineways.cpp
-#define VERTICAL_TILES 37
+// If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
+#define VERTICAL_TILES 42
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -84,7 +100,7 @@ static struct {
     { 3, 2, L"bookshelf", L"", SWATCH_REPEAT_ALL }, // side - top and bottom are oak planks
     { 4, 2, L"cobblestone_mossy", L"mossy_cobblestone", SWATCH_REPEAT_ALL },
     { 5, 2, L"obsidian", L"", SWATCH_REPEAT_ALL },
-    { 6, 2, L"grass_side_overlay", L"grass_block_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
+    { 6, 2, L"grass_side_overlay", L"grass_block_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
     { 7, 2, L"tallgrass", L"grass", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 8, 2, L"MW_WORKSPACE1", L"", SWATCH_REPEAT_ALL },	// we use it for temporary work - grass?? top grayscale, but we don't use it, nor does Mojang
     { 9, 2, L"MW_DCHEST_FRONT_LEFT", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // was beacon - taken by chest
@@ -384,22 +400,22 @@ static struct {
     { 13, 20, L"glass_green", L"green_stained_glass", SWATCH_REPEAT_ALL },
     { 14, 20, L"glass_red", L"red_stained_glass", SWATCH_REPEAT_ALL },
     { 15, 20, L"glass_black", L"black_stained_glass", SWATCH_REPEAT_ALL },
-    { 0, 21, L"glass_pane_top_white", L"white_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 1, 21, L"glass_pane_top_orange", L"orange_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 2, 21, L"glass_pane_top_magenta", L"magenta_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 3, 21, L"glass_pane_top_light_blue", L"light_blue_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 4, 21, L"glass_pane_top_yellow", L"yellow_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 5, 21, L"glass_pane_top_lime", L"lime_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 6, 21, L"glass_pane_top_pink", L"pink_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 7, 21, L"glass_pane_top_gray", L"gray_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 8, 21, L"glass_pane_top_silver", L"light_gray_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 9, 21, L"glass_pane_top_cyan", L"cyan_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 10, 21, L"glass_pane_top_purple", L"purple_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 11, 21, L"glass_pane_top_blue", L"blue_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 12, 21, L"glass_pane_top_brown", L"brown_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 13, 21, L"glass_pane_top_green", L"green_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 14, 21, L"glass_pane_top_red", L"red_stained_glass_pane_top", SWATCH_REPEAT_ALL },
-    { 15, 21, L"glass_pane_top_black", L"black_stained_glass_pane_top", SWATCH_REPEAT_ALL },
+    { 0, 21, L"glass_pane_top_white", L"white_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 1, 21, L"glass_pane_top_orange", L"orange_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 2, 21, L"glass_pane_top_magenta", L"magenta_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 3, 21, L"glass_pane_top_light_blue", L"light_blue_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 4, 21, L"glass_pane_top_yellow", L"yellow_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 5, 21, L"glass_pane_top_lime", L"lime_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 6, 21, L"glass_pane_top_pink", L"pink_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 7, 21, L"glass_pane_top_gray", L"gray_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 8, 21, L"glass_pane_top_silver", L"light_gray_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 9, 21, L"glass_pane_top_cyan", L"cyan_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 10, 21, L"glass_pane_top_purple", L"purple_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 11, 21, L"glass_pane_top_blue", L"blue_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 21, L"glass_pane_top_brown", L"brown_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 13, 21, L"glass_pane_top_green", L"green_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 14, 21, L"glass_pane_top_red", L"red_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 15, 21, L"glass_pane_top_black", L"black_stained_glass_pane_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 0, 22, L"planks_acacia", L"acacia_planks", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     { 1, 22, L"planks_big_oak", L"dark_oak_planks", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     // 1.8
@@ -427,8 +443,8 @@ static struct {
     { 7, 23, L"door_acacia_upper", L"acacia_door_top", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 8, 23, L"door_dark_oak_lower", L"dark_oak_door_bottom", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 9, 23, L"door_dark_oak_upper", L"dark_oak_door_top", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    { 10, 23, L"", L"", SWATCH_REPEAT_ALL },	// now free - was top of banner, squished down from 20 wide MW_BANNER_UPPER, SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY
-    { 11, 23, L"", L"", SWATCH_REPEAT_ALL },	// now free - was bottom of banner, squished down from 20 wide MW_BANNER_LOWER, SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY
+    { 10, 23, L"smooth_stone", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner
+    { 11, 23, L"smooth_stone_slab_side", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was bottom of banner
     { 12, 23, L"end_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 23, L"chorus_plant", L"", SWATCH_REPEAT_ALL },
     { 14, 23, L"chorus_flower", L"", SWATCH_REPEAT_ALL },
@@ -442,7 +458,7 @@ static struct {
     { 6, 24, L"beetroots_stage_2", L"beetroots_stage2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 7, 24, L"beetroots_stage_3", L"beetroots_stage3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 8, 24, L"grass_path_top", L"", SWATCH_REPEAT_ALL },
-    { 9, 24, L"grass_path_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    { 9, 24, L"grass_path_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY },
     { 10, 24, L"command_block_front", L"", SWATCH_REPEAT_ALL },
     { 11, 24, L"command_block_back", L"", SWATCH_REPEAT_ALL },  // also "commandBlock", but no room...
     { 12, 24, L"command_block_side", L"", SWATCH_REPEAT_ALL },
@@ -470,17 +486,17 @@ static struct {
     { 2, 26, L"red_nether_brick", L"red_nether_bricks", SWATCH_REPEAT_ALL },
     { 3, 26, L"bone_block_side", L"", SWATCH_REPEAT_ALL },
     { 4, 26, L"bone_block_top", L"", SWATCH_REPEAT_ALL },
-    { 5, 26, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
+    { 5, 26, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
     { 6, 26, L"", L"", SWATCH_REPEAT_ALL },	// MANUFACTURED 4 way redstone wire - reserved
     { 7, 26, L"MW_CHEST_LATCH", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 8, 26, L"water_flow", L"", SWATCH_CLAMP_ALL },	// special: double-wide
-    { 9, 26, L"lava_flow", L"", SWATCH_CLAMP_ALL },		// special: double-wide
-    { 10, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF
-    { 11, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF
-    { 12, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_DOT_OFF
-    { 13, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_ANGLED_2_OFF
-    { 14, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_3_OFF
-    { 15, 26, L"", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_4_OFF
+    { 8, 26, L"water_flow", L"", SWATCH_REPEAT_ALL },	// special: double-wide
+    { 9, 26, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
+    { 10, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF
+    { 11, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF
+    { 12, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_DOT_OFF
+    { 13, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_ANGLED_2_OFF
+    { 14, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_3_OFF
+    { 15, 26, L"", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_4_OFF
     { 0, 27, L"shulker_top_white", L"white_shulker_box", SWATCH_REPEAT_ALL },
     { 1, 27, L"shulker_top_orange", L"orange_shulker_box", SWATCH_REPEAT_ALL },
     { 2, 27, L"shulker_top_magenta", L"magenta_shulker_box", SWATCH_REPEAT_ALL },
@@ -639,8 +655,88 @@ static struct {
 	{ 11, 36, L"turtle_egg_slightly_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
 	{ 12, 36, L"turtle_egg_very_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
 	{ 13, 36, L"conduit", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{ 14, 36, L"", L"", SWATCH_REPEAT_ALL }, // Unused - note there are two more unused at MW_BANNER, above
-	{ 15, 36, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 14, 36, L"dead_tube_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 15, 36, L"dead_brain_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 0, 37, L"dead_bubble_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 1, 37, L"dead_fire_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 2, 37, L"dead_horn_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 3, 37, L"cornflower", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 4, 37, L"lily_of_the_valley", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 5, 37, L"wither_rose", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 6, 37, L"bamboo_large_leaves", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 7, 37, L"bamboo_singleleaf", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 8, 37, L"bamboo_small_leaves", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 9, 37, L"bamboo_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// X decal
+	{ 10, 37, L"bamboo_stalk", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// geometry
+	{ 11, 37, L"lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 12, 37, L"sweet_berry_bush_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 13, 37, L"sweet_berry_bush_stage1", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 14, 37, L"sweet_berry_bush_stage2", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 15, 37, L"sweet_berry_bush_stage3", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 0, 38, L"barrel_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 1, 38, L"barrel_side", L"", SWATCH_REPEAT_ALL },
+	{ 2, 38, L"barrel_top", L"", SWATCH_REPEAT_ALL },
+	{ 3, 38, L"barrel_top_open", L"", SWATCH_REPEAT_ALL },
+	{ 4, 38, L"bell_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 5, 38, L"bell_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 6, 38, L"bell_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 7, 38, L"blast_furnace_front", L"", SWATCH_REPEAT_ALL },
+	{ 8, 38, L"blast_furnace_front_on", L"", SWATCH_REPEAT_ALL },
+	{ 9, 38, L"blast_furnace_side", L"", SWATCH_REPEAT_ALL },
+	{ 10, 38, L"blast_furnace_top", L"", SWATCH_REPEAT_ALL },
+	{ 11, 38, L"composter_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 12, 38, L"composter_compost", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 13, 38, L"composter_ready", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 14, 38, L"composter_side", L"", SWATCH_REPEAT_ALL },
+	{ 15, 38, L"composter_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 0, 39, L"campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 1, 39, L"campfire_log", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 2, 39, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// TODOTODO not sure about this one
+	{ 3, 39, L"cartography_table_side1", L"", SWATCH_REPEAT_ALL },
+	{ 4, 39, L"cartography_table_side2", L"", SWATCH_REPEAT_ALL },
+	{ 5, 39, L"cartography_table_side3", L"", SWATCH_REPEAT_ALL },
+	{ 6, 39, L"cartography_table_top", L"", SWATCH_REPEAT_ALL },
+	{ 7, 39, L"fletching_table_front", L"", SWATCH_REPEAT_ALL },
+	{ 8, 39, L"fletching_table_side", L"", SWATCH_REPEAT_ALL },
+	{ 9, 39, L"fletching_table_top", L"", SWATCH_REPEAT_ALL },
+	{ 10, 39, L"grindstone_pivot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 11, 39, L"grindstone_round", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 12, 39, L"grindstone_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 13, 39, L"jigsaw_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 14, 39, L"jigsaw_side", L"", SWATCH_REPEAT_ALL },
+	{ 15, 39, L"jigsaw_top", L"", SWATCH_REPEAT_ALL },
+	{ 0, 40, L"lectern_base", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 1, 40, L"lectern_front", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 2, 40, L"lectern_sides", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 3, 40, L"lectern_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 4, 40, L"loom_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 5, 40, L"loom_front", L"", SWATCH_REPEAT_ALL },
+	{ 6, 40, L"loom_side", L"", SWATCH_REPEAT_ALL },
+	{ 7, 40, L"loom_top", L"", SWATCH_REPEAT_ALL },
+	{ 8, 40, L"scaffolding_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 9, 40, L"scaffolding_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 10, 40, L"scaffolding_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 11, 40, L"smoker_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 12, 40, L"smoker_front", L"", SWATCH_REPEAT_ALL },
+	{ 13, 40, L"smoker_front_on", L"", SWATCH_REPEAT_ALL },
+	{ 14, 40, L"smoker_side", L"", SWATCH_REPEAT_ALL },
+	{ 15, 40, L"smoker_top", L"", SWATCH_REPEAT_ALL },
+	{ 0, 41, L"smithing_table_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 1, 41, L"smithing_table_front", L"", SWATCH_REPEAT_ALL },
+	{ 2, 41, L"smithing_table_side", L"", SWATCH_REPEAT_ALL },
+	{ 3, 41, L"smithing_table_top", L"", SWATCH_REPEAT_ALL },
+	{ 4, 41, L"stonecutter_bottom", L"", SWATCH_REPEAT_ALL },
+	{ 5, 41, L"stonecutter_saw", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 6, 41, L"stonecutter_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 7, 41, L"stonecutter_top", L"", SWATCH_REPEAT_ALL },
+	{ 8, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 9, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 10, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 11, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 12, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 13, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 14, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 15, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
 };
 
 

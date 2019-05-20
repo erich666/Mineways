@@ -41,6 +41,8 @@ static void makeSolidTile(progimage_info *dst, int chosenTile, int solid);
 static void copyPNG(progimage_info *dst, progimage_info *src);
 static void copyPNGArea(progimage_info *dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info *src, int src_x_min, int src_y_min);
 
+static int checkForCutout(progimage_info *dst);
+
 typedef struct ChestData {
 	int fromX;
 	int fromY;
@@ -239,7 +241,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.08\n");  // change version below, too
+			wprintf( L"TileMaker version 2.09\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -259,7 +261,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.08\n");  // change version above, too
+        wprintf(L"TileMaker version 2.09\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -301,8 +303,8 @@ int wmain(int argc, wchar_t* argv[])
 	baseXResolution = xTiles * baseTileSize;
 	baseYResolution = baseYTiles * baseTileSize;
 
-	// output should be at least as big as input base texture
-	outputYTiles = baseYTiles;
+	// output should be the size of the output number of tiles
+	outputYTiles = VERTICAL_TILES; // used to be baseYTiles - that's no good
 
 	// look through tiles in tiles directory, see which exist, find maximum Y value.
 	if ( !notiles )
@@ -385,14 +387,24 @@ int wmain(int argc, wchar_t* argv[])
 						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
 						if (fail_code == 0)
 						{
+							// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
+							if (!(gTiles[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+								// flag not set, so check for alpha == 0
+								if (checkForCutout(&tile[tilesFound])) {
+									wprintf(L"WARNING: file %s has texels that are fully transparent, but the tile is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
+								}
+							}
+
 							tilesMissingSet[index] = 1;	// note tile is used
 							tilesFound++;
 
 							// Find maximum Y resolution of output tile: expand bottom of output texture if found.
 							// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
+							// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
 							if ( outputYTiles-1 < gTiles[index].txrY )
 							{
 								outputYTiles = gTiles[index].txrY + 1;
+								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: go update VERTICAL_TILES.\n", ffd.cFileName);
 							}
 						}
 						//else
@@ -1054,7 +1066,7 @@ static int isPNGTileEmpty(progimage_info *dst, int dst_x, int dst_y)
 		dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize) * 4;
 		for (col = 0; col < tileSize; col++)
 		{
-			if ((dst_data + col)[3] != 0)
+			if (dst_data[3] != 0)
 			{
 				return 0;
 			}
@@ -1245,4 +1257,25 @@ static void makeSolidTile(progimage_info *dst, int chosenTile, int solid)
         }
     }
 }
+
+// does any pixel have an alpha of 0?
+static int checkForCutout(progimage_info *dst)
+{
+	unsigned char *dst_data = &dst->image_data[0];
+	int row, col;
+
+	for (row = 0; row < dst->height; row++)
+	{
+		for (col = 0; col < dst->width; col++)
+		{
+			if (dst_data[3] == 0)
+			{
+				return 1;
+			}
+			dst_data += 4;
+		}
+	}
+	return 0;
+};
+
 
