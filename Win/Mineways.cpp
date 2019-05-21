@@ -68,7 +68,7 @@ static bool gAlwaysFail = false;
 
 // window margins - there should be a lot more defines here...
 #define MAIN_WINDOW_TOP (30+30)
-#define SLIDER_LEFT	90
+#define SLIDER_LEFT	60
 
 // should probably be a subroutine, but too many variables...
 #define REDRAW_ALL  draw();\
@@ -818,7 +818,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 WS_CHILD | WS_VISIBLE | ES_LEFT,
                 5, 5, SLIDER_LEFT, 20,
                 hWnd, (HMENU)ID_LAYERINFOLABEL, NULL, NULL);
-            SetWindowText(hwndInfoLabel, L"Max height");
+            SetWindowText(hwndInfoLabel, L"Height");
             EnableWindow(hwndInfoLabel, FALSE);
 
             hwndInfoBottomLabel = CreateWindowEx(
@@ -826,7 +826,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 WS_CHILD | WS_VISIBLE | ES_LEFT,
                 5, 35, SLIDER_LEFT, 20,
                 hWnd, (HMENU)ID_LAYERINFOBOTTOMLABEL, NULL, NULL);
-            SetWindowText(hwndInfoBottomLabel, L"Lower depth");
+            SetWindowText(hwndInfoBottomLabel, L"Depth");
             EnableWindow(hwndInfoBottomLabel, FALSE);
 
             hwndStatus = CreateWindowEx(
@@ -1114,19 +1114,19 @@ RButtonUp:
             int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);	// note we favor rendering here - for 3D printing the next to last option should be "false"
             if (gHitsFound[0] && !gHitsFound[1])
             {
-                // make sure there's some lower depth to use to replace current target depth
+                // make sure there's some depth to use to replace current target depth
                 if (minHeightFound < gTargetDepth)	// was gHitsFound[3]
                 {
                     // send warning, set to min height found, then redo!
                     if ( gFullLow )
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
+                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
                             gTargetDepth, minHeightFound);
                     }
                     else
                     {
-                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current lower depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
+                        swprintf_s(msgString,1024,L"All blocks in your selection are below the current depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
                             gTargetDepth, minHeightFound);
                     }
                     MessageBox( NULL, msgString,
@@ -1162,12 +1162,12 @@ RButtonUp:
                     if ( gFullLow )
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound );
                     }
                     else
                     {
-                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current lower depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString,1024,L"Some blocks in your selection are visible below the current depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound );
                     }
                 }
@@ -1176,12 +1176,12 @@ RButtonUp:
 					if (gFullLow)
 					{
 						gFullLow = 0;
-						swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a lower depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+						swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
 							gTargetDepth, minHeightFound);
 					}
 					else
 					{
-						swprintf_s(msgString, 1024, L"The current selection's lower depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+						swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
 							gTargetDepth, minHeightFound);
 					}
                 }
@@ -3144,7 +3144,7 @@ static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBott
     if ( state != gBottomControlEnabled )
     {
         gBottomControlEnabled = state;
-        // Currently only the label "Lower depth" is affected by selection;
+        // Currently only the label "depth" is affected by selection;
         // in this way the depth can be modified even if selection is not on. The problem with an inactive
         // slider is that the map window underneath is then active instead, and you'll drag the map.
         //EnableWindow(hwndBottomSlider,state);

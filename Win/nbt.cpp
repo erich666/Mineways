@@ -970,11 +970,12 @@ int findIndexFromName(char *name)
 	if (strcmp("air", name) == 0) {
 		return 0;
 	}
-#ifdef _DEBUG
-	if (strcmp("smooth_sandstone", name) == 0) {
-		name[0] = name[0];
-	}
-#endif
+// to break on a specific named block
+//#ifdef _DEBUG
+//	if (strcmp("smooth_sandstone", name) == 0) {
+//		name[0] = name[0];
+//	}
+//#endif
 	int hashNum = computeHash(name);
 	int *hl = HashArray[hashNum & HASH_MASK];
 
@@ -2220,7 +2221,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							break;
 						}
 						// always check for waterlogged
-						dataVal |= (waterlogged ? BIT_16 : 0x0);
+						dataVal |= (waterlogged ? WATERLOGGED_BIT : 0x0);
 
 						paletteDataEntry[entry_index] |= dataVal;
 						entry_index++;

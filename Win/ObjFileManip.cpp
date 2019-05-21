@@ -3470,7 +3470,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_MELON_STEM:
         saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         // if stem is full maturity and is next to a pumpkin/melon, add extra stem
-        if (dataVal == 7)
+        if ((dataVal&0x7) == 7)
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
@@ -3571,7 +3571,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 break;
             }
             // do for all rails
-            switch ( modDataVal )
+            switch ( modDataVal & 0x7 )
             {
             case 2:
             case 3:
@@ -3595,7 +3595,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // TODO: if we really wanted to, we could store the bottom level of stuff
                 // in the database, then clear it after this pass.
                 transNeighbor = boxIndex;
-                switch ( modDataVal )
+                switch ( modDataVal & 0x7)
                 {
                 case 2:
                     transNeighbor = DIRECTION_BLOCK_SIDE_HI_X;
@@ -3637,7 +3637,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // brute force the four cases: always draw bottom of block as the thing, use top of block for decal,
             // use sides for triangles. Really, we'll just use the top for everything for now (TODO), as it's kind of
             // a bogus object anyway (no right answer).
-            switch ( modDataVal )
+            switch ( modDataVal & 0x7)
             {
             case 2: // ascend east +x
                 retCode |= saveTriangleGeometry( type, dataVal, boxIndex, typeBelow, dataValBelow, boxIndexBelow, DIR_LO_X_BIT );
@@ -4438,7 +4438,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			swatchLoc = SWATCH_INDEX(1, 22);
 			break;
 		}
-        switch (dataVal&0x7)
+        switch (dataVal & 0x7)
         {
         default:    // make compiler happy
         case 2: // north
@@ -4488,7 +4488,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_GREEN_WALL_BANNER:
 	case BLOCK_RED_WALL_BANNER:
 	case BLOCK_BLACK_WALL_BANNER:
-		switch (dataVal)
+		switch (dataVal & 0x7)
         {
         default:    // make compiler happy
         case 2: // north
@@ -5101,7 +5101,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         shiftVal = 0;
         gUsingTransform = 1;
-        switch ( dataVal >> 2 )
+        switch ( (dataVal >> 2) & 0x3 )
         {
         case 0:
             // small
@@ -5343,7 +5343,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             float scale = 1.0f;
             // rendering
             // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers
-            switch (dataVal)
+            switch (dataVal & 0xf)
             {
             case 0:
                 // nothing!
@@ -5540,7 +5540,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             translateMtx(mtx, 0.0f, 0.0f, 0.25f);
             yrot = 0.0f;
-            switch (dataVal&0xf) {
+            switch (dataVal & 0xf) {
             default:
                 assert(0);
             case 1:
@@ -5645,7 +5645,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // If it's a right-side chest or a single, make the latch (left-side chests don't get the latch, so that the right side makes just one latch).
         chestType = 0;	// left is 1, right is 2
         angle = 0;
-        switch (dataVal)
+        switch (dataVal & 0x7)
         {
         case 0:
             // old bad data, so this code matches it.
@@ -5734,7 +5734,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // chest itself - facing south
         // get tiles based on left/right/single
         faceMask = 0x0;
-        switch (chestType) {
+        switch (chestType & 0x3) {
         case 0:
             swatchLoc = SWATCH_INDEX(9, 1);
             swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
@@ -5807,7 +5807,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, 0x0, 0, 0, 1,15, 0,14, 1,15);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         gUsingTransform = 0;
-        switch ( dataVal )
+        switch ( dataVal & 0x7)
         {
         default:
         case 2: // facing north
@@ -6320,7 +6320,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         yrot = zrot = 0.0f;
         //dir = DIRECTION_BLOCK_TOP;
-        switch ( dataVal )
+        switch ( dataVal & 0x7 )
         {
         case 0: // pointing down
             //dir = DIRECTION_BLOCK_BOTTOM;
@@ -8725,7 +8725,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         }
         break;
     case BLOCK_TALL_GRASS:				// saveBillboardFacesExtraData
-        switch ( dataVal )
+        switch ( dataVal & 0x3 )
         {
         case 0:
             // dead bush appearance
@@ -8761,7 +8761,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         break;
     case BLOCK_CARROTS:				// saveBillboardFacesExtraData
     case BLOCK_POTATOES:
-        switch (dataVal)
+        switch (dataVal & 0x7)
         {
         case 0:
         case 1:
@@ -8849,7 +8849,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         // fall through:
     case BLOCK_RAIL:				// saveBillboardFacesExtraData
         if (gOptions->pEFD->chkCompositeOverlay) {
-            switch (dataVal)
+            switch (dataVal & 0x7)
             {
             case 2:
             case 3:
@@ -8865,7 +8865,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         else {
             // if a curved rail, change swatch
             if (type==BLOCK_RAIL) {
-                switch (dataVal)
+                switch (dataVal & 0xf)
                 {
                 case 6:
                 case 7:
@@ -8897,7 +8897,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     case BLOCK_LADDER:				// saveBillboardFacesExtraData
         assert(!gOptions->pEFD->chkCompositeOverlay);
         // we convert dataVal for ladder into the bit-wise conversion for vines
-        switch (dataVal)
+        switch (dataVal & 0x7)
         {
         case 2: // north, -Z
             dataVal = 0x1;
@@ -9159,7 +9159,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             faceCount = 2;
 
             // note that by the time we get here the upper bit has been masked off (on/off) for powered/detector rails
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             case 2: // ascend east +x
                 // two paired billboards
@@ -9203,7 +9203,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
                 if (!gOptions->pEFD->chkCompositeOverlay) {
                     faceDir[0] = DIRECTION_BLOCK_TOP;
                     faceDir[1] = DIRECTION_BLOCK_BOTTOM;
-                    switch (dataVal)
+                    switch (dataVal & 0xf)
                     {
                     default:
                         assert(0);
@@ -9616,7 +9616,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             //static float shr = -0.8f/2.0f;
             static float trans = 8.0f/16.0f;
             float yAngle;
-            switch (dataVal)
+            switch (dataVal & 0x7)
             {
             default:
             case 1:
@@ -12734,7 +12734,7 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
                     break;
                 }
                 // do for all rails
-                switch ( modDataVal )
+                switch ( modDataVal & 0xf )
                 {
                 case 2:
                 case 3:
@@ -12754,7 +12754,7 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
                 // brute force the four cases: always draw bottom of block as the thing, use top of block for decal,
                 // use sides for triangles. Really, we'll just use the top for everything for now (TODO), as it's kind of
                 // a bogus object anyway (no right answer).
-                switch ( modDataVal )
+                switch ( modDataVal & 0xf)
                 {
                 case 2: // ascending east
                     if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
@@ -13337,7 +13337,7 @@ static int retrieveWoolSwatch( int dataVal )
 {
     int swatchLoc;
     // use dataVal to retrieve location. These are scattered all over.
-    switch (dataVal )
+    switch (dataVal & 0xf)
     {
     default:
         assert(0);
@@ -13427,7 +13427,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         {
         case BLOCK_DOUBLE_STONE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             default:
                 assert(0);
@@ -13510,7 +13510,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_DIRT:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x3 )
             {
             default:
                 assert(0);
@@ -13542,7 +13542,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
             // high order bit for double slabs means something else
             trimVal = ( type == BLOCK_STONE_SLAB ) ? (dataVal & 0x7) : dataVal;
-            switch ( trimVal )
+            switch ( trimVal & 0xf )
             {
             default:
                 // Debug world gives: assert(0);
@@ -13596,7 +13596,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             default:
                 assert(0);
@@ -13648,7 +13648,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             if ( frontLoc )
             {
-                switch ( dataVal )
+                switch ( dataVal & 0x7 )
                 {
                 default:
                 case 2: // facing north
@@ -13892,7 +13892,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_STONE:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x7 )
             {
             default: // normal stone
                 assert(0);
@@ -13952,7 +13952,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_SAND:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x1 )
             {
             default:
                 assert(0);
@@ -14017,7 +14017,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             else
             {
                 // top or bottom face.
-				switch (dataVal)
+				switch (dataVal & 0x7)
 				{
 				case 0:	// dispenser/dropper facing down, can't be anything else
 					if (faceDirection == DIRECTION_BLOCK_BOTTOM)
@@ -14297,7 +14297,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             // fall through:
         case BLOCK_RAIL:						// getSwatch
             // get data of track itself
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             case 0:
             case 4:
@@ -14336,7 +14336,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             {
                 // something must be done
                 // use data to figure out which type of sandstone
-                switch ( dataVal )
+                switch ( dataVal & 0x3 )
                 {
                 default:
                     assert(0);
@@ -14359,7 +14359,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             {
                 // something must be done
                 // use data to figure out which type of sandstone
-                switch ( dataVal )
+                switch ( dataVal & 0x3 )
                 {
                 default:
                     assert(0);
@@ -14781,7 +14781,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             // set side of chest as default
             SWATCH_SWITCH_SIDE( faceDirection, 10, 1 );
             angle = 0;
-            switch ( dataVal )
+            switch ( dataVal & 0x7 )
             {
             case 2: // facing north
                 if ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z )
@@ -15062,7 +15062,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM))
             {
-                switch ( dataVal )
+                switch ( dataVal & 0x7 )
                 {
                 case 0: // south
                     if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
@@ -15136,7 +15136,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 bool redstoneOn = (dataVal & 0xf) ? true : false;
                 if (faceDirection == DIRECTION_BLOCK_TOP)
                 {
-                    // flat wire
+                    // flat wire - note that the two high bits have to do with direction, not waterlogged, etc.
                     switch (dataVal >> 4)
                     {
                     case 0x0:
@@ -15214,7 +15214,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_STONE_BRICKS:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x3 )
             {
             default:
                 assert(0);
@@ -15236,7 +15236,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_FROSTED_ICE:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x3 )
             {
             default:
                 assert(0);
@@ -15275,7 +15275,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
             break;
         case BLOCK_POPPY:						// getSwatch
-            if ( dataVal > 0 )
+            if ( (dataVal & 0xf) > 0 )
             {
                 // row 20 has these flowers; else rose (12,0) is used
                 swatchLoc = SWATCH_INDEX( dataVal-1,19 );
@@ -15283,10 +15283,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_DOUBLE_FLOWER:						// getSwatch
-            if ( dataVal < 8 )
+            if ((dataVal & 0xf) < 8 )
             {
                 // bottom half of plant
-                if ( dataVal == 0 )
+                if ((dataVal & 0xf) == 0 )
                 {
                     // sunflower head
                     swatchLoc = SWATCH_INDEX( 1,18 );
@@ -15335,7 +15335,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_TALL_GRASS:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x3 )
             {
             case 0:
                 // dead bush appearance
@@ -15365,7 +15365,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_MONSTER_EGG:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x7 )
             {
             case 0:
             default:
@@ -15393,7 +15393,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             inside = SWATCH_INDEX( 14, 8 );	// pores
             outside = SWATCH_INDEX( (type == BLOCK_HUGE_BROWN_MUSHROOM) ? 14 : 13, 7 );
             swatchLoc = inside;
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             case 0: //0	 Fleshy piece	 Pores on all sides
                 // done above, it's the default: swatchLoc = inside;
@@ -15533,7 +15533,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_QUARTZ_BLOCK:						// getSwatch
             // use data to figure out which type of quartz and orientation
-            switch ( dataVal )
+            switch ( dataVal & 0x7 )
             {
             case 0:
                 SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,17, 1,17 );
@@ -15602,7 +15602,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_SPONGE:						// getSwatch
-            switch ( dataVal )
+            switch ( dataVal & 0x1 )
             {
             default:
                 assert(0);
@@ -15636,7 +15636,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             // use data to figure out direction of pillar
-            switch ( dataVal )
+            switch ( dataVal & 0xf )
             {
             case 0: // pillar vertical
                 SWATCH_SWITCH_SIDE_VERTICAL( faceDirection, xloc-1,yloc, xloc,yloc );
@@ -15821,7 +15821,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         
         case BLOCK_STRUCTURE_BLOCK:						// getSwatch
             // use data to figure out which type of structure block
-			switch (dataVal) {
+			switch (dataVal & 0x7) {
 			case 1:
 			default:
 				// data - 1
@@ -15873,7 +15873,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
 
 		case BLOCK_SMOOTH_STONE:
-			switch (dataVal)
+			switch (dataVal & 0x3)
 			{
 			default:
 				assert(0);

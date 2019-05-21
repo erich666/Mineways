@@ -319,6 +319,9 @@ static struct {
 	{ "Stripped Jungle Wood" },
 	{ "Stripped Acacia Wood" },		// 50
 	{ "Stripped Dark Oak Wood" },
+	{ "Sandstone" },
+	{ "Red Sandstone" },
+	{ "Quartz" },
 };
 
 char gCoralString[100];
@@ -333,6 +336,7 @@ static struct {
 };
 
 
+// put the names above
 #define STRING_SPRUCE_LEAVES	0
 #define STRING_BIRCH_LEAVES		1
 #define STRING_JUNGLE_LEAVES	2
@@ -385,6 +389,10 @@ static struct {
 #define STRING_STR_JUNGLE_WOOD	    49
 #define STRING_STR_ACACIA_WOOD	    50
 #define STRING_STR_DARK_OAK_WOOD	51
+#define	STRING_STR_SANDSTONE		52
+#define	STRING_STR_RED_SANDSTONE	53
+#define	STRING_STR_QUARTZ			54
+
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -765,6 +773,23 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		case 1:	// dark oak
 			return gExtraBlockNames[STRING_STR_DARK_OAK_WOOD].name;
+			break;
+		}
+		break;
+
+	case BLOCK_SMOOTH_STONE:
+		switch (*dataVal & 0x3)
+		{
+		default:
+			break;
+		case 1: // sandstone
+			return gExtraBlockNames[STRING_STR_SANDSTONE].name;
+			break;
+		case 2: // red sandstone
+			return gExtraBlockNames[STRING_STR_RED_SANDSTONE].name;
+			break;
+		case 3: // quartz
+			return gExtraBlockNames[STRING_STR_QUARTZ].name;
 			break;
 		}
 		break;
@@ -1551,6 +1576,27 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			break;
 		case 4:	// horn
 			color = 0xD2BE40;
+			break;
+		}
+		break;
+
+	case BLOCK_SMOOTH_STONE:
+		dataVal = block->data[voxel];
+		switch (dataVal & 0x3)
+		{
+		default:
+		case 0:	// tube coral - as is
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 1: // sandstone
+			color = 0xE0D6AB;
+			break;
+		case 2: // red sandstone
+			color = 0xB66220;
+			break;
+		case 3: // quartz
+			color = 0xECE6DF;
 			break;
 		}
 		break;
