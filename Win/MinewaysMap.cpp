@@ -515,9 +515,10 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 	*type = block->grid[xoff + zoff * 16 + y * 256];
 	*dataVal = block->data[xoff + zoff * 16 + y * 256];
 
-	// 1.13 fun: move topmost dataVal value to type
+	// 1.13+ fun: move topmost dataVal value to type - note that BLOCK_HEAD and BLOCK_FLOWER_POT are "reserved" and the high-bit version is not used
+	// Here is where the high data bit gets masked off and moved to the type bit.
 	if (block->mcVersion >= 13) {
-		if ((*dataVal & 0x80) && (*type != BLOCK_HEAD) && (*type != BLOCK_FLOWER_POT)) {
+		if ((*dataVal & HIGH_BIT) && (*type != BLOCK_HEAD) && (*type != BLOCK_FLOWER_POT)) {
 			*dataVal &= 0x7F;
 			*type |= 0x100;
 		}
@@ -3256,7 +3257,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
 			block->grid[bi] = (unsigned char)(BLOCK_TALL_SEAGRASS & 0xFF);
 			// not entirely sure about this number, but 10 seems to be the norm
-			block->data[bi] = (unsigned char)(8 | 0x80);	// like flower, add 8
+			block->data[bi] = (unsigned char)(8 | HIGH_BIT);	// like flower, add 8
 		}
 		break;
 	case BLOCK_KELP:
@@ -3267,7 +3268,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
 			block->grid[bi] = (unsigned char)(BLOCK_KELP & 0xFF);
 			// not entirely sure about this number, but 10 seems to be the norm
-			block->data[bi] = (unsigned char)(1 | 0x80);	// just add 1 for top
+			block->data[bi] = (unsigned char)(1 | HIGH_BIT);	// just add 1 for top
 		}
 		break;
 	case BLOCK_SEA_PICKLE:

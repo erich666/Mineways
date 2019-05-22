@@ -271,12 +271,13 @@ static bool hashMade = false;
 #define WALL_SIGN_PROP		 56
 
 
-#define NUM_TRANS 618
+#define NUM_TRANS 621
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
 // hash is computed once when 1.13 data is first read in.
 // second column is "traditional" type value, as found in blockInfo.cpp; third column is high-order bit and data value, fourth is Minecraft name
+// Note: the HIGH_BIT gets "transferred" to the type in MinewaysMap's IDBlock() method, about 100 lines in.
 // and https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
 //hash,ID,BIT|dataval,  name, common properties flags
 { 0,   0,           0, "air", NO_PROP },
@@ -897,7 +898,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  38,          10, "lily_of_the_valley", NO_PROP },
 { 0,  38,          11, "wither_rose", NO_PROP },
 { 0,  71,    HIGH_BIT, "sweet_berry_bush", AGE_PROP },
-{ 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 1, "potted_bamboo", NO_PROP }, 
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 9, "potted_cornflower", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 10, "potted_lily_of_the_valley", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 11, "potted_wither_rose", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
 { 0,   6,           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
 { 0,  72,    HIGH_BIT, "bamboo", AGE_PROP | LEAF_SIZE_PROP },
 
@@ -961,7 +965,7 @@ int findIndexFromName(char *name)
 	}
 // to break on a specific named block
 //#ifdef _DEBUG
-//	if (strcmp("smooth_sandstone", name) == 0) {
+//	if (strcmp("potted_cactus", name) == 0) {
 //		name[0] = name[0];
 //	}
 //#endif

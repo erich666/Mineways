@@ -2288,7 +2288,7 @@ gBoxData[boxIndex].data = 0x0;
 								if (IS_WATERLOGGED(type, boxIndex)) {
 									// clears to water if waterlogged, e.g., seagrass
 									gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
-									gBoxData[boxIndex].data = 8;
+									gBoxData[boxIndex].data = 8; // level of water set to full
 								}
 								else {
 									gBoxData[boxIndex].type = BLOCK_AIR;
@@ -5330,18 +5330,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         else
         {
-            int performMatrixOps = 1;
+            int addBillboard = 1;
             int typeB = 0;
             int dataValB = 0;
             int billboardType = BB_FULL_CROSS;
-            float scale = 1.0f;
+            float scale = 0.75f;	// hmmm, I used to think all plants were not scaled down - they are.
             // rendering
             // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers
-            switch (dataVal & 0xf)
+            switch (dataVal & 0xff)
             {
             case 0:
                 // nothing!
-                performMatrixOps = 0;
+                addBillboard = 0;
                 break;
             case 1:
             case RED_FLOWER_FIELD:
@@ -5357,28 +5357,28 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case SAPLING_FIELD:
                 // sapling (oak)
                 typeB = BLOCK_SAPLING;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case 4:
             case SAPLING_FIELD|0x1:
                 // spruce sapling flower - todo ACACIA uses this, maybe uses tile entity?
                 typeB = BLOCK_SAPLING;
                 dataValB = 1;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case 5:
             case SAPLING_FIELD | 0x2:
                 // birch sapling - todo DARK OAK uses this, maybe uses tile entity?
                 typeB = BLOCK_SAPLING;
                 dataValB = 2;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case 6:
             case SAPLING_FIELD | 0x3:
                 // jungle sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 3;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case 7:
             case RED_MUSHROOM_FIELD:
@@ -5393,38 +5393,39 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case 9:
             case CACTUS_FIELD:
                 // cactus (note we're definitely not 3D printing, so no face test)
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
+				addBillboard = 0;
+				swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
                 // interestingly enough, the tiny cactus is actually all made out of the side tiles, not top and bottom
                 saveBoxMultitileGeometry(boxIndex, BLOCK_CACTUS, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
                 firstFace = 0;
-                performMatrixOps = 0;
+ 				// cactus fills the pot, so these extra polygons are not needed
                 useInsidesAndBottom = 0;
                 break;
             case 10:
             case DEADBUSH_FIELD:
                 // dead bush
                 typeB = BLOCK_TALL_GRASS;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case 11:
             case TALLGRASS_FIELD | 0x2:
                 // fern
                 typeB = BLOCK_TALL_GRASS;
                 dataValB = 2;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
 
             case SAPLING_FIELD | 0x4:
                 // acacia sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 4;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case SAPLING_FIELD | 0x5:
                 // dark oak sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 5;
-                scale = 0.75f;
+                //scale = 0.75f;
                 break;
             case RED_FLOWER_FIELD | 0x1:
             case RED_FLOWER_FIELD | 0x2:
@@ -5434,27 +5435,47 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case RED_FLOWER_FIELD | 0x6:
             case RED_FLOWER_FIELD | 0x7:
 			case RED_FLOWER_FIELD | 0x8:
-				// blue orchid through oxeye daisy
+			case RED_FLOWER_FIELD | 0x9:
+			case RED_FLOWER_FIELD | 0xA:
+			case RED_FLOWER_FIELD | 0xB:
+				// blue orchid through wither rose
                 typeB = BLOCK_POPPY;
                 dataValB = dataVal & 0xf;
                 break;
 			case BAMBOO_FIELD:
 				// bamboo
+				addBillboard = 0;
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_BAMBOO].txrX, gBlockDefinitions[BLOCK_BAMBOO].txrY);
-				// interestingly enough, the tiny cactus is actually all made out of the side tiles, not top and bottom
+				totalVertexCount = gModel.vertexCount;
+				gUsingTransform = 1;
 				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_BOTTOM_BIT, 0, 0, 2, 0, 12, 0, 2);	// not quite the right swatch; it looks like they use the top of the first two columns and wrap to the bottom
-				firstFace = 0;
-				// TODOTODO add the leaf, make sure it's not output for 3D printing
-				performMatrixOps = 0;
-				useInsidesAndBottom = 0;
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				firstFace = 0;	// TODOTODO - should really pass this by reference and set to 0 if 1 in saveBoxAll* method
+				identityMtx(mtx);
+				//translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, 7.0f/16.0f, 4.0f / 16.0f, 7.0f / 16.0f);
+				//translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount, mtx);
+				// leaf
+				swatchLoc = SWATCH_INDEX(7, 37);
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 1, 7, 11, 15, 8, 8);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
+				translateMtx(mtx, 0.0f, 2.0f / 16.0f, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount, mtx);
+				gUsingTransform = 0;
 				break;
 			default:
                 // Debug world gives: assert(0); - a value here is "fine", and should be ignored
-                performMatrixOps = 0;
+                addBillboard = 0;
                 break;
             }
 
-            if ( performMatrixOps )
+            if ( addBillboard )
             {
                 totalVertexCount = gModel.vertexCount;
                 gUsingTransform = 1;
@@ -13516,7 +13537,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
     {
         // use a solid color - we could add carpet and stairs here, among others.
-        // TODO: note that this is not fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
+        // TODOTODO: note that this is not fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
         swatchLoc = type;
         switch ( type )
         {
