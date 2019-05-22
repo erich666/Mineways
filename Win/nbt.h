@@ -43,6 +43,19 @@ enum {BF_BUFFER, BF_GZIP};
 #define WATERLOGGED_BIT 0x40
 #define HIGH_BIT 0x80
 
+// old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
+// so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
+// See nbt for the loop minecraft:red_flower etc. that sets these values.
+#define RED_FLOWER_FIELD		0x10
+#define YELLOW_FLOWER_FIELD		0x20
+#define RED_MUSHROOM_FIELD		0x30
+#define BROWN_MUSHROOM_FIELD	0x40
+#define SAPLING_FIELD			0x50
+#define DEADBUSH_FIELD			0x60
+#define TALLGRASS_FIELD			0x70
+#define CACTUS_FIELD			0x80
+#define BAMBOO_FIELD			0x90
+
 
 // wraps gzFile and memory buffers with a consistent interface
 typedef struct {

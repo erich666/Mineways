@@ -322,6 +322,10 @@ static struct {
 	{ "Sandstone" },
 	{ "Red Sandstone" },
 	{ "Quartz" },
+	{ "Cornflower" },
+	{ "Lily of the Valley" },
+	{ "Wither Rose" },
+	{ "Bamboo Sapling" },
 };
 
 char gCoralString[100];
@@ -392,6 +396,10 @@ static struct {
 #define	STRING_STR_SANDSTONE		52
 #define	STRING_STR_RED_SANDSTONE	53
 #define	STRING_STR_QUARTZ			54
+#define	STRING_CORNFLOWER			55
+#define	STRING_LILY_OF_THE_VALLEY	56
+#define	STRING_WITHER_ROSE			57
+#define	STRING_BAMBOO_SAPLING		58
 
 
 //bx = x coord of pixel
@@ -592,6 +600,15 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		case 8:	// oxeye daisy
 			return gExtraBlockNames[STRING_OXEYE_DAISY].name;
 			break;
+		case 9:
+			return gExtraBlockNames[STRING_CORNFLOWER].name;
+			break;
+		case 10:
+			return gExtraBlockNames[STRING_LILY_OF_THE_VALLEY].name;
+			break;
+		case 11:
+			return gExtraBlockNames[STRING_WITHER_ROSE].name;
+			break;
 		}
 		break;
 
@@ -702,6 +719,9 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		case 5:	// dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_SAPLING].name;
+			break;
+		case 6:	// bamboo
+			return gExtraBlockNames[STRING_BAMBOO_SAPLING].name;
 			break;
 		}
 		break;
@@ -1344,10 +1364,19 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 7:	// pink tulip
             color = 0xE7BBE7;
             break;
-        case 8:	// oxeye daisy
-            color = 0xE7D941;
-            break;
-        }
+		case 8:	// oxeye daisy
+			color = 0xE7D941;
+			break;
+		case 9: // cornflower
+			color = 0x547CAB;
+			break;
+		case 10: // lily of the valley
+			color = 0x93B588;
+			break;
+		case 11: // wither rose
+			color = 0x2D3119;
+			break;
+		}
         break;
 
     case BLOCK_DOUBLE_FLOWER:
@@ -2243,6 +2272,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_GLAZED_TERRACOTTA + 14:
     case BLOCK_GLAZED_TERRACOTTA + 15:
 	case BLOCK_SMOOTH_STONE:
+	case BLOCK_SWEET_BERRY_BUSH:
 		// uses 0-3
         if ( dataVal < 4 )
         {
@@ -2305,7 +2335,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		break;
 	case BLOCK_WOODEN_PLANKS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
-    case BLOCK_SAPLING:
     case BLOCK_CAKE:
     case BLOCK_MONSTER_EGG:
     case BLOCK_END_ROD:
@@ -2335,7 +2364,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         }
         break;
     case BLOCK_STONE:
-        // uses 0-6
+	case BLOCK_SAPLING:	// now with bamboo
+		// uses 0-6
         if ( dataVal < 7 )
         {
             addBlock = 1;
@@ -2396,13 +2426,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
         }
         break;
-    case BLOCK_POPPY:
-        // uses 0-8
-        if ( dataVal < 9 )
-        {
-            addBlock = 1;
-        }
-        break;
     case BLOCK_DOUBLE_STONE_SLAB:
         // uses 0-9, F (15)
         if ( dataVal < 10 || dataVal == 15 )
@@ -2429,7 +2452,14 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_FLOWER_POT:
+	case BLOCK_POPPY:
+		// uses 0-11
+		if (dataVal < 12)
+		{
+			addBlock = 1;
+		}
+		break;
+	case BLOCK_FLOWER_POT:
         // uses 0-13 for old-style 1.7 flower pots
         if (dataVal < 14)
         {

@@ -200,8 +200,8 @@ Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
 	{ /* 165 */ "Eroded Badlands",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
 	{ /* 166 */ "Modified Wooded Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
 	{ /* 167 */ "Modified Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /* 168 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-    { /* 169 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+	{ /* 168 */ "Bamboo Jungle",			   0.95f, 0.8f, 0x92BD59, 0x77AB2F },
+	{ /* 168 */ "Bamboo Jungle Hills",		   0.95f, 0.8f, 0x92BD59, 0x77AB2F },	// TODO: these parameters are a guess
     { /* 170 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 171 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 172 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },

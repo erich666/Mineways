@@ -3447,6 +3447,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_KELP:
 	case BLOCK_CORAL:
 	case BLOCK_DEAD_CORAL:
+	case BLOCK_SWEET_BERRY_BUSH:
 		return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
         break;	// saveBillboardOrGeometry
 
@@ -5288,14 +5289,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
         // so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
         // See nbt for the loop minecraft:red_flower etc. that sets these values.
-#define RED_FLOWER_FIELD		0x10
-#define YELLOW_FLOWER_FIELD		0x20
-#define RED_MUSHROOM_FIELD		0x30
-#define BROWN_MUSHROOM_FIELD	0x40
-#define SAPLING_FIELD			0x50
-#define DEADBUSH_FIELD			0x60
-#define TALLGRASS_FIELD			0x70
-#define CACTUS_FIELD			0x80
         /*
         Flower Pot Contents
         Contents		Item			Data
@@ -5321,11 +5314,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         dead bush		deadbush		0
         fern			tallgrass		2
         cactus			cactus			0
+		bamboo - new only
         */
 
         if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES))
         {
-            // printing or not using images: only geometry we can add is a cactus
+            // printing or not using images: only geometry we can add is a cactus (bamboo is too thin to print)
             if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
             {
                 swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY );
@@ -5351,7 +5345,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 break;
             case 1:
             case RED_FLOWER_FIELD:
-                // poppy / rose
+                // poppy / was: rose
                 typeB = BLOCK_POPPY;
                 break;
             case 2:
@@ -5439,12 +5433,22 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case RED_FLOWER_FIELD | 0x5:
             case RED_FLOWER_FIELD | 0x6:
             case RED_FLOWER_FIELD | 0x7:
-            case RED_FLOWER_FIELD | 0x8:
-                // blue orchid through oxeye daisy
+			case RED_FLOWER_FIELD | 0x8:
+				// blue orchid through oxeye daisy
                 typeB = BLOCK_POPPY;
                 dataValB = dataVal & 0xf;
                 break;
-            default:
+			case BAMBOO_FIELD:
+				// bamboo
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_BAMBOO].txrX, gBlockDefinitions[BLOCK_BAMBOO].txrY);
+				// interestingly enough, the tiny cactus is actually all made out of the side tiles, not top and bottom
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_BOTTOM_BIT, 0, 0, 2, 0, 12, 0, 2);	// not quite the right swatch; it looks like they use the top of the first two columns and wrap to the bottom
+				firstFace = 0;
+				// TODOTODO add the leaf, make sure it's not output for 3D printing
+				performMatrixOps = 0;
+				useInsidesAndBottom = 0;
+				break;
+			default:
                 // Debug world gives: assert(0); - a value here is "fine", and should be ignored
                 performMatrixOps = 0;
                 break;
@@ -5471,7 +5475,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
         }
 
-        // the four outside walls
+        // the four outside walls of the flower pot
         saveBoxGeometry( boxIndex, type, dataVal, firstFace, DIR_TOP_BIT|DIR_BOTTOM_BIT, 5,11, 0,6, 5,11 );
 
         // 4 top edge faces and insides, if visible
@@ -7274,6 +7278,82 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		gUsingTransform = 0;
 		break; // saveBillboardOrGeometry
 
+	case BLOCK_BAMBOO:						// saveBillboardOrGeometry
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		itemCount = (dataVal & 0x3) + 1;
+
+		gUsingTransform = 1;
+		// sea pickle sizes, geometry and texture match
+		// 1,2,3,4
+		// 4x6, 4x4, 4x6, 4x7
+
+		totalVertexCount = gModel.vertexCount;
+
+		// make a pickle
+		// modify z
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
+		// set top
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+		// set bottom:
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+
+		// output pickle top billboards, since we're in the water
+		outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
+		identityMtx(mtx);
+		translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
+
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		transformVertices(totalVertexCount, mtx);
+
+		if (itemCount > 1) {
+			// pickle 2 - 4 high
+			totalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, -1.0f);
+
+			identityMtx(mtx);
+			translateMtx(mtx, 10.0f / 16.0f, -6.0f / 16.0f, -1.0f / 16.0f);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
+		}
+		if (itemCount > 2) {
+			// pickle 3 - 6 high
+			totalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
+			identityMtx(mtx);
+			translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, -1.0f / 16.0f);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
+		}
+		if (itemCount > 3) {
+			// pickle 4 - 7 high
+			totalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
+			identityMtx(mtx);
+			translateMtx(mtx, 8.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			transformVertices(totalVertexCount, mtx);
+		}
+
+		// if waterlogged, we put up the tendrils - TODO
+
+		gUsingTransform = 0;
+		break; // saveBillboardOrGeometry
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -8718,11 +8798,15 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
             // acacia sapling
             swatchLoc = SWATCH_INDEX(14,18);
             break;
-        case 5:
-            // dark oak sapling
-            swatchLoc = SWATCH_INDEX(15,18);
-            break;
-        }
+		case 5:
+			// dark oak sapling
+			swatchLoc = SWATCH_INDEX(15, 18);
+			break;
+		case 6:
+			// bamboo
+			swatchLoc = SWATCH_INDEX(9, 37);
+			break;
+		}
         break;
     case BLOCK_TALL_GRASS:				// saveBillboardFacesExtraData
         switch ( dataVal & 0x3 )
@@ -8756,7 +8840,7 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     case BLOCK_CROPS:				// saveBillboardFacesExtraData
         // adjust for growth
         // undocumented: village-grown wheat appears to have
-        // the 0x8 bit set, which doesn't seem to mreatter. Mask it out.
+        // the 0x8 bit set, which doesn't seem to matter. Mask it out.
         swatchLoc += ( (dataVal & 0x7) - 7 );
         break;
     case BLOCK_CARROTS:				// saveBillboardFacesExtraData
@@ -8923,8 +9007,14 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
     case BLOCK_POPPY:				// saveBillboardFacesExtraData
         if ( dataVal > 0 )
         {
-            // row 20 has these flowers; else rose (12,0) is used
-            swatchLoc = SWATCH_INDEX( dataVal-1,19 );
+			if (dataVal < 9) {
+				// row 20 has these flowers; else poppy (12,0) is used
+				swatchLoc = SWATCH_INDEX(dataVal - 1, 19);
+			}
+			else {
+				// cornflower, lily of the valley, wither rose
+				swatchLoc = SWATCH_INDEX(dataVal - 6, 37);
+			}
         }
         break;
     case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
@@ -9059,7 +9149,12 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         }
         break;
 
-    default:
+	case BLOCK_SWEET_BERRY_BUSH:				// saveBillboardFacesExtraData
+		// adjust for growth - swatchLoc is oldest one
+		swatchLoc += ((dataVal & 0x3) - 3);
+		break;
+	
+	default:
         // perfectly fine to hit here, the billboard is generic
         break;
     }
@@ -15277,8 +15372,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_POPPY:						// getSwatch
             if ( (dataVal & 0xf) > 0 )
             {
-                // row 20 has these flowers; else rose (12,0) is used
-                swatchLoc = SWATCH_INDEX( dataVal-1,19 );
+				if (dataVal < 9) {
+					// row 20 has these flowers; else poppy (12,0) is used
+					swatchLoc = SWATCH_INDEX(dataVal - 1, 19);
+				}
+				else {
+					// cornflower, lily of the valley, wither rose
+					swatchLoc = SWATCH_INDEX(dataVal - 6, 37);
+				}
             }
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
@@ -15327,11 +15428,15 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // acacia sapling
                 swatchLoc = SWATCH_INDEX(14, 18);
                 break;
-            case 5:
-                // dark oak sapling
-                swatchLoc = SWATCH_INDEX(15, 18);
-                break;
-            }
+			case 5:
+				// dark oak sapling
+				swatchLoc = SWATCH_INDEX(15, 18);
+				break;
+			case 6:
+				// bamboo sapling
+				swatchLoc = SWATCH_INDEX(9, 37);
+				break;
+			}
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_TALL_GRASS:						// getSwatch

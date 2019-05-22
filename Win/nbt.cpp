@@ -51,19 +51,6 @@ typedef struct BlockTranslator {
 
 static bool hashMade = false;
 
-// old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
-// so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
-// See nbt for the loop minecraft:red_flower etc. that sets these values.
-// COPIED FROM ObjFileManip.cpp, should share someday...
-#define RED_FLOWER_FIELD		0x10
-#define YELLOW_FLOWER_FIELD		0x20
-#define RED_MUSHROOM_FIELD		0x30
-#define BROWN_MUSHROOM_FIELD	0x40
-#define SAPLING_FIELD			0x50
-#define DEADBUSH_FIELD			0x60
-#define TALLGRASS_FIELD			0x70
-#define CACTUS_FIELD			0x80
-
 
 // properties and which blocks use them:
 // age: AGE_PROP
@@ -284,7 +271,7 @@ static bool hashMade = false;
 #define WALL_SIGN_PROP		 56
 
 
-#define NUM_TRANS 616
+#define NUM_TRANS 618
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -717,28 +704,28 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 105,           0, "melon_stem", AGE_PROP },
 { 0, 117,           0, "brewing_stand", NO_PROP },	// see has_bottle_0
 { 0, 119,           0, "end_portal", NO_PROP },
-{ 0, 140,                        0, "flower_pot", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 0, "potted_oak_sapling", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 1, "potted_spruce_sapling", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 2, "potted_birch_sapling", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 3, "potted_jungle_sapling", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 4, "potted_acacia_sapling", NO_PROP },
-{ 0, 140,        SAPLING_FIELD | 5, "potted_dark_oak_sapling", NO_PROP },
-{ 0, 140,      TALLGRASS_FIELD | 2, "potted_fern", NO_PROP },
-{ 0, 140,  YELLOW_FLOWER_FIELD | 0, "potted_dandelion", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 0, "potted_poppy", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 1, "potted_blue_orchid", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 2, "potted_allium", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 3, "potted_azure_bluet", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 4, "potted_red_tulip", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 5, "potted_orange_tulip", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 6, "potted_white_tulip", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 7, "potted_pink_tulip", NO_PROP },
-{ 0, 140,     RED_FLOWER_FIELD | 8, "potted_oxeye_daisy", NO_PROP },
-{ 0, 140,   RED_MUSHROOM_FIELD | 0, "potted_red_mushroom", NO_PROP },
-{ 0, 140, BROWN_MUSHROOM_FIELD | 0, "potted_brown_mushroom", NO_PROP },
-{ 0, 140,       DEADBUSH_FIELD | 0, "potted_dead_bush", NO_PROP },
-{ 0, 140,         CACTUS_FIELD | 0, "potted_cactus", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,                        0, "flower_pot", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 0, "potted_oak_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 1, "potted_spruce_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 2, "potted_birch_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 3, "potted_jungle_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 4, "potted_acacia_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 5, "potted_dark_oak_sapling", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,      TALLGRASS_FIELD | 2, "potted_fern", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 0, "potted_dandelion", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 0, "potted_poppy", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 1, "potted_blue_orchid", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 2, "potted_allium", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 3, "potted_azure_bluet", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 4, "potted_red_tulip", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 5, "potted_orange_tulip", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 6, "potted_white_tulip", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 7, "potted_pink_tulip", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 8, "potted_oxeye_daisy", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,   RED_MUSHROOM_FIELD | 0, "potted_red_mushroom", NO_PROP },
+{ 0, BLOCK_FLOWER_POT, BROWN_MUSHROOM_FIELD | 0, "potted_brown_mushroom", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,       DEADBUSH_FIELD | 0, "potted_dead_bush", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,         CACTUS_FIELD | 0, "potted_cactus", NO_PROP },
 { 0, 144,           0, "skeleton_wall_skull", HEAD_WALL_PROP },
 { 0, 144,           0, "skeleton_skull", HEAD_PROP },
 { 0, 144,        1<<4, "wither_skeleton_wall_skull", HEAD_WALL_PROP },
@@ -910,6 +897,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  38,          10, "lily_of_the_valley", NO_PROP },
 { 0,  38,          11, "wither_rose", NO_PROP },
 { 0,  71,    HIGH_BIT, "sweet_berry_bush", AGE_PROP },
+{ 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 1, "potted_bamboo", NO_PROP }, 
+{ 0,   6,           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
 { 0,  72,    HIGH_BIT, "bamboo", AGE_PROP | LEAF_SIZE_PROP },
 
 };
@@ -1847,6 +1836,18 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										else if (strcmp(token, "hatch") == 0) {
 											hatch = atoi(value);
 										}
+										else if (strcmp(token, "leaves") == 0) {
+											// only for bamboo; age is 0 or 1, so we put this in bits 0x2 and 0x4
+											//if (strcmp(value, "none") == 0) {
+											//	dataVal = 0;
+											//}
+											if (strcmp(value, "small") == 0) {
+												dataVal = 1<<1;
+											}
+											else if (strcmp(value, "large") == 0) {
+												dataVal = 2<<1;
+											}
+										}
 
 #ifdef _DEBUG
 										else {
@@ -2403,6 +2404,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							dead bush		deadbush		0
 							fern			tallgrass		2
 							cactus			cactus			0
+							(note that bamboo should not be found in this data, since it is in 1.14, which is newer than this scheme)
 							*/
 							char* potName[] = {
 								"minecraft:air", "minecraft:red_flower", "minecraft:yellow_flower", "minecraft:red_mushroom", "minecraft:brown_mushroom",

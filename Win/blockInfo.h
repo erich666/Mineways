@@ -440,9 +440,9 @@ typedef struct Options {
 #define BLF_PANE			0x0040
 // sits on top of a block below it
 #define BLF_FLATTOP			0x0080
-// flat on a wall: sign, ladder, etc. - normally culled out
+// flat on a wall: sign, ladder, etc. - normally not shown on the map
 #define BLF_FLATSIDE		0x0100
-// small, not as worth rendering, has geometry - normally culled out
+// small, not as worth rendering, has geometry - normally not shown on the map
 #define BLF_SMALL_MIDDLER	0x0200
 // small thing: lever, flower - normally culled out
 #define BLF_SMALL_BILLBOARD	0x0400
