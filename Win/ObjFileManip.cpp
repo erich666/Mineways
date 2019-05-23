@@ -480,6 +480,11 @@ static int gFaceDirectionVector[6][3] =
 #define BOX_INDEXV(pt)	((pt)[X]*gBoxSizeYZ + (pt)[Z]*gBoxSize[Y] + (pt)[Y])
 #define BOX_INDEX(x,y,z)	((x)*gBoxSizeYZ + (z)*gBoxSize[Y] + (y))
 
+#define BOX_INDEX_TO_WORLD_XYZ(index,x,y,z) \
+	x = (index)/gBoxSizeYZ - gWorld2BoxOffset[X]; \
+	z = ((index) % gBoxSizeYZ) / gBoxSize[Y] - gWorld2BoxOffset[Z]; \
+	y = ((index) % gBoxSize[Y]) - gWorld2BoxOffset[Y];
+
 // feed chunk number and location to get index inside chunk's data
 //#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
 //											(((z)-(bz)*16)+ \
@@ -775,6 +780,8 @@ static void myseedrand( long seed );
 static double myrand();
 
 static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
+
+static double lib_rand(long iseed);
 
 static wchar_t gSeparator[3];
 
@@ -3325,6 +3332,8 @@ static void shearMtx(float mtx[4][4], float shx, float shy)
 static void transformVertices(int count,float mtx[4][4])
 {
     int i,j,vert;
+	// If this number is large, it's likely that we sent the wrong value in
+	assert(count <= 200);
     for ( vert = gModel.vertexCount-count; vert < gModel.vertexCount; vert++ )
     {
         Point resVertex;
@@ -3422,6 +3431,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     int chestType, matchType;
     float waterHeight;
 	int itemCount;
+	int age;
+	int leafSize;
+	float shiftX, shiftZ;
+	double val, val1;
 
 
     dataVal = gBoxData[boxIndex].data;
@@ -5448,9 +5461,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_BAMBOO].txrX, gBlockDefinitions[BLOCK_BAMBOO].txrY);
 				totalVertexCount = gModel.vertexCount;
 				gUsingTransform = 1;
-				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_BOTTOM_BIT, 0, 0, 2, 0, 12, 0, 2);	// not quite the right swatch; it looks like they use the top of the first two columns and wrap to the bottom
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 2, 0, 16, 0, 2);
+				// other sides - UV has to be low
+				saveBoxReuseGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 0, 16, 14, 16);
+				// top, not bottom (which appears to never be visible):
+				saveBoxReuseGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 14, 16, 14, 16);
 				totalVertexCount = gModel.vertexCount - totalVertexCount;
-				firstFace = 0;	// TODOTODO - should really pass this by reference and set to 0 if 1 in saveBoxAll* method
+				firstFace = 0;
 				identityMtx(mtx);
 				//translateToOriginMtx(mtx, boxIndex);
 				translateMtx(mtx, 7.0f/16.0f, 4.0f / 16.0f, 7.0f / 16.0f);
@@ -7240,7 +7257,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			transformVertices(totalVertexCount, mtx);
 		}
 
-		// if waterlogged, we put up the tendrils - TODO
+		// if waterlogged, we put up the tendrils - TODOTODO!
 
 		gUsingTransform = 0;
 		break; // saveBillboardOrGeometry
@@ -7300,79 +7317,102 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		break; // saveBillboardOrGeometry
 
 	case BLOCK_BAMBOO:						// saveBillboardOrGeometry
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-		itemCount = (dataVal & 0x3) + 1;
+		{
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			age = (dataVal & 0x1);
+			leafSize = (dataVal & 0x6) >> 1;
 
-		gUsingTransform = 1;
-		// sea pickle sizes, geometry and texture match
-		// 1,2,3,4
-		// 4x6, 4x4, 4x6, 4x7
-
-		totalVertexCount = gModel.vertexCount;
-
-		// make a pickle
-		// modify z
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
-		// set top
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-		// set bottom:
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-
-		// output pickle top billboards, since we're in the water
-		outputPickleTop(boxIndex, swatchLoc, 0.0f);
-
-		identityMtx(mtx);
-		translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
-
-		totalVertexCount = gModel.vertexCount - totalVertexCount;
-		transformVertices(totalVertexCount, mtx);
-
-		if (itemCount > 1) {
-			// pickle 2 - 4 high
+			gUsingTransform = 1;
 			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, -1.0f);
 
-			identityMtx(mtx);
-			translateMtx(mtx, 10.0f / 16.0f, -6.0f / 16.0f, -1.0f / 16.0f);
-			totalVertexCount = gModel.vertexCount - totalVertexCount;
-			transformVertices(totalVertexCount, mtx);
-		}
-		if (itemCount > 2) {
-			// pickle 3 - 6 high
+			// TODO: need to vary sapling locations, too - anything else? Maybe this code becomes a subroutine in some form. There's also those squiggly purple things that grow
+			// thin or thick bamboo?
 			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+			gUsingTransform = 1;
+			// +/-3
+			int x, y, z;
+			BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
+			//int x = (boxIndex) / gBoxSizeYZ - gWorld2BoxOffset[X];
+			//int z = ((boxIndex) % gBoxSizeYZ) / gBoxSize[Y] - gWorld2BoxOffset[Z];
+			//int y = ((boxIndex) % gBoxSize[Y]) - gWorld2BoxOffset[Y];
+			val = lib_rand(((x%500)*500 + (z%500) + 300718) % 300718);
+			// get two random numbers from one, by splitting off the top and bottom half of the digits, sqrt(300,000) == 500 for precision
+			val1 = fmod(val * 500, 1);
+			val -= val1 / 500;
+			shiftX = (float)(6 * val - 3);
+			shiftZ = (float)(6 * val1 - 3);
 
-			identityMtx(mtx);
-			translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, -1.0f / 16.0f);
-			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			val = lib_rand((((x % 140) * 140 + (z % 140))*140 + (y%140) + 300718) % 300718);
+			float txrShift = (float)(((int)(val * 4))*3);
+			if (age == 0) {
+				// note all six sides are used, but with different texture coordinates
+				// sides:
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0 + txrShift, 2 + txrShift, 0, 16, 0 + txrShift, 2 + txrShift);
+				// other sides - UV has to be low
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14 - txrShift, 16 - txrShift, 0, 16, 14 - txrShift, 16 - txrShift);
+				// top, not bottom (which appears to never be visible):
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 14, 16, 14, 16);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, (shiftX - txrShift + 7.0f) / 16.0f, 0.0f / 16.0f, (shiftZ - txrShift + 7.0f) / 16.0f);
+			}
+			else {
+				// TODOTODO stagger transform to center - must depend on X & Z in some way...
+				// note all six sides are used, but with different texture coordinates
+				// sides:
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0 + txrShift, 3 + txrShift, 0, 16, 0 + txrShift, 3 + txrShift);
+				// other sides - UV has to be low
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 13 - txrShift, 16 - txrShift, 0, 16, 13 - txrShift, 16 - txrShift);
+				// top, not bottom (which appears to never be visible):
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 13, 16, 13, 16, 13, 16);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, (shiftX - txrShift + 6.5f) / 16.0f, 0.0f / 16.0f, (shiftZ - txrShift + 7.0f) / 16.0f);
+			}
 			transformVertices(totalVertexCount, mtx);
+
+			// leaf
+			if (leafSize == 2) {
+				swatchLoc = SWATCH_INDEX(6, 37);
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+				translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount, mtx);
+
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+				transformVertices(totalVertexCount, mtx);
+			}
+			else if (leafSize == 1) {
+				swatchLoc = SWATCH_INDEX(8, 37);
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+				translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(totalVertexCount, mtx);
+
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+				transformVertices(totalVertexCount, mtx);
+			}
+
+			gUsingTransform = 0;
 		}
-		if (itemCount > 3) {
-			// pickle 4 - 7 high
-			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, 0.0f);
-
-			identityMtx(mtx);
-			translateMtx(mtx, 8.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
-			totalVertexCount = gModel.vertexCount - totalVertexCount;
-			transformVertices(totalVertexCount, mtx);
-		}
-
-		// if waterlogged, we put up the tendrils - TODO
-
-		gUsingTransform = 0;
 		break; // saveBillboardOrGeometry
 
 	default:
@@ -20779,4 +20819,36 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
         }
     }
     return minHeight;
+}
+
+/*
+ * Portable random number generator (from "Numerical Recipes")
+ * Returns a uniform random deviate between 0.0 and 1.0.  'iseed' must be
+ * less than M1 to avoid repetition, and less than (2**31-C1)/A1 [= 300718]
+ * to avoid overflow.
+ */
+#define M1  134456
+#define IA1   8121
+#define IC1  28411
+#define RM1 1.0/M1
+
+static double lib_rand(long iseed)
+{
+	double v1, v2, r; // fac
+	long     ix1, ix2;
+
+	ix2 = iseed;
+	do {
+		ix1 = (IC1 + ix2 * IA1) % M1;
+		ix2 = (IC1 + ix1 * IA1) % M1;
+		v1 = ix1 * 2.0 * RM1 - 1.0;
+		v2 = ix2 * 2.0 * RM1 - 1.0;
+		r = v1 * v1 + v2 * v2;
+	} while (r >= 1.0);
+
+	return r;
+
+	// for a Gaussian distribution:
+	//fac = sqrt((double)(-2.0 * log((double)r) / r));
+	//return v1 * fac;
 }

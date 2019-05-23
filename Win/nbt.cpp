@@ -101,6 +101,9 @@ static bool hashMade = false;
 
 // various properties of palette entries, can be used to differentiate how to use properties
 #define NO_PROP				  0
+// age: 0-7 or 0-15, (0-3 for frosted ice)
+// property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
+#define AGE_PROP			  0
 // axis: x|y|z
 #define AXIS_PROP			  1
 // snowy: false|true
@@ -151,8 +154,8 @@ static bool hashMade = false;
 // type: single|left|right - TODO currently ignored; if we pay attention to it, we'll need to peel off ender chest, as these don't use this
 #define CHEST_PROP			 15
 // wheat, frosted ice, cactus, sugar cane, etc.
-// age: 0-7 or 0-15, (0-3 for frosted ice)
-#define AGE_PROP			 16
+// leaves: leaf size prop (for bamboo) - none/small/large
+#define LEAF_SIZE_PROP		 16
 // moisture: 0-7
 #define FARMLAND_PROP		 17
 // facing: north|west|south|east - like torches
@@ -265,11 +268,8 @@ static bool hashMade = false;
 #define PICKLE_PROP			 53
 // eggs: 1-4
 #define EGG_PROP			 54
-// leaves: leaf size prop (for bamboo) - none/small/larg
-#define LEAF_SIZE_PROP		 55
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
-#define WALL_SIGN_PROP		 56
-
+#define WALL_SIGN_PROP		 55
 
 #define NUM_TRANS 621
 
@@ -903,7 +903,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 11, "potted_wither_rose", NO_PROP },
 { 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
 { 0,   6,           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
-{ 0,  72,    HIGH_BIT, "bamboo", AGE_PROP | LEAF_SIZE_PROP },
+{ 0,  72,    HIGH_BIT, "bamboo", LEAF_SIZE_PROP },
 
 };
 
@@ -1389,12 +1389,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			// for doors
 			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
 				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall;
-			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch;
+			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves;
 			// to avoid Release build warning =but should always be set by code in practice
 			int typeIndex = 0;
 			half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
 				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = false;
-			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = 0;
+			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = 0;
 
 			int bigbufflen = 0;
 			int entry_index = 0;
@@ -1586,6 +1586,11 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											}
 											*/
 										}
+										// common property
+										else if (strcmp(token, "waterlogged") == 0) {
+											waterlogged = (strcmp(value, "true") == 0) ? true : false;
+											// TODOTODO - https://minecraft.gamepedia.com/Waterlogging - could be a giant pain to do fully...
+										}
 										// SNOW_PROP
 										else if (strcmp(token, "layers") == 0) {
 											// 1-8, which turns into 0-7
@@ -1596,10 +1601,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											// AGE_PROP
 											// 0-3
 											age = dataVal = atoi(value);
-										}
-										else if (strcmp(token, "waterlogged") == 0) {
-											waterlogged = (strcmp(value, "true") == 0) ? true : false;
-											// TODO - https://minecraft.gamepedia.com/Waterlogging - giant pain, I think
 										}
 										// RAIL_PROP and STAIRS_PROP
 										else if (strcmp(token, "shape") == 0) {
@@ -1841,15 +1842,16 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											hatch = atoi(value);
 										}
 										else if (strcmp(token, "leaves") == 0) {
+											// for LEAF_SIZE_PROP
 											// only for bamboo; age is 0 or 1, so we put this in bits 0x2 and 0x4
-											//if (strcmp(value, "none") == 0) {
-											//	dataVal = 0;
-											//}
-											if (strcmp(value, "small") == 0) {
-												dataVal = 1<<1;
+											if (strcmp(value, "none") == 0) {
+												leaves = 0;
+											}
+											else if (strcmp(value, "small") == 0) {
+												leaves = 1;
 											}
 											else if (strcmp(value, "large") == 0) {
-												dataVal = 2<<1;
+												leaves = 2;
 											}
 										}
 
@@ -2077,6 +2079,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							break;
 						case COCOA_PROP:
 							dataVal = ((door_facing + 3) % 4) + (age << 2);
+							break;
+						case LEAF_SIZE_PROP:
+							dataVal = (leaves<<1) | age;
 							break;
 						case QUARTZ_PILLAR_PROP:
 							// for quartz pillar, change data val based on axis
