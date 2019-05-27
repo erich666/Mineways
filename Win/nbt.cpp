@@ -151,7 +151,7 @@ static bool hashMade = false;
 // powered: true|false
 #define LEVER_PROP			 14
 // facing: north|west|south|east
-// type: single|left|right - TODO currently ignored; if we pay attention to it, we'll need to peel off ender chest, as these don't use this
+// type: single|left|right
 #define CHEST_PROP			 15
 // wheat, frosted ice, cactus, sugar cane, etc.
 // leaves: leaf size prop (for bamboo) - none/small/large
@@ -591,7 +591,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 122,           0, "dragon_egg", NO_PROP },
 { 0, 123,           0, "redstone_lamp", REDSTONE_ORE_PROP }, // goes to 124 when lit
 { 0, 127,           0, "cocoa", COCOA_PROP },
-{ 0, 130,           0, "ender_chest", CHEST_PROP }, // TODO: if I fix 1.13 chests (can be next to each other), make this a separate property
+{ 0, 130,           0, "ender_chest", FACING_PROP }, // note that ender chest does not have "single" property that normal chests have; can be waterlogged
 { 0, 129,           0, "emerald_ore", NO_PROP },
 { 0, 133,           0, "emerald_block", NO_PROP },
 { 0, 152,           0, "redstone_block", NO_PROP },
@@ -1389,12 +1389,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			// for doors
 			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
 				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall;
-			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves;
+			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single;
 			// to avoid Release build warning =but should always be set by code in practice
 			int typeIndex = 0;
 			half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
 				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = false;
-			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = 0;
+			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = 0;
 
 			int bigbufflen = 0;
 			int entry_index = 0;
@@ -1575,16 +1575,16 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(value, "normal") == 0) {
 												sticky = false;
 											}
-											/* chest, but not needed
+											/* chest */
+											else if (strcmp(value, "single") == 0) {
+												single = 1;
+											}
 											else if (strcmp(value, "left") == 0) {
-												// chest
-												dataVal = 0;
+												single = 3;	// this value is reversed from how I think of left and right
 											}
 											else if (strcmp(value, "right") == 0) {
-												// chest
-												dataVal = 0;
+												single = 2;	// this value is reversed from how I think of left and right
 											}
-											*/
 										}
 										// common property
 										else if (strcmp(token, "waterlogged") == 0) {
@@ -2007,7 +2007,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							break;
 						case CHEST_PROP:
 							dataVal = 6 - dataVal;
-							// TODO: should export left/right as 2 higher bits. Good times.
+							// two upper bits are 1 = single, 2 = left, 3 = right half; note if no bits found, then it's an old-style chest
+							dataVal |= (single << 3);
 							break;
 						case FACING_PROP:
 							dataVal = 6 - dataVal;

@@ -5766,6 +5766,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             break;
         }
 
+		// that detective work's nice for older chests, but 1.13 on have a nice "single" property, which we use here to override things.
+		if ((dataVal >> 3) > 0x0) {
+			// has "single" property
+			chestType = (dataVal >> 3) - 1;
+		}
+
         gUsingTransform = 1;
 
         // create latch, move to place, then create chest, rotate all to place
