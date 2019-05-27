@@ -485,6 +485,10 @@ static int gFaceDirectionVector[6][3] =
 	z = ((index) % gBoxSizeYZ) / gBoxSize[Y] - gWorld2BoxOffset[Z]; \
 	y = ((index) % gBoxSize[Y]) - gWorld2BoxOffset[Y];
 
+#define BOX_INDEX_TO_WORLD_XZ(index,x,z) \
+	x = (index)/gBoxSizeYZ - gWorld2BoxOffset[X]; \
+	z = ((index) % gBoxSizeYZ) / gBoxSize[Y] - gWorld2BoxOffset[Z];
+
 // feed chunk number and location to get index inside chunk's data
 //#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
 //											(((z)-(bz)*16)+ \
@@ -610,6 +614,7 @@ static bool isWorldVolumeEmpty();
 static void computeRedstoneConnectivity(int boxIndex);
 static int computeFlatFlags(int boxIndex);
 static int firstFaceModifier( int isFirst, int faceIndex );
+static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ);
 static int saveBillboardOrGeometry( int boxIndex, int type );
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide );
 static unsigned int getStairMask(int boxIndex, int dataVal);
@@ -3411,6 +3416,24 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 	}
 }
 
+// Some growing objects get "wobbled" by +/- 3/16:
+// Bamboo sapling - yes, other saplings - no
+// Grass, fern, flowers - yes, dead bush - no
+// Tall grass and other tall flowers - yes
+// Seagrass - yes
+// everything else (mushrooms, crops, stems, carrots, potatoes, beetroot, nether wart, kelp) do not
+static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ)
+{
+	int x, z;
+	BOX_INDEX_TO_WORLD_XZ(boxIndex, x, z);
+	double val = lib_rand(((x % 500) * 500 + (z % 500) + 300718) % 300718);
+	// get two random numbers from one, by splitting off the top and bottom half of the digits, sqrt(300,000) == 500 for precision
+	double val1 = fmod(val * 500, 1);
+	val -= val1 / 500;
+	shiftX = (float)(6 * val - 3);
+	shiftZ = (float)(6 * val1 - 3);
+}
+
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
@@ -3434,8 +3457,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int age;
 	int leafSize;
 	float shiftX, shiftZ;
-	double val, val1;
-
 
     dataVal = gBoxData[boxIndex].data;
 
@@ -7327,22 +7348,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			// TODO: need to vary sapling locations, too - anything else? Maybe this code becomes a subroutine in some form. There's also those squiggly purple things that grow
 			// thin or thick bamboo?
-			totalVertexCount = gModel.vertexCount;
-			gUsingTransform = 1;
+
 			// +/-3
+			wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+
 			int x, y, z;
 			BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
-			//int x = (boxIndex) / gBoxSizeYZ - gWorld2BoxOffset[X];
-			//int z = ((boxIndex) % gBoxSizeYZ) / gBoxSize[Y] - gWorld2BoxOffset[Z];
-			//int y = ((boxIndex) % gBoxSize[Y]) - gWorld2BoxOffset[Y];
-			val = lib_rand(((x%500)*500 + (z%500) + 300718) % 300718);
-			// get two random numbers from one, by splitting off the top and bottom half of the digits, sqrt(300,000) == 500 for precision
-			val1 = fmod(val * 500, 1);
-			val -= val1 / 500;
-			shiftX = (float)(6 * val - 3);
-			shiftZ = (float)(6 * val1 - 3);
-
-			val = lib_rand((((x % 140) * 140 + (z % 140))*140 + (y%140) + 300718) % 300718);
+			double val = lib_rand((((x % 140) * 140 + (z % 140))*140 + (y%140) + 300718) % 300718);
 			float txrShift = (float)(((int)(val * 4))*3);
 			if (age == 0) {
 				// note all six sides are used, but with different texture coordinates
@@ -8798,67 +8810,70 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     return saveBillboardFacesExtraData( boxIndex, type, billboardType, gBoxData[boxIndex].data, 1 );
 }
 
-static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardType, int dataVal, int firstFace )
+static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace)
 {
-    int i, j, fc, swatchLoc;
-    FaceRecord *face;
-    int faceDir[2*5];			// vines need 5 total
-    Point vertexOffsets[5][4];	// vines need 5 total, if one is under the block
-    IPoint anchor;
-    int faceCount = 0;
-    int startVertexCount = 0;   // doesn't really need initialization, but makes compilers happy
-    int totalVertexCount;
-    int doubleSided = 1;
-    float height = 0.0f;
-    int uvIndices[4];
-    int foundSunflowerTop = 0;
-    int swatchLocSet[6];
-    int retCode = MW_NO_ERROR;
-    int matchType;
-    bool vineUnderBlock = false;
-    bool redstoneWireOnBottom = false;
-    int faceDirection;
-    float distanceOffset = ONE_PIXEL;
-    float mtx[4][4];
-    int redstoneDirFlags = 0x0;
-    bool redstoneOn = true;
-    int redstoneOrigDataVal = 0;
-    float angle = 0.0f;
+	int i, j, fc, swatchLoc;
+	FaceRecord *face;
+	int faceDir[2 * 5];			// vines need 5 total
+	Point vertexOffsets[5][4];	// vines need 5 total, if one is under the block
+	IPoint anchor;
+	int faceCount = 0;
+	int startVertexCount = 0;   // doesn't really need initialization, but makes compilers happy
+	int totalVertexCount;
+	int doubleSided = 1;
+	float height = 0.0f;
+	int uvIndices[4];
+	int foundSunflowerTop = 0;
+	int swatchLocSet[6];
+	int retCode = MW_NO_ERROR;
+	int matchType;
+	bool vineUnderBlock = false;
+	bool redstoneWireOnBottom = false;
+	int faceDirection;
+	float distanceOffset = ONE_PIXEL;
+	float mtx[4][4];
+	int redstoneDirFlags = 0x0;
+	bool redstoneOn = true;
+	int redstoneOrigDataVal = 0;
+	float angle = 0.0f;
+	int metaVertexCount = 0;
+	float shiftX = 0.0f;
+	float shiftZ = 0.0f;
+	bool wobbleIt = false;
+	int origDataVal = dataVal;
 
-    int origDataVal = dataVal;
+	assert(!gPrint3D);
 
-    assert(!gPrint3D);
+	swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 
-    swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-
-    // some types use data values for which billboard to use
-    switch ( type )
-    {
-    case BLOCK_SAPLING:				// saveBillboardFacesExtraData
-        // The 0x8 bit functions as the counter. The counter is cleared when a sapling is dropped as an item.
-        switch (dataVal & 0x7)
-        {
-        default:
-            assert(0);
-        case 0: // OAK sapling
-            // set OK already
-            break;
-        case 1:
-            // spruce sapling
-            swatchLoc = SWATCH_INDEX(15,3);
-            break;
-        case 2:
-            // birch sapling
-            swatchLoc = SWATCH_INDEX(15,4);
-            break;
-        case 3:
-            // jungle sapling
-            swatchLoc = SWATCH_INDEX(14,1);
-            break;
-        case 4:
-            // acacia sapling
-            swatchLoc = SWATCH_INDEX(14,18);
-            break;
+	// some types use data values for which billboard to use
+	switch (type)
+	{
+	case BLOCK_SAPLING:				// saveBillboardFacesExtraData
+		// The 0x8 bit functions as the counter. The counter is cleared when a sapling is dropped as an item.
+		switch (dataVal & 0x7)
+		{
+		default:
+			assert(0);
+		case 0: // OAK sapling
+			// set OK already
+			break;
+		case 1:
+			// spruce sapling
+			swatchLoc = SWATCH_INDEX(15, 3);
+			break;
+		case 2:
+			// birch sapling
+			swatchLoc = SWATCH_INDEX(15, 4);
+			break;
+		case 3:
+			// jungle sapling
+			swatchLoc = SWATCH_INDEX(14, 1);
+			break;
+		case 4:
+			// acacia sapling
+			swatchLoc = SWATCH_INDEX(14, 18);
+			break;
 		case 5:
 			// dark oak sapling
 			swatchLoc = SWATCH_INDEX(15, 18);
@@ -8866,208 +8881,216 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		case 6:
 			// bamboo
 			swatchLoc = SWATCH_INDEX(9, 37);
+			wobbleIt = true;
 			break;
 		}
-        break;
-    case BLOCK_TALL_GRASS:				// saveBillboardFacesExtraData
-        switch ( dataVal & 0x3 )
-        {
-        case 0:
-            // dead bush appearance
-            swatchLoc = SWATCH_INDEX(7,3);
-            break;
-        case 1:
-        default:
-            // set OK already
-            break;
-        case 2:
-            // fern
-            swatchLoc = SWATCH_INDEX(8,3);
-            break;
-        }
-        break;
-    case BLOCK_TORCH:				// saveBillboardFacesExtraData
-        // redstone torches stick out a bit, so need billboards
-    case BLOCK_REDSTONE_TORCH_OFF:
-    case BLOCK_REDSTONE_TORCH_ON:
-        //case BLOCK_TRIPWIRE:
-        // is torch not standing up?
-        //if ( dataVal != 5 )
-        //{
-        //    // it'll get flattened instead
-        //    return 0;
-        //}
-        break;
-    case BLOCK_CROPS:				// saveBillboardFacesExtraData
-        // adjust for growth
-        // undocumented: village-grown wheat appears to have
-        // the 0x8 bit set, which doesn't seem to matter. Mask it out.
-        swatchLoc += ( (dataVal & 0x7) - 7 );
-        break;
-    case BLOCK_CARROTS:				// saveBillboardFacesExtraData
-    case BLOCK_POTATOES:
-        switch (dataVal & 0x7)
-        {
-        case 0:
-        case 1:
-            swatchLoc -= 3;
-            break;
-        case 2:
-        case 3:
-            swatchLoc -= 2;
-            break;
-        case 4:
-        case 5:
-        case 6:
-            swatchLoc--;
-            break;
-        case 7:
-        default:
-            break;
-        }
-        break;
-    case BLOCK_BEETROOT_SEEDS:				// saveBillboardFacesExtraData
-        // mask out high bits just in case
-        swatchLoc += (dataVal & 0x3) - 3;
-        break;
-    case BLOCK_NETHER_WART:				// saveBillboardFacesExtraData
-        if ( dataVal == 0 )
-        {
-            swatchLoc -= 2;
-        }
-        else if ( dataVal <= 2 )
-        {
-            swatchLoc--;
-        }
-        break;
-    case BLOCK_PUMPKIN_STEM:				// saveBillboardFacesExtraData
-    case BLOCK_MELON_STEM:
-        // offset about height of stem - 1 extra down for farmland shift
-        height = ((float)dataVal*2.0f-15.0f)/16.0f;
-        // the tricky bit is rotating the stem to a reasonable pumpkin,
-        // which we do as a separate piece
-        if ( dataVal == 7 )
-        {
-            // fully mature, change height to 10 if the proper fruit is next door
-            matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if ((gBoxData[boxIndex - gBoxSizeYZ].type == matchType) ||
-                (gBoxData[boxIndex + gBoxSizeYZ].type == matchType) ||
-                (gBoxData[boxIndex - gBoxSize[Y]].type == matchType) ||
-                (gBoxData[boxIndex + gBoxSize[Y]].type == matchType)) {
-                height = -9.0/16.0f;
-            }
-        }
-        break;
+		break;
+	case BLOCK_TALL_GRASS:				// saveBillboardFacesExtraData
+		switch (dataVal & 0x3)
+		{
+		case 0:
+			// dead bush appearance
+			swatchLoc = SWATCH_INDEX(7, 3);
+			// surprisingly, wobbleIt is false!
+			break;
+		case 1:
+		default:
+			// set OK already
+			wobbleIt = true;
+			break;
+		case 2:
+			// fern
+			swatchLoc = SWATCH_INDEX(8, 3);
+			wobbleIt = true;
+			break;
+		}
+		break;
+	case BLOCK_TORCH:				// saveBillboardFacesExtraData
+		// redstone torches stick out a bit, so need billboards
+	case BLOCK_REDSTONE_TORCH_OFF:
+	case BLOCK_REDSTONE_TORCH_ON:
+		//case BLOCK_TRIPWIRE:
+		// is torch not standing up?
+		//if ( dataVal != 5 )
+		//{
+		//    // it'll get flattened instead
+		//    return 0;
+		//}
+		break;
+	case BLOCK_CROPS:				// saveBillboardFacesExtraData
+		// adjust for growth
+		// undocumented: village-grown wheat appears to have
+		// the 0x8 bit set, which doesn't seem to matter. Mask it out.
+		swatchLoc += ((dataVal & 0x7) - 7);
+		break;
+	case BLOCK_CARROTS:				// saveBillboardFacesExtraData
+	case BLOCK_POTATOES:
+		switch (dataVal & 0x7)
+		{
+		case 0:
+		case 1:
+			swatchLoc -= 3;
+			break;
+		case 2:
+		case 3:
+			swatchLoc -= 2;
+			break;
+		case 4:
+		case 5:
+		case 6:
+			swatchLoc--;
+			break;
+		case 7:
+		default:
+			break;
+		}
+		break;
+	case BLOCK_BEETROOT_SEEDS:				// saveBillboardFacesExtraData
+		// mask out high bits just in case
+		swatchLoc += (dataVal & 0x3) - 3;
+		break;
+	case BLOCK_NETHER_WART:				// saveBillboardFacesExtraData
+		if (dataVal == 0)
+		{
+			swatchLoc -= 2;
+		}
+		else if (dataVal <= 2)
+		{
+			swatchLoc--;
+		}
+		break;
+	case BLOCK_PUMPKIN_STEM:				// saveBillboardFacesExtraData
+	case BLOCK_MELON_STEM:
+		// offset about height of stem - 1 extra down for farmland shift
+		height = ((float)dataVal*2.0f - 15.0f) / 16.0f;
+		// the tricky bit is rotating the stem to a reasonable pumpkin,
+		// which we do as a separate piece
+		if (dataVal == 7)
+		{
+			// fully mature, change height to 10 if the proper fruit is next door
+			matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
+			if ((gBoxData[boxIndex - gBoxSizeYZ].type == matchType) ||
+				(gBoxData[boxIndex + gBoxSizeYZ].type == matchType) ||
+				(gBoxData[boxIndex - gBoxSize[Y]].type == matchType) ||
+				(gBoxData[boxIndex + gBoxSize[Y]].type == matchType)) {
+				height = -9.0 / 16.0f;
+			}
+		}
+		break;
 
-    case BLOCK_POWERED_RAIL:				// saveBillboardFacesExtraData
-    case BLOCK_DETECTOR_RAIL:
-    case BLOCK_ACTIVATOR_RAIL:
-        switch ( type )
-        {
-        case BLOCK_POWERED_RAIL:
-            if ( !(dataVal & 0x8) )
-            {
-                // unpowered rail
-                swatchLoc = SWATCH_INDEX( 3, 10 );
-            }
-            break;
-        case BLOCK_DETECTOR_RAIL:
-            // by default, the detector rail is in its undetected state
-            if ( dataVal & 0x8 )
-            {
-                // rail detector activated (same tile in basic game)
-                swatchLoc = SWATCH_INDEX( 11,17 );
-            }
-            break;
-        case BLOCK_ACTIVATOR_RAIL:
-            // by default, unactivated
-            if ( dataVal & 0x8 )
-            {
-                // activated rail
-                swatchLoc = SWATCH_INDEX( 9,17 );
-            }
-            break;
-        }
-        // if not a normal rail, there are no curve bits, so mask off upper bit, which is
-        // whether the rail is powered or not.
-        dataVal &= 0x7;
-        // fall through:
-    case BLOCK_RAIL:				// saveBillboardFacesExtraData
-        if (gOptions->pEFD->chkCompositeOverlay) {
-            switch (dataVal & 0x7)
-            {
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-                // sloping, so continue
-                break;
-            default:
-                // it's a flat
-                return(0);
-            }
-        }
-        else {
-            // if a curved rail, change swatch
-            if (type==BLOCK_RAIL) {
-                switch (dataVal & 0xf)
-                {
-                case 6:
-                case 7:
-                case 8:
-                case 9:
-                    // curved
-                    swatchLoc = SWATCH_INDEX(0, 7);
-                    break;
-                default:
-                    break;
-                }
-            }
-        }
-        break;
-    case BLOCK_VINES:				// saveBillboardFacesExtraData
-        if (gOptions->pEFD->chkCompositeOverlay) {
-            if (dataVal == 0) {
-                // compositing, and the vine's only sitting underneath a block, so flattened
-                return(0);
-            }
-        }
-        else {
-            // full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
-            if ((dataVal == 0) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
-                vineUnderBlock = true;
-            }
-        }
-        break;
-    case BLOCK_LADDER:				// saveBillboardFacesExtraData
-        assert(!gOptions->pEFD->chkCompositeOverlay);
-        // we convert dataVal for ladder into the bit-wise conversion for vines
-        switch (dataVal & 0x7)
-        {
-        case 2: // north, -Z
-            dataVal = 0x1;
-            break;
-        case 3: // south, +Z
-            dataVal = 0x4;
-            break;
-        case 4: // west, -X
-            dataVal = 0x8;
-            break;
-        case 5: // east, +X
-            dataVal = 0x2;
-            break;
-        default:
-            assert(0);
-            return 0;
-        }
-        break;
-    case BLOCK_CACTUS:				// saveBillboardFacesExtraData
-        // side faces are one higher
-        swatchLoc++;
-        break;
-    case BLOCK_POPPY:				// saveBillboardFacesExtraData
-        if ( dataVal > 0 )
-        {
+	case BLOCK_POWERED_RAIL:				// saveBillboardFacesExtraData
+	case BLOCK_DETECTOR_RAIL:
+	case BLOCK_ACTIVATOR_RAIL:
+		switch (type)
+		{
+		case BLOCK_POWERED_RAIL:
+			if (!(dataVal & 0x8))
+			{
+				// unpowered rail
+				swatchLoc = SWATCH_INDEX(3, 10);
+			}
+			break;
+		case BLOCK_DETECTOR_RAIL:
+			// by default, the detector rail is in its undetected state
+			if (dataVal & 0x8)
+			{
+				// rail detector activated (same tile in basic game)
+				swatchLoc = SWATCH_INDEX(11, 17);
+			}
+			break;
+		case BLOCK_ACTIVATOR_RAIL:
+			// by default, unactivated
+			if (dataVal & 0x8)
+			{
+				// activated rail
+				swatchLoc = SWATCH_INDEX(9, 17);
+			}
+			break;
+		}
+		// if not a normal rail, there are no curve bits, so mask off upper bit, which is
+		// whether the rail is powered or not.
+		dataVal &= 0x7;
+		// fall through:
+	case BLOCK_RAIL:				// saveBillboardFacesExtraData
+		if (gOptions->pEFD->chkCompositeOverlay) {
+			switch (dataVal & 0x7)
+			{
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+				// sloping, so continue
+				break;
+			default:
+				// it's a flat
+				return(0);
+			}
+		}
+		else {
+			// if a curved rail, change swatch
+			if (type == BLOCK_RAIL) {
+				switch (dataVal & 0xf)
+				{
+				case 6:
+				case 7:
+				case 8:
+				case 9:
+					// curved
+					swatchLoc = SWATCH_INDEX(0, 7);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+		break;
+	case BLOCK_VINES:				// saveBillboardFacesExtraData
+		if (gOptions->pEFD->chkCompositeOverlay) {
+			if (dataVal == 0) {
+				// compositing, and the vine's only sitting underneath a block, so flattened
+				return(0);
+			}
+		}
+		else {
+			// full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
+			if ((dataVal == 0) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
+				vineUnderBlock = true;
+			}
+		}
+		break;
+	case BLOCK_LADDER:				// saveBillboardFacesExtraData
+		assert(!gOptions->pEFD->chkCompositeOverlay);
+		// we convert dataVal for ladder into the bit-wise conversion for vines
+		switch (dataVal & 0x7)
+		{
+		case 2: // north, -Z
+			dataVal = 0x1;
+			break;
+		case 3: // south, +Z
+			dataVal = 0x4;
+			break;
+		case 4: // west, -X
+			dataVal = 0x8;
+			break;
+		case 5: // east, +X
+			dataVal = 0x2;
+			break;
+		default:
+			assert(0);
+			return 0;
+		}
+		break;
+	case BLOCK_CACTUS:				// saveBillboardFacesExtraData
+		// side faces are one higher
+		swatchLoc++;
+		break;
+	case BLOCK_DANDELION:
+		wobbleIt = true;
+		break;
+	case BLOCK_POPPY:				// saveBillboardFacesExtraData
+		wobbleIt = true;
+		if (dataVal > 0)
+		{
 			if (dataVal < 9) {
 				// row 20 has these flowers; else poppy (12,0) is used
 				swatchLoc = SWATCH_INDEX(dataVal - 1, 19);
@@ -9076,30 +9099,32 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 				// cornflower, lily of the valley, wither rose
 				swatchLoc = SWATCH_INDEX(dataVal - 6, 37);
 			}
-        }
-        break;
-    case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
-        if ( dataVal >= 8 )
-        {
-            // top half of plant, so need data value of block below
-            // to know which sort of plant
-            // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
-            // row 19 (#18) has these
-            swatchLoc = SWATCH_INDEX( gBoxData[boxIndex-1].data*2+3,18 );
-            // for material differentiation set the dataVal to the bottom half
-            origDataVal = gBoxData[boxIndex - 1].data;
-            if ( gBoxData[boxIndex-1].data == 0 )
-            {
-                foundSunflowerTop = 1;
-            }
-        }
-        else
-        {
-            // bottom half of plant, from row 19
-            swatchLoc = SWATCH_INDEX( dataVal*2+2,18 );
-        }
-        break;
+		}
+		break;
+	case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
+		wobbleIt = true;
+		if (dataVal >= 8)
+		{
+			// top half of plant, so need data value of block below
+			// to know which sort of plant
+			// (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
+			// row 19 (#18) has these
+			swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
+			// for material differentiation set the dataVal to the bottom half
+			origDataVal = gBoxData[boxIndex - 1].data;
+			if (gBoxData[boxIndex - 1].data == 0)
+			{
+				foundSunflowerTop = 1;
+			}
+		}
+		else
+		{
+			// bottom half of plant, from row 19
+			swatchLoc = SWATCH_INDEX(dataVal * 2 + 2, 18);
+		}
+		break;
 	case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
+		wobbleIt = true;
 		if (dataVal >= 8)
 		{
 			// top half of plant
@@ -9150,76 +9175,83 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
 		}
 		break;
 	case BLOCK_REDSTONE_WIRE:				// saveBillboardFacesExtraData
-        // Let the games begin. Wherever redstone has been found, it has set the
-        // flat flags of its neighbors. Check each neighbor for the corresponding flat flag in the proper direction.
-        // If set, then output redstone. Also, remove the flat flag, so it's not used later.
+		// Let the games begin. Wherever redstone has been found, it has set the
+		// flat flags of its neighbors. Check each neighbor for the corresponding flat flag in the proper direction.
+		// If set, then output redstone. Also, remove the flat flag, so it's not used later.
 
-        // dataVal is used for the sides and which should be output. We derive it here.
-        // The data value holds the direction flags in 0xf0, and the original data (power) value in 0x0f bits
-        redstoneDirFlags = dataVal >> 4;
-        redstoneOrigDataVal = dataVal & 0xf;
-        redstoneOn = (dataVal & 0xf) ? true : false;
-        // we reuse dataVal here for edges.
-        dataVal = 0x0;
-        distanceOffset = ONE_PIXEL * 0.25;
+		// dataVal is used for the sides and which should be output. We derive it here.
+		// The data value holds the direction flags in 0xf0, and the original data (power) value in 0x0f bits
+		redstoneDirFlags = dataVal >> 4;
+		redstoneOrigDataVal = dataVal & 0xf;
+		redstoneOn = (dataVal & 0xf) ? true : false;
+		// we reuse dataVal here for edges.
+		dataVal = 0x0;
+		distanceOffset = ONE_PIXEL * 0.25;
 
-        // go through the six directions to the neighbors. For example, if direction is down, check if
-        // the neighbor below has its "above" flat flag set.
-        for (faceDirection = 0; faceDirection < 6; faceDirection++)
-        {
-            // get neighbor's flatFlags in that direction.
-            int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
-            // is the corresponding flag set to point at the redstone?
-            if (gBoxData[neighborBoxIndex].flatFlags & gFlagPointsTo[faceDirection]) {
-                // yes it is - clear flat flag, and output redstone
-                gBoxData[neighborBoxIndex].flatFlags &= ~gFlagPointsTo[faceDirection];
+		// go through the six directions to the neighbors. For example, if direction is down, check if
+		// the neighbor below has its "above" flat flag set.
+		for (faceDirection = 0; faceDirection < 6; faceDirection++)
+		{
+			// get neighbor's flatFlags in that direction.
+			int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
+			// is the corresponding flag set to point at the redstone?
+			if (gBoxData[neighborBoxIndex].flatFlags & gFlagPointsTo[faceDirection]) {
+				// yes it is - clear flat flag, and output redstone
+				gBoxData[neighborBoxIndex].flatFlags &= ~gFlagPointsTo[faceDirection];
 
-                // direction of neighbor
-                switch (faceDirection)
-                {
-                case DIRECTION_BLOCK_TOP:
-                    // should never hit here: redstone doesn't go on the bottom faces of solid blocks
-                    assert(0);
-                    break;
-                case DIRECTION_BLOCK_BOTTOM:
-                    redstoneWireOnBottom = 1;
-                    break;
-                    // all that follow are a wire up the side
-                case DIRECTION_BLOCK_SIDE_LO_X:
-                    dataVal |= 0x2;
-                    break;
-                case DIRECTION_BLOCK_SIDE_HI_X:
-                    dataVal |= 0x8;
-                    break;
-                case DIRECTION_BLOCK_SIDE_LO_Z:
-                    dataVal |= 0x4;
-                    break;
-                case DIRECTION_BLOCK_SIDE_HI_Z:
-                    dataVal |= 0x1;
-                    break;
-                default:
-                    // only direction left is down, and nothing gets merged with those faces
-                    break;
-                }
-            }
-        }
-        // make sure something is getting output - it should
-        assert(dataVal > 0 || redstoneWireOnBottom);
-        if (dataVal > 0) {
-            swatchLoc = redstoneOn ? REDSTONE_WIRE_VERT : REDSTONE_WIRE_VERT_OFF;
-        }
-        break;
+				// direction of neighbor
+				switch (faceDirection)
+				{
+				case DIRECTION_BLOCK_TOP:
+					// should never hit here: redstone doesn't go on the bottom faces of solid blocks
+					assert(0);
+					break;
+				case DIRECTION_BLOCK_BOTTOM:
+					redstoneWireOnBottom = 1;
+					break;
+					// all that follow are a wire up the side
+				case DIRECTION_BLOCK_SIDE_LO_X:
+					dataVal |= 0x2;
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_X:
+					dataVal |= 0x8;
+					break;
+				case DIRECTION_BLOCK_SIDE_LO_Z:
+					dataVal |= 0x4;
+					break;
+				case DIRECTION_BLOCK_SIDE_HI_Z:
+					dataVal |= 0x1;
+					break;
+				default:
+					// only direction left is down, and nothing gets merged with those faces
+					break;
+				}
+			}
+		}
+		// make sure something is getting output - it should
+		assert(dataVal > 0 || redstoneWireOnBottom);
+		if (dataVal > 0) {
+			swatchLoc = redstoneOn ? REDSTONE_WIRE_VERT : REDSTONE_WIRE_VERT_OFF;
+		}
+		break;
 
 	case BLOCK_SWEET_BERRY_BUSH:				// saveBillboardFacesExtraData
 		// adjust for growth - swatchLoc is oldest one
 		swatchLoc += ((dataVal & 0x3) - 3);
 		break;
-	
-	default:
-        // perfectly fine to hit here, the billboard is generic
-        break;
-    }
 
+	default:
+		// perfectly fine to hit here, the billboard is generic
+		break;
+	}
+
+	// may need to wobble it
+	if (wobbleIt) {
+		gUsingTransform = 1;
+		metaVertexCount = gModel.vertexCount;
+
+		wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+	}
     // given billboardType, set up number of faces, normals for each, coordinate offsets for each;
     // the UV indices should always be the same for each, so we don't need to touch those
     switch ( billboardType )
@@ -9955,6 +9987,13 @@ static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardTyp
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
     }
+	if (wobbleIt) {
+		gUsingTransform = 0;
+		metaVertexCount = gModel.vertexCount - metaVertexCount;
+		identityMtx(mtx);
+		translateMtx(mtx, shiftX / 16.0f, 0.0f / 16.0f, shiftZ / 16.0f);
+		transformVertices(metaVertexCount, mtx);
+	}
 
     // if you add anything here, make sure normalUnknown also gets set appropriately.
 
