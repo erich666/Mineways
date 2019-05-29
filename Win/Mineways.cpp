@@ -107,6 +107,8 @@ static Options gOptions = {0,   // which world is visible
 
 static WorldGuide gWorldGuide;
 static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
+// translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
+static int gMinecraftVersion = 0;
 static BOOL gSameWorld=FALSE;
 static BOOL gHoldSameWorld=FALSE;
 static wchar_t gSelectTerrainPathAndName[MAX_PATH_AND_FILE];				//path and file name to selected terrainExt.png file, if any
@@ -2664,7 +2666,7 @@ static void updateProgress(float progress)
 static void draw()
 {
     if (gLoaded)
-        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,&gOptions,gHitsFound,updateProgress);
+        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,&gOptions,gHitsFound,updateProgress, gMinecraftVersion);
     else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
@@ -2718,7 +2720,8 @@ static int loadSchematic(wchar_t *pathAndFile)
 
     // All data's read in! Now we let the mapping system take over and load on demand.
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    gVersionId = 99999;	// always assumed to be the latest one.
+    gVersionId = 1343;	// latest 1.12.2 https://minecraft.gamepedia.com/Data_version
+	gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
 
     return 0;
 }
@@ -2745,6 +2748,7 @@ static int loadWorld(HWND hWnd)
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
         gVersionId = 99999;	// always assumed to be the latest one.
+		gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
         break;
 
     case WORLD_LEVEL_TYPE:
@@ -2782,6 +2786,7 @@ static int loadWorld(HWND hWnd)
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionId);
+		gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
         break;
 
     case WORLD_SCHEMATIC_TYPE:

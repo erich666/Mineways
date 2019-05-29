@@ -100,6 +100,10 @@ typedef struct ChangeBlockCommand {
 } ChangeBlockCommand;
 
 
+// translate the world version from https://minecraft.gamepedia.com/Data_version to a version number: 12, 13, 14
+#define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) <= 1343 ? 12 : ((worldVersion) <= 1631) ? 13 : 14)
+
+
 void SetSeparatorObj(const wchar_t *separator);
 void ChangeCache(int size);
 void ClearCache();

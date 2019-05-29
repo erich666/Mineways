@@ -283,6 +283,8 @@ static int gMinorVersion=0;
 // used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
 // 0 means version 1.8 and earlier
 static int gMinecraftWorldVersion = 0;
+// translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
+static int gMcVersion = 0;
 
 static int gBadBlocksInModel=0;
 
@@ -601,8 +603,8 @@ static int initializeModelData();
 static int readTerrainPNG( const wchar_t *curDir, progimage_info *pII, wchar_t *terrainFileName );
 
 static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *box);
-static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox);
-static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *box);
+static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox, int mcVersion);
+static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *box, int mcVersion);
 static bool willChangeBlockCommandModifyAir(ChangeBlockCommand *pCBC);
 static void modifySides( int editMode );
 static void modifySlab(int by, int editMode);
@@ -784,7 +786,7 @@ static void wcharCleanse( wchar_t *wstring );
 static void myseedrand( long seed );
 static double myrand();
 
-static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent);
+static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion);
 
 static double lib_rand(long iseed);
 
@@ -843,6 +845,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     gMajorVersion = majorVersion;
     gMinorVersion = minorVersion;
     gMinecraftWorldVersion = worldVersion;
+	gMcVersion = DATA_VERSION_TO_RELEASE_NUMBER(worldVersion);
 
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
@@ -1664,7 +1667,7 @@ static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *
         for (blockZ = startzblock; blockZ <= endzblock; blockZ++)
         {
             // this method sets gSolidWorldBox
-            findChunkBounds(pWorldGuide, blockX, blockZ, worldBox);
+            findChunkBounds(pWorldGuide, blockX, blockZ, worldBox, gMcVersion);
         }
     }
 
@@ -1767,7 +1770,7 @@ static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *
         // z increases south, decreases north
         for ( blockZ=edgestartzblock; blockZ<=edgeendzblock; blockZ++ )
         {
-            extractChunk(pWorldGuide, blockX, blockZ, &edgeWorldBox);
+            extractChunk(pWorldGuide, blockX, blockZ, &edgeWorldBox, gMcVersion);
 
             // done with reading chunk for export, so free memory
             if ( gOptions->moreExportMemory )
@@ -1805,7 +1808,7 @@ static int populateBox(WorldGuide *pWorldGuide, ChangeBlockCommand *pCBC, IBox *
 }
 
 // test relevant part of a given chunk to find its size
-static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox)
+static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *worldBox, int mcVersion)
 {
     int chunkX, chunkZ;
 
@@ -1835,7 +1838,7 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
         if (block==NULL) //blank tile, nothing to do
             return;
 
@@ -1888,7 +1891,7 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
 }
 
 // copy relevant part of a given chunk to the box data grid
-static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorldBox)
+static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorldBox, int mcVersion)
 {
     int chunkX, chunkZ;
 
@@ -1919,7 +1922,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
         if (block==NULL) //blank tile, nothing to do
             return;
 
@@ -4018,10 +4021,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         default:
             assert(0);
         case BLOCK_OAK_WOOD_STAIRS:
-        case BLOCK_COBBLESTONE_STAIRS:
-        case BLOCK_BRICK_STAIRS:
-        case BLOCK_STONE_BRICK_STAIRS:
-        case BLOCK_NETHER_BRICK_STAIRS:
         case BLOCK_SPRUCE_WOOD_STAIRS:
         case BLOCK_BIRCH_WOOD_STAIRS:
         case BLOCK_JUNGLE_WOOD_STAIRS:
@@ -4034,19 +4033,98 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		case BLOCK_DARK_PRISMARINE_STAIRS:
 			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
             break;
-        case BLOCK_SANDSTONE_STAIRS:
-            // for these stairs, top, sides, and bottom differ
-            topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
-            sideSwatchLoc = SWATCH_INDEX( 0,12 );
-            bottomSwatchLoc = SWATCH_INDEX( 0,13 );
-            break;
         case BLOCK_RED_SANDSTONE_STAIRS:
             // for these stairs, top, sides, and bottom differ
             topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrX, gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrY );
             sideSwatchLoc = SWATCH_INDEX( 14,13 );
             bottomSwatchLoc = SWATCH_INDEX( 5,8 );
             break;
-        }
+		case BLOCK_COBBLESTONE_STAIRS:
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0x0:
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				break;
+			case BIT_16:	// stone stairs
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
+				break;
+			case BIT_32:	// granite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 22);
+				break;
+			case BIT_32 | BIT_16:	// polished granite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 22);
+				break;
+			}
+			break;
+		case BLOCK_BRICK_STAIRS:
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0x0:
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				break;
+			case BIT_16:	// smooth quartz stairs
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 17);
+				break;
+			case BIT_32:	// diorite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 22);
+				break;
+			case BIT_32 | BIT_16:	// polished diorite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
+				break;
+			}
+			break;
+		case BLOCK_STONE_BRICK_STAIRS:
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0x0:
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				break;
+			case BIT_16:	// end stone stairs
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
+				break;
+			case BIT_32:	// andesite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 22);
+				break;
+			case BIT_32 | BIT_16:	// polished andesite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 22);
+				break;
+			}
+			break;
+		case BLOCK_NETHER_BRICK_STAIRS:
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0x0:
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				break;
+			case BIT_16:	// red nether brick stairs
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(2, 26);
+				break;
+			case BIT_32:	// mossy stone
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
+				break;
+			case BIT_32 | BIT_16:	// mossy cobblestone
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 2);
+				break;
+			}
+			break;
+		case BLOCK_SANDSTONE_STAIRS:
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0x0:
+				// for these stairs, top, sides, and bottom differ
+				topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
+				sideSwatchLoc = SWATCH_INDEX(0, 12);
+				bottomSwatchLoc = SWATCH_INDEX(0, 13);
+				break;
+			case BIT_16:	// smooth sandstone stairs
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 11);
+				break;
+			case BIT_32:	// smooth red sandstone
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(12, 19);
+				break;
+			}
+			break;
+		}
 
         {
             unsigned int stepMask, origStepMask;
@@ -4261,90 +4339,121 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_WOODEN_SLAB:
     case BLOCK_RED_SANDSTONE_SLAB:
 	case BLOCK_PURPUR_SLAB:
-		switch ( type )
-        {
-        default:
-            assert(0);
-        case BLOCK_STONE_SLAB:
-            switch ( dataVal & 0x7 )
-            {
-            default:
-                assert(0);
-            case 0:
-                // 
-                topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-                sideSwatchLoc = SWATCH_INDEX( 5,0 );
-                break;
-            case 1:
-                // sandstone
-                topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY );
-                sideSwatchLoc = SWATCH_INDEX( 0,12 );
-                bottomSwatchLoc = SWATCH_INDEX( 0,13 );
-                break;
-            case 2:
-                // wooden
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
-                break;
-            case 3:
-                // cobblestone
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
-                break;
-            case 4:
-                // brick
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY );
-                break;
-            case 5:
-                // stone brick
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY );
-                break;
-            case 6:
-                // nether brick
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY );
-                break;
-            case 7:
-                // quartz with distinctive sides and bottom
-                topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY );
-                sideSwatchLoc = SWATCH_INDEX( 6,17 );
-                bottomSwatchLoc = SWATCH_INDEX( 1,17 );
-                break;
-            }
-            break;
+	case BLOCK_ANDESITE_SLAB:
+		switch (type)
+		{
+		default:
+			assert(0);
+		case BLOCK_STONE_SLAB:
+			switch (dataVal & 0x7)
+			{
+			default:
+				assert(0);
+			case 0:
+				// 
+				topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				sideSwatchLoc = SWATCH_INDEX(5, 0);
+				break;
+			case 1:
+				// sandstone
+				topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
+				sideSwatchLoc = SWATCH_INDEX(0, 12);
+				bottomSwatchLoc = SWATCH_INDEX(0, 13);
+				break;
+			case 2:
+				// wooden
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+				break;
+			case 3:
+				// cobblestone
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY);
+				break;
+			case 4:
+				// brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_BRICK].txrX, gBlockDefinitions[BLOCK_BRICK].txrY);
+				break;
+			case 5:
+				// stone brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE_BRICKS].txrX, gBlockDefinitions[BLOCK_STONE_BRICKS].txrY);
+				break;
+			case 6:
+				// nether brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
+				break;
+			case 7:
+				// quartz with distinctive sides and bottom
+				topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
+				sideSwatchLoc = SWATCH_INDEX(6, 17);
+				bottomSwatchLoc = SWATCH_INDEX(1, 17);
+				break;
+			}
+			break;
 
-        case BLOCK_WOODEN_SLAB:
-            switch ( dataVal & 0x7 )
-            {
-            default: // normal log
-                assert(0);
-            case 0:
-                // no change, default plank is fine
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-                break;
-            case 1: // spruce (dark)
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,12 );
-                break;
-            case 2: // birch
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 6,13 );
-                break;
-            case 3: // jungle
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 7,12 );
-                break;
-            case 4: // acacia
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 0,22 );
-                break;
-            case 5: // dark oak
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( 1,22 );
-                break;
-            }
-            break;
+		case BLOCK_WOODEN_SLAB:
+			switch (dataVal & 0x7)
+			{
+			default: // normal log
+				assert(0);
+			case 0:
+				// no change, default plank is fine
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				break;
+			case 1: // spruce (dark)
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 12);
+				break;
+			case 2: // birch
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 13);
+				break;
+			case 3: // jungle
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 12);
+				break;
+			case 4: // acacia
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 22);
+				break;
+			case 5: // dark oak
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 22);
+				break;
+			}
+			break;
 
-        case BLOCK_RED_SANDSTONE_SLAB:
-            // normal, for both dataVal == 0 and == 8 
-            topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
-            sideSwatchLoc = SWATCH_INDEX( 14,13 );
-            bottomSwatchLoc = SWATCH_INDEX( 5,8 ); 
-            break;
+		case BLOCK_RED_SANDSTONE_SLAB:
+			// normal, for both dataVal == 0 and == 8 
+			switch (dataVal & 0x7)
+			{
+			default: // red sandstone
+				assert(0);	// falls through
+			case 0: // red sandstone
+				topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+				sideSwatchLoc = SWATCH_INDEX(14, 13);
+				bottomSwatchLoc = SWATCH_INDEX(5, 8);
+				break;
+			case 1: // cut_red_sandstone_slab
+				topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(12, 19);
+				sideSwatchLoc = SWATCH_INDEX(10, 19);
+				break;
+			case 2: // smooth_red_sandstone_slab
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(12, 19);
+				break;
+			case 3: // cut_sandstone_slab
+				topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(0, 11);
+				sideSwatchLoc = SWATCH_INDEX(6, 14);
+				break;
+			case 4: // smooth_sandstone_slab
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 11);
+				break;
+			case 5: // granite_slab
+				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(8, 22);
+				break;
+			case 6: // polished_granite_slab
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 22);
+				break;
+			case 7: // smooth_quartz_slab
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 17);
+				break;
+			}
+			break;
 
-        case BLOCK_PURPUR_SLAB:
+		case BLOCK_PURPUR_SLAB:
 			// some confusion in the docs here: https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
 			switch (dataVal & 0x7)
 			{
@@ -4363,9 +4472,45 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			case 4: // dark prismarine 1.13
 				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(11, 22);
 				break;
+			case 5:	// red nether brick
+				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
+				break;
+			case 6:	// mossy stone brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
+				break;
+			case 7:	// mossy cobblestone
+				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY);
+				break;
 			}
-            break;
-        }
+			break;
+
+		case BLOCK_ANDESITE_SLAB:
+			// normal, for both dataVal == 0 and == 8 
+			switch (dataVal & 0x7)
+			{
+			default:
+				assert(0);	// falls through
+			case 0: // andesite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 22);
+				break;
+			case 1: // polished andesite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 22);
+				break;
+			case 2: // diorite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 22);
+				break;
+			case 3: // polished diorite
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
+				break;
+			case 4: // end stone brick
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
+				break;
+			case 5: // (the new 1.14) stone slab - purely flat stone
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
+				break;
+			}
+			break;
+		}
 
         // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
         // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
@@ -8593,7 +8738,8 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
             case BLOCK_WOODEN_SLAB:
             case BLOCK_RED_SANDSTONE_SLAB:
             case BLOCK_PURPUR_SLAB:
-                // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+			case BLOCK_ANDESITE_SLAB:
+				// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
                 // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
                 if (dataVal & 0x8)
                 {
@@ -12820,7 +12966,8 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
         case BLOCK_WOODEN_SLAB:
         case BLOCK_RED_SANDSTONE_SLAB:
         case BLOCK_PURPUR_SLAB:
-            // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+		case BLOCK_ANDESITE_SLAB:
+			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
             if ( neighborDataVal & 0x8 )
             {
@@ -13626,7 +13773,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         swatchLoc = type;
         switch ( type )
         {
-        case BLOCK_DOUBLE_STONE_SLAB:						// getSwatch
+        case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
             switch ( dataVal & 0xf )
             {
@@ -13673,7 +13820,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 10:
                 // quartz (normally same quartz on all faces? See http://minecraft.gamepedia.com/Data_values)
-                swatchLoc = (type == BLOCK_DOUBLE_STONE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS;
+                swatchLoc = (type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS;
                 break;
             }
             break;
@@ -13736,7 +13883,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				break;
             }
             break;
-        case BLOCK_DOUBLE_STONE_SLAB:						// getSwatch
+        case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
             // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
             // Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
@@ -13796,23 +13943,45 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-        case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:						// getSwatch
-            switch ( dataVal & 0xf )
-            {
-            default:
-                assert(0);
-            case 0:
-                // normal block
-                SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 14,13, 5,8 );
-                break;
-            case 8:
-                // smooth all over, so do nothing - just use top everywhere
-                break;
-            }
-            break;
-        case BLOCK_RED_SANDSTONE_SLAB:						// getSwatch
-            // normal block
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 14,13, 5,8 );
+        case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:						// getSwatch
+		case BLOCK_RED_SANDSTONE_SLAB:						// getSwatch
+			if ( (type == BLOCK_RED_SANDSTONE_DOUBLE_SLAB) && (dataVal == 0xf) ) {
+				// don't do anything to double slab with 15 set - means smooth all over, so do nothing - just use top everywhere
+			}
+			else {
+				switch (dataVal & 0x7)
+				{
+				default:
+					assert(0);
+				case 0:
+					// normal block
+					SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 13, 5, 8);
+					break;
+				case 1: // cut_red_sandstone_slab
+					swatchLoc = SWATCH_INDEX(12, 19);
+					SWATCH_SWITCH_SIDE(faceDirection, 10, 19);
+					break;
+				case 2: // smooth_red_sandstone_slab
+					swatchLoc = SWATCH_INDEX(12, 19);
+					break;
+				case 3: // cut_sandstone_slab
+					swatchLoc = SWATCH_INDEX(0, 11);
+					SWATCH_SWITCH_SIDE(faceDirection, 6, 14);
+					break;
+				case 4: // smooth_sandstone_slab
+					swatchLoc = SWATCH_INDEX(0, 11);
+					break;
+				case 5: // granite_slab
+					swatchLoc = SWATCH_INDEX(8, 22);
+					break;
+				case 6: // polished_granite_slab
+					swatchLoc = SWATCH_INDEX(9, 22);
+					break;
+				case 7: // smooth_quartz_slab
+					swatchLoc = SWATCH_INDEX(1, 17);
+					break;
+				}
+			}
             break;
         case BLOCK_SANDSTONE_STAIRS:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 0,12,  0,13 );
@@ -13877,7 +14046,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 }
             }
             break;
-		case BLOCK_PURPUR_DOUBLE_SLAB:
+		case BLOCK_PURPUR_DOUBLE_SLAB:		// getSwatch
+		case BLOCK_PURPUR_SLAB:		// getSwatch
 			// some confusion in the docs here: https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
 			switch (dataVal & 0x7)
 			{
@@ -13894,6 +14064,15 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				break;
 			case 4: // dark prismarine 1.13
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].txrY);
+				break;
+			case 5:	// red nether brick
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
+				break;
+			case 6:	// mossy stone brick
+				swatchLoc = SWATCH_INDEX(4, 6);
+				break;
+			case 7:	// mossy cobblestone
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY);
 				break;
 			}
 			break;
@@ -16115,7 +16294,33 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
 			break;
 
-        }
+		case BLOCK_ANDESITE_DOUBLE_SLAB:						// getSwatch
+		case BLOCK_ANDESITE_SLAB:						// getSwatch
+			switch (dataVal & 0x7)
+			{
+			default:
+				assert(0);	// fall through
+			case 0:
+				// fine as is
+				break;
+			case 1: // polished andesite
+				swatchLoc = SWATCH_INDEX(5,22);
+				break;
+			case 2: // diorite
+				swatchLoc = SWATCH_INDEX(6,22);
+				break;
+			case 3: // polished diorite
+				swatchLoc = SWATCH_INDEX(7,22);
+				break;
+			case 4: // end stone brick
+				swatchLoc = SWATCH_INDEX(3,24);
+				break;
+			case 5: // (the new 1.14) stone slab - not chiseled, more just like normal stone on all sides
+				swatchLoc = SWATCH_INDEX(1, 0);
+				break;
+			}
+			break;
+		}
     }
 
     // flag UVs as being used for this swatch, so that the actual four UV values
@@ -20762,7 +20967,7 @@ int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int mi
                 pOptions = gOptions;
             }
 
-            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent);
+            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent, gMcVersion);
             if (heightFound < minHeightFound)
             {
                 minHeightFound = heightFound;
@@ -20774,7 +20979,7 @@ int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int mi
 }
 
 // find first (optional: non-transparent) block visible from above
-static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent)
+static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion)
 {
     int minHeight = 256;
 
@@ -20803,7 +21008,7 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
         if (block == NULL) //blank tile, nothing to do
             return minHeight;
 

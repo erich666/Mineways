@@ -37,7 +37,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 
 static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int topy,Options *pOpts,
-    ProgressCallback callback,float percent,int *hitsFound);
+    ProgressCallback callback,float percent,int *hitsFound, int mcVersion);
 static void blit(unsigned char *block,unsigned char *bits,int px,int py,
     double zoom,int w,int h);
 static int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock *block);
@@ -182,7 +182,7 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int *hitsFound, ProgressCallback callback)
+void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int *hitsFound, ProgressCallback callback, int mcVersion)
 {
     /* We're converting between coordinate systems: 
     *
@@ -241,7 +241,7 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         // z increases west, decreases east
         for (x=0,px=-shiftx;x<=hBlocks;x++,px+=blockScale)
         {
-            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,pOpts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound);
+            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,pOpts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound, mcVersion);
             blit(blockbits,bits,px,py,zoom,w,h);
         }
     }
@@ -326,6 +326,47 @@ static struct {
 	{ "Lily of the Valley" },
 	{ "Wither Rose" },
 	{ "Bamboo Sapling" },
+	{ "Cut Red Sandstone Slab" },
+	{ "Smooth Red Sandstone Slab" },	// 60
+	{ "Cut Sandstone Slab" },
+	{ "Smooth Sandstone Slab" },
+	{ "Granite Slab"},
+    { "Polished Granite Slab"},
+	{ "Smooth Quartz Slab"},
+	{ "Red Nether Brick Slab"},
+	{ "Mossy Stone Brick Slab"},
+	{ "Mossy Cobblestone Slab"},
+	{ "Polished Andesite Slab"},
+	{ "Diorite Slab"},	// 70
+	{ "Polished Diorite Slab"},
+	{ "End Stone Brick Slab"},
+	{ "Stone Slab"},
+	{ "Stone Stairs"},
+	{ "Granite Stairs"},
+	{ "Polished Granite Stairs"},
+	{ "Smooth Quartz Stairs"},
+	{ "Diorite Stairs"},
+	{ "Polished Diorite Stairs"},
+	{ "End Stone Brick Stairs"},	// 80
+	{ "Andesite Stairs"},
+	{ "Polished Andesite Stairs"},
+	{ "Red Nether Brick Stairs"},
+	{ "Mossy Stone Brick Stairs"},
+	{ "Mossy Cobblestone Stairs"},
+	{ "Smooth Sandstone Stairs"},
+	{ "Smooth Red Sandstone Stairs"},
+	{ "Sandstone Slab" },
+	{ "Petrified Oak Slab" },
+	{ "Cobblestone Slab" },	// 90
+	{ "Brick Slab" },
+	{ "Stone Brick Slab" },
+	{ "Slab" },
+	{ "Quartz Slab" },
+	{ "Spruce Slab" },
+	{ "Birch Slab" },
+	{ "Jungle Slab" },
+	{ "Acacia Slab" },
+	{ "Dark Oak Slab" },
 };
 
 char gCoralString[100];
@@ -341,66 +382,106 @@ static struct {
 
 
 // put the names above
-#define STRING_SPRUCE_LEAVES	0
-#define STRING_BIRCH_LEAVES		1
-#define STRING_JUNGLE_LEAVES	2
-#define STRING_DARK_OAK_LEAVES	3
-#define STRING_BLUE_ORCHID		4
-#define STRING_ALLIUM			5
-#define STRING_AZURE_BLUET		6
-#define STRING_RED_TULIP		7
-#define STRING_ORANGE_TULIP		8
-#define STRING_WHITE_TULIP		9
-#define STRING_PINK_TULIP		10
-#define STRING_OXEYE_DAISY		11
-#define STRING_LILAC			12
-#define STRING_DOUBLE_TALLGRASS	13
-#define STRING_LARGE_FERN		14
-#define STRING_ROSE_BUSH		15
-#define STRING_PEONY			16
-#define STRING_DEAD_BUSH		17
-#define STRING_TALL_GRASS		18
-#define STRING_FERN				19
-#define STRING_SPRUCE_WOOD_PLANKS	20
-#define STRING_BIRCH_WOOD_PLANKS	21
-#define STRING_JUNGLE_WOOD_PLANKS	22
-#define STRING_ACACIA_WOOD_PLANKS	23
-#define STRING_DARK_OAK_WOOD_PLANKS	24
-#define STRING_GRANITE              25
-#define STRING_POLISHED_GRANITE     26
-#define STRING_DIORITE              27
-#define STRING_POLISHED_DIORITE     28
-#define STRING_ANDESITE             29
-#define STRING_POLISHED_ANDESITE    30
-#define STRING_COARSE_DIRT          31   
-#define STRING_PODZOL               32
-#define STRING_SPRUCE_SAPLING	    33
-#define STRING_BIRCH_SAPLING	    34
-#define STRING_JUNGLE_SAPLING	    35
-#define STRING_ACACIA_SAPLING	    36
-#define STRING_DARK_OAK_SAPLING	    37
-#define STRING_RED_SAND     	    38
-#define STRING_PRISMARINE_SLAB	    39
-#define STRING_PRISMARINE_BRICK_SLAB 40
-#define STRING_DARK_PRISMARINE_SLAB 41
-#define STRING_STR_SPRUCE_LOG	    42
-#define STRING_STR_BIRCH_LOG	    43
-#define STRING_STR_JUNGLE_LOG	    44
-#define STRING_STR_ACACIA_LOG	    45
-#define STRING_STR_DARK_OAK_LOG	    46
-#define STRING_STR_SPRUCE_WOOD	    47
-#define STRING_STR_BIRCH_WOOD	    48
-#define STRING_STR_JUNGLE_WOOD	    49
-#define STRING_STR_ACACIA_WOOD	    50
-#define STRING_STR_DARK_OAK_WOOD	51
-#define	STRING_STR_SANDSTONE		52
-#define	STRING_STR_RED_SANDSTONE	53
-#define	STRING_STR_QUARTZ			54
-#define	STRING_CORNFLOWER			55
-#define	STRING_LILY_OF_THE_VALLEY	56
-#define	STRING_WITHER_ROSE			57
-#define	STRING_BAMBOO_SAPLING		58
-
+#define STRING_SPRUCE_LEAVES				0
+#define STRING_BIRCH_LEAVES					1
+#define STRING_JUNGLE_LEAVES				2
+#define STRING_DARK_OAK_LEAVES				3
+#define STRING_BLUE_ORCHID					4
+#define STRING_ALLIUM						5
+#define STRING_AZURE_BLUET					6
+#define STRING_RED_TULIP					7
+#define STRING_ORANGE_TULIP					8
+#define STRING_WHITE_TULIP					9
+#define STRING_PINK_TULIP					10
+#define STRING_OXEYE_DAISY					11
+#define STRING_LILAC						12
+#define STRING_DOUBLE_TALLGRASS				13
+#define STRING_LARGE_FERN					14
+#define STRING_ROSE_BUSH					15
+#define STRING_PEONY						16
+#define STRING_DEAD_BUSH					17
+#define STRING_TALL_GRASS					18
+#define STRING_FERN							19
+#define STRING_SPRUCE_WOOD_PLANKS			20
+#define STRING_BIRCH_WOOD_PLANKS			21
+#define STRING_JUNGLE_WOOD_PLANKS			22
+#define STRING_ACACIA_WOOD_PLANKS			23
+#define STRING_DARK_OAK_WOOD_PLANKS			24
+#define STRING_GRANITE						25
+#define STRING_POLISHED_GRANITE				26
+#define STRING_DIORITE						27
+#define STRING_POLISHED_DIORITE				28
+#define STRING_ANDESITE						29
+#define STRING_POLISHED_ANDESITE			30
+#define STRING_COARSE_DIRT					31   
+#define STRING_PODZOL						32
+#define STRING_SPRUCE_SAPLING				33
+#define STRING_BIRCH_SAPLING				34
+#define STRING_JUNGLE_SAPLING				35
+#define STRING_ACACIA_SAPLING				36
+#define STRING_DARK_OAK_SAPLING				37
+#define STRING_RED_SAND     				38
+#define STRING_PRISMARINE_SLAB				39
+#define STRING_PRISMARINE_BRICK_SLAB		40
+#define STRING_DARK_PRISMARINE_SLAB			41
+#define STRING_STR_SPRUCE_LOG				42
+#define STRING_STR_BIRCH_LOG				43
+#define STRING_STR_JUNGLE_LOG				44
+#define STRING_STR_ACACIA_LOG				45
+#define STRING_STR_DARK_OAK_LOG				46
+#define STRING_STR_SPRUCE_WOOD				47
+#define STRING_STR_BIRCH_WOOD				48
+#define STRING_STR_JUNGLE_WOOD				49
+#define STRING_STR_ACACIA_WOOD				50
+#define STRING_STR_DARK_OAK_WOOD			51
+#define	STRING_STR_SANDSTONE				52
+#define	STRING_STR_RED_SANDSTONE			53
+#define	STRING_STR_QUARTZ					54
+#define	STRING_CORNFLOWER					55
+#define	STRING_LILY_OF_THE_VALLEY			56
+#define	STRING_WITHER_ROSE					57
+#define	STRING_BAMBOO_SAPLING				58
+#define	STRING_CUT_RED_SANDSTONE_SLAB		59
+#define	STRING_SMOOTH_RED_SANDSTONE_SLAB	60
+#define	STRING_CUT_SANDSTONE_SLAB			61
+#define	STRING_SMOOTH_SANDSTONE_SLAB		62
+#define	STRING_GRANITE_SLAB					63
+#define	STRING_POLISHED_GRANITE_SLAB		64
+#define	STRING_SMOOTH_QUARTZ_SLAB			65
+#define	STRING_RED_NETHER_BRICK_SLAB		66
+#define	STRING_MOSSY_STONE_BRICK_SLAB		67
+#define	STRING_MOSSY_COBBLESTONE_SLAB		68
+#define	STRING_POLISHED_ANDESITE_SLAB		69
+#define	STRING_DIORITE_SLAB					70
+#define	STRING_POLISHED_DIORITE_SLAB		71
+#define	STRING_END_STONE_BRICK_SLAB			72
+#define	STRING_STONE_SLAB    				73
+#define STRING_STONE_STAIRS					74
+#define STRING_GRANITE_STAIRS				75
+#define STRING_POLISHED_GRANITE_STAIRS		76
+#define STRING_SMOOTH_QUARTZ_STAIRS			77
+#define STRING_DIORITE_STAIRS				78
+#define STRING_POLISHED_DIORITE_STAIRS		79
+#define STRING_END_STONE_BRICK_STAIRS		80
+#define STRING_ANDESITE_STAIRS				81
+#define STRING_POLISHED_ANDESITE_STAIRS		82
+#define STRING_RED_NETHER_BRICK_STAIRS		83
+#define STRING_MOSSY_STONE_BRICK_STAIRS		84
+#define STRING_MOSSY_COBBLESTONE_STAIRS		85
+#define STRING_SMOOTH_SANDSTONE_STAIRS		86
+#define STRING_SMOOTH_RED_SANDSTONE_STAIRS	87
+#define STRING_SANDSTONE_SLAB				88
+#define STRING_PETRIFIED_OAK_SLAB			89
+#define STRING_COBBLESTONE_SLAB				90
+#define STRING_BRICK_SLAB					91
+#define STRING_STONE_BRICK_SLAB				92
+#define STRING_NETHER_BRICK_SLAB			93
+#define STRING_QUARTZ_SLAB					94
+#define STRING_SPRUCE_SLAB					95
+#define STRING_BIRCH_SLAB					96
+#define STRING_JUNGLE_SLAB					97
+#define STRING_ACACIA_SLAB					98
+#define STRING_DARK_OAK_SLAB				99
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -727,11 +808,46 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
+	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
+	case BLOCK_RED_SANDSTONE_SLAB:
+		switch (*dataVal & 0x7)
+		{
+		default:
+			assert(0);
+		case 0:
+			break;
+		case 1:
+			return gExtraBlockNames[STRING_CUT_RED_SANDSTONE_SLAB].name;
+			break;
+		case 2:
+			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_SLAB].name;
+			break;
+		case 3:
+			return gExtraBlockNames[STRING_CUT_SANDSTONE_SLAB].name;
+			break;
+		case 4:
+			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_SLAB].name;
+			break;
+		case 5:
+			return gExtraBlockNames[STRING_GRANITE_SLAB].name;
+			break;
+		case 6:
+			return gExtraBlockNames[STRING_POLISHED_GRANITE_SLAB].name;
+			break;
+		case 7:
+			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_SLAB].name;
+			break;
+		}
+		break;
+
 	case BLOCK_PURPUR_DOUBLE_SLAB:
 	case BLOCK_PURPUR_SLAB:
 		switch (*dataVal & 0x7)
 		{
 		default:
+			assert(0);
+		case 0:
+		case 1:
 			break;
 		case 2:
 			return gExtraBlockNames[STRING_PRISMARINE_SLAB].name;
@@ -741,6 +857,15 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		case 4:
 			return gExtraBlockNames[STRING_DARK_PRISMARINE_SLAB].name;
+			break;
+		case 5:
+			return gExtraBlockNames[STRING_RED_NETHER_BRICK_SLAB].name;
+			break;
+		case 6:
+			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_SLAB].name;
+			break;
+		case 7:
+			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_SLAB].name;
 			break;
 		}
 		break;
@@ -815,15 +940,15 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
-	// special, returns its own particular constructed name
+		// special, returns its own particular constructed name
 	case BLOCK_CORAL_BLOCK:
 	case BLOCK_CORAL:
 	case BLOCK_CORAL_FAN:
 	case BLOCK_CORAL_WALL_FAN:
 		// does name need to be changed?
-		if (*dataVal & 0x7)	{
+		if (*dataVal & 0x7) {
 			// watch out if there's ever a sixth coral...
-			strcpy_s(gCoralString, 100, gCoralNames[(*dataVal & 0x7)-1].name);
+			strcpy_s(gCoralString, 100, gCoralNames[(*dataVal & 0x7) - 1].name);
 
 			switch (*type) {
 			case BLOCK_CORAL_BLOCK:
@@ -841,9 +966,166 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			}
 			return gCoralString;
 		}
+		break;
+
+	case BLOCK_ANDESITE_DOUBLE_SLAB:
+	case BLOCK_ANDESITE_SLAB:
+		switch (*dataVal & 0x7)
+		{
+		default:
+			break;
+		case 1:
+			return gExtraBlockNames[STRING_POLISHED_ANDESITE_SLAB].name;
+			break;
+		case 2:
+			return gExtraBlockNames[STRING_DIORITE_SLAB].name;
+			break;
+		case 3:
+			return gExtraBlockNames[STRING_POLISHED_DIORITE_SLAB].name;
+			break;
+		case 4:
+			return gExtraBlockNames[STRING_END_STONE_BRICK_SLAB].name;
+			break;
+		case 5:
+			return gExtraBlockNames[STRING_STONE_SLAB].name;
+			break;
+		}
+		break;
+
+	case BLOCK_STONE_SLAB:
+		switch (*dataVal & 0x7)
+		{
+		default:
+			break;
+		case 1:
+			// sandstone
+			return gExtraBlockNames[STRING_SANDSTONE_SLAB].name;
+			break;
+		case 2:
+			// wooden
+			return gExtraBlockNames[STRING_PETRIFIED_OAK_SLAB].name;
+			break;
+		case 3:
+			// cobblestone
+			return gExtraBlockNames[STRING_COBBLESTONE_SLAB].name;
+			break;
+		case 4:
+			// brick
+			return gExtraBlockNames[STRING_BRICK_SLAB].name;
+			break;
+		case 5:
+			// stone brick
+			return gExtraBlockNames[STRING_STONE_BRICK_SLAB].name;
+			break;
+		case 6:
+			// nether brick
+			return gExtraBlockNames[STRING_NETHER_BRICK_SLAB].name;
+			break;
+		case 7:
+			// quartz with distinctive sides and bottom
+			return gExtraBlockNames[STRING_QUARTZ_SLAB].name;
+			break;
+		}
+		break;
+
+	case BLOCK_WOODEN_SLAB:
+		switch (*dataVal & 0x7)
+		{
+		default: // normal log
+			break;
+		case 1: // spruce (dark)
+			return gExtraBlockNames[STRING_SPRUCE_SLAB].name;
+			break;
+		case 2: // birch
+			return gExtraBlockNames[STRING_BIRCH_SLAB].name;
+			break;
+		case 3: // jungle
+			return gExtraBlockNames[STRING_JUNGLE_SLAB].name;
+			break;
+		case 4: // acacia
+			return gExtraBlockNames[STRING_ACACIA_SLAB].name;
+			break;
+		case 5: // dark oak
+			return gExtraBlockNames[STRING_DARK_OAK_SLAB].name;
+			break;
+		}
+		break;
+
+	case BLOCK_COBBLESTONE_STAIRS:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// stone stairs
+			return gExtraBlockNames[STRING_STONE_STAIRS].name;
+			break;
+		case BIT_32:	// granite
+			return gExtraBlockNames[STRING_GRANITE_STAIRS].name;
+			break;
+		case BIT_32 | BIT_16:	// polished granite
+			return gExtraBlockNames[STRING_POLISHED_GRANITE_STAIRS].name;
+			break;
+		}
+		break;
+	case BLOCK_BRICK_STAIRS:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// smooth quartz stairs
+			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_STAIRS].name;
+			break;
+		case BIT_32:	// diorite
+			return gExtraBlockNames[STRING_DIORITE_STAIRS].name;
+			break;
+		case BIT_32 | BIT_16:	// polished diorite
+			return gExtraBlockNames[STRING_POLISHED_DIORITE_STAIRS].name;
+			break;
+		}
+		break;
+	case BLOCK_STONE_BRICK_STAIRS:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// end stone stairs
+			return gExtraBlockNames[STRING_END_STONE_BRICK_STAIRS].name;
+			break;
+		case BIT_32:	// andesite
+			return gExtraBlockNames[STRING_ANDESITE_STAIRS].name;
+			break;
+		case BIT_32 | BIT_16:	// polished andesite
+			return gExtraBlockNames[STRING_POLISHED_ANDESITE_STAIRS].name;
+			break;
+		}
+		break;
+	case BLOCK_NETHER_BRICK_STAIRS:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// red nether brick stairs
+			return gExtraBlockNames[STRING_RED_NETHER_BRICK_STAIRS].name;
+			break;
+		case BIT_32:	// mossy stone
+			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_STAIRS].name;
+			break;
+		case BIT_32 | BIT_16:	// mossy cobblestone
+			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_STAIRS].name;
+			break;
+		}
+		break;
+	case BLOCK_SANDSTONE_STAIRS:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// smooth sandstone stairs
+			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_STAIRS].name;
+			break;
+		case BIT_32:	// smooth red sandstone
+			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_STAIRS].name;
+			break;
+		}
+		break;
 	}
 
-	// could certainly add more, such as slab names TODO
+	// could add more? TODO
 
     return gBlockDefinitions[*type].name;
 }
@@ -1292,7 +1574,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         }
         break;
 
-    case BLOCK_DOUBLE_STONE_SLAB:
+    case BLOCK_STONE_DOUBLE_SLAB:
     case BLOCK_STONE_SLAB:
         dataVal = block->data[voxel];
         alphaComputed = true;
@@ -1330,8 +1612,8 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 15:	// quartz
             color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
             break;
-        case 10:	// tile quartz or upper wooden slab
-            color = gBlockDefinitions[(type == BLOCK_DOUBLE_STONE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
+        case 10:	// tile quartz or upper wooden slab TODOTODO - what?
+            color = gBlockDefinitions[(type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
             break;
         }
         break;
@@ -1580,6 +1862,15 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		case 4:	// dark prismarine
 			color = gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
 			break;
+		case 5:	// red nether brick
+			color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
+			break;
+		case 6:	// mossy stone brick
+			color = 0x767B6E;
+			break;
+		case 7:	// mossy cobblestone
+			color = gBlockDefinitions[BLOCK_MOSS_STONE].pcolor;
+			break;
 		}
 		break;
 
@@ -1631,6 +1922,84 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+	case BLOCK_COBBLESTONE_STAIRS:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// stone stairs
+			color = gBlockDefinitions[BLOCK_STONE].pcolor;
+			break;
+		case BIT_32:	// granite
+			color = 0xA77562;
+			break;
+		case BIT_32 | BIT_16:	// polished granite
+			color = 0x946251;
+			break;
+		}
+		break;
+	case BLOCK_BRICK_STAIRS:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// smooth quartz stairs
+			color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+			break;
+		case BIT_32:	// diorite
+			color = 0x9B9B9E;
+			break;
+		case BIT_32 | BIT_16:	// polished diorite
+			color = 0xC9C9CD;
+			break;
+		}
+		break;
+	case BLOCK_STONE_BRICK_STAIRS:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// end stone brick stairs
+			color = 0xDBE2A4;
+			break;
+		case BIT_32:	// andesite
+			color = 0x7F7F83;
+			break;
+		case BIT_32 | BIT_16:	// polished andesite
+			color = 0x7F7F84;
+			break;
+		}
+		break;
+
+	case BLOCK_NETHER_BRICK_STAIRS:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// red nether brick stairs
+			color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
+			break;
+		case BIT_32:	// mossy stone
+			color = 0x767B6E;
+			break;
+		case BIT_32 | BIT_16:	// mossy cobblestone
+			color = gBlockDefinitions[BLOCK_MOSS_STONE].pcolor;
+			break;
+		}
+		break;
+	case BLOCK_SANDSTONE_STAIRS:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+			break;
+		case BIT_16:	// smooth sandstone stairs
+			color = 0xE0D6AB;
+			break;
+		case BIT_32:	// smooth red sandstone
+			color = 0xB66220;
+			break;
+		}
+		break;
 
     default:
         // Everything else
@@ -1751,7 +2120,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options *pOpts,ProgressCallback callback,float percent,int *hitsFound)
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options *pOpts,ProgressCallback callback,float percent,int *hitsFound,int mcVersion)
 {
     WorldBlock *block, *prevblock;
     int ofs=0,prevy,prevSely,blockSolid,saveHeight;
@@ -1796,7 +2165,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
-        block = LoadBlock(pWorldGuide, bx, bz);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
         if (block == NULL) //blank tile
         {
             // highlighting off, or fully outside real area? Use blank tile.
@@ -2296,42 +2665,11 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_CORAL_FAN:
 	case BLOCK_DEAD_CORAL_FAN:
 	case BLOCK_DEAD_CORAL:
+	case BLOCK_ANDESITE_DOUBLE_SLAB:
 		// uses 0-4
 		if (dataVal < 5)
 		{
 			addBlock = 1;
-		}
-		break;
-	// TODO: fan in different directions
-	case BLOCK_CORAL_WALL_FAN:
-	case BLOCK_DEAD_CORAL_WALL_FAN:
-		// uses 0-14
-		if (dataVal < 15)
-		{
-			int coralVal = dataVal % 5;
-			int rotVal = (dataVal - coralVal)/5;
-			finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 5));
-			addBlock = 1;
-			// add attached block
-			switch (rotVal)
-			{
-			case 3:	// not actually used
-				// put block to south
-				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
-				break;
-			case 1:
-				// put block to north
-				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
-				break;
-			case 2:
-				// put block to east
-				block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-				break;
-			case 0:
-				// put block to west
-				block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-				break;
-			}
 		}
 		break;
 	case BLOCK_WOODEN_PLANKS:
@@ -2341,7 +2679,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_END_ROD:
     case BLOCK_CHORUS_FLOWER:
     case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
-        // uses 0-5
+	case BLOCK_ANDESITE_SLAB:
+		// uses 0-5
         if ( dataVal < 6 )
         {
             addBlock = 1;
@@ -2427,19 +2766,9 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
         }
         break;
-    case BLOCK_DOUBLE_STONE_SLAB:
+    case BLOCK_STONE_DOUBLE_SLAB:
         // uses 0-9, F (15)
         if ( dataVal < 10 || dataVal == 15 )
-        {
-            addBlock = 1;
-        }
-        break;
-
-    case BLOCK_DOUBLE_RED_SANDSTONE_SLAB:
-    case BLOCK_RED_SANDSTONE_SLAB:
-    case BLOCK_PURPUR_SLAB:
-        // uses 0 and 8 - normal and smooth, for redstone double slab; bottom & top for slabs
-        if ( dataVal == 0 || dataVal == 8 )
         {
             addBlock = 1;
         }
@@ -2484,6 +2813,38 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
+	// TODO: fan in different directions
+	case BLOCK_CORAL_WALL_FAN:
+	case BLOCK_DEAD_CORAL_WALL_FAN:
+		// uses 0-14
+		if (dataVal < 15)
+		{
+			int coralVal = dataVal % 5;
+			int rotVal = (dataVal - coralVal) / 5;
+			finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 5));
+			addBlock = 1;
+			// add attached block
+			switch (rotVal)
+			{
+			case 3:	// not actually used
+				// put block to south
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 1:
+				// put block to north
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 2:
+				// put block to east
+				block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 0:
+				// put block to west
+				block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			}
+		}
+		break;
 	case BLOCK_LOG:	// really just 12, but we pay attention to directionless
 	case BLOCK_STRIPPED_OAK:
 	case BLOCK_STRIPPED_OAK_WOOD:
@@ -2516,6 +2877,10 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_GREEN_BANNER:
 	case BLOCK_RED_BANNER:
 	case BLOCK_BLACK_BANNER:
+	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
+	case BLOCK_RED_SANDSTONE_SLAB:
+	case BLOCK_PURPUR_DOUBLE_SLAB:
+	case BLOCK_PURPUR_SLAB:
 		// uses all bits, 0-15
         addBlock = 1;
         break;
@@ -3464,7 +3829,7 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
 }
 
 // return NULL if no block loaded.
-WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
+WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
 {
     // if there's no world, simply return
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
@@ -3484,11 +3849,10 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
     }
     // always set
     block->rendery = -1; // force redraw
+	block->mcVersion = mcVersion;
 
     if ( pWorldGuide->type == WORLD_TEST_BLOCK_TYPE )
     {
-		block->mcVersion = 13;
-
         int type = cx*2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
@@ -3604,7 +3968,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz)
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             BlockEntity blockEntities[16 * 16 * 256];
 
-            gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, &block->mcVersion);
+            gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
             // got block successfully?
 
             if ((gotBlock > 0) && (block->numEntities > 0)) {
@@ -3778,6 +4142,8 @@ int GetFileVersion(const wchar_t *world, int *version, wchar_t *fileOpened, rsiz
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
+//  The NBT data version, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+// 1444 is 1.13, 1901 is 1.14
 int GetFileVersionId(const wchar_t *world, int *versionId)
 {
     bfFile bf;

@@ -406,6 +406,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={	// IMPORTANT: do not cha
 	{ /* 326 */ "Standing Sign",          0x9f814f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x60, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// acacia and dark oak, sigh  // TODOTODO - try to waterlog, and test
 	{ /* 327 */ "Sweet Berry Bush",       0x32613c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 37, 0x03, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID }, // does not stop fluid
 	{ /* 328 */ "Bamboo",                 0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 37, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY }, // baby bamboo should be BLF_DNE_FLUID, as fluid washes it away
+	{ /* 329 */ "Andesite Double Slab",   0x89898A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+	{ /* 330 */ "Andesite Slab",          0x89898A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_HEAD, also skip 400, BLOCK_FLOWER_POT. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

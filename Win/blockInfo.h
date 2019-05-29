@@ -406,7 +406,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 329
+#define NUM_BLOCKS_DEFINED 331
 // number of official Minecraft blocks (take highest valid block ID and add 1)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (includes the unknown one)
@@ -573,7 +573,7 @@ enum block_types {
 	BLOCK_RED_MUSHROOM = 0x28,
 	BLOCK_BOOKSHELF = 0x2f,
 	BLOCK_WOOL = 0x23,
-	BLOCK_DOUBLE_STONE_SLAB = 0x2b,
+	BLOCK_STONE_DOUBLE_SLAB = 0x2b,
 	BLOCK_STONE_SLAB = 0x2c,
 	BLOCK_BRICK = 0x2d,
 	BLOCK_TNT = 0x2e,
@@ -700,7 +700,7 @@ enum block_types {
 	BLOCK_INVERTED_DAYLIGHT_SENSOR = 0xB2,
 	BLOCK_RED_SANDSTONE = 0xB3,
 	BLOCK_RED_SANDSTONE_STAIRS = 0xB4,
-	BLOCK_DOUBLE_RED_SANDSTONE_SLAB = 0xB5,
+	BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 0xB5,
 	BLOCK_RED_SANDSTONE_SLAB = 0xB6,
 	BLOCK_SPRUCE_FENCE_GATE = 0xB7,
 	BLOCK_BIRCH_FENCE_GATE = 0xB8,
@@ -823,6 +823,8 @@ enum block_types {
 	BLOCK_ACACIA_SIGN_POST = 326,
 	BLOCK_SWEET_BERRY_BUSH = 327,
 	BLOCK_BAMBOO = 328,
+	BLOCK_ANDESITE_DOUBLE_SLAB = 329,
+	BLOCK_ANDESITE_SLAB = 330,
 		/*
 	BLOCK_SCAFFOLDING = 327,
 	BLOCK_COMPOSTER = 329,

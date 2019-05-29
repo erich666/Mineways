@@ -50,6 +50,7 @@ typedef struct BlockTranslator {
 #define MAX_PALETTE	512
 
 static bool hashMade = false;
+static int worldVersion = 0;
 
 
 // properties and which blocks use them:
@@ -271,7 +272,7 @@ static bool hashMade = false;
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 55
 
-#define NUM_TRANS 621
+#define NUM_TRANS 651
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -407,7 +408,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 100,           0, "mushroom_stem", MUSHROOM_STEM_PROP }, // red mushroom block chosen, arbitrarily; either is fine
 { 0,  41,           0, "gold_block", NO_PROP },
 { 0,  42,           0, "iron_block", NO_PROP },
-{ 0,  44,           0, "stone_slab", SLAB_PROP },
+{ 0,  44,           0, "smooth_stone_slab", SLAB_PROP },	// renamed in 1.14 from stone_slab in 1.13 - it means "the chiseled one" as it's traditionally been; the new 1.14 "stone_slab" means "pure flat stone"
 { 0,  44,           1, "sandstone_slab", SLAB_PROP },
 { 0, 182,           0, "red_sandstone_slab", SLAB_PROP }, // really, just uses 182 exclusively; sometimes rumored to be 205/0, but not so https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
 { 0,  44,           2, "petrified_oak_slab", SLAB_PROP },
@@ -902,8 +903,38 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 10, "potted_lily_of_the_valley", NO_PROP },
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 11, "potted_wither_rose", NO_PROP },
 { 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
-{ 0,   6,           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
-{ 0,  72,    HIGH_BIT, "bamboo", LEAF_SIZE_PROP },
+{ 0,   6,	           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
+{ 0,  72,	    HIGH_BIT, "bamboo", LEAF_SIZE_PROP },
+{ 0, 182,	           1, "cut_red_sandstone_slab", SLAB_PROP }, // added to red_sandstone_slab and double slab
+{ 0, 182,	           2, "smooth_red_sandstone_slab", SLAB_PROP },
+{ 0, 182,	           3, "cut_sandstone_slab", SLAB_PROP },
+{ 0, 182,	           4, "smooth_sandstone_slab", SLAB_PROP },
+{ 0, 182,	           5, "granite_slab", SLAB_PROP },
+{ 0, 182,	           6, "polished_granite_slab", SLAB_PROP },
+{ 0, 182,	           7, "smooth_quartz_slab", SLAB_PROP },
+{ 0, 205,	           5, "red_nether_brick_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 4
+{ 0, 205,	           6, "mossy_stone_brick_slab", SLAB_PROP },
+{ 0, 205,	           7, "mossy_cobblestone_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 0, "andesite_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 1, "polished_andesite_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 2, "diorite_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 3, "polished_diorite_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 4, "end_stone_brick_slab", SLAB_PROP },
+{ 0,  74,	HIGH_BIT | 5, "stone_slab", SLAB_PROP },	// the 1.14 stone_slab is entirely "normal" stone, no chiseling - it's a new slab type; 1.13 used this to mean what is now "smooth_stone_slab", and so we rename that in the nbt.cpp code.
+{ 0,  67,	      BIT_16, "stone_stairs", STAIRS_PROP },	// add to cobblestone_stairs
+{ 0,  67,	      BIT_32, "granite_stairs", STAIRS_PROP },
+{ 0,  67,  BIT_32|BIT_16, "polished_granite_stairs", STAIRS_PROP },
+{ 0, 108,	      BIT_16, "smooth_quartz_stairs", STAIRS_PROP },	// add to brick_stairs
+{ 0, 108,	      BIT_32, "diorite_stairs", STAIRS_PROP },
+{ 0, 108,  BIT_32|BIT_16, "polished_diorite_stairs", STAIRS_PROP },
+{ 0, 109,	      BIT_16, "end_stone_brick_stairs", STAIRS_PROP },	// add to stone_brick_stairs
+{ 0, 109,	      BIT_32, "andesite_stairs", STAIRS_PROP },
+{ 0, 109,  BIT_32|BIT_16, "polished_andesite_stairs", STAIRS_PROP },
+{ 0, 114,	      BIT_16, "red_nether_brick_stairs", STAIRS_PROP },	// add to Nether brick stairs
+{ 0, 114,	      BIT_32, "mossy_stone_brick_stairs", STAIRS_PROP },
+{ 0, 114,  BIT_32|BIT_16, "mossy_cobblestone_stairs", STAIRS_PROP },
+{ 0, 128,	      BIT_16, "smooth_sandstone_stairs", STAIRS_PROP },	// add to sandstone stairs
+{ 0, 128,	      BIT_32, "smooth_red_sandstone_stairs", STAIRS_PROP },
 
 };
 
@@ -1237,7 +1268,7 @@ unsigned char mod16(int val)
 }
 
 // return 0 on error
-int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int *mcversion)
+int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion)
 {
     int len,nsections;
     int biome_save;
@@ -1257,14 +1288,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
     memset(biome, 0, 16*16);
 	int inttype = nbtFindElement(pbf, "Biomes");
 	bool newFormat = false;
-	*mcversion = 12;	// as a guess - not accurate
 	if (inttype != 7) {
 		// could be new format 1.13
 		if (inttype != 11)
 			return -4;
 		else {
 			newFormat = true;
-			*mcversion = 13;
 			if (!hashMade) {
 				makeHashTable();
 				hashMade = true;
@@ -1484,6 +1513,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								// have to add end of string
 								thisBlockName[len] = 0x0;
 
+								// incredibly stupid special case:
+								// in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
+								if ((mcversion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0) ) {
+									strcpy_s(thisBlockName, 100, "minecraft:smooth_stone_slab");
+								}
+
 								// convert name to block value. +10 is to avoid (useless) "minecraft:" string.
 								// could be dangerous if len < 10 for whatever reason.
 								typeIndex = findIndexFromName(thisBlockName + 10);
@@ -1602,7 +1637,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											// 0-3
 											age = dataVal = atoi(value);
 										}
-										// RAIL_PROP and STAIRS_PROP
+										// RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Probably wrong TODOTODO
 										else if (strcmp(token, "shape") == 0) {
 											// only matters for rails
 											if (strcmp(value, "north_south") == 0) {
@@ -1908,7 +1943,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								paletteBlockEntry[entry_index] = 75;
 							}
 							break;
-						case STAIRS_PROP:
+						case STAIRS_PROP:	// (wastefully) uses all 4 lower bits
 							dataVal = (dataVal - 1) | (half ? 4 : 0);
 							break;
 						case RAIL_PROP:
@@ -2513,6 +2548,8 @@ int nbtGetFileVersion(bfFile *pbf, int *version)
 
 // From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom
 // This is a newer tag for 1.9 and on, older worlds do not have them
+//  The NBT data version, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+// 1444 is 1.13, 1901 is 1.14
 int nbtGetFileVersionId(bfFile *pbf, int *versionId)
 {
     *versionId = 0x0; // initialize

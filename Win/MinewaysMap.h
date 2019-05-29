@@ -78,10 +78,10 @@ typedef struct WorldGuide {
 void SetSeparatorMap(const wchar_t *separator);
 void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz);
 void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz );
-void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int hitsFound[3], ProgressCallback callback);
+void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion);
 const char * IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int *ox, int *oy, int *oz, int *type, int *dataVal, int *biome, bool schematic);
 void CloseAll();
-WorldBlock * LoadBlock(WorldGuide *pWorldGuide,int bx,int bz);
+WorldBlock * LoadBlock(WorldGuide *pWorldGuide,int bx,int bz,int mcVersion);
 void ClearBlockReadCheck();
 int UnknownBlockRead();
 void CheckUnknownBlock( int check );
