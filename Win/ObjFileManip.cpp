@@ -3821,11 +3821,56 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // which posts are needed: NSEW. Brute-force it.
 
         // TODO: get more subtle, like glass panes, and generate only the faces needed. Right now there's overlap at corners, for example.
+		switch (dataVal & 0xf)
+		{
+		default:
+			assert(0);
+		case 0:
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY);
+			break;
+		case 1: // mossy cobblestone
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrY);
+			break;
+		case 2: // brick wall
+			swatchLoc = SWATCH_INDEX(7, 0);
+			break;
+		case 3: // granite wall
+			swatchLoc = SWATCH_INDEX(8, 22);
+			break;
+		case 4: // diorite wall
+			swatchLoc = SWATCH_INDEX(6, 22);
+			break;
+		case 5: // andesite wall
+			swatchLoc = SWATCH_INDEX(4, 22);
+			break;
+		case 6: // prismarine wall
+			swatchLoc = SWATCH_INDEX(12, 22);
+			break;
+		case 7: // stone brick wall
+			swatchLoc = SWATCH_INDEX(6, 3);
+			break;
+		case 8: // mossy stone brick wall
+			swatchLoc = SWATCH_INDEX(4, 6);
+			break;
+		case 9: // end stone brick wall
+			swatchLoc = SWATCH_INDEX(3, 24);
+			break;
+		case 10: // nether brick wall
+			swatchLoc = SWATCH_INDEX(0, 14);
+			break;
+		case 11: // red nether brick wall
+			swatchLoc = SWATCH_INDEX(2, 26);
+			break;
+		case 12: // sandstone wall
+			swatchLoc = SWATCH_INDEX(0, 12);
+			break;
+		case 13: // red sandstone wall
+			swatchLoc = SWATCH_INDEX(14, 13);
+			break;
+		}
 
         // since we erase "billboard" objects as we go, we need to test against origType.
         // Note that if a render export chops through a fence, the fence will not join.
-        swatchLoc = ( dataVal == 0x1 ) ? SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY ) :
-            SWATCH_INDEX( gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY );
 
         hasPost = 0;
         // if there's *anything* above the wall, put the post
@@ -4378,7 +4423,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			case 6:
 				// nether brick
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
 				break;
 			case 7:
 				// quartz with distinctive sides and bottom
@@ -4473,13 +4518,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(11, 22);
 				break;
 			case 5:	// red nether brick
-				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
+				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_RED_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_RED_NETHER_BRICK].txrY);
 				break;
 			case 6:	// mossy stone brick
 				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
 				break;
 			case 7:	// mossy cobblestone
-				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY);
+				topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrY);
 				break;
 			}
 			break;
@@ -13811,7 +13856,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 6:
             case 14:
                 // nether brick
-                swatchLoc = BLOCK_NETHER_BRICKS;
+                swatchLoc = BLOCK_NETHER_BRICK;
                 break;
             case 7:	// quartz
             case 15:	// quartz
@@ -13922,7 +13967,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 6:
                 // nether brick
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY );
+                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY );
                 break;
             case 7:
                 // quartz with distinctive sides and bottom
@@ -14065,14 +14110,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			case 4: // dark prismarine 1.13
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].txrY);
 				break;
-			case 5:	// red nether brick
-				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
+			case 5:	// red nether slab
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_RED_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_RED_NETHER_BRICK].txrY);
 				break;
-			case 6:	// mossy stone brick
+			case 6:	// mossy stone slab
 				swatchLoc = SWATCH_INDEX(4, 6);
 				break;
 			case 7:	// mossy cobblestone
-				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY);
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrY);
 				break;
 			}
 			break;
@@ -15900,11 +15945,55 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 
             break;
         case BLOCK_COBBLESTONE_WALL:						// getSwatch
-            if ( dataVal == 0x1 )
-            {
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_MOSS_STONE].txrX, gBlockDefinitions[BLOCK_MOSS_STONE].txrY );
-            }
-            break;
+			// TODO - this could be a subroutine, as it's exactly the same as for the other use of BLOCK_COBBLESTONE_WALL here.
+			switch (dataVal & 0xf)
+			{
+			default:
+				assert(0);
+			case 0:
+				// no change, default cobblestone is fine
+				break;
+			case 1: // mossy cobblestone
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].txrY);
+				break;
+			case 2: // brick wall
+				swatchLoc = SWATCH_INDEX(7, 0);
+				break;
+			case 3: // granite wall
+				swatchLoc = SWATCH_INDEX(8, 22);
+				break;
+			case 4: // diorite wall
+				swatchLoc = SWATCH_INDEX(6, 22);
+				break;
+			case 5: // andesite wall
+				swatchLoc = SWATCH_INDEX(4, 22);
+				break;
+			case 6: // prismarine wall
+				swatchLoc = SWATCH_INDEX(12, 22);
+				break;
+			case 7: // stone brick wall
+				swatchLoc = SWATCH_INDEX(6, 3);
+				break;
+			case 8: // mossy stone brick wall
+				swatchLoc = SWATCH_INDEX(4, 6);
+				break;
+			case 9: // end stone brick wall
+				swatchLoc = SWATCH_INDEX(3, 24);
+				break;
+			case 10: // nether brick wall
+				swatchLoc = SWATCH_INDEX(0, 14);
+				break;
+			case 11: // red nether brick wall
+				swatchLoc = SWATCH_INDEX(2, 26);
+				break;
+			case 12: // sandstone wall
+				swatchLoc = SWATCH_INDEX(0, 12);
+				break;
+			case 13: // red sandstone wall
+				swatchLoc = SWATCH_INDEX(5, 22);
+				break;
+			}
+			break;
         case BLOCK_CARPET:						// getSwatch
         case BLOCK_WOOL:
             swatchLoc = retrieveWoolSwatch( dataVal );

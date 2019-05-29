@@ -367,6 +367,19 @@ static struct {
 	{ "Jungle Slab" },
 	{ "Acacia Slab" },
 	{ "Dark Oak Slab" },
+	{ "Mossy Cobblestone Wall" }, // 100
+	{ "Brick Wall" },
+	{ "Granite Wall" },
+	{ "Diorite Wall" },
+	{ "Andesite Wall" },
+	{ "Prismarine Wall" },
+	{ "Stone Brick Wall" },
+	{ "Mossy Stone Brick Wall" },
+	{ "End Stone Brick Wall" },
+	{ "Nether Brick Wall" },
+	{ "Red Nether Brick Wall" },
+	{ "Sandstone Wall" },
+	{ "Red Sandstone Wall" },
 };
 
 char gCoralString[100];
@@ -482,6 +495,19 @@ static struct {
 #define STRING_JUNGLE_SLAB					97
 #define STRING_ACACIA_SLAB					98
 #define STRING_DARK_OAK_SLAB				99
+#define STRING_MOSSY_COBBLESTONE_WALL		100
+#define STRING_BRICK_WALL					101
+#define STRING_GRANITE_WALL					102
+#define STRING_DIORITE_WALL					103
+#define STRING_ANDESITE_WALL				104
+#define STRING_PRISMARINE_WALL				105
+#define STRING_STONE_BRICK_WALL				106
+#define STRING_MOSSY_STONE_BRICK_WALL		107
+#define STRING_END_STONE_BRICK_WALL			108
+#define STRING_NETHER_BRICK_WALL			109
+#define STRING_RED_NETHER_BRICK_WALL		100
+#define STRING_SANDSTONE_WALL				110
+#define STRING_RED_SANDSTONE_WALL			111
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -1123,6 +1149,51 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		}
 		break;
+	case BLOCK_COBBLESTONE_WALL:
+		switch (*dataVal & 0xf)	{
+		default:
+			// no change, default cobblestone is fine
+			break;
+		case 1: // mossy cobblestone
+			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_WALL].name;
+			break;
+		case 2: // brick wall
+			return gExtraBlockNames[STRING_BRICK_WALL].name;
+			break;
+		case 3: // granite wall
+			return gExtraBlockNames[STRING_GRANITE_WALL].name;
+			break;
+		case 4: // diorite wall
+			return gExtraBlockNames[STRING_DIORITE_WALL].name;
+			break;
+		case 5: // andesite wall
+			return gExtraBlockNames[STRING_ANDESITE_WALL].name;
+			break;
+		case 6: // prismarine wall
+			return gExtraBlockNames[STRING_PRISMARINE_WALL].name;
+			break;
+		case 7: // stone brick wall
+			return gExtraBlockNames[STRING_STONE_BRICK_WALL].name;
+			break;
+		case 8: // mossy stone brick wall
+			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_WALL].name;
+			break;
+		case 9: // end stone brick wall
+			return gExtraBlockNames[STRING_END_STONE_BRICK_WALL].name;
+			break;
+		case 10: // nether brick wall
+			return gExtraBlockNames[STRING_NETHER_BRICK_WALL].name;
+			break;
+		case 11: // red nether brick wall
+			return gExtraBlockNames[STRING_RED_NETHER_BRICK_WALL].name;
+			break;
+		case 12: // sandstone wall
+			return gExtraBlockNames[STRING_SANDSTONE_WALL].name;
+			break;
+		case 13: // red sandstone wall
+			return gExtraBlockNames[STRING_RED_SANDSTONE_WALL].name;
+			break;
+		}
 	}
 
 	// could add more? TODO
@@ -1606,7 +1677,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             break;
         case 6:	// nether brick
         case 14:	// nether brick
-            color = gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
+            color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
             break;
         case 7:	// quartz
         case 15:	// quartz
@@ -1863,13 +1934,13 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
 			break;
 		case 5:	// red nether brick
-			color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
+			color = 0x4A0B0D;
 			break;
 		case 6:	// mossy stone brick
 			color = 0x767B6E;
 			break;
 		case 7:	// mossy cobblestone
-			color = gBlockDefinitions[BLOCK_MOSS_STONE].pcolor;
+			color = gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
 			break;
 		}
 		break;
@@ -1926,6 +1997,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		dataVal = block->data[voxel];
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// stone stairs
 			color = gBlockDefinitions[BLOCK_STONE].pcolor;
@@ -1942,6 +2016,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		dataVal = block->data[voxel];
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// smooth quartz stairs
 			color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
@@ -1958,6 +2035,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		dataVal = block->data[voxel];
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// end stone brick stairs
 			color = 0xDBE2A4;
@@ -1975,15 +2055,18 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		dataVal = block->data[voxel];
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// red nether brick stairs
-			color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
+			color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
 			break;
 		case BIT_32:	// mossy stone
 			color = 0x767B6E;
 			break;
 		case BIT_32 | BIT_16:	// mossy cobblestone
-			color = gBlockDefinitions[BLOCK_MOSS_STONE].pcolor;
+			color = gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
 			break;
 		}
 		break;
@@ -1991,6 +2074,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		dataVal = block->data[voxel];
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// smooth sandstone stairs
 			color = 0xE0D6AB;
@@ -2001,7 +2087,57 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
-    default:
+	case BLOCK_COBBLESTONE_WALL:
+		dataVal = block->data[voxel];
+		switch (dataVal & 0xf) {
+		default:
+		case 0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 1: // mossy cobblestone
+			color = gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
+			break;
+		case 2: // brick wall
+			color = gBlockDefinitions[BLOCK_BRICK].pcolor;
+			break;
+		case 3: // granite wall
+			color = 0xA77562;
+			break;
+		case 4: // diorite wall
+			color = 0x9B9B9E;
+			break;
+		case 5: // andesite wall
+			color = 0x7F7F83;
+			break;
+		case 6: // prismarine wall
+			color = gBlockDefinitions[BLOCK_PRISMARINE].pcolor;
+			break;
+		case 7: // stone brick wall
+			color = gBlockDefinitions[BLOCK_STONE_BRICKS].pcolor;
+			break;
+		case 8: // mossy stone brick wall
+			color = 0x767B6E;
+			break;
+		case 9: // end stone brick wall
+			color = 0xDBE2A4;
+			break;
+		case 10: // nether brick wall
+			color = gBlockDefinitions[BLOCK_NETHER_BRICK].pcolor;
+			break;
+		case 11: // red nether brick wall
+			color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
+			break;
+		case 12: // sandstone wall
+			color = 0xD9CC9E;
+			break;
+		case 13: // red sandstone wall
+			color = 0xBC6420;
+			break;
+		}
+		break;
+
+	default:
         // Everything else
         lightComputed = true;
         color = gBlockColors[type*16+light];

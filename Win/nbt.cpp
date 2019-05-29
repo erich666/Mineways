@@ -272,7 +272,7 @@ static int worldVersion = 0;
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 55
 
-#define NUM_TRANS 651
+#define NUM_TRANS 663
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -935,6 +935,18 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 114,  BIT_32|BIT_16, "mossy_cobblestone_stairs", STAIRS_PROP },
 { 0, 128,	      BIT_16, "smooth_sandstone_stairs", STAIRS_PROP },	// add to sandstone stairs
 { 0, 128,	      BIT_32, "smooth_red_sandstone_stairs", STAIRS_PROP },
+{ 0, 139,              2, "brick_wall", NO_PROP },
+{ 0, 139,              3, "granite_wall", NO_PROP },
+{ 0, 139,              4, "diorite_wall", NO_PROP },
+{ 0, 139,              5, "andesite_wall", NO_PROP },
+{ 0, 139,              6, "prismarine_wall", NO_PROP },
+{ 0, 139,              7, "stone_brick_wall", NO_PROP },
+{ 0, 139,              8, "mossy_stone_brick_wall", NO_PROP },
+{ 0, 139,              9, "end_stone_brick_wall", NO_PROP },
+{ 0, 139,             10, "nether_brick_wall", NO_PROP },
+{ 0, 139,             11, "red_nether_brick_wall", NO_PROP },
+{ 0, 139,             12, "sandstone_wall", NO_PROP },
+{ 0, 139,             13, "red_sandstone_wall", NO_PROP },
 
 };
 

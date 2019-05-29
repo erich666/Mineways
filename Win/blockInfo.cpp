@@ -116,7 +116,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={	// IMPORTANT: do not cha
     { /*  45 */ "Bricks",                 0x985542, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2d 
     { /*  46 */ "TNT",                    0xdb441a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 0, 0x0F, BLF_WHOLE},	//2e 7,0 side, 9,0 under
     { /*  47 */ "Bookshelf",              0x795a39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2f 3,2
-    { /*  48 */ "Moss Stone",             0x627162, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 2, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//30
+    { /*  48 */ "Mossy Cobblestone",      0x627162, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 2, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//30
     { /*  49 */ "Obsidian",               0x1b1729, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5, 2, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//31
     { /*  50 */ "Torch",                  0xfcfc00, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 5, 0x00, BLF_MIDDLER|BLF_FLATSIDE|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//32/50 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
     { /*  51 */ "Fire",                   0xfca100, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* somewhat bogus */ 15, 1, 0x00, BLF_BILLBOARD|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//33/51 - no billboard, sadly BLF_CUTOUTS
