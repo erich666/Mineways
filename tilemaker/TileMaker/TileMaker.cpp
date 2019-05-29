@@ -553,10 +553,13 @@ int wmain(int argc, wchar_t* argv[])
     unsigned char box_color[4];
     int neutral_color[4], mult_color[4];
     // which tile to use: get the bottommost
-    index = findTile(L"shulker_top_white", 0);
+    index = findTile(L"white_shulker_box", 1);
     int side_index = findTile(L"MW_SHULKER_SIDE", 0);
     int bottom_index = findTile(L"MW_SHULKER_BOTTOM", 0);
-    int pick_row = outputTileSize / 2;
+	assert(index >= 0);
+	assert(side_index >= 0);
+	assert(bottom_index >= 0);
+	int pick_row = outputTileSize / 2;
     int pick_col = outputTileSize / 2;
     for (i = 0; i < 16; i++) {
         // compute side and bottom color
