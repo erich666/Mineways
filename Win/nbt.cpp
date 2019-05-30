@@ -272,7 +272,7 @@ static int worldVersion = 0;
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 55
 
-#define NUM_TRANS 663
+#define NUM_TRANS 664
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -947,6 +947,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 139,             11, "red_nether_brick_wall", NO_PROP },
 { 0, 139,             12, "sandstone_wall", NO_PROP },
 { 0, 139,             13, "red_sandstone_wall", NO_PROP },
+{ 0,  75,		HIGH_BIT, "jigsaw", OBSERVER_PROP },
 
 };
 
@@ -1649,7 +1650,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											// 0-3
 											age = dataVal = atoi(value);
 										}
-										// RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Probably wrong TODOTODO
+										// RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
 										else if (strcmp(token, "shape") == 0) {
 											// only matters for rails
 											if (strcmp(value, "north_south") == 0) {
@@ -2726,6 +2727,22 @@ int nbtGetSchematicBlocksAndData(bfFile *pbf, int numBlocks, unsigned char *sche
 
 void nbtClose(bfFile *pbf)
 {
-    if (pbf->type == BF_GZIP)
-        gzclose(pbf->gz);
+	// For some reason, this gzclose() call causes Mineways to then shut down with an exception.
+	// Inside gzclose it's the line "ret = close(state->fd);" that actually causes the problem.
+	// No idea why. The error is:
+	//   minkernel\crts\ucrt\src\appcrt\lowio\close.cpp
+	//   Line: 49
+	//   Expression (_osfile(fh) & FOPEN)
+	// It happens in C:\Windows\System32\ucrtbased.dll
+	if (pbf->type == BF_GZIP) {
+		// if I comment out this gzclose() line, things shut down fine, but that's a bit
+		// unnerving - keeping file after file open seems bad. Anyway, it's a fix, if need be.
+		// I suspect it has to do with this similar thing: https://github.com/csound/csound/issues/634
+		// at the bottom they discuss an incompatibility between ways of accessing files, and point
+		// to https://stackoverflow.com/questions/9136127/what-problems-can-appear-when-using-g-compiled-dll-plugin-in-vc-compiled-a
+		// It may be the case that if I rebuilt zlib (or perhaps integrated its files into Mineways itself?)
+		// this would then go away.
+		gzclose(pbf->gz);
+		// tried this, didn't help: pbf->gz = 0x0;
+	}
 }

@@ -7542,10 +7542,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			gUsingTransform = 1;
 			totalVertexCount = gModel.vertexCount;
 
-			// TODO: need to vary sapling locations, too - anything else? Maybe this code becomes a subroutine in some form. There's also those squiggly purple things that grow
-			// thin or thick bamboo?
+			// TODO: There's also those squiggly purple things purpur blocks that grow and have some sort of offsets
 
-			// +/-3
+			// +/-3 - TODO: how does Minecraft do this?
 			wobbleObjectLocation(boxIndex, shiftX, shiftZ);
 
 			int x, y, z;
@@ -7565,7 +7564,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				translateMtx(mtx, (shiftX - txrShift + 7.0f) / 16.0f, 0.0f / 16.0f, (shiftZ - txrShift + 7.0f) / 16.0f);
 			}
 			else {
-				// TODOTODO stagger transform to center - must depend on X & Z in some way...
 				// note all six sides are used, but with different texture coordinates
 				// sides:
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0 + txrShift, 3 + txrShift, 0, 16, 0 + txrShift, 3 + txrShift);
@@ -8774,7 +8772,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
         {
             int dataVal = gBoxData[boxIndex].data;
             float setBottom = 0;
-            // The idea here is that setTop is set
+            // The idea here is that setTop is set by the various minor blocks below
             float setTop = 0;
             // a minor block exists, so check its coverage given the face direction
             switch ( origType )
@@ -8904,7 +8902,12 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
                 }
                 break;
 
-            default:
+			case BLOCK_COMPOSTER:
+				// fills the block, and if something is above it, it will cover that, too.
+				setTop = 16;
+				break;
+			
+			default:
                 // not in list, so won't cover anything
                 break;
             }
@@ -13181,6 +13184,11 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
                 return 1;
             break;
 
+		case BLOCK_COMPOSTER:
+			// really, covers whole block on all sides, in a sense
+			return 1;
+			break;
+
         default:
             // not in list, so won't cover anything
             break;
@@ -16080,7 +16088,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-        case BLOCK_SPONGE:						// getSwatch
+		// TODO could give these separate names and colors in the MinewaysMap code
+		case BLOCK_SPONGE:						// getSwatch
             switch ( dataVal & 0x1 )
             {
             default:
@@ -16173,6 +16182,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_COMMAND_BLOCK:						// getSwatch
         case BLOCK_REPEATING_COMMAND_BLOCK:
         case BLOCK_CHAIN_COMMAND_BLOCK:
+		case BLOCK_JIGSAW:
             // swatch loc right now is set to the top; bottom is +1, side is +2, conditional is +3
             // Use dataVal*6:
             // Order is: bottom, top, north, south, west, east
@@ -16408,6 +16418,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				swatchLoc = SWATCH_INDEX(1, 0);
 				break;
 			}
+			break;
+
+		case BLOCK_COMPOSTER:						// getSwatch
+			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 38, 13, 38);
 			break;
 		}
     }

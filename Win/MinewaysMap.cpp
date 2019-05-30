@@ -377,9 +377,11 @@ static struct {
 	{ "Mossy Stone Brick Wall" },
 	{ "End Stone Brick Wall" },
 	{ "Nether Brick Wall" },
-	{ "Red Nether Brick Wall" },
+	{ "Red Nether Brick Wall" },	// 110
 	{ "Sandstone Wall" },
 	{ "Red Sandstone Wall" },
+	{ "Prismarine Bricks" },
+	{ "Dark Prismarine" },
 };
 
 char gCoralString[100];
@@ -505,9 +507,11 @@ static struct {
 #define STRING_MOSSY_STONE_BRICK_WALL		107
 #define STRING_END_STONE_BRICK_WALL			108
 #define STRING_NETHER_BRICK_WALL			109
-#define STRING_RED_NETHER_BRICK_WALL		100
-#define STRING_SANDSTONE_WALL				110
-#define STRING_RED_SANDSTONE_WALL			111
+#define STRING_RED_NETHER_BRICK_WALL		110
+#define STRING_SANDSTONE_WALL				111
+#define STRING_RED_SANDSTONE_WALL			112
+#define STRING_PRISMARINE_BRICKS			113
+#define STRING_DARK_PRISMARINE				114
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -1194,6 +1198,22 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			return gExtraBlockNames[STRING_RED_SANDSTONE_WALL].name;
 			break;
 		}
+		break;
+	case BLOCK_PRISMARINE:
+		switch (*dataVal & 0x7)
+		{
+		default:
+			assert(0);
+		case 0:
+			break;
+		case 1: // bricks
+			return gExtraBlockNames[STRING_PRISMARINE_BRICKS].name;
+			break;
+		case 2: // dark
+			return gExtraBlockNames[STRING_DARK_PRISMARINE].name;
+			break;
+		}
+		break;
 	}
 
 	// could add more? TODO
@@ -2137,6 +2157,23 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+	case BLOCK_PRISMARINE:
+		dataVal = block->data[voxel];
+		switch (dataVal & 0xf) {
+		default:
+		case 0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 1: // bricks
+			color = gBlockDefinitions[BLOCK_PRISMARINE_BRICK_STAIRS].pcolor;
+			break;
+		case 2:	// dark prismarine
+			color = gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
+			break;
+		}
+		break;
+
 	default:
         // Everything else
         lightComputed = true;
@@ -2785,7 +2822,16 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_HEAD:
+	case BLOCK_BEETROOT_SEEDS:
+		// uses 0-3, put farmland beneath it
+		if (dataVal < 4)
+		{
+			addBlock = 1;
+			// add farmland underneath
+			block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+		}
+		break;
+	case BLOCK_HEAD:
         // uses 2-5
         if (dataVal >= 2 && dataVal <= 5)
         {
@@ -2893,15 +2939,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
         }
         break;
-    case BLOCK_BEETROOT_SEEDS:
-        // uses 0-3, put farmland beneath it
-        if ( dataVal < 4 )
-        {
-            addBlock = 1;
-            // add farmland underneath
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y-1,4+(dataVal%2)*8)] = BLOCK_FARMLAND;
-        }
-        break;
+	case BLOCK_COMPOSTER:
+		// uses 0-8
+		if (dataVal < 9)
+		{
+			addBlock = 1;
+		}
+		break;
     case BLOCK_STONE_DOUBLE_SLAB:
         // uses 0-9, F (15)
         if ( dataVal < 10 || dataVal == 15 )
