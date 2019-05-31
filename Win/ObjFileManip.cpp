@@ -639,7 +639,7 @@ static int saveBoxFace( int swatchLoc, int type, int dataVal, int faceDirection,
     int rotUVs, float minu, float maxu, float minv, float maxv );
 static int saveBoxFaceUVs( int type, int dataVal, int faceDirection, int markFirstFace, int startVertexIndex, int vindex[4], int uvIndices[4] );
 static int saveBillboardFaces( int boxIndex, int type, int billboardType );
-static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardType, int dataVal, int firstFace );
+static int saveBillboardFacesExtraData( int boxIndex, int type, int billboardType, int dataVal, int firstFace, bool dontWobbleOverride = false);
 static int checkGroupListSize();
 static int checkVertexListSize();
 static int checkFaceListSize();
@@ -5707,7 +5707,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             {
                 totalVertexCount = gModel.vertexCount;
                 gUsingTransform = 1;
-                saveBillboardFacesExtraData( boxIndex, typeB, billboardType, dataValB, firstFace );
+				// "true" at the end means "don't wobble these billboards" as they're inside flowerpots
+                saveBillboardFacesExtraData( boxIndex, typeB, billboardType, dataValB, firstFace, true );
                 gUsingTransform = 0;
                 totalVertexCount = gModel.vertexCount - totalVertexCount;
                 identityMtx(mtx);
@@ -9067,7 +9068,7 @@ static int saveBillboardFaces( int boxIndex, int type, int billboardType )
     return saveBillboardFacesExtraData( boxIndex, type, billboardType, gBoxData[boxIndex].data, 1 );
 }
 
-static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace)
+static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace, bool dontWobbleOverride /*= false*/ )
 {
 	int i, j, fc, swatchLoc;
 	FaceRecord *face;
@@ -9503,7 +9504,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 	}
 
 	// may need to wobble it
-	if (wobbleIt) {
+	// If dontWobbleOverride is true, then we force wobbleIt to false;
+	// this is for flower pots
+	if (dontWobbleOverride) {
+		wobbleIt = false;
+	}
+	if ( wobbleIt) {
 		gUsingTransform = 1;
 		metaVertexCount = gModel.vertexCount;
 

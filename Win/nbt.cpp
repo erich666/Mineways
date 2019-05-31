@@ -100,6 +100,13 @@ static int worldVersion = 0;
 // type: SLAB_PROP, CHEST_PROP, PISTON_HEAD_PROP
 // waterlogged: so common that we always add it in and use the dedicated bit 0x10
 
+
+
+							// properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
+							// also WALL_SIGN_PROP, OBSERVER_PROP
+
+
+
 // various properties of palette entries, can be used to differentiate how to use properties
 #define NO_PROP				  0
 // age: 0-7 or 0-15, (0-3 for frosted ice)
@@ -196,9 +203,11 @@ static int worldVersion = 0;
 // occupied: true|false - seems to be occupied only if someone else is occupying it?
 // part: head|foot
 #define BED_PROP			 30
+
+#define EXTENDED_FACING_PROP 31
 // facing: down|up|north|south|west|east
 // triggered: true|false
-#define DROPPER_PROP		 31
+#define DROPPER_PROP		 EXTENDED_FACING_PROP
 // facing: down|up|north|south|west|east
 // half: top|bottom
 // open: true|false
@@ -209,68 +218,72 @@ static int worldVersion = 0;
 #define ANVIL_PROP			 33
 // facing: down|up|north|south|west|east
 // extended: true|false
-#define PISTON_PROP			 34
+#define PISTON_PROP			 EXTENDED_FACING_PROP
 // facing: down|up|north|south|west|east
 // extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
 // type: sticky|normal
 // short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
-#define PISTON_HEAD_PROP	 35
+#define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|up: true|false
-#define VINE_PROP			 36
+#define VINE_PROP			 34
 // facing: south|west|north|east
-#define END_PORTAL_PROP		 37
+#define END_PORTAL_PROP		 35
 // age: 0-3
 // facing: north|east|south|west
-#define COCOA_PROP			 38
+#define COCOA_PROP			 36
 // south|west|north|east|up: true|false - ignored, from context
 // attached: true|false
 // powered: true|false
 // disarmed: true|false
-#define TRIPWIRE_PROP		 39
+#define TRIPWIRE_PROP		 37
 // facing: south|west|north|east
 // attached: true|false
 // powered: true|false
-#define TRIPWIRE_HOOK_PROP	 40
+#define TRIPWIRE_HOOK_PROP	 38
 // facing: down|up|north|south|west|east
 // conditional: true|false
-#define COMMAND_BLOCK_PROP	 41
+#define COMMAND_BLOCK_PROP	 EXTENDED_FACING_PROP
 // inverted: true|false
 // power: 0-15
-#define DAYLIGHT_PROP		 42
+#define DAYLIGHT_PROP		 39
 // enabled: true|false
 // facing: down|north|south|west|east
-#define HOPPER_PROP			 43
+#define HOPPER_PROP			 EXTENDED_FACING_PROP
 // axis: x|y|z
-#define QUARTZ_PILLAR_PROP	 44
+#define QUARTZ_PILLAR_PROP	 40
 // facing: down|up|south|north|east|west
-#define OBSERVER_PROP		 45
+#define OBSERVER_PROP		 EXTENDED_FACING_PROP
 // mode: data|save|load|corner
-#define STRUCTURE_PROP		 46
+#define STRUCTURE_PROP		 41
 // delay: 1-4
 // facing: north|east|south|west
 // locked: true|false - ignored
 // powered: true|false - ignored
-#define REPEATER_PROP		 47
+#define REPEATER_PROP		 42
 // facing: north|east|south|west
 // mode: compare|subtract
 // powered: true|false
-#define COMPARATOR_PROP		 48
+#define COMPARATOR_PROP		 43
 // rotation: 0-15
-#define HEAD_PROP			 49
+#define HEAD_PROP			 44
 // facing: north|south|east|west
-#define HEAD_WALL_PROP		 50
+#define HEAD_WALL_PROP		 45
 // clear out dataVal, which might get "age" etc. before saving
-#define TRULY_NO_PROP		 51
+#define TRULY_NO_PROP		 46
 // waterlogged: true|false, 1 HIGH bit
 // facing: south|north|west|east - 2 HIGH bits
-#define FAN_PROP			 52
+#define FAN_PROP			 47
 // pickles: 1-4
 // waterlogged: true|false
-#define PICKLE_PROP			 53
+#define PICKLE_PROP			 48
 // eggs: 1-4
-#define EGG_PROP			 54
+#define EGG_PROP			 49
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
-#define WALL_SIGN_PROP		 55
+#define WALL_SIGN_PROP		 EXTENDED_FACING_PROP
+
+// If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
+// and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
+
 
 #define NUM_TRANS 665
 
@@ -2108,21 +2121,15 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							// south/west/north/east == 0/1/2/3
 							dataVal = ((door_facing + 3) % 4) + occupied + part;
 							break;
-						case DROPPER_PROP:
-							// triggered is used to set dataVal
-							dataVal = dropper_facing | (triggered ? 8 : 0);
-							break;
-						case PISTON_PROP:
-							// triggered is used to set dataVal
-							dataVal = dropper_facing | (extended ? 8 : 0);
-							break;
-						case PISTON_HEAD_PROP:
-							// type is used to set dataVal above to 8 if sticky
-							dataVal = dropper_facing | sticky;
-							break;
-						case WALL_SIGN_PROP:
-							// just NSWE = 2345
-							dataVal = dropper_facing;
+						case EXTENDED_FACING_PROP:
+							// properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
+							// also WALL_SIGN_PROP, OBSERVER_PROP
+							dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0);
+							triggered = false;
+							extended = false;
+							sticky = 0x0;
+							enabled = false;
+							conditional = false;
 							break;
 						case VINE_PROP:
 							dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
@@ -2210,9 +2217,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case ANVIL_PROP:
 							dataVal = (door_facing + 3) % 4;
 							break;
-						case HOPPER_PROP:
-							dataVal = dropper_facing | (enabled ? 8 : 0);
-							break;
 						case DAYLIGHT_PROP:
 							// change to inverted form if inverted is set
 							if (inverted) {
@@ -2228,18 +2232,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case END_PORTAL_PROP:
 							dataVal = ((door_facing + 3) % 4) | (eye ? 4 : 0);
 							break;
-						case COMMAND_BLOCK_PROP:
-							dataVal = dropper_facing | (conditional ? 8 : 0);
-							break;
-						case OBSERVER_PROP:
-							// note that powered is ignored in 1.12
-							dataVal = dropper_facing;
-							break;
-							// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
-							// 7 | 654 | 3210
-							// bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
-							// bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
-							// bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+
+						// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
+						// 7 | 654 | 3210
+						// bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
+						// bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
+						// bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
 
 						case HEAD_PROP:
 							// see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
