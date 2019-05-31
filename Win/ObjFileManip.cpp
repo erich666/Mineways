@@ -1131,8 +1131,8 @@ Exit:
                 { SWATCH_INDEX(  9, 4 ), SWATCH_INDEX( 0, 0 ) }, // reeds over grass
                 { SWATCH_INDEX( 15, 4 ), SWATCH_INDEX( 0, 0 ) }, // sapling over grass
                 { SWATCH_INDEX( 14, 1 ), SWATCH_INDEX( 0, 0 ) }, // jungle sapling over grass
-                { SWATCH_INDEX(  1, 5 ), SWATCH_INDEX( 6, 0 ) }, // wooden door top over slab top
-                { SWATCH_INDEX(  2, 5 ), SWATCH_INDEX( 6, 0 ) }, // door top over slab top
+                { SWATCH_INDEX(  1, 5 ), SWATCH_INDEX(10, 23 ) }, // wooden door top over slab top - was over 6, 0
+                { SWATCH_INDEX(  2, 5 ), SWATCH_INDEX(10, 23 ) }, // door top over slab top - was over 6, 0
                 { SWATCH_INDEX(  5, 5 ), SWATCH_INDEX( 6, 3 ) }, // iron bars over stone block
                 { SWATCH_INDEX(  8, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
                 { SWATCH_INDEX(  9, 5 ), SWATCH_INDEX( 6, 5 ) }, // crops over farmland
@@ -4397,7 +4397,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			case 0:
 				// 
 				topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-				sideSwatchLoc = SWATCH_INDEX(5, 0);
+				sideSwatchLoc = SWATCH_INDEX(11, 23); // was (5, 0);
 				break;
 			case 1:
 				// sandstone
@@ -14007,7 +14007,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 0:
                 // smooth stone, two slabs
                 // use stone side pattern
-                SWATCH_SWITCH_SIDE( faceDirection, 5, 0 );
+                SWATCH_SWITCH_SIDE( faceDirection, 11, 23 ); // was 5, 0 );
                 break;
             case 1:
                 // sandstone

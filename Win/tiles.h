@@ -67,8 +67,8 @@ static struct {
     { 2, 0, L"dirt", L"", SWATCH_REPEAT_ALL },
     { 3, 0, L"grass_block_side", L"grass_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 4, 0, L"oak_planks", L"planks_oak", SWATCH_REPEAT_ALL },
-    { 5, 0, L"stone_slab_side", L"", SWATCH_REPEAT_ALL },
-    { 6, 0, L"stone_slab_top", L"", SWATCH_REPEAT_ALL },
+    { 5, 0, L"stone_slab_side", L"", SWATCH_REPEAT_ALL }, // no longer used? we substitute 11,23
+    { 6, 0, L"stone_slab_top", L"", SWATCH_REPEAT_ALL }, // no longer used? we substitute 10,23
     { 7, 0, L"bricks", L"brick", SWATCH_REPEAT_ALL },
     { 8, 0, L"tnt_side", L"", SWATCH_REPEAT_ALL },
     { 9, 0, L"tnt_top", L"", SWATCH_REPEAT_ALL },
@@ -443,8 +443,8 @@ static struct {
     { 7, 23, L"acacia_door_top", L"door_acacia_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 8, 23, L"dark_oak_door_bottom", L"door_dark_oak_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 9, 23, L"dark_oak_door_top", L"door_dark_oak_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    { 10, 23, L"smooth_stone", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner; NOTE: this looks a heckuva lot like "stone_slab_top" - which gets used? TODOTODO
-    { 11, 23, L"smooth_stone_slab_side", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was bottom of banner; NOTE: this looks a heckuva lot like "stone_slab_side" - which gets used? TODOTODO
+    { 10, 23, L"smooth_stone", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner; NOTE: this looks a heckuva lot like "stone_slab_top" - which gets used? This one, so it's used for 6,0
+    { 11, 23, L"smooth_stone_slab_side", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was bottom of banner; NOTE: this looks a heckuva lot like "stone_slab_side" - which gets used? This one, so it's used for 5,0
     { 12, 23, L"end_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 23, L"chorus_plant", L"", SWATCH_REPEAT_ALL },
     { 14, 23, L"chorus_flower", L"", SWATCH_REPEAT_ALL },

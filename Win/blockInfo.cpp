@@ -111,8 +111,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /*  40 */ "Red Mushroom",           0xfc5c5d, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 1, 0x0F, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//28
     { /*  41 */ "Block of Gold",          0xfef74e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//29
     { /*  42 */ "Block of Iron",          0xeeeeee, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2a
-    { /*  43 */ "Double Stone Slab",      0xa6a6a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 0, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2b/43 - 5,0 side
-    { /*  44 */ "Stone Slab",             0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 0, 0x07, BLF_HALF|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//2c/44 - 5,0 side
+    { /*  43 */ "Double Stone Slab",      0xa6a6a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2b/43 - was 6,0, and 5,0 side
+    { /*  44 */ "Stone Slab",             0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_HALF|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//2c/44 - was 6,0, and 5,0 side
     { /*  45 */ "Bricks",                 0x985542, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2d 
     { /*  46 */ "TNT",                    0xdb441a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 0, 0x0F, BLF_WHOLE},	//2e 7,0 side, 9,0 under
     { /*  47 */ "Bookshelf",              0x795a39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2f 3,2
@@ -254,8 +254,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 178 */ "Inverted Daylight Sensor",0xBBA890,1.000f, 0xff7711, 0xff7711, 0.12345f,  13,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FLATSIDE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_CONNECTS_REDSTONE},
     { /* 179 */ "Red Sandstone",          0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 180 */ "Red Sandstone Stairs",   0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x00, BLF_STAIRS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 181 */ "Double Red Sandstone Slab",0x964C19,1.000f,0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2b/43 - 5,0 side
-    { /* 182 */ "Red Sandstone Slab",     0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_HALF|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//2c/44 - 5,0 side
+    { /* 181 */ "Double Red Sandstone Slab",0x964C19,1.000f,0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2b/43
+    { /* 182 */ "Red Sandstone Slab",     0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_HALF|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//2c/44
     { /* 183 */ "Spruce Fence Gate",      0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 184 */ "Birch Fence Gate",       0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,13, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 185 */ "Jungle Fence Gate",      0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
@@ -387,7 +387,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 308 */ "Black Wall Banner",      0x1A1A1E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 29, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// BLF_FLATSIDE removed - too tricky to do, since it spans two block, here and below TODO
 	{ /* 309 */ "Tall Seagrass",          0x30790E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 33, 0x07, BLF_FLATTOP | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_WATERLOG },
 	{ /* 310 */ "Seagrass",               0x3D8B17, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 33, 0x0F, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_WATERLOG },
-	{ /* 311 */ "Smooth Stone",           0xA0A0A0, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6,  0, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+	{ /* 311 */ "Smooth Stone",           0xA0A0A0, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 23, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 312 */ "Blue Ice",               0x75A8FD, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 33, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// like ice, but not transparent, and a fence neighbor
 	{ /* 313 */ "Dried Kelp Block",       0x414534, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 33, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 314 */ "Kelp", /* plant == 0 */  0x58912E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 33, 0x0F, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_WATERLOG },
