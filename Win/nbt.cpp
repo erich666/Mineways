@@ -272,7 +272,7 @@ static int worldVersion = 0;
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 55
 
-#define NUM_TRANS 664
+#define NUM_TRANS 665
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -948,6 +948,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 139,             12, "sandstone_wall", NO_PROP },
 { 0, 139,             13, "red_sandstone_wall", NO_PROP },
 { 0,  75,		HIGH_BIT, "jigsaw", OBSERVER_PROP },
+{ 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
 
 };
 

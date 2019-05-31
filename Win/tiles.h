@@ -61,7 +61,7 @@ static struct {
     const TCHAR *filename;
     const TCHAR *altFilename;   // new 1.13 name
     int flags;
-} gTiles[] = {
+} gTilesTable[] = {
     { 0, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL },	// tinted by grass.png
     { 1, 0, L"stone", L"", SWATCH_REPEAT_ALL },
     { 2, 0, L"dirt", L"", SWATCH_REPEAT_ALL },

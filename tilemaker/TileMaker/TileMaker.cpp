@@ -25,6 +25,7 @@ int findNextTile( wchar_t *tileName, int index, int alternate );
 int findUnneededTile( wchar_t *tileName );
 int trueWidth(int tileLoc);
 
+static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info *pTile);
 static void reportReadError( int rc, wchar_t *filename );
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
@@ -101,7 +102,7 @@ static struct Chest {
 };
 
 // given array of tiles read in index, return gTile index:
-static int tilesFoundArray[TOTAL_TILES];
+static int tilesInputToTableIndex[TOTAL_TILES];
 static progimage_info tile[TOTAL_TILES];
 
 
@@ -109,6 +110,8 @@ typedef struct int2 {
 	int x;
 	int y;
 } int2;
+
+#define	IGNORE_TILE	99999
 
 int wmain(int argc, wchar_t* argv[])
 {
@@ -122,7 +125,7 @@ int wmain(int argc, wchar_t* argv[])
 	int width;
 
 	int tilesFound = 0;
-	int tilesMissingSet[TOTAL_TILES];
+	int tilesTableIndexToInput[TOTAL_TILES];
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
 	int outputTileSize, outputYTiles;
 	unsigned long outputXResolution, outputYResolution;
@@ -156,11 +159,13 @@ int wmain(int argc, wchar_t* argv[])
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
 	wcscpy_s(terrainExtOutput, MAX_PATH, OUTPUT_FILENAME );
 
-    memset(tilesMissingSet, 0, 4 * TOTAL_TILES);
+	for (i = 0; i < TOTAL_TILES; i++) {
+		tilesTableIndexToInput[i] = -1;
+	}
     memset(shulkerSide, 0, 16 * sizeof(bool));
     memset(shulkerBottom, 0, 16 * sizeof(bool));
 
-	// usage: [-i terrainBase.png] [-d tiles] [-o terrainExt.png] [-t tileSize]
+	// usage: [-i terrainBase.png] [-d tiles_directory] [-o terrainExt.png] [-t forceTileSize]
 	// single argument is alternate subdirectory other than "tiles"
 	while (argLoc < argc)
 	{
@@ -352,22 +357,9 @@ int wmain(int argc, wchar_t* argv[])
 						int fail_code = 0;
 
 						// tile is one we care about.
-                        tilesFoundArray[tilesFound] = index;
+						fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
 
-						{
-							// read image file - build path
-							wchar_t readFileName[MAX_PATH];
-							wcscpy_s( readFileName, MAX_PATH, tilePath );
-							wcscat_s( readFileName, MAX_PATH, ffd.cFileName );
-							// read in tile for later
-							rc = readpng(&tile[tilesFound], readFileName);
-							if ( rc != 0 )
-							{
-								reportReadError(rc,readFileName);
-								fail_code = 1;
-							}
-							readpng_cleanup(0,&tile[tilesFound]);
-
+						if (!fail_code) {
 							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
 								wprintf(L"***** ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
 								fail_code = 1;
@@ -388,22 +380,29 @@ int wmain(int argc, wchar_t* argv[])
 						if (fail_code == 0)
 						{
 							// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
-							if (!(gTiles[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+							if (!(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0
 								if (checkForCutout(&tile[tilesFound])) {
 									wprintf(L"WARNING: file %s has texels that are fully transparent, but the tile is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
 								}
 							}
 
-							tilesMissingSet[index] = 1;	// note tile is used
+							// The way this works:
+							// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
+							// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
+							// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
+							// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
+							tilesInputToTableIndex[tilesFound] = index;
+
+							tilesTableIndexToInput[index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
 							tilesFound++;
 
 							// Find maximum Y resolution of output tile: expand bottom of output texture if found.
 							// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
 							// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
-							if ( outputYTiles-1 < gTiles[index].txrY )
+							if ( outputYTiles-1 < gTilesTable[index].txrY )
 							{
-								outputYTiles = gTiles[index].txrY + 1;
+								outputYTiles = gTilesTable[index].txrY + 1;
 								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
 							}
 						}
@@ -421,40 +420,88 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
+	// if smooth_stone is missing, use stone_slab_top, and vice versa
+	int smooth_stone_index = findTile(L"smooth_stone", 1);
+	int stone_slab_top_index = findTile(L"stone_slab_top", 1);
+	if ((tilesTableIndexToInput[smooth_stone_index] == -1) ^ (tilesTableIndexToInput[stone_slab_top_index] == -1)) {
+		// found one, not the other
+		if (tilesTableIndexToInput[smooth_stone_index] < 0) {
+			// missing smooth_stone, so set it
+			index = findTile(L"smooth_stone", 1);
+			rc = buildPathAndReadTile(tilePath, L"stone_slab_top.png", &tile[tilesFound]);
+		}
+		else {
+			// missing stone_slab_top, so set it
+			index = findTile(L"stone_slab_top", 1);
+			rc = buildPathAndReadTile(tilePath, L"smooth_stone.png", &tile[tilesFound]);
+		}
+		if (rc != 0) {
+			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone could not be read again. Please report this to erich@acm.org.\n");
+		}
+		else {
+			tilesInputToTableIndex[tilesFound] = index;
+			tilesTableIndexToInput[index] = tilesFound;
+			tilesFound++;
+		}
+	}
+	// similarly, if smooth_stone_slab_side is missing, use stone_slab_side, and vice versa
+	int smooth_stone_slab_side_index = findTile(L"smooth_stone_slab_side", 1);
+	int stone_slab_side_index = findTile(L"stone_slab_side", 1);
+	if ((tilesTableIndexToInput[smooth_stone_slab_side_index] == -1) ^ (tilesTableIndexToInput[stone_slab_side_index] == -1)) {
+		// found one, not the other
+		if (tilesTableIndexToInput[smooth_stone_slab_side_index] < 0) {
+			// missing smooth_stone_slab_side, so set it
+			index = findTile(L"smooth_stone_slab_side", 1);
+			rc = buildPathAndReadTile(tilePath, L"stone_slab_side.png", &tile[tilesFound]);
+		}
+		else {
+			// missing stone_slab_side, so set it
+			index = findTile(L"stone_slab_side", 1);
+			rc = buildPathAndReadTile(tilePath, L"smooth_stone_slab_side.png", &tile[tilesFound]);
+		}
+		if (rc != 0) {
+			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone_slab_side could not be read again. Please report this to erich@acm.org.\n");
+		}
+		else {
+			tilesInputToTableIndex[tilesFound] = index;
+			tilesTableIndexToInput[index] = tilesFound;
+			tilesFound++;
+		}
+	}
+
     // look through tiles missing: if shulker tiles found, note they don't need to be generated
     for (i = 0; i < TOTAL_TILES; i++)
     {
-        if (wcsncmp(gTiles[i].filename, L"shulker_side_", 13) == 0) {
-            if (tilesMissingSet[i] == 0) {
-                // it's missing, but optional, so ignore it.
-                tilesMissingSet[i] = 1;
+        if (wcsncmp(gTilesTable[i].filename, L"shulker_side_", 13) == 0) {
+            if (tilesTableIndexToInput[i] < 0) {
+                // it's missing, but optional, so ignore it. We mark it with a bogus index.
+                tilesTableIndexToInput[i] = IGNORE_TILE;
             }
             else {
-                shulkerSide[gTiles[i].txrX] = 1;
+                shulkerSide[gTilesTable[i].txrX] = 1;
             }
         }
-        else if (wcsncmp(gTiles[i].filename, L"shulker_bottom_", 15) == 0) {
-            if (tilesMissingSet[i] == 0) {
+        else if (wcsncmp(gTilesTable[i].filename, L"shulker_bottom_", 15) == 0) {
+            if (tilesTableIndexToInput[i] < 0) {
                 // it's missing, but optional, so ignore it.
-                tilesMissingSet[i] = 1;
+                tilesTableIndexToInput[i] = IGNORE_TILE;
             }
             else {
-                shulkerBottom[gTiles[i].txrX] = 1;
+                shulkerBottom[gTilesTable[i].txrX] = 1;
             }
         }
     }
-
 
 	// look for tiles not input?
 	if ( checkmissing )
 	{
 		for ( i = 0; i < TOTAL_TILES; i++ )
 		{
-			if ( tilesMissingSet[i] == 0 )
+			if ( tilesTableIndexToInput[i] < 0 )
 			{
 				// if it starts with "MW_" or is the empty string, ignore miss
-				if ( wcslen(gTiles[i].filename) > 0 && wcsncmp(gTiles[i].filename,L"MW_",3) != 0 )
-					wprintf (L"This program needs a tile named %s that was not replaced.\n", gTiles[i].filename);
+				if ( wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename,L"MW_",3) != 0 )
+					wprintf (L"This program needs a tile named %s that was not replaced.\n", gTilesTable[i].filename);
 			}
 		}
 	}
@@ -527,25 +574,25 @@ int wmain(int argc, wchar_t* argv[])
 	// copy tiles found over
 	for ( i = 0; i < tilesFound; i++ )
 	{
-		index = tilesFoundArray[i];
+		index = tilesInputToTableIndex[i];
 		// -r option on?
 		if ( onlyreplace )
 		{
-			if ( !isPNGTileEmpty(destination_ptr, gTiles[index].txrX, gTiles[index].txrY) )
+			if ( !isPNGTileEmpty(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY) )
 			{
-				wprintf (L"UNUSED: %s was not used because there is already a tile.\n", gTiles[index].filename);
+				wprintf (L"UNUSED: %s was not used because there is already a tile.\n", gTilesTable[index].filename);
 				continue;
 			}
 		}
-		if ( gTiles[index].flags & SBIT_BLACK_ALPHA )
+		if ( gTilesTable[index].flags & SBIT_BLACK_ALPHA )
 		{
 			setBlackAlphaPNGTile( chosenTile, &tile[i] );
 		}
-		if (copyPNGTile(destination_ptr, gTiles[index].txrX, gTiles[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
+		if (copyPNGTile(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
 			return 1;
 		}
 		if ( verbose )
-			wprintf (L"File %s merged.\n", gTiles[index].filename);
+			wprintf (L"File %s merged.\n", gTilesTable[index].filename);
 	}
 
     // Compute shulker box sides and bottoms, if not input
@@ -565,14 +612,14 @@ int wmain(int argc, wchar_t* argv[])
         // compute side and bottom color
         // First, find brightest pixel
         if (i == 0) {
-            getBrightestPNGPixel(destination_ptr, gTiles[index].txrX * outputTileSize, gTiles[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
+            getBrightestPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize, gTilesTable[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
             for (j = 0; j < 4; j++) {
                 neutral_color[j] = box_color[j];
                 mult_color[j] = 255;
             }
         }
         else {
-            getPNGPixel(destination_ptr, gTiles[index].txrX * outputTileSize + pick_col, gTiles[index].txrY * outputTileSize + pick_row, box_color);
+            getPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize + pick_col, gTilesTable[index].txrY * outputTileSize + pick_row, box_color);
             for (j = 0; j < 4; j++) {
 				if (neutral_color[j] > 0) {
 					mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
@@ -584,14 +631,14 @@ int wmain(int argc, wchar_t* argv[])
         }
         // we now have the multiplier color, so multiply base tile by it
         if (shulkerSide[i] == false) {
-            copyPNGArea(destination_ptr, gTiles[index].txrX * outputTileSize, (gTiles[index].txrY + 4)*outputTileSize, outputTileSize, outputTileSize,
-                destination_ptr, gTiles[side_index].txrX * outputTileSize, gTiles[side_index].txrY * outputTileSize);
-            multPNGTileByColor(destination_ptr, gTiles[index].txrX, gTiles[index].txrY + 4, mult_color);
+            copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 4)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTilesTable[side_index].txrX * outputTileSize, gTilesTable[side_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 4, mult_color);
         }
         if (shulkerBottom[i] == false) {
-            copyPNGArea(destination_ptr, gTiles[index].txrX * outputTileSize, (gTiles[index].txrY + 5)*outputTileSize, outputTileSize, outputTileSize,
-                destination_ptr, gTiles[bottom_index].txrX * outputTileSize, gTiles[bottom_index].txrY * outputTileSize);
-            multPNGTileByColor(destination_ptr, gTiles[index].txrX, gTiles[index].txrY + 5, mult_color);
+            copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 5)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTilesTable[bottom_index].txrX * outputTileSize, gTilesTable[bottom_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 5, mult_color);
         }
         index++;
     }
@@ -675,9 +722,9 @@ int findTile( wchar_t *tileName, int alternate )
 
 	for ( i = 0; i < TOTAL_TILES; i++ )
 	{
-		if ( wcscmp(tileName, gTiles[i].filename) == 0 )
+		if ( wcscmp(tileName, gTilesTable[i].filename) == 0 )
 			return i;
-        if ( alternate && wcscmp(tileName, gTiles[i].altFilename) == 0 )
+        if ( alternate && wcscmp(tileName, gTilesTable[i].altFilename) == 0 )
             return i;
 	}
 	return -1;
@@ -689,9 +736,9 @@ int findNextTile( wchar_t *tileName, int index, int alternate )
 
 	for ( i = index+1; i < TOTAL_TILES; i++ )
 	{
-        if ( wcscmp(tileName, gTiles[i].filename) == 0 )
+        if ( wcscmp(tileName, gTilesTable[i].filename) == 0 )
             return i;
-        if ( alternate && wcscmp(tileName, gTiles[i].altFilename) == 0 )
+        if ( alternate && wcscmp(tileName, gTilesTable[i].altFilename) == 0 )
             return i;
 	}
 	return -1;
@@ -717,16 +764,32 @@ int findUnneededTile( wchar_t *tileName )
 int trueWidth( int tileLoc )
 {
 	int width = tile[tileLoc].width;
-	if ((wcscmp(gTiles[tilesFoundArray[tileLoc]].filename, L"water_flow") == 0) ||
-		(wcscmp(gTiles[tilesFoundArray[tileLoc]].filename, L"lava_flow") == 0)){
+	if ((wcscmp(gTilesTable[tilesInputToTableIndex[tileLoc]].filename, L"water_flow") == 0) ||
+		(wcscmp(gTilesTable[tilesInputToTableIndex[tileLoc]].filename, L"lava_flow") == 0)){
 		width /= 2;
 	}
 	return width;
 }
 
-
-
 //====================== statics ==========================
+
+static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info *pTile)
+{
+	int fail_code = 0;
+	// read image file - build path
+	wchar_t readFileName[MAX_PATH];
+	wcscpy_s(readFileName, MAX_PATH, tilePath);
+	wcscat_s(readFileName, MAX_PATH, fileName);
+	// read in tile for later
+	int rc = readpng(pTile, readFileName);
+	if (rc != 0)
+	{
+		reportReadError(rc, readFileName);
+		fail_code = 1;
+	}
+	readpng_cleanup(0, pTile);
+	return fail_code;
+}
 
 static void reportReadError( int rc, wchar_t *filename )
 {

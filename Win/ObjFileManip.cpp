@@ -7621,6 +7621,63 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break; // saveBillboardOrGeometry
 
+	case BLOCK_COMPOSTER:						// saveBillboardOrGeometry
+		{
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			// we seal the composter against the compost height (possibly empty)
+			int heightVal = (dataVal & 0xf);
+			bool fullBin = (heightVal == 8);
+			if (fullBin) {
+				heightVal = 7;
+			}
+			// when filled, height 1 -> 3, height 2 -> 5,..., height 7->15
+			float compostHeight = 1 + (float)heightVal * 2;
+			if (heightVal == 0) {
+				// but when empty, height 0 -> 2
+				compostHeight = 2.0f;
+			}
+			// outsides
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 1, DIR_TOP_BIT, 0, 0, 16, 0, 16, 0, 16);
+			// top as 4 small faces, and corresponding inside faces
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				14, 16, compostHeight, 16, 2, 14);	// top and lo_x
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				0, 2, compostHeight, 16, 2, 14);	// top and hi_x
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0,
+				2, 14, compostHeight, 16, 14, 16);	// top and lo_z
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0,
+				2, 14, compostHeight, 16, 0, 2);	// top and hi_z
+			// four tiny corners, just tops
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				0, 2, 16, 16, 0, 2);	// top
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				0, 2, 16, 16, 14, 16);	// top
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				14, 16, 16, 16, 0, 2);	// top
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
+				14, 16, 16, 16, 14, 16);	// top
+
+			// bottom
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 2, swatchLoc + 2, swatchLoc + 2, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0,
+				0, 16, 3, 6, 0, 16);
+
+			// inside bottom
+			if (heightVal == 0) {
+				// show clean inside bottom if cauldron is empty
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 2, swatchLoc + 2, swatchLoc + 2, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
+					2, 14, 3, 6, 2, 14);
+			} else if (fullBin) {
+				// show bone meal compost
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 4, swatchLoc + 4, swatchLoc + 4, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
+					2, 14, compostHeight, compostHeight, 2, 14);
+			} else {
+				// show compost
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 3, swatchLoc + 3, swatchLoc + 3, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
+					2, 14, compostHeight, compostHeight, 2, 14);
+			}
+		}
+		break; // saveBillboardOrGeometry
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -13184,7 +13241,7 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
                 return 1;
             break;
 
-		case BLOCK_COMPOSTER:
+		case BLOCK_COMPOSTER:						// lesserBlockCoversWholeFace
 			// really, covers whole block on all sides, in a sense
 			return 1;
 			break;
@@ -17959,14 +18016,14 @@ static int createBaseMaterialTexture()
             for (i = 0; i < TOTAL_TILES; i++)
             {
                 // If leaves are to be made solid and so should have alphas all equal to 1.0.
-                if (gOptions->pEFD->chkLeavesSolid && (gTiles[i].flags & SBIT_LEAVES))
+                if (gOptions->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))
                 {
                     // set all alphas in tile to 1.0.
-                    setAlphaPNGSwatch(mainprog, SWATCH_INDEX(gTiles[i].txrX, gTiles[i].txrY), gModel.swatchSize, gModel.swatchesPerRow, 255);
+                    setAlphaPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow, 255);
                 }
-                else if (gTiles[i].flags & flagTest)
+                else if (gTilesTable[i].flags & flagTest)
                 {
-                    bleedPNGSwatch(mainprog, SWATCH_INDEX(gTiles[i].txrX, gTiles[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+                    bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
                 }
             }
         }
@@ -17978,7 +18035,7 @@ static int createBaseMaterialTexture()
             {
                 SWATCH_TO_COL_ROW( currentSwatchCount, dstCol, dstRow );
                 // copy left and right edges only if block is solid - billboards don't tile
-                if ( gTiles[row*16+col].flags & SBIT_REPEAT_SIDES )
+                if ( gTilesTable[row*16+col].flags & SBIT_REPEAT_SIDES )
                 {
                     // copy right edge from left side of tile
                     copyPNGArea( mainprog, 
@@ -18001,7 +18058,7 @@ static int createBaseMaterialTexture()
                 }
                 else 
                 {
-                    if ( gTiles[row*16+col].flags & SBIT_CLAMP_LEFT )
+                    if ( gTilesTable[row*16+col].flags & SBIT_CLAMP_LEFT )
                     {
                         // copy left edge from left side of tile
                         copyPNGArea( mainprog, 
@@ -18013,7 +18070,7 @@ static int createBaseMaterialTexture()
                             gModel.swatchSize*dstRow+SWATCH_BORDER
                             );
                     }
-                    if ( gTiles[row*16+col].flags & SBIT_CLAMP_RIGHT )
+                    if ( gTilesTable[row*16+col].flags & SBIT_CLAMP_RIGHT )
                     {
                         // copy right edge from right side of tile
                         copyPNGArea( mainprog, 
@@ -18029,7 +18086,7 @@ static int createBaseMaterialTexture()
 
                 // Now do top and bottom. Note we copy the swatchSize here, not tileSize
                 // top edge
-                if ( gTiles[row*16+col].flags & SBIT_CLAMP_BOTTOM )
+                if ( gTilesTable[row*16+col].flags & SBIT_CLAMP_BOTTOM )
                 {
                     // hold and repeat bottom of billboard, and of any "side" blocks where top and bottom don't tile
                     // NOTE: this really won't work for SWATCH_BORDER > 1, you really need to loop through each
@@ -18043,7 +18100,7 @@ static int createBaseMaterialTexture()
                         gModel.swatchSize*(dstRow+1)-SWATCH_BORDER-1  // copy bottom dstRow that exists
                         );
                 }
-                if ( gTiles[row*16+col].flags & SBIT_CLAMP_TOP )
+                if ( gTilesTable[row*16+col].flags & SBIT_CLAMP_TOP )
                 {
                     // hold and repeat top (otherwise, top remains all zeroes, which is good for billboards)
                     copyPNGArea( mainprog, 
@@ -18055,7 +18112,7 @@ static int createBaseMaterialTexture()
                         gModel.swatchSize*dstRow+SWATCH_BORDER  // copy top dstRow that exists
                         );
                 }
-                else if ( gTiles[row*16+col].flags & SBIT_REPEAT_TOP_BOTTOM )
+                else if ( gTilesTable[row*16+col].flags & SBIT_REPEAT_TOP_BOTTOM )
                 {
                     // repeat tile
                     // copy upper fringe from self!
@@ -18459,9 +18516,9 @@ static int createBaseMaterialTexture()
             stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 13), 1, 1, 14, 14);
             stretchSwatchToFill(mainprog, SWATCH_INDEX(12, 13), 1, 1, 14, 14);
 
-            // banner top and bottom
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 23), 1, 2, 14, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 23), 1, 0, 14, 12);
+            // banner top and bottom - no longer done
+            //stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 23), 1, 2, 14, 15);
+            //stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 23), 1, 0, 14, 12);
 
             // enchanting table
             stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 11), 0, 3, 15, 15);
