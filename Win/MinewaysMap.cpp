@@ -382,6 +382,9 @@ static struct {
 	{ "Red Sandstone Wall" },
 	{ "Prismarine Bricks" },
 	{ "Dark Prismarine" },
+	{ "Loom" },
+	{ "Smoker" },
+	{ "Blast Furnace" },
 };
 
 char gCoralString[100];
@@ -512,6 +515,9 @@ static struct {
 #define STRING_RED_SANDSTONE_WALL			112
 #define STRING_PRISMARINE_BRICKS			113
 #define STRING_DARK_PRISMARINE				114
+#define STRING_LOOM							115
+#define STRING_SMOKER						116
+#define STRING_BLAST_FURNACE				117
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -1211,6 +1217,24 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		case 2: // dark
 			return gExtraBlockNames[STRING_DARK_PRISMARINE].name;
+			break;
+		}
+		break;
+	case BLOCK_FURNACE:
+	case BLOCK_BURNING_FURNACE:
+		switch (*dataVal & (BIT_32 | BIT_16)) {
+		default:
+			assert(0);
+		case 0:
+			break;
+		case BIT_16:	// loom
+			return gExtraBlockNames[STRING_LOOM].name;
+			break;
+		case BIT_32:	// smoker
+			return gExtraBlockNames[STRING_SMOKER].name;
+			break;
+		case BIT_32 | BIT_16:	// blast furnace
+			return gExtraBlockNames[STRING_BLAST_FURNACE].name;
 			break;
 		}
 		break;
@@ -2174,6 +2198,28 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+	case BLOCK_FURNACE:
+	case BLOCK_BURNING_FURNACE:
+		dataVal = block->data[voxel];
+		switch (dataVal & (BIT_32 | BIT_16)) {
+		default:
+		case 0x0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case BIT_16:	// loom
+			color = 0x9A836C;
+			break;
+		case BIT_32:	// smoker
+			color = 0x5C5A59;
+			break;
+		case BIT_32| BIT_16:	// blast furnace
+			color = 0x535253;
+			break;
+		}
+		break;
+
+
 	default:
         // Everything else
         lightComputed = true;
@@ -3085,8 +3131,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             }
         }
         break;
-    case BLOCK_FURNACE:
-    case BLOCK_BURNING_FURNACE:
     case BLOCK_ENDER_CHEST:
         // uses 2-5
         if ( dataVal >= 2 && dataVal <= 5 )
@@ -3094,7 +3138,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_DISPENSER:
+	case BLOCK_FURNACE:
+	case BLOCK_BURNING_FURNACE:
+		// uses 0-15, remapping dataVal to the four facings of the furnace, loom, smoker, and blast furnace 
+		addBlock = 1;
+		finalDataVal = ((dataVal & 0xC)>>2) + (dataVal & 0x3) + 2;
+		break;
+	case BLOCK_DISPENSER:
     case BLOCK_DROPPER:
         if ( dataVal <= 5 )
         {

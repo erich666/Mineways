@@ -202,6 +202,7 @@ typedef struct Model {
     int mtlCount;
 
     progimage_info *pInputTerrainImage;
+	bool terrainImageNotFound;
 
     int textureResolution;  // size of output texture
     float invTextureResolution; // inverse, commonly used
@@ -1531,13 +1532,17 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
         pITI->width = gTerrainExtWidth;
         pITI->height = gTerrainExtHeight;
         pITI->image_data.insert(pITI->image_data.end(), &gTerrainExt[0], &gTerrainExt[gTerrainExtWidth*gTerrainExtHeight*4]);
+		gModel.terrainImageNotFound = true;
     }
-    else if ( rc )
-    {
-        // Some other error, so we need to quit. We *could* read the internal memory terrainExt.png instead,
-        // but that would hide any problems encountered with the terrainExt.png that does exist but is invalid. 
-        return (MW_CANNOT_READ_SELECTED_TERRAIN_FILE|(rc<<MW_NUM_CODES));
-    }
+	else {
+		gModel.terrainImageNotFound = false;	// i.e., we found the terrain image this time around
+		if (rc)
+		{
+			// Some other error, so we need to quit. We *could* read the internal memory terrainExt.png instead,
+			// but that would hide any problems encountered with the terrainExt.png that does exist but is invalid. 
+			return (MW_CANNOT_READ_SELECTED_TERRAIN_FILE | (rc << MW_NUM_CODES));
+		}
+	}
 
     if ( pITI->width > pITI->height )
         return MW_NEED_16_ROWS;
@@ -14464,7 +14469,26 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_DROPPER:
         case BLOCK_FURNACE:
         case BLOCK_BURNING_FURNACE:
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 2,  14, 3 );
+			// establish top/side/bottom
+			switch (dataVal & (BIT_32 | BIT_16)) {
+			default:
+			case 0:	// furnace, dropper, dispenser - all the same
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 13, 2, 14, 3);
+				break;
+			case BIT_16:	// loom
+				swatchLoc = SWATCH_INDEX(4, 40);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5, 40, 6, 40);
+				break;
+			case BIT_32:	// smoker
+				swatchLoc = SWATCH_INDEX(11, 40);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 40, 13, 40);
+				break;
+			case BIT_32 | BIT_16:	// blast furnace
+				swatchLoc = SWATCH_INDEX(7, 38);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 38, 7, 38);
+				break;
+			}
+			// if a side, we may need to change a face to be a front or front_on
             if ( (faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM) )
             {
                 switch ( type )
@@ -14476,12 +14500,40 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     frontLoc = SWATCH_INDEX(  7,15 );
                     break;
                 case BLOCK_FURNACE:
-                    frontLoc = SWATCH_INDEX( 12, 2 );
-                    break;
+ 					switch (dataVal & (BIT_32 | BIT_16)) {
+					default:
+					case 0:	// furnace
+						frontLoc = SWATCH_INDEX(12, 2);
+						break;
+					case BIT_16:	// loom
+						frontLoc = SWATCH_INDEX(7, 40);
+						break;
+					case BIT_32:	// smoker
+						frontLoc = SWATCH_INDEX(14, 40);
+						break;
+					case BIT_32 | BIT_16:	// blast furnace
+						frontLoc = SWATCH_INDEX(9, 38);
+						break;
+					}
+					break;
                 case BLOCK_BURNING_FURNACE:
                 default:
-                    frontLoc = SWATCH_INDEX( 13, 3 );
-                    break;
+					switch (dataVal & (BIT_32 | BIT_16)) {
+					default:
+					case 0:	// furnace
+						frontLoc = SWATCH_INDEX(13, 3);
+						break;
+					case BIT_16:	// loom
+						frontLoc = SWATCH_INDEX(7, 40);
+						break;
+					case BIT_32:	// smoker
+						frontLoc = SWATCH_INDEX(15, 40);
+						break;
+					case BIT_32 | BIT_16:	// blast furnace
+						frontLoc = SWATCH_INDEX(10, 38);
+						break;
+					}
+					break;
                 }
                 switch ( dataVal & 0x7 )
                 {
@@ -19630,481 +19682,491 @@ static float min3(Point pt)
 static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, const wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
 {
 #ifdef WIN32
-    DWORD br;
+	DWORD br;
 #endif
 
-    char outputString[256];
-    char timeString[256];
-    char formatString[256];
-    errno_t errNum;
-    struct tm newtime;
-    __time32_t aclock;
+	char outputString[256];
+	char timeString[256];
+	char formatString[256];
+	errno_t errNum;
+	struct tm newtime;
+	__time32_t aclock;
 
-    int radio;
-    float angle;
+	int radio;
+	float angle;
 
-    char *outputTypeString[] = {
-        "Export no materials",
-        "Export solid material colors only (no textures)",
-        "Export richer color textures",
-        "Export full color texture patterns",
+	char *outputTypeString[] = {
+		"Export no materials",
+		"Export solid material colors only (no textures)",
+		"Export richer color textures",
+		"Export full color texture patterns",
 		"Export tiles for textures"
-    };
-
-    float inCM = gModel.scale * METERS_TO_CM;
-    float inCM3 = inCM * inCM * inCM;
-
-    char outChar[MAX_PATH_AND_FILE];
-
-    // Path info (originally just meant for debugging)
-    char worldChar[MAX_PATH_AND_FILE];
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);	// don't touch worldChar after this, as justWorldFileName depends on it
-    const char *justWorldFileName = removePathChar(worldChar);
-
-    if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
-    {
-        strcpy_s(outputString, 256, "# Minecraft world: [Block Test World]\n");
-    }
-    else {
-        sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
-    }
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-
-    WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
-    // this code removes the path, but the path is now useful for scripting, so keep it in.
-    //char *outPtr = strrchr(outChar, '\\');
-    //if (outPtr == NULL)
-    //{
-    //	outPtr = outChar;
-    //}
-    //else
-    //{
-    //	// get past \\ 
-    //	outPtr++;
-    //}
-    //sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
-    sprintf_s(outputString, 256, "# Terrain file name: %s\n", outChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    // if we output the Nether or The End, note it here. Otherwise overworld is assumed.
-    if (gOptions->worldType&(ENDER | HELL)) {
-        if (gOptions->worldType&HELL) {
-            sprintf_s(outputString, 256, "# View Nether\n");
-        }
-        else {
-            assert(gOptions->worldType&ENDER);
-            sprintf_s(outputString, 256, "# View The End\n");
-        }
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    }
-
-    if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
-    {
-        sprintf_s(outputString, 256, "# Color scheme: Standard\n");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    }
-    else
-    {
-        WcharToChar(schemeSelected, outChar, MAX_PATH_AND_FILE);
-        sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    }
-
-
-    _time32( &aclock );   // Get time in seconds.
-    _localtime32_s( &newtime, &aclock );   // Convert time to struct tm form.
-
-    // Print local time as a string.
-    errNum = asctime_s(timeString, 32, &newtime);
-    if (!errNum)
-    {
-        sprintf_s(outputString,256,"# %s", timeString );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    // put the selection box near the top, since I find I use these values most of all
-    sprintf_s(outputString, 256, "\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n",
-        worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
-        worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-
-    sprintf_s(outputString, 256, "#   Non-empty selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
-        tightenedWorldBox->min[X], tightenedWorldBox->min[Y], tightenedWorldBox->min[Z],
-        tightenedWorldBox->max[X], tightenedWorldBox->max[Y], tightenedWorldBox->max[Z]);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-
-    // If STL, say which type of STL, etc.
-    switch ( gOptions->pEFD->fileType )
-    {
-    case FILE_TYPE_WAVEFRONT_ABS_OBJ:
-        strcpy_s( formatString, 256, "Wavefront OBJ absolute indices");
-        break;
-    case FILE_TYPE_WAVEFRONT_REL_OBJ:
-        strcpy_s( formatString, 256, "Wavefront OBJ relative indices");
-        break;
-    case FILE_TYPE_BINARY_MAGICS_STL:
-        strcpy_s( formatString, 256, "Binary STL iMaterialise");
-        break;
-    case FILE_TYPE_BINARY_VISCAM_STL:
-        strcpy_s( formatString, 256, "Binary STL VisCAM");
-        break;
-    case FILE_TYPE_ASCII_STL:
-        strcpy_s( formatString, 256, "ASCII STL");
-        break;
-    case FILE_TYPE_VRML2:
-        strcpy_s( formatString, 256, "VRML 2.0");
-        break;
-    default:
-        strcpy_s( formatString, 256, "Unknown file type");
-        assert(0);
-        break;
-    }
-    sprintf_s(outputString,256,"# Set %s type: %s\n", gPrint3D ? "3D print" : "render", formatString );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( gPrint3D )
-    {
-        char warningString[256];
-        int isSculpteo = ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ );
-
-        if ( !isSculpteo )
-        {
-            // If we add materials, put the material chosen here.
-            sprintf_s(outputString,256,"\n# Cost estimate for this model:\n");
-            WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-            sprintf_s(warningString,256,"%s", (gModel.scale < gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "" );
-            sprintf_s(outputString,256,"#   if made using the white, strong & flexible material: $ %0.2f%s\n",
-                computeMaterialCost( PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gMinorBlockCount ),
-                warningString);
-            WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        }
-
-        sprintf_s(warningString,256,"%s", (gModel.scale < gMtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "" );
-        sprintf_s(outputString,256,"#   if made using the full color sandstone material:     $ %0.2f%s\n",
-            computeMaterialCost( isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gMinorBlockCount ),
-            warningString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        // if material is not one of these, print its cost
-        if ( gPhysMtl > PRINT_MATERIAL_FULL_COLOR_SANDSTONE && gPhysMtl != PRINT_MATERIAL_FCS_SCULPTEO )
-        {
-            sprintf_s(warningString,256,"%s", (gModel.scale < gMtlCostTable[gPhysMtl].minWall) ? " *** WARNING, thin wall ***" : "" );
-            sprintf_s(outputString,256,
-                "#   if made using the %s material:     %0.2f%s\n",	// TODO: could add custom material currency symbol
-                gMtlCostTable[gPhysMtl].name,
-                computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount ),
-                warningString);
-            WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        }
-        gOptions->cost = computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount );
-
-        sprintf_s(outputString,256, "# For %s printer, minimum wall is %g mm, maximum size is %g x %g x %g cm\n", gMtlCostTable[gPhysMtl].name, gMtlCostTable[gPhysMtl].minWall*METERS_TO_MM,
-            gMtlCostTable[gPhysMtl].maxSize[0], gMtlCostTable[gPhysMtl].maxSize[1], gMtlCostTable[gPhysMtl].maxSize[2] );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    sprintf_s(outputString,256,"# Units for the model vertex data itself: %s\n", gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].name );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( gPrint3D )
-    {
-        float area, volume, sumOfDimensions;
-        char errorString[256];
-
-        if ( inCM * max3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[0] ||
-            inCM * med3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[1] ||
-            inCM * min3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[2] )
-        {
-            sprintf_s(errorString,256," *** WARNING, too large for %s printer", gMtlCostTable[gPhysMtl].name);
-        }
-        else
-        {
-            errorString[0] = '\0';
-        }
-
-        gOptions->dim_cm[X] = inCM * gFilledBoxSize[X];
-        gOptions->dim_cm[Y] = inCM * gFilledBoxSize[Y];
-        gOptions->dim_cm[Z] = inCM * gFilledBoxSize[Z];
-        sprintf_s(outputString,256,"\n# world dimensions: %0.2f x %0.2f x %0.2f cm%s\n",
-            gOptions->dim_cm[X], gOptions->dim_cm[Y], gOptions->dim_cm[Z], errorString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        gOptions->dim_inches[X] = inCM * gFilledBoxSize[X]/2.54f;
-        gOptions->dim_inches[Y] = inCM * gFilledBoxSize[Y]/2.54f;
-        gOptions->dim_inches[Z] = inCM * gFilledBoxSize[Z]/2.54f;
-        sprintf_s(outputString,256,"#   in inches: %0.2f x %0.2f x %0.2f inches%s\n",
-            gOptions->dim_inches[X], gOptions->dim_inches[Y], gOptions->dim_inches[Z], errorString );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        gOptions->block_mm = gModel.scale*METERS_TO_MM;
-        gOptions->block_inch = gOptions->block_mm / 25.4f;
-        sprintf_s(outputString,256,"# each block is %0.2f mm on a side, and has a volume of %g mm^3\n", gOptions->block_mm, inCM3*1000 );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sumOfDimensions = 10*inCM *(gFilledBoxSize[X]+gFilledBoxSize[Y]+gFilledBoxSize[Z]);
-        sprintf_s(outputString,256,"# sum of dimensions: %g mm\n", sumOfDimensions );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        volume = inCM3 * gBlockCount;
-        sprintf_s(outputString,256,"# volume is %g cm^3\n", volume );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        area = AREA_IN_CM2 ;
-        sprintf_s(outputString,256,"# surface area is %g cm^2\n", area );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString,256,"# block density: %d%% of volume\n",
-            (int)(gStats.density*100.0f+0.5f));
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    // write out a summary, useful for various reasons
-    if ( gExportBillboards )
-    {
-        sprintf_s(outputString,256,"\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2*gModel.faceCount, gBlockCount, gModel.billboardCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-    else
-    {
-        sprintf_s(outputString,256,"\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2*gModel.faceCount, gBlockCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-    gOptions->totalBlocks = gBlockCount;
-
-    sprintf_s(outputString,256,"# block dimensions: X=%g by Y=%g (height) by Z=%g blocks\n", gFilledBoxSize[X], gFilledBoxSize[Y], gFilledBoxSize[Z] );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    Vec2Op(gOptions->dimensions, =, (int)gFilledBoxSize);
-
-    // Summarize all the options used for output
-    if ( gOptions->exportFlags & EXPT_OUTPUT_MATERIALS )
-    {
-        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
-            radio = 2;
-        else if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
-            radio = 3;
-        else
-            radio = 1;
-    }
-    else
-        radio = 0;
-
-    sprintf_s(outputString,256,"# File type: %s\n", outputTypeString[radio] );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ) || ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ) )
-    {
-        if ( gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
-        {
-            strcpy_s(outputString,256,"# OBJ relative coordinates\n" );
-            WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        }
-
-        sprintf_s(outputString,256,"# Export separate objects: %s\n", gOptions->pEFD->chkMultipleObjects ? "YES" : "no" );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-
-        if (gOptions->pEFD->chkMultipleObjects || gOptions->pEFD->chkIndividualBlocks)
-        {
-            sprintf_s(outputString,256,"#  Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no" );
-            WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-        }
-
-        sprintf_s(outputString, 256, "#   Split materials into subtypes: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-
-        sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-    }
-
-    sprintf_s(outputString,256,"# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    // option only available when rendering - always true when 3D printing.
-    if (!gPrint3D)
-    {
-        sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gOptions->pEFD->chkCompositeOverlay ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-    }
-
-    sprintf_s(outputString, 256, "# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"# Export lesser blocks: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( gOptions->pEFD->chkExportAll )
-    {
-        sprintf_s(outputString,256,"# Fatten lesser blocks: %s\n", gOptions->pEFD->chkFatten ? "YES" : "no" );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    // options only available when rendering.
-    if ( !gPrint3D )
-    {
-        sprintf_s(outputString,256,"# Create block faces at the borders: %s\n", gOptions->pEFD->chkBlockFacesAtBorders ? "YES" : "no" );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString, 256, "# Make tree leaves solid: %s\n", gOptions->pEFD->chkLeavesSolid ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-    }
-
-    sprintf_s(outputString, 256, "# Use biomes: %s\n", gOptions->pEFD->chkBiome ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    // now always on by default
-    //sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gOptions->pEFD->chkMergeFlattop ? "YES" : "no" );
-    //WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( gOptions->pEFD->radioRotate0 )
-        angle = 0;
-    else if ( gOptions->pEFD->radioRotate90 )
-        angle = 90;
-    else if ( gOptions->pEFD->radioRotate180 )
-        angle = 180;
-    else
-    {
-        angle = 270;
-        assert(gOptions->pEFD->radioRotate270);
-    }
-
-    sprintf_s(outputString,256,"# Rotate model %f degrees\n", angle );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    if ( gOptions->pEFD->radioScaleByBlock )
-    {
-        sprintf_s(outputString,256,"# Scale model by making each block %g mm high\n", gOptions->pEFD->blockSizeVal[gOptions->pEFD->fileType] );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-    else if ( gOptions->pEFD->radioScaleByCost )
-    {
-        sprintf_s(outputString,256,"# Scale model by aiming for a cost of %0.2f for the %s material\n", gOptions->pEFD->costVal, gMtlCostTable[gPhysMtl].name );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-    else if ( gOptions->pEFD->radioScaleToHeight )
-    {
-        sprintf_s(outputString,256,"# Scale model by fitting to a height of %g cm\n", gOptions->pEFD->modelHeightVal );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-    else if ( gOptions->pEFD->radioScaleToMaterial )
-    {
-        sprintf_s(outputString,256,"# Scale model by using the minimum wall thickness for the %s material\n", gMtlCostTable[gPhysMtl].name );
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    sprintf_s(outputString,256,"# Data operation options:\n#   Fill air bubbles: %s; Seal off entrances: %s; Fill in isolated tunnels in base of model: %s\n",
-        (gOptions->pEFD->chkFillBubbles ? "YES" : "no"),
-        (gOptions->pEFD->chkSealEntrances ? "YES" : "no"),
-        (gOptions->pEFD->chkSealSideTunnels ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"#   Connect parts sharing an edge: %s; Connect corner tips: %s; Weld all shared edges: %s\n",
-        (gOptions->pEFD->chkConnectParts ? "YES" : "no"),
-        (gOptions->pEFD->chkConnectCornerTips ? "YES" : "no"),
-        (gOptions->pEFD->chkConnectAllEdges ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"#   Delete floating objects: trees and parts smaller than %d blocks: %s\n",
-        gOptions->pEFD->floaterCountVal,
-        (gOptions->pEFD->chkDeleteFloaters ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"#   Hollow out bottom of model, making the walls %g mm thick: %s; Superhollow: %s\n",
-        gOptions->pEFD->hollowThicknessVal[gOptions->pEFD->fileType],
-        (gOptions->pEFD->chkHollow[gOptions->pEFD->fileType] ? "YES" : "no"),
-        (gOptions->pEFD->chkSuperHollow[gOptions->pEFD->fileType] ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"# Melt snow blocks: %s\n", gOptions->pEFD->chkMeltSnow ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"#   Debug: show separate parts as colors: %s\n", gOptions->pEFD->chkShowParts ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    sprintf_s(outputString,256,"#   Debug: show weld blocks in bright colors: %s\n", gOptions->pEFD->chkShowWelds ? "YES" : "no" );
-    WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-    // write out processing stats for 3D printing
-    if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS|EXPT_DELETE_FLOATING_OBJECTS) )
-    {
-        sprintf_s(outputString,256,"\n# Cleanup processing summary:\n#   Solid parts: %d\n",
-            gStats.numSolidGroups);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & EXPT_FILL_BUBBLES )
-    {
-        sprintf_s(outputString,256,"#   Air bubbles found and filled (with glass): %d\n",
-            gStats.bubblesFound);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & (EXPT_FILL_BUBBLES|EXPT_CONNECT_PARTS) )
-    {
-        sprintf_s(outputString,256,"#   Total solid parts merged: %d\n",
-            gStats.solidGroupsMerged);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & EXPT_CONNECT_PARTS )
-    {
-        sprintf_s(outputString,256,"#   Number of edge passes made: %d\n",
-            gStats.numberManifoldPasses);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString,256,"#     Edges found to fix: %d\n",
-            gStats.nonManifoldEdgesFound);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString,256,"#     Weld blocks added: %d\n",
-            gStats.blocksManifoldWelded);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & EXPT_CONNECT_CORNER_TIPS )
-    {
-        sprintf_s(outputString,256,"#     Tip blocks added: %d\n",
-            gStats.blocksCornertipWelded);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & EXPT_DELETE_FLOATING_OBJECTS )
-    {
-        sprintf_s(outputString,256,"#   Floating parts removed: %d\n",
-            gStats.floaterGroupsDeleted);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString,256,"#     In these floaters, total blocks removed: %d\n",
-            gStats.blocksFloaterDeleted);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if ( gOptions->exportFlags & EXPT_HOLLOW_BOTTOM )
-    {
-        sprintf_s(outputString,256,"#   Blocks removed by hollowing: %d\n",
-            gStats.blocksHollowed);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-
-        sprintf_s(outputString,256,"#   Blocks removed by further super-hollowing (i.e. not just vertical hollowing): %d\n",
-            gStats.blocksSuperHollowed);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
-    }
-
-    if (pCBC) {
-        int cmdCount = 0;
-        while (pCBC != NULL) {
-            cmdCount++;
-            pCBC = pCBC->next;
-        }
-        sprintf_s(outputString, 256, "# Change commands issued: %d\n", cmdCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
-    }
-
-    sprintf_s(outputString, 256, "\n# Full world path: %s\n", worldChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
+	};
+
+	float inCM = gModel.scale * METERS_TO_CM;
+	float inCM3 = inCM * inCM * inCM;
+
+	char outChar[MAX_PATH_AND_FILE];
+
+	// Path info (originally just meant for debugging)
+	char worldChar[MAX_PATH_AND_FILE];
+	WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);	// don't touch worldChar after this, as justWorldFileName depends on it
+	const char *justWorldFileName = removePathChar(worldChar);
+
+	if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
+	{
+		strcpy_s(outputString, 256, "# Minecraft world: [Block Test World]\n");
+	}
+	else {
+		sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
+	}
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if (gModel.terrainImageNotFound) {
+		strcpy_s(outChar, MAX_PATH_AND_FILE, "default");
+	}
+	else {
+		WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
+	}
+	// this code removes the path, but the path is now useful for scripting, so keep it in.
+	//char *outPtr = strrchr(outChar, '\\');
+	//if (outPtr == NULL)
+	//{
+	//	outPtr = outChar;
+	//}
+	//else
+	//{
+	//	// get past \\ 
+	//	outPtr++;
+	//}
+	//sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
+	sprintf_s(outputString, 256, "# Terrain file name: %s\n", outChar);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	// if we output the Nether or The End, note it here. Otherwise overworld is assumed.
+	if (gOptions->worldType&(ENDER | HELL)) {
+		if (gOptions->worldType&HELL) {
+			sprintf_s(outputString, 256, "# View Nether\n");
+		}
+		else {
+			assert(gOptions->worldType&ENDER);
+			sprintf_s(outputString, 256, "# View The End\n");
+		}
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
+
+	if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
+	{
+		sprintf_s(outputString, 256, "# Color scheme: Standard\n");
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
+	else
+	{
+		WcharToChar(schemeSelected, outChar, MAX_PATH_AND_FILE);
+		sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
+		WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+	}
+
+
+	_time32(&aclock);   // Get time in seconds.
+	_localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
+
+	// Print local time as a string.
+	errNum = asctime_s(timeString, 32, &newtime);
+	if (!errNum)
+	{
+		sprintf_s(outputString, 256, "# %s", timeString);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	// put the selection box near the top, since I find I use these values most of all
+	sprintf_s(outputString, 256, "\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n",
+		worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
+		worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Non-empty selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
+		tightenedWorldBox->min[X], tightenedWorldBox->min[Y], tightenedWorldBox->min[Z],
+		tightenedWorldBox->max[X], tightenedWorldBox->max[Y], tightenedWorldBox->max[Z]);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	// If STL, say which type of STL, etc.
+	switch (gOptions->pEFD->fileType)
+	{
+	case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+		strcpy_s(formatString, 256, "Wavefront OBJ absolute indices");
+		break;
+	case FILE_TYPE_WAVEFRONT_REL_OBJ:
+		strcpy_s(formatString, 256, "Wavefront OBJ relative indices");
+		break;
+	case FILE_TYPE_BINARY_MAGICS_STL:
+		strcpy_s(formatString, 256, "Binary STL iMaterialise");
+		break;
+	case FILE_TYPE_BINARY_VISCAM_STL:
+		strcpy_s(formatString, 256, "Binary STL VisCAM");
+		break;
+	case FILE_TYPE_ASCII_STL:
+		strcpy_s(formatString, 256, "ASCII STL");
+		break;
+	case FILE_TYPE_VRML2:
+		strcpy_s(formatString, 256, "VRML 2.0");
+		break;
+	default:
+		strcpy_s(formatString, 256, "Unknown file type");
+		assert(0);
+		break;
+	}
+	sprintf_s(outputString, 256, "# Set %s type: %s\n", gPrint3D ? "3D print" : "render", formatString);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if (gPrint3D)
+	{
+		char warningString[256];
+		int isSculpteo = (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ);
+
+		if (!isSculpteo)
+		{
+			// If we add materials, put the material chosen here.
+			sprintf_s(outputString, 256, "\n# Cost estimate for this model:\n");
+			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+			sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "");
+			sprintf_s(outputString, 256, "#   if made using the white, strong & flexible material: $ %0.2f%s\n",
+				computeMaterialCost(PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gMinorBlockCount),
+				warningString);
+			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+		}
+
+		sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "");
+		sprintf_s(outputString, 256, "#   if made using the full color sandstone material:     $ %0.2f%s\n",
+			computeMaterialCost(isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gMinorBlockCount),
+			warningString);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		// if material is not one of these, print its cost
+		if (gPhysMtl > PRINT_MATERIAL_FULL_COLOR_SANDSTONE && gPhysMtl != PRINT_MATERIAL_FCS_SCULPTEO)
+		{
+			sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[gPhysMtl].minWall) ? " *** WARNING, thin wall ***" : "");
+			sprintf_s(outputString, 256,
+				"#   if made using the %s material:     %0.2f%s\n",	// TODO: could add custom material currency symbol
+				gMtlCostTable[gPhysMtl].name,
+				computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount),
+				warningString);
+			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+		}
+		gOptions->cost = computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount);
+
+		sprintf_s(outputString, 256, "# For %s printer, minimum wall is %g mm, maximum size is %g x %g x %g cm\n", gMtlCostTable[gPhysMtl].name, gMtlCostTable[gPhysMtl].minWall*METERS_TO_MM,
+			gMtlCostTable[gPhysMtl].maxSize[0], gMtlCostTable[gPhysMtl].maxSize[1], gMtlCostTable[gPhysMtl].maxSize[2]);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "# Units for the model vertex data itself: %s\n", gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].name);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if (gPrint3D)
+	{
+		float area, volume, sumOfDimensions;
+		char errorString[256];
+
+		if (inCM * max3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[0] ||
+			inCM * med3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[1] ||
+			inCM * min3(gFilledBoxSize) > gMtlCostTable[gPhysMtl].maxSize[2])
+		{
+			sprintf_s(errorString, 256, " *** WARNING, too large for %s printer", gMtlCostTable[gPhysMtl].name);
+		}
+		else
+		{
+			errorString[0] = '\0';
+		}
+
+		gOptions->dim_cm[X] = inCM * gFilledBoxSize[X];
+		gOptions->dim_cm[Y] = inCM * gFilledBoxSize[Y];
+		gOptions->dim_cm[Z] = inCM * gFilledBoxSize[Z];
+		sprintf_s(outputString, 256, "\n# world dimensions: %0.2f x %0.2f x %0.2f cm%s\n",
+			gOptions->dim_cm[X], gOptions->dim_cm[Y], gOptions->dim_cm[Z], errorString);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		gOptions->dim_inches[X] = inCM * gFilledBoxSize[X] / 2.54f;
+		gOptions->dim_inches[Y] = inCM * gFilledBoxSize[Y] / 2.54f;
+		gOptions->dim_inches[Z] = inCM * gFilledBoxSize[Z] / 2.54f;
+		sprintf_s(outputString, 256, "#   in inches: %0.2f x %0.2f x %0.2f inches%s\n",
+			gOptions->dim_inches[X], gOptions->dim_inches[Y], gOptions->dim_inches[Z], errorString);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		gOptions->block_mm = gModel.scale*METERS_TO_MM;
+		gOptions->block_inch = gOptions->block_mm / 25.4f;
+		sprintf_s(outputString, 256, "# each block is %0.2f mm on a side, and has a volume of %g mm^3\n", gOptions->block_mm, inCM3 * 1000);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sumOfDimensions = 10 * inCM *(gFilledBoxSize[X] + gFilledBoxSize[Y] + gFilledBoxSize[Z]);
+		sprintf_s(outputString, 256, "# sum of dimensions: %g mm\n", sumOfDimensions);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		volume = inCM3 * gBlockCount;
+		sprintf_s(outputString, 256, "# volume is %g cm^3\n", volume);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		area = AREA_IN_CM2;
+		sprintf_s(outputString, 256, "# surface area is %g cm^2\n", area);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "# block density: %d%% of volume\n",
+			(int)(gStats.density*100.0f + 0.5f));
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	// write out a summary, useful for various reasons
+	if (gExportBillboards)
+	{
+		sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount, gModel.billboardCount);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+	else
+	{
+		sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+	gOptions->totalBlocks = gBlockCount;
+
+	sprintf_s(outputString, 256, "# block dimensions: X=%g by Y=%g (height) by Z=%g blocks\n", gFilledBoxSize[X], gFilledBoxSize[Y], gFilledBoxSize[Z]);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	Vec2Op(gOptions->dimensions, =, (int)gFilledBoxSize);
+
+	// Summarize all the options used for output
+	if (gOptions->exportFlags & EXPT_OUTPUT_MATERIALS)
+	{
+		if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
+			radio = 2;
+		else if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)
+			radio = 3;
+		else
+			radio = 1;
+	}
+	else
+		radio = 0;
+
+	sprintf_s(outputString, 256, "# File type: %s\n", outputTypeString[radio]);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if ((gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+	{
+		if (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+		{
+			strcpy_s(outputString, 256, "# OBJ relative coordinates\n");
+			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+		}
+
+		sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkMultipleObjects ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+		sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		if (gOptions->pEFD->chkMultipleObjects || gOptions->pEFD->chkIndividualBlocks)
+		{
+			sprintf_s(outputString, 256, "#  Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no");
+			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+		}
+
+		sprintf_s(outputString, 256, "#   Split materials into subtypes: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	// option only available when rendering - always true when 3D printing.
+	if (!gPrint3D)
+	{
+		sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gOptions->pEFD->chkCompositeOverlay ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "# Export lesser blocks: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if (gOptions->pEFD->chkExportAll)
+	{
+		sprintf_s(outputString, 256, "# Fatten lesser blocks: %s\n", gOptions->pEFD->chkFatten ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	// options only available when rendering.
+	if (!gPrint3D)
+	{
+		sprintf_s(outputString, 256, "# Create block faces at the borders: %s\n", gOptions->pEFD->chkBlockFacesAtBorders ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "# Make tree leaves solid: %s\n", gOptions->pEFD->chkLeavesSolid ? "YES" : "no");
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "# Use biomes: %s\n", gOptions->pEFD->chkBiome ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	// now always on by default
+	//sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gOptions->pEFD->chkMergeFlattop ? "YES" : "no" );
+	//WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+
+	if (gOptions->pEFD->radioRotate0)
+		angle = 0;
+	else if (gOptions->pEFD->radioRotate90)
+		angle = 90;
+	else if (gOptions->pEFD->radioRotate180)
+		angle = 180;
+	else
+	{
+		angle = 270;
+		assert(gOptions->pEFD->radioRotate270);
+	}
+
+	sprintf_s(outputString, 256, "# Rotate model %f degrees\n", angle);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	if (gOptions->pEFD->radioScaleByBlock)
+	{
+		sprintf_s(outputString, 256, "# Scale model by making each block %g mm high\n", gOptions->pEFD->blockSizeVal[gOptions->pEFD->fileType]);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+	else if (gOptions->pEFD->radioScaleByCost)
+	{
+		sprintf_s(outputString, 256, "# Scale model by aiming for a cost of %0.2f for the %s material\n", gOptions->pEFD->costVal, gMtlCostTable[gPhysMtl].name);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+	else if (gOptions->pEFD->radioScaleToHeight)
+	{
+		sprintf_s(outputString, 256, "# Scale model by fitting to a height of %g cm\n", gOptions->pEFD->modelHeightVal);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+	else if (gOptions->pEFD->radioScaleToMaterial)
+	{
+		sprintf_s(outputString, 256, "# Scale model by using the minimum wall thickness for the %s material\n", gMtlCostTable[gPhysMtl].name);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "# Data operation options:\n#   Fill air bubbles: %s; Seal off entrances: %s; Fill in isolated tunnels in base of model: %s\n",
+		(gOptions->pEFD->chkFillBubbles ? "YES" : "no"),
+		(gOptions->pEFD->chkSealEntrances ? "YES" : "no"),
+		(gOptions->pEFD->chkSealSideTunnels ? "YES" : "no"));
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Connect parts sharing an edge: %s; Connect corner tips: %s; Weld all shared edges: %s\n",
+		(gOptions->pEFD->chkConnectParts ? "YES" : "no"),
+		(gOptions->pEFD->chkConnectCornerTips ? "YES" : "no"),
+		(gOptions->pEFD->chkConnectAllEdges ? "YES" : "no"));
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Delete floating objects: trees and parts smaller than %d blocks: %s\n",
+		gOptions->pEFD->floaterCountVal,
+		(gOptions->pEFD->chkDeleteFloaters ? "YES" : "no"));
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Hollow out bottom of model, making the walls %g mm thick: %s; Superhollow: %s\n",
+		gOptions->pEFD->hollowThicknessVal[gOptions->pEFD->fileType],
+		(gOptions->pEFD->chkHollow[gOptions->pEFD->fileType] ? "YES" : "no"),
+		(gOptions->pEFD->chkSuperHollow[gOptions->pEFD->fileType] ? "YES" : "no"));
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "# Melt snow blocks: %s\n", gOptions->pEFD->chkMeltSnow ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Debug: show separate parts as colors: %s\n", gOptions->pEFD->chkShowParts ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "#   Debug: show weld blocks in bright colors: %s\n", gOptions->pEFD->chkShowWelds ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	// write out processing stats for 3D printing
+	if (gOptions->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS | EXPT_DELETE_FLOATING_OBJECTS))
+	{
+		sprintf_s(outputString, 256, "\n# Cleanup processing summary:\n#   Solid parts: %d\n",
+			gStats.numSolidGroups);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & EXPT_FILL_BUBBLES)
+	{
+		sprintf_s(outputString, 256, "#   Air bubbles found and filled (with glass): %d\n",
+			gStats.bubblesFound);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS))
+	{
+		sprintf_s(outputString, 256, "#   Total solid parts merged: %d\n",
+			gStats.solidGroupsMerged);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & EXPT_CONNECT_PARTS)
+	{
+		sprintf_s(outputString, 256, "#   Number of edge passes made: %d\n",
+			gStats.numberManifoldPasses);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "#     Edges found to fix: %d\n",
+			gStats.nonManifoldEdgesFound);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "#     Weld blocks added: %d\n",
+			gStats.blocksManifoldWelded);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & EXPT_CONNECT_CORNER_TIPS)
+	{
+		sprintf_s(outputString, 256, "#     Tip blocks added: %d\n",
+			gStats.blocksCornertipWelded);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & EXPT_DELETE_FLOATING_OBJECTS)
+	{
+		sprintf_s(outputString, 256, "#   Floating parts removed: %d\n",
+			gStats.floaterGroupsDeleted);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "#     In these floaters, total blocks removed: %d\n",
+			gStats.blocksFloaterDeleted);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (gOptions->exportFlags & EXPT_HOLLOW_BOTTOM)
+	{
+		sprintf_s(outputString, 256, "#   Blocks removed by hollowing: %d\n",
+			gStats.blocksHollowed);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+		sprintf_s(outputString, 256, "#   Blocks removed by further super-hollowing (i.e. not just vertical hollowing): %d\n",
+			gStats.blocksSuperHollowed);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	if (pCBC) {
+		int cmdCount = 0;
+		while (pCBC != NULL) {
+			cmdCount++;
+			pCBC = pCBC->next;
+		}
+		sprintf_s(outputString, 256, "# Change commands issued: %d\n", cmdCount);
+		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+	}
+
+	sprintf_s(outputString, 256, "\n# Full world path: %s\n", worldChar);
+	WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+	if (gModel.terrainImageNotFound) {
+		strcpy_s(outChar, MAX_PATH_AND_FILE, "default");
+	}
+	else {
+		WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
+	}
     sprintf_s(outputString, 256, "# Full terrainExt.png path: %s\n", outChar);
     WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 

@@ -7325,26 +7325,30 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
     // first, "rationalize" the name: make it all \'s or all /'s, not both.
     rationalizeFilePath(terrainFileName);
     if (!splitToPathAndName(terrainFileName, tempPath, tempName)) {
-        // just a file name found, so make test path with directory
-        if (wcslen(tempName) > 0)
-        {
-            wcscpy_s(terrainFileName, MAX_PATH_AND_FILE, gSelectTerrainDir);
-            wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), L"\\");
-            wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), tempName);
-        }
-        else {
-            // something odd happened - filename is empty
-            swprintf_s(error, 1024, L"terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
-            return false;
-        }
-        err = _wfopen_s(&fh, terrainFileName, L"rt");
-        if (err != 0) {
-            // can't find it at all, so generate error.
-            swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
-            return false;
-        }
-        // success, copy file and path (directory is fine)
-        wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+		// no path, so check if the name is simply "default" which means "the user used the internally-stored terrainExt"
+		if (wcscmp(tempName, L"default") != 0) {
+			// just a file name found, so make test path with directory
+			if (wcslen(tempName) > 0)
+			{
+				wcscpy_s(terrainFileName, MAX_PATH_AND_FILE, gSelectTerrainDir);
+				wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), L"\\");
+				wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), tempName);
+			}
+			else {
+				// something odd happened - filename is empty
+				swprintf_s(error, 1024, L"terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
+				return false;
+			}
+			err = _wfopen_s(&fh, terrainFileName, L"rt");
+			if (err != 0) {
+				// can't find it at all, so generate error.
+				swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+				return false;
+			}
+			// success, copy file and path (directory is fine)
+			wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+			fclose(fh);
+		}
     }
     else {
         // path found: try the file as a full path.
@@ -7357,8 +7361,8 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
         // success, copy file name&path, and directory
         wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
         wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, tempPath);
-    }
-    fclose(fh);
+		fclose(fh);
+	}
     return true;
 }
 

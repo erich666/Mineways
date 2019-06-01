@@ -285,7 +285,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 665
+#define NUM_TRANS 668
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -962,6 +962,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 139,             13, "red_sandstone_wall", NO_PROP },
 { 0,  75,		HIGH_BIT, "jigsaw", OBSERVER_PROP },
 { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
+{ 0,  61,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
+{ 0,  61,	      BIT_32, "smoker", FURNACE_PROP },
+{ 0,  61,  BIT_32|BIT_16, "blast_furnace", FURNACE_PROP },
 
 };
 
