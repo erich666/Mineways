@@ -126,7 +126,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /*  55 */ "Redstone Wire",          0xd60000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,10, 0x0F, BLF_FLATTOP|BLF_DNE_FLUID|BLF_CUTOUTS|BLF_CONNECTS_REDSTONE|BLF_OFFSET},	//37 - really, 0xfd3200 is lit, we use a "neutral" red here
     { /*  56 */ "Diamond Ore",            0x5decf5, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 3, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//38
     { /*  57 */ "Block of Diamond",       0x7fe3df, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 1, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//39
-    { /*  58 */ "Crafting Table",         0x825432, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 2, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//3a - 12,3 side; 11,3 side2
+    { /*  58 */ "Crafting Table",         0x825432, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 2, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//3a - and cartography, fletching, and smithing
     { /*  59 */ "Wheat",                  0x766615, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 5, 0x0F, BLF_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//3b
     { /*  60 */ "Farmland",               0x40220b, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 5, 0x0F, BLF_WHOLE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//3c - 7,5 dry
     { /*  61 */ "Furnace",                0x767677, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//3d 13,2 side, 12,2 front

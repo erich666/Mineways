@@ -15599,11 +15599,48 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             //	flipIndicesLeftRight(localIndices);
             break;
         case BLOCK_CRAFTING_TABLE:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 11, 3,  4, 0 );
-            if ( ( faceDirection == DIRECTION_BLOCK_SIDE_LO_X ) || ( faceDirection == DIRECTION_BLOCK_SIDE_LO_Z ) )
-            {
-                SWATCH_SWITCH_SIDE( faceDirection, 12, 3 );
-            }
+			switch (dataVal & 0xf) {
+			default:
+				assert(0);
+			case 0:
+				// crafting
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 11, 3, 4, 0);
+				if ((faceDirection == DIRECTION_BLOCK_SIDE_LO_X) || (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+				{
+					SWATCH_SWITCH_SIDE(faceDirection, 12, 3);
+				}
+				break;
+			case 1:
+				// cartography
+				swatchLoc = SWATCH_INDEX(3, 39);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 39, 1, 22);	// dark oak on bottom
+				if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+				{
+					SWATCH_SWITCH_SIDE(faceDirection, 5, 39);
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) {
+					SWATCH_SWITCH_SIDE(faceDirection, 4, 39);
+				}
+				break;
+			case 2:
+				// fletching
+				swatchLoc = SWATCH_INDEX(7, 39);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 39, 6, 13);	// birch on bottom
+				if ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+				{
+					SWATCH_SWITCH_SIDE(faceDirection, 9, 39);
+				}
+				break;
+			case 3:
+				// crafting
+				swatchLoc = SWATCH_INDEX(0, 41);
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 1, 41, 2, 41);
+				if ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+				{
+					SWATCH_SWITCH_SIDE(faceDirection, 3, 41);
+				}
+				break;
+			}
             break;
         case BLOCK_CACTUS:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 4,  7, 4 );

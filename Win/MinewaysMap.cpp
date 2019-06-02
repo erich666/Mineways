@@ -385,6 +385,9 @@ static struct {
 	{ "Loom" },
 	{ "Smoker" },
 	{ "Blast Furnace" },
+	{ "Cartography Table" },
+	{ "Fletching Table" },
+	{ "Smithing Table" },	// 120
 };
 
 char gCoralString[100];
@@ -518,6 +521,9 @@ static struct {
 #define STRING_LOOM							115
 #define STRING_SMOKER						116
 #define STRING_BLAST_FURNACE				117
+#define STRING_CARTOGRAPHY_TABLE			118
+#define STRING_FLETCHING_TABLE				119
+#define STRING_SMITHING_TABLE				120
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -1238,6 +1244,23 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 			break;
 		}
 		break;
+	case BLOCK_CRAFTING_TABLE:
+		switch ((*dataVal) & 0xf)
+		{
+		default:
+			break;
+		case 1:	// cartography
+			return gExtraBlockNames[STRING_CARTOGRAPHY_TABLE].name;
+			break;
+		case 2:	// fletching
+			return gExtraBlockNames[STRING_FLETCHING_TABLE].name;
+			break;
+		case 3:	// smithing
+			return gExtraBlockNames[STRING_SMITHING_TABLE].name;
+			break;
+		}
+		break;
+
 	}
 
 	// could add more? TODO
@@ -2219,6 +2242,25 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+	case BLOCK_CRAFTING_TABLE:
+		dataVal = block->data[voxel];
+		switch (dataVal & 0xf) {
+		default:
+		case 0:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 1: // cartography
+			color = 0x81756D;
+			break;
+		case 2:	// fletching
+			color = 0xC8B78C;
+			break;
+		case 3:	// smithing
+			color = 0x3B3C49;
+			break;
+		}
+		break;
 
 	default:
         // Everything else
