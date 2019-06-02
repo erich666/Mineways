@@ -5174,7 +5174,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_ENCHANTMENT_TABLE:						// saveBillboardOrGeometry
+    case BLOCK_ENCHANTING_TABLE:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = SWATCH_INDEX(6,11);
         bottomSwatchLoc = SWATCH_INDEX(7,11);
@@ -8978,7 +8978,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
 				setTop = 9;
 				break;
 
-			case BLOCK_ENCHANTMENT_TABLE:
+			case BLOCK_ENCHANTING_TABLE:
 				setTop = 12;
 				break;
 
@@ -13208,7 +13208,7 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
         case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
-		case BLOCK_ENCHANTMENT_TABLE:
+		case BLOCK_ENCHANTING_TABLE:
 		case BLOCK_STONECUTTER:
 			// blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
@@ -16083,7 +16083,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_MYCELIUM:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 4,  2, 0 );
             break;
-        case BLOCK_ENCHANTMENT_TABLE:						// getSwatch
+        case BLOCK_ENCHANTING_TABLE:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,11,  7,11 );
             break;
         case BLOCK_BREWING_STAND:						// getSwatch
@@ -18737,9 +18737,12 @@ static int createBaseMaterialTexture()
             //stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 23), 1, 2, 14, 15);
             //stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 23), 1, 0, 14, 12);
 
-            // enchanting table
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 11), 0, 3, 15, 15);
-        }
+			// enchanting table
+			stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 11), 0, 3, 15, 15);
+
+			// stonecutter
+			stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 41), 0, 7, 15, 15);
+		}
     }
 
     return MW_NO_ERROR;

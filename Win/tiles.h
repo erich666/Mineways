@@ -45,7 +45,7 @@
 #define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
 // Bottom and top clamp only (no repeat) for double-height (two block high) plants, kelp, tall sea grass
 #define SWATCH_CLAMP_BOTTOM_AND_TOP         (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
-// Clamp bottom and sides for bed and enchanting table
+// Clamp bottom and sides for bed and enchanting table and stonecutter
 #define SWATCH_CLAMP_ALL_BUT_TOP            (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT|SBIT_CLAMP_LEFT)
 // Clamp all is normally used for "geometric" cutout tiles SBIT_CUTOUT_GEOMETRY where just a part of the tile is selected. For 3D printing
 // and for interpolation, you want to have "invisible" texels off the edges to be clamp copied so that they are properly interpolated.
@@ -726,7 +726,7 @@ static struct {
 	{ 2, 41, L"smithing_table_bottom", L"", SWATCH_REPEAT_ALL },
 	{ 3, 41, L"smithing_table_front", L"", SWATCH_REPEAT_ALL },
 	{ 4, 41, L"stonecutter_top", L"", SWATCH_REPEAT_ALL },
-	{ 5, 41, L"stonecutter_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 5, 41, L"stonecutter_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
 	{ 6, 41, L"stonecutter_bottom", L"", SWATCH_REPEAT_ALL },
 	{ 7, 41, L"stonecutter_saw", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{ 8, 41, L"", L"", SWATCH_REPEAT_ALL }, // Unused
