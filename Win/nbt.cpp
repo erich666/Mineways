@@ -100,13 +100,6 @@ static int worldVersion = 0;
 // type: SLAB_PROP, CHEST_PROP, PISTON_HEAD_PROP
 // waterlogged: so common that we always add it in and use the dedicated bit 0x10
 
-
-
-							// properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
-							// also WALL_SIGN_PROP, OBSERVER_PROP
-
-
-
 // various properties of palette entries, can be used to differentiate how to use properties
 #define NO_PROP				  0
 // age: 0-7 or 0-15, (0-3 for frosted ice)
@@ -288,7 +281,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 669
+#define NUM_TRANS 670
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -969,6 +962,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  61,	      BIT_32, "smoker", FURNACE_PROP },
 { 0,  61,  BIT_32 | BIT_16, "blast_furnace", FURNACE_PROP },
 { 0,  77,       HIGH_BIT, "barrel", BARREL_PROP },
+{ 0,  78,       HIGH_BIT, "stonecutter", SWNE_FACING_PROP },	// use just the lower two bits instead of three for facing. S=0, etc.
 
 
 };

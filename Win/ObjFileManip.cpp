@@ -7689,6 +7689,30 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break; // saveBillboardOrGeometry
 
+	case BLOCK_STONECUTTER:						// saveBillboardOrGeometry
+		topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		sideSwatchLoc = topSwatchLoc + 1;
+		bottomSwatchLoc = topSwatchLoc + 2;
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 9, 0, 16);
+
+		if (!gPrint3D) {
+			// saw blade
+			gUsingTransform = 1;
+			swatchLoc = SWATCH_INDEX(7, 41);
+			totalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 8, 8, 8);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			// rotate into place - the only thing that is affected by direction
+			rotateMtx(mtx, 0.0f, 90.0f*(dataVal&0x3), 0.0f);
+			translateMtx(mtx, 0.0f, 8.0f / 16.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(totalVertexCount, mtx);
+			gUsingTransform = 0;
+		}
+		break; // saveBillboardOrGeometry
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -8941,7 +8965,7 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
             case BLOCK_REDSTONE_REPEATER_ON:
             case BLOCK_REDSTONE_COMPARATOR:
             case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
-                // annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear each other...
+                // annoyingly, repeaters undergo transforms, so repeaters next to each other won't clear faces on the sides for each other...
                 setTop = 2;
                 break;
 
@@ -8950,13 +8974,21 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
                 setTop = 6;
                 break;
 
-            case BLOCK_HOPPER:
-                // blocks bottom
-                setTop = 16;
-                setBottom = 10;
-                break;
+			case BLOCK_STONECUTTER:
+				setTop = 9;
+				break;
 
-            case BLOCK_TRAPDOOR:
+			case BLOCK_ENCHANTMENT_TABLE:
+				setTop = 12;
+				break;
+
+			case BLOCK_HOPPER:
+				// blocks bottom
+				setTop = 16;
+				setBottom = 10;
+				break;
+
+			case BLOCK_TRAPDOOR:
             case BLOCK_IRON_TRAPDOOR:
 			case BLOCK_SPRUCE_TRAPDOOR:
 			case BLOCK_BIRCH_TRAPDOOR:
@@ -13176,11 +13208,13 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
         case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
-            // blocks top
+		case BLOCK_ENCHANTMENT_TABLE:
+		case BLOCK_STONECUTTER:
+			// blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
 
         case BLOCK_HOPPER:						// lesserBlockCoversWholeFace
-            // blocks bottom
+            // blocks bottom of cube above
             return (faceDirection == DIRECTION_BLOCK_BOTTOM);
 
         case BLOCK_RAIL:						// lesserBlockCoversWholeFace
@@ -16659,6 +16693,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
 			if (uvIndices && angle != 0)
 				rotateIndices(localIndices, angle);
+			break;
+        case BLOCK_STONECUTTER:						// getSwatch
+			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5, 41, 6, 41);
 			break;
 		}
 	}
