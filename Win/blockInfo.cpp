@@ -291,23 +291,23 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 215 */ "Red Nether Brick",       0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
     { /* 216 */ "Bone Block",             0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR}, // top location; side is previous tile
     { /* 217 */ "Structure Void",         0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x0F, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY},	// uses red wool
-    { /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,33, 0x00, BLF_WHOLE},
-    { /* 219 */ "White Shulker Box",      0xD8DDDE, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,27, 0x00, BLF_WHOLE},
-    { /* 220 */ "Orange Shulker Box",     0xEB6B0B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,27, 0x00, BLF_WHOLE},
-    { /* 221 */ "Magenta Shulker Box",    0xAE37A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,27, 0x00, BLF_WHOLE},
-    { /* 222 */ "Light Blue Shulker Box", 0x32A5D4, 1.000f, 0xff7711, 0xff7711, 0.12345f, 3, 27, 0x00, BLF_WHOLE },
-    { /* 223 */ "Yellow Shulker Box",     0xF8BD1E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,27, 0x00, BLF_WHOLE},
-    { /* 224 */ "Lime Shulker Box",       0x65AE17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5,27, 0x00, BLF_WHOLE},
-    { /* 225 */ "Pink Shulker Box",       0xE77B9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,27, 0x00, BLF_WHOLE},
-    { /* 226 */ "Gray Shulker Box",       0x383B3F, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,27, 0x00, BLF_WHOLE},
-    { /* 227 */ "Light Grey Shulker Box", 0x7E7E75, 1.000f, 0xff7711, 0xff7711, 0.12345f, 8, 27, 0x00, BLF_WHOLE },
-    { /* 228 */ "Cyan Shulker Box",       0x147A88, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9,27, 0x00, BLF_WHOLE},
-    { /* 229 */ "Purple Shulker Box",     0x8C618C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,27, 0x00, BLF_WHOLE},
-    { /* 230 */ "Blue Shulker Box",       0x2C2E8D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,27, 0x00, BLF_WHOLE},
-    { /* 231 */ "Brown Shulker Box",      0x6B4224, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,27, 0x00, BLF_WHOLE},
-    { /* 232 */ "Green Shulker Box",      0x4F6520, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,27, 0x00, BLF_WHOLE},
-    { /* 233 */ "Red Shulker Box",        0x8E201F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,27, 0x00, BLF_WHOLE},
-    { /* 234 */ "Black Shulker Box",      0x1A1A1E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,27, 0x00, BLF_WHOLE},
+    { /* 218 */ "Observer",				  0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,33, 0x00, BLF_WHOLE },
+    { /* 219 */ "White Shulker Box",      0xD8DDDE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 27, 0x00, BLF_WHOLE },
+    { /* 220 */ "Orange Shulker Box",     0xEB6B0B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 27, 0x00, BLF_WHOLE },
+    { /* 221 */ "Magenta Shulker Box",    0xAE37A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 27, 0x00, BLF_WHOLE },
+    { /* 222 */ "Light Blue Shulker Box", 0x32A5D4, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 27, 0x00, BLF_WHOLE },
+    { /* 223 */ "Yellow Shulker Box",     0xF8BD1E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 27, 0x00, BLF_WHOLE },
+    { /* 224 */ "Lime Shulker Box",       0x65AE17, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 27, 0x00, BLF_WHOLE },
+    { /* 225 */ "Pink Shulker Box",       0xE77B9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 27, 0x00, BLF_WHOLE },
+    { /* 226 */ "Gray Shulker Box",       0x383B3F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 27, 0x00, BLF_WHOLE },
+    { /* 227 */ "Light Grey Shulker Box", 0x7E7E75, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 27, 0x00, BLF_WHOLE },
+    { /* 228 */ "Cyan Shulker Box",       0x147A88, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 27, 0x00, BLF_WHOLE },
+    { /* 229 */ "Purple Shulker Box",     0x8C618C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 27, 0x00, BLF_WHOLE },
+    { /* 230 */ "Blue Shulker Box",       0x2C2E8D, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 27, 0x00, BLF_WHOLE },
+    { /* 231 */ "Brown Shulker Box",      0x6B4224, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 27, 0x00, BLF_WHOLE },
+    { /* 232 */ "Green Shulker Box",      0x4F6520, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 27, 0x00, BLF_WHOLE },
+    { /* 233 */ "Red Shulker Box",        0x8E201F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 27, 0x00, BLF_WHOLE },
+    { /* 234 */ "Black Shulker Box",      0x1A1A1E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 27, 0x00, BLF_WHOLE },
     { /* 235 */ "White Glazed Terracotta",      0xD4DBD7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,28, 0x00, BLF_WHOLE },
     { /* 236 */ "Orange Glazed Terracotta",     0xC09A7F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,28, 0x00, BLF_WHOLE },
     { /* 237 */ "Magenta Glazed Terracotta",    0xD26FC1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2,28, 0x00, BLF_WHOLE },
@@ -328,7 +328,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 252 */ "Concrete Powder",        0xE2E4E4, 1.000f, 0xff7711, 0xff7711, 0.12345f, 0,30, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 253 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f, 1, 1, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as bedrock
     { /* 254 */ "Unknown Block",          0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f, 1, 1, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as bedrock - BLOCK_FAKE is used here
-    { /* 255 */ "Structure Block",        0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,25, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},
+    { /* 255 */ "Structure Block",        0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f,10,25, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
 	// just to be safe, we don't use 256 and consider it AIR
 	// name                               read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
@@ -410,6 +410,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 330 */ "Andesite Slab",          0x89898A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 	{ /* 331 */ "Jigsaw",			      0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 39, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 332 */ "Composter",              0x774C27, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 38, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+	{ /* 333 */ "Barrel",                 0x86643B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 38, 0x00, BLF_WHOLE },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

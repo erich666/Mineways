@@ -3539,8 +3539,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             }
         }
         break;
-    case BLOCK_PISTON_HEAD:
-        // uses bits 0-5 and 8-13
+	case BLOCK_PISTON_HEAD:
+		// uses bits 0-5 and 8-13
         if ( (dataVal&0x7) < 6 )
         {
             if ( (dataVal&0x7) != 1 )
@@ -3874,6 +3874,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			if (dataVal >= 4) {
 				finalDataVal = (dataVal & 0x3) | (WATERLOGGED_BIT|HIGH_BIT);	// waterlogged, and high bit
 			}
+		}
+		break;
+	case BLOCK_BARREL:
+		// uses bits 0-5 and 8-13
+		if ((dataVal & 0x7) < 6)
+		{
+			addBlock = 1;
 		}
 		break;
 	}

@@ -280,12 +280,15 @@ static int worldVersion = 0;
 #define EGG_PROP			 49
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 EXTENDED_FACING_PROP
+// facing: down|up|north|south|west|east
+// open: true|false
+#define BARREL_PROP			 EXTENDED_FACING_PROP
 
 // If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 668
+#define NUM_TRANS 669
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -964,7 +967,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
 { 0,  61,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
 { 0,  61,	      BIT_32, "smoker", FURNACE_PROP },
-{ 0,  61,  BIT_32|BIT_16, "blast_furnace", FURNACE_PROP },
+{ 0,  61,  BIT_32 | BIT_16, "blast_furnace", FURNACE_PROP },
+{ 0,  77,       HIGH_BIT, "barrel", BARREL_PROP },
+
 
 };
 
@@ -2127,12 +2132,13 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case EXTENDED_FACING_PROP:
 							// properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
 							// also WALL_SIGN_PROP, OBSERVER_PROP
-							dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0);
+							dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0);
 							triggered = false;
 							extended = false;
 							sticky = 0x0;
 							enabled = false;
 							conditional = false;
+							open = false;
 							break;
 						case VINE_PROP:
 							dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);

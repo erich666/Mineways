@@ -344,6 +344,7 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
 static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel);
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
+static void sendStatusMessage(HWND hwndStatus, wchar_t *buf);
 static void populateColorSchemes(HMENU menu);
 static void useCustomColor(int wmId,HWND hWnd);
 static int findColorScheme(wchar_t* name);
@@ -2588,6 +2589,11 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, int typ
     SendMessage(hwndStatus,SB_SETTEXT,0,(LPARAM)buf);
 }
 
+static void sendStatusMessage(HWND hwndStatus, wchar_t *buf)
+{
+	SendMessage(hwndStatus, SB_SETTEXT, 0, (LPARAM)buf);
+}
+
 
 static int numCustom=1;
 static void populateColorSchemes(HMENU menu)
@@ -3392,7 +3398,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
     uploadToSketchfab(hInst, is.ws.hWnd);
 
 	// back to normal
-	SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+	sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
 	SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
 	enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
@@ -4318,9 +4324,11 @@ static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **
         if (gHighlightOn)
         {
             // reload world in order to clear out any previous selection displayed.
-            loadWorld(ws.hWnd);
+			sendStatusMessage(ws.hwndStatus, L"Importing model: loading world");
+			loadWorld(ws.hWnd);
             setUIOnLoadWorld(ws.hWnd, ws.hwndSlider, ws.hwndLabel, ws.hwndInfoLabel, ws.hwndBottomSlider, ws.hwndBottomLabel);
         }
+		sendStatusMessage(ws.hwndStatus, L"");	// done
 
         gHighlightOn = true;
         SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
@@ -4406,21 +4414,25 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
     bool exported = false;
     if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
         (strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
-        (strstr(lineString, "# Minecraft world:") != NULL) ||	// stl
+        (strstr(lineString, "# Minecraft world:") != NULL) ||
         (strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
         exported = true;
 
         // set up for export
+		sendStatusMessage(is.ws.hwndStatus, L"Importing model file's settings");
+
         retCode = importModelFile(importFile, is) ? IMPORT_MODEL : 0;
     }
     else
     {
-        retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;
+		sendStatusMessage(is.ws.hwndStatus, L"Running script");
+
+		retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;
     }
 
     Exit:
     // deal with errors in a consistent way
-    if (is.logging) {
+	if (is.logging) {
         // output to error log
         if (is.logfile) {
 #ifdef WIN32
@@ -4611,7 +4623,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
     is.processData = false;
 
     // check
-    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Checking script for syntax errors");
+	sendStatusMessage(is.ws.hwndStatus, L"Checking script for syntax errors");
 
     // First test: read lines until done
     int readCode;
@@ -4695,7 +4707,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
         return false;
     }
 
-    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+	sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
     commentBlock = false;
     do {
@@ -4752,7 +4764,7 @@ static bool readAndExecuteScript(wchar_t *importFile, ImportedSet & is)
         commentBlock = nextCommentBlock;
         // go until we've hit the end of the file, or any error was found, or we hit a Close
     } while ((readCode >= 1) && (is.errorsFound == 0) && !is.closeProgram);
-    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script done");
+	sendStatusMessage(is.ws.hwndStatus, L"Script done");
 
 Exit :
     fclose(fh);
@@ -5024,6 +5036,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             strcpy_s(is.world, MAX_PATH_AND_FILE, strPtr);
             if (!is.readingModel) {
                 // scripting: load it
+				// doesn't work as expected: sendStatusMessage(is.ws.hwndStatus, L"Importing model: loading world");
                 if (!commandLoadWorld(is, error)) {
                     saveErrorMessage(is, error);
                     return INTERPRETER_FOUND_ERROR;
@@ -5153,6 +5166,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
             return INTERPRETER_FOUND_ERROR;
         }
         if (is.processData) {
+			// TODO - somehow, this message never gets replaced when reloading world. sendStatusMessage(is.ws.hwndStatus, L"Importing model: reading terrain file");
             strcpy_s(is.terrainFile, MAX_PATH_AND_FILE, strPtr);
             if (!is.readingModel) {
                 if (!commandLoadTerrainFile(is, error)) {
@@ -5199,7 +5213,8 @@ static int interpretImportLine(char *line, ImportedSet & is)
             is.nether = true;
             if (!is.readingModel) {
                 if (gLoaded) {
-                    ret = switchToNether(is);
+					//sendStatusMessage(is.ws.hwndStatus, L"Importing model: switching to Nether");
+					ret = switchToNether(is);
                     if (ret)
                         return ret;
                 }
@@ -5219,7 +5234,8 @@ static int interpretImportLine(char *line, ImportedSet & is)
             is.theEnd = true;
             if (!is.readingModel) {
                 if (gLoaded) {
-                    ret = switchToTheEnd(is);
+					//sendStatusMessage(is.ws.hwndStatus, L"Importing model: switching to The End world");
+					ret = switchToTheEnd(is);
                     if (ret)
                         return ret;
                 }
@@ -7423,17 +7439,17 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
     wchar_t exportName[MAX_PATH_AND_FILE];
     splitToPathAndName(wcharFileName, NULL, exportName);
     wsprintf(statusbuf, L"Script exporting %s", exportName);
-    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)statusbuf);
+	sendStatusMessage(is.ws.hwndStatus, statusbuf);
 
     gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
     if (gExported == 0)
     {
-        SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)L"Script export operation failed");
+		sendStatusMessage(is.ws.hwndStatus, L"Script export operation failed");
         swprintf_s(error, 1024, L"export operation failed.");
         return false;
     }
     // back to normal
-    SendMessage(is.ws.hwndStatus, SB_SETTEXT, 0, (LPARAM)RUNNING_SCRIPT_STATUS_MESSAGE);
+	sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
     enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);

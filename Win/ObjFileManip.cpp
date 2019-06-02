@@ -6451,9 +6451,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         case 0: // pointing down
             dir = DIRECTION_BLOCK_TOP;
             zrot = 180.0f;
-            break;
+			yrot = 270.0f;
+			break;
         case 1: // pointing up
             dir = DIRECTION_BLOCK_BOTTOM;
+			yrot = 270.0f;
             break;
         case 2: // pointing north
             dir = DIRECTION_BLOCK_SIDE_HI_Z;
@@ -6487,7 +6489,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         gUsingTransform = 1;
         // side of piston body:
         swatchLoc = SWATCH_INDEX( 12, 6 );
-        // form the piston itself sideways, just the small bit, then we rotate upwards
+        // form the piston shaft sideways, just the small bit, then we rotate upwards
         saveBoxTileGeometry( boxIndex, type, dataVal, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON))?DIR_LO_X_BIT:0x0)||(gPrint3D ? 0x0 : DIR_HI_X_BIT),  4,16,   12,16,  0,4 );
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
@@ -6498,12 +6500,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(littleTotalVertexCount,mtx);
 
-        // piston body
+        // piston head, formed pointing up
         saveBoxMultitileGeometry( boxIndex, type, dataVal, (dataVal & 0x8)?(swatchLoc-2):(swatchLoc-1), swatchLoc, swatchLoc-1, 0, 0x0,         0, 0,16,   12,16,  0,16 );
         totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+		// now rotate the whole thing into place:
+		// this is a little confused... I think it's Y (always 90), Z, Y rotation
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0, 90.0f, zrot);
+        rotateMtx(mtx, 0.0, 270.0f, zrot);
         rotateMtx(mtx, 0.0f, yrot, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount,mtx);
@@ -15017,11 +15022,13 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dir;
                     bottom = dir;
+					angle = 180*dir;
                 }
                 else if ( faceDirection == DIRECTION_BLOCK_TOP )
                 {
                     head = dir;
                     bottom = 1 - dir;
+					angle = 180*dir;
                 }
                 // else it's a side, and since sides are aligned, rotate all 180 or none
                 else
@@ -15036,14 +15043,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dirBit;
                     bottom = dirBit;
-                }
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
                 {
                     head = dirBit;
                     bottom = 1 - dirBit;
-                }
+				}
                 // else it's a side
-                if ( ( faceDirection == DIRECTION_BLOCK_BOTTOM ) ||
+                else if ( ( faceDirection == DIRECTION_BLOCK_BOTTOM ) ||
                     ( faceDirection == DIRECTION_BLOCK_TOP ) )
                 {
                     angle = dirBit*180;
@@ -15064,7 +15071,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dirBit;
                     bottom = dirBit;
-                }
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
                 {
                     head = dirBit;
@@ -15115,10 +15122,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             {
                 // side
                 swatchLoc = SWATCH_INDEX( 12, 6 );
-                if ( uvIndices )
-                    rotateIndices( localIndices, angle );
-            }
-            break;
+			}
+			if (uvIndices && (angle != 0))
+				rotateIndices(localIndices, angle);
+			break;
         case BLOCK_PISTON_HEAD:						// getSwatch
             // overkill copy of PISTON above
             // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
@@ -15133,12 +15140,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dir;
                     bottom = dir;
-                }
+					angle = 180 * dir;
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_TOP )
                 {
                     head = dir;
                     bottom = 1 - dir;
-                }
+					angle = 180 * dir;
+				}
                 // else it's a side, and since sides are aligned, rotate all 180 or none
                 else
                 {
@@ -15152,14 +15161,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dirBit;
                     bottom = dirBit;
-                }
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
                 {
                     head = dirBit;
                     bottom = 1 - dirBit;
-                }
+				}
                 // else it's a side
-                if ( ( faceDirection == DIRECTION_BLOCK_BOTTOM ) ||
+                else if ( ( faceDirection == DIRECTION_BLOCK_BOTTOM ) ||
                     ( faceDirection == DIRECTION_BLOCK_TOP ) )
                 {
                     angle = dirBit*180;
@@ -15180,12 +15189,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 {
                     head = 1 - dirBit;
                     bottom = dirBit;
-                }
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_X )
                 {
                     head = dirBit;
                     bottom = 1 - dirBit;
-                }
+				}
                 else if ( faceDirection == DIRECTION_BLOCK_SIDE_HI_Z )
                 {
                     angle = 270 + dirBit*180;
@@ -15224,10 +15233,10 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             {
                 // side
                 swatchLoc = SWATCH_INDEX( 11, 6 );
-                if ( uvIndices )
-                    rotateIndices( localIndices, angle );
             }
-            break;
+			if (uvIndices && (angle != 0))
+				rotateIndices(localIndices, angle);
+			break;
         case BLOCK_TNT:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 8, 0,  10, 0 );
             break;
@@ -16538,8 +16547,121 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 		case BLOCK_COMPOSTER:						// getSwatch
 			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 38, 13, 38);
 			break;
+
+        case BLOCK_BARREL:
+			// copied from piston code - whew, quite the piece of work - but with further rotations for barrel top
+			// 0,38 head, 1,38 side, 2,38 bottom, 3,38 open top
+			head = bottom = 0;
+			dir = dataVal & 7;
+			angle = 0;
+			switch (dir)
+			{
+			case 0: // pointing down
+			case 1: // pointing up
+				if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+				{
+					head = 1 - dir;
+					bottom = dir;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_TOP)
+				{
+					head = dir;
+					bottom = 1 - dir;
+				}
+				// else it's a side, and since sides are aligned, rotate all 180 or none
+				else
+				{
+					angle = 180 * (1 - dir);
+				}
+				break;
+			case 2: // pointing north
+			case 3: // pointing south
+				dirBit = dir - 2;
+				if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+				{
+					head = 1 - dirBit;
+					bottom = dirBit;
+					angle = 180;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+				{
+					head = dirBit;
+					bottom = 1 - dirBit;
+					angle = 180;
+				}
+				// else it's a side
+				else if ((faceDirection == DIRECTION_BLOCK_BOTTOM) ||
+					(faceDirection == DIRECTION_BLOCK_TOP))
+				{
+					angle = dirBit * 180;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+				{
+					angle = 90 + dirBit * 180;
+				}
+				else
+				{
+					angle = 270 + dirBit * 180;
+				}
+				break;
+			case 4: // pointing west
+			case 5: // pointing east
+				dirBit = dir - 4;
+				if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+				{
+					head = 1 - dirBit;
+					bottom = dirBit;
+					angle = 180;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+				{
+					head = dirBit;
+					bottom = 1 - dirBit;
+					angle = 180;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+				{
+					angle = 270 + dirBit * 180;
+				}
+				else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+				{
+					angle = 90 + dirBit * 180;
+				}
+				else
+				{
+					angle = 270 + dirBit * 180;
+				}
+				break;
+			}
+			// ok, now we know head vs. bottom vs. side & angle
+			if (head)
+			{
+				if (dataVal & 8)
+				{
+					// open
+					swatchLoc = SWATCH_INDEX(3, 38);
+				}
+				else
+				{
+					// top, closed
+					swatchLoc = SWATCH_INDEX(0, 38);
+				}
+			}
+			else if (bottom)
+			{
+				// easy!
+				swatchLoc = SWATCH_INDEX(2, 38);
+			}
+			else
+			{
+				// side
+				swatchLoc = SWATCH_INDEX(1, 38);
+			}
+			if (uvIndices && angle != 0)
+				rotateIndices(localIndices, angle);
+			break;
 		}
-    }
+	}
 
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
