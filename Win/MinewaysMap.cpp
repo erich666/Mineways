@@ -2904,6 +2904,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_GLAZED_TERRACOTTA + 15:
 	case BLOCK_SMOOTH_STONE:
 	case BLOCK_SWEET_BERRY_BUSH:
+	case BLOCK_LECTERN:
 		// uses 0-3
         if ( dataVal < 4 )
         {
@@ -3923,6 +3924,86 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		if ((dataVal & 0x7) < 6)
 		{
 			addBlock = 1;
+		}
+		break;
+	case BLOCK_GRINDSTONE:
+	case BLOCK_BELL:
+		addBlock = 1;
+		switch (dataVal & 0xc)
+		{
+		case 0x4:	// ceiling
+			// put block above
+			block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+			break;
+		case 0x8:	// single wall
+			switch (dataVal & 0x3)
+			{
+			case 0:
+				// put block to south
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 1:
+				// put block to west
+				block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 2:
+				// put block to north
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to east
+				block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			}
+			break;
+		case 0xc:	// double wall
+			switch (dataVal & 0x3)
+			{
+			case 0:
+			case 2:
+				// put block to south
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				// put block to north
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 1:
+			case 3:
+				// put block to west
+				block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				// put block to east
+				block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			}
+			break;
+		default:	// floor
+			// do nothing - on ground
+			break;
+		}
+		break;
+	case BLOCK_LANTERN:
+		// uses bits 0-1
+		if ((dataVal & 0xf) < 2)
+		{
+			addBlock = 1;
+			if (dataVal & 0x1) {
+				// put block above
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+			}
+		}
+		break;
+	case BLOCK_SCAFFOLDING:
+		// uses only bit 0, but put three of them up
+		if ( dataVal < 1)
+		{
+			addBlock = 1;
+			// put block above
+			bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+			block->grid[bi] = BLOCK_SCAFFOLDING & 0xf;
+			block->data[bi] = (unsigned char)HIGH_BIT;
+			// put block to south, above, floating
+			bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8);
+			block->grid[bi] = BLOCK_SCAFFOLDING & 0xf;
+			block->data[bi] = (unsigned char)(HIGH_BIT|0x1);
 		}
 		break;
 	}

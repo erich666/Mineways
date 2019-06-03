@@ -58,6 +58,7 @@ static int worldVersion = 0;
 // attached: TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP
 // axis: AXIS_PROP, QUARTZ_PILLAR_PROP
 // bites: BITES_PROP
+// bottom: true|false - scaffolding, for which we ignore the "distance" field
 // conditional: COMMAND_BLOCK_PROP
 // delay: REPEATER_PROP
 // disarmed: TRIPWIRE_PROP
@@ -73,8 +74,10 @@ static int worldVersion = 0;
 //     REPEATER_PROP, COMPARATOR_PROP, HEAD_WALL_PROP
 // falling: FLUID_PROP
 // half: DOOR_PROP, TALL_FLOWER_PROP, STAIRS_PROP, TRAPDOOR_PROP
+// hanging: LANTERN_PROP (really just sets dataVal directly to 0x1 if true)
+// has_book: LECTERN_PROP
 // hinge: DOOR_PROP
-// in_wall: fence gate TODO
+// in_wall: fence gate
 // inverted: DAYLIGHT_PROP
 // layers: SNOW_PROP
 // leaves: LEAF_SIZE_PROP
@@ -94,6 +97,7 @@ static int worldVersion = 0;
 // rotation: STANDING_SIGN_PROP, HEAD_PROP
 // shape: STAIRS_PROP, RAIL_PROP
 // short: PISTON_HEAD_PROP
+// signal_fire: CAMPFIRE_PROP
 // snowy: SNOWY_PROP
 // stage: SAPLING_PROP
 // triggered: DROPPER_PROP
@@ -185,7 +189,7 @@ static int worldVersion = 0;
 #define SNOW_PROP			 26
 // facing: north|south|east|west
 // open: true|false
-// in_wall: true|false - TODO! If true, the gate is lowered by three pixels, to accommodate attaching more cleanly with normal and mossy Cobblestone Walls
+// in_wall: true|false - If true, the gate is lowered by three pixels, to accommodate attaching more cleanly with normal and mossy Cobblestone Walls
 // powered: true|false - ignored
 #define FENCE_GATE_PROP		 27
 // facing: south|west|north|east
@@ -276,12 +280,32 @@ static int worldVersion = 0;
 // facing: down|up|north|south|west|east
 // open: true|false
 #define BARREL_PROP			 EXTENDED_FACING_PROP
+// facing: north|south|west|east - done as 0,1,2,3 SWNE
+
+#define EXTENDED_SWNE_FACING_PROP 50
+// facing: north|south|west|east - done as 0,1,2,3 SWNE
+// face: floor/ceiling/wall
+#define GRINDSTONE_PROP		EXTENDED_SWNE_FACING_PROP
+// facing: north|south|west|east - done as 0,1,2,3 SWNE
+// has_book: true|false
+// powered: true|false
+#define LECTERN_PROP		EXTENDED_SWNE_FACING_PROP
+// facing: north|south|west|east - done as 0,1,2,3 SWNE
+// attachment: floor|ceiling|single_wall|double_wall
+#define BELL_PROP		EXTENDED_SWNE_FACING_PROP
+// hanging: true|false
+//#define LANTERN_PROP		not needed as a separate thing, sets dataVal directly
+// facing: north|south|west|east - done as 0,1,2,3 SWNE
+// lit: true|false
+// signal_fire: true|false
+#define CAMPFIRE_PROP		EXTENDED_SWNE_FACING_PROP
+
 
 // If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 673
+#define NUM_TRANS 679
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -966,6 +990,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  58,			   1, "cartography_table", NO_PROP },
 { 0,  58,			   2, "fletching_table", NO_PROP },
 { 0,  58,			   3, "smithing_table", NO_PROP },
+{ 0,  79,       HIGH_BIT, "grindstone", GRINDSTONE_PROP }, // facing SWNE and face: floor|ceiling|wall
+{ 0,  80,       HIGH_BIT, "lectern", LECTERN_PROP },
+{ 0,  81,       HIGH_BIT, "bell", BELL_PROP },
+{ 0,  82,       HIGH_BIT, "lantern", NO_PROP },	// uses just "hanging" for bit 0x1
+{ 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
+{ 0,  84,       HIGH_BIT, "scaffolding", NO_PROP },	// uses just "bottom" for bit 0x1
 
 };
 
@@ -1448,13 +1478,13 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			int dataVal = 0;
 			// for doors
 			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
-				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall;
-			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single;
+				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
+			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single, attachment;
 			// to avoid Release build warning =but should always be set by code in practice
 			int typeIndex = 0;
 			half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
-				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = false;
-			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = 0;
+				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
+			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = attachment= 0;
 
 			int bigbufflen = 0;
 			int entry_index = 0;
@@ -1771,7 +1801,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										else if (strcmp(token, "in_wall") == 0) {
 											in_wall = (strcmp(value, "true") == 0);
 										}
-										// lever
+										// lever, grindstone
 										else if (strcmp(token, "face") == 0) {
 											if (strcmp(value, "floor") == 0) {
 												face = 0;
@@ -1779,7 +1809,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(value, "wall") == 0) {
 												face = 1;
 											}
-											else
+											else // assumed ceiling
 												face = 2;
 										}
 										// also used by lever, powered rails
@@ -1920,21 +1950,47 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 												leaves = 2;
 											}
 										}
+										// for bell
+										else if (strcmp(token, "attachment") == 0) {
+											if (strcmp(value, "floor") == 0) {
+												attachment = 0;
+											}
+											else if (strcmp(value, "ceiling") == 0) {
+												attachment = 1;
+											}
+											else if (strcmp(value, "single_wall") == 0) {	// attached to just one wall
+												attachment = 2;
+											}
+											else if (strcmp(value, "double_wall") == 0) {	// attached to a pair of walls
+												attachment = 3;
+											}
+										}
+										else if (strcmp(token, "signal_fire") == 0) {
+											signal_fire = (strcmp(value, "true") == 0);
+										}
+										else if (strcmp(token, "has_book") == 0) {
+											has_book = (strcmp(value, "true") == 0);
+										}
+										// for lantern
+										else if (strcmp(token, "hanging") == 0) {
+											dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+										}
+										// for scaffolding
+										else if (strcmp(token, "bottom") == 0) {
+											dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+										}
 
 #ifdef _DEBUG
 										else {
 											// ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-											if (strcmp(token, "distance") == 0) {} // for leaves and bells, see https://minecraft.gamepedia.com/Leaves
+											if (strcmp(token, "distance") == 0) {} // for leaves and bells, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
 											else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore
-											else if (strcmp(token, "note") == 0) {}	// TODO 1.14 here on down
+											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore, doesn't affect rendering
+											else if (strcmp(token, "note") == 0) {}
 											else if (strcmp(token, "instrument") == 0) {}
-											else if (strcmp(token, "drag") == 0) {}
-											else if (strcmp(token, "bottom") == 0) {}
-											else if (strcmp(token, "attachment") == 0) {}
-											else if (strcmp(token, "signal_fire") == 0) {}
-											else if (strcmp(token, "hanging") == 0) {}
-											else if (strcmp(token, "has_book") == 0) {}
+											else if (strcmp(token, "drag") == 0) {
+												token[0] = token[0];	// here for debug
+											}
 											else {
 												// unknown property, let's show it: put a break here and
 												// put text in "Actions":
@@ -2135,6 +2191,20 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							enabled = false;
 							conditional = false;
 							open = false;
+							break;
+						case EXTENDED_SWNE_FACING_PROP:
+							// properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+							// really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
+							dataVal = door_facing | (face << 2) // grindstone
+								| (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern
+								| (attachment << 2) // bell
+								| (lit ? 4 : 0) | (signal_fire ? 8 : 0); // campfire
+							face = 0;
+							has_book = false;
+							powered = false;
+							attachment = 0;
+							lit = false;
+							signal_fire = false;
 							break;
 						case VINE_PROP:
 							dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);

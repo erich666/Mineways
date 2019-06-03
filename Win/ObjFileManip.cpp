@@ -5318,7 +5318,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// TODO - if 1.12 has this feature, we could check neighbors for stone. What happens when one neighbor is stone, the other is wood? Stone wins.
 		if (dataVal & 0x20)
 		{
-			// rotate
+			// shift gate down
 			identityMtx(mtx);
 			translateMtx(mtx, 0.0f, -3.0f / 16.0f, 0.0f);
 			transformVertices(totalVertexCount, mtx);

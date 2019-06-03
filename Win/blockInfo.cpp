@@ -405,13 +405,19 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 325 */ "Dead Coral",             0x857E79, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 36, 0x0F, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },
 	{ /* 326 */ "Standing Sign",          0x9f814f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x60, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// acacia and dark oak, sigh  // TODOTODO - try to waterlog, and test
 	{ /* 327 */ "Sweet Berry Bush",       0x32613c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 37, 0x03, BLF_FLATTOP | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID }, // does not stop fluid
-	{ /* 328 */ "Bamboo",                 0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 37, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY }, // baby bamboo should be BLF_DNE_FLUID, as fluid washes it away
+	{ /* 328 */ "Bamboo",                 0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 37, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY },
 	{ /* 329 */ "Andesite Double Slab",   0x89898A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 330 */ "Andesite Slab",          0x89898A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 	{ /* 331 */ "Jigsaw",			      0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 39, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 332 */ "Composter",              0x774C27, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 38, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 	{ /* 333 */ "Barrel",                 0x86643B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 38, 0x00, BLF_WHOLE },
 	{ /* 334 */ "Stone Cutter",			  0x7D7975, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 41, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+	{ /* 335 */ "Grindstone",             0x8E8E8E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 39, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+	{ /* 336 */ "Lectern",                0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO simplify for 3d printing?
+	{ /* 337 */ "Bell",					  0xFDEC7A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 38, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO make version for 3d printing?
+	{ /* 338 */ "Lantern",				  0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+	{ /* 339 */ "Campfire",               0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 39, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+	{ /* 340 */ "Scaffolding",			  0xB38D54, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 40, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
