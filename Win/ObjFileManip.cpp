@@ -342,6 +342,7 @@ static int gUsingTransform=0;
 #define FLIP_Z_FACE_VERTICALLY	0x02
 #define ROTATE_TOP_AND_BOTTOM	0x04
 #define REVOLVE_INDICES			0x08
+#define ROTATE_X_FACE_90		0x10
 
 #define OSQRT2 0.707106781f
 #define OCOS22P5DEG 0.92387953251f
@@ -7793,6 +7794,78 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break;
 
+	case BLOCK_LECTERN:
+	{
+		int facing = dataVal & 0x3;
+
+		gUsingTransform = 1;
+		totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+
+		// base
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 2;
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 14, 16, 0, 16);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 6, 8, 0, 0);
+		saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_HI_X_BIT, 0, 16, 0, 2);
+		saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT, 0, 16, 6, 8);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 0, 16);
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 0, 16);
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+		identityMtx(mtx);
+		translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
+		transformVertices(littleTotalVertexCount, mtx);
+
+		// column - set front - annoyingly, the side part wanted is actually rotated 90 degrees
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 3;
+		littleTotalVertexCount = gModel.vertexCount;
+		// establish geometry, but don't output anything, ugh
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 3, 15, 4, 12);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 8, 16, 0, 12, 0, 0);
+		swatchLoc -= 2;	// set side
+		//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 16, 0, 12);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_HI_X_BIT, FLIP_X_FACE_VERTICALLY | ROTATE_X_FACE_90, 0, 0, 0, 8, 0, 12);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
+		if (gPrint3D) {
+			// just to make the column watertight - the texture doesn't really matter
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
+		}
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+		identityMtx(mtx);
+		translateMtx(mtx, 4.0f / 16.0f, -1.0f / 16.0f, 0.0f);
+		// should really do it so that the front is in the right place, but forget it...
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(littleTotalVertexCount, mtx);
+		
+		// lectern top; start with the sides textures
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY)+1;
+		littleTotalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
+		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(littleTotalVertexCount, mtx);
+
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, 180.0f+(float)facing*90.0f, 0.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(totalVertexCount, mtx);
+
+		gUsingTransform = 0;
+	}
+	break;
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -8488,7 +8561,8 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                     vindex[1] = 0x2;		// zmin, ymax
                     vindex[2] = 0;			// zmin, ymin
                     vindex[3] = 0x1;		// zmax, ymin
-                    // rotate 90 or 180 - used for glass
+					useRotUVs = (rotUVs&ROTATE_X_FACE_90) ? 3 : 0;
+					// rotate 90 or 180 - used for glass
                     // when rotUVs are used currently, also reverse the loop
                     if (rotUVs&FLIP_X_FACE_VERTICALLY)
                     {
@@ -8497,7 +8571,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         maxu = (float)(16.0f - minPixZ) / 16.0f;
                         minv = (float)minPixY / 16.0f;
                         maxv = (float)maxPixY / 16.0f;
-                        useRotUVs = 2;
+                        useRotUVs += 2;
                         reverseLoop = 1;
                     }
                     else
@@ -8513,14 +8587,14 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
 					vindex[1] = 0x4 | 0x2 | 0x1;// zmin, ymax
 					vindex[2] = 0x4 | 0x1;		// zmin, ymin
 					vindex[3] = 0x4;			// zmax, ymin
-                    // normal case
-                    // On the hi X face, the Z direction is negative, so we negate
-                    minu = (float)(16.0f-maxPixZ)/16.0f;
-                    maxu = (float)(16.0f-minPixZ)/16.0f;
-                    minv = (float)minPixY/16.0f;
-                    maxv = (float)maxPixY/16.0f;
-
-                    break;
+					useRotUVs = (rotUVs&ROTATE_X_FACE_90) ? 1 : 0;
+					// normal case
+					// On the hi X face, the Z direction is negative, so we negate
+					minu = (float)(16.0f - maxPixZ) / 16.0f;
+					maxu = (float)(16.0f - minPixZ) / 16.0f;
+					minv = (float)minPixY / 16.0f;
+					maxv = (float)maxPixY / 16.0f;
+					break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:	
                     vindex[0] = 0x2;		// xmin, ymax
                     vindex[1] = 0x4|0x2;	// xmax, ymax
@@ -8536,7 +8610,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         maxu = (float)maxPixX/16.0f;
                         minv = (float)minPixY/16.0f;
                         maxv = (float)maxPixY/16.0f;
-                        useRotUVs = 2;
+                        useRotUVs += 2;
                         reverseLoop = 1;
                     }
                     else
