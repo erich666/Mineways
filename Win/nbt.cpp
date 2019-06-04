@@ -1983,7 +1983,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 #ifdef _DEBUG
 										else {
 											// ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-											if (strcmp(token, "distance") == 0) {} // for leaves and bells, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
+											if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
 											else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
 											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore, doesn't affect rendering
 											else if (strcmp(token, "note") == 0) {}

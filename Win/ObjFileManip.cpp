@@ -3467,6 +3467,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int itemCount;
 	int age;
 	int leafSize;
+	int facing;
 	float shiftX, shiftZ;
 
     dataVal = gBoxData[boxIndex].data;
@@ -7719,7 +7720,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_GRINDSTONE:
 		{
 			int face = (dataVal & 0xc) >> 2;	// floor/wall/ceiling
-			int facing = dataVal & 0x3;
+			facing = dataVal & 0x3;
 
 			gUsingTransform = 1;
 			totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -7795,76 +7796,173 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		break;
 
 	case BLOCK_LECTERN:
-	{
-		int facing = dataVal & 0x3;
+		{
+			facing = dataVal & 0x3;
 
-		gUsingTransform = 1;
-		totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+			gUsingTransform = 1;
+			totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
 
-		// base
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 2;
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 14, 16, 0, 16);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 6, 8, 0, 0);
-		saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_HI_X_BIT, 0, 16, 0, 2);
-		saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT, 0, 16, 6, 8);
-		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 0, 16);
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
-		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 0, 16);
-		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-		identityMtx(mtx);
-		translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
-		transformVertices(littleTotalVertexCount, mtx);
-
-		// column - set front - annoyingly, the side part wanted is actually rotated 90 degrees
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 3;
-		littleTotalVertexCount = gModel.vertexCount;
-		// establish geometry, but don't output anything, ugh
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 3, 15, 4, 12);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 8, 16, 0, 12, 0, 0);
-		swatchLoc -= 2;	// set side
-		//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 16, 0, 12);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_HI_X_BIT, FLIP_X_FACE_VERTICALLY | ROTATE_X_FACE_90, 0, 0, 0, 8, 0, 12);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
-		if (gPrint3D) {
-			// just to make the column watertight - the texture doesn't really matter
+			// base
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 2;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 14, 16, 0, 16);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 6, 8, 0, 0);
+			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_HI_X_BIT, 0, 16, 0, 2);
+			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT, 0, 16, 6, 8);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 0, 16);
 			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
-			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
-		}
-		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-		identityMtx(mtx);
-		translateMtx(mtx, 4.0f / 16.0f, -1.0f / 16.0f, 0.0f);
-		// should really do it so that the front is in the right place, but forget it...
-		translateToOriginMtx(mtx, boxIndex);
-		rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
-		translateFromOriginMtx(mtx, boxIndex);
-		transformVertices(littleTotalVertexCount, mtx);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 0, 16);
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
+			transformVertices(littleTotalVertexCount, mtx);
+
+			// column - set front - annoyingly, the side part wanted is actually rotated 90 degrees
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 3;
+			littleTotalVertexCount = gModel.vertexCount;
+			// establish geometry, but don't output anything, ugh
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 3, 15, 4, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 8, 16, 0, 12, 0, 0);
+			swatchLoc -= 2;	// set side
+			//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 16, 0, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_HI_X_BIT, FLIP_X_FACE_VERTICALLY | ROTATE_X_FACE_90, 0, 0, 0, 8, 0, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
+			if (gPrint3D) {
+				// just to make the column watertight - the texture doesn't really matter
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+				saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
+			}
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, 4.0f / 16.0f, -1.0f / 16.0f, 0.0f);
+			// should really do it so that the front is in the right place, but forget it...
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(littleTotalVertexCount, mtx);
 		
-		// lectern top; start with the sides textures
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY)+1;
-		littleTotalVertexCount = gModel.vertexCount;
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
-		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
-		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-		identityMtx(mtx);
-		translateToOriginMtx(mtx, boxIndex);
-		rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
-		translateFromOriginMtx(mtx, boxIndex);
-		transformVertices(littleTotalVertexCount, mtx);
+			// lectern top; start with the sides textures
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY)+1;
+			littleTotalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(littleTotalVertexCount, mtx);
 
-		totalVertexCount = gModel.vertexCount - totalVertexCount;
-		identityMtx(mtx);
-		translateToOriginMtx(mtx, boxIndex);
-		rotateMtx(mtx, 0.0f, 180.0f+(float)facing*90.0f, 0.0f);
-		translateFromOriginMtx(mtx, boxIndex);
-		transformVertices(totalVertexCount, mtx);
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 180.0f+(float)facing*90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(totalVertexCount, mtx);
 
-		gUsingTransform = 0;
-	}
-	break;
+			gUsingTransform = 0;
+		}
+		break;
+
+	case BLOCK_BELL:
+		{
+			topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			sideSwatchLoc = topSwatchLoc + 1;
+			bottomSwatchLoc = topSwatchLoc + 2;
+			int attachment = (dataVal & 0xc) >> 2;
+			facing = dataVal & 0x3;
+
+			gUsingTransform = 1;
+			totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+
+			// bottom of bell
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 8, 7, 9, 8, 16);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, topSwatchLoc, DIR_BOTTOM_BIT, 0, 8, 8, 16);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, bottomSwatchLoc, DIR_TOP_BIT, 0, 8, 8, 16);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 1, 7, 9, 16, 9, 15);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, topSwatchLoc, DIR_BOTTOM_BIT, 0, 8, 8, 16);
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, 4.0f / 16.0f, -3.0f / 16.0f, -4.0f / 16.0f);
+			transformVertices(littleTotalVertexCount, mtx);
+
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrY);
+			switch (attachment) {
+			default:
+				assert(0);
+			case 0: // floor
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 2, 14, 13, 15, 7, 9);
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 2, 0, 16, 6, 10);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 14, 16, 0, 16, 6, 10);
+				break;
+			case 1: // ceiling
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7, 9, 13, 16, 7, 9);
+				break;
+			case 2: // single wall
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 3, 16, 13, 15, 7, 9);
+				break;
+			case 3:	// double wall
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 16, 13, 15, 7, 9);
+				break;
+			}
+
+			/*
+			// column - set front - annoyingly, the side part wanted is actually rotated 90 degrees
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 3;
+			littleTotalVertexCount = gModel.vertexCount;
+			// establish geometry, but don't output anything, ugh
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 3, 15, 4, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 8, 16, 0, 12, 0, 0);
+			swatchLoc -= 2;	// set side
+			//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 16, 0, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_HI_X_BIT, FLIP_X_FACE_VERTICALLY | ROTATE_X_FACE_90, 0, 0, 0, 8, 0, 12);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
+			if (gPrint3D) {
+				// just to make the column watertight - the texture doesn't really matter
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+				saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
+			}
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, 4.0f / 16.0f, -1.0f / 16.0f, 0.0f);
+			// should really do it so that the front is in the right place, but forget it...
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(littleTotalVertexCount, mtx);
+
+			// lectern top; start with the sides textures
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
+			littleTotalVertexCount = gModel.vertexCount;
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(littleTotalVertexCount, mtx);
+			*/
+
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, (float)facing*90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(totalVertexCount, mtx);
+
+
+			gUsingTransform = 0;
+		}
+		break;
 
 	default:
         // something tagged as billboard or geometry, but no case here!
