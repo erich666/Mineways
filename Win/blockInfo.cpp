@@ -416,7 +416,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 336 */ "Lectern",                0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO simplify for 3d printing?
 	{ /* 337 */ "Bell",					  0xFDEC7A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 38, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO make version for 3d printing?
 	{ /* 338 */ "Lantern",				  0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
-	{ /* 339 */ "Campfire",               0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 39, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+	{ /* 339 */ "Campfire",               0xE0B263, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 39, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
 	{ /* 340 */ "Scaffolding",			  0xB38D54, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 40, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits

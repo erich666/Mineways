@@ -3346,7 +3346,7 @@ static void transformVertices(int count,float mtx[4][4])
 {
     int i,j,vert;
 	// If this number is large, it's likely that we sent the wrong value in
-	assert(count <= 200);
+	assert(count <= 400);
     for ( vert = gModel.vertexCount-count; vert < gModel.vertexCount; vert++ )
     {
         Point resVertex;
@@ -7713,6 +7713,80 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break; // saveBillboardOrGeometry
 
+	case BLOCK_GRINDSTONE:
+		{
+			int face = (dataVal & 0xc) >> 2;	// floor/wall/ceiling
+			int facing = dataVal & 0x3;
+
+			gUsingTransform = 1;
+			totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+
+			// note all six sides are used, but with different texture coordinates
+			// side:
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			// rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 12x12x8.
+			// We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+			//saveBoxMultitileGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, xmin, xmax, ymin, ymax, zmin, zmax);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 12, 4, 16, 4, 12);
+			// other sides; use the side tile of the grindstone:
+			swatchLoc += 2;
+			// So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
+			// This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
+			//saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 4, 16, 8, 16);
+			// top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
+			//saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 0, 8, 0, 0, 0, 12);
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, 2.0f / 16.0f, 0.0f, 0.0f);
+			transformVertices(littleTotalVertexCount, mtx);
+
+			// now add the two supports
+			for (i = 0; i < 2; i++) {
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
+				littleTotalVertexCount = gModel.vertexCount;
+				// make the 6x6x2 wood axle
+				// rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 6x6x2.
+				// We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+				//saveBoxMultitileGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, xmin, xmax, ymin, ymax, zmin, zmax);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gPrint3D ? 0x0 : ((i == 0) ? DIR_HI_Z_BIT : DIR_LO_Z_BIT)), FLIP_Z_FACE_VERTICALLY, 0, 6, 10, 16, 2, 4);
+				// So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
+				// This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
+				//saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
+				// top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
+				//saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 8, 10, 0, 0, 0, 6);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, 5.0f / 16.0f, -3.0f / 16.0f, (float)i*10.0f / 16.0f);
+				transformVertices(littleTotalVertexCount, mtx);
+
+				swatchLoc = SWATCH_INDEX(14, 19);
+				littleTotalVertexCount = gModel.vertexCount;
+				// make the 2x7x4 support
+				// rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 2x7x4.
+				// We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, (gPrint3D ? 0x0 : DIR_TOP_BIT), FLIP_Z_FACE_VERTICALLY| FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 6, 10, 0, 7, 2, 4);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateMtx(mtx, 0.0f, 0.0f, (float)i*10.0f / 16.0f);
+				transformVertices(littleTotalVertexCount, mtx);
+			}
+
+			totalVertexCount = gModel.vertexCount - totalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			rotateMtx(mtx, 0.0f, 0.0f, (float)face*90.0f);
+			rotateMtx(mtx, 0.0f, (float)facing*90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(totalVertexCount, mtx);
+
+			gUsingTransform = 0;
+		}
+		break;
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -8391,10 +8465,10 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
-                    vindex[0] = 0x2|0x1;	// ymax, zmax
-                    vindex[1] = 0x2;		// ymax, zmin
-                    vindex[2] = 0;			// ymin, zmin
-                    vindex[3] = 0x1;		// ymin, zmax
+                    vindex[0] = 0x2|0x1;	// zmax, ymax
+                    vindex[1] = 0x2;		// zmin, ymax
+                    vindex[2] = 0;			// zmin, ymin
+                    vindex[3] = 0x1;		// zmax, ymin
                     // rotate 90 or 180 - used for glass
                     // when rotUVs are used currently, also reverse the loop
                     if (rotUVs&FLIP_X_FACE_VERTICALLY)
@@ -8416,10 +8490,10 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                     }
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
-                    vindex[0] = 0x4|0x2;		// ymax, zmin
-                    vindex[1] = 0x4|0x2|0x1;	// ymax, zmax
-                    vindex[2] = 0x4|0x1;		// ymin, zmax
-                    vindex[3] = 0x4;			// ymin, zmin
+                    vindex[0] = 0x4|0x2;		// zmax, ymax
+					vindex[1] = 0x4 | 0x2 | 0x1;// zmin, ymax
+					vindex[2] = 0x4 | 0x1;		// zmin, ymin
+					vindex[3] = 0x4;			// zmax, ymin
                     // normal case
                     // On the hi X face, the Z direction is negative, so we negate
                     minu = (float)(16.0f-maxPixZ)/16.0f;
@@ -8481,11 +8555,11 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         // NOTE: may need some "(16.0f-" adjustment
                         // similar to below if the object rendered
                         // is NOT symmetric around the center 8,8
-                        minv = (float)minPixX/16.0f;
-                        maxv = (float)maxPixX/16.0f;
                         minu = (float)minPixZ/16.0f;
                         maxu = (float)maxPixZ/16.0f;
-                    }
+						minv = (float)minPixX / 16.0f;
+						maxv = (float)maxPixX / 16.0f;
+					}
                     else
                     {
                         // normal case
@@ -8510,11 +8584,11 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         // NOTE: may need some "(16.0f-" adjustment
                         // similar to below if the object rendered
                         // is NOT symmetric around the center 8,8
-                        minv = (float)minPixX/16.0f;
-                        maxv = (float)maxPixX/16.0f;
                         minu = (float)minPixZ/16.0f;
                         maxu = (float)maxPixZ/16.0f;
-                    }
+						minv = (float)minPixX / 16.0f;
+						maxv = (float)maxPixX / 16.0f;
+					}
                     else
                     {
                         // normal case
