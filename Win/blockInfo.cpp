@@ -153,7 +153,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /*  82 */ "Clay",                   0xa2a7b4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 4, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//52
     { /*  83 */ "Sugar Cane",             0x72944e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 4, 0x00, BLF_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//53
     { /*  84 */ "Jukebox",                0x8a5a40, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 4, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//54 11,3 side
-    { /*  85 */ "Fence",                  0x9f814e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE },	//55
+    { /*  85 */ "Fence",                  0x9f814e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_MIDDLER|BLF_FENCE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE },	//55
     { /*  86 */ "Pumpkin",                0xc07615, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x08, BLF_WHOLE},	//56 6,7 side, 7,7 face
     { /*  87 */ "Netherrack",             0x723a38, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 6, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //57
     { /*  88 */ "Soul Sand",              0x554134, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 6, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //58
@@ -183,7 +183,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 110 */ "Mycelium",               0x685d69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 4, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //6e 13,4 side, 2,0 bottom
     { /* 111 */ "Lily Pad",               0x217F30, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 4, 0x0F, BLF_FLATTOP|BLF_CUTOUTS|BLF_DNE_FLUID|BLF_OFFSET},   //6f
     { /* 112 */ "Nether Brick",           0x32171c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,14, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //70/112
-    { /* 113 */ "Nether Brick Fence",     0x241316, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,14, 0x00, BLF_MIDDLER| BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //71
+    { /* 113 */ "Nether Brick Fence",     0x241316, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,14, 0x00, BLF_MIDDLER| BLF_FENCE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //71
     { /* 114 */ "Nether Brick Stairs",    0x32171c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,14, 0x30, BLF_STAIRS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //72
     { /* 115 */ "Nether Wart",            0x81080a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,14, 0x0F, BLF_BILLBOARD|BLF_CUTOUTS},   //73
     { /* 116 */ "Enchanting Table",       0xa6701a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,10, 0x0F, BLF_ALMOST_WHOLE|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //74 6,11 side, 7,11 under
@@ -261,11 +261,11 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 185 */ "Jungle Fence Gate",      0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 186 */ "Dark Oak Fence Gate",    0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 1,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 187 */ "Acacia Fence Gate",      0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 0,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 188 */ "Spruce Fence",           0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,12, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 189 */ "Birch Fence",            0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,13, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 190 */ "Jungle Fence",           0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,12, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 191 */ "Dark Oak Fence",         0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 192 */ "Acacia Fence",           0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 188 */ "Spruce Fence",           0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,12, 0x00, BLF_MIDDLER|BLF_FENCE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 189 */ "Birch Fence",            0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,13, 0x00, BLF_MIDDLER|BLF_FENCE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 190 */ "Jungle Fence",           0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,12, 0x00, BLF_MIDDLER|BLF_FENCE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 191 */ "Dark Oak Fence",         0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_MIDDLER|BLF_FENCE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 192 */ "Acacia Fence",           0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_MIDDLER|BLF_FENCE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 193 */ "Spruce Door",            0x7A5A36, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,23, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
     { /* 194 */ "Birch Door",             0xD6CA8C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,23, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},
     { /* 195 */ "Jungle Door",            0xB2825E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5,23, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_CUTOUTS|BLF_TRUE_GEOMETRY|BLF_3D_BIT},

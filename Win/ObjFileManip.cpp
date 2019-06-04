@@ -619,6 +619,7 @@ static void computeRedstoneConnectivity(int boxIndex);
 static int computeFlatFlags(int boxIndex);
 static int firstFaceModifier( int isFirst, int faceIndex );
 static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ);
+static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry( int boxIndex, int type );
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide );
 static unsigned int getStairMask(int boxIndex, int dataVal);
@@ -3445,6 +3446,34 @@ static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ)
 	shiftZ = (float)(6 * val1 - 3);
 }
 
+static bool fenceNeighbor(int type, int boxIndex, int blockSide)
+{
+	int neighborIndex = boxIndex + gFaceOffset[blockSide];
+	int neighborType = gBoxData[neighborIndex].origType;
+	// is neighbor of same type? Easy out
+	if (type == neighborType)
+		return true;
+
+	// is neighbor one that affects fences?
+	if (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR)
+		return true;
+
+	// is neighbor a fence gate?
+	if (gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) {
+		// fence gate only connects if it is oriented properly
+		int bitSet = ((blockSide == DIRECTION_BLOCK_SIDE_LO_Z) || (blockSide == DIRECTION_BLOCK_SIDE_HI_Z)) ? 0x1 : 0x0;
+		if ((gBoxData[neighborIndex].data & 0x1) == bitSet)
+			return true;
+	}
+
+	// is neighbor another fence that can adjoin? Wooden fences can join each other, nether brick fences stand alone
+	if ((type != BLOCK_NETHER_BRICK_FENCE) && (neighborType != BLOCK_NETHER_BRICK_FENCE) && (gBlockDefinitions[neighborType].flags & BLF_FENCE))
+		return true;
+
+	// no fence connection found
+	return false;
+}
+
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry( int boxIndex, int type )
 {
@@ -3746,9 +3775,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             hasPost = 1;
             firstFace = 0;
 
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) || 
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE)&&((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data&0x1)) == 0))
+			if ( fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X) )
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 // - if we're doing 3D printing, neighbor type must exactly match for the face to be removed
@@ -3758,30 +3785,24 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 0, 8 - hasPost * 4, 0, 13, 5, 11);
 				firstFace = 0;
             }
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
 				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
 				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 8 + hasPost * 4, 16, 0, 13, 5, 11);
 				firstFace = 0;
             }
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
 				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
 				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 0, 8 - hasPost * 4);
 				firstFace = 0;
             }
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
 				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
 				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
@@ -3799,10 +3820,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
             // since we erase "billboard" objects as we go, we need to test against origType.
             // Note that if a render export chops through a fence, the fence will not join. TODO - this would be good to fix, as it means tiling output doesn't work in this case.
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
 				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
 				//saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
@@ -3810,28 +3829,22 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
 				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
 			}
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
             }
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
             }
-            neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
-            {
+			if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+			{
                 // this fence connects to the neighboring block, so output the fence pieces
 				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
 				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);

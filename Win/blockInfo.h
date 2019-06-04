@@ -489,6 +489,8 @@ typedef struct Options {
 #define BLF_MAYWATERLOG		0x4000000
 // this object is a gate that attachs to fences if oriented properly - like BLF_FENCE_NEIGHBOR, but needs orientation to connect
 #define BLF_FENCE_GATE		0x8000000
+// this object is a fence that attachs to fences if of the right type - like BLF_FENCE_NEIGHBOR, but needs for types (nether, wood) to match to connect
+#define BLF_FENCE			0x10000000
 
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTOP|BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 
