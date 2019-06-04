@@ -3747,37 +3747,46 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             firstFace = 0;
 
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) || 
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE)&&((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data&0x1)) == 0))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 // - if we're doing 3D printing, neighbor type must exactly match for the face to be removed
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
-                firstFace = 0;
+				// removed, because gates can shift downwards, which can expose the ends
+                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 0, 8 - hasPost * 4, 0, 13, 5, 11);
+				firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
-                firstFace = 0;
+                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 8 + hasPost * 4, 16, 0, 13, 5, 11);
+				firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
-                firstFace = 0;
+                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 0, 8 - hasPost * 4);
+				firstFace = 0;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
-                firstFace = 0;	// not necessary, but for consistency in case code is added below
+				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				//saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
+				saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 8 + hasPost * 4, 16);
+				firstFace = 0;	// not necessary, but for consistency in case code is added below
             }
         }
         else
@@ -3789,38 +3798,44 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // which posts are needed: NSEW. Brute-force it.
 
             // since we erase "billboard" objects as we go, we need to test against origType.
-            // Note that if a render export chops through a fence, the fence will not join.
+            // Note that if a render export chops through a fence, the fence will not join. TODO - this would be good to fix, as it means tiling output doesn't work in this case.
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
-            }
+				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				//saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
+				//saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
+				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
+			}
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
+                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
+                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
-                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
+				//transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
+				saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
             }
         }
         break; // saveBillboardOrGeometry
@@ -3893,22 +3908,26 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             int xCount = 0;
             int zCount = 0;
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
             {
                 xCount++;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
             {
                 xCount++;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
             {
                 zCount++;
             }
             neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+            if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+				((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
             {
                 zCount++;
             }
@@ -3938,16 +3957,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
 
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+			((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-			// if the neighbor is transparent, or a different type, or individual blocks are made, we'll outut the face facing the neighbor (important if we connect to a fence, for example)
+			// if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+			((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
@@ -3955,7 +3976,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+			((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
@@ -3963,7 +3985,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) )
+        if ( (type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+			((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
@@ -5317,15 +5340,28 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         }
 
 		totalVertexCount = gModel.vertexCount - totalVertexCount;
-
-		// "in_wall" property on? (1.13)
-		// TODO - if 1.12 has this feature, we could check neighbors for stone. What happens when one neighbor is stone, the other is wood? Stone wins.
-		if (dataVal & 0x20)
 		{
-			// shift gate down
-			identityMtx(mtx);
-			translateMtx(mtx, 0.0f, -3.0f / 16.0f, 0.0f);
-			transformVertices(totalVertexCount, mtx);
+			// "in_wall" property on? (1.13)
+			bool shiftGate = (dataVal & 0x20) ? true : false;
+			if (gMcVersion <= 12) {
+				// have to test if there are walls around to lower the gate - there are only two types, cobble and mossy cobble, in 1.12
+				if (dataVal & 0x1)
+				{
+					// open west/east
+					shiftGate = (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType == BLOCK_COBBLESTONE_WALL) || (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType == BLOCK_COBBLESTONE_WALL);
+				}
+				else {
+					// open north/south
+					shiftGate = (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType == BLOCK_COBBLESTONE_WALL) || (gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType == BLOCK_COBBLESTONE_WALL);
+				}
+			}
+			if (shiftGate)
+			{
+				// shift gate down
+				identityMtx(mtx);
+				translateMtx(mtx, 0.0f, -3.0f / 16.0f, 0.0f);
+				transformVertices(totalVertexCount, mtx);
+			}
 		}
 		gUsingTransform = 0;
 
@@ -7910,55 +7946,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			}
 
-			/*
-			// column - set front - annoyingly, the side part wanted is actually rotated 90 degrees
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 3;
-			littleTotalVertexCount = gModel.vertexCount;
-			// establish geometry, but don't output anything, ugh
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 3, 15, 4, 12);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY, 8, 16, 0, 12, 0, 0);
-			swatchLoc -= 2;	// set side
-			//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 16, 0, 12);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_HI_X_BIT, FLIP_X_FACE_VERTICALLY | ROTATE_X_FACE_90, 0, 0, 0, 8, 0, 12);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
-			if (gPrint3D) {
-				// just to make the column watertight - the texture doesn't really matter
-				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
-				saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
-			}
-			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-			identityMtx(mtx);
-			translateMtx(mtx, 4.0f / 16.0f, -1.0f / 16.0f, 0.0f);
-			// should really do it so that the front is in the right place, but forget it...
-			translateToOriginMtx(mtx, boxIndex);
-			rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
-			translateFromOriginMtx(mtx, boxIndex);
-			transformVertices(littleTotalVertexCount, mtx);
-
-			// lectern top; start with the sides textures
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
-			littleTotalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
-			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
-			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-			identityMtx(mtx);
-			translateToOriginMtx(mtx, boxIndex);
-			rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
-			translateFromOriginMtx(mtx, boxIndex);
-			transformVertices(littleTotalVertexCount, mtx);
-			*/
-
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			identityMtx(mtx);
 			translateToOriginMtx(mtx, boxIndex);
 			rotateMtx(mtx, 0.0f, (float)facing*90.0f, 0.0f);
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(totalVertexCount, mtx);
-
 
 			gUsingTransform = 0;
 		}

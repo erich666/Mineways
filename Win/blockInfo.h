@@ -462,7 +462,8 @@ typedef struct Options {
 // export image texture for this object, as it makes sense - almost everything has this property (i.e. has a texture tile)
 // actually, now everything has this property, so it's eliminated
 //#define BLF_IMAGE_TEXTURE   0x10000
-// this object emits light
+
+// this object emits light - affects output material
 #define BLF_EMITTER         0x10000
 // this object attaches to fences; note that fences do not have this property themselves, so that nether & regular fence won't attach
 #define BLF_FENCE_NEIGHBOR	0x20000
@@ -486,6 +487,8 @@ typedef struct Options {
 #define BLF_WATERLOG		0x2000000
 // is a billboard or similar that may waterlog, such as coral fans; bit 0x100 is set if waterlogged
 #define BLF_MAYWATERLOG		0x4000000
+// this object is a gate that attachs to fences if oriented properly - like BLF_FENCE_NEIGHBOR, but needs orientation to connect
+#define BLF_FENCE_GATE		0x8000000
 
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTOP|BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 

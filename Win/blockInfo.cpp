@@ -153,7 +153,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /*  82 */ "Clay",                   0xa2a7b4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 4, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//52
     { /*  83 */ "Sugar Cane",             0x72944e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 4, 0x00, BLF_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},	//53
     { /*  84 */ "Jukebox",                0x8a5a40, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 4, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//54 11,3 side
-    { /*  85 */ "Fence",                  0x9f814e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE| BLF_FENCE_NEIGHBOR },	//55
+    { /*  85 */ "Fence",                  0x9f814e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE },	//55
     { /*  86 */ "Pumpkin",                0xc07615, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x08, BLF_WHOLE},	//56 6,7 side, 7,7 face
     { /*  87 */ "Netherrack",             0x723a38, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 6, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //57
     { /*  88 */ "Soul Sand",              0x554134, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 6, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //58
@@ -177,7 +177,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 104 */ "Pumpkin Stem",           0xE1C71C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,11, 0x0F, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},   //68/104 15,11 connected TODO
     { /* 105 */ "Melon Stem",             0xE1C71C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 6, 0x0F, BLF_FLATTOP|BLF_SMALL_BILLBOARD|BLF_CUTOUTS|BLF_DNE_FLUID},   //69/105 15,7 connected TODO
     { /* 106 */ "Vines",                  0x76AB2F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 8, 0x00, BLF_BILLBOARD|BLF_FLATSIDE|BLF_PANE|BLF_CUTOUTS|BLF_DNE_FLUID|BLF_OFFSET},   //6a
-    { /* 107 */ "Fence Gate",             0xa88754, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 4, 0, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //6b
+    { /* 107 */ "Fence Gate",             0xa88754, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 4, 0, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //6b
     { /* 108 */ "Brick Stairs",           0xa0807b, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x30, BLF_STAIRS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //6c
     { /* 109 */ "Stone Brick Stairs",     0x797979, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 3, 0x30, BLF_STAIRS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},   //6d
     { /* 110 */ "Mycelium",               0x685d69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 4, 0x0F, BLF_WHOLE|BLF_FENCE_NEIGHBOR},   //6e 13,4 side, 2,0 bottom
@@ -256,11 +256,11 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /* 180 */ "Red Sandstone Stairs",   0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x00, BLF_STAIRS|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 181 */ "Double Red Sandstone Slab",0x964C19,1.000f,0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//2b/43
     { /* 182 */ "Red Sandstone Slab",     0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,19, 0x07, BLF_HALF|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},	//2c/44
-    { /* 183 */ "Spruce Fence Gate",      0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 184 */ "Birch Fence Gate",       0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,13, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 185 */ "Jungle Fence Gate",      0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 186 */ "Dark Oak Fence Gate",    0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 1,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
-    { /* 187 */ "Acacia Fence Gate",      0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 0,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE|BLF_FENCE_NEIGHBOR|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 183 */ "Spruce Fence Gate",      0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 184 */ "Birch Fence Gate",       0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 6,13, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 185 */ "Jungle Fence Gate",      0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 7,12, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 186 */ "Dark Oak Fence Gate",    0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 1,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
+    { /* 187 */ "Acacia Fence Gate",      0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 0,22, 0x00, BLF_MIDDLER|BLF_ENTRANCE| BLF_FENCE_GATE |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 188 */ "Spruce Fence",           0x785836, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,12, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 189 */ "Birch Fence",            0xD7C185, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,13, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
     { /* 190 */ "Jungle Fence",           0xB1805C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,12, 0x00, BLF_MIDDLER|BLF_FENCE_NEIGHBOR |BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_3D_BIT_GLUE},
@@ -415,8 +415,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 335 */ "Grindstone",             0x8E8E8E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 39, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
 	{ /* 336 */ "Lectern",                0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO simplify for 3d printing?
 	{ /* 337 */ "Bell",					  0xFDEC7A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 38, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT }, // TODOTODO make version for 3d printing?
-	{ /* 338 */ "Lantern",				  0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
-	{ /* 339 */ "Campfire",               0xE0B263, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 39, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+	{ /* 338 */ "Lantern",				  0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x00, BLF_FLATTOP | BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_EMITTER }, // TODOTODO: BLF_FLATBOTTOM, and test FLATTOP
+	{ /* 339 */ "Campfire",               0xE0B263, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 39, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_EMITTER },
 	{ /* 340 */ "Scaffolding",			  0xB38D54, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 40, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
