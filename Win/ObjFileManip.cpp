@@ -7970,6 +7970,190 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break;
 
+	case BLOCK_LANTERN:
+	{
+		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		int hanging = (dataVal & 0x1);
+
+		gUsingTransform = 1;
+
+		// bottom of lantern
+		littleTotalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 6, 7, 14, 10, 16);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 6, 1, 7);
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+		identityMtx(mtx);
+		// put it on ground or hanging, 1 pixel higher
+		translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
+		transformVertices(littleTotalVertexCount, mtx);
+
+		// top of lantern
+		littleTotalVertexCount = gModel.vertexCount;
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 1, 5, 14, 16, 11, 15);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 1, 5, 2, 6);
+		littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+		identityMtx(mtx);
+		// put it on ground or hanging, 1 pixel higher
+		translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
+		transformVertices(littleTotalVertexCount, mtx);
+
+		// chain & connector
+		if (!gPrint3D) {
+			// connector at top
+			for (i = 0; i < 2 - hanging; i++) {
+				littleTotalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 4, 6, 8, 8);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, -4.5f / 16.0f, ((float)hanging + 5.0f) / 16.0f, 0.0f);
+				rotateMtx(mtx, 0.0f, (float)i*90.0f + 45.0f, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(littleTotalVertexCount, mtx);
+			}
+			// chain, if any
+			if (hanging) {
+				// link
+				littleTotalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 11, 15, 8, 8);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, -4.5f / 16.0f, 0.0f / 16.0f, 0.0f);
+				rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(littleTotalVertexCount, mtx);
+
+				// top link
+				littleTotalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 8, 10, 8, 8);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				translateMtx(mtx, -4.5f / 16.0f, 6.0f / 16.0f, 0.0f);
+				rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(littleTotalVertexCount, mtx);
+			}
+		}
+
+		gUsingTransform = 0;
+	}
+	break;
+
+	case BLOCK_CAMPFIRE:
+	{
+		facing = dataVal & 0x3;
+		int lit = ((dataVal & 0x4) >> 2);
+
+		int fireSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		int unburntSwatchLoc = fireSwatchLoc + 1;
+		// unburnt or burnt look
+		swatchLoc = unburntSwatchLoc + lit;
+
+		gUsingTransform = 1;
+		totalVertexCount = gModel.vertexCount;
+
+		// bed of coals
+		// 6x1x16 - and, amazingly, don't need a transform
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 5, 11, 0, 1, 0, 16);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, unburntSwatchLoc, DIR_TOP_BIT, 0, 16, 2, 8);
+		saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 2, 8);
+
+		// logs - bottom two are unburnt
+		for (i = 0; i < 2; i++) {
+			littleTotalVertexCount = gModel.vertexCount;
+			//saveBoxMultitileGeometry(boxIndex, type, dataVal, unburntSwatchLoc, unburntSwatchLoc, unburntSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 12, 16, 1 + (float)i * 10, 5 + (float)i * 10);
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, unburntSwatchLoc, unburntSwatchLoc, unburntSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 4, 8, 12, 0, 16);
+			//saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, unburntSwatchLoc, 0x0, 0, 4, 8, 12);	// log caps
+			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, unburntSwatchLoc, 0x0, 0, 16, 12, 16);	// log sides
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, unburntSwatchLoc, 0x0, 0, 16, 12, 16);	// log top & bottom
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateMtx(mtx, ((float)i*10.0f + 1.0f) / 16.0f, -8.0f / 16.0f, 0.0f);
+			transformVertices(littleTotalVertexCount, mtx);
+		}
+
+		// logs - top two are maybe burnt on sides
+		for (i = 0; i < 2; i++) {
+			littleTotalVertexCount = gModel.vertexCount;
+			// even though the tile shows a burnt endcap, it's not used.
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, unburntSwatchLoc, unburntSwatchLoc, unburntSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 4, 8, 12, 0, 16);
+			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 16, 12, 16);	// log sides
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, unburntSwatchLoc, 0x0, 0, 16, 12, 16);	// log top & bottom
+			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+			identityMtx(mtx);
+			translateToOriginMtx(mtx, boxIndex);
+			translateMtx(mtx, ((float)i*10.0f + 1.0f) / 16.0f, -5.0f / 16.0f, 0.0f);
+			rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+			translateFromOriginMtx(mtx, boxIndex);
+			transformVertices(littleTotalVertexCount, mtx);
+		}
+
+		if (!gPrint3D && lit) {
+			// fire
+			for (i = 0; i < 2; i++) {
+				littleTotalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, fireSwatchLoc, fireSwatchLoc, fireSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+				identityMtx(mtx);
+				translateToOriginMtx(mtx, boxIndex);
+				// interestingly, flame leaps 1 pixel above the block's bounds
+				translateMtx(mtx, 0.0f, 1.0f / 16.0f, 0.0f);
+				rotateMtx(mtx, 0.0f, (float)i*90.0f + 45.0f, 0.0f);
+				translateFromOriginMtx(mtx, boxIndex);
+				transformVertices(littleTotalVertexCount, mtx);
+			}
+		}
+
+		totalVertexCount = gModel.vertexCount - totalVertexCount;
+		identityMtx(mtx);
+		translateToOriginMtx(mtx, boxIndex);
+		rotateMtx(mtx, 0.0f, (float)facing*90.0f + 90.0f, 0.0f);
+		translateFromOriginMtx(mtx, boxIndex);
+		transformVertices(totalVertexCount, mtx);
+
+		gUsingTransform = 0;
+	}
+	break;
+
+	case BLOCK_SCAFFOLDING:						// saveBillboardOrGeometry
+		{
+			int bottom = (dataVal & 0x1);
+			topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			sideSwatchLoc = topSwatchLoc + 1;
+			bottomSwatchLoc = topSwatchLoc + 2;
+
+			for (i = 0; i <= bottom; i++) {
+				gUsingTransform = i;
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, i-1, 0x0, 0x0, 0, 16, 14, 16, 0, 16);
+
+				// now make four inner polygons to seal off the top - good times!
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 14, 16, 14, 16);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 14, 16, 0, 2);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 14, 16, 0, 16);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 2, 16, 14, 16, 0, 16);
+
+				if (i) {
+					totalVertexCount = gModel.vertexCount - totalVertexCount;
+					identityMtx(mtx);
+					translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
+					transformVertices(totalVertexCount, mtx);
+				}
+			}
+			gUsingTransform = 0;
+
+			// and the posts
+			for (int x = 0; x < 2; x++) {
+				for (int z = 0; z < 2; z++) {
+					// make bottom 2x2 if there is no bottom
+					saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, (bottom?DIR_BOTTOM_BIT:0x0) | DIR_TOP_BIT, 0x0, 0 + (float)x * 14, 2 + (float)x * 14, (float)bottom*2, 14, 0 + (float)z * 14, 2 + (float)z * 14);
+				}
+			}
+		}
+		break; // saveBillboardOrGeometry
+
 	default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -18193,6 +18377,7 @@ static int writeOBJMtlFile()
                 }
                 mapdString[0] = '\0';
             }
+			// TODO it would be nice if, when various light blocks (such as campfire) are not actually on, they could be set to not be an emitter
             if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
             {
                 sprintf_s(keString,256,"Ke 1 1 1\n" );
