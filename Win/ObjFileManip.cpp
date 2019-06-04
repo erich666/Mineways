@@ -630,6 +630,8 @@ static void saveBoxGeometry(int boxIndex, int type, int dataVal, int markFirstFa
 static void saveBoxTileGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static void saveBoxMultitileGeometry(int boxIndex, int type, int dataVal, int topSwatchLoc, int sideSwatchLoc, int bottomSwatchLoc, int markFirstFace, int faceMask,
     int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
+static void saveBoxReuseGeometryXFaces(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, float umin, float umax, float vmin, float vmax);
+static void saveBoxReuseGeometryYFaces(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, float umin, float umax, float vmin, float vmax);
 static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ );
@@ -7733,10 +7735,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
 			// This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
 			//saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 4, 16, 8, 16);
+			//saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 4, 16, 8, 16);
+			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
 			// top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
 			//saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 0, 8, 0, 0, 0, 12);
+			//saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 0, 8, 0, 0, 0, 12);
+			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 			identityMtx(mtx);
 			translateMtx(mtx, 2.0f / 16.0f, 0.0f, 0.0f);
@@ -7754,10 +7758,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				// So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
 				// This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
 				//saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
-				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
+				//saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
+				saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 6, 8, 10, 16);
 				// top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
 				//saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
-				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 8, 10, 0, 0, 0, 6);
+				//saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 8, 10, 0, 0, 0, 6);
+				saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 10, 10, 16);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateMtx(mtx, 5.0f / 16.0f, -3.0f / 16.0f, (float)i*10.0f / 16.0f);
@@ -8347,6 +8353,19 @@ static void saveBoxMultitileGeometry(int boxIndex, int type, int dataVal, int to
     swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = sideSwatchLoc;
     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = sideSwatchLoc;
     saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, markFirstFace, faceMask, rotUVs, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ );
+}
+
+// Sane way to set the X pair of faces with a part of a tile. You will reuse geometry (see BLOCK_GRINDSTONE for setting the geometry). You then
+// call this similarly to saveBoxReuseGeometry, but you only need to specify the U and V range on the texture tile - it then gets applied to both X faces (or one, if you use faceMask to mask one out).
+static void saveBoxReuseGeometryXFaces(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, float umin, float umax, float vmin, float vmax)
+{
+	saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | faceMask, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
+}
+// Sane way to set the top and bottom pair of faces with a part of a tile. You will reuse geometry (see BLOCK_GRINDSTONE for setting the geometry). You then
+// call this similarly to saveBoxReuseGeometry, but you only need to specify the U and V range on the texture tile - it then gets applied to both Y faces (or one, if you use faceMask to mask one out).
+static void saveBoxReuseGeometryYFaces(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, float umin, float umax, float vmin, float vmax)
+{
+	saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | faceMask, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
 }
 
 static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
