@@ -3059,11 +3059,98 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
 	case BLOCK_FLOWER_POT:
-        // uses 0-13 for old-style 1.7 flower pots
-        if (dataVal < 14)
+        // uses 0-11 for old-style 1.7 flower pots
+        if (dataVal < 12)
         {
             addBlock = 1;
         }
+		{
+			// add new style diagonally SE of original
+			int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+			int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+			switch (dataVal) {
+			case 1:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 0;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_FLOWER_FIELD | 7;
+				break;
+			case 2:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 1;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_FLOWER_FIELD | 8;
+				break;
+			case 3:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 2;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_MUSHROOM_FIELD | 0;
+				break;
+			case 4:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 3;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = BROWN_MUSHROOM_FIELD | 0;
+				break;
+			case 5:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 4;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = DEADBUSH_FIELD | 0;
+				break;
+			case 6:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = SAPLING_FIELD | 5;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = CACTUS_FIELD | 0;
+				break;
+			case 7:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = TALLGRASS_FIELD | 2;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_FLOWER_FIELD | 9;
+				break;
+			case 8:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = YELLOW_FLOWER_FIELD | 0;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_FLOWER_FIELD | 10;
+				break;
+			case 9:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 0;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = RED_FLOWER_FIELD | 11;
+				break;
+			case 10:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 1;
+				block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex2] = BAMBOO_FIELD | 0;
+				break;
+			case 11:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 2;
+				break;
+			case 12:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 3;
+				break;
+			case 13:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 4;
+				break;
+			case 14:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 5;
+				break;
+			case 15:
+				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+				block->data[neighborIndex] = RED_FLOWER_FIELD | 6;
+				break;
+			}
+		}
         break;
     case BLOCK_ANVIL:
 	case BLOCK_TURTLE_EGG: // number is 0-3, hatch is 0-2, total of 12
@@ -3118,8 +3205,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_STRIPPED_OAK:
 	case BLOCK_STRIPPED_OAK_WOOD:
 	case BLOCK_STONE_SLAB:
-    case BLOCK_SIGN_POST:
-	case BLOCK_ACACIA_SIGN_POST:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
@@ -3153,6 +3238,25 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		// uses all bits, 0-15
         addBlock = 1;
         break;
+	case BLOCK_SIGN_POST:
+	case BLOCK_ACACIA_SIGN_POST:
+		// uses all bits, 0-15
+		addBlock = 1;
+		{
+			// add new style diagonally SE of original
+			int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+			block->grid[neighborIndex] = (unsigned char)type;
+			block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
+			if (type == BLOCK_SIGN_POST) {
+				int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+				block->grid[neighborIndex2] = (unsigned char)type;
+				block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32;
+				int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+				block->grid[neighborIndex3] = (unsigned char)type;
+				block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
+			}
+		}
+		break;
     case BLOCK_WATER:
     case BLOCK_STATIONARY_WATER:
     case BLOCK_LAVA:
@@ -3275,7 +3379,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         }
         break;
     case BLOCK_LADDER:
-    case BLOCK_WALL_SIGN:	// NODO could add some other wood for 1.14 for other values, I suppose - not vital, and probably confusing
     case BLOCK_WALL_BANNER:
 	case BLOCK_ORANGE_WALL_BANNER:
 	case BLOCK_MAGENTA_WALL_BANNER:
@@ -3316,6 +3419,37 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             }
         }
         break;
+
+	case BLOCK_WALL_SIGN:
+		// there are now 6 materials for wall signs. Rather than going absolutely nuts, we change the dataVal for each
+		if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+		{
+			addBlock = 1;
+			// set higher bits BIT_16 and BIT_32 (BIT_8 is already set)
+			if (dataVal < 12)
+				finalDataVal |= ((dataVal & 0x7)-2)<<4;
+			switch (dataVal&0x7)
+			{
+			case 2:
+				// put block to south
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 3:
+				// put block to north
+				block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 4:
+				// put block to east
+				block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			case 5:
+				// put block to west
+				block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+				break;
+			}
+		}
+		break;
+
     case BLOCK_RAIL:
         if ( dataVal >= 6 && dataVal <= 9 )
         {

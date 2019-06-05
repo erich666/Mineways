@@ -105,6 +105,9 @@ static struct Chest {
 static int tilesInputToTableIndex[TOTAL_TILES];
 static progimage_info tile[TOTAL_TILES];
 
+static int gErrorCount = 0;
+static int gWarningCount = 0;
+
 
 typedef struct int2 {
 	int x;
@@ -348,8 +351,10 @@ int wmain(int argc, wchar_t* argv[])
 					if ( index < 0 )
 					{
                         // see if tile is on unneeded list
-                        if ( findUnneededTile( ffd.cFileName ) < 0 )
-						    wprintf (L"WARNING: %s is a tile name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
+						if (findUnneededTile(ffd.cFileName) < 0) {
+							wprintf(L"WARNING: %s is a tile name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
+							gWarningCount++;
+						}
 					}
 
 					while ( index >= 0 )
@@ -363,10 +368,12 @@ int wmain(int argc, wchar_t* argv[])
 							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
 								wprintf(L"***** ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
 								fail_code = 1;
+								gErrorCount++;
 							}
 							if (tile[tilesFound].width > tile[tilesFound].height) {
 								wprintf(L"***** ERROR: file %s has a height that is less than its width.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
 								fail_code = 1;
+								gErrorCount++;
 							}
 						}
 
@@ -384,6 +391,7 @@ int wmain(int argc, wchar_t* argv[])
 								// flag not set, so check for alpha == 0
 								if (checkForCutout(&tile[tilesFound])) {
 									wprintf(L"WARNING: file %s has texels that are fully transparent, but the tile is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
+									gWarningCount++;
 								}
 							}
 
@@ -404,6 +412,7 @@ int wmain(int argc, wchar_t* argv[])
 							{
 								outputYTiles = gTilesTable[index].txrY + 1;
 								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
+								gWarningCount++;
 							}
 						}
 						//else
@@ -437,6 +446,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		if (rc != 0) {
 			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone could not be read again. Please report this to erich@acm.org.\n");
+			gWarningCount++;
 		}
 		else {
 			tilesInputToTableIndex[tilesFound] = index;
@@ -461,6 +471,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		if (rc != 0) {
 			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone_slab_side could not be read again. Please report this to erich@acm.org.\n");
+			gWarningCount++;
 		}
 		else {
 			tilesInputToTableIndex[tilesFound] = index;
@@ -539,6 +550,7 @@ int wmain(int argc, wchar_t* argv[])
 	// warn user of large tiles
 	if (outputTileSize > 256) {
 		wprintf(L"WARNING: with a texture tile size of %d X %d, you could be waiting a long time\n    for TileMaker to complete. Consider quitting and using the '-t tileSize'\n    option, choosing a power of two value less than this, such as 256.\n", outputTileSize, outputTileSize);
+		gWarningCount++;
 	}
 
 	// allocate output image and fill it up
@@ -663,6 +675,7 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// file not found
 			wprintf(L"  This warning means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_double.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
+			gWarningCount++;
 			break;
 		}
 		readpng_cleanup(0, &chestImage);
@@ -712,6 +725,9 @@ int wmain(int argc, wchar_t* argv[])
 	writepng_cleanup(destination_ptr);
 	if ( verbose )
 		wprintf (L"New texture %s created.\n", terrainExtOutput);
+
+	if (gErrorCount || gWarningCount)
+		wprintf(L"Summary: %d errors and %d warnings were generated.\n", gErrorCount, gWarningCount);
 
 	return 0;
 }
@@ -793,6 +809,7 @@ static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_
 
 static void reportReadError( int rc, wchar_t *filename )
 {
+	gErrorCount++;
 	switch (rc) {
 	case 1:
 		wprintf(L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
@@ -904,6 +921,7 @@ static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long d
 
 		if (tileSize <= 0) {
 			wprintf(L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			gErrorCount++;
 			return 1;
 		}
 
