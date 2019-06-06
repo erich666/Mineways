@@ -168,6 +168,8 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_OUTPUT_TEXTURE_SWATCHES    0x0010
 // Export a true block texture instead of simple solid materials
 #define EXPT_OUTPUT_TEXTURE_IMAGES	    0x0020
+// Export separate textures, one per tile TODOTODO
+//#define EXPT_OUTPUT_SEPARATE_TEXTURE_IMAGES 0x0040 - kick the rest of the numbers below up.
 #define EXPT_OUTPUT_TEXTURE (EXPT_OUTPUT_TEXTURE_SWATCHES|EXPT_OUTPUT_TEXTURE_IMAGES)
 
 // For 3d Printing, make the model as small as the material chosen allows (colored sandstone currently assumed)

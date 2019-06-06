@@ -1750,7 +1750,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 15:	// quartz
             color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
             break;
-        case 10:	// tile quartz or upper wooden slab TODOTODO - what?
+        case 10:	// tile quartz or upper wooden slab - what? Some old weirdness...
             color = gBlockDefinitions[(type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
             break;
         }

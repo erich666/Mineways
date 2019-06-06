@@ -5373,7 +5373,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "File type:");
+	strPtr = findLineDataNoCase(line, "File type:");
     if (strPtr != NULL) {
         // found selection, parse it
         if (1 != sscanf_s(strPtr, "Export %s", string1, (unsigned)_countof(string1)))
@@ -5429,7 +5429,46 @@ static int interpretImportLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Export separate objects:");
+	strPtr = findLineDataNoCase(line, "Texture output RGB:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Texture output RGB command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkTextureRGB = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Texture output A:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Texture output A command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkTextureA = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Texture output RGBA:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Texture output RGBA command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkTextureRGBA = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Export separate objects:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {

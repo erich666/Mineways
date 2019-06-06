@@ -691,7 +691,7 @@ static struct {
 	{ 15, 38, L"composter_ready", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
 	{ 0, 39, L"campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{ 1, 39, L"campfire_log", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{ 2, 39, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// TODOTODO not sure about this one
+	{ 2, 39, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{ 3, 39, L"cartography_table_top", L"", SWATCH_REPEAT_ALL },
 	{ 4, 39, L"cartography_table_side1", L"", SWATCH_REPEAT_ALL },
 	{ 5, 39, L"cartography_table_side2", L"", SWATCH_REPEAT_ALL },

@@ -7486,8 +7486,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		// set bottom:
 		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
 
-		// output pickle top billboards, since we're in the water
-		outputPickleTop(boxIndex, swatchLoc, 0.0f);
+		// in theory could be out of the water?
+		if (dataVal & WATERLOGGED_BIT) {
+			// output pickle top billboards, since we're in the water
+			outputPickleTop(boxIndex, swatchLoc, 0.0f);
+		}
 
 		identityMtx(mtx);
 		translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
@@ -7537,8 +7540,6 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			transformVertices(totalVertexCount, mtx);
 		}
-
-		// if waterlogged, we put up the tendrils - TODOTODO!
 
 		gUsingTransform = 0;
 		break; // saveBillboardOrGeometry
@@ -8580,7 +8581,6 @@ static FaceRecord * allocFaceRecordFromPool()
 
 static unsigned short getSignificantMaterial(int type, int dataVal)
 {
-    // TODOTODO for now, return all bits of data value.
     // Return only the "material-related" bits of the data value. That is, only those bits
     // that differentiate the various sub-materials. So, dirt has all low bits returned
     // (might as well account for future data values 0-15), ladders have none, since the
@@ -14383,8 +14383,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
     // outputting swatches
     if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES )
     {
-        // use a solid color - we could add carpet and stairs here, among others.
-        // TODOTODO: note that this is not fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
+        // use a solid color - TODO we could add carpet and stairs here, among others. Real low priority...
+        // note that this is not fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
         swatchLoc = type;
         switch ( type )
         {
@@ -20593,6 +20593,8 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	{
 		if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
 			radio = 2;
+		//else if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_IMAGES)	TODOTODO
+		//	radio = 4;
 		else if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)
 			radio = 3;
 		else
@@ -20602,6 +20604,15 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 		radio = 0;
 
 	sprintf_s(outputString, 256, "# File type: %s\n", outputTypeString[radio]);
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "# Texture output RGB: %s\n", gOptions->pEFD->chkTextureRGB ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "# Texture output A: %s\n", gOptions->pEFD->chkTextureA ? "YES" : "no");
+	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+
+	sprintf_s(outputString, 256, "# Texture output RGBA: %s\n", gOptions->pEFD->chkTextureRGBA ? "YES" : "no");
 	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
 	if ((gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
