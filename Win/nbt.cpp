@@ -982,14 +982,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 139,             13, "red_sandstone_wall", NO_PROP },
 { 0,  75,		HIGH_BIT, "jigsaw", OBSERVER_PROP },
 { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
-{ 0,  61,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
-{ 0,  61,	      BIT_32, "smoker", FURNACE_PROP },
-{ 0,  61,  BIT_32 | BIT_16, "blast_furnace", FURNACE_PROP },
+{ 0, BLOCK_FURNACE,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
+{ 0, BLOCK_FURNACE,	      BIT_32, "smoker", FURNACE_PROP },
+{ 0, BLOCK_FURNACE,BIT_32|BIT_16, "blast_furnace", FURNACE_PROP },
 { 0,  77,       HIGH_BIT, "barrel", BARREL_PROP },
 { 0,  78,       HIGH_BIT, "stonecutter", SWNE_FACING_PROP },	// use just the lower two bits instead of three for facing. S=0, etc.
-{ 0,  58,			   1, "cartography_table", NO_PROP },
-{ 0,  58,			   2, "fletching_table", NO_PROP },
-{ 0,  58,			   3, "smithing_table", NO_PROP },
+{ 0, BLOCK_CRAFTING_TABLE,	1, "cartography_table", NO_PROP },
+{ 0, BLOCK_CRAFTING_TABLE,	2, "fletching_table", NO_PROP },
+{ 0, BLOCK_CRAFTING_TABLE,	3, "smithing_table", NO_PROP },
 { 0,  79,       HIGH_BIT, "grindstone", GRINDSTONE_PROP }, // facing SWNE and face: floor|ceiling|wall
 { 0,  80,       HIGH_BIT, "lectern", LECTERN_PROP },
 { 0,  81,       HIGH_BIT, "bell", BELL_PROP },
@@ -1988,9 +1988,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore, doesn't affect rendering
 											else if (strcmp(token, "note") == 0) {}
 											else if (strcmp(token, "instrument") == 0) {}
-											else if (strcmp(token, "drag") == 0) {
-												token[0] = token[0];	// here for debug
-											}
+											else if (strcmp(token, "drag") == 0) {}
+											else if (strcmp(token, "has_record") == 0) {}	// jukebox
 											else {
 												// unknown property, let's show it: put a break here and
 												// put text in "Actions":
@@ -2012,7 +2011,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case SLAB_PROP:
 							// everything is fine if double is false
 							if (doubleSlab) {
-								// turn single slabs into double slabs
+								// turn single slabs into double slabs by using the type ID just before (it's traditional)
 								paletteBlockEntry[entry_index]--;
 							}
 							break;

@@ -828,8 +828,8 @@ def main():
     print("Setting up textures")
     #for every material
     for material in materials:
-        if (material.active_texture and len(material.active_texture.name)>=2 and material.active_texture.name[0:2]=="Kd"):
-            material_suffix = material.name[material.name.rfind("."):len(material.name)] # gets the .001 .002 .003 ... of the material
+# To work with Blender 2.80, this line needs to be commented out, according to Avatar2003
+#            material_suffix = material.name[material.name.rfind("."):len(material.name)] # gets the .001 .002 .003 ... of the material
             try:
                 int(material_suffix[1:])
             except:

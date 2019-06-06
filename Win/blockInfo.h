@@ -475,7 +475,7 @@ typedef struct Options {
 // this object is a 3D bit, and this bit is set if it can actually glue horizontal neighboring blocks together
 // - not really used. TODO - may want to use this to decide whether objects should be grouped together or whatever.
 #define BLF_3D_BIT_GLUE     0x100000
-// set if the block does not affect fluid height
+// set if the block does not affect fluid height. See https://minecraft.gamepedia.com/Waterlogging
 #define BLF_DNE_FLUID		0x200000
 // set if the block connects to redstone - do only if there's no orientation to the block, e.g. repeaters attach only on two sides, so don't have this flag
 #define BLF_CONNECTS_REDSTONE		0x400000
@@ -483,9 +483,9 @@ typedef struct Options {
 #define BLF_NONE			0x800000
 // is an offset tile, rendered separately: rails, vines, lily pad, redstone, ladder (someday, tripwire? TODO)
 #define BLF_OFFSET			0x1000000
-// is a billboard or similar that is always underwater, such as seagrass and kelp
+// is a billboard or similar that is always underwater, such as seagrass and kelp. See https://minecraft.gamepedia.com/Waterlogging
 #define BLF_WATERLOG		0x2000000
-// is a billboard or similar that may waterlog, such as coral fans; bit 0x100 is set if waterlogged
+// is a billboard or similar that may waterlog, such as coral fans; bit 0x100 is set if waterlogged. See https://minecraft.gamepedia.com/Waterlogging
 #define BLF_MAYWATERLOG		0x4000000
 // this object is a gate that attachs to fences if oriented properly - like BLF_FENCE_NEIGHBOR, but needs orientation to connect
 #define BLF_FENCE_GATE		0x8000000
@@ -593,7 +593,7 @@ enum block_types {
 	BLOCK_CRAFTING_TABLE = 58,
 	BLOCK_CROPS = 0x3b,
 	BLOCK_FARMLAND = 0x3c,
-	BLOCK_FURNACE = 0x3d,
+	BLOCK_FURNACE = 61,
 	BLOCK_BURNING_FURNACE = 0x3e,
 	BLOCK_SIGN_POST = 0x3f,
 	BLOCK_WOODEN_DOOR = 0x40,
@@ -705,7 +705,7 @@ enum block_types {
 	BLOCK_INVERTED_DAYLIGHT_SENSOR = 0xB2,
 	BLOCK_RED_SANDSTONE = 0xB3,
 	BLOCK_RED_SANDSTONE_STAIRS = 0xB4,
-	BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 0xB5,
+	BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 181,
 	BLOCK_RED_SANDSTONE_SLAB = 0xB6,
 	BLOCK_SPRUCE_FENCE_GATE = 0xB7,
 	BLOCK_BIRCH_FENCE_GATE = 0xB8,
