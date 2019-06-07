@@ -864,6 +864,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     gPrint3D = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
     gModel.pInputTerrainImage = NULL;
 
+
     // Billboards and true geometry to be output?
     // True only if we're exporting all geometry.
     // Must be set now, as this influences whether we stretch textures.
@@ -889,7 +890,6 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     wcharCleanse(gOutputFileRootClean);
     spacesToUnderlines(gOutputFileRootClean);
     WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
-
 
     // start exporting for real
 
@@ -8583,7 +8583,7 @@ static unsigned short getSignificantMaterial(int type, int dataVal)
 {
     // Return only the "material-related" bits of the data value. That is, only those bits
     // that differentiate the various sub-materials. So, dirt has all low bits returned
-    // (might as well account for future data values 0-15), ladders have none, since the
+    // (might as well account for future data values 0x3F - bit 0x40 is waterlogged, bit 0x80 is the extended object bit), ladders have none, since the
     // bits all affect orientation and not material itself.
 
     // special cases
@@ -8603,10 +8603,11 @@ static unsigned short getSignificantMaterial(int type, int dataVal)
         else if (dataVal == 15)
             dataVal = 10;
         break;
-    case BLOCK_HEAD:
-        // bits 654 are actually the head
-        dataVal = (dataVal >> 4) & 0x7;
-        break;
+	// not needed - is now part of the mask
+    //case BLOCK_HEAD:
+    //    // bits 654 are actually the head
+    //    dataVal = (dataVal >> 4) & 0x7;
+    //    break;
     }
     return (unsigned short)(gBlockDefinitions[type].subtype_mask & dataVal);
 }

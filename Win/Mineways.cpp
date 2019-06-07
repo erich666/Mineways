@@ -5431,6 +5431,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 
 	strPtr = findLineDataNoCase(line, "Texture output RGB:");
 	if (strPtr != NULL) {
+		// this next chunk could almost be a subroutine, but there's so much passed in and out, not worth it.
 		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
 		{
 			saveErrorMessage(is, L"could not find boolean value for Texture output RGB command."); return INTERPRETER_FOUND_ERROR;

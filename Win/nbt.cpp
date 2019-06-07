@@ -137,7 +137,7 @@ static int worldVersion = 0;
 #define MUSHROOM_PROP		  8
 #define MUSHROOM_STEM_PROP	  9
 // type: top|bottom|double
-// waterlogged: true|false - TODO?
+// waterlogged: true|false
 #define SLAB_PROP			 10
 // facing: north|east|south|west
 // lit: true|false - for redstone 
@@ -1046,6 +1046,50 @@ void makeHashTable()
 	for (i = 0; i < NUM_TRANS; i++) {
 		int index = BlockTranslations[i].hashSum & HASH_MASK;
 		HashLists[hashStart[index]++] = i;
+	}
+	// done once to initialize gBlockDefinitions[i].subtype_mask values properly
+	static bool determineMasks = true;
+	if (determineMasks)
+	{
+		determineMasks = false;
+		unsigned char mask_array[NUM_BLOCKS_DEFINED];
+		for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
+			mask_array[i] = 0x0;
+		}
+		// special case: flower pot uses high bit for which type of pot  - just set them all:
+		mask_array[BLOCK_FLOWER_POT] |= 0xFF;
+		for (i = 0; i < NUM_TRANS; i++)
+		{
+			// note bits used for different objects - high-bit is masked off.
+			mask_array[BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1] |= BlockTranslations[i].dataVal & 0x7F;
+		}
+		// really, these should all be set properly already, but might as well make sure...
+		for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
+			gBlockDefinitions[i].subtype_mask = mask_array[i];
+		}
+#ifdef _DEBUG
+		static int outputMasks = 0;	// set to 1 to output these masks to a file
+		if (outputMasks) {
+#ifdef WIN32
+			DWORD br;
+#endif
+			char outputString[MAX_PATH_AND_FILE];
+			static PORTAFILE outFile = PortaCreate(L"c:\\temp\\mineways_subtype_masks.txt");
+			if (outFile != INVALID_HANDLE_VALUE)
+			{
+				// write file
+				for (i = 0; i < NUM_BLOCKS_DEFINED; i++)
+				{
+					sprintf_s(outputString, 256, "%3d: 0x%02x\n", i, mask_array[i]);
+					if (PortaWrite(outFile, outputString, strlen(outputString))) {
+						// write error! Should really assert, but assert(0) is not defined in nbt.
+						return;
+					}
+				}
+				PortaClose(outFile);
+			}
+		}
+#endif
 	}
 }
 
