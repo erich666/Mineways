@@ -7470,78 +7470,91 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_SEA_PICKLE:						// saveBillboardOrGeometry
 		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		itemCount = (dataVal&0x3) + 1;
+		{
 
-		gUsingTransform = 1;
-		// sea pickle sizes, geometry and texture match
-		// 1,2,3,4
-		// 4x6, 4x4, 4x6, 4x7
+			gUsingTransform = 1;
+			// sea pickle sizes, geometry and texture match
+			// 1,2,3,4
+			// 4x6, 4x4, 4x6, 4x7
+			// TODO: the pickle textures are more or less right, but not really
 
-		totalVertexCount = gModel.vertexCount;
-
-		// make a pickle
-		// modify z
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
-		// set top
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-		// set bottom:
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-
-		// in theory could be out of the water?
-		if (dataVal & WATERLOGGED_BIT) {
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, 0.0f);
-		}
-
-		identityMtx(mtx);
-		translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
-
-		totalVertexCount = gModel.vertexCount - totalVertexCount;
-		transformVertices(totalVertexCount, mtx);
-
-		if (itemCount > 1) {
-			// pickle 2 - 4 high
 			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, -1.0f);
 
-			identityMtx(mtx);
-			translateMtx(mtx, 10.0f / 16.0f, -6.0f / 16.0f, -1.0f / 16.0f);
-			totalVertexCount = gModel.vertexCount - totalVertexCount;
-			transformVertices(totalVertexCount, mtx);
-		}
-		if (itemCount > 2) {
-			// pickle 3 - 6 high
-			totalVertexCount = gModel.vertexCount;
+			// make a pickle, 6 high
+			// modify z
 			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
+			// set top
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+			// set bottom:
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
+			// output pickle top billboards
 			outputPickleTop(boxIndex, swatchLoc, 0.0f);
 
 			identityMtx(mtx);
-			translateMtx(mtx, 2.0f / 16.0f, -5.0f / 16.0f, -1.0f / 16.0f);
+			float xShift = 2.0f;
+			float zShift = 6.0f;
+			switch (itemCount) {
+			case 1: xShift = 6.0f; zShift = 2.0f; break;
+			case 2: xShift = 9.0f; zShift = 5.0f; break;
+			case 3: xShift = 9.0f; zShift = 2.0f; break;
+			case 4: xShift = 2.0f; zShift = 6.0f; break;
+			}
+			translateMtx(mtx, xShift / 16.0f, -5.0f / 16.0f, zShift / 16.0f);
+
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			transformVertices(totalVertexCount, mtx);
-		}
-		if (itemCount > 3) {
-			// pickle 4 - 7 high
-			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
-			// output pickle top billboards, since we're in the water
-			outputPickleTop(boxIndex, swatchLoc, 0.0f);
 
-			identityMtx(mtx);
-			translateMtx(mtx, 8.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
-			totalVertexCount = gModel.vertexCount - totalVertexCount;
-			transformVertices(totalVertexCount, mtx);
-		}
+			if (itemCount > 1) {
+				// pickle 2 - 4 high
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+				outputPickleTop(boxIndex, swatchLoc, -1.0f);
 
-		gUsingTransform = 0;
+				identityMtx(mtx);
+				switch (itemCount) {
+				case 2: xShift = 4.0f; zShift = 0.0f; break;
+				case 3: xShift = 2.0f; zShift = 6.0f; break;
+				case 4: xShift = 10.0f; zShift = -1.0f; break;
+				}
+				translateMtx(mtx, xShift / 16.0f, -6.0f / 16.0f, zShift / 16.0f);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				transformVertices(totalVertexCount, mtx);
+			}
+			if (itemCount > 2) {
+				// pickle 3 - 6 high
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+				outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
+				identityMtx(mtx);
+				switch (itemCount) {
+				case 3: xShift = 4.0f; zShift = 0.0f; break;
+				case 4: xShift = 2.0f; zShift = -1.0f; break;
+				}
+				translateMtx(mtx, xShift / 16.0f, -5.0f / 16.0f, zShift / 16.0f);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				transformVertices(totalVertexCount, mtx);
+			}
+			if (itemCount > 3) {
+				// pickle 4 - 7 high
+				totalVertexCount = gModel.vertexCount;
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
+				outputPickleTop(boxIndex, swatchLoc, 0.0f);
+
+				identityMtx(mtx);
+				translateMtx(mtx, 8.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
+				totalVertexCount = gModel.vertexCount - totalVertexCount;
+				transformVertices(totalVertexCount, mtx);
+			}
+
+			gUsingTransform = 0;
+		}
 		break; // saveBillboardOrGeometry
 
 	case BLOCK_TURTLE_EGG:						// saveBillboardOrGeometry
@@ -7549,53 +7562,70 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		swatchLoc += ((dataVal >> 2) & 0x3);
 		itemCount = (dataVal & 0x3) + 1;
+		{
+			gUsingTransform = 1;
+			// egg sizes, 1,2,3,4
+			// geometry: 5x7, 4x5, 3x4, 4x4 (was 3x3 in 1.13)
+			// texture: 4x7, 4x5, 3x4, 4x4
+			// TODO: the egg textures are more or less right, but not really
 
-		gUsingTransform = 1;
-		// egg sizes, 1,2,3,4
-		// geometry: 5x7, 4x5, 3x4, 3x3
-		// texture: 4x7, 4x5, 3x4, 4x4
-		// TODO: note: for 3D printing we should make sure eggs don't touch, as they do when four eggs are present
+			// make an egg
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 4, 11, 0, 4);
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 5, 4, 11, 1, 5);
+			// for the high X and Z, we need to use (1-u) for x and z
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 4, 11, 11, 15);
 
-		// make an egg
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 4, 11, 0, 4);
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 5, 4, 11, 1, 5);
-		// for the high X and Z, we need to use (1-u) for x and z
-		saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 4, 11, 11, 15);
-
-		identityMtx(mtx);
-		// should really vary position by itemCount in X and Y, and should scale from 4 to 5 in size XZ - TODO
-		translateMtx(mtx, 6.0f / 16.0f, -4.0f / 16.0f, 3.0f / 16.0f);
-		transformVertices(8, mtx);
-
-		if (itemCount > 1) {
-			// egg 2 - 5 high
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 5, 10, 0, 4);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 5, 5, 10, 1, 5);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 5, 10, 11, 15);
 			identityMtx(mtx);
-			translateMtx(mtx, 1.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
+			float xShift = 6.0f;
+			float zShift = 3.0f;
+			switch (itemCount) {
+			case 1: xShift = 8.0f; zShift = 5.0f; break;
+			case 2: xShift = 4.0f; zShift = 7.0f; break;
+			case 3: xShift = 7.0f; zShift = 8.0f; break;
+			case 4: xShift = 5.0f; zShift = 4.0f; break;
+			}
+			translateMtx(mtx, xShift / 16.0f, -4.0f / 16.0f, zShift / 16.0f);
 			transformVertices(8, mtx);
-		}
-		if (itemCount > 2) {
-			// egg 3 - 4 high by 3
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 3, 5, 9, 0, 3);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 4, 5, 9, 1, 4);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 14, 5, 9, 11, 14);
-			identityMtx(mtx);
-			translateMtx(mtx, 11.0f / 16.0f, -5.0f / 16.0f, 6.0f / 16.0f);
-			transformVertices(8, mtx);
-		}
-		if (itemCount > 3) {
-			// egg 4 - 3 high by 3
-			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 1, 4, 12, 15, 1, 4);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 4, 1, 4, 1, 4);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 12, 15, 1, 4, 12, 15);
-			identityMtx(mtx);
-			translateMtx(mtx, 6.0f / 16.0f, -12.0f / 16.0f, 9.0f / 16.0f);
-			transformVertices(8, mtx);
-		}
 
-		gUsingTransform = 0;
+			if (itemCount > 1) {
+				// egg 2 - 5 high
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 6, 10, 5, 10, 7, 11);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 5, 5, 10, 1, 5);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 5, 10, 11, 15);
+				identityMtx(mtx);
+				switch (itemCount) {
+				case 2: xShift = 1.0f; zShift = 4.0f; break;
+				case 3: xShift = 5.0f; zShift = -2.0f; break;
+				case 4: xShift = -5.0f; zShift = 0.0f; break;
+				}
+				translateMtx(mtx, xShift / 16.0f, -5.0f / 16.0f, zShift / 16.0f);
+				transformVertices(8, mtx);
+			}
+			if (itemCount > 2) {
+				// egg 3 - 4 high by 3
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 3, 5, 9, 0, 3);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 4, 5, 9, 1, 4);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 14, 5, 9, 11, 14);
+				identityMtx(mtx);
+				switch (itemCount) {
+				case 3: xShift = 2.0f; zShift = 6.0f; break;
+				case 4: xShift = 11.0f; zShift = 7.0f; break;
+				}
+				translateMtx(mtx, xShift / 16.0f, -5.0f / 16.0f, zShift / 16.0f);
+				transformVertices(8, mtx);
+			}
+			if (itemCount > 3) {
+				// egg 4 - 4 high by 4
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 1, 5, 0, 4);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 4, 1, 5, 0, 4);
+				saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 1, 5, 11, 15);
+				identityMtx(mtx);
+				translateMtx(mtx, 6.0f / 16.0f, -1.0f / 16.0f, 9.0f / 16.0f);
+				transformVertices(8, mtx);
+			}
+
+			gUsingTransform = 0;
+		}
 		break; // saveBillboardOrGeometry
 
 	case BLOCK_BAMBOO:						// saveBillboardOrGeometry

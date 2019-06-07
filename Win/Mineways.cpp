@@ -346,7 +346,7 @@ static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel);
 static void updateStatus(int mx, int mz, int my, const char *blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void sendStatusMessage(HWND hwndStatus, wchar_t *buf);
 static void populateColorSchemes(HMENU menu);
-static void useCustomColor(int wmId,HWND hWnd);
+static void useCustomColor(int wmId,HWND hWnd, bool invalidate = true);
 static int findColorScheme(wchar_t* name);
 static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bool update );
 static void drawInvalidateUpdate(HWND hWnd);
@@ -409,7 +409,7 @@ static void rationalizeFilePath(wchar_t *fileName);
 static bool splitToPathAndName(wchar_t *pathAndName, wchar_t *path, wchar_t *name);
 static bool commandLoadWorld(ImportedSet & is, wchar_t *error);
 static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error);
-static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error);
+static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error, bool invalidate = true);
 static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, char *fileName);
 static bool openLogFile(ImportedSet & is);
 //static void logHandles();
@@ -2619,7 +2619,7 @@ static void populateColorSchemes(HMENU menu)
         id=cm.next(id,&cs);
     }
 }
-static void useCustomColor(int wmId,HWND hWnd)
+static void useCustomColor(int wmId,HWND hWnd, bool invalidate /*= true*/)
 {
     for (int i=0;i<numCustom;i++)
         CheckMenuItem(GetMenu(hWnd),IDM_CUSTOMCOLOR+i,MF_UNCHECKED);
@@ -2642,7 +2642,8 @@ static void useCustomColor(int wmId,HWND hWnd)
         wcscpy_s(cs.name, 255, L"Standard");
     }
     SetMapPalette(cs.colors,NUM_BLOCKS_CS);
-    drawInvalidateUpdate(hWnd);
+	if ( invalidate )
+		drawInvalidateUpdate(hWnd);
 
     // store away for our own use
     wcscpy_s(gSchemeSelected, 255, cs.name);
@@ -4309,7 +4310,8 @@ static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **
         // see if we can load the color scheme
         if (strlen(is.colorScheme) > 0)
         {
-            if (!commandLoadColorScheme(is, msgString)) {
+			// don't invalidate on load, as we know we'll do it later
+            if (!commandLoadColorScheme(is, msgString, false)) {
                 MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
             }
         }
@@ -7423,31 +7425,35 @@ static bool commandLoadTerrainFile(ImportedSet & is, wchar_t *error)
 }
 
 // true if it worked; false if there's an error, which is returned in *error.
-static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error)
+static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error, bool invalidate)
 {
     wchar_t backupColorScheme[255];
     wcscpy_s(backupColorScheme, 255, gSchemeSelected);
     size_t dummySize = 0;
     mbstowcs_s(&dummySize, gSchemeSelected, 255, is.colorScheme, 255);
-    int item = findColorScheme(gSchemeSelected);
-    if (item > 0)
-    {
-        useCustomColor(IDM_CUSTOMCOLOR + item, is.ws.hWnd);
-    }
-    else if (wcscmp(gSchemeSelected, L"Standard") == 0)
-    {
-        useCustomColor(IDM_CUSTOMCOLOR, is.ws.hWnd);
-    }
-    else
-    {
-        // warning - not found, so don't use it.
-        swprintf_s(error, 1024, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
+	// if the incoming scheme, now in gSchemeSelected, is different than backupColorScheme,
+	// then change the color scheme. Changing the color scheme is costly, as a full redraw is then needed.
+	if (wcscmp(gSchemeSelected, backupColorScheme) != 0) {
+		int item = findColorScheme(gSchemeSelected);
+		if (item > 0)
+		{
+			useCustomColor(IDM_CUSTOMCOLOR + item, is.ws.hWnd, invalidate);
+		}
+		else if (wcscmp(gSchemeSelected, L"Standard") == 0)
+		{
+			useCustomColor(IDM_CUSTOMCOLOR, is.ws.hWnd, invalidate);
+		}
+		else
+		{
+			// warning - not found, so don't use it.
+			swprintf_s(error, 1024, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
 
-        // restore old scheme
-        wcscpy_s(gSchemeSelected, 255, backupColorScheme);
-        findColorScheme(gSchemeSelected);
-        return false;
-    }
+			// restore old scheme
+			wcscpy_s(gSchemeSelected, 255, backupColorScheme);
+			findColorScheme(gSchemeSelected);
+			return false;
+		}
+	}
     return true;
 }
 
