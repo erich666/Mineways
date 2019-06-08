@@ -444,7 +444,7 @@ typedef struct Options {
 #define BLF_FLATTEN			0x0080
 // flat on a wall: sign, ladder, etc. - normally not shown on the map; to make something visible on map, use BLF_FLATTEN instead, which otherwise is identical
 #define BLF_FLATTEN_SMALL		0x0100
-// small, not as worth rendering, has geometry - normally not shown on the map
+// small, not as worth rendering (will disappear if not flattened, etc. when exporting for a 3D print), has geometry - normally not shown on the map
 #define BLF_SMALL_MIDDLER	0x0200
 // small thing: lever, flower - normally culled out
 #define BLF_SMALL_BILLBOARD	0x0400
@@ -577,8 +577,9 @@ enum block_types {
 	BLOCK_DANDELION = 0x25,
 	BLOCK_POPPY = 0x26,
 	BLOCK_BROWN_MUSHROOM = 0x27,
-	BLOCK_RED_MUSHROOM = 0x28,
-	BLOCK_BOOKSHELF = 0x2f,
+	BLOCK_RED_MUSHROOM = 40,
+	BLOCK_OF_GOLD = 41,
+	BLOCK_BOOKSHELF = 47,
 	BLOCK_WOOL = 0x23,
 	BLOCK_STONE_DOUBLE_SLAB = 0x2b,
 	BLOCK_STONE_SLAB = 0x2c,

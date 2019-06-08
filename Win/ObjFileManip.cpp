@@ -1873,7 +1873,19 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
             boxIndex = WORLD_TO_BOX_INDEX(x,worldBox->min[Y],z);
             chunkIndex = CHUNK_INDEX(bx,bz,x,worldBox->min[Y],z);
             for ( y = worldBox->min[Y]; y <= worldBox->max[Y]; y++, boxIndex++ ) {
-                blockID = block->grid[chunkIndex];
+				// fold in the high bit to get the type
+				bool isVersion13orNewer = (gModel.mcVersion >= 13);
+
+				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
+				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
+				if (isVersion13orNewer && (block->data[chunkIndex] & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+					// high bit set, so blockID >= 256
+					blockID = block->grid[chunkIndex] | 0x100;
+				}
+				else {
+					// normal case - just transfer the data
+					blockID = block->grid[chunkIndex];
+				}
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
@@ -2854,6 +2866,7 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DEAD_CORAL_WALL_FAN:
 	case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
 	case BLOCK_SWEET_BERRY_BUSH:
+	case BLOCK_CAMPFIRE:
 		gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
@@ -3221,16 +3234,6 @@ static int computeFlatFlags( int boxIndex )
     case BLOCK_REDSTONE_WIRE:						// computeFlatFlags
         computeRedstoneConnectivity(boxIndex);
         break;
-
-	case BLOCK_LANTERN:						// computeFlatFlags
-		if (gBoxData[boxIndex].data & 0x1) {
-			// hanging
-			gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
-		}
-		else {
-			gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
-		}
-		break;
 	
 	default:
         // something needs to be added to the cases above!
@@ -7810,7 +7813,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		}
 		break; // saveBillboardOrGeometry
 
-	case BLOCK_GRINDSTONE:
+	case BLOCK_GRINDSTONE: // saveBillboardOrGeometry
 		{
 			int face = (dataVal & 0xc) >> 2;	// floor/wall/ceiling
 			facing = dataVal & 0x3;
@@ -7886,9 +7889,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			gUsingTransform = 0;
 		}
-		break;
+		break; // saveBillboardOrGeometry
 
-	case BLOCK_LECTERN:
+	case BLOCK_LECTERN: // saveBillboardOrGeometry
 		{
 			facing = dataVal & 0x3;
 
@@ -7958,9 +7961,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			gUsingTransform = 0;
 		}
-		break;
+		break; // saveBillboardOrGeometry
 
-	case BLOCK_BELL:
+	case BLOCK_BELL: // saveBillboardOrGeometry
 		{
 			topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 			sideSwatchLoc = topSwatchLoc + 1;
@@ -7987,19 +7990,19 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			default:
 				assert(0);
 			case 0: // floor
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 2, 14, 13, 15, 7, 9);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 2, 14, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 2, 0, 16, 6, 10);
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 14, 16, 0, 16, 6, 10);
 				break;
 			case 1: // ceiling
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7, 9, 13, 16, 7, 9);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7, 9, 13, 16, 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
 			case 2: // single wall
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 3, 16, 13, 15, 7, 9);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 3, 16, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
 			case 3:	// double wall
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 16, 13, 15, 7, 9);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 16, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
 			}
 
@@ -8012,9 +8015,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 			gUsingTransform = 0;
 		}
-		break;
+		break; // saveBillboardOrGeometry
 
-	case BLOCK_LANTERN:
+	case BLOCK_LANTERN: // saveBillboardOrGeometry
 	{
 		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		int hanging = (dataVal & 0x1);
@@ -8083,9 +8086,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 		gUsingTransform = 0;
 	}
-	break;
+	break; // saveBillboardOrGeometry
 
-	case BLOCK_CAMPFIRE:
+	case BLOCK_CAMPFIRE: // saveBillboardOrGeometry
 	{
 		facing = dataVal & 0x3;
 		int lit = ((dataVal & 0x4) >> 2);
@@ -8159,7 +8162,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 		gUsingTransform = 0;
 	}
-	break;
+	break; // saveBillboardOrGeometry
 
 	case BLOCK_SCAFFOLDING:						// saveBillboardOrGeometry
 		{
@@ -10035,8 +10038,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		break;
 
 	case BLOCK_SWEET_BERRY_BUSH:				// saveBillboardFacesExtraData
-		// adjust for growth - swatchLoc is oldest one
-		swatchLoc += ((dataVal & 0x3) - 3);
+		// adjust for growth
+		swatchLoc += (dataVal & 0x3);
 		break;
 
 	default:
@@ -16399,6 +16402,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_PUMPKIN_STEM:
         case BLOCK_MELON_STEM:
 		case BLOCK_SEAGRASS:
+		case BLOCK_CAMPFIRE:
 			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
             break;
         case BLOCK_POPPY:						// getSwatch
@@ -17074,9 +17078,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
 			break;
 
-		case BLOCK_CORAL_BLOCK:
+		case BLOCK_CORAL_BLOCK:					// getSwatch
 		case BLOCK_DEAD_CORAL_BLOCK:
-			swatchLoc += dataVal;
+			swatchLoc += (dataVal & 0x7);
+			break;
+
+		case BLOCK_CORAL:						// getSwatch
+		case BLOCK_CORAL_FAN:
+		case BLOCK_DEAD_CORAL_FAN:
+		case BLOCK_CORAL_WALL_FAN:
+		case BLOCK_DEAD_CORAL_WALL_FAN:
+		case BLOCK_DEAD_CORAL:
+			swatchLoc += (dataVal&0x7);
+			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
 			break;
 
 		case BLOCK_DRIED_KELP:						// getSwatch
@@ -17087,7 +17101,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
 			break;
 
-		case BLOCK_ANDESITE_DOUBLE_SLAB:						// getSwatch
+		case BLOCK_SWEET_BERRY_BUSH:				// getSwatch
+			swatchLoc += (dataVal & 0x3);
+			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+			break;
+
+		case BLOCK_ANDESITE_DOUBLE_SLAB:				// getSwatch
 		case BLOCK_ANDESITE_SLAB:						// getSwatch
 			switch (dataVal & 0x7)
 			{
@@ -17230,8 +17249,18 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			if (uvIndices && angle != 0)
 				rotateIndices(localIndices, angle);
 			break;
-        case BLOCK_STONECUTTER:						// getSwatch
+		case BLOCK_GRINDSTONE:
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
+			break;
+		case BLOCK_STONECUTTER:						// getSwatch
 			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5, 41, 6, 41);
+			break;
+		case BLOCK_BELL:
+			// use gold - why not?
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OF_GOLD].txrX, gBlockDefinitions[BLOCK_OF_GOLD].txrY);
+			break;
+		case BLOCK_SCAFFOLDING:
+			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 106, 40);
 			break;
 		}
 	}
