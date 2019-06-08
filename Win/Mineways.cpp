@@ -5505,11 +5505,15 @@ static int interpretImportLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
+	strPtr = findLineDataNoCase(line, "Split materials into subtypes:");
+	if (strPtr == NULL) {
+		// new, somewhat less confusing name, as of 7.0
+		strPtr = findLineDataNoCase(line, "Split by block type:");
+	}
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Split materials into subtypes command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for Split by block type command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -5597,19 +5601,6 @@ static int interpretImportLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
-    if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
-        {
-            saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
-        }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-        if (is.processData)
-            is.pEFD->chkLeavesSolid = interpretBoolean(string1);
-        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-    }
-
     strPtr = findLineDataNoCase(line, "Create block faces at the borders:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
@@ -5623,7 +5614,20 @@ static int interpretImportLine(char *line, ImportedSet & is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Use biomes:");
+	strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
+	if (strPtr != NULL) {
+		if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+		{
+			saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
+		}
+		if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+		if (is.processData)
+			is.pEFD->chkLeavesSolid = interpretBoolean(string1);
+		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+	}
+
+	strPtr = findLineDataNoCase(line, "Use biomes:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {

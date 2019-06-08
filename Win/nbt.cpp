@@ -1731,7 +1731,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										// common property
 										else if (strcmp(token, "waterlogged") == 0) {
 											waterlogged = (strcmp(value, "true") == 0) ? true : false;
-											// TODOTODO - https://minecraft.gamepedia.com/Waterlogging - could be a giant pain to do fully...
 										}
 										// SNOW_PROP
 										else if (strcmp(token, "layers") == 0) {

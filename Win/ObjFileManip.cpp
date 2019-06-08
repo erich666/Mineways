@@ -2133,10 +2133,8 @@ static void editBlock( int x, int y, int z, int editMode )
 		// don't clear data field, since origType is still intact
 		break;
     case EDIT_MODE_CLEAR_ALL:
-		// TODOTODO: So, time for some crazy. We can use the 7 bits (maybe even 8) to say if
-		// this neighboring "air" connects with a fence neighbor, fence, nether fence, wall, glass pane, stairs, chorus plant, piston, NS fence gate, EW fence gate
 		gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
-		//gBoxData[boxIndex].data = gBoxData[boxIndex].type & 0x7f;
+		gBoxData[boxIndex].data = 0x0f;
 		break;
     case EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES:
         // if type is an entrance, clear it fully: done so seed propagation along borders happens properly
@@ -20779,11 +20777,12 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 
 		if (gOptions->pEFD->chkMultipleObjects || gOptions->pEFD->chkIndividualBlocks)
 		{
-			sprintf_s(outputString, 256, "#  Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no");
+			sprintf_s(outputString, 256, "#   Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no");
 			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		}
 
-		sprintf_s(outputString, 256, "#   Split materials into subtypes: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
+		// was, pre-7.0, "Split materials into subtypes"
+		sprintf_s(outputString, 256, "#   Split by block type: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
 		sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");

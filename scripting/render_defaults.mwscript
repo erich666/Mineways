@@ -9,11 +9,11 @@
 // you to revise (or ignore) as you wish.
 
 //=============================================================================================
-//// Wavefront OBJ file made by Mineways version 4.18, http://mineways.com
-//Minecraft world: Voxelia_2016-01-13    // or whatever your world is
-Terrain file name: terrainExt.png      // it's usually wiser to give the full path here
+//// Wavefront OBJ file made by Mineways version 7.00, http://mineways.com
+Minecraft world: 1.14 test new blocks   // or whatever your world is
+Terrain file name: terrainExt.png      // it's usually wiser to give the full path here; "default" uses the built-in terrain
 Color scheme: Standard
-//// Sun Jun 05 08:32:21 2016
+//// Sat Jun  8 12:05:21 2019
 
 Selection location min to max: -97, 71, -26 to -76, 255, -5     // or whatever your volume is
 ////  Non-empty selection location min to max: -97, 71, -26 to -76, 97, -5
@@ -21,27 +21,35 @@ Selection location min to max: -97, 71, -26 to -76, 255, -5     // or whatever y
 Set render type: Wavefront OBJ absolute indices
 Units for the model vertex data itself: meters
 
-//// 6249 vertices, 4998 faces (9996 triangles), 2732 blocks, 245 billboards/bits
-//// block dimensions: X=22 by Y=28 (height) by Z=22 blocks
+//// 917 vertices, 535 faces (1070 triangles), 466 blocks, 104 billboards/bits
+//// block dimensions: X=28 by Y=4 (height) by Z=8 blocks
 File type: Export full color texture patterns
+Texture output RGB: YES
+Texture output A: YES
+Texture output RGBA: YES
 Export separate objects: YES
 Individual blocks: no
- Material per object: YES
-  G3D full material: no
+  Material per object: YES
+  Split by block type: no
+G3D full material: no
 Make Z the up direction instead of Y: no
+Create composite overlay faces: no
 Center model: YES
 Export lesser blocks: YES
 Fatten lesser blocks: no
-Make tree leaves solid: no
 Create block faces at the borders: YES
+Make tree leaves solid: no
 Use biomes: no
 Rotate model 0.000000 degrees
-Scale model by making each block 100 mm high
+Scale model by making each block 1000 mm high
 //// Data operation options:
   Fill air bubbles: no; Seal off entrances: no; Fill in isolated tunnels in base of model: no
   Connect parts sharing an edge: no; Connect corner tips: no; Weld all shared edges: no
   Delete floating objects: trees and parts smaller than 16 blocks: no
-  Hollow out bottom of model, making the walls 10 mm thick: no; Superhollow: no
+  Hollow out bottom of model, making the walls 1000 mm thick: no; Superhollow: no
 Melt snow blocks: no
   Debug: show separate parts as colors: no
   Debug: show weld blocks in bright colors: no
+//// Full world path: C:\Users\erich\AppData\Roaming\.minecraft\saves\1.14 test new blocks
+//// Full terrainExt.png path: default
+//// Full current path: C:\Users\erich\Documents\_Documents\Github\Mineways\Win
