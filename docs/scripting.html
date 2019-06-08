@@ -293,6 +293,9 @@ Typically used for 3D printing export. See <a href="http://www.realtimerendering
 
 <tr>
 <td>
+Texture output RGB: <i>YES</i><br>
+Texture output A: <i>YES</i><br>
+Texture output RGBA: <i>YES</i><br>
 Export separate objects: <i>YES</i><br>
 Individual blocks: <i>no</i><br>
 Material per object: <i>YES</i><br>
@@ -782,7 +785,7 @@ Specify the X and Y resolution in pixels of the startup window. Values must be p
 Specify the directory where all your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
 <P>
 -l <i>mineways_exec.log</i><br>
-For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
+For debugging startup problems; you'll normally never use this. This option saves a log of startup and commands executed. The file mineways_debug_log.bat runs Mineways in this way.
 <P>
 Here are a few examples:
 <P>
@@ -863,6 +866,9 @@ Units for the model vertex data itself: meters<br>
 // 6249 vertices, 4998 faces (9996 triangles), 2732 blocks, 245 billboards/bits<br>
 // block dimensions: X=22 by Y=28 (height) by Z=22 blocks<br>
 File type: Export full color texture patterns<br>
+Texture output RGB: YES<br>
+Texture output A: YES<br>
+Texture output RGBA: YES<br>
 Export separate objects: YES<br>
 Individual blocks: no<br>
  Material per object: YES<br>
@@ -934,7 +940,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/18/2019</p>
+		<p id="lastUpdate">Last updated 6/6/2019</p>
 	</div>
 </div>
 
