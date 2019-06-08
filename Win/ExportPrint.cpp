@@ -130,8 +130,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
                 CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, epd.chkMultipleObjects);
                 CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
                 // if neither of the two above are checked, this one's indeterminate
-                CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, (epd.chkMultipleObjects || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerType : BST_INDETERMINATE);
-                CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, epd.chkMaterialSubtypes);
+				CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, (epd.chkMultipleObjects || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerType : BST_INDETERMINATE);
+				CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, (epd.chkMultipleObjects || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialSubtypes : BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkG3DMaterial);
             }
             else
@@ -488,20 +488,24 @@ ChangeMaterial:
             if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
             {
                 // if it was checked, then it goes to indeterminate, but that really means "go to unchecked"
-                if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE)
-                {
-                    // go from the indeterminate tristate to unchecked - indeterminate is not selectable
-                    CheckDlgButton(hDlg,IDC_MULTIPLE_OBJECTS,BST_UNCHECKED);
-                    // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
-                    // AND individual blocks is unchecked.
-                    if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) != BST_CHECKED)
-                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
-                }
+				if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) == BST_INDETERMINATE)
+				{
+					// uncheck the box
+					// go from the indeterminate tristate to unchecked - indeterminate is not selectable
+					CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, BST_UNCHECKED);
+					// now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
+					// AND individual blocks is unchecked.
+					if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) != BST_CHECKED) {
+						CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+						CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, BST_INDETERMINATE);
+					}
+				}
                 else
                 {
-                    // checked
-                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_UNCHECKED);
-                    if (epd.flags & EXPT_3DPRINT)
+                    // check the box and set up state otherwise
+					CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_CHECKED);
+					CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, BST_UNCHECKED);
+					if (epd.flags & EXPT_3DPRINT)
                     {
                         // for 3D printing we never allow individual blocks.
                         CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
@@ -531,18 +535,22 @@ ChangeMaterial:
                 {
                     if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE)
                     {
+						// uncheck the box
                         // go from the indeterminate tristate to unchecked - indeterminate is not selectable
                         CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
                         // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
                         // AND individual blocks is unchecked.
-                        if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) != BST_CHECKED)
-                            CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+						if (IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) != BST_CHECKED) {
+							CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_INDETERMINATE);
+							CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, BST_INDETERMINATE);
+						}
                     }
                     else
                     {
                         // checked, so the box below becomes active
-                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_UNCHECKED);
-                        // turn off multiple types unless the user really really wants it
+						CheckDlgButton(hDlg, IDC_MATERIAL_PER_TYPE, BST_CHECKED);
+						CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, BST_CHECKED);
+						// turn off multiple types unless the user really really wants it
                         // and turns it back on.
                         CheckDlgButton(hDlg, IDC_MULTIPLE_OBJECTS, BST_UNCHECKED);
                     }
@@ -569,8 +577,8 @@ ChangeMaterial:
             }
             break;
         case IDC_MATERIAL_SUBTYPES:
-            if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
-            {
+			if ((IsDlgButtonChecked(hDlg, IDC_MULTIPLE_OBJECTS) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
+			{
                 if (IsDlgButtonChecked(hDlg, IDC_MATERIAL_SUBTYPES) == BST_INDETERMINATE)
                 {
                     CheckDlgButton(hDlg, IDC_MATERIAL_SUBTYPES, BST_UNCHECKED);

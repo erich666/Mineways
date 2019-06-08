@@ -99,7 +99,7 @@ TCHAR *gWorlds[MAX_WORLDS];							// number of worlds in initial world list
 int gNumWorlds = 0;
 
 static Options gOptions = {0,   // which world is visible
-    BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP | BLF_FLATSIDE,   // what's exportable (really, set on output)
+    BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL,   // what's exportable (really, set on output)
     0x0,
     0,  // start with low memory
     INITIAL_CACHE_SIZE,	// cache size
@@ -1080,7 +1080,7 @@ RButtonDown:
         if ( my >= 0 && my <= MAP_MAX_HEIGHT )
         {
             // special test: if type is a flattop, then select the location one lower for export
-            if ( (gBlockDefinitions[type].flags&BLF_FLATTOP) && (my>0) )
+            if ( (gBlockDefinitions[type].flags&BLF_FLATTEN) && (my>0) )
             {
                 my--;
             }
@@ -1823,7 +1823,7 @@ RButtonUp:
 						ofn.nMaxFile = MAX_PATH_AND_FILE;
 						ofn.lpstrFilter = savePrintModelSleaze ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
 							L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1: gExportViewData.fileType + 1);
+						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
 						ofn.lpstrFileTitle = NULL;
 						ofn.nMaxFileTitle = 0;
 						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
@@ -1846,29 +1846,34 @@ RButtonUp:
 					}
 					gPrintModel = savePrintModelSleaze;
 				}
-                if ( saveOK )
-                {
-                    // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
-                    gExported=0;
-                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
+				if (saveOK)
+				{
+					// if we got this far, then previous export is off, and we also want to ask for export dialog itself.
+					gExported = 0;
+					wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
 
-            case IDM_FILE_REPEATPREVIOUSEXPORT:
-                gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported==0), gShowPrintStats);
+			case IDM_FILE_REPEATPREVIOUSEXPORT:
+			{
+					int saveRepeatModelSleaze = gPrintModel;
+					// again, somehow this trashes gPrintModel! Weirdness...
+					gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+					gPrintModel = saveRepeatModelSleaze;
 
-                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal );
-                enableBottomControl( 1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel );
-                // put target depth to new depth set, if any
-                if ( gTargetDepth != gpEFD->maxyVal )
-                {
-                    gTargetDepth = gpEFD->minyVal;
-                }
-                gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,
-                    bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-                updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);
-                setSlider( hWnd, hwndSlider, hwndLabel, gCurDepth, false );
-                setSlider( hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true );
-                }   // matches to "if ( saveOK )"
-            }
+					SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+					enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+					// put target depth to new depth set, if any
+					if (gTargetDepth != gpEFD->maxyVal)
+					{
+						gTargetDepth = gpEFD->minyVal;
+					}
+					gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+						bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+					updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+					setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+				}   // matches to "if ( saveOK )"
+				}
+			}
             break;
         case IDM_PUBLISH_SKFB:
 #ifdef SKETCHFAB
@@ -3420,8 +3425,8 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
 static int setSketchfabExportSettings()
 {
     // export all ellements for Skfb
-    gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
-        BLF_FLATSIDE | BLF_3D_BIT;
+    gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |
+        BLF_FLATTEN_SMALL | BLF_3D_BIT;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
     gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
@@ -3704,19 +3709,19 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         if ( printModel == 1 )
         {
             // 3d printing
-            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
-                BLF_FLATSIDE | BLF_3D_BIT;
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |
+                BLF_FLATTEN_SMALL | BLF_3D_BIT;
         }
         else
         {
             // rendering or schematic
-            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |
-                BLF_FLATSIDE | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
+            gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |
+                BLF_FLATTEN_SMALL | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
         }
     }
     else
     {
-        gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP | BLF_FLATSIDE;
+        gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL;
     }
 
     // export options

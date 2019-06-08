@@ -441,9 +441,9 @@ typedef struct Options {
 // billboard flat through middle, usually transparent (portal, glass pane)
 #define BLF_PANE			0x0040
 // sits on top of a block below it
-#define BLF_FLATTOP			0x0080
-// flat on a wall: sign, ladder, etc. - normally not shown on the map
-#define BLF_FLATSIDE		0x0100
+#define BLF_FLATTEN			0x0080
+// flat on a wall: sign, ladder, etc. - normally not shown on the map; to make something visible on map, use BLF_FLATTEN instead, which otherwise is identical
+#define BLF_FLATTEN_SMALL		0x0100
 // small, not as worth rendering, has geometry - normally not shown on the map
 #define BLF_SMALL_MIDDLER	0x0200
 // small thing: lever, flower - normally culled out
@@ -494,7 +494,7 @@ typedef struct Options {
 // this object is a fence that attachs to fences if of the right type - like BLF_FENCE_NEIGHBOR, but needs for types (nether, wood) to match to connect
 #define BLF_FENCE			0x10000000
 
-#define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTOP|BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
+#define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTEN|BLF_FLATTEN_SMALL|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 
 // IMPORTANT: note that *every* module that includes this data structure has
 // *their own copy*. So ColorSchemes has its own master copy (which it never

@@ -1058,6 +1058,8 @@ void makeHashTable()
 		}
 		// special case: flower pot uses high bit for which type of pot  - just set them all:
 		mask_array[BLOCK_FLOWER_POT] |= 0xFF;
+		// special case: redstone wire is given 16 levels of output when separated by material
+		mask_array[BLOCK_REDSTONE_WIRE] |= 0x0F;
 		for (i = 0; i < NUM_TRANS; i++)
 		{
 			// note bits used for different objects - high-bit is masked off.
@@ -2382,7 +2384,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case FAN_PROP:
 							// low 3 bits are the subtype
 							// fourth bit unused
-							// 2 bits facing for the fan: NESW
+							// 2 bits 56 facing for the fan: NESW
 							// next bit waterlogged (done below)
 							dataVal = ((door_facing + 3) % 4) << 4;
 							break;
@@ -2459,10 +2461,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 
 			// tile entity (aka block entity) found, parse it - get number of sections that follow
 			nsections = readDword(pbf);
-
-			// hack - don't really want to include blockInfo.h down here.
-#define BLOCK_HEAD			0x90
-#define BLOCK_FLOWER_POT	0x8C
 
 			int numSaved = 0;
 

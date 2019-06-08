@@ -1950,7 +1950,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 
     int useBiomes = ( gOptions->exportFlags & EXPT_BIOME );
 
-	bool is13 = (gModel.mcVersion >= 13);
+	bool isVersion13orNewer = (gModel.mcVersion >= 13);
 
     for ( x = loopXmin; x <= loopXmax; x++ ) {
         for ( z = loopZmin; z <= loopZmax; z++ ) {
@@ -1966,9 +1966,9 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
             for ( y = edgeWorldBox->min[Y]; y <= edgeWorldBox->max[Y]; y++, boxIndex++ ) {
                 // Get the extra values (orientation, type) for the blocks
                 unsigned char dataVal = block->data[chunkIndex];
-				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13 block of some sort,
+				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
 				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-				if (is13 && (dataVal & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+				if (isVersion13orNewer && (dataVal & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
 					gBoxData[boxIndex].data = dataVal & 0x7F;
 					blockID = gBoxData[boxIndex].origType =
 						gBoxData[boxIndex].type = block->grid[chunkIndex] | 0x100;
@@ -2117,13 +2117,14 @@ static void editBlock( int x, int y, int z, int editMode )
     {
     case EDIT_MODE_CLEAR_TYPE:
 		gBoxData[boxIndex].type = BLOCK_AIR;
+		// don't clear data field, since origType is still intact
 		break;
     case EDIT_MODE_CLEAR_ALL:
-        gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
-        // just to be safe, probably not necessary, but do it anyway:
-        // (one of the very few places where we clear the data field
-        gBoxData[boxIndex].data = 0x0;
-        break;
+		// TODOTODO: So, time for some crazy. We can use the 7 bits (maybe even 8) to say if
+		// this neighboring "air" connects with a fence neighbor, fence, nether fence, wall, glass pane, stairs, chorus plant, piston, NS fence gate, EW fence gate
+		gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
+		//gBoxData[boxIndex].data = gBoxData[boxIndex].type & 0x7f;
+		break;
     case EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES:
         // if type is an entrance, clear it fully: done so seed propagation along borders happens properly
         if ( gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE )
@@ -2131,7 +2132,8 @@ static void editBlock( int x, int y, int z, int editMode )
             gBoxData[boxIndex].origType = BLOCK_AIR;
         }
         gBoxData[boxIndex].type = BLOCK_AIR;
-        break;
+		// don't clear data field, since origType may still be intact
+		break;
     default:
         assert(0);
         break;
@@ -2167,10 +2169,10 @@ static int filterBox(ChangeBlockCommand *pCBC)
 
                     // check if it's something to be filtered out: not in the output list or alpha is 0
                     if (!(flags & gOptions->saveFilterFlags) ||
-gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0) {
-// things that should not be saved should be gone, gone, gone, no trace left
-gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
-gBoxData[boxIndex].data = 0x0;
+							gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0) {
+						// things that should not be saved should be gone, gone, gone, no trace left
+						gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
+						gBoxData[boxIndex].data = 0x0;
 					}
 				}
 			}
@@ -2270,7 +2272,7 @@ gBoxData[boxIndex].data = 0x0;
 							// and also test if it's a billboard or flattenable thing.
 							// TODO: Should any blocks that are bits get used to note connected objects,
 							// so that floaters are not deleted? Probably... but we don't try to test.
-							if ((flags & outputFlags) && (flags & (BLF_BILLBOARD | BLF_SMALL_BILLBOARD | BLF_FLATTOP | BLF_FLATSIDE)))
+							if ((flags & outputFlags) && (flags & (BLF_BILLBOARD | BLF_SMALL_BILLBOARD | BLF_FLATTEN | BLF_FLATTEN_SMALL)))
 							{
 								// tricksy code: if the return value > 1, then it's an error
 								// and should be treated as such.
@@ -2299,7 +2301,7 @@ gBoxData[boxIndex].data = 0x0;
                         }
 
                         // not filtered out by the basics or billboard, so try to flatten
-                        if (!blockProcessed && flatten && (flags & (BLF_FLATTOP | BLF_FLATSIDE)))
+                        if (!blockProcessed && flatten && (flags & (BLF_FLATTEN | BLF_FLATTEN_SMALL)))
                         {
                             // this block is redstone, a rail, a ladder, etc. - shove its face to the top of the next cell down,
                             // or to its neighbor, or both (depends on dataval),
@@ -2813,42 +2815,6 @@ static int computeFlatFlags( int boxIndex )
 
     switch ( gBoxData[boxIndex].type )
     {
-        // easy ones: flattops
-    case BLOCK_RAIL:						// computeFlatFlags
-        if ( gBoxData[boxIndex].data >= 6 )
-        {
-            // curved rail bit, it's always just flat
-            gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
-            break;
-        }
-        // NOTE: if curve test failed, needed only for basic rails, continue on through tilted track tests
-        // SO - don't dare put a break here, we need to flow through, to avoid repeating all this code
-    case BLOCK_POWERED_RAIL:						// computeFlatFlags
-    case BLOCK_DETECTOR_RAIL:
-    case BLOCK_ACTIVATOR_RAIL:
-        // only pay attention to sloped rails, as these mark sides;
-        // remove top bit, as that's whether it's powered
-        switch ( gBoxData[boxIndex].data & 0x7 )
-        {
-        case 2: // east, +X
-            gBoxData[boxIndex+gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
-            break;
-        case 3:
-            gBoxData[boxIndex-gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
-            break;
-        case 4:
-            gBoxData[boxIndex-gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
-            break;
-        case 5:
-            gBoxData[boxIndex+gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
-            break;
-        default:
-            // don't do anything, this rail is not sloped; continue on down to mark top face
-            break;
-        }
-        gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
-        break;
-
         // the block below this one, if solid, gets marked
     case BLOCK_STONE_PRESSURE_PLATE:						// computeFlatFlags
     case BLOCK_WOODEN_PRESSURE_PLATE:
@@ -2887,10 +2853,47 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_CORAL_WALL_FAN:
 	case BLOCK_DEAD_CORAL_WALL_FAN:
 	case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
+	case BLOCK_SWEET_BERRY_BUSH:
 		gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
-    case BLOCK_TORCH:						// computeFlatFlags
+		// easy ones: flattops
+	case BLOCK_RAIL:						// computeFlatFlags
+		if (gBoxData[boxIndex].data >= 6)
+		{
+			// curved rail bit, it's always just flat
+			gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+			break;
+		}
+		// NOTE: if curve test failed, needed only for basic rails, continue on through tilted track tests
+		// SO - don't dare put a break here, we need to flow through, to avoid repeating all this code
+	case BLOCK_POWERED_RAIL:						// computeFlatFlags
+	case BLOCK_DETECTOR_RAIL:
+	case BLOCK_ACTIVATOR_RAIL:
+		// only pay attention to sloped rails, as these mark sides;
+		// remove top bit, as that's whether it's powered
+		switch (gBoxData[boxIndex].data & 0x7)
+		{
+		case 2: // east, +X
+			gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+			break;
+		case 3:
+			gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+			break;
+		case 4:
+			gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+			break;
+		case 5:
+			gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+			break;
+		default:
+			// don't do anything, this rail is not sloped; continue on down to mark top face
+			break;
+		}
+		gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+		break;
+
+	case BLOCK_TORCH:						// computeFlatFlags
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
         switch ( gBoxData[boxIndex].data )
@@ -3219,7 +3222,17 @@ static int computeFlatFlags( int boxIndex )
         computeRedstoneConnectivity(boxIndex);
         break;
 
-    default:
+	case BLOCK_LANTERN:						// computeFlatFlags
+		if (gBoxData[boxIndex].data & 0x1) {
+			// hanging
+			gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+		}
+		else {
+			gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
+		}
+		break;
+	
+	default:
         // something needs to be added to the cases above!
         assert(0);
         return 0;

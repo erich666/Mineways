@@ -2408,8 +2408,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
     //depthshading= !useBiome && useElevation;
     depthshading= useElevation;
     lighting=!!(pOpts->worldType&LIGHTING);
-    viewFilterFlags= BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTOP |   // what's visible
-        (showAll?(BLF_FLATSIDE|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
+    viewFilterFlags= BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |   // what's visible
+        (showAll?(BLF_FLATTEN_SMALL|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD):0x0);
 
     block=(WorldBlock *)Cache_Find(bx,bz);
 
@@ -3194,12 +3194,11 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	// TODO: fan in different directions
 	case BLOCK_CORAL_WALL_FAN:
 	case BLOCK_DEAD_CORAL_WALL_FAN:
-		// uses 0-14
-		if (dataVal < 15)
+		// uses 0-15
 		{
-			int coralVal = dataVal % 5;
-			int rotVal = (dataVal - coralVal) / 5;
-			finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 5));
+			int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
+			int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
+			finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
 			addBlock = 1;
 			// add attached block
 			switch (rotVal)
