@@ -793,7 +793,8 @@ static double myrand();
 
 static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion);
 
-static double lib_rand(long iseed);
+static void seedWithXYZ(int boxIndex);
+static void seedWithXZ(int boxIndex);
 
 static wchar_t gSeparator[3];
 
@@ -3452,14 +3453,11 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 // everything else (mushrooms, crops, stems, carrots, potatoes, beetroot, nether wart, kelp) do not
 static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ)
 {
-	int x, z;
-	BOX_INDEX_TO_WORLD_XZ(boxIndex, x, z);
-	double val = lib_rand(((x % 500) * 500 + (z % 500) + 300718) % 300718);
-	// get two random numbers from one, by splitting off the top and bottom half of the digits, sqrt(300,000) == 500 for precision
-	double val1 = fmod(val * 500, 1);
-	val -= val1 / 500;
+	seedWithXZ(boxIndex);
+	float val = (float)rand() / (RAND_MAX + 1);
 	shiftX = (float)(6 * val - 3);
-	shiftZ = (float)(6 * val1 - 3);
+	val = (float)rand() / (RAND_MAX + 1);
+	shiftZ = (float)(6 * val - 3);
 }
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide)
@@ -4025,39 +4023,119 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_PLANT:						// saveBillboardOrGeometry
-        // 6 sides, no interior
-        // TODO: someday figure out the hashing algorithm or whatever that makes some of
-        // these blocks different - some are smooth, some are lumpier on one or two side.
-        // The dataVal does not do it.
+		{
+			// 6 sides, no interior
+			// for each neighbor, decide whether to extend the side (and so not put the face).
 
-        // for each neighbor, decide whether to extend the side (and so not put the face).
+			// top
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_TOP]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
+			//tricky: when extended, cap it only if 3D printing and the neighbor is NOT the same type; i.e. we want caps when it's a flower or end stone.
+			//in other words, we remove face if not 3D printing and newHeight is 16, OR if neighbor == type.
+			//Really, I'm doing too much with one line, but so be it - write-only code it is!
+			saveBoxGeometry(boxIndex, type, dataVal, 1, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_TOP_BIT : 0x0) | DIR_BOTTOM_BIT, 4, 12, 12, newHeight, 4, 12);
 
-        // top
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_TOP]].origType;
-        newHeight = ( (type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType) ) ? 16.0f : 13.0f;
-        //tricky: when extended, cap it only if 3D printing and the neighbor is NOT the same type; i.e. we want caps when it's a flower or end stone.
-        //in other words, we remove face if not 3D printing and newHeight is 16, OR if neighbor == type.
-        //Really, I'm doing too much with one line, but so be it - write-only code it is!
-        saveBoxGeometry(boxIndex, type, dataVal, 1, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_TOP_BIT : 0x0) | DIR_BOTTOM_BIT, 4, 12, 12, newHeight, 4, 12);
+			// bottom
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_BOTTOM]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType) || (BLOCK_END_STONE == neighborType)) ? 0.0f : 3.0f;
+			saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_BOTTOM_BIT : 0x0) | DIR_TOP_BIT, 4, 12, newHeight, 4, 4, 12);
 
-        // bottom
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_BOTTOM]].origType;
-        newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType) || (BLOCK_END_STONE == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_BOTTOM_BIT : 0x0) | DIR_TOP_BIT, 4, 12, newHeight, 4, 4, 12);
+			// side panels:
+			// if adjacent to chorus plant or flower, certainly extend.
+			// else extend randomly, based on random value: 50/50 there's a growth or not, and 50/50 the growth is a 6x6/8x8
+			seedWithXYZ(boxIndex);
+			int odds = rand()%256;
+			// if all bump out bits are on (no bumps) or all are off (four bumps), get another value
+			while (((odds & 0x55) == 0x55) || ((odds & 0x55) == 0x0) ) {
+				odds = rand() % 256;
+			}
 
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-        newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_X_BIT : 0x0) | DIR_HI_X_BIT, newHeight, 4, 4, 12, 4, 12);
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-        newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_X_BIT : 0x0) | DIR_LO_X_BIT, 12, newHeight, 4, 12, 4, 12);
+			// Lo X
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
+			// four cases:
+			// connected to neighbor, always the same
+			// not connected, no bump out
+			// not connected, 6x6 bump out
+			// not connected, 8x8 bump out
+			// not connected to neighbor? 0.0 new height means connected to neighbor
+			if (newHeight == 3.0f) {
+				newHeight = (odds & 0x1) ? 4.0f : ((odds & 0x2) ? 3.0f : 2.0f);
+			}
+			float newWidth = (newHeight == 2.0f) ? 1.0f : 0.0f;
+			if (newWidth != 0.0f) {
+				saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_HI_X_BIT, newHeight, 4, 4 + newWidth, 12 - newWidth, 4 + newWidth, 12 - newWidth);
+				// set so that 8x8 is put beneath 6x6 - so confusing, but less code...
+				newHeight = 4.0f;
+			}
+			// add 8x8 - if height is 4.0, then don't add side faces
+			saveBoxGeometry(boxIndex, type, dataVal, 0,
+				(((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_X_BIT : 0x0) | DIR_HI_X_BIT |
+				((newHeight == 4) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT) : 0x0),	// don't create sides if a 6x6 is generated
+				newHeight, 4, 4, 12, 4, 12);
 
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-        newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_Z_BIT : 0x0) | DIR_HI_Z_BIT, 4, 12, 4, 12, newHeight, 4);
-        neighborType = gBoxData[boxIndex+gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-        newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_Z_BIT : 0x0) | DIR_LO_Z_BIT, 4, 12, 4, 12, 12, newHeight);
+			// Hi X
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
+			if (newHeight == 13.0f) {
+				newHeight = ((odds >> 2) & 0x1) ? 12.0f : (((odds >> 2) & 0x2) ? 13.0f : 14.0f);
+			}
+			newWidth = (newHeight == 14.0f) ? 1.0f : 0.0f;
+			if (newWidth != 0.0f) {
+				saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_X_BIT, 12, newHeight, 4 + newWidth, 12 - newWidth, 4 + newWidth, 12 - newWidth);
+				// set so that 8x8 is put beneath 6x6 - so confusing, but less code...
+				newHeight = 12.0f;
+			}
+			// add 8x8 - if height is 4.0, then don't add side faces
+			saveBoxGeometry(boxIndex, type, dataVal, 0,
+				(((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_X_BIT : 0x0) | DIR_LO_X_BIT |
+				((newHeight == 12) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT) : 0x0),	// don't create sides if a 6x6 is generated
+				12, newHeight, 4, 12, 4, 12);
+
+
+			// Lo Z
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
+			// four cases:
+			// connected to neighbor, always the same
+			// not connected, no bump out
+			// not connected, 6x6 bump out
+			// not connected, 8x8 bump out
+			// not connected to neighbor? 0.0 new height means connected to neighbor
+			if (newHeight == 3.0f) {
+				newHeight = ((odds >> 4) & 0x1) ? 4.0f : (((odds >> 4) & 0x2) ? 3.0f : 2.0f);
+			}
+			newWidth = (newHeight == 2.0f) ? 1.0f : 0.0f;
+			if (newWidth != 0.0f) {
+				saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_HI_Z_BIT, 4 + newWidth, 12 - newWidth, 4 + newWidth, 12 - newWidth, newHeight, 4);
+				// set so that 8x8 is put beneath 6x6 - so confusing, but less code...
+				newHeight = 4.0f;
+			}
+			// add 8x8 - if height is 4.0, then don't add side faces
+			saveBoxGeometry(boxIndex, type, dataVal, 0,
+				(((!gPrint3D && (newHeight == 0)) || (type == neighborType)) ? DIR_LO_Z_BIT : 0x0) | DIR_HI_Z_BIT |
+				((newHeight == 4) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT) : 0x0),	// don't create sides if a 6x6 is generated
+				4, 12, 4, 12, newHeight, 4);
+
+			// Hi Z
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+			newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
+			if (newHeight == 13.0f) {
+				newHeight = ((odds >> 6) & 0x1) ? 12.0f : (((odds >> 6) & 0x2) ? 13.0f : 14.0f);
+			}
+			newWidth = (newHeight == 14.0f) ? 1.0f : 0.0f;
+			if (newWidth != 0.0f) {
+				saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_Z_BIT, 4 + newWidth, 12 - newWidth, 4 + newWidth, 12 - newWidth, 12, newHeight);
+				// set so that 8x8 is put beneath 6x6 - so confusing, but less code...
+				newHeight = 12.0f;
+			}
+			// add 8x8 - if height is 4.0, then don't add side faces
+			saveBoxGeometry(boxIndex, type, dataVal, 0,
+				(((!gPrint3D && (newHeight == 16)) || (type == neighborType)) ? DIR_HI_Z_BIT : 0x0) | DIR_LO_Z_BIT |
+				((newHeight == 12) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT) : 0x0),	// don't create sides if a 6x6 is generated
+				4, 12, 4, 12, 12, newHeight);
+
+		}
         break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_PRESSURE_PLATE:						// saveBillboardOrGeometry
@@ -7653,15 +7731,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			gUsingTransform = 1;
 			totalVertexCount = gModel.vertexCount;
 
-			// TODO: There's also those squiggly purple things purpur blocks that grow and have some sort of offsets
-
 			// +/-3 - TODO: how does Minecraft do this?
 			wobbleObjectLocation(boxIndex, shiftX, shiftZ);
 
-			int x, y, z;
-			BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
-			double val = lib_rand((((x % 140) * 140 + (z % 140))*140 + (y%140) + 300718) % 300718);
-			float txrShift = (float)(((int)(val * 4))*3);
+			seedWithXYZ(boxIndex);
+		
+			// shift which bamboo gets used: 0-4, 4-8, 8-12
+			float txrShift = (float)(((int)((rand()/(RAND_MAX+1)) * 4))*3);
 			if (age == 0) {
 				// note all six sides are used, but with different texture coordinates
 				// sides:
@@ -21888,6 +21964,7 @@ static void wcharCleanse( wchar_t *wstring )
     charToWchar( tempString, wstring );
 }
 
+// for noise on textures, only - not really trustworthy otherwise
 #define M1  134456
 #define IA1   8121
 #define IC1  28411
@@ -22038,34 +22115,18 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
     return minHeight;
 }
 
-/*
- * Portable random number generator (from "Numerical Recipes")
- * Returns a uniform random deviate between 0.0 and 1.0.  'iseed' must be
- * less than M1 to avoid repetition, and less than (2**31-C1)/A1 [= 300718]
- * to avoid overflow.
- */
-#define M1  134456
-#define IA1   8121
-#define IC1  28411
-#define RM1 1.0/M1
-
-static double lib_rand(long iseed)
+static void seedWithXYZ(int boxIndex)
 {
-	double v1, v2, r; // fac
-	long     ix1, ix2;
+	int x, y, z;
+	BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
+	unsigned int iseed = (((x % 199) * 215 + (z % 211)) * 223 + (y % 223)) * 197 + 2147483647;
+	srand(iseed);
+}
 
-	ix2 = iseed;
-	do {
-		ix1 = (IC1 + ix2 * IA1) % M1;
-		ix2 = (IC1 + ix1 * IA1) % M1;
-		v1 = ix1 * 2.0 * RM1 - 1.0;
-		v2 = ix2 * 2.0 * RM1 - 1.0;
-		r = v1 * v1 + v2 * v2;
-	} while (r >= 1.0);
-
-	return r;
-
-	// for a Gaussian distribution:
-	//fac = sqrt((double)(-2.0 * log((double)r) / r));
-	//return v1 * fac;
+static void seedWithXZ(int boxIndex)
+{
+	int x, y, z;
+	BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
+	unsigned int iseed = (((x % 199) * 215 + (z % 211)) * 223) * 197 + 2147483647;
+	srand(iseed);
 }
