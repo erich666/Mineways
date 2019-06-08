@@ -726,10 +726,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //    OutputDebugStringW( buf );
 //#endif
 
-#ifdef SKETCHFAB
-    LPTSTR filepath = prepareSketchfabExportFile(hWnd);
-#endif
-
     switch (message)
     {
     case WM_CREATE:
@@ -1787,94 +1783,86 @@ RButtonUp:
                 MY_ASSERT(gAlwaysFail);
                 gPrintModel = RENDERING_EXPORT;
             }
+			if (gPrintModel == SCHEMATIC_EXPORT)
 			{
+				// schematic
+				ZeroMemory(&ofn, sizeof(OPENFILENAME));
+				ofn.lStructSize = sizeof(OPENFILENAME);
+				ofn.hwndOwner = hWnd;
+				ofn.lpstrFile = gExportPath;
+				//gExportPath[0]=0;
+				ofn.nMaxFile = MAX_PATH_AND_FILE;
+				ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
+				ofn.nFilterIndex = 1;
+				ofn.lpstrFileTitle = NULL;
+				ofn.nMaxFileTitle = 0;
+				wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+				ofn.lpstrInitialDir = path;
+				ofn.lpstrTitle = L"Save Model to Schematic File";
+				ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+				saveOK = GetSaveFileName(&ofn);
+
+				gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+			}
+			else
+			{
+				// print model or render model - quite similar
+				ZeroMemory(&ofn, sizeof(OPENFILENAME));
+				ofn.lStructSize = sizeof(OPENFILENAME);
+				ofn.hwndOwner = hWnd;
+				ofn.lpstrFile = gExportPath;
+				//gExportPath[0]=0;
+				ofn.nMaxFile = MAX_PATH_AND_FILE;
+				ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+					L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+				ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
+				ofn.lpstrFileTitle = NULL;
+				ofn.nMaxFileTitle = 0;
+				wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+				ofn.lpstrInitialDir = path;
+				ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
+				ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+				saveOK = GetSaveFileName(&ofn);
+				// save file type selected, no matter what (even on cancel); we
+				// always set it because even if someone cancels a save, he probably still
+				// wanted the file type chosen.
+				if (gPrintModel)
 				{
-					int savePrintModelSleaze = gPrintModel;
-					if (savePrintModelSleaze == SCHEMATIC_EXPORT)
-					{
-						// schematic
-						ZeroMemory(&ofn, sizeof(OPENFILENAME));
-						ofn.lStructSize = sizeof(OPENFILENAME);
-						ofn.hwndOwner = hWnd;
-						ofn.lpstrFile = gExportPath;
-						//gExportPath[0]=0;
-						ofn.nMaxFile = MAX_PATH_AND_FILE;
-						ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
-						ofn.nFilterIndex = 1;
-						ofn.lpstrFileTitle = NULL;
-						ofn.nMaxFileTitle = 0;
-						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-						ofn.lpstrInitialDir = path;
-						ofn.lpstrTitle = L"Save Model to Schematic File";
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-						saveOK = GetSaveFileName(&ofn);
-
-						gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
-					}
-					else
-					{
-						// print model or render model - quite similar
-						ZeroMemory(&ofn, sizeof(OPENFILENAME));
-						ofn.lStructSize = sizeof(OPENFILENAME);
-						ofn.hwndOwner = hWnd;
-						ofn.lpstrFile = gExportPath;
-						//gExportPath[0]=0;
-						ofn.nMaxFile = MAX_PATH_AND_FILE;
-						ofn.lpstrFilter = savePrintModelSleaze ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-							L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-						ofn.nFilterIndex = (savePrintModelSleaze ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
-						ofn.lpstrFileTitle = NULL;
-						ofn.nMaxFileTitle = 0;
-						wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-						ofn.lpstrInitialDir = path;
-						ofn.lpstrTitle = savePrintModelSleaze ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-						saveOK = GetSaveFileName(&ofn);
-						// save file type selected, no matter what (even on cancel); we
-						// always set it because even if someone cancels a save, he probably still
-						// wanted the file type chosen.
-						if (savePrintModelSleaze)
-						{
-							gExportPrintData.fileType = ofn.nFilterIndex - 1;
-						}
-						else
-						{
-							gExportViewData.fileType = ofn.nFilterIndex - 1;
-						}
-					}
-					gPrintModel = savePrintModelSleaze;
+					gExportPrintData.fileType = ofn.nFilterIndex - 1;
 				}
-				if (saveOK)
+				else
 				{
-					// if we got this far, then previous export is off, and we also want to ask for export dialog itself.
-					gExported = 0;
-					wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
-
-			case IDM_FILE_REPEATPREVIOUSEXPORT:
-			{
-					int saveRepeatModelSleaze = gPrintModel;
-					// again, somehow this trashes gPrintModel! Weirdness...
-					gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
-					gPrintModel = saveRepeatModelSleaze;
-
-					SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-					enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
-					// put target depth to new depth set, if any
-					if (gTargetDepth != gpEFD->maxyVal)
-					{
-						gTargetDepth = gpEFD->minyVal;
-					}
-					gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-						bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-					updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
-					setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-					setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
-				}   // matches to "if ( saveOK )"
+					gExportViewData.fileType = ofn.nFilterIndex - 1;
 				}
 			}
+			if (saveOK)
+			{
+				// if we got this far, then previous export is off, and we also want to ask for export dialog itself.
+				gExported = 0;
+				wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
+				// yes, drop through at this point, we're all set up to export, so it's like a "repeat"
+
+		case IDM_FILE_REPEATPREVIOUSEXPORT:
+				// again, somehow this trashes gPrintModel! Weirdness...
+				gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+
+				SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+				enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+				// put target depth to new depth set, if any
+				if (gTargetDepth != gpEFD->maxyVal)
+				{
+					gTargetDepth = gpEFD->minyVal;
+				}
+				gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+					bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+				updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+				setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+				setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+			}   // matches to "if ( saveOK )"
             break;
+
         case IDM_PUBLISH_SKFB:
 #ifdef SKETCHFAB
             if ( !gHighlightOn )
@@ -1884,9 +1872,11 @@ RButtonUp:
                     _T("Informational"), MB_OK|MB_ICONINFORMATION);
                 break;
             }
-            // Force it to be an rendering export: Relative obj
-            gPrintModel = SKETCHFAB_EXPORT;
-            publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+			{
+				// Force it to be an rendering export: Relative obj
+				LPTSTR filepath = prepareSketchfabExportFile(hWnd);
+				publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+			}
 #else
 			MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
 				_T("Informational"), MB_OK | MB_ICONINFORMATION);
@@ -3397,11 +3387,11 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
     gpEFD = is.pSaveEFD;
     gOptions.pEFD = gpEFD;
 
-    LPTSTR filepath = prepareSketchfabExportFile(is.ws.hWnd);
-    setSketchfabExportSettings();
-    processSketchfabExport(&gSkfbPData, filepath, gSelectTerrainPathAndName, gSchemeSelected);
-    setPublishSkfbData(&gSkfbPData);
-    uploadToSketchfab(hInst, is.ws.hWnd);
+	LPTSTR filepath = prepareSketchfabExportFile(is.ws.hWnd);
+	setSketchfabExportSettings();
+	processSketchfabExport(&gSkfbPData, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+	setPublishSkfbData(&gSkfbPData);
+	uploadToSketchfab(hInst, is.ws.hWnd);
 
 	// back to normal
 	sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
