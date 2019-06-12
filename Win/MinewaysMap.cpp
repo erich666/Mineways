@@ -360,7 +360,7 @@ static struct {
 	{ "Cobblestone Slab" },	// 90
 	{ "Brick Slab" },
 	{ "Stone Brick Slab" },
-	{ "Slab" },
+	{ "Nether Brick Slab" },
 	{ "Quartz Slab" },
 	{ "Spruce Slab" },
 	{ "Birch Slab" },
@@ -1034,6 +1034,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
+	case BLOCK_STONE_DOUBLE_SLAB:
 	case BLOCK_STONE_SLAB:
 		switch (*dataVal & 0x7)
 		{
@@ -1070,6 +1071,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
+	case BLOCK_WOODEN_DOUBLE_SLAB:
 	case BLOCK_WOODEN_SLAB:
 		switch (*dataVal & 0x7)
 		{
@@ -3058,8 +3060,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
     case BLOCK_STONE_DOUBLE_SLAB:
-        // uses 0-9, F (15)
-        if ( dataVal < 10 || dataVal == 15 )
+        // uses 0-7, F (15)
+        if ( dataVal < 8 || dataVal == 15 )
         {
             addBlock = 1;
         }
