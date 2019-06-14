@@ -3422,14 +3422,14 @@ static int setSketchfabExportSettings()
 		BLF_FLATTEN_SMALL | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
-    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;
+    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;	// TODOTODO - what happens if per tile is done?
 
     gOptions.exportFlags |=
         (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
         ((gpEFD->chkHollow[gpEFD->fileType] && gpEFD->chkSuperHollow[gpEFD->fileType]) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0);
 
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS; // export groups
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS; // the norm, instead of single material
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES; // export groups
+    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK; // the norm, instead of single material
     gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL; // Full material (output the extra values)
     gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_IMAGES; // Export block full texture
     gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES; // OBj relative coordinates
@@ -3721,22 +3721,20 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     if ( gpEFD->radioExportMtlColors[gpEFD->fileType] == 1 )
     {
         // if color output is specified, we *must* put out multiple objects, each with its own material
-        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+        gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
     else if ( gpEFD->radioExportSolidTexture[gpEFD->fileType] == 1 )
     {
         gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     }
-	else if (gpEFD->radioExportFullTexture[gpEFD->fileType] == 1)
+	else if ((gpEFD->radioExportFullTexture[gpEFD->fileType] == 1) ||
+		// if fifth option is chosen but not an OBJ file, ignore it and just make it a "full texture"
+		(!(gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) && (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)))
 	{
 		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
 		// TODO: if we're *viewing* full textures, output all the billboards!
 		//  gOptions.saveFilterFlags |= BLF_SMALL_BILLBOARD;
-	}
-	else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
-	{
-		gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_TILE_PER_TEXTURE;
-	}
+	} // one more option, per tile with OBJ, comes later on down
 
     gOptions.exportFlags |=
         (gpEFD->chkFillBubbles ? EXPT_FILL_BUBBLES : 0x0) |
@@ -3754,36 +3752,40 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         ((gpEFD->chkHollow[gpEFD->fileType] && gpEFD->chkSuperHollow[gpEFD->fileType]) ? EXPT_HOLLOW_BOTTOM|EXPT_SUPER_HOLLOW_BOTTOM : 0x0) |
 
         // materials are forced on if using debugging mode - just an internal override, doesn't need to happen in dialog.
-        (gpEFD->chkShowParts ? EXPT_DEBUG_SHOW_GROUPS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MULTIPLE_MTLS : 0x0) |
-        (gpEFD->chkShowWelds ? EXPT_DEBUG_SHOW_WELDS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_GROUPS|EXPT_OUTPUT_OBJ_MULTIPLE_MTLS : 0x0);
+        (gpEFD->chkShowParts ? EXPT_DEBUG_SHOW_GROUPS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_SEPARATE_TYPES|EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK : 0x0) |
+        (gpEFD->chkShowWelds ? EXPT_DEBUG_SHOW_WELDS|EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_OBJ_SEPARATE_TYPES|EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK : 0x0);
 
+	//
 
     // set OBJ group and material output state
     if ( gpEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || gpEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
     {
-        if (gpEFD->chkMultipleObjects)
+		// Export separate types?
+        if (gpEFD->chkSeparateTypes)
         {
             MY_ASSERT(gpEFD->chkIndividualBlocks == 0);
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS;
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES;
 
-            if (gpEFD->chkMaterialPerType)
+			// Material per block?
+            if (gpEFD->chkMaterialPerBlock)
             {
-                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MULTIPLE_MTLS;
+                gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
             }
         }
-        else if (gpEFD->chkIndividualBlocks)
+        else if ((gpEFD->chkIndividualBlocks) && !(gpEFD->radioExportTileTextures[gpEFD->fileType] == 1))
         {
             // these must be on for individual block export, plus grouping by block
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_GROUPS | EXPT_OUTPUT_OBJ_MULTIPLE_MTLS | EXPT_GROUP_BY_BLOCK;
-            if (gpEFD->chkMaterialPerType == 1)
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_GROUP_BY_BLOCK;
+            if (gpEFD->chkMaterialPerBlock == 1)
             {
                 gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
             }
         }
 
-        if (gpEFD->chkMaterialSubtypes)
+		// "Split by block type"?
+        if (gpEFD->chkSplitByBlockType)
         {
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES;
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
         }
 
         if (gpEFD->chkG3DMaterial)
@@ -3803,11 +3805,19 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
         {
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
         }
+		// we set tile export options last, as these override some of those above, and can be turned off by others.
+		else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
+		{
+			gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES |
+				// we must Export separate types; not export individual blocks; Material per object; Split by block type
+				EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
+			;
+		}
     }
     // STL files never need grouping by material, and certainly don't export textures
     else if ( gpEFD->fileType == FILE_TYPE_ASCII_STL )
     {
-        int unsupportedCodes = (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE|
+        int unsupportedCodes = (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE|
             EXPT_DEBUG_SHOW_GROUPS|EXPT_DEBUG_SHOW_WELDS);
         if ( gOptions.exportFlags & unsupportedCodes )
         {
@@ -3822,7 +3832,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     }
     else if ( ( gpEFD->fileType == FILE_TYPE_BINARY_MAGICS_STL ) || ( gpEFD->fileType == FILE_TYPE_BINARY_VISCAM_STL ) )
     {
-        int unsupportedCodes = (EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES);
+        int unsupportedCodes = (EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
         if ( gOptions.exportFlags & unsupportedCodes )
         {
             if ( gpEFD->fileType == FILE_TYPE_BINARY_VISCAM_STL )
@@ -3875,9 +3885,9 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
     // (and full textures would just be confusing for debug, anyway)
     if ( gOptions.exportFlags & EXPT_DEBUG_SHOW_GROUPS )
     {
-        if ( gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+        if ( gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES| EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) )
         {
-            gOptions.exportFlags &= ~EXPT_OUTPUT_TEXTURE_IMAGES;
+            gOptions.exportFlags &= ~(EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
             gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_SWATCHES;
         }
         // we don't want to group by block for debugging
@@ -4131,10 +4141,10 @@ static void initializePrintExportData(ExportFileData &printData)
     printData.chkShowWelds = 0;
 
     // should normally just have one material and group
-    printData.chkMultipleObjects = 0;
+    printData.chkSeparateTypes = 0;
     printData.chkIndividualBlocks = 0;
-    printData.chkMaterialPerType = 0;
-    printData.chkMaterialSubtypes = 0;
+    printData.chkMaterialPerBlock = 0;
+    printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
     printData.chkG3DMaterial = 0;
 
@@ -4206,10 +4216,10 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.chkHollow, 0,0,0,0,0,0,0);
     INIT_ALL_FILE_TYPES( viewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
-    viewData.chkMultipleObjects = 1;
+    viewData.chkSeparateTypes = 1;
     viewData.chkIndividualBlocks = 0;
-    viewData.chkMaterialPerType = 1;
-    viewData.chkMaterialSubtypes = 0;
+    viewData.chkMaterialPerBlock = 1;
+    viewData.chkSplitByBlockType = 0;
     viewData.chkG3DMaterial = 0;
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
@@ -5478,7 +5488,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkMultipleObjects = interpretBoolean(string1);
+            is.pEFD->chkSeparateTypes = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -5504,7 +5514,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkMaterialPerType = interpretBoolean(string1);
+            is.pEFD->chkMaterialPerBlock = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -5521,7 +5531,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkMaterialSubtypes = interpretBoolean(string1);
+            is.pEFD->chkSplitByBlockType = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

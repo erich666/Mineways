@@ -146,7 +146,7 @@ typedef struct UVOutput
 {
     float uc;
     float vc;
-    int swatchLoc;	// where this record is stored, just for purposes of outputting comments
+    int swatchLoc;	// where this record is stored, for purposes of outputting comments and sorting
 } UVOutput;
 
 // We store a set of normals that get reused: 
@@ -269,7 +269,8 @@ static Options *gOptions = NULL;
 
 static FileList *gOutputFileList = NULL;
 
-static int gExportTexture=0;
+static int gExportTexture = 0;
+static int gExportTiles = 0;
 // whether we're outputting a print or render
 static int gPrint3D=0;
 
@@ -693,7 +694,8 @@ static void meltSnow();
 static void hollowSeed( int x, int y, int z, IPoint **seedList, int *seedSize, int *seedCount );
 
 static int generateBlockDataAndStatistics(IBox *tightWorldBox, IBox *worldBox);
-static int faceIdCompare( void *context, const void *str1, const void *str2);
+static int tileIdCompare(void *context, const void *str1, const void *str2);
+static int faceIdCompare(void *context, const void *str1, const void *str2);
 
 static int getDimensionsAndCount( Point dimensions );
 static void rotateLocation( Point pt );
@@ -868,6 +870,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     gOptions->cost = 0.0f;
 
     gExportTexture = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
+	gExportTiles = (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;
 
     gPrint3D = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
     gModel.pInputTerrainImage = NULL;
@@ -920,8 +923,8 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
 
     UPDATE_PROGRESS(0.30f*PG_MAKE_FACES);
 
-    // first things very first: if full texturing is wanted, check if the texture is readable
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+    // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
+    if ( gExportTexture )
     {
         gModel.pInputTerrainImage = new progimage_info();
 
@@ -968,8 +971,10 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     // prepare to write texture, if needed
     if (gExportTexture)
     {
-        // make it twice as large if we're outputting image textures, too- we need the space
-        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+        // Make it twice as large if we're outputting image textures, too- we need the space.
+		// We're just setting up here, giving something to write UVs against; even per-tile texture
+		// output uses this. We export the texture at the end.
+        if ( gExportTexture )
         {
             // use true textures
             gModel.textureResolution = 2*gModel.pInputTerrainImage->width;
@@ -998,7 +1003,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     }
 
     // all done with base input texture, free up its memory.
-    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+    if ( gExportTexture )
     {
         readpng_cleanup(1,gModel.pInputTerrainImage);
         delete gModel.pInputTerrainImage;
@@ -1186,7 +1191,7 @@ Exit:
             int rc;
 
             // do only if true textures used
-            if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+            if ( gExportTexture )
             {
                 int i;
                 int faTableCount;
@@ -2221,7 +2226,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
 	}
 
 	// what should we output? Only 3D bits (no billboards) if printing or if textures are off
-	if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES))
+	if (gPrint3D || !gExportTexture)
 	{
 		outputFlags = BLF_3D_BIT;
 	}
@@ -3621,7 +3626,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
     case BLOCK_ACTIVATOR_RAIL:
-        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && gExportTexture )
         {
             return saveBillboardFaces( boxIndex, type, BB_RAILS );
         }
@@ -5527,7 +5532,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         bitAdd = 8;
 
         // add stem if not printing and images in use
-        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && gExportTexture )
         {
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 12, 16, 12, 16, 8, 8);
             // transform the stem and the block, below, so add in these vertices
@@ -5698,7 +5703,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		bamboo - new only
         */
 
-        if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES))
+        if (gPrint3D || !gExportTexture)
         {
             // printing or not using images: only geometry we can add is a cactus (bamboo is too thin to print)
             if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
@@ -6032,7 +6037,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // remember that this gives the top of the block:
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // for textured rendering, make a billboard-like object, for printing or solid rendering, pull in the edges
-        if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( gPrint3D || !gExportTexture )
         {
             saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
         }
@@ -6260,7 +6265,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
-        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( !gPrint3D && gExportTexture )
         {
             // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
             // matter, because no one ever sees the bottom of a repeater.
@@ -6307,7 +6312,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(8,mtx);
-            if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+            if ( !gPrint3D && gExportTexture )
             {
                 // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
                 // matter, because no one ever sees the bottom of a repeater.
@@ -6928,7 +6933,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-        if ( (type == BLOCK_IRON_BARS) && !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) )
+        if ( (type == BLOCK_IRON_BARS) && !gPrint3D && gExportTexture )
         {
             // for rendering iron bars, we just need one side of each wall - easier
             switch (filled)
@@ -9348,7 +9353,7 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, float
                 }
             }
             // look for blocks with cutouts next to them - only for rendering
-            if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+            if (gExportTexture &&
                 (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
             {
                 //(neighborType == BLOCK_LEAVES) ||
@@ -13264,14 +13269,52 @@ static int generateBlockDataAndStatistics(IBox *tightWorldBox, IBox *worldBox)
         rotateLocation( pt );
     }
 
-    // If we are grouping by material (e.g., STL does not need this), then we need to sort by material
-    if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+	// If we are exporting per tile, group by tile type - required, as we need to output a separate material per tile ID
+	if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+		qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdCompare, NULL);
+	}
+	// If we are grouping by material (e.g., STL does not need this), then we need to sort by material
+    else if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
     {
         qsort_s(gModel.faceList,gModel.faceCount,sizeof(FaceRecord*),faceIdCompare,NULL);
     }
 
     return retCode;
 }
+
+#define UV_TO_SWATCHLOC(pUV) 
+// compare swatch locations and sort by these.
+static int tileIdCompare(void* context, const void *str1, const void *str2)
+{
+	FaceRecord *f1;
+	FaceRecord *f2;
+	f1 = *(FaceRecord**)str1;
+	f2 = *(FaceRecord**)str2;
+	context;    // make a useless reference to the unused variable, to avoid C4100 warning
+	if (f1->materialType == f2->materialType)
+	{
+		// tie break of the data value
+		// TODO: do this test only if we really want sub-materials
+		if (f1->materialDataVal == f2->materialDataVal) {
+			// compare swatchLocs
+			int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
+			int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
+			if (swatchLoc1 == swatchLoc2) {
+				// Not necessary, but...
+				// Tie break is face loop starting vertex, so that data is
+				// output with some coherence. May help mesh caching and memory access.
+				// Also, the data just looks more tidy in the file.
+				return ((f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1);
+			}
+			else {
+				return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
+			}
+		}
+		else return ((f1->materialDataVal < f2->materialDataVal) ? -1 : 1);
+	}
+	else return ((f1->materialType < f2->materialType) ? -1 : 1);
+}
+
 static int faceIdCompare( void* context, const void *str1, const void *str2)
 {
     FaceRecord *f1;
@@ -13524,7 +13567,7 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 }
             }
             // look for blocks with cutouts next to them - only for rendering
-            if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+            if (gExportTexture &&
                 (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
             {
                 // Special case: if leaves are neighbors and "make leaves solid" is on, then don't output face.
@@ -17920,6 +17963,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 
     prevType = -1;
     int prevDataVal = -1;
+	int prevSwatchLoc = -1;
     groupCount = 0;
     // outputMaterial notes when a material is used for the first time;
     // should only be needed for when objects are not sorted by material (grouped by block).
@@ -17929,32 +17973,35 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     if ( exportMaterials )
     {
         // should there be just one single material in this OBJ file?
-        if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
+        if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) )
         {
             sprintf_s(outputString,256,"\nusemtl %s\n", MINECRAFT_SINGLE_MATERIAL);
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
         }
     }
 
-    bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES) != 0x0);
+    bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
     for ( i = 0; i < gModel.faceCount; i++ )
     {
+		// every thousand faces or so check on progress
         if ( i % 1000 == 0 )
             UPDATE_PROGRESS( PG_OUTPUT + 0.5f*(PG_TEXTURE-PG_OUTPUT) + 0.5f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
 
         if ( exportMaterials )
         {
             // should there be more than one material or group output in this OBJ file?
-            if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MULTIPLE_MTLS|EXPT_OUTPUT_OBJ_GROUPS) )
+            if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK|EXPT_OUTPUT_OBJ_SEPARATE_TYPES) )
             {
                 // did we reach a new material?
                 if ((prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)))
+                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+					(gExportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc)))
                 {
                     // New material definitely found, so make a new one to be output.
                     prevType = gModel.faceList[i]->materialType;
                     prevDataVal = gModel.faceList[i]->materialDataVal;
+					prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
@@ -18014,17 +18061,29 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                     }
                     else
                     {
-                        // don't output by block: output by group, and/or by material, or none at all (one material for scene)
+                        // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
                         strcpy_s(outputString, 256, "\n");
                         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_GROUPS)
+
+						// TODOTODO: don't output group if just the tile ID differed!
+                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES)
                         {
                             // new group for objects of same type (which are sorted)
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
                             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
-                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS)
+						if (gExportTiles) {
+							// new material per tile ID
+							// swatch locations exactly correspond with tiles.h names
+							WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+							sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+							// TODOTODO note in an array that this separate tile should be output as a material
+							gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;	// TODO - not this!
+							assert(gModel.mtlCount < NUM_SUBMATERIALS);
+						}
+                        else if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
                         {
                             // new material per object
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
@@ -18287,7 +18346,7 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-		if (gOptions->pEFD->radioExportFullTexture) {
+		if (gExportTexture) {
 			// swatch locations exactly correspond with tiles.h names
 			char outName[MAX_PATH_AND_FILE];
 			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
@@ -18332,10 +18391,10 @@ static int writeOBJMtlFile()
         return MW_CANNOT_CREATE_FILE;
 
     sprintf_s(outputString,2048,"Wavefront OBJ material file\n# Contains %d materials\n",
-        (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) ? gModel.mtlCount : 1 );
+        (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) ? gModel.mtlCount : 1 );
     WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
-    if (gExportTexture )
+    if (gExportTexture)
     {
         // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
         // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
@@ -18348,10 +18407,10 @@ static int writeOBJMtlFile()
 	// for 3D prints, only usesRGB is true, if texture is output
 	// for Sketchfab export, only RGBA is needed
 	// for other rendering, either only RGB is needed (no alphas found), or RGBA/RGB/A are all output
-    if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MULTIPLE_MTLS) )
+    if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) )
     {
         // output a single material
-        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+        if ( gExportTexture )
         {
             if ( gPrint3D )
             {
@@ -18399,7 +18458,7 @@ static int writeOBJMtlFile()
     else
     {
         // output materials
-        bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_SUBTYPES) != 0x0);
+        bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
         int i;
         for ( i = 0; i < gModel.mtlCount; i++ )
         {
@@ -18492,7 +18551,7 @@ static int writeOBJMtlFile()
             }
             // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
             // (this is true for glass panes, but stained glass pains are semitransparent)
-            if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
+            if ( alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
             {
                 alpha = 1.0f;
             }
@@ -18511,7 +18570,7 @@ static int writeOBJMtlFile()
 
             // export map_d only if CUTOUTS.
             if (!gPrint3D && 
-                (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && 
+                gExportTexture && 
                 (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
                 !( gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART) ) )
             {
@@ -18735,7 +18794,7 @@ static int createBaseMaterialTexture()
 
     gModel.pPNGtexture = mainprog;
 
-    useTextureImage = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES);
+    useTextureImage = gExportTexture;
 
     // we fill the first NUM_BLOCKS with solid colors, if not using true textures
     gModel.swatchCount = 0;
@@ -20077,7 +20136,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
         alpha = 1.0f;
     }
     // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
-    if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
+    if ( alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
     {
         alpha = 1.0f;
     }
@@ -20784,9 +20843,9 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	{
 		if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
 			radio = 2;
-		//else if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_IMAGES)	TODOTODO
-		//	radio = 4;
-		else if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)
+		else if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
+			radio = 4;
+		else if (gExportTexture)
 			radio = 3;
 		else
 			radio = 1;
@@ -20814,19 +20873,19 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		}
 
-		sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkMultipleObjects ? "YES" : "no");
+		sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkSeparateTypes ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
-		if (gOptions->pEFD->chkMultipleObjects || gOptions->pEFD->chkIndividualBlocks)
+		if (gOptions->pEFD->chkSeparateTypes || gOptions->pEFD->chkIndividualBlocks)
 		{
-			sprintf_s(outputString, 256, "#   Material per object: %s\n", gOptions->pEFD->chkMaterialPerType ? "YES" : "no");
+			sprintf_s(outputString, 256, "#   Material per object: %s\n", gOptions->pEFD->chkMaterialPerBlock ? "YES" : "no");
 			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		}
 
 		// was, pre-7.0, "Split materials into subtypes"
-		sprintf_s(outputString, 256, "#   Split by block type: %s\n", gOptions->pEFD->chkMaterialSubtypes ? "YES" : "no");
+		sprintf_s(outputString, 256, "#   Split by block type: %s\n", gOptions->pEFD->chkSplitByBlockType ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
 		sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
