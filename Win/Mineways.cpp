@@ -1567,10 +1567,13 @@ RButtonUp:
         }
         switch (wmId)
         {
-        case IDM_ABOUT:
-            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-            break;
-        case ID_SELECT_ALL:
+		case IDM_ABOUT:
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_HELP_URL:
+			ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
+			break;
+		case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
                 gTargetDepth = 0;
                 gCurDepth = gWorldGuide.sch.height - 1;
@@ -3414,9 +3417,9 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t *error)
 
 static int setSketchfabExportSettings()
 {
-    // export all ellements for Skfb
-    gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |
-        BLF_FLATTEN_SMALL | BLF_3D_BIT;
+    // export all elements for Skfb
+	gOptions.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |
+		BLF_FLATTEN_SMALL | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
     gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;

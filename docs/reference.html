@@ -80,7 +80,7 @@
 </UL>
 -->
 
-Mineways features are explained in detail <a href="mineways.html">here</a>. Troubleshooting information is <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#platform">here</a> and <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#troubleshooting">here</a>.
+Mineways features are explained in detail <b><a href="mineways.html">on this page</a></b>. Troubleshooting information is <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#troubleshooting">here</a> and, for platform-specific problems, <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#platform">here</a>.
 
 
 <h1 id="mak">Mouse and Keyboard</h1>
@@ -88,22 +88,27 @@ Mineways features are explained in detail <a href="mineways.html">here</a>. Trou
 <UL>
 <LI>Left-click and drag - move around map.
 <LI>Right-click and drag - select or resize volume to export. Left-click and control-key also works.
-<LI>Middle-click - change the lower height of the volume selected.
-<LI>Mouse wheel - zoom in and out. Hold shift and you modify the maximum height shown; hold control and you modify the lower height.
+<LI>Middle-click - change the depth (the lowest level exported) to the height visible where you clicked.
+<LI>Mouse wheel - zoom in and out. Hold shift and you instead change the visibility height; hold control and you modify the depth of the selected volume.
 </UL>
 
-Upper or lower case (Shift key) does not matter for most keys:
+More on mouse controls in the <a href="mineways.html#select">Selection section</a>.
+<P>
+Handy shortcut keys, for precision work:
+
 <UL>
-<li><b>[</b> and <b>]</b> moves the lower depth up/down by one level, adjusting the bottom of the model.
-</li><li><b>Space bar</b> adjusts the bottom level to the lowest solid block in the selection area and border.
-</li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level.
+<li><b>[</b> and <b>]</b> changes the selected depth by one level up/down.
+</li><li><b>Space bar</b> selects a reasonable depth for your selection volume, based on visibility (water is considered invisible, so that the bottom of lakes will be solid). Holding shift while tapping the spacebar will treat water and glass as opaque, useful for 3D printing.
+</li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level. (Note the Shift key is not needed.)
 </li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
 </UL>
 
-More on mouse controls in the <a href="mineways.html#select">Selection section</a>. Full list of <a href="mineways.html#shortcuts">shortcut keys here</a>. 
+All shortcut keys are shown <a href="#shortcuts">at the end of this page</a>.
 
 
 <h1 id="mmi">Mineways Menu Items</h1>
+
+Shortcut keys are shown in parentheses next to each command.
  
 <h2>File Menu</h2>
 <UL>
@@ -146,8 +151,9 @@ More on mouse controls in the <a href="mineways.html#select">Selection section</
 
 <h2>Help Menu</h2>
 <UL>
-<LI>About ... - shows version number.
-<LI>Give more export memory! - if you get an "out of memory" error from Mineways, try this to minimize memory use.
+<LI>Help at website - opens up this very page in your browser.
+<LI>About ... - shows version number and other information.
+<LI>Give more export memory! - if you get an "out of memory" error from Mineways, try this to minimize memory use. Usually needed for only the Windows 32-bit version of Mineways.
 </UL>
 
 
@@ -157,28 +163,28 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <P>
 <a href="mineways.html#options">Rendering related</a>:
 <UL>
-<LI>World coordinates selection: the lower and diagonally-opposite upper corners of the volume you're exporting.
+<LI>World coordinates selection volume: the lower and diagonally-opposite upper corners of the volume you're exporting.
 <LI>Create a ZIP file: this file is the one to upload to 3D print services. It's also handy for packaging up all the files produced.
-<LI>Export no materials, etc.: whether the model has a single color, solid colors on blocks, or full textured colors.
+<LI>Export no materials, etc.: whether the model has a single color, solid colors on blocks, solid color textures with noise added, or full textured colors.
 <LI>OBJ file export options: various <a href="mineways.html#obj_export_options">professional settings</a> allowing you to make the data easier to modify.
-<LI>Make Z up: <a href="https://youtu.be/W8hmWWoaUyU">some systems use Y as up, some Z</a>.
+<LI>Make Z the up direction: <a href="https://youtu.be/W8hmWWoaUyU">some systems use Y as up, some Z</a>.
 <LI><a href="mineways.html#composite">Create composite overlay faces</a>: ladders, vines, etc. will be separate, floating polygons.
 <LI><a href="mineways.html#center_model">Center model around the origin</a>: if turned off, Minecraft coordinates are used instead. Useful for professionals.
 <LI>Use biome: use the biome's attributes to color the blocks. Currently uses only the single biome at the center of the export.
-<LI><a href="mineways.html#border_faces">Create block faces</a>: if you don't plan on seeing the sides of your export, uncheck to make the file smaller.
+<LI><a href="mineways.html#border_faces">Create block faces</a>: if you don't plan on seeing the outer edges of your export, uncheck to make the file smaller. Useful for tiling, i.e., exporting separate sections of a world and having them join up.
 <LI><a href="mineways.html#leaves_solid">Tree leaves solid</a>: for interactive applications such as VR, exports noticeably fewer polygons.
-<LI>Rotate model clockwise: useful mostly to pick a view for display in Shapeways' store.
+<LI>Rotate model clockwise: can be useful for choosing a default view angle for other programs reading in the model produced. Unlikely to work well for schematic export.
 </UL>
 <a href="mineways.html#print">3D Print related</a>:
 <UL>
-<LI>Scale options:
+<LI>3D printing related options:
 <UL>
 <LI>Make the model 5 cm in height: set the physical height of the model.
 <LI>Minimize size based on wall thickness...: make the walls as thin as possible while still being printable.
 <LI>Make each block 2 mm: the default safe wall thickness is shown, and can be changed.
 <LI>Aim for a cost of $25.00: roughly choose the cost of the model, which will scale it in size.
 </UL>
-<LI>Fill air bubbles: hollow "bubbles" in the model are made solid. Usually a wise move. Can also reduce polygon count when rendering.
+<LI>Fill air bubbles: hollow "bubbles" in the model are made solid. Usually a wise move when 3D printing. Can also reduce polygon count when rendering, by deleting areas fully enclosed.
 <UL>
 <LI>Seal off entrances: use torches to seal off an entrance, so that the building interior can be filled in (and then hollowed out).
 <LI>Fill in isolated tunnels: if a tunnel pokes out the side but does not reach the surface, fill it in.
@@ -188,6 +194,7 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <LI>Connect corner tips: if a floating part touches another by just the corners, add blocks to connect it.
 <LI>Weld all shared edges: for any blocks touching only at the edge, add a block. Usually overkill, but can be useful for sloped roofs.
 </UL>
+<LI>Delete floating objects: if a solid block is not connected to the bottom of the model, delete it. This option can help tidy up a model for rendering or Sketchfab, too, by deleting tree foliage poking into an exported volume.
 <LI>Hollow out bottom of model...: make Shapeways and Sculpteo models more affordable by hollowing out unseen blocks.
 <UL>
 <LI>Superhollow: aggressively hollow, carving away into nooks and crannies.
@@ -203,6 +210,8 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 
 
 <h1 id="mclo">Mineways <a href="scripting.html#clo">Command Line Options</a></h1>
+
+Using these options from <a href="http://www.computerhope.com/issues/chusedos.htm">the command line</a> lets you customize how Mineways starts up.
 
 <P>
 <P>
@@ -243,6 +252,40 @@ For debugging startup problems, you'll normally never use this. Saves startup an
 <LI>TileMaker/blocks - the directory where tiles (block textures) for <a href="mineways.html#tilemaker">TileMaker</a> are put for processing. You provide the blocks you want to change. Also see the _readme.txt file there.
 <LI>Mineways32.exe - 32-bit executable version. Not recommended, unless you have no choice.
 </UL>
+
+<h1 id="shortcuts">Shortcut Keys</h1>
+All shortcut keys for Mineways.
+
+<ul>
+<li><b>[</b> and <b>]</b> changes the selected depth by one level up/down.
+</li><li><b>Space bar</b> selects a reasonable depth for your selection volume, based on visibility (water is considered invisible, so that the bottom of lakes will be solid). Holding shift while tapping the spacebar will treat water and glass as opaque, useful for 3D printing.
+</li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level. (Note the Shift key is not needed.)
+</li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
+</li><li><b>WASD</b> and <b>the arrow keys</b> move around.
+</li><li><b>&lt;</b> and <b>&gt;</b> move the altitude slider up and down.
+</li><li><b>0</b>-<b>9</b> move the altitude slider larger amounts.
+</li><li><b>Ctrl-O</b> opens a world file, for when the world file is in some non-standard place.
+</li><li><b>Ctrl-R</b> saves a 3D model file for rendering, e.g., water is made transparent.
+</li><li><b>Ctrl-P</b> saves a 3D model file for 3D printing at <a href="http://www.shapeways.com/upload/">Shapeways</a>, <a href="http://sculpteo.com">Sculpteo</a>, or other 3D print service or printer.
+</li><li><b>Ctrl-X</b> saves the model again, without showing the file or export dialogs. Useful for when you are readjusting the bounds or color scheme of the model and simply want to redo your export otherwise.
+</li><li><b>F1</b> opens up the online <a href="reference.html">Mineways reference page</a> in your browser, as does the <b>?</b> key (with or without holding "Shift").
+</li><li><b>F2</b> jumps to spawn.
+</li><li><b>F3</b> jumps to player's location.
+</li><li><b>F4</b> jumps to selected area, if any.
+</li><li><b>F5</b> goes to the Nether, if any.
+</li><li><b>F6</b> goes to The End, if any.
+</li><li><b>F7</b> shows all blocks on the map, such as flowers, mushrooms, ladders; off by default, as these can be distracting. Also shows ID and data values of the first block (including transparent blocks) under the cursor. This option does not affect exported models.
+</li><li><b>F8</b> shows <a id="biomes">biomes</a>. Grass, leaves, and water colors are affected by <a href="http://minecraft.gamepedia.com/Biome">biomes</a>. Moving the cursor over a biome displays its name in the lower left. Exporting with this option on will turn on the "Use biome in center of export area" option. Note: swamplands are not fully simulated, as in Minecraft these use a complex Perlin noise function to vary the temperature, which in turn determines the color of the grass: sickly brown or lush green. I chose sickly yellow as the default. The lush green is color #4c763c, if you want to use a color scheme to simulate it.
+</li><li><b>F</b> shades by altitude. This option does not affect exported models. When biomes are displayed, it shades by temperature, a subtle effect. Minecraft drops the temperature of a biome by 0.00167 every meter above 64.
+</li><li><b>L</b> show nighttime lighting. This option does not affect exported models.
+</li><li><b>C</b> shows underground caves below the given altitude.
+</li><li><b>H</b> hides obscured blocks. When you set a maximum altitude underground, this option discards all blocks at this altitude and lower, until an air pocket is hit. Try it with the slider set to 60 or lower, to see tunnels. On by default in the Nether.
+</li><li><b>R</b> reloads the world's map. This is useful for when you edit your world while Mineways is running, see <a href="http://www.youtube.com/watch?v=8I5K-nB86z4&t=5m3s">this tutorial</a>.
+</li><li><b>Escape</b> clears the selected area.
+</li><li><b>Ctrl-A</b> selects the entire model (for schematic "worlds" only).
+</li><li><b>Ctrl-Q</b> closes the program.
+</li></ul>
+
 
     </div> <!-- /content -->
 	<div id="footer">

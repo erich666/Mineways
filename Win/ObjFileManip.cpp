@@ -599,6 +599,13 @@ typedef struct TouchRecord {
 #define EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES      2
 
 
+#ifdef _DEBUG
+// if we use the Reused command, make sure we're not outputting a face twice - that's an error.
+static int gAssertFacesNotReusedMask = 0x0;
+#endif
+
+
+
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax );
 static int initializeModelData();
 
@@ -1363,14 +1370,14 @@ Exit:
     return retCode;
 }
 
-// assumes same length (or longer) for both strings
-void WcharToChar(const wchar_t *inWString, char *outString, int length)
+// assumes same maximum length (or longer) for both strings
+void WcharToChar(const wchar_t *inWString, char *outString, int maxlength)
 {
     //WideCharToMultiByte(CP_UTF8,0,inWString,-1,outString,MAX_PATH_AND_FILE,NULL,NULL);
     int i;
     int oct = 0;
 
-    for (i = 0; i < length; i++)
+    for (i = 0; i < maxlength; i++)
     {
         int val = inWString[i];
         if (val >= 0 && val < 128)
@@ -8010,14 +8017,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			translateFromOriginMtx(mtx, boxIndex);
 			transformVertices(littleTotalVertexCount, mtx);
 		
-			// lectern top; start with the sides textures
+			// lectern top
 			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY)+1;
 			littleTotalVertexCount = gModel.vertexCount;
+			// start with the lower side texture only
 			saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 3, 16, 12, 16, 0, 16);
-			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
+			// Z sides and X hit bit edge
+			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
 			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+			// top
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
 			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			// bottom
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 			identityMtx(mtx);
@@ -8853,6 +8864,14 @@ static void saveBoxReuseGeometryYFaces(int boxIndex, int type, int dataVal, int 
 static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     int swatchLocSet[6];
+#ifdef _DEBUG
+	if (gAssertFacesNotReusedMask & (~faceMask & 0x3f)) {
+		// some face was already output and is being output again!
+		assert(0);
+	}
+	// note which faces are being output
+	gAssertFacesNotReusedMask |= (~faceMask & 0x3f);
+#endif
     swatchLocSet[DIRECTION_BLOCK_TOP] =
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] =
@@ -8876,6 +8895,11 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     float fminx, fmaxx, fminy, fmaxy, fminz, fmaxz;
     int startVertexIndex;
     int retCode = MW_NO_ERROR;
+
+#ifdef _DEBUG
+	// note which faces are being output
+	gAssertFacesNotReusedMask = (~faceMask & 0x3f);
+#endif
 
     // test if no faces are output (it could happen with a glass pane post)
     if ( faceMask == DIR_ALL_BITS )
@@ -18263,9 +18287,19 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-        sprintf_s(outputString,1024,"# %s\nvt %g %g\n",
-            gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
-            u, v );
+		if (gOptions->pEFD->radioExportFullTexture) {
+			// swatch locations exactly correspond with tiles.h names
+			char outName[MAX_PATH_AND_FILE];
+			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
+			sprintf_s(outputString, 1024, "# %s\nvt %g %g\n",
+				outName,
+				u, v);
+		}
+		else {
+			sprintf_s(outputString, 1024, "# %s\nvt %g %g\n",
+				gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
+				u, v);
+		}
     }
     else
     {
@@ -20109,9 +20143,19 @@ static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-        sprintf_s(outputString,1024,"# %s\n            %g %g\n",
-            gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
-            u, v );
+		if (gOptions->pEFD->radioExportFullTexture) {
+			// swatch locations exactly correspond with tiles.h names
+			char outName[MAX_PATH_AND_FILE];
+			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
+			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
+				outName,
+				u, v);
+		}
+		else {
+			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
+				gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
+				u, v);
+		}
     }
     else
     {
