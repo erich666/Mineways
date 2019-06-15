@@ -30,6 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __MINEWAYS_MAP_H__
 #define __MINEWAYS_MAP_H__
 
+#include "tiles.h"
 #include "blockInfo.h"
 #include "biomes.h"
 

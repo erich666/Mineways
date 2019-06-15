@@ -93,7 +93,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*  22 */ "Lapis Lazuli Block",     		0x1b4ebb, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 9, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//16
 	{ /*  23 */ "Dispenser",              		0x6f6f6f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE},	//17 14,2 front, 13,2 sides
 	{ /*  24 */ "Sandstone",              		0xe0d8a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,11, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//18 0,12 side, 0,13 bottom
-	{ /*  25 */ "Note Block",             		0x342017, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10, 4, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//19 10,4 side
+	{ /*  25 */ "Note Block",             		0x342017, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 8, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//19 10,4 side
 	{ /*  26 */ "Bed",                    		0xff3333, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 8, 0x00, BLF_HALF | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1a
 	{ /*  27 */ "Powered Rail",           		0xAB0301, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,11, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET},	//1b/27
 	{ /*  28 */ "Detector Rail",          		0xCD5E58, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,12, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_OFFSET},	//1c
@@ -111,7 +111,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*  40 */ "Red Mushroom",           		0xfc5c5d, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 1, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//28
 	{ /*  41 */ "Block of Gold",          		0xfef74e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//29
 	{ /*  42 */ "Block of Iron",          		0xeeeeee, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2a
-	{ /*  43 */ "Double Stone Slab",      		0xa6a6a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2b/43 - was 6,0, and 5,0 side
+	{ /*  43 */ "Double Stone Slab",      		0xa6a6a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2b/43 - was 6,0, and 5,0 side
 	{ /*  44 */ "Stone Slab",             		0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG},	//2c/44 - was 6,0, and 5,0 side
 	{ /*  45 */ "Bricks",                 		0x985542, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2d 
 	{ /*  46 */ "TNT",                    		0xdb441a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 0, 0x00, BLF_WHOLE},	//2e 7,0 side, 9,0 under
@@ -290,7 +290,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 214 */ "Nether Wart Block",      		0x770C0D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,26, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 215 */ "Red Nether Brick",       		0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 216 */ "Bone Block",             		0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR }, // top location; side is previous tile
-	{ /* 217 */ "Structure Void",        		0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY },	// uses red wool
+	{ /* 217 */ "Structure Void",        		0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY },	// uses red wool TODOTODO
 	{ /* 218 */ "Observer",				  		0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,33, 0x00, BLF_WHOLE },
 	{ /* 219 */ "White Shulker Box",      		0xD8DDDE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 27, 0x00, BLF_WHOLE },
 	{ /* 220 */ "Orange Shulker Box",     		0xEB6B0B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 27, 0x00, BLF_WHOLE },

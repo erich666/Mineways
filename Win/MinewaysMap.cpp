@@ -761,7 +761,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
-	case BLOCK_WOODEN_PLANKS:
+	case BLOCK_OAK_PLANKS:
 		switch (*dataVal)
 		{
 		default:
@@ -1525,7 +1525,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 
         break;
 
-    case BLOCK_WOODEN_PLANKS:
+    case BLOCK_OAK_PLANKS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_WOODEN_SLAB:
         dataVal = block->data[voxel];
@@ -1730,7 +1730,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
             break;
         case 2:	// wooden
-            color = gBlockDefinitions[BLOCK_WOODEN_PLANKS].pcolor;
+            color = gBlockDefinitions[BLOCK_OAK_PLANKS].pcolor;
             break;
         case 3:	// cobblestone
         case 11:	// cobblestone
@@ -1753,7 +1753,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
             break;
         case 10:	// tile quartz or upper wooden slab - what? Some old weirdness...
-            color = gBlockDefinitions[(type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS].pcolor;
+            color = gBlockDefinitions[(type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_OAK_PLANKS].pcolor;
             break;
         }
         break;
@@ -2946,7 +2946,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			addBlock = 1;
 		}
 		break;
-	case BLOCK_WOODEN_PLANKS:
+	case BLOCK_OAK_PLANKS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:
     case BLOCK_MONSTER_EGG:
@@ -4036,19 +4036,19 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         {
         case 0:
             // put block to north
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = BLOCK_OAK_PLANKS;
             break;
         case 1:
             // put block to east
-            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OAK_PLANKS;
             break;
         case 2:
             // put block to south
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = BLOCK_OAK_PLANKS;
             break;
         case 3:
             // put block to west
-            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_WOODEN_PLANKS;
+            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = BLOCK_OAK_PLANKS;
             break;
         }
         break;
@@ -4470,7 +4470,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
             {
                 for ( z = 0; z < 16; z++ )
                 {
-                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? (unsigned char)BLOCK_WOODEN_PLANKS : (unsigned char)BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = (cz > 0 ) ? (unsigned char)BLOCK_OAK_PLANKS : (unsigned char)BLOCK_STONE;
                 }
             }
 

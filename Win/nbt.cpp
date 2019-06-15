@@ -1065,6 +1065,12 @@ void makeHashTable()
 			// note bits used for different objects - high-bit is masked off.
 			mask_array[BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1] |= BlockTranslations[i].dataVal & 0x7F;
 		}
+		// special cases: double-slabs should be given same bits as slabs
+		mask_array[BLOCK_STONE_DOUBLE_SLAB] |= mask_array[BLOCK_STONE_SLAB];
+		mask_array[BLOCK_WOODEN_DOUBLE_SLAB] |= mask_array[BLOCK_WOODEN_SLAB];
+		mask_array[BLOCK_RED_SANDSTONE_DOUBLE_SLAB] |= mask_array[BLOCK_RED_SANDSTONE_SLAB];
+		mask_array[BLOCK_PURPUR_DOUBLE_SLAB] |= mask_array[BLOCK_PURPUR_SLAB];
+		mask_array[BLOCK_ANDESITE_DOUBLE_SLAB] |= mask_array[BLOCK_ANDESITE_SLAB];
 		// really, these should all be set properly already, but might as well make sure...
 		for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
 			gBlockDefinitions[i].subtype_mask = mask_array[i];

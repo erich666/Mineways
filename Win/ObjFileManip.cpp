@@ -154,6 +154,8 @@ typedef struct UVOutput
 // Extra normals are from torches, levers, brewing stands, and sunflowers
 #define NORMAL_LIST_SIZE (26+30+400)
 
+// the UVs appears in the range [0-16],[0-16] within the 16x16 tiles.
+#define NUM_UV_GRID_RESOLUTION	16
 typedef struct Model {
     float scale;    // size of a block, in meters
     Point center;
@@ -182,6 +184,9 @@ typedef struct Model {
     int uvIndexCount;
     // points into uv Records actually stored at the swatch locations
     UVOutput *uvIndexList;
+	// a 17 x 17 grid of all the possible UV locations in a tile
+	int uvGridListCount;	// number of locations used in uvGridList
+	int uvGridList[(NUM_UV_GRID_RESOLUTION + 1)*(NUM_UV_GRID_RESOLUTION + 1)];
     int uvIndexListSize;
     // For each swatchLoc there is some type (often more than one, but we save just the last one).
     // This lets us export the type as a comment.
@@ -199,6 +204,8 @@ typedef struct Model {
     // do not usually generate sub-materials, but we're playing it safe.
 #define NUM_SUBMATERIALS	2000
     unsigned int mtlList[NUM_SUBMATERIALS];
+	bool tileList[TOTAL_TILES];
+	int tileListCount; // number of tiles actually used in tileList
     int mtlCount;
 
     progimage_info *pInputTerrainImage;
@@ -414,6 +421,9 @@ static long gMySeed = 12345;
 // number in lode_png when file not found
 #define PNG_FILE_DOES_NOT_EXIST		78
 
+// Ignore gOptions->pEFD->chkCompositeOverlay when exporting tiles
+#define CHECK_COMPOSITE_OVERLAY	(gOptions->pEFD->chkCompositeOverlay && !gExportTiles)
+
 
 // these should not be relied on for much of anything during processing,
 // the fields are filled out until writing.
@@ -511,9 +521,9 @@ static int gFaceDirectionVector[6][3] =
 #define PG_MAKE_FACES 0.15f
 #define PG_OUTPUT 0.20f
 #define PG_TEXTURE 0.75f
-#define PG_CLEANUP 0.85f
+#define PG_CLEANUP 0.91f
 // leave some time for zipping files
-#define PG_END 0.90f
+#define PG_END 0.95f
 
 #define NO_INDEX_SET 0xffffffff
 
@@ -730,6 +740,7 @@ static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightened
 static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc );
 static int writeOBJMtlFile();
+static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB, char *textureRGBA, char *textureAlpha);
 
 static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
@@ -784,6 +795,8 @@ static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwa
 static void compositePNGSwatchOverColor(progimage_info *dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow );
 static int convertRGBAtoRGBandWrite(progimage_info *src, wchar_t *filename);
 static void convertAlphaToGrayscale( progimage_info *dst );
+static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow);
+static bool doesTileHaveAlpha(progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow);
 
 static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix );
 static void removeSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix );
@@ -1037,7 +1050,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     UPDATE_PROGRESS(0.90f*PG_MAKE_FACES);
 
 
-    // at this point all data is read in and filtered. At this point check if we're outputting a
+    // At this point all data is read in and filtered. Check if we're outputting a
     // non-polygonal output format, like schematic. If so, do that and be done.
     if ( fileType == FILE_TYPE_SCHEMATIC )
     {
@@ -1281,10 +1294,34 @@ Exit:
             SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
             setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
 
-            UPDATE_PROGRESS(PG_TEXTURE+0.05f);
+            UPDATE_PROGRESS(PG_TEXTURE+0.04f);
 
-            // do we need three textures, or just the one RGBA texture?
-            if ( needDifferentTextures )
+			// Exporting individual tiles?
+			if (gExportTiles)
+			{
+				// if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
+				if (gOptions->pEFD->chkTextureRGBA || gOptions->pEFD->chkTextureRGB || gOptions->pEFD->chkTextureA) {
+					for (int i = 0; i < TOTAL_TILES; i++) {
+						// tile name is material name, period
+						if (gModel.tileList[i]) {
+							// tile found that should be output
+							wchar_t materialTile[MAX_PATH_AND_FILE];
+							concatFileName4(materialTile, gOutputFilePath, L"", gTilesTable[i].filename, L".png");
+							rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
+							assert(rc == 0);
+							retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+							// if we can't write one file, we can't write any, so break out
+							if (rc)
+								break;
+							// maybe too frequent TODO
+							UPDATE_PROGRESS(PG_TEXTURE + 0.16f*(float)i / (float)gModel.tileListCount);
+						}
+					}
+				}
+			}
+
+			// do we need three textures, or just the one RGBA texture?
+			else if (needDifferentTextures)
             {
                 // need all three
                 wchar_t textureRGB[MAX_PATH_AND_FILE];
@@ -1304,6 +1341,7 @@ Exit:
                     rc = writepng(gModel.pPNGtexture,4,textureRGBA);
 					assert(rc == 0);
 					addOutputFilenameToList(textureRGBA);
+					UPDATE_PROGRESS(PG_TEXTURE + 0.08f);
                     retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
@@ -1313,6 +1351,7 @@ Exit:
                     rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture,textureRGB);
                     assert(rc == 0);
 					// not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
+					UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
 					retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
 
@@ -1323,7 +1362,8 @@ Exit:
                     rc = writepng(gModel.pPNGtexture,4,textureAlpha);
 					assert(rc == 0);
 					addOutputFilenameToList(textureAlpha);
-                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
+					UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
+					retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc<<MW_NUM_CODES)) : MW_NO_ERROR;
                 }
             }
             else
@@ -1348,6 +1388,7 @@ Exit:
         }
     }
 
+	// 91%
     UPDATE_PROGRESS(PG_CLEANUP);
 
     freeModel( &gModel );
@@ -1361,7 +1402,7 @@ Exit:
     gBiome = NULL;
 
 
-    // 90%
+    // 95%
     UPDATE_PROGRESS(PG_END);
 
     if ( gBadBlocksInModel )
@@ -1658,6 +1699,34 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
             }
         }
     }
+
+	// this helps to fill in typeForMtl in tiles.h
+	static bool crossCorrelate = false;
+	if (crossCorrelate) {
+		int index = 0;
+		for (int row = 0; row < VERTICAL_TILES; row++) {
+			for (int col = 0; col < 16; col++) {
+				// find row and col in blockInfo, if possible
+				bool foundIt = false;
+				int i;
+				for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
+					if ((gBlockDefinitions[i].txrX == col) && (gBlockDefinitions[i].txrY == row)) {
+						foundIt = true;
+						break;
+					}
+				}
+				TCHAR wcString[1024];
+				if (foundIt) {
+					wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, i);
+				}
+				else {
+					wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, 6);	// put a sapling - should at least have cutout property
+				}
+				OutputDebugString(wcString);
+				index++;
+			}
+		}
+	}
 #endif
 
     return MW_NO_ERROR;
@@ -2169,7 +2238,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
     int boxIndex;
     int x, y, z;
     // Push flattop onto block below
-    int flatten = gOptions->pEFD->chkMergeFlattop && gOptions->pEFD->chkCompositeOverlay;
+    int flatten = gOptions->pEFD->chkMergeFlattop && CHECK_COMPOSITE_OVERLAY;
 
     int retCode = MW_NO_ERROR;
     int foundBlock = 0;
@@ -2233,7 +2302,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
 	else
 	{
 		outputFlags = (BLF_BILLBOARD | BLF_SMALL_BILLBOARD | BLF_TRUE_GEOMETRY);
-		if (!gOptions->pEFD->chkCompositeOverlay)
+		if (!CHECK_COMPOSITE_OVERLAY)
 		{
 			outputFlags |= BLF_OFFSET;
 		}
@@ -2244,7 +2313,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
 	// 2) output billboards and small stuff, or flatten stuff onto other blocks
 	// 3) output billboard again, for offset object output, which is not done in first pass.
 	if (gOptions->pEFD->fileType != FILE_TYPE_SCHEMATIC) {
-		if (gExportBillboards && !gOptions->pEFD->chkCompositeOverlay)
+		if (gExportBillboards && !CHECK_COMPOSITE_OVERLAY)
 		{
 			// Special pass: if we are outputting billboards and we're not doing composites,
 			// we have to do a pre-pass through all redstone to get its connectivity all set up
@@ -4556,7 +4625,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			case 2:
 				// wooden
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
 				break;
 			case 3:
 				// cobblestone
@@ -6020,7 +6089,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
 
         // add bottom at bottom, just in case bed is open to world
-        swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
+        swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY );
         saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_TOP_BIT, 0, 0,16,
             (gPrint3D ? 0.0f : 3.0f), (gPrint3D ? 0.0f : 3.0f), 0, 16);
         break; // saveBillboardOrGeometry
@@ -7458,13 +7527,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             // box on wall
             littleTotalVertexCount = gModel.vertexCount;
             // left half
-            saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 1, 0x0, 6, 10, 1, 9, 3, 5);
+            saveBoxGeometry(boxIndex, BLOCK_OAK_PLANKS, 0, 1, 0x0, 6, 10, 1, 9, 3, 5);
             // right half
-            //saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, 0x0, 9, 10, 1, 9, 3, 5);
+            //saveBoxGeometry(boxIndex, BLOCK_OAK_PLANKS, 0, 0, 0x0, 9, 10, 1, 9, 3, 5);
             // top bit in middle
-            //saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 7, 9, 3, 5);
+            //saveBoxGeometry(boxIndex, BLOCK_OAK_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 7, 9, 3, 5);
             // bottom bit in middle
-            //saveBoxGeometry(boxIndex, BLOCK_WOODEN_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 1, 5, 3, 5);
+            //saveBoxGeometry(boxIndex, BLOCK_OAK_PLANKS, 0, 0, (gPrint3D ? 0x0 : DIR_LO_X_BIT | DIR_HI_X_BIT), 7, 9, 1, 5, 3, 5);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
             translateMtx(mtx, 0.0f, 0.0f, -3 * ONE_PIXEL);
@@ -7991,7 +8060,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_HI_X_BIT, 0, 16, 0, 2);
 			saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT, 0, 16, 6, 8);
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 0, 16);
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 0, 16);
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 			identityMtx(mtx);
@@ -8010,7 +8079,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, ROTATE_X_FACE_90, 0, 0, 0, 8, 1, 13);
 			if (gPrint3D) {
 				// just to make the column watertight - the texture doesn't really matter
-				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
 				saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 12);
 			}
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
@@ -8032,7 +8101,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 			// top
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
-			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY);
+			swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
 			// bottom
 			saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
 			littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
@@ -9917,7 +9986,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		dataVal &= 0x7;
 		// fall through:
 	case BLOCK_RAIL:				// saveBillboardFacesExtraData
-		if (gOptions->pEFD->chkCompositeOverlay) {
+		if (CHECK_COMPOSITE_OVERLAY) {
 			switch (dataVal & 0x7)
 			{
 			case 2:
@@ -9950,7 +10019,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		}
 		break;
 	case BLOCK_VINES:				// saveBillboardFacesExtraData
-		if (gOptions->pEFD->chkCompositeOverlay) {
+		if (CHECK_COMPOSITE_OVERLAY) {
 			if (dataVal == 0) {
 				// compositing, and the vine's only sitting underneath a block, so flattened
 				return(0);
@@ -9964,7 +10033,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		}
 		break;
 	case BLOCK_LADDER:				// saveBillboardFacesExtraData
-		assert(!gOptions->pEFD->chkCompositeOverlay);
+		assert(!CHECK_COMPOSITE_OVERLAY);
 		// we convert dataVal for ladder into the bit-wise conversion for vines
 		switch (dataVal & 0x7)
 		{
@@ -10253,7 +10322,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
             // approximate width of billboard across block, eyeballing it.
             // add height offset if we're not compositing, so that tracks join properly
-            texelUp = gOptions->pEFD->chkCompositeOverlay ? 0.0f : ONE_PIXEL;
+            texelUp = CHECK_COMPOSITE_OVERLAY ? 0.0f : ONE_PIXEL;
             faceCount = 2;
 
             // note that by the time we get here the upper bit has been masked off (on/off) for powered/detector rails
@@ -10298,7 +10367,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 break;
             default:
                 // it's a flat
-                if (!gOptions->pEFD->chkCompositeOverlay) {
+                if (!CHECK_COMPOSITE_OVERLAY) {
                     faceDir[0] = DIRECTION_BLOCK_TOP;
                     faceDir[1] = DIRECTION_BLOCK_BOTTOM;
                     switch (dataVal & 0xf)
@@ -10926,7 +10995,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
     // special case:
     // for vines, return 0 (flatten to face) if there is a block above it
-    if (gOptions->pEFD->chkCompositeOverlay && (billboardType == BB_SIDE) && (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE))
+    if (CHECK_COMPOSITE_OVERLAY && (billboardType == BB_SIDE) && (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE))
     {
         return 0;
     }
@@ -14594,7 +14663,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 2:
                 // wooden
-                swatchLoc = BLOCK_WOODEN_PLANKS;
+                swatchLoc = BLOCK_OAK_PLANKS;
                 break;
             case 3:
             case 11:
@@ -14623,7 +14692,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 10:
                 // quartz (normally same quartz on all faces? See http://minecraft.gamepedia.com/Data_values)
-                swatchLoc = (type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_WOODEN_PLANKS;
+                swatchLoc = (type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_OAK_PLANKS;
                 break;
             }
             break;
@@ -14709,7 +14778,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 2:
                 // wooden
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrX, gBlockDefinitions[BLOCK_WOODEN_PLANKS].txrY );
+                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY );
                 break;
             case 3:
                 // cobblestone
@@ -15043,7 +15112,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             if ( flip && uvIndices )
                 flipIndicesLeftRight( localIndices );
             break;
-        case BLOCK_WOODEN_PLANKS:						// getSwatch
+        case BLOCK_OAK_PLANKS:						// getSwatch
         case BLOCK_WOODEN_DOUBLE_SLAB:
         case BLOCK_WOODEN_SLAB:
             // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
@@ -17442,7 +17511,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 // Note that currently we don't rotate the background texture properly compared to the swatch itself - tough.
 static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirection, int angle )
 {
-    assert(gOptions->pEFD->chkCompositeOverlay);
+    assert(CHECK_COMPOSITE_OVERLAY);
     // does library have type/backgroundType desired?
     SwatchComposite *pSwatch = gModel.swatchCompositeList;
     int backgroundSwatchLoc;
@@ -17665,7 +17734,9 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v )
     // convert to stored uv's
     SWATCH_TO_COL_ROW( swatchLoc, col, row );
 
-    gModel.uvIndexList[gModel.uvIndexCount].uc = (float)col * gModel.textureUVPerSwatch + u * gModel.textureUVPerTile + gModel.invTextureResolution;
+	assert(u >= 0.0f && u <= 1.0f);
+	assert(v >= 0.0f && v <= 1.0f);
+	gModel.uvIndexList[gModel.uvIndexCount].uc = (float)col * gModel.textureUVPerSwatch + u * gModel.textureUVPerTile + gModel.invTextureResolution;
     gModel.uvIndexList[gModel.uvIndexCount].vc = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f-v) * gModel.textureUVPerTile + gModel.invTextureResolution);
     gModel.uvIndexList[gModel.uvIndexCount].swatchLoc = swatchLoc;
     gModel.uvIndexCount++;
@@ -17804,7 +17875,7 @@ static int addNormalToList( Vector normal, Vector *normalList, int *normalListCo
         return (*normalListCount)-1;
     }
     // add to end of list
-    Vec2Op( normalList[*normalListCount], =, normal );
+	Vec2Op( normalList[*normalListCount], =, normal );
     (*normalListCount)++;
 
     return (*normalListCount)-1;
@@ -17861,7 +17932,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     char outputString[MAX_PATH_AND_FILE];
     char mtlName[MAX_PATH_AND_FILE];
 
-    int i, groupCount;
+    int i, j, groupCount, index, x, y;
 
     unsigned char outputMaterial[NUM_BLOCKS];
 
@@ -17875,6 +17946,10 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     FaceRecord *pFace;
 
     char worldChar[MAX_PATH_AND_FILE];
+
+	float resScale;
+
+	int vt[4];
 
 #define OUTPUT_NORMALS
 #ifdef OUTPUT_NORMALS
@@ -17936,14 +18011,53 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 
     if ( gExportTexture )
     {
-        int prevSwatch = -1;
-        for ( i = 0; i < gModel.uvIndexCount; i++ )
-        {
-            retCode |= writeOBJTextureUV(gModel.uvIndexList[i].uc, gModel.uvIndexList[i].vc, prevSwatch!=gModel.uvIndexList[i].swatchLoc, gModel.uvIndexList[i].swatchLoc);
-            prevSwatch = gModel.uvIndexList[i].swatchLoc;
-            if (retCode >= MW_BEGIN_ERRORS)
-                goto Exit;
-        }
+		if (gExportTiles ) {
+			// in this case we need to now merge all the UV tiles into a single list, as there are a lot of duplicate values repeated again and again for separate swatches
+			// We also need to make a "translation layer" from the old ID to the new ID that will get used when writing the faces themselves.
+			// We use a 17x17 array of all the possible UV coords, then just whip through list and mark the ones used, then use this to output the valid ones.
+			// This list then gets filled with the new index to use, 0 if not used, i.e., if count is >=1, then give it the next ID (start at 1, since that's what we'll actually output).
+			// Then as we go through the face list we translate again, find the loc, and in the array we find the new UV index to us
+			resScale = 16.0f / gModel.tileSize;
+			for (i = 0; i < gModel.uvIndexCount; i++)
+			{
+				// Unscramble the eggs. Given a UV, multiply by the resolution of the map. This give 0-512 or whatever, really 1-511.
+				// Modulo the swatchSize. This gives 0-18 inclusive (or whatever the swatch size is), really 1-17.
+				// Subtract 1 to give 0-16 or whatever. Divide by tileSize and multiply by 16 to get the 0-16 index location
+				// the minus one is to get rid of the guard band and keep the numbers inside the 0-17 range
+				index = (int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) +
+					(NUM_UV_GRID_RESOLUTION + 1) * (int)(16-((((int)((1.0f-gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale));
+				assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) >= 0);	// TODOTODOTODO test
+				assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) <= 16);
+				assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale)) >= 0);
+				assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale)) <= 16);
+				gModel.uvGridList[index]++;
+			}
+			// Now go through grid and output the vt values that are used.
+			index = 0;
+			for (y = 0; y < NUM_UV_GRID_RESOLUTION+1; y++) {
+				for (x = 0; x < NUM_UV_GRID_RESOLUTION+1; x++) {
+					if (gModel.uvGridList[index] > 0) {
+						// with this location noted as used, now set it to the UV index the face lists will use, starting with 1.
+						gModel.uvGridList[index] = ++gModel.uvGridListCount;
+						retCode |= writeOBJTextureUV((float)x / (float)NUM_UV_GRID_RESOLUTION, (float)y / (float)NUM_UV_GRID_RESOLUTION, false, 0);
+						if (retCode >= MW_BEGIN_ERRORS)
+							goto Exit;
+					}
+					index++;
+				}
+			}
+		}
+		else {
+			// just output as-is
+			int prevSwatch = -1;
+			for (i = 0; i < gModel.uvIndexCount; i++)
+			{
+				retCode |= writeOBJTextureUV(gModel.uvIndexList[i].uc, gModel.uvIndexList[i].vc, prevSwatch != gModel.uvIndexList[i].swatchLoc, gModel.uvIndexList[i].swatchLoc);
+				prevSwatch = gModel.uvIndexList[i].swatchLoc;
+				if (retCode >= MW_BEGIN_ERRORS)
+					goto Exit;
+			}
+		}
     }
 
     for ( i = 0; i < gModel.vertexCount; i++ )
@@ -17993,9 +18107,10 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
             // should there be more than one material or group output in this OBJ file?
             if ( gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK|EXPT_OUTPUT_OBJ_SEPARATE_TYPES) )
             {
+				bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
+					(subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal));
                 // did we reach a new material?
-                if ((prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                if ( newGroupPossible ||
 					(gExportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc)))
                 {
                     // New material definitely found, so make a new one to be output.
@@ -18066,8 +18181,8 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
 
-						// TODOTODO: don't output group if just the tile ID differed!
-                        if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES)
+						// don't output group if just the tile ID differed and the block type didn't
+                        if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
                         {
                             // new group for objects of same type (which are sorted)
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
@@ -18079,8 +18194,8 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 							WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
 							sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
 							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-							// TODOTODO note in an array that this separate tile should be output as a material
-							gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;	// TODO - not this!
+							// note in an array that this separate tile should be output as a material
+							gModel.tileList[prevSwatchLoc] = true;
 							assert(gModel.mtlCount < NUM_SUBMATERIALS);
 						}
                         else if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
@@ -18122,7 +18237,23 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
         if ( gExportTexture )
         {
 #ifdef OUTPUT_NORMALS
-            // with normals - not really needed by most renderers, but good to include;
+			// if output per tile, then we use the UV values to find the index to the new index in the grid
+			if (gExportTiles) {
+				resScale = 16.0f / gModel.tileSize;
+				for (j = 0; j < 4; j++) {
+					index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) +
+						(NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale));
+					vt[j] = gModel.uvGridList[index];
+				}
+			}
+			else {
+				// else just get the UVs
+				for (j = 0; j < 4; j++) {
+					vt[j] = pFace->uvIndex[j] + 1;
+				}
+			}
+			
+			// with normals - not really needed by most renderers, but good to include;
             // GLC, for example, does smoothing if normals are not present.
             // Check if last two vertices match - if so, output a triangle instead 
             if ( pFace->vertexIndex[2] == pFace->vertexIndex[3] )
@@ -18131,17 +18262,17 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                 if ( absoluteIndices )
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1, outputFaceDirection,
-                        pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1, outputFaceDirection,
-                        pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1, outputFaceDirection
+                        pFace->vertexIndex[0]+1, vt[0], outputFaceDirection,
+                        pFace->vertexIndex[1]+1, vt[1], outputFaceDirection,
+                        pFace->vertexIndex[2]+1, vt[2], outputFaceDirection
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount, outputFaceDirection
+                        pFace->vertexIndex[0]-gModel.vertexCount, vt[0]-gModel.uvIndexCount-1, outputFaceDirection,
+                        pFace->vertexIndex[1]-gModel.vertexCount, vt[1]-gModel.uvIndexCount-1, outputFaceDirection,
+                        pFace->vertexIndex[2]-gModel.vertexCount, vt[2]-gModel.uvIndexCount-1, outputFaceDirection
                         );
                 }
             }
@@ -18158,19 +18289,19 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                 if ( absoluteIndices )
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] + 1, pFace->uvIndex[offset] + 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] + 1, pFace->uvIndex[offset + 1] + 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] + 1, pFace->uvIndex[offset + 2] + 1, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] + 1, pFace->uvIndex[(offset + 3) % 4] + 1, outputFaceDirection
+                        pFace->vertexIndex[offset] + 1, vt[offset], outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] + 1, vt[offset + 1], outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] + 1, vt[offset + 2], outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] + 1, vt[(offset + 3) % 4], outputFaceDirection
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] - gModel.vertexCount, pFace->uvIndex[offset] - gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, pFace->uvIndex[offset + 1] - gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2]-gModel.vertexCount, pFace->uvIndex[offset + 2]-gModel.uvIndexCount, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4]-gModel.vertexCount, pFace->uvIndex[(offset + 3) % 4]-gModel.uvIndexCount, outputFaceDirection
+                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2]-gModel.vertexCount, vt[offset + 2]-gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4]-gModel.vertexCount, vt[(offset + 3) % 4]-gModel.uvIndexCount - 1, outputFaceDirection
                         );
                 }
             }
@@ -18182,17 +18313,17 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                 if ( absoluteIndices )
                 {
                     sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1,
-                        pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1,
-                        pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1
+                        pFace->vertexIndex[0]+1, vt[0],
+                        pFace->vertexIndex[1]+1, vt[1],
+                        pFace->vertexIndex[2]+1, vt[2]
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount,
-                        pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount,
-                        pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount
+                        pFace->vertexIndex[0]-gModel.vertexCount, vt[0]-gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[1]-gModel.vertexCount, vt[1]-gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[2]-gModel.vertexCount, vt[2]-gModel.uvIndexCount - 1
                         );
                 }
             }
@@ -18201,19 +18332,19 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                 if ( absoluteIndices )
                 {
                     sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0]+1, pFace->uvIndex[0]+1,
-                        pFace->vertexIndex[1]+1, pFace->uvIndex[1]+1,
-                        pFace->vertexIndex[2]+1, pFace->uvIndex[2]+1,
-                        pFace->vertexIndex[3]+1, pFace->uvIndex[3]+1
+                        pFace->vertexIndex[0]+1, vt[0],
+                        pFace->vertexIndex[1]+1, vt[1],
+                        pFace->vertexIndex[2]+1, vt[2],
+                        pFace->vertexIndex[3]+1, vt[3]
                         );
                 }
                 else
                 {
                     sprintf_s(outputString,256,"f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0]-gModel.vertexCount, pFace->uvIndex[0]-gModel.uvIndexCount,
-                        pFace->vertexIndex[1]-gModel.vertexCount, pFace->uvIndex[1]-gModel.uvIndexCount,
-                        pFace->vertexIndex[2]-gModel.vertexCount, pFace->uvIndex[2]-gModel.uvIndexCount,
-                        pFace->vertexIndex[3]-gModel.vertexCount, pFace->uvIndex[3]-gModel.uvIndexCount
+                        pFace->vertexIndex[0]-gModel.vertexCount, vt[0]-gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[1]-gModel.vertexCount, vt[1]-gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[2]-gModel.vertexCount, vt[2]-gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[3]-gModel.vertexCount, vt[3]-gModel.uvIndexCount - 1
                         );
                 }
             }
@@ -18350,6 +18481,7 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 			// swatch locations exactly correspond with tiles.h names
 			char outName[MAX_PATH_AND_FILE];
 			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
+			assert(strlen(outName) > 0);
 			sprintf_s(outputString, 1024, "# %s\nvt %g %g\n",
 				outName,
 				u, v);
@@ -18374,14 +18506,19 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 static int writeOBJMtlFile()
 {
 #ifdef WIN32
-    DWORD br;
+	DWORD br;
 #endif
-    wchar_t mtlFileName[MAX_PATH_AND_FILE];
+	
+	wchar_t mtlFileName[MAX_PATH_AND_FILE];
     char outputString[2048];
 
     char textureRGB[MAX_PATH_AND_FILE];
     char textureRGBA[MAX_PATH_AND_FILE];
     char textureAlpha[MAX_PATH_AND_FILE];
+
+	int i, num;
+	int retCode;
+	char mtlName[MAX_PATH_AND_FILE];
 
     concatFileName3(mtlFileName, gOutputFilePath, gOutputFileRootClean, L".mtl");
 
@@ -18390,11 +18527,22 @@ static int writeOBJMtlFile()
     if (gMtlFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    sprintf_s(outputString,2048,"Wavefront OBJ material file\n# Contains %d materials\n",
-        (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) ? gModel.mtlCount : 1 );
-    WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
+	if (gExportTiles) {
+		for (i = 0; i < TOTAL_TILES; i++) {
+			// tile name is material name, period
+			if (gModel.tileList[i]) {
+				gModel.tileListCount++;
+			}
+		}
+		num = gModel.tileListCount;
+	}
+	else {
+		num = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) ? gModel.mtlCount : 1;
+	}
+	sprintf_s(outputString, 2048, "Wavefront OBJ material file\n# Contains %d materials\n", num);
+	WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
 
-    if (gExportTexture)
+    if (gExportTexture && !gExportTiles)
     {
         // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
         // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
@@ -18458,264 +18606,295 @@ static int writeOBJMtlFile()
     else
     {
         // output materials
-        bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
-        int i;
-        for ( i = 0; i < gModel.mtlCount; i++ )
-        {
-            int type;
-            int dataVal = 0;
-            char tfString[256];
-            char mapdString[256];
-            char mapKeString[256];
-            char keString[256];
-            char mtlName[MAX_PATH_AND_FILE];
-            char *typeTextureFileName;
-            char fullMtl[256];
-            double alpha;
-            double fRed,fGreen,fBlue;
-            double ka, kd, ks;
+		if (gExportTiles) {
+			// Go through all tiles and see which are used
+			for (i = 0; i < TOTAL_TILES; i++) {
+				// tile name is material name, period
+				if (gModel.tileList[i]) {
+					// tile found that should be output
+					WcharToChar(gTilesTable[i].filename, mtlName, MAX_PATH_AND_FILE);
+					// output material
+					sprintf_s(textureRGBA, MAX_PATH_AND_FILE, "%s.png", mtlName);
+					retCode = writeOBJFullMtlDescription(mtlName, gTilesTable[i].typeForMtl, textureRGBA, textureRGBA, textureRGBA);
+					if (retCode != MW_NO_ERROR)
+						return retCode;
+				}
+			}
+		}
+		else {
+			for (i = 0; i < gModel.mtlCount; i++)
+			{
+				int type;
+				int dataVal = 0;
 
-            type = gModel.mtlList[i]>>8;
-            if (subtypeMaterial)
-                dataVal = gModel.mtlList[i] & 0xff;
+				bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
-            if ( gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL )
-            {
-                // Use full material description, and include illumination model.
-                // Works by uncommenting lines where "fullMtl" is used in the output.
-                // Really currently tailored for G3D, and things like Tr are commented out always.
-                strcpy_s(fullMtl,256,"");
-            }
-            else
-            {
-                // don't use full material, comment it out, just output the basics
-                strcpy_s(fullMtl,256,"# ");
-            }
+				type = gModel.mtlList[i] >> 8;
+				if (subtypeMaterial)
+					dataVal = gModel.mtlList[i] & 0xff;
 
-            // print header: material name
-            strcpy_s(mtlName,256,gBlockDefinitions[type].name);
-            if (subtypeMaterial && (dataVal != 0)) {
-                // add a dataval suffix
-                char tempString[MAX_PATH_AND_FILE];
-                sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
-                strcpy_s(mtlName, 256, tempString);
-            }
-            spacesToUnderlinesChar(mtlName);
+				// print header: material name
+				strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
+				if (subtypeMaterial && (dataVal != 0)) {
+					// add a dataval suffix
+					char tempString[MAX_PATH_AND_FILE];
+					sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
+					strcpy_s(mtlName, 256, tempString);
+				}
+				spacesToUnderlinesChar(mtlName);
 
-            // if we want a neutral material, set to white
-            // was: if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
-            // In fact, texture should be multiplied by color, according to the spec: http://paulbourke.net/dataformats/mtl/
-            // So use a white color if we're outputting a texture, since it could get multiplied. This
-            // will make Blender previewing look all-white, but people should turn on texturing anyway.
-            if (gOptions->exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_TEXTURE_SWATCHES))
-            {
-                fRed = fGreen = fBlue = 1.0f;
-            }
-            else
-            {
-                // use color in file, which is nice for previewing. Blender and 3DS MAX like this, for example. G3D does not.
-                fRed = (gBlockDefinitions[type].color >> 16)/255.0f;
-                fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff)/255.0f;
-                fBlue = (gBlockDefinitions[type].color & 0xff)/255.0f;
-            }
-
-            // good for blender:
-            ka = 0.2;
-            kd = 1.0;
-            ks = 0.0;
-            // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
-            // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
-            // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
-            // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
-            // do not support textures (e.g. Blender).
-            //alpha = ( gPrint3D || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
-            // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-            // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
-            alpha = gBlockDefinitions[type].alpha;
-            if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
-            {
-                // if showing groups, make the alpha of the largest group transparent
-                if ( gDebugTransparentType == type )
-                {
-                    alpha = DEBUG_DISPLAY_ALPHA;
-                }
-                else
-                {
-                    alpha = 1.0f;
-                }
-            }
-            else if ( gPrint3D )
-            {
-                // for 3d printing, alpha is always 1.0
-                alpha = 1.0f;
-            }
-            // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
-            // (this is true for glass panes, but stained glass pains are semitransparent)
-            if ( alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
-            {
-                alpha = 1.0f;
-            }
-
-            if ( alpha < 1.0f )
-            {
-                // semitransparent block, such as water
-                gModel.usesRGBA = 1;
-                gModel.usesAlpha = 1;
-                sprintf_s(tfString,256,"%sTf %g %g %g\n", fullMtl, 1.0f-(float)(fRed*alpha), 1.0f-(float)(fGreen*alpha), 1.0f-(float)(fBlue*alpha) );
-            }
-            else
-            {
-                tfString[0] = '\0';
-            }
-
-            // export map_d only if CUTOUTS.
-            if (!gPrint3D && 
-                gExportTexture && 
-                (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
-                !( gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART) ) )
-            {
-                // cutouts or alpha
-#ifdef SKETCHFAB
-                if ((gOptions->exportFlags & EXPT_SKFB))
-                {
-                    // for Sketchfab, don't need alpha map
-                    gModel.usesRGBA = 1;
-                    gModel.usesAlpha = 0;
-                    typeTextureFileName = textureRGBA;
-                    sprintf_s(mapdString,256,"map_d %s\n", typeTextureFileName );
-                }
-                else
-#endif
-                {
-                    // otherwise, always export both, since we don't know what the modeler likes
-                    gModel.usesRGBA = 1;
-                    gModel.usesAlpha = 1;
-                    typeTextureFileName = textureRGBA;
-                    sprintf_s(mapdString,256,"map_d %s\n", textureAlpha );
-                }
-            }
-            else
-            {
-                if ( gExportTexture )
-                {
-#ifdef SKETCHFAB
-					if (gOptions->exportFlags & EXPT_SKFB)
-                    {
-                        gModel.usesRGBA = 1;
-                        typeTextureFileName = textureRGBA;
-                    }
-                    else
-#endif
-                    {
-                        gModel.usesRGB = 1;
-                        typeTextureFileName = textureRGB;
-                    }
-                }
-                else
-                {
-                    typeTextureFileName = '\0'; 
-                }
-                mapdString[0] = '\0';
-            }
-			// TODO it would be nice if, when various light blocks (such as campfire) are not actually on, they could be set to not be an emitter
-            if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
-            {
-                sprintf_s(keString,256,"Ke 1 1 1\n" );
-                if ( gExportTexture )
-                {
-                    sprintf_s(mapKeString,256,"map_Ke %s\n", typeTextureFileName );
-                }
-                else
-                {
-                    mapKeString[0] = '\0';
-                }
-            }
-            else
-            {
-                keString[0] = '\0';
-                mapKeString[0] = '\0';
-            }
-
-            // Any last-minute adjustments due to material?
-            // I like to give the water a slight reflectivity, it's justifiable. Same with glass.
-            // Simplify this to all transparent surfaces, which are likely to be shiny, except for
-            // BLOCK_FROSTED_ICE (hey, it's frosted).
-            if ((gBlockDefinitions[type].read_alpha < 1.0f) && (type != BLOCK_FROSTED_ICE)) {
-                // just a little - too much in G3D reflects the sun too much
-                ks = 0.03;
-            }
-
-            if (gExportTexture)
-            {
-                sprintf_s(outputString,2048,
-                    "\nnewmtl %s\n"
-                    "%sNs 0\n"	// specular highlight power
-                    "%sKa %g %g %g\n"
-                    "Kd %g %g %g\n"
-                    "Ks %g %g %g\n"
-                    "%s" // emissive
-                    "%smap_Ka %s\n"
-                    "# for G3D, to make textures look blocky:\n"
-                    "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
-                    "map_Kd %s\n"
-                    "%s" // map_d, if there's a cutout
-                    "%s"	// map_Ke
-                    // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-                    "%sillum %d\n"
-                    "# d %g\n"	// some use Tr here - Blender likes "d"
-                    "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-                    "%s"	//Tf, if needed
-                    ,
-                    // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
-                    mtlName,
-                    fullMtl,
-                    fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
-                    (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                    (float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
-                    keString,
-                    fullMtl,typeTextureFileName,
-                    typeTextureFileName,
-                    mapdString,
-                    mapKeString,
-                    fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
-                    (float)(alpha),
-                    (float)(alpha),
-                    tfString);
-            }
-            else
-            {
-                sprintf_s(outputString,2048,
-                    "\nnewmtl %s\n"
-                    "%sNs 0\n"	// specular highlight power
-                    "%sKa %g %g %g\n"
-                    "Kd %g %g %g\n"
-                    "Ks %g %g %g\n"
-                    "%s%s" // emissive
-                    // "Ni 1.0\n" - Blender likes to output this - no idea what it is
-                    "%sillum %d\n"
-                    "d %g\n"	// some use Tr here - Blender likes "d"
-                    "Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
-                    "%s%s\n"	//Tf, if needed
-                    ,
-                    // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
-                    mtlName,
-                    fullMtl,
-                    fullMtl,(float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka), 
-                    (float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
-                    (float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
-                    fullMtl, keString,
-                    fullMtl,(alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
-                    (float)(alpha),
-                    (float)(alpha),
-                    fullMtl,tfString);
-            }
-            WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString) ));
-        }
+				retCode = writeOBJFullMtlDescription(mtlName, type, textureRGB, textureRGBA, textureAlpha);
+				if (retCode != MW_NO_ERROR)
+					return retCode;
+			}
+		}
     }
 
     PortaClose(gMtlFile);
 
     return MW_NO_ERROR;
+}
+
+static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB, char *textureRGBA, char *textureAlpha)
+{
+#ifdef WIN32
+	DWORD br;
+#endif
+
+	char outputString[2048];
+	char tfString[256];
+	char mapdString[256];
+	char mapKeString[256];
+	char keString[256];
+	char *typeTextureFileName;
+	char fullMtl[256];
+	double alpha;
+	double fRed, fGreen, fBlue;
+	double ka, kd, ks;
+
+	if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL)
+	{
+		// Use full material description, and include illumination model.
+		// Works by uncommenting lines where "fullMtl" is used in the output.
+		// Really currently tailored for G3D, and things like Tr are commented out always.
+		strcpy_s(fullMtl, 256, "");
+	}
+	else
+	{
+		// don't use full material, comment it out, just output the basics
+		strcpy_s(fullMtl, 256, "# ");
+	}
+
+	// if we want a neutral material, set to white
+	// was: if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL)
+	// In fact, texture should be multiplied by color, according to the spec: http://paulbourke.net/dataformats/mtl/
+	// So use a white color if we're outputting a texture, since it could get multiplied. This
+	// will make Blender previewing look all-white, but people should turn on texturing anyway.
+	if (gOptions->exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
+	{
+		fRed = fGreen = fBlue = 1.0f;
+	}
+	else
+	{
+		// use color in file, which is nice for previewing. Blender and 3DS MAX like this, for example. G3D does not.
+		fRed = (gBlockDefinitions[type].color >> 16) / 255.0f;
+		fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff) / 255.0f;
+		fBlue = (gBlockDefinitions[type].color & 0xff) / 255.0f;
+	}
+
+	// good for blender:
+	ka = 0.2;
+	kd = 1.0;
+	ks = 0.0;
+	// 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
+	// is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
+	// in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
+	// Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
+	// do not support textures (e.g. Blender).
+	//alpha = ( gPrint3D || (gExportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
+	// Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
+	// alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
+	alpha = gBlockDefinitions[type].alpha;
+	if (gOptions->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+	{
+		// if showing groups, make the alpha of the largest group transparent
+		if (gDebugTransparentType == type)
+		{
+			alpha = DEBUG_DISPLAY_ALPHA;
+		}
+		else
+		{
+			alpha = 1.0f;
+		}
+	}
+	else if (gPrint3D)
+	{
+		// for 3d printing, alpha is always 1.0
+		alpha = 1.0f;
+	}
+	// if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
+	// (this is true for glass panes, but stained glass pains are semitransparent)
+	if (alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
+	{
+		alpha = 1.0f;
+	}
+
+	if (alpha < 1.0f)
+	{
+		// semitransparent block, such as water
+		gModel.usesRGBA = 1;
+		gModel.usesAlpha = 1;
+		sprintf_s(tfString, 256, "%sTf %g %g %g\n", fullMtl, 1.0f - (float)(fRed*alpha), 1.0f - (float)(fGreen*alpha), 1.0f - (float)(fBlue*alpha));
+	}
+	else
+	{
+		tfString[0] = '\0';
+	}
+
+	// export map_d only if CUTOUTS.
+	if (!gPrint3D &&
+		gExportTexture &&
+		(alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
+		!(gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART)))
+	{
+		// cutouts or alpha
+#ifdef SKETCHFAB
+		if ((gOptions->exportFlags & EXPT_SKFB))
+		{
+			// for Sketchfab, don't need alpha map
+			gModel.usesRGBA = 1;
+			gModel.usesAlpha = 0;
+			typeTextureFileName = textureRGBA;
+			sprintf_s(mapdString, 256, "map_d %s\n", typeTextureFileName);
+		}
+		else
+#endif
+		{
+			// otherwise, always export both, since we don't know what the modeler likes
+			gModel.usesRGBA = 1;
+			gModel.usesAlpha = 1;
+			typeTextureFileName = textureRGBA;
+			sprintf_s(mapdString, 256, "map_d %s\n", textureAlpha);
+		}
+	}
+	else
+	{
+		if (gExportTexture)
+		{
+#ifdef SKETCHFAB
+			if (gOptions->exportFlags & EXPT_SKFB)
+			{
+				gModel.usesRGBA = 1;
+				typeTextureFileName = textureRGBA;
+			}
+			else
+#endif
+			{
+				gModel.usesRGB = 1;
+				typeTextureFileName = textureRGB;
+			}
+		}
+		else
+		{
+			typeTextureFileName = '\0';
+		}
+		mapdString[0] = '\0';
+	}
+	// TODO it would be nice if, when various light blocks (such as campfire) are not actually on, they could be set to not be an emitter
+	if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
+	{
+		sprintf_s(keString, 256, "Ke 1 1 1\n");
+		if (gExportTexture)
+		{
+			sprintf_s(mapKeString, 256, "map_Ke %s\n", typeTextureFileName);
+		}
+		else
+		{
+			mapKeString[0] = '\0';
+		}
+	}
+	else
+	{
+		keString[0] = '\0';
+		mapKeString[0] = '\0';
+	}
+
+	// Any last-minute adjustments due to material?
+	// I like to give the water a slight reflectivity, it's justifiable. Same with glass.
+	// Simplify this to all transparent surfaces, which are likely to be shiny, except for
+	// BLOCK_FROSTED_ICE (hey, it's frosted).
+	if ((gBlockDefinitions[type].read_alpha < 1.0f) && (type != BLOCK_FROSTED_ICE)) {
+		// just a little - too much in G3D reflects the sun too much
+		ks = 0.03;
+	}
+
+	if (gExportTexture)
+	{
+		sprintf_s(outputString, 2048,
+			"\nnewmtl %s\n"
+			"%sNs 0\n"	// specular highlight power
+			"%sKa %g %g %g\n"
+			"Kd %g %g %g\n"
+			"Ks %g %g %g\n"
+			"%s" // emissive
+			"%smap_Ka %s\n"
+			"# for G3D, to make textures look blocky:\n"
+			"interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
+			"map_Kd %s\n"
+			"%s" // map_d, if there's a cutout
+			"%s"	// map_Ke
+			// "Ni 1.0\n" - Blender likes to output this - no idea what it is
+			"%sillum %d\n"
+			"# d %g\n"	// some use Tr here - Blender likes "d"
+			"# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+			"%s"	//Tf, if needed
+			,
+			// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
+			mtlName,
+			fullMtl,
+			fullMtl, (float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka),
+			(float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
+			(float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
+			keString,
+			fullMtl, typeTextureFileName,
+			typeTextureFileName,
+			mapdString,
+			mapKeString,
+			fullMtl, (alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
+			(float)(alpha),
+			(float)(alpha),
+			tfString);
+	}
+	else
+	{
+		sprintf_s(outputString, 2048,
+			"\nnewmtl %s\n"
+			"%sNs 0\n"	// specular highlight power
+			"%sKa %g %g %g\n"
+			"Kd %g %g %g\n"
+			"Ks %g %g %g\n"
+			"%s%s" // emissive
+			// "Ni 1.0\n" - Blender likes to output this - no idea what it is
+			"%sillum %d\n"
+			"d %g\n"	// some use Tr here - Blender likes "d"
+			"Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+			"%s%s\n"	//Tf, if needed
+			,
+			// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
+			mtlName,
+			fullMtl,
+			fullMtl, (float)(fRed*ka), (float)(fGreen*ka), (float)(fBlue*ka),
+			(float)(fRed*kd), (float)(fGreen*kd), (float)(fBlue*kd),
+			(float)(fRed*ks), (float)(fGreen*ks), (float)(fBlue*ks),
+			fullMtl, keString,
+			fullMtl, (alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
+			(float)(alpha),
+			(float)(alpha),
+			fullMtl, tfString);
+	}
+	WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+
+	return MW_NO_ERROR;
 }
 
 
@@ -20898,6 +21077,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	// option only available when rendering - always true when 3D printing.
 	if (!gPrint3D)
 	{
+		// note that we output gOptions->pEFD->chkCompositeOverlay even if gExportTiles is true
 		sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gOptions->pEFD->chkCompositeOverlay ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 	}
@@ -21894,6 +22074,77 @@ static void convertAlphaToGrayscale( progimage_info *dst )
         }
     }
 }
+
+// for output of tiles
+
+static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow)
+{
+	int retCode = MW_NO_ERROR;
+	bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
+	int scol = swatchLoc % swatchesPerRow;
+	int srow = swatchLoc / swatchesPerRow;
+
+	int col, row;
+	int numChannels = usesAlpha ? 4 : 3;
+	unsigned char *imageDst, *imageSrc;
+	progimage_info dst;
+	dst.height = swatchSize - 2;
+	dst.width = swatchSize - 2;
+	dst.image_data.resize(dst.height*dst.width * numChannels);
+
+	imageDst = &dst.image_data[0];
+
+	for (row = 0; row < dst.height; row++)
+	{
+		// upper left corner, starting location, plus 1 row and column
+		imageSrc = &src->image_data[0] + ((srow * swatchSize + 1 + row)*src->width + scol * swatchSize + 1)*4;
+		for (col = 0; col < dst.width; col++)
+		{
+			// copy RGB only
+			*imageDst++ = *imageSrc++;
+			*imageDst++ = *imageSrc++;
+			*imageDst++ = *imageSrc++;
+			if ( usesAlpha )
+				*imageDst++ = *imageSrc++;
+			else
+				imageSrc++;
+		}
+	}
+
+	retCode |= writepng(&dst, numChannels, filename);
+	addOutputFilenameToList(filename);
+
+	writepng_cleanup(&dst);
+
+	return retCode;
+}
+
+static bool doesTileHaveAlpha(progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow)
+{
+	// these are swatch locations in index form (not yet multiplied by swatch size itself)
+	int scol = swatchLoc % swatchesPerRow;
+	int srow = swatchLoc / swatchesPerRow;
+
+	int col, row;
+	unsigned char dr, dg, db, da;
+
+	// tileSize is always swatchSize-2
+	for (row = 0; row < swatchSize - 2; row++)
+	{
+		// upper left corner, starting location, plus 1 row and column
+		unsigned int *srci = (unsigned int *)(&src->image_data[0]) + (srow * swatchSize + 1 + row)*src->width + scol * swatchSize + 1;
+		for (col = 0; col < swatchSize - 2; col++)
+		{
+			GET_PNG_TEXEL(dr, dg, db, da, *srci);
+			if (da != 255)
+				return true;
+			srci++;
+		}
+	}
+	return false;
+}
+
+
 
 ///////////////////////////////////////////////////////////
 //

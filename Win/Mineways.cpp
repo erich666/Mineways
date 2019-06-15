@@ -5398,14 +5398,14 @@ static int interpretImportLine(char *line, ImportedSet & is)
             "full", // "Export full color texture patterns"
 			"tiles" // "Export tiles for textures"
         };
-        for (i = 0; i < 4; i++)
+        for (i = 0; i < 5; i++)
         {
             if (_stricmp(outputTypeString[i], string1) == 0)
             {
                 break;
             }
         }
-        if (i >= 4) {
+        if (i >= 5) {
             saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }

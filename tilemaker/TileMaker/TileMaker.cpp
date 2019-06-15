@@ -57,36 +57,36 @@ typedef struct ChestData {
 
 static ChestData gNormalChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   7, 26,   0, 0 },	// MW_CHEST_LATCH
-	{ 14,  0,  14, 14,   9,  1,   1, 1 },	// MW_CHEST_TOP
-	{  0, 14,  14,  4,  10,  1,   1, 2 },	// top of MW_CHEST_SIDE
-	{  0, 33,  14, 10,  10,  1,   1, 6 },	// bottom of MW_CHEST_SIDE
-	{ 14, 14,  14,  4,  11,  1,   1, 2 },	// top of MW_CHEST_FRONT
-	{ 14, 33,  14, 10,  11,  1,   1, 6 },	// bottom of MW_CHEST_FRONT
+	{  0,  0,   6,  5,   7, 26,   0, 0 },	// MWO_chest_latch
+	{ 14,  0,  14, 14,   9,  1,   1, 1 },	// MWO_chest_top
+	{  0, 14,  14,  4,  10,  1,   1, 2 },	// top of MWO_chest_side
+	{  0, 33,  14, 10,  10,  1,   1, 6 },	// bottom of MWO_chest_side
+	{ 14, 14,  14,  4,  11,  1,   1, 2 },	// top of MWO_chest_front
+	{ 14, 33,  14, 10,  11,  1,   1, 6 },	// bottom of MWO_chest_front
 };
 
 static ChestData gNormalDoubleChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{ 14, 14,  15,  4,   9,  2,  1, 2 },	// MW_DCHEST_FRONT_LEFT top
-	{ 14, 33,  15, 10,   9,  2,  1, 6 },	// MW_DCHEST_FRONT_LEFT bottom
-	{ 29, 14,  15,  4,  10,  2,  0, 2 },	// MW_DCHEST_FRONT_RIGHT top
-	{ 29, 33,  15, 10,  10,  2,  0, 6 },	// MW_DCHEST_FRONT_RIGHT bottom
-	{ 58, 14,  15,  4,   9,  3,  1, 2 },	// MW_DCHEST_BACK_LEFT top
-	{ 58, 33,  15, 10,   9,  3,  1, 6 },	// MW_DCHEST_BACK_LEFT bottom
-	{ 73, 14,  15,  4,  10,  3,  0, 2 },	// MW_DCHEST_BACK_RIGHT top
-	{ 73, 33,  15, 10,  10,  3,  0, 6 },	// MW_DCHEST_BACK_RIGHT bottom
-	{ 14,  0,  15, 14,   9, 14,  1, 1 },	// MW_DCHEST_TOP_LEFT
-	{ 29,  0,  15, 14,  10, 14,  0, 1 },	// MW_DCHEST_TOP_RIGHT
+	{ 14, 14,  15,  4,   9,  2,  1, 2 },	// MWO_double_chest_front_left top
+	{ 14, 33,  15, 10,   9,  2,  1, 6 },	// MWO_double_chest_front_left bottom
+	{ 29, 14,  15,  4,  10,  2,  0, 2 },	// MWO_double_chest_front_right top
+	{ 29, 33,  15, 10,  10,  2,  0, 6 },	// MWO_double_chest_front_right bottom
+	{ 58, 14,  15,  4,   9,  3,  1, 2 },	// MWO_double_chest_back_left top
+	{ 58, 33,  15, 10,   9,  3,  1, 6 },	// MWO_double_chest_back_left bottom
+	{ 73, 14,  15,  4,  10,  3,  0, 2 },	// MWO_double_chest_back_right top
+	{ 73, 33,  15, 10,  10,  3,  0, 6 },	// MWO_double_chest_back_right bottom
+	{ 14,  0,  15, 14,   9, 14,  1, 1 },	// MWO_double_chest_top_left
+	{ 29,  0,  15, 14,  10, 14,  0, 1 },	// MWO_double_chest_top_right
 };
 
 static ChestData gEnderChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   9, 13,   0, 0 },	// MW_ENDER_CHEST_LATCH
-	{ 14,  0,  14, 14,  10, 13,   1, 1 },	// MW_ENDER_CHEST_TOP
-	{  0, 14,  14,  4,  11, 13,   1, 2 },	// top of MW_ENDER_CHEST_SIDE
-	{  0, 33,  14, 10,  11, 13,   1, 6 },	// bottom of MW_ENDER_CHEST_SIDE
-	{ 14, 14,  14,  4,  12, 13,   1, 2 },	// top of MW_ENDER_CHEST_FRONT
-	{ 14, 33,  14, 10,  12, 13,   1, 6 },	// bottom of MW_ENDER_CHEST_FRONT
+	{  0,  0,   6,  5,   9, 13,   0, 0 },	// MWO_ender_chest_latch
+	{ 14,  0,  14, 14,  10, 13,   1, 1 },	// MWO_ender_chest_top
+	{  0, 14,  14,  4,  11, 13,   1, 2 },	// top of MWO_ender_chest_side
+	{  0, 33,  14, 10,  11, 13,   1, 6 },	// bottom of MWO_ender_chest_side
+	{ 14, 14,  14,  4,  12, 13,   1, 2 },	// top of MWO_ender_chest_front
+	{ 14, 33,  14, 10,  12, 13,   1, 6 },	// bottom of MWO_ender_chest_front
 };
 
 static struct Chest {
@@ -510,8 +510,8 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			if ( tilesTableIndexToInput[i] < 0 )
 			{
-				// if it starts with "MW_" or is the empty string, ignore miss
-				if ( wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename,L"MW_",3) != 0 )
+				// if it starts with "MW" or is the empty string, ignore miss
+				if ( wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename,L"MW",2) != 0 )
 					wprintf (L"This program needs a tile named %s that was not replaced.\n", gTilesTable[i].filename);
 			}
 		}
@@ -613,8 +613,8 @@ int wmain(int argc, wchar_t* argv[])
     int neutral_color[4], mult_color[4];
     // which tile to use: get the bottommost
     index = findTile(L"white_shulker_box", 1);
-    int side_index = findTile(L"MW_SHULKER_SIDE", 0);
-    int bottom_index = findTile(L"MW_SHULKER_BOTTOM", 0);
+    int side_index = findTile(L"MW_shulker_side", 0);
+    int bottom_index = findTile(L"MW_shulker_bottom", 0);
 	assert(index >= 0);
 	assert(side_index >= 0);
 	assert(bottom_index >= 0);
