@@ -388,6 +388,11 @@ static struct {
 	{ "Cartography Table" },
 	{ "Fletching Table" },
 	{ "Smithing Table" },	// 120
+	{ "Spruce Log" },
+	{ "Birch Log" },
+	{ "Jungle Log" },
+	{ "Dark Oak Log" },
+	{ "Bubble Column" },
 };
 
 char gCoralString[100];
@@ -448,6 +453,7 @@ static struct {
 #define STRING_STR_SPRUCE_LOG				42
 #define STRING_STR_BIRCH_LOG				43
 #define STRING_STR_JUNGLE_LOG				44
+// oops, not actually needed:
 #define STRING_STR_ACACIA_LOG				45
 #define STRING_STR_DARK_OAK_LOG				46
 #define STRING_STR_SPRUCE_WOOD				47
@@ -524,6 +530,11 @@ static struct {
 #define STRING_CARTOGRAPHY_TABLE			118
 #define STRING_FLETCHING_TABLE				119
 #define STRING_SMITHING_TABLE				120
+#define STRING_SPRUCE_LOG					121
+#define STRING_BIRCH_LOG					122
+#define STRING_JUNGLE_LOG					123
+#define STRING_DARK_OAK_LOG					124
+#define STRING_BUBBLE_COLUMN				125
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -647,12 +658,17 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 	}
 
+	return RetrieveBlockSubname(*type, *dataVal, block, xoff, y, zoff );
+}
+
+const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int xoff, int y, int zoff )
+{
 	///////////////////////////////////
 	// give a better name if possible
-	switch (*type)
+	switch (type)
 	{
 	case BLOCK_LEAVES:
-		switch ((*dataVal) & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -669,7 +685,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_AD_LEAVES:
-		switch ((*dataVal) & 0x1)
+		switch (dataVal & 0x1)
 		{
 		default:
 			break;
@@ -680,7 +696,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_TALL_GRASS:
-		switch ((*dataVal) & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 		case 0: // dead bush
@@ -696,7 +712,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_POPPY:
-		switch ((*dataVal))
+		switch (dataVal)
 		{
 		default:	// poppy
 			break;
@@ -738,31 +754,34 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_DOUBLE_FLOWER:
 		// subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
-		*dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
-		switch ((*dataVal))
-		{
-		default:	// sunflower
-			break;
-		case 1:	// lilac
-			return gExtraBlockNames[STRING_LILAC].name;
-			break;
-		case 2:	// double tallgrass
-			return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
-			break;
-		case 3:	// large fern
-			return gExtraBlockNames[STRING_LARGE_FERN].name;
-			break;
-		case 4:	// rose bush
-			return gExtraBlockNames[STRING_ROSE_BUSH].name;
-			break;
-		case 5:	// peony
-			return gExtraBlockNames[STRING_PEONY].name;
-			break;
+		if (block != NULL) {
+			// can get name only when the block data is available
+			dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
+			switch (dataVal)
+			{
+			default:	// sunflower
+				break;
+			case 1:	// lilac
+				return gExtraBlockNames[STRING_LILAC].name;
+				break;
+			case 2:	// double tallgrass
+				return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
+				break;
+			case 3:	// large fern
+				return gExtraBlockNames[STRING_LARGE_FERN].name;
+				break;
+			case 4:	// rose bush
+				return gExtraBlockNames[STRING_ROSE_BUSH].name;
+				break;
+			case 5:	// peony
+				return gExtraBlockNames[STRING_PEONY].name;
+				break;
+			}
 		}
 		break;
 
 	case BLOCK_OAK_PLANKS:
-		switch (*dataVal)
+		switch (dataVal)
 		{
 		default:
 			break;
@@ -785,7 +804,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_STONE:
-		switch (*dataVal)
+		switch (dataVal)
 		{
 		default:
 			break;
@@ -811,7 +830,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_DIRT:
-		switch (*dataVal)
+		switch (dataVal)
 		{
 		default:
 			break;
@@ -825,7 +844,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_SAPLING:
-		switch (*dataVal)
+		switch (dataVal)
 		{
 		default:
 			break;
@@ -852,7 +871,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
 	case BLOCK_RED_SANDSTONE_SLAB:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default:
 			assert(0);
@@ -884,7 +903,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_PURPUR_DOUBLE_SLAB:
 	case BLOCK_PURPUR_SLAB:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default:
 			assert(0);
@@ -913,7 +932,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_STRIPPED_OAK:
-		switch (*dataVal & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -929,7 +948,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA:
-		switch (*dataVal & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -939,7 +958,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_STRIPPED_OAK_WOOD:
-		switch (*dataVal & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -955,7 +974,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA_WOOD:
-		switch (*dataVal & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -966,7 +985,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_SMOOTH_STONE:
-		switch (*dataVal & 0x3)
+		switch (dataVal & 0x3)
 		{
 		default:
 			break;
@@ -988,11 +1007,11 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 	case BLOCK_CORAL_FAN:
 	case BLOCK_CORAL_WALL_FAN:
 		// does name need to be changed?
-		if (*dataVal & 0x7) {
+		if (dataVal & 0x7) {
 			// watch out if there's ever a sixth coral...
-			strcpy_s(gCoralString, 100, gCoralNames[(*dataVal & 0x7) - 1].name);
+			strcpy_s(gCoralString, 100, gCoralNames[(dataVal & 0x7) - 1].name);
 
-			switch (*type) {
+			switch (type) {
 			case BLOCK_CORAL_BLOCK:
 				strcat_s(gCoralString, 100, " Coral Block");
 				break;
@@ -1012,7 +1031,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_ANDESITE_DOUBLE_SLAB:
 	case BLOCK_ANDESITE_SLAB:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default:
 			break;
@@ -1036,7 +1055,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_STONE_DOUBLE_SLAB:
 	case BLOCK_STONE_SLAB:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default:
 			break;
@@ -1073,7 +1092,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
 	case BLOCK_WOODEN_DOUBLE_SLAB:
 	case BLOCK_WOODEN_SLAB:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default: // normal log
 			break;
@@ -1096,7 +1115,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 
 	case BLOCK_COBBLESTONE_STAIRS:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			break;
 		case BIT_16:	// stone stairs
@@ -1111,7 +1130,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_BRICK_STAIRS:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			break;
 		case BIT_16:	// smooth quartz stairs
@@ -1126,7 +1145,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_STONE_BRICK_STAIRS:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			break;
 		case BIT_16:	// end stone stairs
@@ -1141,7 +1160,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_NETHER_BRICK_STAIRS:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			break;
 		case BIT_16:	// red nether brick stairs
@@ -1156,7 +1175,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_SANDSTONE_STAIRS:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			break;
 		case BIT_16:	// smooth sandstone stairs
@@ -1168,7 +1187,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_COBBLESTONE_WALL:
-		switch (*dataVal & 0xf)	{
+		switch (dataVal & 0xf)	{
 		default:
 			// no change, default cobblestone is fine
 			break;
@@ -1214,7 +1233,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_PRISMARINE:
-		switch (*dataVal & 0x7)
+		switch (dataVal & 0x7)
 		{
 		default:
 			assert(0);
@@ -1230,7 +1249,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		break;
 	case BLOCK_FURNACE:
 	case BLOCK_BURNING_FURNACE:
-		switch (*dataVal & (BIT_32 | BIT_16)) {
+		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			assert(0);
 		case 0:
@@ -1247,7 +1266,7 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 	case BLOCK_CRAFTING_TABLE:
-		switch ((*dataVal) & 0xf)
+		switch (dataVal & 0xf)
 		{
 		default:
 			break;
@@ -1263,11 +1282,58 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 		}
 		break;
 
+	case BLOCK_SAND:
+		switch (dataVal & 0x1)
+		{
+		default:
+			break;
+		case 1:	// red sand
+			return gExtraBlockNames[STRING_RED_SAND].name;
+			break;
+		}
+		break;
+
+	case BLOCK_LOG:
+		switch (dataVal & 0x3)
+		{
+		default:
+			break;
+		case 1:	// spruce
+			return gExtraBlockNames[STRING_SPRUCE_LOG].name;
+			break;
+		case 2:	// birch
+			return gExtraBlockNames[STRING_BIRCH_LOG].name;
+			break;
+		case 3:	// jungle
+			return gExtraBlockNames[STRING_JUNGLE_LOG].name;
+			break;
+		}
+		break;
+	case BLOCK_AD_LOG:
+		switch (dataVal & 0x3)
+		{
+		default:
+			break;
+		case 1:	// dark oak
+			return gExtraBlockNames[STRING_DARK_OAK_LOG].name;
+			break;
+		}
+		break;
+	case BLOCK_STATIONARY_WATER:
+		switch (dataVal & 0x8)
+		{
+		default:
+			break;
+		case 8:	// bubble column
+			return gExtraBlockNames[STRING_BUBBLE_COLUMN].name;
+			break;
+		}
+		break;
 	}
 
 	// could add more? TODO
 
-    return gBlockDefinitions[*type].name;
+    return gBlockDefinitions[type].name;
 }
 
 //copy block to bits at px,py at zoom.  bits is wxh
@@ -1861,6 +1927,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
     case BLOCK_STATIONARY_WATER:
         color = gBlockDefinitions[BLOCK_STATIONARY_WATER].color;
         affectedByBiome = 3;
+		// TODO bubble column effect?
         break;
 
     case BLOCK_CONCRETE:
@@ -3279,7 +3346,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
     case BLOCK_WATER:
-    case BLOCK_STATIONARY_WATER:
+    case BLOCK_STATIONARY_WATER:	// TODO add bubble column - doesn't really affect rendering
     case BLOCK_LAVA:
     case BLOCK_STATIONARY_LAVA:
         // uses 0-8, with 8 giving one above

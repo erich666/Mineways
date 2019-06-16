@@ -893,7 +893,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     // True only if we're exporting all geometry.
     // Must be set now, as this influences whether we stretch textures.
     gExportBillboards =
-        //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+        //(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
         gOptions->pEFD->chkExportAll;
 
     gPhysMtl = gOptions->pEFD->comboPhysicalMaterial[gOptions->pEFD->fileType];
@@ -937,7 +937,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     UPDATE_PROGRESS(0.30f*PG_MAKE_FACES);
 
     // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
-    if ( gExportTexture )
+    if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES )
     {
         gModel.pInputTerrainImage = new progimage_info();
 
@@ -987,12 +987,12 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
         // Make it twice as large if we're outputting image textures, too- we need the space.
 		// We're just setting up here, giving something to write UVs against; even per-tile texture
 		// output uses this. We export the texture at the end.
-        if ( gExportTexture )
+        if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
         {
             // use true textures
             gModel.textureResolution = 2*gModel.pInputTerrainImage->width;
             gModel.terrainWidth = gModel.pInputTerrainImage->width;
-        }
+		}
         else
         {
             // Use "noisy" colors, fixed 512 x 512 - we could actually make this texture quite small
@@ -1013,14 +1013,14 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
         gModel.swatchListSize = gModel.swatchesPerRow*gModel.swatchesPerRow;
 
         retCode |= createBaseMaterialTexture();
-    }
 
-    // all done with base input texture, free up its memory.
-    if ( gExportTexture )
-    {
-        readpng_cleanup(1,gModel.pInputTerrainImage);
-        delete gModel.pInputTerrainImage;
-        gModel.pInputTerrainImage = NULL;
+		if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
+		{
+			// all done with base input texture, free up its memory.
+			readpng_cleanup(1, gModel.pInputTerrainImage);
+			delete gModel.pInputTerrainImage;
+			gModel.pInputTerrainImage = NULL;
+		}
     }
 
     // were there errors?
@@ -1204,7 +1204,7 @@ Exit:
             int rc;
 
             // do only if true textures used
-            if ( gExportTexture )
+            if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES )
             {
                 int i;
                 int faTableCount;
@@ -2295,7 +2295,7 @@ static int filterBox(ChangeBlockCommand *pCBC)
 	}
 
 	// what should we output? Only 3D bits (no billboards) if printing or if textures are off
-	if (gPrint3D || !gExportTexture)
+	if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
 	{
 		outputFlags = BLF_3D_BIT;
 	}
@@ -3695,7 +3695,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POWERED_RAIL:
     case BLOCK_DETECTOR_RAIL:
     case BLOCK_ACTIVATOR_RAIL:
-        if ( !gPrint3D && gExportTexture )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
             return saveBillboardFaces( boxIndex, type, BB_RAILS );
         }
@@ -3856,7 +3856,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_DARK_OAK_FENCE:
     case BLOCK_ACACIA_FENCE:
     case BLOCK_NETHER_BRICK_FENCE:
-        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
+        //groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if ( fatten )
         {
@@ -5601,7 +5601,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         bitAdd = 8;
 
         // add stem if not printing and images in use
-        if ( !gPrint3D && gExportTexture )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 12, 16, 12, 16, 8, 8);
             // transform the stem and the block, below, so add in these vertices
@@ -5772,7 +5772,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		bamboo - new only
         */
 
-        if (gPrint3D || !gExportTexture)
+        if (gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
         {
             // printing or not using images: only geometry we can add is a cactus (bamboo is too thin to print)
             if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
@@ -6106,7 +6106,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // remember that this gives the top of the block:
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // for textured rendering, make a billboard-like object, for printing or solid rendering, pull in the edges
-        if ( gPrint3D || !gExportTexture )
+        if ( gPrint3D || !(gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
             saveBoxMultitileGeometry( boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, faceMask, 0, 1,15, 0,16, 1,15 );
         }
@@ -6334,7 +6334,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8,mtx);
-        if ( !gPrint3D && gExportTexture )
+        if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
             // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
             // matter, because no one ever sees the bottom of a repeater.
@@ -6381,7 +6381,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(8,mtx);
-            if ( !gPrint3D && gExportTexture )
+            if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
             {
                 // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
                 // matter, because no one ever sees the bottom of a repeater.
@@ -7002,7 +7002,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-        if ( (type == BLOCK_IRON_BARS) && !gPrint3D && gExportTexture )
+        if ( (type == BLOCK_IRON_BARS) && !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
             // for rendering iron bars, we just need one side of each wall - easier
             switch (filled)
@@ -9422,7 +9422,7 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, float
                 }
             }
             // look for blocks with cutouts next to them - only for rendering
-            if (gExportTexture &&
+            if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
                 (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
             {
                 //(neighborType == BLOCK_LEAVES) ||
@@ -13636,7 +13636,7 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
                 }
             }
             // look for blocks with cutouts next to them - only for rendering
-            if (gExportTexture &&
+            if ((gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
                 (gBlockDefinitions[neighborType].flags & BLF_CUTOUTS) )
             {
                 // Special case: if leaves are neighbors and "make leaves solid" is on, then don't output face.
@@ -14528,7 +14528,7 @@ UseGridLoc:
 
         // if we're exporting the full texture, then a composite was used:
         // we might then actually want to use the original type
-        //if ( Options.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES )
+        //if ( Options.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES )
         //{
         //    face->type = originalType;
         //}
@@ -17575,6 +17575,7 @@ static int createCompositeSwatch( int swatchLoc, int backgroundSwatchLoc, int an
     pSwatch->angle = angle;
     pSwatch->backgroundSwatchLoc = backgroundSwatchLoc;
     pSwatch->next = NULL;
+	assert(!gExportTiles);
 
     // The real work: take the swatch and composite it over the background swatch - this should never recurse! If it does, then a background is a composite, too,
     // which should not happen
@@ -18123,11 +18124,19 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                     strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
 
                     if (subtypeMaterial && prevDataVal != 0) {
-                        // add a dataval suffix
-                        // TODO: if I ever have way too much time on my hands, turn these data values
-                        // into the actual sub-material type names. Hours of fun typing!
+                        // add a dataval suffix.
+                        // If possible, turn these data values into the actual sub-material type names.
+						const char *subName = RetrieveBlockSubname(prevType, prevDataVal);
                         char tempString[MAX_PATH_AND_FILE];
-                        sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+						if (strcmp(subName, mtlName) == 0) {
+							// sorry, no unique subname found, use the data value - TODO: could add to RetrieveBlockSubname
+							sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+						}
+						else {
+							// we include the original name as we know it's then unique - we really should expand
+							// RetrieveBlockSubname so that all names are unique TODOTODO
+							sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+						}
                         strcpy_s(mtlName, 256, tempString);
                     }
 
@@ -18191,6 +18200,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 						if (gExportTiles) {
 							// new material per tile ID
 							// swatch locations exactly correspond with tiles.h names
+							assert(prevSwatchLoc < TOTAL_TILES);
 							WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
 							sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
 							WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -18477,7 +18487,7 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-		if (gExportTexture) {
+		if (gExportTiles) {
 			// swatch locations exactly correspond with tiles.h names
 			char outName[MAX_PATH_AND_FILE];
 			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
@@ -18557,8 +18567,8 @@ static int writeOBJMtlFile()
 	// for other rendering, either only RGB is needed (no alphas found), or RGBA/RGB/A are all output
     if ( !(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) )
     {
-        // output a single material
-        if ( gExportTexture )
+        // output a single material - should not really affect per tile output, but just in case
+        if ( gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES )
         {
             if ( gPrint3D )
             {
@@ -18690,7 +18700,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 	// In fact, texture should be multiplied by color, according to the spec: http://paulbourke.net/dataformats/mtl/
 	// So use a white color if we're outputting a texture, since it could get multiplied. This
 	// will make Blender previewing look all-white, but people should turn on texturing anyway.
-	if (gOptions->exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
+	if (gExportTexture)
 	{
 		fRed = fGreen = fBlue = 1.0f;
 	}
@@ -18734,7 +18744,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 	}
 	// if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
 	// (this is true for glass panes, but stained glass pains are semitransparent)
-	if (alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
+	if (alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
 	{
 		alpha = 1.0f;
 	}
@@ -18753,7 +18763,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 
 	// export map_d only if CUTOUTS.
 	if (!gPrint3D &&
-		gExportTexture &&
+        (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && 
 		(alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
 		!(gOptions->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART)))
 	{
@@ -18846,7 +18856,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 			// "Ni 1.0\n" - Blender likes to output this - no idea what it is
 			"%sillum %d\n"
 			"# d %g\n"	// some use Tr here - Blender likes "d"
-			"# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+			"# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it; Tr 1 means fully visible in some systems, fully transparent in others, including G3D, so left out
 			"%s"	//Tf, if needed
 			,
 			// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
@@ -18862,7 +18872,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 			mapKeString,
 			fullMtl, (alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
 			(float)(alpha),
-			(float)(alpha),
+			(float)(1.0f-alpha),
 			tfString);
 	}
 	else
@@ -18877,7 +18887,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 			// "Ni 1.0\n" - Blender likes to output this - no idea what it is
 			"%sillum %d\n"
 			"d %g\n"	// some use Tr here - Blender likes "d"
-			"Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it
+			"Tr %g\n"	// we put both, in hopes of helping both types of importer
 			"%s%s\n"	//Tf, if needed
 			,
 			// colors are premultiplied by alpha, Wavefront OBJ doesn't want that
@@ -18889,7 +18899,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 			fullMtl, keString,
 			fullMtl, (alpha < 1.0f ? 4 : 2), // ray trace if transparent overall, e.g. water
 			(float)(alpha),
-			(float)(alpha),
+			(float)(1.0f-alpha),
 			fullMtl, tfString);
 	}
 	WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
@@ -18973,7 +18983,7 @@ static int createBaseMaterialTexture()
 
     gModel.pPNGtexture = mainprog;
 
-    useTextureImage = gExportTexture;
+    useTextureImage = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES);
 
     // we fill the first NUM_BLOCKS with solid colors, if not using true textures
     gModel.swatchCount = 0;
@@ -19020,7 +19030,7 @@ static int createBaseMaterialTexture()
                     }
                     // if the basic solid swatches are to be printed, or to be used as baselines
                     // for compositing with texture images, they must be opaque
-                    else if ( gOptions->exportFlags & (EXPT_3DPRINT|EXPT_OUTPUT_TEXTURE_IMAGES) )
+                    else if ( gOptions->exportFlags & (EXPT_3DPRINT|EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
                     {
                         a = 255;
                     }
@@ -19931,10 +19941,10 @@ static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tight
             pt = vertex[offset];
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-            pt = vertex[offset + i + 1];
+            pt = vertex[(offset + i + 1) % 4];	// shouldn't need % 4, but let's be safe, and makes cppcheck happy
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-            pt = vertex[(offset + i + 2)%4];
+            pt = vertex[(offset + i + 2) % 4];
             sprintf_s(outputString,256,"vertex  %e %e %e\n",(double)((*pt)[X]),(double)((*pt)[Y]),(double)((*pt)[Z]));
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
 
@@ -20315,7 +20325,7 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
         alpha = 1.0f;
     }
     // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
-    if ( alpha < 1.0f && gExportTexture && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
+    if ( alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT) )
     {
         alpha = 1.0f;
     }
@@ -21024,7 +21034,7 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 			radio = 2;
 		else if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
 			radio = 4;
-		else if (gExportTexture)
+		else if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)
 			radio = 3;
 		else
 			radio = 1;

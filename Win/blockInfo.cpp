@@ -233,8 +233,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 158 */ "Dropper",                		0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE },	// 9E/158
 	{ /* 159 */ "Stained Clay",           		0xCEAE9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,16, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 9F/159
 	{ /* 160 */ "Stained Glass Pane",     		0xEFEFEF, 0.500f, 0xff7711, 0xff7711, 0.12345f,   0,20, 0x0f, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_TRANSPARENT | BLF_MAYWATERLOG },	// A0/160 - semitransparent, not a cutout like glass panes are
-	{ /* 161 */ "Leaves (Acacia/Dark Oak)",		0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,19, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART },	//A1/161
-	{ /* 162 */ "Wood (Acacia/Dark Oak)", 		0x766F64, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,19, 0x01, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },	//A2/162
+	{ /* 161 */ "Acacia Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,19, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART },	//A1/161
+	{ /* 162 */ "Acacia Log", 					0x766F64, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,19, 0x01, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },	//A2/162
 	{ /* 163 */ "Acacia Stairs",          		0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A3
 	{ /* 164 */ "Dark Oak Stairs",        		0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A4/164
 	{ /* 165 */ "Slime Block",            		0x787878, 0.500f, 0xff7711, 0xff7711, 0.12345f,   3,22, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR },	// A5/165 - 1.8

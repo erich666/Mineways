@@ -171,6 +171,7 @@ extern UnitType gUnitTypeTable[];
 // Export separate textures, one per tile
 #define EXPT_OUTPUT_SEPARATE_TEXTURE_TILES 0x00000040
 #define EXPT_OUTPUT_TEXTURE (EXPT_OUTPUT_TEXTURE_SWATCHES|EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
+#define EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
 
 // These flags are useful as we sometimes want to check for any of them (e.g. for whether
 // to make parts).
@@ -684,7 +685,7 @@ enum block_types {
 	BLOCK_STAINED_CLAY = 159,	// now called hardened clay
 	BLOCK_STAINED_GLASS_PANE = 0xA0,
 	BLOCK_AD_LEAVES = 0xA1,
-	BLOCK_AD_LOG = 0xA2,
+	BLOCK_AD_LOG = 162,
 	BLOCK_ACACIA_WOOD_STAIRS = 0xA3,
 	BLOCK_DARK_OAK_WOOD_STAIRS = 0xA4,
 	BLOCK_HAY = 0xAA,

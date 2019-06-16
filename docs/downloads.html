@@ -221,11 +221,11 @@
 					</UL>
 					<P>Here are some common problems:</p>
 					<UL>
-						<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps get you to the right spot on your map. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? Version 1.x of Mineways reads only older Minecraft (pre-1.2.x) worlds, not Anvil worlds. Version 2.x of Mineways reads Anvil worlds and will warn if it finds a pre-Anvil (unconverted) world.</LI>
-						<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place. You can use color schemes for all sorts of tricks, e.g., export your model a few times, with different options for the blocks you want to export.</LI>
+						<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps get you to the right spot on your map. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? The latest version is needed to support the newest version of Minecraft, and beta versions of Minecraft can cause problems.</LI>
+						<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place. You can use color schemes for all sorts of tricks, e.g., export your model a few times, with different options for the blocks you want to export. You might also look into <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> if you use Blender.</LI>
+						<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.</LI>
 						<LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Sometimes, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> normally bother with trying STL instead of VRML; STL will not print at Shapeways with color.</LI>
 						<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure the "Model's units" on the export dialog says "Millimeters".</LI>
-						<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.</LI>
 						<LI> "It (still) doesn't work" - <a href="contact.html">write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.</LI>
 						<LI> "I get a long error message about Mineways not finding my worlds directory, then nothing else shows up." I'm not sure the cause of this one, but it's been seen when running on Linux. Starting Mineways by doing <a href="scripting.html#clo">"mineways -s none"</a> has been known to get around this problem.
 					</UL>
@@ -264,7 +264,7 @@
 
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/3/2019</p>
+		<p id="lastUpdate">Last updated 6/13/2019</p>
 	</div>
 
 </body>
