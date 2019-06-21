@@ -917,7 +917,7 @@ ChangeMaterial:
 				// check for non-file characters
 				char badchar[] = "<>|?*";
 				bool badcharFound = false;
-				for (int i = 0; i < strlen(badchar); i++) {
+				for (int i = 0; i < (int)strlen(badchar); i++) {
 					if (strchr(lepd.tileDirString, badchar[i]) != NULL) {
 						badcharFound = true;
 					}
