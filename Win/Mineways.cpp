@@ -5485,7 +5485,7 @@ static int interpretImportLine(char *line, ImportedSet & is)
 				is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
 				// and retrieve path
 				{
-					strPtr = findLineDataNoCase(line, "to directory ");
+					strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
 					if (strPtr != NULL) {
 						strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
 					}
