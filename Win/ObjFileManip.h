@@ -61,16 +61,17 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_CANNOT_PARSE_IMPORT_FILE                 (1<<16)
 #define MW_TEXTURE_TOO_LARGE						(1<<17)
 #define MW_WORLD_EXPORT_TOO_LARGE					(1<<18)
-#define MW_INTERNAL_ERROR							(1<<19)
+#define MW_CANNOT_CREATE_DIRECTORY                  (1<<19)
+#define MW_INTERNAL_ERROR							(1<<20)
 
-#define MW_BEGIN_PNG_ERRORS                        (1<<20)
+#define MW_BEGIN_PNG_ERRORS                        (1<<21)
 
-#define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<20)
-#define MW_CANNOT_CREATE_PNG_FILE                   (1<<21)
+#define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<21)
+#define MW_CANNOT_CREATE_PNG_FILE                   (1<<22)
 
-#define MW_ERRORS                                 (1<<21)
+#define MW_ERRORS                                 (1<<22)
 
-#define MW_NUM_CODES                                22
+#define MW_NUM_CODES                                23
 
 // scripts can override the various blocks with other blocks while exporting
 typedef struct ChangeBlockCommand {
@@ -113,6 +114,7 @@ int SaveVolume(wchar_t *objFileName, int fileType, Options *options, WorldGuide 
 int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy);
 
 void WcharToChar(const wchar_t *inWString, char *outString, int maxlength);
+void StripLastString(const wchar_t *src, wchar_t *path, wchar_t *piece);
 
 
 //

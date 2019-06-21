@@ -1301,12 +1301,34 @@ Exit:
 			{
 				// if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
 				if (gOptions->pEFD->chkTextureRGBA || gOptions->pEFD->chkTextureRGB || gOptions->pEFD->chkTextureA) {
+					wchar_t subpath[MAX_PATH_AND_FILE] = L"";
+					if (strlen(gOptions->pEFD->tileDirString) > 0) {
+						wchar_t directoryPath[MAX_PATH_AND_FILE];
+						charToWchar(gOptions->pEFD->tileDirString, subpath);
+						wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+						// create subdirectory if it doesn't exist
+						if (wcschr(subpath, (wchar_t)':') ) {
+							// looks like an absolute path is being specified
+							wcscpy_s(directoryPath, MAX_PATH_AND_FILE, subpath);
+						}
+						else {
+							// relative path
+							concatFileName4(directoryPath, gOutputFilePath, subpath, L"", L"");
+						}
+						if (!(CreateDirectoryW(directoryPath, NULL) ||
+							ERROR_ALREADY_EXISTS == GetLastError()))
+						{
+							// Failed to create directory.
+							retCode |= MW_CANNOT_CREATE_DIRECTORY;
+							return retCode;
+						}
+					}
 					for (int i = 0; i < TOTAL_TILES; i++) {
 						// tile name is material name, period
 						if (gModel.tileList[i]) {
 							// tile found that should be output
 							wchar_t materialTile[MAX_PATH_AND_FILE];
-							concatFileName4(materialTile, gOutputFilePath, L"", gTilesTable[i].filename, L".png");
+							concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L".png");
 							rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
 							assert(rc == 0);
 							retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
@@ -1442,6 +1464,40 @@ void WcharToChar(const wchar_t *inWString, char *outString, int maxlength)
     return;
 }
 
+// Strip off last thing in string, e.g. file name, directory name.
+// You can have path == src, just pass it in twice
+void StripLastString(const wchar_t *src, wchar_t *path, wchar_t *piece)
+{
+	wchar_t *piecePtr;
+	wchar_t *endPathPtr;
+
+	if (src != path) {
+		wcscpy_s(path, MAX_PATH_AND_FILE, src);
+	}
+	// find last \ in string
+	endPathPtr = piecePtr = wcsrchr(path, (wchar_t)'\\');
+	if (piecePtr) {
+		// found a \, so move up past it
+		piecePtr++;
+	}
+	else {
+		// look for /
+		endPathPtr = piecePtr = wcsrchr(path, (wchar_t)'/');
+		if (piecePtr) {
+			// found a /, so move up past it 
+			piecePtr++;
+		}
+		else {
+			// no \ or / found, just return string itself, and there is no path left
+			piecePtr = path;
+			endPathPtr = path;
+		}
+	}
+	// split at piecePtr - copy last part to "piece"
+	wcscpy_s(piece, MAX_PATH_AND_FILE, piecePtr);
+	// this sets last character of remaining path to null (end it)
+	*endPathPtr = (wchar_t)0;
+}
 
 
 static void initializeWorldData( IBox *worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax )
@@ -17985,7 +18041,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
         char justMtlFileName[MAX_PATH_AND_FILE];
         sprintf_s(justMtlFileName, MAX_PATH_AND_FILE, "%s.mtl", gOutputFileRootCleanChar);
 
-        sprintf_s(outputString,256,"\nmtllib %s\n", justMtlFileName );
+		sprintf_s(outputString, 256, "\nmtllib %s\n", justMtlFileName);
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
     
@@ -18625,6 +18681,11 @@ static int writeOBJMtlFile()
 					WcharToChar(gTilesTable[i].filename, mtlName, MAX_PATH_AND_FILE);
 					// output material
 					sprintf_s(textureRGBA, MAX_PATH_AND_FILE, "%s.png", mtlName);
+					if (strlen(gOptions->pEFD->tileDirString) > 0) {
+						char fullPathName[MAX_PATH_AND_FILE];
+						sprintf_s(fullPathName, MAX_PATH_AND_FILE, "%s/%s", gOptions->pEFD->tileDirString, textureRGBA);
+						strcpy_s(textureRGBA, fullPathName);
+					}
 					retCode = writeOBJFullMtlDescription(mtlName, gTilesTable[i].typeForMtl, textureRGBA, textureRGBA, textureRGBA);
 					if (retCode != MW_NO_ERROR)
 						return retCode;
@@ -21042,7 +21103,12 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 	else
 		radio = 0;
 
-	sprintf_s(outputString, 256, "# File type: %s\n", outputTypeString[radio]);
+	if (radio == 4) {
+		sprintf_s(outputString, 256, "# File type: %s to directory %s\n", outputTypeString[radio], gOptions->pEFD->tileDirString);
+	}
+	else {
+		sprintf_s(outputString, 256, "# File type: %s\n", outputTypeString[radio]);
+	}
 	WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 
 	sprintf_s(outputString, 256, "# Texture output RGB: %s\n", gOptions->pEFD->chkTextureRGB ? "YES" : "no");
@@ -22091,6 +22157,10 @@ static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, in
 {
 	int retCode = MW_NO_ERROR;
 	bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
+	// TODOTODO OK, this is a horrible kludge. For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
+	if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
+		usesAlpha = false;
+	}
 	int scol = swatchLoc % swatchesPerRow;
 	int srow = swatchLoc / swatchesPerRow;
 
@@ -22290,6 +22360,7 @@ static void getPathAndRoot( const wchar_t *src, int fileType, wchar_t *path, wch
         break;
     case FILE_TYPE_SCHEMATIC:
         removeSuffix(root,tfilename,L".schematic");
+		break;
     }
 }
 

@@ -118,6 +118,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
 			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, epd.radioExportFullTexture[epd.fileType]);
 			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, epd.radioExportTileTextures[epd.fileType]);
+			SetDlgItemTextA(hDlg, IDC_TILE_DIR, epd.tileDirString);
 
 			// if 3D printing, A and RGBA are not options
 			CheckDlgButton(hDlg, IDC_TEXTURE_RGB, epd.chkTextureRGB);
@@ -810,107 +811,122 @@ ChangeMaterial:
             break;
 
         case IDOK:
-            {
-                gOK = 1;
-                ExportFileData lepd;
-                lepd = epd;
+			{
+				gOK = 1;
+				ExportFileData lepd;
+				lepd = epd;
 
-                // suck all the data out to a local copy
-                GetDlgItemTextA(hDlg,IDC_WORLD_MIN_X,lepd.minxString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_WORLD_MIN_Y,lepd.minyString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_WORLD_MIN_Z,lepd.minzString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_WORLD_MAX_X,lepd.maxxString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_WORLD_MAX_Y,lepd.maxyString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_WORLD_MAX_Z,lepd.maxzString,EP_FIELD_LENGTH);
+				// suck all the data out to a local copy
+				GetDlgItemTextA(hDlg, IDC_WORLD_MIN_X, lepd.minxString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_WORLD_MIN_Y, lepd.minyString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_WORLD_MIN_Z, lepd.minzString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_WORLD_MAX_X, lepd.maxxString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_WORLD_MAX_Y, lepd.maxyString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_WORLD_MAX_Z, lepd.maxzString, EP_FIELD_LENGTH);
 
-                lepd.chkCreateZip[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_CREATE_ZIP) == BST_CHECKED);
-                lepd.chkCreateModelFiles[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_CREATE_FILES) == BST_CHECKED);
+				lepd.chkCreateZip[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_CREATE_ZIP) == BST_CHECKED);
+				lepd.chkCreateModelFiles[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_CREATE_FILES) == BST_CHECKED);
 
-                lepd.radioExportNoMaterials[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_NO_MATERIALS);
-                lepd.radioExportMtlColors[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_MTL_COLORS_ONLY);
-                lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg,IDC_RADIO_EXPORT_SOLID_TEXTURES);
+				lepd.radioExportNoMaterials[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS);
+				lepd.radioExportMtlColors[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY);
+				lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES);
 				lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES);
 				lepd.radioExportTileTextures[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TILES);
+				GetDlgItemTextA(hDlg, IDC_TILE_DIR, lepd.tileDirString, EP_FIELD_LENGTH);
 
 				lepd.chkTextureRGB = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGB) == BST_CHECKED);
 				lepd.chkTextureA = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_A) == BST_CHECKED);
 				lepd.chkTextureRGBA = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGBA) == BST_CHECKED);
 
 				// OBJ options
-                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
-                {
-                    lepd.chkSeparateTypes = (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED);
-                    lepd.chkMaterialPerBlock = (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK) == BST_CHECKED);
-                    lepd.chkSplitByBlockType = (IsDlgButtonChecked(hDlg, IDC_SPLIT_BY_BLOCK_TYPE) == BST_CHECKED);
-                    lepd.chkG3DMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
-                }
-                else
-                {
-                    // restore state - these should never get set to indeterminate
-                    lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
-                    lepd.chkMaterialPerBlock = origEpd.chkMaterialPerBlock;
-                    lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
-                    lepd.chkG3DMaterial = origEpd.chkG3DMaterial;
-                }
-                // 3D printing should never use this option.
+				if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+				{
+					lepd.chkSeparateTypes = (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED);
+					lepd.chkMaterialPerBlock = (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK) == BST_CHECKED);
+					lepd.chkSplitByBlockType = (IsDlgButtonChecked(hDlg, IDC_SPLIT_BY_BLOCK_TYPE) == BST_CHECKED);
+					lepd.chkG3DMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
+				}
+				else
+				{
+					// restore state - these should never get set to indeterminate
+					lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
+					lepd.chkMaterialPerBlock = origEpd.chkMaterialPerBlock;
+					lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
+					lepd.chkG3DMaterial = origEpd.chkG3DMaterial;
+				}
+				// 3D printing should never use this option.
 				lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);
 
-                //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
-                lepd.chkMakeZUp[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_MAKE_Z_UP) == BST_CHECKED);
-                lepd.chkCenterModel = (IsDlgButtonChecked(hDlg, IDC_CENTER_MODEL) == BST_CHECKED);
-                // if 3D printing, or if lesser blocks is off, do composite overlay, where we make a new tile (things break otherwise)
-                lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 :
-                    ((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED));
+				//lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
+				lepd.chkMakeZUp[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_MAKE_Z_UP) == BST_CHECKED);
+				lepd.chkCenterModel = (IsDlgButtonChecked(hDlg, IDC_CENTER_MODEL) == BST_CHECKED);
+				// if 3D printing, or if lesser blocks is off, do composite overlay, where we make a new tile (things break otherwise)
+				lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 :
+					((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED));
 
-                // solid leaves and faces at borders always true for 3D printing.
-                lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);
-                lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_BLOCKS_AT_BORDERS) == BST_CHECKED);
-                lepd.chkBiome = (IsDlgButtonChecked(hDlg,IDC_BIOME) == BST_CHECKED);
+				// solid leaves and faces at borders always true for 3D printing.
+				lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);
+				lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_BLOCKS_AT_BORDERS) == BST_CHECKED);
+				lepd.chkBiome = (IsDlgButtonChecked(hDlg, IDC_BIOME) == BST_CHECKED);
 
-                lepd.radioRotate0 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_0);
-                lepd.radioRotate90 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_90);
-                lepd.radioRotate180 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_180);
-                lepd.radioRotate270 = IsDlgButtonChecked(hDlg,IDC_RADIO_ROTATE_270);
+				lepd.radioRotate0 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_0);
+				lepd.radioRotate90 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_90);
+				lepd.radioRotate180 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_180);
+				lepd.radioRotate270 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_270);
 
-                lepd.radioScaleToHeight = IsDlgButtonChecked(hDlg,IDC_RADIO_SCALE_TO_HEIGHT);
-                lepd.radioScaleToMaterial = IsDlgButtonChecked(hDlg,IDC_RADIO_SCALE_TO_MATERIAL);
-                lepd.radioScaleByBlock = IsDlgButtonChecked(hDlg,IDC_RADIO_SCALE_BY_BLOCK);
-                lepd.radioScaleByCost = IsDlgButtonChecked(hDlg,IDC_RADIO_SCALE_BY_COST);
+				lepd.radioScaleToHeight = IsDlgButtonChecked(hDlg, IDC_RADIO_SCALE_TO_HEIGHT);
+				lepd.radioScaleToMaterial = IsDlgButtonChecked(hDlg, IDC_RADIO_SCALE_TO_MATERIAL);
+				lepd.radioScaleByBlock = IsDlgButtonChecked(hDlg, IDC_RADIO_SCALE_BY_BLOCK);
+				lepd.radioScaleByCost = IsDlgButtonChecked(hDlg, IDC_RADIO_SCALE_BY_COST);
 
-                GetDlgItemTextA(hDlg,IDC_MODEL_HEIGHT,lepd.modelHeightString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_BLOCK_SIZE,lepd.blockSizeString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_COST,lepd.costString,EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_MODEL_HEIGHT, lepd.modelHeightString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_BLOCK_SIZE, lepd.blockSizeString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_COST, lepd.costString, EP_FIELD_LENGTH);
 
-                lepd.chkFillBubbles = (IsDlgButtonChecked(hDlg, IDC_FILL_BUBBLES) == BST_CHECKED);
-                // if filling bubbles is off, sealing entrances does nothing at all
-                lepd.chkSealEntrances = lepd.chkFillBubbles ? (IsDlgButtonChecked(hDlg, IDC_SEAL_ENTRANCES) == BST_CHECKED) : 0;
-                lepd.chkSealSideTunnels = lepd.chkFillBubbles ? (IsDlgButtonChecked(hDlg, IDC_SEAL_SIDE_TUNNELS) == BST_CHECKED) : 0;
+				lepd.chkFillBubbles = (IsDlgButtonChecked(hDlg, IDC_FILL_BUBBLES) == BST_CHECKED);
+				// if filling bubbles is off, sealing entrances does nothing at all
+				lepd.chkSealEntrances = lepd.chkFillBubbles ? (IsDlgButtonChecked(hDlg, IDC_SEAL_ENTRANCES) == BST_CHECKED) : 0;
+				lepd.chkSealSideTunnels = lepd.chkFillBubbles ? (IsDlgButtonChecked(hDlg, IDC_SEAL_SIDE_TUNNELS) == BST_CHECKED) : 0;
 
-                lepd.chkConnectParts = (IsDlgButtonChecked(hDlg, IDC_CONNECT_PARTS) == BST_CHECKED);
-                // if connect parts is off, corner tips and edges is off
-                lepd.chkConnectCornerTips = lepd.chkConnectParts ? (IsDlgButtonChecked(hDlg, IDC_CONNECT_CORNER_TIPS) == BST_CHECKED) : 0;
-                lepd.chkConnectAllEdges = lepd.chkConnectParts ? (IsDlgButtonChecked(hDlg, IDC_CONNECT_ALL_EDGES) == BST_CHECKED) : 0;
+				lepd.chkConnectParts = (IsDlgButtonChecked(hDlg, IDC_CONNECT_PARTS) == BST_CHECKED);
+				// if connect parts is off, corner tips and edges is off
+				lepd.chkConnectCornerTips = lepd.chkConnectParts ? (IsDlgButtonChecked(hDlg, IDC_CONNECT_CORNER_TIPS) == BST_CHECKED) : 0;
+				lepd.chkConnectAllEdges = lepd.chkConnectParts ? (IsDlgButtonChecked(hDlg, IDC_CONNECT_ALL_EDGES) == BST_CHECKED) : 0;
 
-                lepd.chkDeleteFloaters = (IsDlgButtonChecked(hDlg, IDC_DELETE_FLOATERS) == BST_CHECKED);
+				lepd.chkDeleteFloaters = (IsDlgButtonChecked(hDlg, IDC_DELETE_FLOATERS) == BST_CHECKED);
 
-                lepd.chkHollow[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_HOLLOW) == BST_CHECKED);
-                // if hollow is off, superhollow is off
-                lepd.chkSuperHollow[epd.fileType] = lepd.chkHollow[epd.fileType] ? (IsDlgButtonChecked(hDlg, IDC_SUPER_HOLLOW) == BST_CHECKED) : 0;
+				lepd.chkHollow[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_HOLLOW) == BST_CHECKED);
+				// if hollow is off, superhollow is off
+				lepd.chkSuperHollow[epd.fileType] = lepd.chkHollow[epd.fileType] ? (IsDlgButtonChecked(hDlg, IDC_SUPER_HOLLOW) == BST_CHECKED) : 0;
 
-                lepd.chkMeltSnow = (IsDlgButtonChecked(hDlg, IDC_MELT_SNOW) == BST_CHECKED);
+				lepd.chkMeltSnow = (IsDlgButtonChecked(hDlg, IDC_MELT_SNOW) == BST_CHECKED);
 
-                GetDlgItemTextA(hDlg,IDC_FLOAT_COUNT,lepd.floaterCountString,EP_FIELD_LENGTH);
-                GetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,lepd.hollowThicknessString,EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_FLOAT_COUNT, lepd.floaterCountString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_HOLLOW_THICKNESS, lepd.hollowThicknessString, EP_FIELD_LENGTH);
 
-                lepd.chkExportAll = (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED);
-                lepd.chkFatten = lepd.chkExportAll ? (IsDlgButtonChecked(hDlg, IDC_FATTEN) == BST_CHECKED) : 0;
+				lepd.chkExportAll = (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED);
+				lepd.chkFatten = lepd.chkExportAll ? (IsDlgButtonChecked(hDlg, IDC_FATTEN) == BST_CHECKED) : 0;
 
-                BOOL debugAvailable = !lepd.radioExportNoMaterials[lepd.fileType] && (lepd.fileType != FILE_TYPE_ASCII_STL);
-                lepd.chkShowParts = debugAvailable ? (IsDlgButtonChecked(hDlg, IDC_SHOW_PARTS) == BST_CHECKED) : 0;
-                lepd.chkShowWelds = debugAvailable ? (IsDlgButtonChecked(hDlg, IDC_SHOW_WELDS) == BST_CHECKED) : 0;
+				BOOL debugAvailable = !lepd.radioExportNoMaterials[lepd.fileType] && (lepd.fileType != FILE_TYPE_ASCII_STL);
+				lepd.chkShowParts = debugAvailable ? (IsDlgButtonChecked(hDlg, IDC_SHOW_PARTS) == BST_CHECKED) : 0;
+				lepd.chkShowWelds = debugAvailable ? (IsDlgButtonChecked(hDlg, IDC_SHOW_WELDS) == BST_CHECKED) : 0;
 
-                lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
-                lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);
+				lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
+				lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);
+
+				// check for non-file characters
+				char badchar[] = "<>|?*";
+				bool badcharFound = false;
+				for (int i = 0; i < strlen(badchar); i++) {
+					if (strchr(lepd.tileDirString, badchar[i]) != NULL) {
+						badcharFound = true;
+					}
+				}
+				if (badcharFound) {
+					MessageBox(NULL,
+						_T("Illegal character <>|?* detected in output tile directory;\nYou need to fix this, then hit OK again."), _T("File name character error"), MB_OK | MB_ICONERROR);
+					return (INT_PTR)FALSE;
+				}
 
                 int nc;
                 nc = sscanf_s(lepd.minxString,"%d",&lepd.minxVal);

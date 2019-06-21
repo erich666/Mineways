@@ -309,6 +309,8 @@ typedef struct ExportFileData
 	UINT radioExportFullTexture[FILE_TYPE_TOTAL];
 	UINT radioExportTileTextures[FILE_TYPE_TOTAL];
 
+	char tileDirString[EP_FIELD_LENGTH];
+
 	UINT chkTextureRGB;
 	UINT chkTextureA;
 	UINT chkTextureRGBA;

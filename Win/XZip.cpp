@@ -3133,10 +3133,12 @@ BOOL AddFolderContent(HZIP hZip, TCHAR* AbsolutePath, TCHAR* DirToAdd)
 	WIN32_FIND_DATA FindFileData;
 	TCHAR PathToSearchInto [MAX_PATH] = {0};
 	
-	if (NULL != DirToAdd)
-	{
-		ZipAdd(hZip, DirToAdd, 0, 0, ZIP_FOLDER);
-	}
+	// bizarrely, if I comment this out, things work fine.
+	// Putting it in makes an extra directory of a single letter get created. Mysterious.
+	//if (NULL != DirToAdd)
+	//{
+	//	ZipAdd(hZip, DirToAdd, 0, 0, ZIP_FOLDER);
+	//}
 	
 	// Construct the path to search into "C:\\Windows\\System32\\*"
 	_tcscpy(PathToSearchInto, AbsolutePath);

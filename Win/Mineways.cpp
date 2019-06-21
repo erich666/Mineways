@@ -307,7 +307,8 @@ static struct {
     {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK|MB_ICONERROR},	// <<15
     {_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<16
     {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK|MB_ICONERROR},	// <<17
-    {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK|MB_ICONERROR},	// <<18
+	{_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export full color separate tiles' option."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
+	{_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
 
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
     // {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
@@ -3920,22 +3921,67 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 
             DeleteFile(wcZip);
             HZIP hz = CreateZip(wcZip,0,ZIP_FILENAME);
-            for ( int i = 0; i < outputFileList.count; i++ )
-            {
-                const wchar_t *nameOnly = removePath( outputFileList.name[i] ) ;
 
-                if (*updateProgress)
-                { (*updateProgress)(0.90f + 0.10f*(float)i/(float)outputFileList.count);}
+			// if we are zipping tiles, it's a bit different
+			int trueCount = outputFileList.count;
+			bool useSubDir = false;
+			if (gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+				// are we using a subdirectory?
+				if (strlen(gOptions.pEFD->tileDirString) > 0) {
+					trueCount = 2;	// OBJ and MTL
+					useSubDir = true;
+				}
+			}
+			int i;
+			for (i = 0; i < trueCount; i++)
+			{
+				const wchar_t *nameOnly = removePath(outputFileList.name[i]);
 
-                ZipAdd(hz,nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
+				if (*updateProgress)
+				{
+					(*updateProgress)(0.90f + 0.10f*(float)i / (float)outputFileList.count);
+				}
 
-                // delete model files if not needed
-                if ( !gpEFD->chkCreateModelFiles[gpEFD->fileType] )
-                {
-                    DeleteFile(outputFileList.name[i]);
-                }
-            }
-            CloseZip(hz);
+				if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
+					retCode |= MW_CANNOT_WRITE_TO_FILE;
+					break;
+				}
+
+				// delete model files if not needed
+				if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
+				{
+					DeleteFile(outputFileList.name[i]);
+				}
+			}
+			if (useSubDir && (outputFileList.count >= 3)) {
+				// disassemble the directory of the first tile
+				wchar_t path[MAX_PATH_AND_FILE];
+				wchar_t subdir[MAX_PATH_AND_FILE];
+				wchar_t filepiece[MAX_PATH_AND_FILE];
+				wchar_t relativeFile[MAX_PATH_AND_FILE];
+				// strips off file name (puts in piece, but we ignore it)
+				StripLastString(outputFileList.name[2], path, filepiece);
+				// strips off subdirectory name and puts in piece
+				StripLastString(path, path, subdir);
+				wcscat_s(subdir, MAX_PATH_AND_FILE, L"\\");
+				for (i = 2; i < outputFileList.count; i++) {
+					wcscpy_s(relativeFile, MAX_PATH_AND_FILE, subdir);
+					StripLastString(outputFileList.name[i], path, filepiece);
+					wcscat_s(relativeFile, MAX_PATH_AND_FILE, filepiece);
+					// reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
+					// I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
+					// TODO - really should just export tiles needed, but this functionality is a bit tricky.
+					if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
+					{
+						retCode |= MW_CANNOT_WRITE_TO_FILE;
+						break;
+					}
+				}
+
+				// was AddFolderContent(hz, path, piece );
+			}
+
+			CloseZip(hz);
         }
         if (*updateProgress)
         { (*updateProgress)(1.0f);}
@@ -3981,6 +4027,7 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
 
     return retCode;
 }
+
 
 static void PopupErrorDialogs( int errCode )
 {
@@ -4096,6 +4143,8 @@ static void initializePrintExportData(ExportFileData &printData)
 	INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
 	INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
 
+	strcpy_s(printData.tileDirString, EP_FIELD_LENGTH, "");
+
 	printData.chkTextureRGB = 1;
 	printData.chkTextureA = 0;
 	printData.chkTextureRGBA = 0;
@@ -4187,6 +4236,8 @@ static void initializeViewExportData(ExportFileData &viewData)
 	INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
 	INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
 
+	strcpy_s(viewData.tileDirString, EP_FIELD_LENGTH, "textures");
+
 	viewData.chkTextureRGB = 1;
 	viewData.chkTextureA = 1;
 	viewData.chkTextureRGBA = 1;
@@ -4242,6 +4293,7 @@ static void InitializeSchematicExportData(ExportFileData &schematicData)
     //////////////////////////////////////////////////////
     // copy schematic data from view, and change what's needed
     initializeViewExportData(schematicData);
+	strcpy_s(schematicData.tileDirString, EP_FIELD_LENGTH, "");
     schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
     schematicData.chkMergeFlattop = 0;
 }
@@ -5390,12 +5442,12 @@ static int interpretImportLine(char *line, ImportedSet & is)
         {
             saveErrorMessage(is, L"could not find Export string for file type (solid color, textured, etc.)."); return INTERPRETER_FOUND_ERROR;
         }
-        // shortcut here, just look for first word
+        // shortcut here, just look for first word after "Export "
         char *outputTypeString[] = {
             "no", // "Export no materials",
             "solid", // "Export solid material colors only (no textures)",
             "richer", // "Export richer color textures",
-            "full", // "Export full color texture patterns"
+            "full", // "Export full color texture patterns",
 			"tiles" // "Export tiles for textures"
         };
         for (i = 0; i < 5; i++)
@@ -5431,6 +5483,13 @@ static int interpretImportLine(char *line, ImportedSet & is)
 				break;
 			case 4:
 				is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
+				// and retrieve path
+				{
+					strPtr = findLineDataNoCase(line, "to directory ");
+					if (strPtr != NULL) {
+						strcpy_s(is.pEFD->tileDirString, EP_FIELD_LENGTH, strPtr);
+					}
+				}
 				break;
 			default:
                 break;
