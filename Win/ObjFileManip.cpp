@@ -20452,19 +20452,20 @@ static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-		if (gOptions->pEFD->radioExportFullTexture) {
-			// swatch locations exactly correspond with tiles.h names
-			char outName[MAX_PATH_AND_FILE];
-			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
-			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
-				outName,
-				u, v);
-		}
-		else {
+		// currently not supported for VRML
+		//if (gExportTiles) {
+		//	// swatch locations exactly correspond with tiles.h names
+		//	char outName[MAX_PATH_AND_FILE];
+		//	WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
+		//	sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
+		//		outName,
+		//		u, v);
+		//}
+		//else {
 			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
 				gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
 				u, v);
-		}
+		//}
     }
     else
     {

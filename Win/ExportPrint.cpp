@@ -832,7 +832,7 @@ ChangeMaterial:
 				lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES);
 				lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES);
 				lepd.radioExportTileTextures[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TILES);
-				GetDlgItemTextA(hDlg, IDC_TILE_DIR, lepd.tileDirString, EP_FIELD_LENGTH);
+				GetDlgItemTextA(hDlg, IDC_TILE_DIR, lepd.tileDirString, MAX_PATH);
 
 				lepd.chkTextureRGB = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGB) == BST_CHECKED);
 				lepd.chkTextureA = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_A) == BST_CHECKED);
