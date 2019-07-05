@@ -2496,7 +2496,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
         }
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
-        if (block == NULL) //blank tile
+        if ((block == NULL) || (block->blockType == 2) ) //blank tile
         {
             // highlighting off, or fully outside real area? Use blank tile.
             if (!gBoxHighlightUsed ||
@@ -4598,15 +4598,14 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
     }
     else {
         // it's a real world or schematic or no world is loaded
-        int gotBlock = 0;
 
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             BlockEntity blockEntities[16 * 16 * 256];
 
-            gotBlock = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
+            block->blockType = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
             // got block successfully?
 
-            if ((gotBlock > 0) && (block->numEntities > 0)) {
+            if ((block->blockType > 0) && (block->numEntities > 0)) {
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity *)malloc(block->numEntities * sizeof(BlockEntity));
 
@@ -4619,29 +4618,33 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
         }
         else {
             assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
-            gotBlock = createBlockFromSchematic(pWorldGuide, cx, cz, block);
+			block->blockType = createBlockFromSchematic(pWorldGuide, cx, cz, block);
         }
 
-        if ( gotBlock>0 ) {
+		// is block valid?
+        if (block->blockType >0 ) {
 
-            int i;
-            unsigned char *pBlockID = block->grid;
-            for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
-            {
-                if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
-                {
-                    // some new version of Minecraft, block ID is unrecognized;
-                    // turn this block into stone. dataVal will be ignored.
-                    // flag assert only once
-                    assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
-                    *pBlockID = BLOCK_UNKNOWN;
-                    // note that we always clean up bad blocks;
-                    // whether we flag that a bad block was found is optional.
-                    // This gets turned off once the user has been warned, once, that his map has some funky data.
-                    if (gPerformUnknownBlockCheck)
-                        gUnknownBlock = 1;
-                }
-            }
+			// does block have anything in it other than air?
+			if (block->blockType == 1) {
+				int i;
+				unsigned char *pBlockID = block->grid;
+				for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
+				{
+					if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
+					{
+						// some new version of Minecraft, block ID is unrecognized;
+						// turn this block into stone. dataVal will be ignored.
+						// flag assert only once
+						assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
+						*pBlockID = BLOCK_UNKNOWN;
+						// note that we always clean up bad blocks;
+						// whether we flag that a bad block was found is optional.
+						// This gets turned off once the user has been warned, once, that his map has some funky data.
+						if (gPerformUnknownBlockCheck)
+							gUnknownBlock = 1;
+					}
+				}
+			}
             return block;
         }
     }
@@ -4713,6 +4716,7 @@ int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock
                 assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
                 for (int x = 0; x < xlength; x++, index++, schIndex++) {
 
+					// TODO: we could test if the block is entirely empty, marking blockType == 2 if so. Common in schematics, and would draw faster.
                     block->grid[index] = pWorldGuide->sch.blocks[schIndex];
                     block->data[index] = pWorldGuide->sch.data[schIndex];
                 }

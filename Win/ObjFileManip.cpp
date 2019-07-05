@@ -1986,7 +1986,7 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
-        if (block==NULL) //blank tile, nothing to do
+		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
         Cache_Add(bx,bz,block);
@@ -2082,7 +2082,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
-        if (block==NULL) //blank tile, nothing to do
+		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
         Cache_Add(bx,bz,block);
@@ -18153,10 +18153,13 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 
     bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
+	// how often to update progress? Add some minimum check of 1000 faces, plus true # of faces per 1%.
+	int progCheck = (int)((float)gModel.faceCount / (100.0f * 0.5f*(PG_TEXTURE - PG_OUTPUT))) + 1000;
+
     for ( i = 0; i < gModel.faceCount; i++ )
     {
-		// every thousand faces or so check on progress
-        if ( i % 1000 == 0 )
+		// every 1% or so check on progress
+        if ( i % progCheck == 0 )
             UPDATE_PROGRESS( PG_OUTPUT + 0.5f*(PG_TEXTURE-PG_OUTPUT) + 0.5f*(PG_TEXTURE-PG_OUTPUT)*((float)i/(float)gModel.faceCount));
 
         if ( exportMaterials )
@@ -22488,7 +22491,7 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
-        if (block == NULL) //blank tile, nothing to do
+		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return minHeight;
 
         Cache_Add(bx, bz, block);

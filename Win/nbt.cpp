@@ -1380,25 +1380,25 @@ unsigned char mod16(int val)
     return (unsigned char)(val & 0xf);
 }
 
-// return 0 on error
+// return negative value on error, 1 on read OK, 2 on read and it's empty
 int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion)
 {
-    int len,nsections;
-    int biome_save;
-    //int found;
+	int len, nsections;
+	int biome_save;
+	//int found;
 
-    //Level/Blocks
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
-    len=readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf,"Level")!=10)
-        return -3;
+	//Level/Blocks
+	if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+	len = readWord(pbf); //name length
+	if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
+	if (nbtFindElement(pbf, "Level") != 10)
+		return -3;
 
-    // For some reason, on most maps the biome info is before the Sections;
-    // on others they're after. So, read biome data, then rewind to find Sections.
-    // Format info at http://wiki.vg/Map_Format, though don't trust order.
-    biome_save = *pbf->offset;
-    memset(biome, 0, 16*16);
+	// For some reason, on most maps the biome info is before the Sections;
+	// on others they're after. So, read biome data, then rewind to find Sections.
+	// Format info at http://wiki.vg/Map_Format, though don't trust order.
+	biome_save = *pbf->offset;
+	memset(biome, 0, 16 * 16);
 	int inttype = nbtFindElement(pbf, "Biomes");
 	bool newFormat = false;
 	if (inttype != 7) {
@@ -1414,14 +1414,15 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 		}
 	}
 
-    len=readDword(pbf); //array length
+	len = readDword(pbf); //array length
 	if (!newFormat) {
 		if (bfread(pbf, biome, len) < 0) return -5;
-	} else {
+	}
+	else {
 		// new format 1.13
 		unsigned char biomeint[4 * 16 * 16];
 		memset(biomeint, 0, 4 * 16 * 16);
-		if (bfread(pbf, biomeint, 4*len) < 0) return -5;
+		if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
 		// convert to bytes, tough luck if too high (for now)
 		for (int i = 0; i < 256; i++) {
 			// wild guess as to the biome - looks like the topmost byte right now. TODO
@@ -1430,23 +1431,37 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 		}
 	}
 
-    if (bfseek(pbf, biome_save, SEEK_SET) < 0) return -6; //rewind to start of section
+	if (bfseek(pbf, biome_save, SEEK_SET) < 0) return -6; //rewind to start of section
 
-    if (nbtFindElement(pbf,"Sections")!= 9)
-        return -7;
+	if (nbtFindElement(pbf, "Sections") != 9)
+		return -7;
 
 	// does Sections have anything inside of it?
+	bool empty = false;
 	{
 		// get rid of "\n" after "Sections".
-		unsigned char uctype=0;
-        if (bfread(pbf, &uctype, 1) < 0) return -8;
-		if (uctype != 10)
-            return -9;
-    }
+		unsigned char uctype = 0;
+		if (bfread(pbf, &uctype, 1) < 0) return -8;
+		// did we find the "\n"? If not, it means the section is empty, so we
+		/// can simply clear memory below and return - all done.
+		if (uctype != 10) {
+			empty = true;
+		}
+		// returning -9 here for some reason crashes things later on, I don't know why.
+		// The path taken is then "nothing read" and there's a quick out, but for some reason
+		// this crashes the program now when exporting and redrawing just before then! TODOTODO
+		// was:    return -9;
+	}
 
-    memset(buff, 0, 16*16*256);
-    memset(data, 0, 16*16*256);
-    memset(blockLight, 0, 16*16*128);
+	memset(buff, 0, 16 * 16 * 256);
+	memset(data, 0, 16 * 16 * 256);
+	memset(blockLight, 0, 16 * 16 * 128);
+
+	// TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
+	// Right now we waste memory space with blocks (chunks) that are entirely empty.
+	if (empty) {
+		return 2;
+	}
 
     nsections=readDword(pbf);
     if (nsections < 0) return -10;
