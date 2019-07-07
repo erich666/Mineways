@@ -111,7 +111,7 @@
 		<P>
 		However, "Import Settings" can do much more. As of version 4.18 of Mineways, you can make a text file of Mineways scripting commands and read it in to:
 		<UL>
-		<LI>Set up a start-up configuration, similar to how model files can set the environment, plus setting initial location, zoom level, etc.
+		<LI>Set up a start-up configuration, similar to how model files can set the environment, plus setting initial location, zoom level, and other parameters.
 		<LI>Automate a series of exports, so that you could create a whole series of files. This is handy if you want to export tiles of terrain for a level of detail system, for example.
 		<LI>Access script-only commands that are too involved to expose in the menus. Some examples include:
 			<UL>
@@ -433,9 +433,9 @@ Select minimum height: <i>V43</i><br>
 Select minimum height: <i>v63</i><br>
 </td>
 <td>
-Set the minimum height slider for the box volume to be exported. The +/- versions give a relative change, e.g., "-12" means subtract 12 from the current level, whatever it is. V/v is used to set the height level by looking at the selected area, plus a one-block border around it, and selecting the lowest height of the entire set of visible blocks. "V" means "ignore semitransparent blocks", those that can be seen through, such as water and glass. "v" means to pay attention to such blocks. Finally, V/v followed by a number means to use the level found, or the level specified, whichever is <i>larger</i>. For example "V47" means find the minimum level of the selected area (plus one block border). If that level is greater than 47, use it; if less than 47, set the level to 47.
+Set the minimum height slider for the box volume to be exported. The +/- versions give a relative change, e.g., "-12" means subtract 12 from the current level, whatever it is. V/v is used to set the height level by looking at the selected area, plus a one-block border around it, and selecting the lowest height of the entire set of visible blocks. "V" means "ignore semitransparent blocks", those that can be seen through, such as water and glass. "v" means to pay attention to such blocks. Finally, V/v followed by a number means to use the level found, or the level specified, whichever is <i>larger</i>. For example, "V47" means find the minimum level of the selected area (plus one block border). If that level is greater than 47, use it; if less than 47, set the level to 47.
 <P>
-While involved to explain, settings such as "V43" can be useful for exporting the above-ground visible area - 43 is as deep as the oceans normally ever go. Deeper than this and the selected area probably has a deep hole that throws off the level. If you're exporting separate pieces of terrain for viewing, "V" is pretty safe for showing everything above ground (you might miss an area with a large overhang, though, since the overhang will limit the minimum level found). If you <i>know</i> that you don't care about anything lower than, say, 57, then use "V57" to make sure the minimum level set is never lower than 57.
+While involved to explain, settings such as "V43" can be useful for exporting the above-ground visible area - 43 is as deep as the oceans normally ever go. Deeper than this and the selected area probably has a deep hole that throws off the level. If you're exporting separate pieces of terrain for viewing, "V" is usually safe for showing everything above ground (you might miss an area with a large overhang, though, since the overhang will limit the minimum level found). If you <i>know</i> that you don't care about anything lower than, say, 57, then use "V57" to make sure the minimum level set is never lower than 57.
 </td>
 </tr>
 
@@ -500,7 +500,7 @@ Selection location min to max: 100, 50, 100 to 199, 255, 199<br>
 Export for Rendering: C:\Users\erich\Desktop\tile11.obj<br>
 </div>
 <P>
-Load your world, run this script, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely mesh. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can set this as you wish, of course. Biomes are off, since the biome is computed for the center of each tile and so will differ. Block faces at the borders being off means that the polygons where the tiles join are not output, saving on polygon count. The one gotcha (I should solve this, probably by providing a "Specify texture output name" option, or even a "Specify MTL file name" option) is that different PNG texture files are made for each separate model, but that's easy enough to fix by modifying each OBJ or MTL file.
+Load your world, run this script, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely mesh. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can override this as you wish. Biomes are off, since the biome is computed for the center of each tile and so will differ. Block faces at the borders being off means that the polygons where the tiles join are not output, saving on polygon count. The one gotcha (I should solve this, probably by providing a "Specify texture output name" option, or even a "Specify MTL file name" option) is that different PNG texture files are made for each separate model, but that's easy enough to fix by modifying each OBJ or MTL file.
 
 
 <h2 id="sketchfab">Sketchfab Script Commands</h2>
@@ -687,7 +687,7 @@ Change all lime green wool blocks to a deep green wool.
 Change blocks: to "TNT" at 2112,71,548
 </div>
 <P>
-The specific location, no matter what's in it (even air), is turned into TNT. For the next example below, no "from" means "everything <i>except</i> air". If you can't remember what the default is, just specify it, e.g. this command is the same as Change blocks: from 0-255 to "TNT" at 2112,71,548
+The specific location, no matter what's in it (even air), is turned into TNT. For the next example below, no "from" means "everything <i>except</i> air". If you can't remember what the default is, just specify it, e.g., this command is the same as Change blocks: from 0-255 to "TNT" at 2112,71,548
 <P>
 <div id="code">
 Change blocks: to 24:1
@@ -699,7 +699,7 @@ Everything solid (not air) in the whole volume is turned into <a href="http://mi
 Change blocks: from "stained glass","glass pane","stained glass pane" to "glass"
 </div>
 <P>
-Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g. 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>, e.g. "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.gamepedia.com/Data_values#Wood_Planks">data value 1</a>.
+Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g., 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>, e.g., "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.gamepedia.com/Data_values#Wood_Planks">data value 1</a>.
 <P>
 <div id="code">
 Change blocks: at -5,50,45 to 50,255,90
@@ -785,7 +785,7 @@ Specify the X and Y resolution in pixels of the startup window. Values must be p
 Start up Mineways as a minimized window. This setting is useful if you are running a command-line script that does a "Close" at the end, as all operations will run without (noticeably) popping up the Mineways window.
 <P>
 -s <i>UserSaveDirectory</i><br>
-Specify the directory where all your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
+Specify the directory where all your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g., -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems; you'll normally never use this. This option saves a log of startup and commands executed. The file mineways_debug_log.bat runs Mineways in this way.
@@ -802,7 +802,7 @@ Start up Mineways in an 800 x 900 size window. Note that a larger window does me
 mineways.exe MyCastle.obj
 </div>
 <P>
-Import the settings for the previously-exported model MyCastle.obj, its rendering mode, selection volume, etc. Essentially runs Import Settings.
+Import the settings for the previously-exported model MyCastle.obj, its rendering mode, selection volume, and all other export settings. Essentially runs the <a href="mineways.html#importsettings">Import Settings function</a> in the File menu.
 <P>
 <div id="code">
 mineways.exe scripting/startup.mwscript
@@ -814,7 +814,7 @@ Run the script "startup.mwscript" at startup. This file must be in the same dire
 mineways.exe "C:\Mineways\My House.obj" C:\Mineways\modify.mwscript
 </div>
 <P>
-If you exported a model just how you like it, you can import it and modify its settings etc. with whatever commands are in your modify.mwscript. When using multiple scripts, it's wise to give the full path to each file, as Mineways can modify the default directory used to load. Note that double quotes are needed when the file or path contains a space character.
+If you exported a model just how you like it, you can import it and modify its settings with whatever commands are in your modify.mwscript. When using multiple scripts, it's wise to give the full path to each file, as Mineways will modify the default directory used to load files. Note that double quotes are needed when the file or path contains a space character, such as shown in this example for "My House.obj".
 <P>
 <div id="code">
 mineways.exe -m "C:\Mineways\Load Eiffel.mwscript" C:\Mineways\export.mwscript C:\Mineways\close.mwscript

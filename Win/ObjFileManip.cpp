@@ -2985,7 +2985,7 @@ static int computeFlatFlags( int boxIndex )
     case BLOCK_BROWN_MUSHROOM:
     case BLOCK_RED_MUSHROOM:
     case BLOCK_SAPLING:
-    case BLOCK_TALL_GRASS:
+    case BLOCK_GRASS:
     case BLOCK_DEAD_BUSH:
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
@@ -3664,7 +3664,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_POPPY:
     case BLOCK_RED_MUSHROOM:
     case BLOCK_BROWN_MUSHROOM:
-    case BLOCK_TALL_GRASS:
+    case BLOCK_GRASS:
     case BLOCK_DEAD_BUSH:
     case BLOCK_SUGAR_CANE:
     case BLOCK_DOUBLE_FLOWER:
@@ -4822,10 +4822,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
 				break;
 			case 4: // end stone brick
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_END_BRICKS].txrX, gBlockDefinitions[BLOCK_END_BRICKS].txrY);
 				break;
 			case 5: // (the new 1.14) stone slab - purely flat stone
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
 				break;
 			}
 			break;
@@ -5915,13 +5915,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             case 10:
             case DEADBUSH_FIELD:
                 // dead bush
-                typeB = BLOCK_TALL_GRASS;
+                typeB = BLOCK_GRASS;
                 //scale = 0.75f;
                 break;
             case 11:
             case TALLGRASS_FIELD | 0x2:
                 // fern
-                typeB = BLOCK_TALL_GRASS;
+                typeB = BLOCK_GRASS;
                 dataValB = 2;
                 //scale = 0.75f;
                 break;
@@ -9915,7 +9915,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 			break;
 		}
 		break;
-	case BLOCK_TALL_GRASS:				// saveBillboardFacesExtraData
+	case BLOCK_GRASS:				// saveBillboardFacesExtraData
 		switch (dataVal & 0x3)
 		{
 		case 0:
@@ -10594,10 +10594,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         faceDir[0] = DIRECTION_BLOCK_TOP;
         faceDir[1] = DIRECTION_BLOCK_BOTTOM;
 
-        Vec3Scalar(vertexOffsets[0][0], = , 1.0f, 0.0f, 1.0f);
-        Vec3Scalar(vertexOffsets[0][1], = , 1.0f, 0.0f, 0.0f);
-        Vec3Scalar(vertexOffsets[0][2], = , 0.0f, 0.0f, 0.0f);
-        Vec3Scalar(vertexOffsets[0][3], = , 0.0f, 0.0f, 1.0f);
+		// distanceOffset is used for silly case https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy
+		// in which the lily pad is actually on top of a slab
+        Vec3Scalar(vertexOffsets[0][0], = , 1.0f, distanceOffset, 1.0f);
+        Vec3Scalar(vertexOffsets[0][1], = , 1.0f, distanceOffset, 0.0f);
+        Vec3Scalar(vertexOffsets[0][2], = , 0.0f, distanceOffset, 0.0f);
+        Vec3Scalar(vertexOffsets[0][3], = , 0.0f, distanceOffset, 1.0f);
         break;
 
 	// corals
@@ -14771,7 +14773,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         // now do anything special needed for the particular type, data, and face direction
         switch ( type )
         {
-        case BLOCK_GRASS:						// getSwatch
+        case BLOCK_GRASS_BLOCK:						// getSwatch
             //SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             // now use the manufactured grass block at 6,2
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 2,  2, 0 );
@@ -16741,7 +16743,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			}
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
-        case BLOCK_TALL_GRASS:						// getSwatch
+        case BLOCK_GRASS:						// getSwatch
             switch ( dataVal & 0x3 )
             {
             case 0:
@@ -18979,11 +18981,11 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 #define MULT_TABLE_NUM_FOLIAGE	(MULT_TABLE_NUM_GRASS+4)
 #define MULT_TABLE_NUM_WATER	(MULT_TABLE_NUM_FOLIAGE+3)
 static TypeTile multTable[MULT_TABLE_SIZE] = {
-    { BLOCK_GRASS /* grass */, 0,0, {0,0,0} },
-    { BLOCK_GRASS /* side grass overlay */, 6, 2, {0,0,0} },
-    //{ BLOCK_GRASS /* unused grass, now a workspace */, 8, 2, {0,0,0} },
-    { BLOCK_TALL_GRASS /* tall grass */, 7, 2, {0,0,0} },
-    { BLOCK_TALL_GRASS /* fern */, 8, 3, {0,0,0} },
+    { BLOCK_GRASS_BLOCK /* grass */, 0,0, {0,0,0} },
+    { BLOCK_GRASS_BLOCK /* side grass overlay */, 6, 2, {0,0,0} },
+    //{ BLOCK_GRASS_BLOCK /* unused grass, now a workspace */, 8, 2, {0,0,0} },
+    { BLOCK_GRASS /* tall grass */, 7, 2, {0,0,0} },
+    { BLOCK_GRASS /* fern */, 8, 3, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, tallgrass bottom */, 6,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, tallgrass top */, 7,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern bottom */, 8,18, {0,0,0} },
@@ -19457,7 +19459,7 @@ static int createBaseMaterialTexture()
             }
             a = (unsigned char)(gBlockDefinitions[adj].alpha * 255);
 
-			if (multTable[i].type == BLOCK_GRASS || multTable[i].type == BLOCK_TALL_GRASS || 
+			if (multTable[i].type == BLOCK_GRASS_BLOCK || multTable[i].type == BLOCK_GRASS || 
 				multTable[i].type == BLOCK_DOUBLE_FLOWER || multTable[i].type == BLOCK_LILY_PAD ||
 				multTable[i].type == BLOCK_LEAVES || multTable[i].type == BLOCK_AD_LEAVES)
 			{
@@ -20668,7 +20670,7 @@ static int writeSchematicBox()
 					data = gBoxData[boxIndex].data;
 				}
 				else {
-					type = BLOCK_GRASS;
+					type = BLOCK_GRASS_BLOCK;
 					data = 0x0;
 					retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
 				}

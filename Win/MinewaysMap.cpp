@@ -406,6 +406,8 @@ static struct {
 	{ "Infested Mossy Stone Bricks" },
 	{ "Infested Cracked Stone Bricks" },
 	{ "Infested Chiseled Stone Bricks" },
+	{ "Chiseled Quartz Block" },
+	{ "Quartz Pillar" },	// 140
 };
 
 char gCoralString[100];
@@ -561,6 +563,8 @@ static struct {
 #define STRING_INFESTED_MOSSY_STONE_BRICKS			136
 #define STRING_INFESTED_CRACKED_STONE_BRICKS		137
 #define STRING_INFESTED_CHISELED_STONE_BRICKS		138
+#define STRING_CHISELED_QUARTZ_BLOCK		139
+#define STRING_QUARTZ_PILLAR				140
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -717,7 +721,7 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		}
 		break;
 
-	case BLOCK_TALL_GRASS:
+	case BLOCK_GRASS:
 		switch (dataVal & 0x3)
 		{
 		default:
@@ -771,7 +775,7 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 				break;
 			case 1:	// lilac
 				return gExtraBlockNames[STRING_LILAC].name;
-			case 2:	// double tallgrass
+			case 2:	// tall grass
 				return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
 			case 3:	// large fern
 				return gExtraBlockNames[STRING_LARGE_FERN].name;
@@ -853,6 +857,8 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		}
 		break;
 
+	// TODO: someday check if "double" and put "Double " at the front of each name returned.
+	// Easier and nice to do with code than adding a bunch of names.
 	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
 	case BLOCK_RED_SANDSTONE_SLAB:
 		switch (dataVal & 0x7)
@@ -1288,6 +1294,18 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			return gExtraBlockNames[STRING_INFESTED_CHISELED_STONE_BRICKS].name;
 		}
 		break;
+	case BLOCK_QUARTZ_BLOCK:
+		switch (dataVal & 0x7) {
+		default:
+			break;
+		case 1: // chiseled quartz block
+			return gExtraBlockNames[STRING_CHISELED_QUARTZ_BLOCK].name;
+		case 2: // quartz pillar
+		case 3: // quartz pillar
+		case 4: // quartz pillar - different directions
+			return gExtraBlockNames[STRING_QUARTZ_PILLAR].name;
+		}
+		break;
 	}
 
 	// could add more? TODO
@@ -1342,6 +1360,23 @@ static unsigned short retrieveType(WorldBlock * block, unsigned int voxel)
 		}
 	}
 	return type;
+}
+
+static unsigned int scaleColor(unsigned int color, float scale)
+{
+	unsigned int r = color >> 16;
+	unsigned int g = (color >> 8) & 0xff;
+	unsigned int b = color & 0xff;
+	r = (unsigned int)(r * scale + 0.5f);
+	g = (unsigned int)(g * scale + 0.5f);
+	b = (unsigned int)(b * scale + 0.5f);
+	if (r > 255)
+		r = 255;
+	if (g > 255)
+		g = 255;
+	if (b > 255)
+		b = 255;
+	return (r << 16) | (g << 8) | b;
 }
 
 static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int voxel, unsigned short type, int light, char useBiome, char useElevation )
@@ -1562,19 +1597,19 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             color = gBlockColors[type*16+light];
             break;
         case 1:	// spruce
-            color = 0x634C2B;
+			color = gBlockDefinitions[BLOCK_SPRUCE_WOOD_STAIRS].pcolor;
             break;
         case 2:	// birch
-            color = 0xC5B477;
+			color = gBlockDefinitions[BLOCK_BIRCH_WOOD_STAIRS].pcolor;
             break;
         case 3:	// jungle
-            color = 0x9C6E47;
+			color = gBlockDefinitions[BLOCK_JUNGLE_WOOD_STAIRS].pcolor;
             break;
         case 4:	// acacia
-            color = 0xAA5A2F;
+            color = gBlockDefinitions[BLOCK_ACACIA_WOOD_STAIRS].pcolor;
             break;
         case 5:	// dark oak
-            color = 0x3B260F;
+			color = gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].pcolor;
             break;
         }
         break;
@@ -1600,8 +1635,8 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             color = 0xC9C9CD;
             break;
         case 5:	// andesite
-            color = 0x7F7F83;
-            break;
+			color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
+			break;
         case 6:	// polished andesite
             color = 0x7F7F84;
             break;
@@ -1698,7 +1733,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         }
         break;
 
-    case BLOCK_TALL_GRASS:
+    case BLOCK_GRASS:
         dataVal = block->data[voxel];
         switch (dataVal & 0x3)
         {
@@ -1706,17 +1741,21 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 0: // dead bush
             color = 0x946428;
             break;
-        case 1:	// tall grass
+        case 1:	// grass
         case 2:	// fern
             // by default, color is used for grass and ferns, which are more common
             affectedByBiome = 1;
             lightComputed = true;
             color = gBlockColors[type*16+light];
+			// fern should be dimmer, 128 vs. 148 - we dim it further, so it'll look different than a grass block
+			if ((dataVal & 0x3) == 2) {
+				color = scaleColor(color, 118.0f / 148.0f);
+			}
             break;
         }
         break;
 
-    case BLOCK_GRASS:
+    case BLOCK_GRASS_BLOCK:
     case BLOCK_VINES:
         affectedByBiome = 1;
         lightComputed = true;
@@ -1811,6 +1850,34 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+	case BLOCK_ANDESITE_DOUBLE_SLAB:
+	case BLOCK_ANDESITE_SLAB:
+		dataVal = block->data[voxel];
+		alphaComputed = true;
+		switch (dataVal & 0x7)
+		{
+		default:
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 1:	// polished andesite
+			color = 0x7F7F84;
+			break;
+		case 2:	// diorite
+			color = 0x9B9B9E;
+			break;
+		case 3: // polished diorite slab
+			color = 0xC9C9CD;
+			break;
+		case 4: // end stone brick slab
+			color = gBlockDefinitions[BLOCK_END_BRICKS].pcolor;
+			break;
+		case 5:	// stone slab
+			color = gBlockDefinitions[BLOCK_STONE].pcolor;
+			break;
+		}
+		break;
+
     case BLOCK_POPPY:
         dataVal = block->data[voxel];
         switch (dataVal)
@@ -1871,7 +1938,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 1:	// lilac
             color = 0xB79ABB;
             break;
-        case 2:	// double tallgrass
+        case 2:	// tall grass
             // we use color as the grass multiplier color
             affectedByBiome = 1;
             lightComputed = true;
@@ -2057,7 +2124,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
 			break;
 		case 5:	// red nether brick
-			color = 0x4A0B0D;
+			color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
 			break;
 		case 6:	// mossy stone brick
 			color = 0x767B6E;
@@ -2166,7 +2233,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = 0xDBE2A4;
 			break;
 		case BIT_32:	// andesite
-			color = 0x7F7F83;
+			color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
 			break;
 		case BIT_32 | BIT_16:	// polished andesite
 			color = 0x7F7F84;
@@ -2231,7 +2298,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = 0x9B9B9E;
 			break;
 		case 5: // andesite wall
-			color = 0x7F7F83;
+			color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
 			break;
 		case 6: // prismarine wall
 			color = gBlockDefinitions[BLOCK_PRISMARINE].pcolor;
@@ -2252,10 +2319,10 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
 			break;
 		case 12: // sandstone wall
-			color = 0xD9CC9E;
+			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
 			break;
 		case 13: // red sandstone wall
-			color = 0xBC6420;
+			color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
 			break;
 		}
 		break;
@@ -2926,7 +2993,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         }
         break;
     case BLOCK_DIRT:
-    case BLOCK_TALL_GRASS:
+    case BLOCK_GRASS:
     case BLOCK_SANDSTONE:
     case BLOCK_RED_SANDSTONE:
     case BLOCK_PRISMARINE:
@@ -4114,6 +4181,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         if ( (dataVal == 0) || (dataVal == 4) || (dataVal == 8) ) {
             addBlock = 1;
         }
+		break;
 	case BLOCK_TALL_SEAGRASS:
 		if (dataVal < 1)
 		{
@@ -4500,7 +4568,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
                     block->grid[BLOCK_INDEX(x,bedrockHeight,z)] = BLOCK_BEDROCK;
                     for ( int y = bedrockHeight+1; y < grassHeight; y++ )
                         block->grid[BLOCK_INDEX(x,y,z)] = BLOCK_DIRT;
-                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS;
+                    block->grid[BLOCK_INDEX(x,grassHeight,z)] = BLOCK_GRASS_BLOCK;
                 }
             }
 
