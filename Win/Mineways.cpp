@@ -328,7 +328,7 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
-static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
+static int modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
 static int getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
@@ -640,7 +640,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     int x = 480;
     int y = 582;
-    if (!modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount)) {
+	// 0 means failed, 1 means x and y changed, 2 means also minimize the window
+	int windowStatus = modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount);
+    if (windowStatus == 0) {
         exit(EXIT_FAILURE);
     }
 
@@ -652,7 +654,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         return FALSE;
     }
 
-    ShowWindow(hWnd, nCmdShow);
+    ShowWindow(hWnd, (windowStatus == 2) ? SW_SHOWMINIMIZED : nCmdShow );
     UpdateWindow(hWnd);
 
     return TRUE;
@@ -2271,11 +2273,13 @@ static bool startExecutionLogFile(const LPWSTR *argList, int argCount)
 }
 
 // parse on startup, looking for a window size - has to be done before the window is created, etc.
-static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount)
+// 0 = fail, 1 = x and y modified, 2 = also minimize window with -m
+static int modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount)
 {
     // arguments possible:
     // -w x y
     // script name. Put double quotes around script name if it has spaces in the file name or directory path
+	int retCode = 1;
     int argIndex = 1;
     while (argIndex < argCount)
     {
@@ -2297,21 +2301,26 @@ static bool modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argLis
                             // found it! Always use the first one found
                             *x = valx;
                             *y = valy;
-                            return true;
+                            return retCode;
                         }
                     }
                 }
             }
             // if we got here, parsing didn't work
             MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-            return false;
+            return 0;
         }
-        else {
+		else if (wcscmp(argList[argIndex], L"-m") == 0) {
+			// found window minimize
+			argIndex++;
+			retCode = 2;
+		}
+		else {
             // skip whatever it is.
             argIndex++;
         }
     }
-    return true;
+    return retCode;
 }
 
 // return true if a command line directory was found and it's valid, false means not found or not valid.
@@ -2370,12 +2379,17 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
     int argIndex = 1;
     while (argIndex < argCount)
     {
-        if (wcscmp(argList[argIndex], L"-w") == 0) {
-            // skip window resize
-            LOG_INFO(gExecutionLogfile, " skip window resize\n");
-            argIndex += 3;
-        }
-        else if (wcscmp(argList[argIndex], L"-s") == 0) {
+		if (wcscmp(argList[argIndex], L"-w") == 0) {
+			// skip window resize - handled by modifyWindowSizeFromCommandLine
+			LOG_INFO(gExecutionLogfile, " skip window resize\n");
+			argIndex += 3;
+		}
+		else if (wcscmp(argList[argIndex], L"-m") == 0) {
+			// skip window minimize - handled by modifyWindowSizeFromCommandLine
+			LOG_INFO(gExecutionLogfile, " skip window minimize\n");
+			argIndex++;
+		}
+		else if (wcscmp(argList[argIndex], L"-s") == 0) {
             // skip user world save directory
             LOG_INFO(gExecutionLogfile, " skip user world save directory\n");
             argIndex += 2;
@@ -2394,6 +2408,7 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
         // is it a script?
         else {
             // Load a script; if it works fine, don't pop up a dialog
+			// TODO: someday maybe add a check that if the argument is a level.dat or a world save directory name, try to load that.
             LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
             runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
             argIndex++;

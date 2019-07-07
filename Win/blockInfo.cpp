@@ -63,6 +63,7 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
 
 // If you add new blocks, also set NUM_BLOCKS_STANDARD in the blockInfo.h file
 // First column "comment" number is from https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
+// For sub-blocks, see https://minecraft-ids.grahamedgecombe.com/
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
@@ -167,7 +168,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     //{"Locked Chest",           0xa06f23, 1.000f, 0xa06f23,  9, 1, 0x0F, BLF_WHOLE},   //5f/95 (10,1) side; (11,1) front
     { /*  95 */ "Stained Glass",          		0xEFEFEF, 0.500f, 0xff7711, 0xff7711, 0.12345f,   0,20, 0x0f, BLF_WHOLE | BLF_TRANSPARENT },	//5f/95 - note BLF_CUTOUTS is off, since all pixels are semitransparent
 	{ /*  96 */ "Oak Trapdoor",           		0x886634, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 5, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   //60/96 - tricky case: could be a flattop, or a flatside. For now, render it
-	{ /*  97 */ "Monster Egg",            		0x787878, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x07, BLF_WHOLE },   //61
+	{ /*  97 */ "Infested Stone",   			0x787878, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x07, BLF_WHOLE },   //61 - was "Monster Egg"
 	{ /*  98 */ "Stone Bricks",           		0x797979, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 3, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },   //62
 	{ /*  99 */ "Brown Mushroom (block)", 		0x654b39, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 7, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },   //63
 	{ /* 100 */ "Red Mushroom (block)",   		0xa91b19, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13, 7, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },   //64

@@ -1446,10 +1446,14 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 		/// can simply clear memory below and return - all done.
 		if (uctype != 10) {
 			empty = true;
+			//return -9;
 		}
 		// returning -9 here for some reason crashes things later on, I don't know why.
 		// The path taken is then "nothing read" and there's a quick out, but for some reason
-		// this crashes the program now when exporting and redrawing just before then! TODOTODO
+		// this crashes the program now when exporting and redrawing just before then!
+		// It turns out to have to do with the Stack Reserve Size: changing this to 1500000 (1.5 Mb; it's 1 Mb to start)
+		// fixes the problem. See https://miztakenjoshi.wordpress.com/2010/01/27/unhandled-exception-0xc00000fd-stack-overflow/
+		// But, it's better to read in an empty chunk and cache it anyway, so new code's better.
 		// was:    return -9;
 	}
 

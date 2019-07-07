@@ -462,7 +462,7 @@ On the 32-bit version (and on the Mac) you can run out of memory on export. This
 Close
 </td>
 <td>
-This command has a dramatic effect: it closes the program! This can be useful if you want to run a script and exit when it's done.  Combined with a <a href="#clo">startup script</a>, you can make Mineways run a script and exit by just a double-click. Note that if the script runs with any errors, error processing is done before the script closes, so that you'll be warned. If you don't want to ever halt on errors, use a log file; see the commands that follow.
+This command has a dramatic effect: it closes the program! This can be useful if you want to run a script and exit when it's done.  Combined with a <a href="#clo">startup script</a>, you can make Mineways run a script and exit by just a double-click. You can also use the "-m" command-line option to have Mineways start up minimized, not showing its window. Note that if the script runs with any errors, error processing is done before the script closes, so that processing will stop and you'll be warned. If you don't want to ever halt on errors, use a log file; see the commands that follow.
 </td>
 </tr>
 
@@ -770,7 +770,7 @@ You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">stor
 Syntax:
 <P>
 <div id="code">
-mineways.exe [-w X Y] [-s UserSaveDirectory|none] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
+mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]
 </div>
 <P>
 The command-line options are:
@@ -780,6 +780,9 @@ Specify the file name and path for a script or model file to load on startup. So
 <P>
 -w <i>X Y</i><br>
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
+<P>
+-m<br>
+Start up Mineways as a minimized window. This setting is useful if you are running a command-line script that does a "Close" at the end, as all operations will run without (noticeably) popping up the Mineways window.
 <P>
 -s <i>UserSaveDirectory</i><br>
 Specify the directory where all your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
@@ -793,7 +796,7 @@ Here are a few examples:
 mineways.exe -w 800 900
 </div>
 <P>
-Start up Mineways in an 800 x 900 sized window. Note that a larger window does mean a slower world load time.
+Start up Mineways in an 800 x 900 size window. Note that a larger window does mean a slower world load time, since more chunks are visible on load.
 <P>
 <div id="code">
 mineways.exe MyCastle.obj
@@ -814,10 +817,10 @@ mineways.exe "C:\Mineways\My House.obj" C:\Mineways\modify.mwscript
 If you exported a model just how you like it, you can import it and modify its settings etc. with whatever commands are in your modify.mwscript. When using multiple scripts, it's wise to give the full path to each file, as Mineways can modify the default directory used to load. Note that double quotes are needed when the file or path contains a space character.
 <P>
 <div id="code">
-mineways.exe -w 1 1 "C:\Mineways\Load Eiffel.mwscript" C:\Mineways\export.mwscript C:\Mineways\close.mwscript
+mineways.exe -m "C:\Mineways\Load Eiffel.mwscript" C:\Mineways\export.mwscript C:\Mineways\close.mwscript
 </div>
 <P>
-Start with a tiny window and run the specified scripts at startup. The "Load Eiffel" script might load a world and select the Eiffel model in that world. The export script exports it, and the close script closes Mineways. This allows you to essentially run Mineways from the command line with no interactions needed, though the program still needs to pop up a small window. The tiny window actually speeds up processing, since only the map chunks in the exported model are loaded.
+Start minimized and run the specified scripts at startup. The "Load Eiffel" script might load a world and select the Eiffel model in that world. The export script exports it, and the close script closes Mineways. This allows you to essentially run Mineways from the command line with no interactions needed. Running minimized also speeds up processing, since only the map chunks in the exported model are loaded.
 <div id="code">
 mineways.exe -s C:\MyWorlds
 </div>
@@ -826,7 +829,9 @@ Load the world folders contained in C:\MyWorlds so that they appear in the "File
 <div id="code">
 mineways.exe -s none
 </div>
-This can be useful if mineways does not start properly, to rule out world files causing the problem, or if you're running a script on startup and do not need the world list loaded.
+<P>
+Do not load any list of worlds on startup.
+This can be useful if Mineways does not start properly, to rule out world files causing the problem, or if you're running a script on startup and do not need the world list loaded.
 
 <H1 id="amfwm">Associating .mwscript files with Mineways</H1>
 
@@ -940,7 +945,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 6/6/2019</p>
+		<p id="lastUpdate">Last updated 7/6/2019</p>
 	</div>
 </div>
 

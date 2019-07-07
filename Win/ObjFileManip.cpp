@@ -16771,7 +16771,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             }
             break;
-        case BLOCK_MONSTER_EGG:						// getSwatch
+        case BLOCK_INFESTED_STONE:						// getSwatch
             switch ( dataVal & 0x7 )
             {
             case 0:

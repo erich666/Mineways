@@ -280,12 +280,12 @@ static struct {
     { "Pink Tulip" },	// 10
     { "Oxeye Daisy" },
     { "Lilac" },	// tall flowers
-    { "Double Tallgrass" },
+    { "Tall Grass" },
     { "Large Fern" },
     { "Rose Bush" },	// 15
     { "Peony" },
     { "Dead Bush" },
-    { "Tall Grass" },
+    { "Grass" },
     { "Fern" },
     { "Spruce Wood Planks" },   // 20
     { "Birch Wood Planks" },
@@ -319,8 +319,8 @@ static struct {
 	{ "Stripped Jungle Wood" },
 	{ "Stripped Acacia Wood" },		// 50
 	{ "Stripped Dark Oak Wood" },
-	{ "Sandstone" },
-	{ "Red Sandstone" },
+	{ "Smooth Sandstone" },
+	{ "Smooth Red Sandstone" },
 	{ "Quartz" },
 	{ "Cornflower" },
 	{ "Lily of the Valley" },
@@ -393,6 +393,19 @@ static struct {
 	{ "Jungle Log" },
 	{ "Dark Oak Log" },
 	{ "Bubble Column" },
+	{ "Wet Sponge" },
+	{ "Chiseled Sandstone" },
+	{ "Cut Sandstone" },
+	{ "Chiseled Red Sandstone" },
+	{ "Cut Red Sandstone" },	// 130
+	{ "Mossy Stone Bricks" },
+	{ "Cracked Stone Bricks" },
+	{ "Chiseled Stone Bricks" },
+	{ "Infested Cobblestone" },
+	{ "Infested Stone Bricks" },
+	{ "Infested Mossy Stone Bricks" },
+	{ "Infested Cracked Stone Bricks" },
+	{ "Infested Chiseled Stone Bricks" },
 };
 
 char gCoralString[100];
@@ -461,7 +474,7 @@ static struct {
 #define STRING_STR_JUNGLE_WOOD				49
 #define STRING_STR_ACACIA_WOOD				50
 #define STRING_STR_DARK_OAK_WOOD			51
-#define	STRING_STR_SANDSTONE				52
+#define	STRING_STR_SMOOTH_SANDSTONE			52
 #define	STRING_STR_RED_SANDSTONE			53
 #define	STRING_STR_QUARTZ					54
 #define	STRING_CORNFLOWER					55
@@ -535,6 +548,19 @@ static struct {
 #define STRING_JUNGLE_LOG					123
 #define STRING_DARK_OAK_LOG					124
 #define STRING_BUBBLE_COLUMN				125
+#define STRING_WET_SPONGE					126
+#define STRING_CHISELED_SANDSTONE			127
+#define STRING_CUT_SANDSTONE				128
+#define STRING_CHISELED_RED_SANDSTONE		129
+#define STRING_CUT_RED_SANDSTONE			130
+#define STRING_MOSSY_STONE_BRICKS			131
+#define STRING_CRACKED_STONE_BRICKS			132
+#define STRING_CHISELED_STONE_BRICKS		133
+#define STRING_INFESTED_COBBLESTONE			134
+#define STRING_INFESTED_STONE_BRICKS		135
+#define STRING_INFESTED_MOSSY_STONE_BRICKS			136
+#define STRING_INFESTED_CRACKED_STONE_BRICKS		137
+#define STRING_INFESTED_CHISELED_STONE_BRICKS		138
 
 //bx = x coord of pixel
 //by = y coord of pixel
@@ -674,13 +700,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_SPRUCE_LEAVES].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_BIRCH_LEAVES].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_JUNGLE_LEAVES].name;
-			break;
 		}
 		break;
 
@@ -691,7 +714,6 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_LEAVES].name;
-			break;
 		}
 		break;
 
@@ -701,13 +723,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		default:
 		case 0: // dead bush
 			return gExtraBlockNames[STRING_DEAD_BUSH].name;
-			break;
 		case 1:	// tall grass
 			return gExtraBlockNames[STRING_TALL_GRASS].name;
-			break;
 		case 2:	// fern
 			return gExtraBlockNames[STRING_FERN].name;
-			break;
 		}
 		break;
 
@@ -718,37 +737,26 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// blue orchid
 			return gExtraBlockNames[STRING_BLUE_ORCHID].name;
-			break;
 		case 2:	// allium
 			return gExtraBlockNames[STRING_ALLIUM].name;
-			break;
 		case 3:	// azure bluet
 			return gExtraBlockNames[STRING_AZURE_BLUET].name;
-			break;
 		case 4:	// red tulip
 			return gExtraBlockNames[STRING_RED_TULIP].name;
-			break;
 		case 5:	// orange tulip
 			return gExtraBlockNames[STRING_ORANGE_TULIP].name;
-			break;
 		case 6:	// white tulip
 			return gExtraBlockNames[STRING_WHITE_TULIP].name;
-			break;
 		case 7:	// pink tulip
 			return gExtraBlockNames[STRING_PINK_TULIP].name;
-			break;
 		case 8:	// oxeye daisy
 			return gExtraBlockNames[STRING_OXEYE_DAISY].name;
-			break;
 		case 9:
 			return gExtraBlockNames[STRING_CORNFLOWER].name;
-			break;
 		case 10:
 			return gExtraBlockNames[STRING_LILY_OF_THE_VALLEY].name;
-			break;
 		case 11:
 			return gExtraBlockNames[STRING_WITHER_ROSE].name;
-			break;
 		}
 		break;
 
@@ -763,19 +771,14 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 				break;
 			case 1:	// lilac
 				return gExtraBlockNames[STRING_LILAC].name;
-				break;
 			case 2:	// double tallgrass
 				return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
-				break;
 			case 3:	// large fern
 				return gExtraBlockNames[STRING_LARGE_FERN].name;
-				break;
 			case 4:	// rose bush
 				return gExtraBlockNames[STRING_ROSE_BUSH].name;
-				break;
 			case 5:	// peony
 				return gExtraBlockNames[STRING_PEONY].name;
-				break;
 			}
 		}
 		break;
@@ -787,19 +790,14 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_SPRUCE_WOOD_PLANKS].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_BIRCH_WOOD_PLANKS].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_JUNGLE_WOOD_PLANKS].name;
-			break;
 		case 4:	// acacia
 			return gExtraBlockNames[STRING_ACACIA_WOOD_PLANKS].name;
-			break;
 		case 5:	// dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_WOOD_PLANKS].name;
-			break;
 		}
 		break;
 
@@ -810,22 +808,16 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:
 			return gExtraBlockNames[STRING_GRANITE].name;
-			break;
 		case 2:
 			return gExtraBlockNames[STRING_POLISHED_GRANITE].name;
-			break;
 		case 3:
 			return gExtraBlockNames[STRING_DIORITE].name;
-			break;
 		case 4:
 			return gExtraBlockNames[STRING_POLISHED_DIORITE].name;
-			break;
 		case 5:
 			return gExtraBlockNames[STRING_ANDESITE].name;
-			break;
 		case 6:
 			return gExtraBlockNames[STRING_POLISHED_ANDESITE].name;
-			break;
 		}
 		break;
 
@@ -836,10 +828,8 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:
 			return gExtraBlockNames[STRING_COARSE_DIRT].name;
-			break;
 		case 2:
 			return gExtraBlockNames[STRING_PODZOL].name;
-			break;
 		}
 		break;
 
@@ -850,22 +840,16 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_SPRUCE_SAPLING].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_BIRCH_SAPLING].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_JUNGLE_SAPLING].name;
-			break;
 		case 4:	// acacia
 			return gExtraBlockNames[STRING_ACACIA_SAPLING].name;
-			break;
 		case 5:	// dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_SAPLING].name;
-			break;
 		case 6:	// bamboo
 			return gExtraBlockNames[STRING_BAMBOO_SAPLING].name;
-			break;
 		}
 		break;
 
@@ -879,25 +863,18 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:
 			return gExtraBlockNames[STRING_CUT_RED_SANDSTONE_SLAB].name;
-			break;
 		case 2:
 			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_SLAB].name;
-			break;
 		case 3:
 			return gExtraBlockNames[STRING_CUT_SANDSTONE_SLAB].name;
-			break;
 		case 4:
 			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_SLAB].name;
-			break;
 		case 5:
 			return gExtraBlockNames[STRING_GRANITE_SLAB].name;
-			break;
 		case 6:
 			return gExtraBlockNames[STRING_POLISHED_GRANITE_SLAB].name;
-			break;
 		case 7:
 			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_SLAB].name;
-			break;
 		}
 		break;
 
@@ -912,22 +889,16 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 2:
 			return gExtraBlockNames[STRING_PRISMARINE_SLAB].name;
-			break;
 		case 3:
 			return gExtraBlockNames[STRING_PRISMARINE_BRICK_SLAB].name;
-			break;
 		case 4:
 			return gExtraBlockNames[STRING_DARK_PRISMARINE_SLAB].name;
-			break;
 		case 5:
 			return gExtraBlockNames[STRING_RED_NETHER_BRICK_SLAB].name;
-			break;
 		case 6:
 			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_SLAB].name;
-			break;
 		case 7:
 			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_SLAB].name;
-			break;
 		}
 		break;
 
@@ -938,13 +909,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_STR_SPRUCE_LOG].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_STR_BIRCH_LOG].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_STR_JUNGLE_LOG].name;
-			break;
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA:
@@ -954,7 +922,6 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// dark oak
 			return gExtraBlockNames[STRING_STR_DARK_OAK_LOG].name;
-			break;
 		}
 		break;
 	case BLOCK_STRIPPED_OAK_WOOD:
@@ -964,13 +931,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_STR_SPRUCE_WOOD].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_STR_BIRCH_WOOD].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_STR_JUNGLE_WOOD].name;
-			break;
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA_WOOD:
@@ -980,7 +944,6 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// dark oak
 			return gExtraBlockNames[STRING_STR_DARK_OAK_WOOD].name;
-			break;
 		}
 		break;
 
@@ -990,14 +953,11 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		default:
 			break;
 		case 1: // sandstone
-			return gExtraBlockNames[STRING_STR_SANDSTONE].name;
-			break;
+			return gExtraBlockNames[STRING_STR_SMOOTH_SANDSTONE].name;
 		case 2: // red sandstone
 			return gExtraBlockNames[STRING_STR_RED_SANDSTONE].name;
-			break;
 		case 3: // quartz
 			return gExtraBlockNames[STRING_STR_QUARTZ].name;
-			break;
 		}
 		break;
 
@@ -1037,19 +997,14 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:
 			return gExtraBlockNames[STRING_POLISHED_ANDESITE_SLAB].name;
-			break;
 		case 2:
 			return gExtraBlockNames[STRING_DIORITE_SLAB].name;
-			break;
 		case 3:
 			return gExtraBlockNames[STRING_POLISHED_DIORITE_SLAB].name;
-			break;
 		case 4:
 			return gExtraBlockNames[STRING_END_STONE_BRICK_SLAB].name;
-			break;
 		case 5:
 			return gExtraBlockNames[STRING_STONE_SLAB].name;
-			break;
 		}
 		break;
 
@@ -1062,31 +1017,24 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		case 1:
 			// sandstone
 			return gExtraBlockNames[STRING_SANDSTONE_SLAB].name;
-			break;
 		case 2:
 			// wooden
 			return gExtraBlockNames[STRING_PETRIFIED_OAK_SLAB].name;
-			break;
 		case 3:
 			// cobblestone
 			return gExtraBlockNames[STRING_COBBLESTONE_SLAB].name;
-			break;
 		case 4:
 			// brick
 			return gExtraBlockNames[STRING_BRICK_SLAB].name;
-			break;
 		case 5:
 			// stone brick
 			return gExtraBlockNames[STRING_STONE_BRICK_SLAB].name;
-			break;
 		case 6:
 			// nether brick
 			return gExtraBlockNames[STRING_NETHER_BRICK_SLAB].name;
-			break;
 		case 7:
 			// quartz with distinctive sides and bottom
 			return gExtraBlockNames[STRING_QUARTZ_SLAB].name;
-			break;
 		}
 		break;
 
@@ -1098,19 +1046,14 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1: // spruce (dark)
 			return gExtraBlockNames[STRING_SPRUCE_SLAB].name;
-			break;
 		case 2: // birch
 			return gExtraBlockNames[STRING_BIRCH_SLAB].name;
-			break;
 		case 3: // jungle
 			return gExtraBlockNames[STRING_JUNGLE_SLAB].name;
-			break;
 		case 4: // acacia
 			return gExtraBlockNames[STRING_ACACIA_SLAB].name;
-			break;
 		case 5: // dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_SLAB].name;
-			break;
 		}
 		break;
 
@@ -1120,13 +1063,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// stone stairs
 			return gExtraBlockNames[STRING_STONE_STAIRS].name;
-			break;
 		case BIT_32:	// granite
 			return gExtraBlockNames[STRING_GRANITE_STAIRS].name;
-			break;
 		case BIT_32 | BIT_16:	// polished granite
 			return gExtraBlockNames[STRING_POLISHED_GRANITE_STAIRS].name;
-			break;
 		}
 		break;
 	case BLOCK_BRICK_STAIRS:
@@ -1135,13 +1075,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// smooth quartz stairs
 			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_STAIRS].name;
-			break;
 		case BIT_32:	// diorite
 			return gExtraBlockNames[STRING_DIORITE_STAIRS].name;
-			break;
 		case BIT_32 | BIT_16:	// polished diorite
 			return gExtraBlockNames[STRING_POLISHED_DIORITE_STAIRS].name;
-			break;
 		}
 		break;
 	case BLOCK_STONE_BRICK_STAIRS:
@@ -1150,13 +1087,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// end stone stairs
 			return gExtraBlockNames[STRING_END_STONE_BRICK_STAIRS].name;
-			break;
 		case BIT_32:	// andesite
 			return gExtraBlockNames[STRING_ANDESITE_STAIRS].name;
-			break;
 		case BIT_32 | BIT_16:	// polished andesite
 			return gExtraBlockNames[STRING_POLISHED_ANDESITE_STAIRS].name;
-			break;
 		}
 		break;
 	case BLOCK_NETHER_BRICK_STAIRS:
@@ -1165,13 +1099,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// red nether brick stairs
 			return gExtraBlockNames[STRING_RED_NETHER_BRICK_STAIRS].name;
-			break;
 		case BIT_32:	// mossy stone
 			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_STAIRS].name;
-			break;
 		case BIT_32 | BIT_16:	// mossy cobblestone
 			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_STAIRS].name;
-			break;
 		}
 		break;
 	case BLOCK_SANDSTONE_STAIRS:
@@ -1180,10 +1111,8 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// smooth sandstone stairs
 			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_STAIRS].name;
-			break;
 		case BIT_32:	// smooth red sandstone
 			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_STAIRS].name;
-			break;
 		}
 		break;
 	case BLOCK_COBBLESTONE_WALL:
@@ -1193,43 +1122,30 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1: // mossy cobblestone
 			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_WALL].name;
-			break;
 		case 2: // brick wall
 			return gExtraBlockNames[STRING_BRICK_WALL].name;
-			break;
 		case 3: // granite wall
 			return gExtraBlockNames[STRING_GRANITE_WALL].name;
-			break;
 		case 4: // diorite wall
 			return gExtraBlockNames[STRING_DIORITE_WALL].name;
-			break;
 		case 5: // andesite wall
 			return gExtraBlockNames[STRING_ANDESITE_WALL].name;
-			break;
 		case 6: // prismarine wall
 			return gExtraBlockNames[STRING_PRISMARINE_WALL].name;
-			break;
 		case 7: // stone brick wall
 			return gExtraBlockNames[STRING_STONE_BRICK_WALL].name;
-			break;
 		case 8: // mossy stone brick wall
 			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_WALL].name;
-			break;
 		case 9: // end stone brick wall
 			return gExtraBlockNames[STRING_END_STONE_BRICK_WALL].name;
-			break;
 		case 10: // nether brick wall
 			return gExtraBlockNames[STRING_NETHER_BRICK_WALL].name;
-			break;
 		case 11: // red nether brick wall
 			return gExtraBlockNames[STRING_RED_NETHER_BRICK_WALL].name;
-			break;
 		case 12: // sandstone wall
 			return gExtraBlockNames[STRING_SANDSTONE_WALL].name;
-			break;
 		case 13: // red sandstone wall
 			return gExtraBlockNames[STRING_RED_SANDSTONE_WALL].name;
-			break;
 		}
 		break;
 	case BLOCK_PRISMARINE:
@@ -1241,10 +1157,8 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1: // bricks
 			return gExtraBlockNames[STRING_PRISMARINE_BRICKS].name;
-			break;
 		case 2: // dark
 			return gExtraBlockNames[STRING_DARK_PRISMARINE].name;
-			break;
 		}
 		break;
 	case BLOCK_FURNACE:
@@ -1256,13 +1170,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case BIT_16:	// loom
 			return gExtraBlockNames[STRING_LOOM].name;
-			break;
 		case BIT_32:	// smoker
 			return gExtraBlockNames[STRING_SMOKER].name;
-			break;
 		case BIT_32 | BIT_16:	// blast furnace
 			return gExtraBlockNames[STRING_BLAST_FURNACE].name;
-			break;
 		}
 		break;
 	case BLOCK_CRAFTING_TABLE:
@@ -1272,13 +1183,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// cartography
 			return gExtraBlockNames[STRING_CARTOGRAPHY_TABLE].name;
-			break;
 		case 2:	// fletching
 			return gExtraBlockNames[STRING_FLETCHING_TABLE].name;
-			break;
 		case 3:	// smithing
 			return gExtraBlockNames[STRING_SMITHING_TABLE].name;
-			break;
 		}
 		break;
 
@@ -1289,7 +1197,6 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// red sand
 			return gExtraBlockNames[STRING_RED_SAND].name;
-			break;
 		}
 		break;
 
@@ -1300,13 +1207,10 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// spruce
 			return gExtraBlockNames[STRING_SPRUCE_LOG].name;
-			break;
 		case 2:	// birch
 			return gExtraBlockNames[STRING_BIRCH_LOG].name;
-			break;
 		case 3:	// jungle
 			return gExtraBlockNames[STRING_JUNGLE_LOG].name;
-			break;
 		}
 		break;
 	case BLOCK_AD_LOG:
@@ -1316,7 +1220,6 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 1:	// dark oak
 			return gExtraBlockNames[STRING_DARK_OAK_LOG].name;
-			break;
 		}
 		break;
 	case BLOCK_STATIONARY_WATER:
@@ -1326,7 +1229,63 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			break;
 		case 8:	// bubble column
 			return gExtraBlockNames[STRING_BUBBLE_COLUMN].name;
+		}
+		break;
+	case BLOCK_SPONGE:
+		switch (dataVal & 0x1)
+		{
+		default:
 			break;
+		case 1:
+			return gExtraBlockNames[STRING_WET_SPONGE].name;
+		}
+		break;
+	case BLOCK_SANDSTONE:
+		switch (dataVal & 0x3) {
+		default:
+			break;
+		case 1: // chiseled
+			return gExtraBlockNames[STRING_CHISELED_SANDSTONE].name;
+		case 2: // smooth
+			return gExtraBlockNames[STRING_CUT_SANDSTONE].name;
+		}
+		break;
+	case BLOCK_RED_SANDSTONE:
+		switch (dataVal & 0x3) {
+		default:
+			break;
+		case 1: // chiseled
+			return gExtraBlockNames[STRING_CHISELED_RED_SANDSTONE].name;
+		case 2: // smooth
+			return gExtraBlockNames[STRING_CUT_RED_SANDSTONE].name;
+		}
+		break;
+	case BLOCK_STONE_BRICKS:
+		switch (dataVal & 0x3) {
+		default:
+			break;
+		case 1: // mossy - small color difference, so this isn't added to color table
+			return gExtraBlockNames[STRING_MOSSY_STONE_BRICKS].name;
+		case 2: // cracked
+			return gExtraBlockNames[STRING_CRACKED_STONE_BRICKS].name;
+		case 3: // chiseled
+			return gExtraBlockNames[STRING_CHISELED_STONE_BRICKS].name;
+		}
+		break;
+	case BLOCK_INFESTED_STONE:
+		switch (dataVal & 0x7) {
+		default:
+			break;
+		case 1: // cobblestone
+			return gExtraBlockNames[STRING_INFESTED_COBBLESTONE].name;
+		case 2: // stone brick
+			return gExtraBlockNames[STRING_INFESTED_STONE_BRICKS].name;
+		case 3: // mossy - small color difference, so this isn't added to color table
+			return gExtraBlockNames[STRING_INFESTED_MOSSY_STONE_BRICKS].name;
+		case 4: // cracked
+			return gExtraBlockNames[STRING_INFESTED_CRACKED_STONE_BRICKS].name;
+		case 5: // chiseled
+			return gExtraBlockNames[STRING_INFESTED_CHISELED_STONE_BRICKS].name;
 		}
 		break;
 	}
@@ -1824,6 +1783,34 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         }
         break;
 
+	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
+	case BLOCK_RED_SANDSTONE_SLAB:
+		dataVal = block->data[voxel];
+		alphaComputed = true;
+		switch (dataVal & 0x7)
+		{
+		default:
+		case 1:	// cut red sandstone
+		case 2:	// smooth red sandstone
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		case 3: // cut sandstone
+		case 4: // smooth sandstone
+			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+			break;
+		case 5:	// granite
+			color = 0xA77562;
+			break;
+		case 6:	// polished granite
+			color = 0x946251;
+			break;
+		case 7:	// smooth quartz
+			color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+			break;
+		}
+		break;
+
     case BLOCK_POPPY:
         dataVal = block->data[voxel];
         switch (dataVal)
@@ -1909,7 +1896,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         dataVal = block->data[voxel];
         switch (dataVal)
         {
-        default:	// sunflower
+        default:
             lightComputed = true;
             color = gBlockColors[type*16+light];
             break;
@@ -2113,18 +2100,18 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		switch (dataVal & 0x3)
 		{
 		default:
-		case 0:	// tube coral - as is
+		case 0:
 			lightComputed = true;
 			color = gBlockColors[type * 16 + light];
 			break;
-		case 1: // sandstone
-			color = 0xE0D6AB;
+		case 1: // smooth sandstone
+			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
 			break;
 		case 2: // red sandstone
-			color = 0xB66220;
+			color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
 			break;
 		case 3: // quartz
-			color = 0xECE6DF;
+			color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
 			break;
 		}
 		break;
@@ -2215,10 +2202,10 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			color = gBlockColors[type * 16 + light];
 			break;
 		case BIT_16:	// smooth sandstone stairs
-			color = 0xE0D6AB;
+			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
 			break;
 		case BIT_32:	// smooth red sandstone
-			color = 0xB66220;
+			color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
 			break;
 		}
 		break;
@@ -3016,7 +3003,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_OAK_PLANKS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:
-    case BLOCK_MONSTER_EGG:
+    case BLOCK_INFESTED_STONE:
     case BLOCK_END_ROD:
     case BLOCK_CHORUS_FLOWER:
     case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect

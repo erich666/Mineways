@@ -70,7 +70,7 @@
     <div id="content" class="clearfix">
 <P>
 
-<!-- not really needed
+<!-- not needed
 <UL>
 <LI><a href="#mmi">Mouse and Keyboard</a>
 <LI><a href="#mmi">Mineways Menu Items</a>
@@ -151,7 +151,7 @@ Shortcut keys are shown in parentheses next to each command.
 
 <h2>Help Menu</h2>
 <UL>
-<LI>Help at website - opens up this very page in your browser.
+<LI>Help at website - opens up this page in your browser.
 <LI>About ... - shows version number and other information.
 <LI>Give more export memory! - if you get an "out of memory" error from Mineways, try this to minimize memory use. Usually needed for only the Windows 32-bit version of Mineways.
 </UL>
@@ -168,7 +168,7 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <LI>Export no materials, etc.: whether the model has a single color, solid colors on blocks, solid color textures with noise added, or full textured colors.
 <LI>OBJ file export options: various <a href="mineways.html#obj_export_options">professional settings</a> allowing you to make the data easier to modify.
 <LI>Make Z the up direction: <a href="https://youtu.be/W8hmWWoaUyU">some systems use Y as up, some Z</a>.
-<LI><a href="mineways.html#composite">Create composite overlay faces</a>: ladders, vines, etc. will be separate, floating polygons.
+<LI><a href="mineways.html#composite">Create composite overlay faces</a>: ladders, vines, lily pads, and other flat (or flattened, for 3D printing) objects will be composited atop whatever is beneath them, making a separate, new texture for the combination. If off, these objects will be separate, floating polygons put a small bit above their related surfaces.
 <LI><a href="mineways.html#center_model">Center model around the origin</a>: if turned off, Minecraft coordinates are used instead. Useful for professionals.
 <LI>Use biome: use the biome's attributes to color the blocks. Currently uses only the single biome at the center of the export.
 <LI><a href="mineways.html#border_faces">Create block faces</a>: if you don't plan on seeing the outer edges of your export, uncheck to make the file smaller. Useful for tiling, i.e., exporting separate sections of a world and having them join up.
@@ -199,10 +199,10 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <UL>
 <LI>Superhollow: aggressively hollow, carving away into nooks and crannies.
 </UL>
-<LI>Melt snow blocks: pretty obscure, meant for making "weep holes" larger after all other processing.
+<LI>Melt snow blocks: obscure command, meant for making "weep holes" for 3D printing larger after all other processing.
 <LI><a href="#lesser">Export lesser, detailed blocks</a>: normally blocks are either printed as full blocks, or not at all. This allows many "partial" blocks to be printed.
 <UL>
-<LI>Fatten lesser blocks: some detailed blocks can be very thin and will not print well. This makes them thicker.
+<LI>Fatten lesser blocks: some detailed blocks can be too thin and will not print well. This makes them thicker.
 </UL>
 <LI>Debug: show floating parts...: any parts that are not fully attached to the main model will be made obvious.
 <LI>Debug: show weld blocks...: any blocks added by Mineways to make the model printable are shown as lava and pink wool.
@@ -225,8 +225,11 @@ Specify the file name and path for a script or model file to load on startup.
 -w <i>X Y</i><br>
 Specify the X and Y resolution in pixels of the startup window. Values must be positive integers.
 <P>
+-m<br>
+Start up Mineways as a minimized window. Useful for running scripts to completion with "Close" at the end to shut the program down.
+<P>
 -s <i>UserSaveDirectory</i><br>
-Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves"
+Specify the directory where your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g. -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems, you'll normally never use this. Saves startup and commands executed to the file specified.
@@ -290,7 +293,7 @@ All shortcut keys for Mineways.
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/3/2019</p>
+		<p id="lastUpdate">Last updated 7/7/2019</p>
 	</div>
 </div>
 
