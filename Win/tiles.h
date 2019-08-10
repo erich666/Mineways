@@ -305,7 +305,7 @@ static struct {
 	{  8, 14, 145, L"damaged_anvil_top", L"anvil_top_damaged_2", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
 	{  9, 14,  54, L"MWO_double_chest_top_left", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// was unused, ender chest moved to here
     { 10, 14,  54, L"MWO_double_chest_top_right", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// was unused, ender chest moved to here
-    { 11, 14, 138, L"beacon", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// was unused, beacon was moved to here
+    { 11, 14, 138, L"beacon", L"", SWATCH_REPEAT_ALL },	// was unused, beacon was moved to here
     { 12, 14, 133, L"emerald_block", L"", SWATCH_REPEAT_ALL },	// was unused, emerald was moved to here
     { 13, 14, 173, L"coal_block", L"", SWATCH_REPEAT_ALL },
     { 14, 14, 149, L"comparator", L"comparator_off", SWATCH_REPEAT_ALL },
@@ -443,9 +443,9 @@ static struct {
     { 15, 22,  19, L"wet_sponge", L"sponge_wet", SWATCH_REPEAT_ALL },
     {  0, 23, 193, L"spruce_door_bottom", L"door_spruce_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  1, 23, 193, L"spruce_door_top", L"door_spruce_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  2, 23, 194, L"birch_door_bottom",  L"door_birch_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    {  3, 23, 194, L"birch_door_top", L"door_birch_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    {  4, 23, 195, L"jungle_door_bottom", L"door_jungle_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    {  2, 23, 194, L"birch_door_bottom",  L"door_birch_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
+    {  3, 23, 194, L"birch_door_top", L"door_birch_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },		// this particular one does not need SBIT_DECAL normally, but mods could use it
+    {  4, 23, 195, L"jungle_door_bottom", L"door_jungle_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
     {  5, 23, 195, L"jungle_door_top", L"door_jungle_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  6, 23, 196, L"acacia_door_bottom", L"door_acacia_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  7, 23, 196, L"acacia_door_top", L"door_acacia_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -495,7 +495,7 @@ static struct {
     {  3, 26, 216, L"bone_block_side", L"", SWATCH_REPEAT_ALL },
     {  4, 26, 216, L"bone_block_top", L"", SWATCH_REPEAT_ALL },
     {  5, 26,  55, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
-    {  6, 26,  55, L"MWO_redstone_dust_four_way", L"", SWATCH_REPEAT_ALL },	// MANUFACTURED 4 way redstone wire - reserved
+    {  6, 26,  55, L"MWO_redstone_dust_four_way", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved
     {  7, 26,  54, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  8, 26,   8, L"water_flow", L"", SWATCH_REPEAT_ALL },	// special: double-wide
     {  9, 26,  10, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
@@ -629,11 +629,11 @@ static struct {
 	{  9, 34, 275, L"stripped_jungle_log_top", L"", SWATCH_REPEAT_ALL },
 	{ 10, 34, 276, L"stripped_acacia_log_top", L"", SWATCH_REPEAT_ALL },
 	{ 11, 34, 276, L"stripped_dark_oak_log_top", L"", SWATCH_REPEAT_ALL },
-	{ 12, 34, 260, L"spruce_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-	{ 13, 34, 261, L"birch_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+	{ 12, 34, 260, L"spruce_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
+	{ 13, 34, 261, L"birch_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
 	{ 14, 34, 262, L"jungle_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
 	{ 15, 34, 263, L"acacia_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-	{  0, 35, 264, L"dark_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+	{  0, 35, 264, L"dark_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
 	{  1, 35, 316, L"dead_tube_coral_block", L"", SWATCH_REPEAT_ALL },
 	{  2, 35, 316, L"dead_brain_coral_block", L"", SWATCH_REPEAT_ALL },
 	{  3, 35, 316, L"dead_bubble_coral_block", L"", SWATCH_REPEAT_ALL },
@@ -675,7 +675,7 @@ static struct {
 	{  7, 37, 328, L"bamboo_singleleaf", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{  8, 37, 328, L"bamboo_small_leaves", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{  9, 37, 328, L"bamboo_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// X decal
-	{ 10, 37, 328, L"bamboo_stalk", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// geometry
+	{ 10, 37, 328, L"bamboo_stalk", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
 	{ 11, 37, 338, L"lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
 	{ 12, 37, 327, L"sweet_berry_bush_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{ 13, 37, 327, L"sweet_berry_bush_stage1", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -699,7 +699,7 @@ static struct {
 	{ 15, 38, 332, L"composter_ready", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
 	{  0, 39, 339, L"campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{  1, 39, 339, L"campfire_log", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{  2, 39, 339, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{  2, 39, 339, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
 	{  3, 39,  58, L"cartography_table_top", L"", SWATCH_REPEAT_ALL },
 	{  4, 39,  58, L"cartography_table_side1", L"", SWATCH_REPEAT_ALL },
 	{  5, 39,  58, L"cartography_table_side2", L"", SWATCH_REPEAT_ALL },
@@ -713,10 +713,10 @@ static struct {
 	{ 13, 39, 331, L"jigsaw_top", L"", SWATCH_REPEAT_ALL },
 	{ 14, 39, 331, L"jigsaw_bottom", L"", SWATCH_REPEAT_ALL },	// usually we go top/side/bottom - for command-block sorts of things, we go front/back/side, which is named top/bottom/side here
 	{ 15, 39, 331, L"jigsaw_side", L"", SWATCH_REPEAT_ALL },
-	{  0, 40, 336, L"lectern_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{  1, 40, 336, L"lectern_sides", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{  2, 40, 336, L"lectern_base", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-	{  3, 40, 336, L"lectern_front", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{  0, 40, 336, L"lectern_top", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+	{  1, 40, 336, L"lectern_sides", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+	{  2, 40, 336, L"lectern_base", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+	{  3, 40, 336, L"lectern_front", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
 	{  4, 40,  61, L"loom_top", L"", SWATCH_REPEAT_ALL },
 	{  5, 40,  61, L"loom_side", L"", SWATCH_REPEAT_ALL },
 	{  6, 40,  61, L"loom_bottom", L"", SWATCH_REPEAT_ALL },

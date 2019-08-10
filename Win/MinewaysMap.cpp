@@ -598,7 +598,6 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 	//assert(cz > -10000);
 
 	// initialize to "not set"
-	*biome = -1;
 	*dataVal = 0;
 
 	if (shiftx < 0)
@@ -1229,11 +1228,9 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		}
 		break;
 	case BLOCK_STATIONARY_WATER:
-		switch (dataVal & 0x8)
+		if (dataVal & BIT_16)
 		{
-		default:
-			break;
-		case 8:	// bubble column
+			// bubble column
 			return gExtraBlockNames[STRING_BUBBLE_COLUMN].name;
 		}
 		break;
@@ -1306,6 +1303,7 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			return gExtraBlockNames[STRING_QUARTZ_PILLAR].name;
 		}
 		break;
+
 	}
 
 	// could add more? TODO
@@ -1981,7 +1979,6 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
     case BLOCK_STATIONARY_WATER:
         color = gBlockDefinitions[BLOCK_STATIONARY_WATER].color;
         affectedByBiome = 3;
-		// TODO bubble column effect?
         break;
 
     case BLOCK_CONCRETE:
@@ -3400,7 +3397,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
     case BLOCK_WATER:
-    case BLOCK_STATIONARY_WATER:	// TODO add bubble column - doesn't really affect rendering
+    case BLOCK_STATIONARY_WATER:
     case BLOCK_LAVA:
     case BLOCK_STATIONARY_LAVA:
         // uses 0-8, with 8 giving one above
@@ -3418,7 +3415,16 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
                 int z = !x;
                 block->grid[BLOCK_INDEX(x+4+(type%2)*8,y,z+4+(dataVal%2)*8)] = (unsigned char)type;
             }
-        }
+		}
+		else if (type == BLOCK_STATIONARY_WATER) {
+			// for stationary water, bubble column is put at bottom
+			if (dataVal == 15) {
+				addBlock = 1;
+				finalDataVal = BIT_16|8;
+				// put block above, if we want the block below to go fully to the top:
+				//block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+			}
+		}
         break;
     case BLOCK_ENDER_CHEST:
         // uses 2-5
@@ -4336,6 +4342,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			block->data[bi] = (unsigned char)(HIGH_BIT|0x1);
 		}
 		break;
+
+		// don't show special blocks to users
+#ifndef _DEBUG
+	case BLOCK_UNKNOWN:
+	case BLOCK_FAKE:
+		break;
+#endif
 	}
 
     // if we want to do a normal sort of thing

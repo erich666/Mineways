@@ -854,7 +854,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  57,    HIGH_BIT, "dried_kelp_block", NO_PROP },
 { 0,  58,  HIGH_BIT|0, "kelp_plant", TRULY_NO_PROP }, // the lower part
 { 0,  58,  HIGH_BIT|1, "kelp", TRULY_NO_PROP }, // the top, growing part; don't care about the age
-{ 0,   9,           8, "bubble_column", 0x0 },	// consider as full block of water for now, need to investigate if there's anything to static render (I don't think so...?)
+{ 0,   9,      BIT_16, "bubble_column", 0x0 },	// consider as full block of water for now, need to investigate if there's anything to static render (I don't think so...?)
 { 0,  59,  HIGH_BIT|0, "tube_coral_block", NO_PROP },
 { 0,  59,  HIGH_BIT|1, "brain_coral_block", NO_PROP },
 { 0,  59,  HIGH_BIT|2, "bubble_coral_block", NO_PROP },

@@ -77,7 +77,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*   6 */ "Sapling",                		0x7b9a29, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 0, 0x07, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//06
 	{ /*   7 */ "Bedrock",                		0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//07
 	{ /*   8 */ "Water",                  		0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  15,13, 0x00, BLF_ALMOST_WHOLE | BLF_TRANSPARENT},	//08
-	{ /*   9 */ "Stationary Water",       		0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  15,13, 0x08, BLF_ALMOST_WHOLE | BLF_TRANSPARENT},	//09
+	{ /*   9 */ "Stationary Water",       		0x295dfe, 0.535f, 0xff7711, 0xff7711, 0.12345f,  15,13, 0x10, BLF_ALMOST_WHOLE | BLF_TRANSPARENT},	//09
 	{ /*  10 */ "Lava",                   		0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,15, 0x00, BLF_ALMOST_WHOLE | BLF_EMITTER},	//0a
 	{ /*  11 */ "Stationary Lava",        		0xf56d00, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15,15, 0x00, BLF_ALMOST_WHOLE | BLF_EMITTER},	//0b
 	{ /*  12 */ "Sand",                   		0xDCD0A6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 1, 0x01, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//0c/12

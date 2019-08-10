@@ -95,9 +95,18 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#g3d">Displaying with G3D</a> - free viewer ideal for most Mineways rendering exports.
  <LI><a href="#schemes">Color Schemes</a> - change object colors or make them invisible.
  <LI><a href="#too_big">"My Model's Too Expensive!"</a> - how to keep it cheap.
- <LI><a href="#options">Export Options</a> - the various export options shown on the giant dialog.
+ <LI><a href="#options">Export Options</a> - rendering-related export options shown on the giant dialog.
+ <UL>
+   <LI><a href="#terrain_png">Material export</a>
+   <LI><a href="#texture_output">Texture export</a>
+   <LI><a href="#obj_export_options">Wavefront OBJ file export options</a>
+   <LI><a href="#full_material">G3D material</a>
+   <LI><a href="#composite">Create composite overlay faces</a>
+   <LI><a href="#center_model">Center model around the origin</a>
+   <LI><a href="#leaves_solid">Tree leaves solid</a>
+ </UL>
  <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
- <LI><a href="#tilemaker">TileMaker</a> - how to make your own terrainExt.png files.
+ <LI><a href="#tilemaker">TileMaker</a> - how to make your own custom texture terrainExt.png files.
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
  <LI><a href="#blender">Blender</a>
@@ -1435,7 +1444,7 @@ This section describes how to open a <a href="https://education.minecraft.net/">
 <P>
 Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads.
 <P>
-For consoles, you might try out <a href="https://mcctoolchest.weebly.com/tutorial.html">this utility</a>, or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>. I have not tried these myself, I have simply heard of them.
+For consoles, you might try out <a href="http://mcctoolchest.com/Download">this utility</a> (<a href="https://mcctoolchest.weebly.com/tutorial.html">old page</a>), or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>. I have not tried these myself, I have simply heard of them.
 <P>
 You'll need:
 <UL>
@@ -1577,7 +1586,9 @@ Pumpkin and melon stems do not darken with maturity.
 <tr>
 <td>
 Water (#8)<br>
-Lava (#10)
+Stationary Water (#9)<br>
+Lava (#10)<br>
+Stationary Lava (#11)
 </td>
 <td>
 <center>Proper geometry</center>
@@ -1589,7 +1600,7 @@ Lava (#10)
 <center>Proper geometry</center>
 </td>
 <td>
-The bottommost tile found in Minecraft's water_still.png and lava_still.png are used for these blocks. The water_flow.png and lava_flow.png bottommost left tiles are used only for vertical walls. For walls behind glass blocks, water_overlay.png is used. Bubble columns are identified when output with "split by block type" but have no effect on rendering otherwise.
+The bottommost tile found in Minecraft's water_still.png and lava_still.png are used for these blocks. The water_flow.png and lava_flow.png bottommost left tiles are used only for vertical walls. For walls behind glass blocks, water_overlay.png is used. Bubble columns are identified as a subtype of Stationary Water when output with "split by block type" but have no effect on rendering otherwise.
 </td>
 </tr>
 
@@ -2917,7 +2928,17 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Added block sub-type names for "Wet Sponge", "Chiseled Sandstone", "Cut Sandstone" (ditto with the Red varieties), "Block of Quartz", and the "Mossy/Cracked/Chiseled Stone Bricks" (ditto with the Infested varieties, plus "Infested Cobblestone").
 <LI>Cleaned up documentation a bit, fixing an error on the reference page and improving the text throughout.
 </UL>
-(<I>Thanks to Kawicz for noting the crash bug and providing a test case, the <a href="https://www.planetminecraft.com/project/dunov-class-heavy-cruiser/">Dunov-Class Heavy Cruiser</a>.</I>)
+(<I>Thanks to Kawisz for noting the crash bug and providing a test case, the <a href="https://www.planetminecraft.com/project/dunov-class-heavy-cruiser/">Dunov-Class Heavy Cruiser</a>.</I>)
+
+<LI>Version 7.04, 8/10/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV704.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Fixed bug where "split by block type" was reporting sub-block names in the OBJ file, but still using numbers in the MTL file.
+<LI>Some "manufactured" tiles were not bled along their edges properly, as bleeding occurred too early; also, semi-transparent alphas were ignored. All tiles are now <a href="http://www.realtimerendering.com/blog/png-srgb-cutoutdecal-aa-problematic/">bled to their edges</a>, to make mipmapping work properly.
+<LI>Hide blocks 253 and 254, which are special internal IDs, in the [Block Test World] in release builds.
+</UL>
+(<I>Thanks to Chris Keller for the thorough report on the "split by block type" bug, and he and MegRae for testing my fix.</I>)
+
 
 </UL>
 
@@ -3007,7 +3028,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 7/7/2019</p>
+		<p id="lastUpdate">Last updated 8/10/2019</p>
 	</div>
 </div>
 

@@ -789,7 +789,9 @@ static void multiplyPNGTile(progimage_info *dst, int x, int y, int tileSize, uns
 static void multiplyClampPNGTile(progimage_info *dst, int x, int y, int tileSize, int r, int g, int b, unsigned char a);
 static void bluePNGTile(progimage_info *dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b);
 static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize );
-static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha );
+static int bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha);
+static int bleedPNGSwatchRecursive(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha);
+static void makeRemainingTileAverage(progimage_info *dst, int chosenTile, int swatchSize, int swatchesPerRow);
 static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha );
 static void compositePNGSwatches(progimage_info *dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid );
 static void compositePNGSwatchOverColor(progimage_info *dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow );
@@ -1598,7 +1600,7 @@ static int initializeModelData()
                 {
                     if ( gBoxData[boxIndex].type > BLOCK_AIR ) 
                     {
-                        if ( gBoxData[boxIndex + gFaceOffset[faceDirection]].type <= BLOCK_AIR )
+                        if ( gBoxData[boxIndex + gFaceOffset[faceDirection]].type == BLOCK_AIR )
                             gModel.faceSize++;
                     }
                 }
@@ -18712,9 +18714,19 @@ static int writeOBJMtlFile()
 				// print header: material name
 				strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
 				if (subtypeMaterial && (dataVal != 0)) {
-					// add a dataval suffix
+					// add a dataval suffix:
+					// If possible, turn these data values into the actual sub-material type names.
+					const char *subName = RetrieveBlockSubname(type, dataVal);
 					char tempString[MAX_PATH_AND_FILE];
-					sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
+					if (strcmp(subName, mtlName) == 0) {
+						// sorry, no unique subname found, use the data value - TODO: could add to RetrieveBlockSubname
+						sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
+					}
+					else {
+						// we include the original name as we know it's then unique - we really should expand
+						// RetrieveBlockSubname so that all names are unique TODOTODO
+						sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+					}
 					strcpy_s(mtlName, 256, tempString);
 				}
 				spacesToUnderlinesChar(mtlName);
@@ -19203,35 +19215,6 @@ static int createBaseMaterialTexture()
 			gModel.swatchSize*dstRow + gModel.tileSize * 3 / 16 + SWATCH_BORDER
 			);
 
-
-        // For rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
-        // better fringes when bilinear interpolation is done (it's a flaw of the PNG format, that it uses unassociated alphas).
-        // This interpolation should be off normally, but things like previewers such as G3D, and Blender, have problems in this area.
-        // Done only for those things rendered with decals. A few extra are done; a waste, but not a big time sink normally.
-        // Note, we used to bleed only for gOptions->pEFD->chkG3DMaterial, but this option is off by default and bleeding always looks
-        // better (IMO), so always put bleeding on. We don't bleed for printing because decal cutout objects are not created with
-        // cutouts, and some decals are used as-is, e.g. wheat, to print on sides of blocks. In other words, if we could see the black
-        // fringe for the decal when 3D printing, then bleeding should not be done.
-        // See http://www.realtimerendering.com/blog/png-srgb-cutoutdecal-aa-problematic/
-
-        // For 3D printing we need to do this to only the true geometry that has a "cutout", so that the fringes are OK
-        if (gOptions->pEFD->chkExportAll)
-        {
-            int flagTest = gPrint3D ? SBIT_CUTOUT_GEOMETRY : (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY);
-            for (i = 0; i < TOTAL_TILES; i++)
-            {
-                // If leaves are to be made solid and so should have alphas all equal to 1.0.
-                if (gOptions->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))
-                {
-                    // set all alphas in tile to 1.0.
-                    setAlphaPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow, 255);
-                }
-                else if (gTilesTable[i].flags & flagTest)
-                {
-                    bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
-                }
-            }
-        }
 
         // now do clamp and tile of edges of swatches
         for ( row = 0; row < gModel.verticalTiles; row++ )
@@ -19733,7 +19716,57 @@ static int createBaseMaterialTexture()
 		}
     }
 
-    return MW_NO_ERROR;
+	// Finally, for rendering (not printing), bleed the transparent *colors* only outwards, leaving the alpha untouched. This should give
+	// better fringes when bilinear interpolation is done (it's a flaw of the PNG format, that it uses unassociated alphas).
+	// This interpolation should be off normally, but things like previewers such as G3D, and Blender, have problems in this area.
+	// Done only for those things rendered with decals. A few extra are done; a waste, but not a big time sink normally.
+	// Note, we used to bleed only for gOptions->pEFD->chkG3DMaterial, but this option is off by default and bleeding always looks
+	// better (IMO), so always put bleeding on. We don't bleed for printing because decal cutout objects are not created with
+	// cutouts, and some decals are used as-is, e.g. wheat, to print on sides of blocks. In other words, if we could see the black
+	// fringe for the decal when 3D printing, then bleeding should not be done.
+	// See http://www.realtimerendering.com/blog/png-srgb-cutoutdecal-aa-problematic/
+
+	// For 3D printing we need to do this to only the true geometry that has a "cutout", so that the fringes are OK
+	if (gOptions->pEFD->chkExportAll)
+	{
+		int flagTest = gPrint3D ? SBIT_CUTOUT_GEOMETRY : (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY);
+		for (i = 0; i < TOTAL_TILES; i++)
+		{
+			// If leaves are to be made solid and so should have alphas all equal to 1.0.
+			if (gOptions->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))
+			{
+				// set all alphas in tile to 1.0.
+				setAlphaPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow, 255);
+			}
+			else if (gTilesTable[i].flags & flagTest)
+			{
+				// could bleed to very edges, which is better, but slower. TODO
+				static int bleedToEdge = 1;
+				switch (bleedToEdge) {
+				default:
+				case 0:
+					bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+					break;
+				case 1:
+					// nother option is to carefully bleed once, but then set all other black alphas left to be the average color
+					bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+					makeRemainingTileAverage(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow);
+					break;
+				case 2:
+					// bleed multiple times, until the returned value (currently ignored) was zero, i.e., bleed to the edges, so that mipmapping works well.
+					// NOTE: this can work, mostly, but only if the "seed" of existing pixels is 3x3 in size to begin with. If smaller, no spread will happen.
+					// If no spread, then the neighbors to spread value should be set to 2, then to 1 - this code is not there.
+					int modCount = 0;
+					do {
+						modCount = bleedPNGSwatchRecursive(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+					} while (modCount > 0);
+					break;
+				}
+			}
+		}
+	}
+
+	return MW_NO_ERROR;
 }
 
 static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC)
@@ -21792,147 +21825,408 @@ static void rotatePNGTile(progimage_info *dst, int dcol, int drow, int scol, int
 }
 
 // for transparent pixels, read from four neighbors and take average of all that exist. Second pass then marks these transparent pixels as opaque
-static void bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha )
+static int bleedPNGSwatch(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha)
 {
-    int tileSize16 = (swatchSize-2)/16;
+	int tileSize16 = (swatchSize - 2) / 16;
 
-    // these are swatch locations in index form (not yet multiplied by swatch size itself)
-    int dcol = dstSwatch % swatchesPerRow;
-    int drow = dstSwatch / swatchesPerRow;
-    // upper left corner, starting location, but then pulled in by one, and the x offset is built in (y offset inside tile is done by loop)
-    unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
+	// these are swatch locations in index form (not yet multiplied by swatch size itself)
+	int dcol = dstSwatch % swatchesPerRow;
+	int drow = dstSwatch / swatchesPerRow;
+	// upper left corner, starting location, but then pulled in by one, and the x offset is built in (y offset inside tile is done by loop)
+	unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize + 1 + ymin)*dst->width + dcol * swatchSize + 1 + xmin * tileSize16;
 
-    int row,col;
-    unsigned char dr,dg,db,da;
-    unsigned int *cdsti;
+	int row, col;
+	unsigned char dr, dg, db, da;
+	unsigned int *cdsti;
+	int modCount = 0;
 
-    for ( row = ymin*tileSize16; row < ymax*tileSize16; row++ )
-    {
-        int offset = row*dst->width;
-        cdsti = dsti + offset;
-        for ( col = xmin*tileSize16; col < xmax*tileSize16; col++ )
-        {
-            GET_PNG_TEXEL( dr,dg,db,da, *cdsti );
+	for (row = ymin * tileSize16; row < ymax*tileSize16; row++)
+	{
+		int offset = row * dst->width;
+		cdsti = dsti + offset;
+		for (col = xmin * tileSize16; col < xmax*tileSize16; col++)
+		{
+			GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
 
-            if ( da == 0 )
-            {
-                // texel is transparent, so check its neighbors
-                int i;
-                int neighborCount = 0;
-                unsigned char nr,ng,nb,na;
-                unsigned int *cneighi;
-                int sumr = 0;
-                int sumg = 0;
-                int sumb = 0;
+			if (da == 0)
+			{
+				// texel is transparent, so check its neighbors
+				int i;
+				int neighborCount = 0;
+				unsigned char nr, ng, nb, na;
+				unsigned int *cneighi;
+				int sumr = 0;
+				int sumg = 0;
+				int sumb = 0;
 
-                // first try four neighbors by edge
-                for ( i = 0; i < 4; i++ )
-                {
-                    switch ( i )
-                    {
-                    default:	// to make compiler happy
-                    case 0:
-                        cneighi = cdsti - dst->width;
-                        break;
-                    case 1:
-                        cneighi = cdsti + dst->width;
-                        break;
-                    case 2:
-                        cneighi = cdsti - 1;
-                        break;
-                    case 3:
-                        cneighi = cdsti + 1;
-                        break;
-                    }
-                    GET_PNG_TEXEL( nr,ng,nb,na, *cneighi );
-                    // exact test, so we ignore texels we're changing in place
-                    if ( na == 255 )
-                    {
-                        sumr += nr;
-                        sumg += ng;
-                        sumb += nb;
-                        neighborCount++;
-                    }
-                }
+				// first try four neighbors by edge
+				for (i = 0; i < 4; i++)
+				{
+					switch (i)
+					{
+					default:	// to make compiler happy
+					case 0:
+						cneighi = cdsti - dst->width;
+						break;
+					case 1:
+						cneighi = cdsti + dst->width;
+						break;
+					case 2:
+						cneighi = cdsti - 1;
+						break;
+					case 3:
+						cneighi = cdsti + 1;
+						break;
+					}
+					GET_PNG_TEXEL(nr, ng, nb, na, *cneighi);
+					// exact test, so we ignore texels we're changing in place
+					if (na != 123 && na != 0)
+					{
+						sumr += nr;
+						sumg += ng;
+						sumb += nb;
+						neighborCount++;
+					}
+				}
 
-                // anything happen?
-                if ( neighborCount > 0 )
-                {
-                    // store texel in place, with a tag alpha of 123
-                    dr = (unsigned char)(sumr / neighborCount);
-                    dg = (unsigned char)(sumg / neighborCount);
-                    db = (unsigned char)(sumb / neighborCount);
-                    da = 123;
-                    SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
-                }
-                else
-                {
-                    // try four diagonal neighbors
-                    for ( i = 0; i < 4; i++ )
-                    {
-                        switch ( i )
-                        {
-                        default:	// to make compiler happy
-                        case 0:
-                            cneighi = cdsti - dst->width - 1;
-                            break;
-                        case 1:
-                            cneighi = cdsti - dst->width + 1;
-                            break;
-                        case 2:
-                            cneighi = cdsti + dst->width - 1;
-                            break;
-                        case 3:
-                            cneighi = cdsti + dst->width + 1;
-                            break;
-                        }
-                        GET_PNG_TEXEL( nr,ng,nb,na, *cneighi );
-                        // exact test, so we ignore texels we're changing in place
-                        if ( na == 255 )
-                        {
-                            sumr += nr;
-                            sumg += ng;
-                            sumb += nb;
-                            neighborCount++;
-                        }
-                    }
+				// anything happen?
+				if (neighborCount > 0)
+				{
+					// store texel in place, with a tag alpha of 123
+					dr = (unsigned char)(sumr / neighborCount);
+					dg = (unsigned char)(sumg / neighborCount);
+					db = (unsigned char)(sumb / neighborCount);
+					da = 123;
+					SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+					modCount++;
+				}
+				else
+				{
+					// try four diagonal neighbors
+					for (i = 0; i < 4; i++)
+					{
+						switch (i)
+						{
+						default:	// to make compiler happy
+						case 0:
+							cneighi = cdsti - dst->width - 1;
+							break;
+						case 1:
+							cneighi = cdsti - dst->width + 1;
+							break;
+						case 2:
+							cneighi = cdsti + dst->width - 1;
+							break;
+						case 3:
+							cneighi = cdsti + dst->width + 1;
+							break;
+						}
+						GET_PNG_TEXEL(nr, ng, nb, na, *cneighi);
+						// exact test, so we ignore texels we're changing in place
+						if (na != 123 && na != 0)
+						{
+							sumr += nr;
+							sumg += ng;
+							sumb += nb;
+							neighborCount++;
+						}
+					}
 
-                    // anything happen?
-                    if ( neighborCount > 0 )
-                    {
-                        // store texel in place, with a tag alpha of 123
-                        dr = (unsigned char)(sumr / neighborCount);
-                        dg = (unsigned char)(sumg / neighborCount);
-                        db = (unsigned char)(sumb / neighborCount);
-                        da = 123;
-                        SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
-                    }
-                }
-            }
-            cdsti++;
-        }
-    }
+					// anything happen?
+					if (neighborCount > 0)
+					{
+						// store texel in place, with a tag alpha of 123
+						dr = (unsigned char)(sumr / neighborCount);
+						dg = (unsigned char)(sumg / neighborCount);
+						db = (unsigned char)(sumb / neighborCount);
+						da = 123;
+						SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+						modCount++;
+					}
+				}
+			}
+			cdsti++;
+		}
+	}
 
-    // now go back and make all 123 alpha texels truly opaque
-    // upper left corner, starting location, but then pulled in by one
-    dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize+1)*dst->width + dcol*swatchSize + 1 + xmin*tileSize16;
+	// did any pixels get modified?
+	if (modCount > 0) {
 
-    for ( row = ymin*tileSize16; row < ymax*tileSize16; row++ )
-    {
-        int offset = row*dst->width;
-        cdsti = dsti + offset;
-        for ( col = xmin*tileSize16; col < xmax*tileSize16; col++ )
-        {
-            GET_PNG_TEXEL( dr,dg,db,da, *cdsti );
+		// now go back and make all 123 alpha texels truly opaque
+		// upper left corner, starting location, but then pulled in by one
+		dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize + 1)*dst->width + dcol * swatchSize + 1 + xmin * tileSize16;
 
-            if ( da == 123 )
-            {
-                da = (unsigned char)alpha;
-                SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
-            }
-            cdsti++;
-        }
-    }
+		for (row = ymin * tileSize16; row < ymax*tileSize16; row++)
+		{
+			int offset = row * dst->width;
+			cdsti = dsti + offset;
+			for (col = xmin * tileSize16; col < xmax*tileSize16; col++)
+			{
+				GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
+
+				if (da == 123)
+				{
+					da = (unsigned char)alpha;
+					SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+				}
+				cdsti++;
+			}
+		}
+	}
+	// uncomment to find any tiles that had no alphas in them. A few do, such as doors, trapdoors, etc. that don't have transparency in the original MC tiles but could in texture packs
+	//else {
+	//	assert(0);
+	//}
+
+	// how many pixels were modified; we could loop and modify them all, "bleed to edge"
+	return modCount;
+}
+
+// this one can be called repeatedly, to expand outwards
+static int bleedPNGSwatchRecursive(progimage_info *dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha)
+{
+	int tileSize16 = (swatchSize - 2) / 16;
+
+	// these are swatch locations in index form (not yet multiplied by swatch size itself)
+	int dcol = dstSwatch % swatchesPerRow;
+	int drow = dstSwatch / swatchesPerRow;
+	// upper left corner, starting location, but then pulled in by one, and the x offset is built in (y offset inside tile is done by loop)
+	unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize + 1 + ymin)*dst->width + dcol * swatchSize + 1 + xmin * tileSize16;
+
+	int row, col;
+	unsigned char dr, dg, db, da;
+	unsigned int *cdsti;
+	int modCount = 0;
+
+	// better: store a list of alpha = 0 locations, X & Y, and go through these. Shrink list as alpha pixels are processed.
+	// TODO: try on a high-res tree leaf texture (one we can see through) and see how mipmapping works on it.
+	for (row = ymin * tileSize16; row < ymax*tileSize16; row++)
+	{
+		int offset = row * dst->width;
+		cdsti = dsti + offset;
+		for (col = xmin * tileSize16; col < xmax*tileSize16; col++)
+		{
+			GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
+
+			// single pass: if (da == 0 )
+			// check if pixel is a cutout and is all black, i.e., can be modified
+			if (da == 0 && dr == 0 && dg == 0 && db == 0)
+			{
+				// texel is transparent, so check its neighbors
+				int i;
+				int neighborCount = 0;
+				unsigned char nr, ng, nb, na;
+				unsigned int *cneighi;
+				int sumr = 0;
+				int sumg = 0;
+				int sumb = 0;
+
+				// try eight neighbors
+				for (i = 0; i < 8; i++)
+				{
+					switch (i)
+					{
+					default:	// to make compiler happy
+					case 0:
+						cneighi = cdsti - dst->width;
+						break;
+					case 1:
+						cneighi = cdsti + dst->width;
+						break;
+					case 2:
+						cneighi = cdsti - 1;
+						break;
+					case 3:
+						cneighi = cdsti + 1;
+						break;
+					case 4:
+						cneighi = cdsti - dst->width - 1;
+						break;
+					case 5:
+						cneighi = cdsti - dst->width + 1;
+						break;
+					case 6:
+						cneighi = cdsti + dst->width - 1;
+						break;
+					case 7:
+						cneighi = cdsti + dst->width + 1;
+						break;
+					}
+					GET_PNG_TEXEL(nr, ng, nb, na, *cneighi);
+					// exact test, so we ignore texels we're changing in place, i.e., those with an alpha of 123
+					if ((na > 0 && na != 123) || (na == 0 && (nr != 0 || ng != 0 || nb != 0)))
+					{
+						sumr += nr;
+						sumg += ng;
+						sumb += nb;
+						neighborCount++;
+					}
+				}
+
+				// anything happen? Expand only when three neighbors are found that touch the pixel: edge or crevice
+				if (neighborCount > 2)
+				{
+					// store texel in place, with a tag alpha of 123
+					dr = (unsigned char)(sumr / neighborCount);
+					dg = (unsigned char)(sumg / neighborCount);
+					db = (unsigned char)(sumb / neighborCount);
+					da = 123;
+					modCount++;
+					if (dr == 0 && dg == 0 && db == 0) {
+						db = 1;	// tag it as "done", tiny bit above black
+					}
+					SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+				}
+				/*
+				else
+				{
+					// try four diagonal neighbors
+					for (i = 0; i < 4; i++)
+					{
+						switch (i)
+						{
+						default:	// to make compiler happy
+						case 0:
+							cneighi = cdsti - dst->width - 1;
+							break;
+						case 1:
+							cneighi = cdsti - dst->width + 1;
+							break;
+						case 2:
+							cneighi = cdsti + dst->width - 1;
+							break;
+						case 3:
+							cneighi = cdsti + dst->width + 1;
+							break;
+						}
+						GET_PNG_TEXEL(nr, ng, nb, na, *cneighi);
+						// exact test, so we ignore texels we're changing in place, i.e., those with an alpha of 123
+						if ((na > 0 && na != 123) || (na == 0 && (nr != 0 || ng != 0 || nb != 0)))
+						{
+							sumr += nr;
+							sumg += ng;
+							sumb += nb;
+							neighborCount++;
+						}
+					}
+
+					// anything happen?
+					if (neighborCount > 0)
+					{
+						// store texel in place, with a tag alpha of 123
+						dr = (unsigned char)(sumr / neighborCount);
+						dg = (unsigned char)(sumg / neighborCount);
+						db = (unsigned char)(sumb / neighborCount);
+						da = 123;
+						modCount++;
+						if (dr == 0 && dg == 0 && db == 0) {
+							db = 1;	// tag it as "done"
+						}
+						SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+					}
+					else {
+						// do we get here ever?
+						dr = 1;
+					}
+				}
+				*/
+			}
+			cdsti++;
+		}
+	}
+
+	if (modCount > 0) {
+
+		// now go back and make all 123 alpha texels truly opaque
+		// upper left corner, starting location, but then pulled in by one
+		dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize + 1)*dst->width + dcol * swatchSize + 1 + xmin * tileSize16;
+
+		for (row = ymin * tileSize16; row < ymax*tileSize16; row++)
+		{
+			int offset = row * dst->width;
+			cdsti = dsti + offset;
+			for (col = xmin * tileSize16; col < xmax*tileSize16; col++)
+			{
+				GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
+
+				if (da == 123)
+				{
+					da = alpha; // (unsigned char)alpha;
+					SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+				}
+				cdsti++;
+			}
+		}
+	}
+
+	// how many pixels were modified; we could loop and modify them all, "bleed to edge"
+	return modCount;
+}
+
+// get average color of tile, spread it to all alpha==0 pixels so that mipmapping looks OK
+static void makeRemainingTileAverage(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow)
+{
+	int tileSize16 = (swatchSize - 2) / 16;
+
+	// these are swatch locations in index form (not yet multiplied by swatch size itself)
+	int dcol = dstSwatch % swatchesPerRow;
+	int drow = dstSwatch / swatchesPerRow;
+	// upper left corner, starting location, but then pulled in by one, and the x offset is built in (y offset inside tile is done by loop)
+	unsigned int *dsti = (unsigned int *)(&dst->image_data[0]) + (drow*swatchSize + 1)*dst->width + dcol * swatchSize + 1;
+
+	int row, col;
+	unsigned int *cdsti;
+	unsigned char color[4];
+	unsigned char dr, dg, db, da;
+
+	double dcolor[4];
+	double sum_color[3], sum;
+
+	sum_color[0] = sum_color[1] = sum_color[2] = sum = 0;
+
+	// better: store a list of alpha = 0 locations, X & Y, and go through these. Shrink list as alpha pixels are processed.
+	// TODO: try on a high-res tree leaf texture (one we can see through) and see how mipmapping works on it.
+	for (row = 0; row < 16*tileSize16; row++)
+	{
+		int offset = row * dst->width;
+		cdsti = dsti + offset;
+		for (col = 0; col < 16*tileSize16; col++)
+		{
+			GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
+			// linearize; really we should use sRGB conversions, but this is close enough
+			dcolor[0] = pow(dr / 255.0, 2.2);
+			dcolor[1] = pow(dg / 255.0, 2.2);
+			dcolor[2] = pow(db / 255.0, 2.2);
+			dcolor[3] = da / 255.0;
+			sum_color[0] += dcolor[0] * dcolor[3];
+			sum_color[1] += dcolor[1] * dcolor[3];
+			sum_color[2] += dcolor[2] * dcolor[3];
+			sum += dcolor[3];
+			cdsti++;
+		}
+	}
+	if (sum > 0) {
+		// gamma correct and then unassociate for PNG storage
+		color[0] = (unsigned char)(0.5 + 255.0 * pow((sum_color[0] / sum), 1 / 2.2));
+		color[1] = (unsigned char)(0.5 + 255.0 * pow((sum_color[1] / sum), 1 / 2.2));
+		color[2] = (unsigned char)(0.5 + 255.0 * pow((sum_color[2] / sum), 1 / 2.2));
+		//color[3] = 255;
+		for (row = 0; row < 16 * tileSize16; row++)
+		{
+			int offset = row * dst->width;
+			cdsti = dsti + offset;
+			for (col = 0; col < 16 * tileSize16; col++)
+			{
+				GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
+				if (da == 0 && dr == 0 && dg == 0 && db == 0) {
+					// cutout mode: set color of fully transparent pixels to the average color
+					SET_PNG_TEXEL(*cdsti, color[0], color[1], color[2], 0);
+					// don't touch alpha, leave it unassociated
+				}
+				cdsti++;
+			}
+		}
+	}
 }
 
 static void setAlphaPNGSwatch(progimage_info *dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha )
