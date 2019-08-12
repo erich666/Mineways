@@ -129,7 +129,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#models">Stuff to Print</a> - where to get models and worlds.
  <LI><a href="#packages">Other Packages</a> - other model exporters and related software.
 </UL>
-<LI><a href="#mcpe">Minecraft Pocket Edition and Education Edition Support</a> - how to open one of these worlds in Mineways.
+<LI><a href="#mcpe">Minecraft Bedrock Support</a> - how to convert Bedrock worlds for use in Mineways.
 <LI><a href="#shortcuts">Keyboard Shortcut Keys</a> - along with quick descriptions of various features.
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
 <LI><a href="#versions">Version History</a>
@@ -1438,91 +1438,33 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li>
 </ul>
 
-<h2 id="mcpe">Minecraft Education Edition and Pocket Edition Support</h2>
+<h2 id="mcpe">Minecraft Bedrock Support</h2>
 
-This section describes how to open a <a href="https://education.minecraft.net/">Minecraft Education Edition</a> or <a href="https://minecraft.net/pocket">Minecraft Pocket Edition</a> World in Mineways. This also includes the <a href="https://www.microsoft.com/en-us/store/p/minecraft-windows-10-edition-beta/9nblggh2jhxj">Minecraft: Windows 10 Edition Beta</a>. The format used by Minecraft Pocket/Beta and Education (it's called LevelDB) is different from the standard <a href="https://minecraft.net/">Java Minecraft</a> format, so we have to convert to the (NBT) format. Mineways currently can't do this conversion. Some extra steps are required to open these worlds in Mineways or in classic Minecraft.
+Mineways works on only Minecraft Java (aka Classic) Edition worlds. Minecraft <a href="https://minecraft.gamepedia.com/Bedrock_Edition">Bedrock Edition</a>, once known as the Pocket Edition (or MCPE, or Pocket/Windows 10 Edition), uses an entire different database format for its worlds, called <a href="https://github.com/Mojang/leveldb-mcpe">LevelDB</a>. This section describes how to convert a Minecraft Bedrock to a Minecraft Java.
 <P>
+There are various converters out there. The one I focus on here is <a href="http://www.mcctoolchest.com/Download">MCCToolChest PE</a>.
+Also, <a href="http://www.mcedit-unified.net/">MCEdit</a> has worked in the past, but it comes and goes.
 Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads.
+For consoles, you might try out <a href="http://mcctoolchest.com/Download">this utility</a> (<a href="https://mcctoolchest.weebly.com/tutorial.html">old page</a>), or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>.
 <P>
-For consoles, you might try out <a href="http://mcctoolchest.com/Download">this utility</a> (<a href="https://mcctoolchest.weebly.com/tutorial.html">old page</a>), or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>. I have not tried these myself, I have simply heard of them.
+Let's go with <a href="http://www.mcctoolchest.com/Download">MCCToolChest PE</a>. You download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
+<OL>
+<LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
+<LI>Select "Tools | Convert -> To Java." A large dialog box appears.
+<LI>For the "Minecraft Java world folder" at the top put a path where you want to create the converted world. For example, I might use "C:\Users\erich\AppData\Roaming\.minecraft\saves\bedrock_test\" - my user name is "erich" and the world directory name I want for the converted world is "bedrock_test." By putting the path "...\AppData\Roaming\.minecraft\saves\..." I am putting the converted world in the default directory for Minecraft Java worlds, which means it will then show up in Mineways' list of worlds automatically.
+<LI>Halfway down on the left of the dialog look for "Convert into." Change this from "Empty Dimension" to "Empty World."
+<LI>Click "Convert" at the bottom of the dialog. Cross fingers.
+</OL>
+If there were no errors, great, and you should see your converted world in your saves directory, and Mineways can then convert it. In Mineways you should look for the directory name of the world on the right-hand side of the "File | Open World" list of worlds.
 <P>
-You'll need:
-<UL>
-<LI><a href="http://www.mcedit-unified.net/">MCEdit</a>.</LI>
-<LI>If you're playing Minecraft on a tablet or phone, a USB cable to connect your device to your PC.</LI>
-<UL>
-<LI>For an iOS device, you will also need a program on your Mac or PC called <a href="http://www.macroplant.com/iexplorer/">iExplorer</a>. There may be other methods for transferring files from an iOS device, but iExplorer is the one I see recommended on the Internet. (I am not an iOS user). Also, I have not tested the iOS instructions personally. They are based on information I found on the Web.</LI>
-</UL>
-</UL>
+If you did get some error, try the "Help" button, it might actually help. I found not setting "Convert into" properly or not giving a good directory path can give errors.
 <P>
-
-<h3>For Windows 10 Edition of Minecraft: Education Edition or Beta</h3>
-<OL>
-<LI><b>For the Education Edition:</b> your worlds are saved in %localappdata%\Packages\Microsoft.MinecraftEducationEdition_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds
-
-<LI><b>For the Beta:</b> your worlds are saved in %localappdata%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds
-</OL>
-To check, press Windows-R and paste this long line in. The oddly-named folders there are your worlds. Click in to each one and you should see a level.dat file.
-
-<h3>For Mobile only: Copying the world folder from your mobile device</h3>
-<h4>Android</h4>
-<OL>
-<LI>Connect your device to your computer via USB cable as a media/storage device.</LI>
-<LI>In the file manager on your computer, locate the device and open the folder: games/com.mojang/minecraftWorlds</LI>
-<LI>Copy the desired world folder to a location on your computer.</LI>
-</OL>
-<h4>iOS</h4>
-<OL>
-<LI>Open iExplorer and locate your iPad.</LI>
-<LI>On the left, click on "Applications".</LI>
-<LI>Open "Minecraft PE".</LI>
-<LI>Click on "Documents", then "Games", then "Com.Mojang", then "minecraftWorlds".</LI>
-<LI>Drag the file for your world onto a location on the computer.</LI>
-</OL>
-
-<h3>Converting the world in MCEdit</h3>
-<OL>
-<LI>Run <a href="http://www.mcedit-unified.net/">MCEdit</a> by double-clicking the file "mcedit.exe".</LI>
-<LI>Select "Open...".</LI>
-<LI>Browse to your world folder, select the file "level.dat" and click "Open".</LI>
-<LI>In the upper left of the MCEdit window, click on "Menu" to open the menu.</LI>
-<LI>Click on "Select All" (or use the shortcut Ctrl-A without opening the menu).</LI>
-<LI>Click on "Menu" again to close the menu.</LI>
-<LI>In the selection menu on the left, click on "Copy".</LI>
-<LI>Click "Menu" to open the menu.</LI>
-<LI>Click "Create New World".</LI>
-<LI>Under "Generator:", click on "Minecraft Server" and change it to "Flatland".</LI>
-<LI>Change the "Height" to 1.</LI>
-<LI>Click "Create" at the bottom of this menu.</LI>
-<LI>Browse to a location on your computer, name the new world and click "Save". See the note at "Classic Minecraft save folder" if you want to save where your other "Classic" worlds are. (Accept the message that appears with "OK").</LI>
-<LI>Click "Select All" and close the menu (or press Ctrl-A).</LI>
-<LI>Click "Paste" in the menu on the left, then click on the world itself to position your world. Wait a bit for your world to load. (You can move around with the mouse and the WASD keys whille it loads.)</LI>
-<LI>Click "Import" at the bottom of the menu on the left.</LI>
-<LI>When the import is finished, click on "Menu" in the upper left again and click "Save" (or just press Ctrl+S). Wait a bit.</LI>
-</OL>
-
-Note: To move around in MCEdit, use the WASD keys (W=Forward, S=Back, A=Left, D=Right). To look around with the camera, click the Right Mouse Button once to toggle camera look on. Click again to turn it off. Point up and move forward (W) to move up, and so on. The WASD keys are also used to move the paste blocks before clicking Import. See <a href="http://www.mcedit-unified.net/tutorial">the MCEdit site</a> for a tutorial and more information.
+If you need more help, <a href="https://mcctoolchest.weebly.com/tutorial.html">this older site</a> <i>might</i> help (sadly, the <a href="http://www.mcctoolchest.com/">new site</a> does not have <a href="http://www.mcctoolchest.com/Tutorial">any tutorial</a> as of this writing).
 <P>
-Classic Minecraft save folder: For "Classic" Minecraft your world saves folder on Windows is "%appdata%\.minecraft\saves". Another way to locate your hidden world saves directory for "Classic" Minecraft is via the Minecraft launcher. On the lower left of the launcher window (do not click "Play"), click on "Edit Profile". At the bottom of the dialog that appears, click "Open Game Dir", then open the "saves" folder. Copy your converted world folder here.
+Note that this tool can also convert from Java to Bedrock, if that's of interest. <a href="https://youtu.be/LcqD1FPcF5o?t=61">This video</a> goes through the steps for that process.
 
-<h3>Opening the world in Mineways</h3>
-<OL>
-<LI>Start Mineways by double-clicking on "Mineways.exe".</LI>
-<LI>In the menu, select "File > Open..."</LI>
-<LI>Browse to your world folder and select "level.dat", click "Open".</LI>
-<LI>Follow the instructions on this page for using Mineways.</LI>
-</OL>
-
-<h3>Optional MCEdit steps for playing your world in standard Minecraft</h3>
-
-If you also want to play your converted world in Minecraft, you can optionally remove the extra "flatland" you placed at the bottom level.
-<OL>
-<LI>Click on "Chunk view" at the top of the MCEdit window.</LI>
-<LI>Click and drag with the Left Mouse Button to select just the chunks of your imported world.</LI>
-<LI>In the controls on the left, select "Prune".</LI>
-<LI>In the MCEdit menu, click "Save" (or press Ctrl-S).</LI>
-<LI>Copy the world folder to your Minecraft saves directory.</LI>
-</OL>
+<h3 id="structure_block">Structure Block Export</a>
+It is worth mentioning that you can export 3D data from the Bedrock Edition directly to a 3D model file format, the glTF binary format. Place a <a href="https://minecraft.gamepedia.com/Structure_Block#3D_Export">Structure Block</a> near the area you want to export, then right-click it. A dialog comes up in which you can specify the size of the export (never larger than 32x32x32, even if you set it higher), the offset, and the file name to export to, along with some other options. This file can then be viewed by the built-in Paint 3D program and be converted and loaded by many other programs in the <a href="https://www.khronos.org/gltf/">glTF ecosystem</a>.
 
 <h2 id="shortcuts">Keyboard Shortcut Keys</h2>
 The quick reference of handy shortcuts is <a href="reference.html#mak">here</a>, with the full list <a href="reference.html#shortcuts">here</a>.
@@ -2937,7 +2879,7 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Some "manufactured" tiles were not bled along their edges properly, as bleeding occurred too early; also, semi-transparent alphas were ignored. All tiles are now <a href="http://www.realtimerendering.com/blog/png-srgb-cutoutdecal-aa-problematic/">bled to their edges</a>, to make mipmapping work properly.
 <LI>Hide blocks 253 and 254, which are special internal IDs, in the [Block Test World] in release builds.
 </UL>
-(<I>Thanks to Chris Keller for the thorough report on the "split by block type" bug, and he and MegRae for testing my fix.</I>)
+(<I>Thanks to Chris Keller and MegRae for the reports on the "split by block type" bug and for testing my fix.</I>)
 
 
 </UL>
@@ -3028,7 +2970,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 8/10/2019</p>
+		<p id="lastUpdate">Last updated 8/12/2019</p>
 	</div>
 </div>
 
