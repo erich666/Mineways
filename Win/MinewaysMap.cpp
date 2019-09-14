@@ -264,308 +264,6 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
     }
 }
 
-static struct {
-    char *name;
-} gExtraBlockNames[] = {
-    { "Spruce Leaves" },
-    { "Birch Leaves" },
-    { "Jungle Leaves" },
-    { "Dark Oak Leaves" },
-    { "Blue Orchid" },	// flowers (poppies)
-    { "Allium" },	// 5
-    { "Azure Bluet" },
-    { "Red Tulip" },
-    { "Orange Tulip" },
-    { "White Tulip" },
-    { "Pink Tulip" },	// 10
-    { "Oxeye Daisy" },
-    { "Lilac" },	// tall flowers
-    { "Tall Grass" },
-    { "Large Fern" },
-    { "Rose Bush" },	// 15
-    { "Peony" },
-    { "Dead Bush" },
-    { "Grass" },
-    { "Fern" },
-    { "Spruce Wood Planks" },   // 20
-    { "Birch Wood Planks" },
-    { "Jungle Wood Planks" },
-    { "Acacia Wood Planks" },
-    { "Dark Oak Wood Planks" },
-    { "Granite" },              // 25
-    { "Polished Granite" },
-    { "Diorite" },
-    { "Polished Diorite" },
-    { "Andesite" },
-    { "Polished Andesite" },    // 30
-    { "Coarse Dirt" },
-    { "Podzol" },
-    { "Spruce Sapling" },
-    { "Birch Sapling" },
-    { "Jungle Sapling" },   // 35
-    { "Acacia Sapling" },
-    { "Dark Oak Sapling" },
-    { "Red Sand" },
-	{ "Prismarine Slab" },
-	{ "Prismarine Brick Slab" },	// 40
-	{ "Dark Prismarine Slab" },
-	{ "Stripped Spruce Log" },
-	{ "Stripped Birch Log" },
-	{ "Stripped Jungle Log" },
-	{ "Stripped Acacia Log" },		// 45
-	{ "Stripped Dark Oak Log" },
-	{ "Stripped Spruce Wood" },
-	{ "Stripped Birch Wood" },
-	{ "Stripped Jungle Wood" },
-	{ "Stripped Acacia Wood" },		// 50
-	{ "Stripped Dark Oak Wood" },
-	{ "Smooth Sandstone" },
-	{ "Smooth Red Sandstone" },
-	{ "Quartz" },
-	{ "Cornflower" },
-	{ "Lily of the Valley" },
-	{ "Wither Rose" },
-	{ "Bamboo Sapling" },
-	{ "Cut Red Sandstone Slab" },
-	{ "Smooth Red Sandstone Slab" },	// 60
-	{ "Cut Sandstone Slab" },
-	{ "Smooth Sandstone Slab" },
-	{ "Granite Slab"},
-    { "Polished Granite Slab"},
-	{ "Smooth Quartz Slab"},
-	{ "Red Nether Brick Slab"},
-	{ "Mossy Stone Brick Slab"},
-	{ "Mossy Cobblestone Slab"},
-	{ "Polished Andesite Slab"},
-	{ "Diorite Slab"},	// 70
-	{ "Polished Diorite Slab"},
-	{ "End Stone Brick Slab"},
-	{ "Stone Slab"},
-	{ "Stone Stairs"},
-	{ "Granite Stairs"},
-	{ "Polished Granite Stairs"},
-	{ "Smooth Quartz Stairs"},
-	{ "Diorite Stairs"},
-	{ "Polished Diorite Stairs"},
-	{ "End Stone Brick Stairs"},	// 80
-	{ "Andesite Stairs"},
-	{ "Polished Andesite Stairs"},
-	{ "Red Nether Brick Stairs"},
-	{ "Mossy Stone Brick Stairs"},
-	{ "Mossy Cobblestone Stairs"},
-	{ "Smooth Sandstone Stairs"},
-	{ "Smooth Red Sandstone Stairs"},
-	{ "Sandstone Slab" },
-	{ "Petrified Oak Slab" },
-	{ "Cobblestone Slab" },	// 90
-	{ "Brick Slab" },
-	{ "Stone Brick Slab" },
-	{ "Nether Brick Slab" },
-	{ "Quartz Slab" },
-	{ "Spruce Slab" },
-	{ "Birch Slab" },
-	{ "Jungle Slab" },
-	{ "Acacia Slab" },
-	{ "Dark Oak Slab" },
-	{ "Mossy Cobblestone Wall" }, // 100
-	{ "Brick Wall" },
-	{ "Granite Wall" },
-	{ "Diorite Wall" },
-	{ "Andesite Wall" },
-	{ "Prismarine Wall" },
-	{ "Stone Brick Wall" },
-	{ "Mossy Stone Brick Wall" },
-	{ "End Stone Brick Wall" },
-	{ "Nether Brick Wall" },
-	{ "Red Nether Brick Wall" },	// 110
-	{ "Sandstone Wall" },
-	{ "Red Sandstone Wall" },
-	{ "Prismarine Bricks" },
-	{ "Dark Prismarine" },
-	{ "Loom" },
-	{ "Smoker" },
-	{ "Blast Furnace" },
-	{ "Cartography Table" },
-	{ "Fletching Table" },
-	{ "Smithing Table" },	// 120
-	{ "Spruce Log" },
-	{ "Birch Log" },
-	{ "Jungle Log" },
-	{ "Dark Oak Log" },
-	{ "Bubble Column" },
-	{ "Wet Sponge" },
-	{ "Chiseled Sandstone" },
-	{ "Cut Sandstone" },
-	{ "Chiseled Red Sandstone" },
-	{ "Cut Red Sandstone" },	// 130
-	{ "Mossy Stone Bricks" },
-	{ "Cracked Stone Bricks" },
-	{ "Chiseled Stone Bricks" },
-	{ "Infested Cobblestone" },
-	{ "Infested Stone Bricks" },
-	{ "Infested Mossy Stone Bricks" },
-	{ "Infested Cracked Stone Bricks" },
-	{ "Infested Chiseled Stone Bricks" },
-	{ "Chiseled Quartz Block" },
-	{ "Quartz Pillar" },	// 140
-};
-
-char gCoralString[100];
-
-static struct {
-	char *name;
-} gCoralNames[] = {
-	{ "Brain" },
-	{ "Bubble" },
-	{ "Fire" },
-	{ "Horn" },
-};
-
-
-// put the names above
-#define STRING_SPRUCE_LEAVES				0
-#define STRING_BIRCH_LEAVES					1
-#define STRING_JUNGLE_LEAVES				2
-#define STRING_DARK_OAK_LEAVES				3
-#define STRING_BLUE_ORCHID					4
-#define STRING_ALLIUM						5
-#define STRING_AZURE_BLUET					6
-#define STRING_RED_TULIP					7
-#define STRING_ORANGE_TULIP					8
-#define STRING_WHITE_TULIP					9
-#define STRING_PINK_TULIP					10
-#define STRING_OXEYE_DAISY					11
-#define STRING_LILAC						12
-#define STRING_DOUBLE_TALLGRASS				13
-#define STRING_LARGE_FERN					14
-#define STRING_ROSE_BUSH					15
-#define STRING_PEONY						16
-#define STRING_DEAD_BUSH					17
-#define STRING_TALL_GRASS					18
-#define STRING_FERN							19
-#define STRING_SPRUCE_WOOD_PLANKS			20
-#define STRING_BIRCH_WOOD_PLANKS			21
-#define STRING_JUNGLE_WOOD_PLANKS			22
-#define STRING_ACACIA_WOOD_PLANKS			23
-#define STRING_DARK_OAK_WOOD_PLANKS			24
-#define STRING_GRANITE						25
-#define STRING_POLISHED_GRANITE				26
-#define STRING_DIORITE						27
-#define STRING_POLISHED_DIORITE				28
-#define STRING_ANDESITE						29
-#define STRING_POLISHED_ANDESITE			30
-#define STRING_COARSE_DIRT					31   
-#define STRING_PODZOL						32
-#define STRING_SPRUCE_SAPLING				33
-#define STRING_BIRCH_SAPLING				34
-#define STRING_JUNGLE_SAPLING				35
-#define STRING_ACACIA_SAPLING				36
-#define STRING_DARK_OAK_SAPLING				37
-#define STRING_RED_SAND     				38
-#define STRING_PRISMARINE_SLAB				39
-#define STRING_PRISMARINE_BRICK_SLAB		40
-#define STRING_DARK_PRISMARINE_SLAB			41
-#define STRING_STR_SPRUCE_LOG				42
-#define STRING_STR_BIRCH_LOG				43
-#define STRING_STR_JUNGLE_LOG				44
-// oops, not actually needed:
-#define STRING_STR_ACACIA_LOG				45
-#define STRING_STR_DARK_OAK_LOG				46
-#define STRING_STR_SPRUCE_WOOD				47
-#define STRING_STR_BIRCH_WOOD				48
-#define STRING_STR_JUNGLE_WOOD				49
-#define STRING_STR_ACACIA_WOOD				50
-#define STRING_STR_DARK_OAK_WOOD			51
-#define	STRING_STR_SMOOTH_SANDSTONE			52
-#define	STRING_STR_RED_SANDSTONE			53
-#define	STRING_STR_QUARTZ					54
-#define	STRING_CORNFLOWER					55
-#define	STRING_LILY_OF_THE_VALLEY			56
-#define	STRING_WITHER_ROSE					57
-#define	STRING_BAMBOO_SAPLING				58
-#define	STRING_CUT_RED_SANDSTONE_SLAB		59
-#define	STRING_SMOOTH_RED_SANDSTONE_SLAB	60
-#define	STRING_CUT_SANDSTONE_SLAB			61
-#define	STRING_SMOOTH_SANDSTONE_SLAB		62
-#define	STRING_GRANITE_SLAB					63
-#define	STRING_POLISHED_GRANITE_SLAB		64
-#define	STRING_SMOOTH_QUARTZ_SLAB			65
-#define	STRING_RED_NETHER_BRICK_SLAB		66
-#define	STRING_MOSSY_STONE_BRICK_SLAB		67
-#define	STRING_MOSSY_COBBLESTONE_SLAB		68
-#define	STRING_POLISHED_ANDESITE_SLAB		69
-#define	STRING_DIORITE_SLAB					70
-#define	STRING_POLISHED_DIORITE_SLAB		71
-#define	STRING_END_STONE_BRICK_SLAB			72
-#define	STRING_STONE_SLAB    				73
-#define STRING_STONE_STAIRS					74
-#define STRING_GRANITE_STAIRS				75
-#define STRING_POLISHED_GRANITE_STAIRS		76
-#define STRING_SMOOTH_QUARTZ_STAIRS			77
-#define STRING_DIORITE_STAIRS				78
-#define STRING_POLISHED_DIORITE_STAIRS		79
-#define STRING_END_STONE_BRICK_STAIRS		80
-#define STRING_ANDESITE_STAIRS				81
-#define STRING_POLISHED_ANDESITE_STAIRS		82
-#define STRING_RED_NETHER_BRICK_STAIRS		83
-#define STRING_MOSSY_STONE_BRICK_STAIRS		84
-#define STRING_MOSSY_COBBLESTONE_STAIRS		85
-#define STRING_SMOOTH_SANDSTONE_STAIRS		86
-#define STRING_SMOOTH_RED_SANDSTONE_STAIRS	87
-#define STRING_SANDSTONE_SLAB				88
-#define STRING_PETRIFIED_OAK_SLAB			89
-#define STRING_COBBLESTONE_SLAB				90
-#define STRING_BRICK_SLAB					91
-#define STRING_STONE_BRICK_SLAB				92
-#define STRING_NETHER_BRICK_SLAB			93
-#define STRING_QUARTZ_SLAB					94
-#define STRING_SPRUCE_SLAB					95
-#define STRING_BIRCH_SLAB					96
-#define STRING_JUNGLE_SLAB					97
-#define STRING_ACACIA_SLAB					98
-#define STRING_DARK_OAK_SLAB				99
-#define STRING_MOSSY_COBBLESTONE_WALL		100
-#define STRING_BRICK_WALL					101
-#define STRING_GRANITE_WALL					102
-#define STRING_DIORITE_WALL					103
-#define STRING_ANDESITE_WALL				104
-#define STRING_PRISMARINE_WALL				105
-#define STRING_STONE_BRICK_WALL				106
-#define STRING_MOSSY_STONE_BRICK_WALL		107
-#define STRING_END_STONE_BRICK_WALL			108
-#define STRING_NETHER_BRICK_WALL			109
-#define STRING_RED_NETHER_BRICK_WALL		110
-#define STRING_SANDSTONE_WALL				111
-#define STRING_RED_SANDSTONE_WALL			112
-#define STRING_PRISMARINE_BRICKS			113
-#define STRING_DARK_PRISMARINE				114
-#define STRING_LOOM							115
-#define STRING_SMOKER						116
-#define STRING_BLAST_FURNACE				117
-#define STRING_CARTOGRAPHY_TABLE			118
-#define STRING_FLETCHING_TABLE				119
-#define STRING_SMITHING_TABLE				120
-#define STRING_SPRUCE_LOG					121
-#define STRING_BIRCH_LOG					122
-#define STRING_JUNGLE_LOG					123
-#define STRING_DARK_OAK_LOG					124
-#define STRING_BUBBLE_COLUMN				125
-#define STRING_WET_SPONGE					126
-#define STRING_CHISELED_SANDSTONE			127
-#define STRING_CUT_SANDSTONE				128
-#define STRING_CHISELED_RED_SANDSTONE		129
-#define STRING_CUT_RED_SANDSTONE			130
-#define STRING_MOSSY_STONE_BRICKS			131
-#define STRING_CRACKED_STONE_BRICKS			132
-#define STRING_CHISELED_STONE_BRICKS		133
-#define STRING_INFESTED_COBBLESTONE			134
-#define STRING_INFESTED_STONE_BRICKS		135
-#define STRING_INFESTED_MOSSY_STONE_BRICKS			136
-#define STRING_INFESTED_CRACKED_STONE_BRICKS		137
-#define STRING_INFESTED_CHISELED_STONE_BRICKS		138
-#define STRING_CHISELED_QUARTZ_BLOCK		139
-#define STRING_QUARTZ_PILLAR				140
-
 //bx = x coord of pixel
 //by = y coord of pixel
 //cx = center x world
@@ -690,6 +388,40 @@ const char *IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 	return RetrieveBlockSubname(*type, *dataVal, block, xoff, y, zoff );
 }
 
+
+char gConcatString[100];
+
+static struct {
+	char *name;
+} gColorNames[] = {
+	{ "White" },
+	{ "Orange" },
+	{ "Magenta" },
+	{ "Light" },
+	{ "Yellow" },
+	{ "Lime" },
+	{ "Pink" },
+	{ "Gray" },
+	{ "Light" },
+	{ "Cyan" },
+	{ "Purple" },
+	{ "Blue" },
+	{ "Brown" },
+	{ "Green" },
+	{ "Red" },
+	{ "Black" }
+};
+
+static struct {
+	char *name;
+} gCoralNames[] = {
+	{ "Tube" },
+	{ "Brain" },
+	{ "Bubble" },
+	{ "Fire" },
+	{ "Horn" },
+};
+
 const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int xoff, int y, int zoff )
 {
 	///////////////////////////////////
@@ -700,13 +432,16 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
 			break;
+		case 0:
+			break; //return concatStrings(OAK_NAME, LEAVES_NAME);
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_SPRUCE_LEAVES].name;
+			return "Spruce Leaves";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_BIRCH_LEAVES].name;
+			return "Birch Leaves";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_JUNGLE_LEAVES].name;
+			return "Jungle Leaves";
 		}
 		break;
 
@@ -714,9 +449,12 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x1)
 		{
 		default:
+			assert(0);
 			break;
+		case 0:
+			break; //return concatStrings(ACACIA_NAME, LEAVES_NAME);
 		case 1:	// dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_LEAVES].name;
+			return "Dark Oak Leaves";
 		}
 		break;
 
@@ -724,65 +462,178 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
 		case 0: // dead bush
-			return gExtraBlockNames[STRING_DEAD_BUSH].name;
-		case 1:	// tall grass
-			return gExtraBlockNames[STRING_TALL_GRASS].name;
+			return "Dead Bush";
+		case 1:	// tall grass - really, the default name Grass
+			break; // return "TALL_GRASS";
 		case 2:	// fern
-			return gExtraBlockNames[STRING_FERN].name;
+			return "Fern";
+		}
+		break;
+
+	case BLOCK_WOOL:
+	case BLOCK_STAINED_GLASS:
+	case BLOCK_STAINED_GLASS_PANE:
+	case BLOCK_CARPET:
+	case BLOCK_CONCRETE:
+	case BLOCK_CONCRETE_POWDER:
+		// someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
+		sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[type].name);
+		return gConcatString;
+
+	case BLOCK_COLORED_TERRACOTTA:
+		sprintf_s(gConcatString, 100, "%s Terracotta", gColorNames[dataVal & 0xf].name);
+		return gConcatString;
+
+	case BLOCK_REDSTONE_WIRE:
+		sprintf_s(gConcatString, 100, "%s power %d", gBlockDefinitions[type].name, (dataVal & 0xf));
+		return gConcatString;
+
+	case BLOCK_PUMPKIN:
+		if (!(dataVal & 0x4)) {
+			return "Carved Pumpkin";
+		}
+		break;
+
+	case BLOCK_PUMPKIN_STEM:
+	case BLOCK_MELON_STEM:
+		sprintf_s(gConcatString, 100, "%s age %d", gBlockDefinitions[type].name, (dataVal & 0x7));
+		return gConcatString;
+
+	case BLOCK_FLOWER_POT:
+		switch (dataVal)
+		{
+		default:
+			assert(0);
+			break;
+		case 0:	// "Flower Pot" (the default - empty)
+			break;
+		case 2:
+		case YELLOW_FLOWER_FIELD | 0:
+			return "Potted Dandelion";
+		case 1:
+		case RED_FLOWER_FIELD | 0:
+			return "Potted Poppy";
+		case RED_FLOWER_FIELD | 1:
+			return "Potted Blue Orchid";
+		case RED_FLOWER_FIELD | 2:
+			return "Potted Allium";
+		case RED_FLOWER_FIELD | 3:
+			return "Potted Azure Bluet";
+		case RED_FLOWER_FIELD | 4:
+			return "Potted Red Tulip";
+		case RED_FLOWER_FIELD | 5:
+			return "Potted Orange Tulip";
+		case RED_FLOWER_FIELD | 6:
+			return "Potted White Tulip";
+		case RED_FLOWER_FIELD | 7:
+			return "Potted Pink Tulip";
+		case RED_FLOWER_FIELD | 8:
+			return "Potted Oxeye Daisy";
+		case RED_FLOWER_FIELD | 9:
+			return "Potted Cornflower";
+		case RED_FLOWER_FIELD | 10:
+			return "Potted Lily of the Valley";
+		case RED_FLOWER_FIELD | 11:
+			return "Potted Wither Rose";
+		case SAPLING_FIELD | 0:
+		case 3:
+			return "Potted Oak Sapling";
+		case SAPLING_FIELD | 1:
+		case 4:
+			return "Potted Spruce Sapling";
+		case SAPLING_FIELD | 2:
+		case 5:
+			return "Potted Birch Sapling";
+		case SAPLING_FIELD | 3:
+		case 6:
+			return "Potted Jungle Sapling";
+		case SAPLING_FIELD | 4:
+		case 12:
+			return "Potted Acacia Sapling";
+		case SAPLING_FIELD | 5:
+		case 13:
+			return "Potted Dark Oak Sapling";
+		case RED_MUSHROOM_FIELD | 0:
+		case 7:
+			return "Potted Red Mushroom";
+		case BROWN_MUSHROOM_FIELD | 0:
+		case 8:
+			return "Potted Brown Mushroom";
+		case TALLGRASS_FIELD | 2:	// yes, weirdly, there's a 2 here but no 0 or 1
+		case 11:
+			return "Potted Fern";
+		case DEADBUSH_FIELD | 0:
+		case 10:
+			return "Potted Dead Bush";
+		case CACTUS_FIELD | 0:
+		case 9:
+			return "Potted Cactus";
+		case BAMBOO_FIELD | 0:
+			return "Potted Bamboo";
 		}
 		break;
 
 	case BLOCK_POPPY:
 		switch (dataVal)
 		{
-		default:	// poppy
+		default:
+			assert(0);
+			break;
+		case 0: // poppy
 			break;
 		case 1:	// blue orchid
-			return gExtraBlockNames[STRING_BLUE_ORCHID].name;
+			return "Blue Orchid";
 		case 2:	// allium
-			return gExtraBlockNames[STRING_ALLIUM].name;
+			return "Allium";
 		case 3:	// azure bluet
-			return gExtraBlockNames[STRING_AZURE_BLUET].name;
+			return "Azure Bluet";
 		case 4:	// red tulip
-			return gExtraBlockNames[STRING_RED_TULIP].name;
+			return "Red Tulip";
 		case 5:	// orange tulip
-			return gExtraBlockNames[STRING_ORANGE_TULIP].name;
+			return "Orange Tulip";
 		case 6:	// white tulip
-			return gExtraBlockNames[STRING_WHITE_TULIP].name;
+			return "White Tulip";
 		case 7:	// pink tulip
-			return gExtraBlockNames[STRING_PINK_TULIP].name;
+			return "Pink Tulip";
 		case 8:	// oxeye daisy
-			return gExtraBlockNames[STRING_OXEYE_DAISY].name;
+			return "Oxeye Daisy";
 		case 9:
-			return gExtraBlockNames[STRING_CORNFLOWER].name;
+			return "Cornflower";
 		case 10:
-			return gExtraBlockNames[STRING_LILY_OF_THE_VALLEY].name;
+			return "Lily of the Valley";
 		case 11:
-			return gExtraBlockNames[STRING_WITHER_ROSE].name;
+			return "Wither Rose";
 		}
 		break;
 
 	case BLOCK_DOUBLE_FLOWER:
 		// subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
-		if (block != NULL) {
+		// This is just a safety net now - we actually shove the data value into the upper part of the plant nowadays, in extractChunk
+		if ((block != NULL) && (dataVal & 0x8)) {
 			// can get name only when the block data is available
 			dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
-			switch (dataVal)
-			{
-			default:	// sunflower
-				break;
-			case 1:	// lilac
-				return gExtraBlockNames[STRING_LILAC].name;
-			case 2:	// tall grass
-				return gExtraBlockNames[STRING_DOUBLE_TALLGRASS].name;
-			case 3:	// large fern
-				return gExtraBlockNames[STRING_LARGE_FERN].name;
-			case 4:	// rose bush
-				return gExtraBlockNames[STRING_ROSE_BUSH].name;
-			case 5:	// peony
-				return gExtraBlockNames[STRING_PEONY].name;
-			}
+		}
+		// dataVal will not be correct for 1.12 and earlier if block is not available. 1.13 on, it will.
+		switch (dataVal)
+		{
+		default:
+			assert(0);
+			break;
+		case 0: // sunflower
+			break;
+		case 1:	// lilac
+			return "Lilac";
+		case 2:	// tall grass
+			return "Double Tallgrass";
+		case 3:	// large fern
+			return "Large Fern";
+		case 4:	// rose bush
+			return "Rose Bush";
+		case 5:	// peony
+			return "Peony";
 		}
 		break;
 
@@ -790,17 +641,20 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_SPRUCE_WOOD_PLANKS].name;
+			return "Spruce Wood Planks";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_BIRCH_WOOD_PLANKS].name;
+			return "Birch Wood Planks";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_JUNGLE_WOOD_PLANKS].name;
+			return "Jungle Wood Planks";
 		case 4:	// acacia
-			return gExtraBlockNames[STRING_ACACIA_WOOD_PLANKS].name;
+			return "Acacia Wood Planks";
 		case 5:	// dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_WOOD_PLANKS].name;
+			return "Dark Oak Wood Planks";
 		}
 		break;
 
@@ -808,19 +662,22 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:
-			return gExtraBlockNames[STRING_GRANITE].name;
+			return "Granite";
 		case 2:
-			return gExtraBlockNames[STRING_POLISHED_GRANITE].name;
+			return "Polished Granite";
 		case 3:
-			return gExtraBlockNames[STRING_DIORITE].name;
+			return "Diorite";
 		case 4:
-			return gExtraBlockNames[STRING_POLISHED_DIORITE].name;
+			return "Polished Diorite";
 		case 5:
-			return gExtraBlockNames[STRING_ANDESITE].name;
+			return "Andesite";
 		case 6:
-			return gExtraBlockNames[STRING_POLISHED_ANDESITE].name;
+			return "Polished Andesite";
 		}
 		break;
 
@@ -828,11 +685,14 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:
-			return gExtraBlockNames[STRING_COARSE_DIRT].name;
+			return "Coarse Dirt";
 		case 2:
-			return gExtraBlockNames[STRING_PODZOL].name;
+			return "Podzol";
 		}
 		break;
 
@@ -840,24 +700,27 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_SPRUCE_SAPLING].name;
+			return "Spruce Sapling";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_BIRCH_SAPLING].name;
+			return "Birch Sapling";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_JUNGLE_SAPLING].name;
+			return "Jungle Sapling";
 		case 4:	// acacia
-			return gExtraBlockNames[STRING_ACACIA_SAPLING].name;
+			return "Acacia Sapling";
 		case 5:	// dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_SAPLING].name;
+			return "Dark Oak Sapling";
 		case 6:	// bamboo
-			return gExtraBlockNames[STRING_BAMBOO_SAPLING].name;
+			return "Bamboo Sapling";
 		}
 		break;
 
-	// TODO: someday check if "double" and put "Double " at the front of each name returned.
-	// Easier and nice to do with code than adding a bunch of names.
+		// TODO: someday check if "double" and put "Double " at the front of each name returned.
+		// Easier and nice to do with code than adding a bunch of names.
 	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
 	case BLOCK_RED_SANDSTONE_SLAB:
 		switch (dataVal & 0x7)
@@ -867,19 +730,19 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		case 0:
 			break;
 		case 1:
-			return gExtraBlockNames[STRING_CUT_RED_SANDSTONE_SLAB].name;
+			return "Cut Red Sandstone Slab";
 		case 2:
-			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_SLAB].name;
+			return "Smooth Red Sandstone Slab";
 		case 3:
-			return gExtraBlockNames[STRING_CUT_SANDSTONE_SLAB].name;
+			return "Cut Sandstone Slab";
 		case 4:
-			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_SLAB].name;
+			return "Smooth Sandstone Slab";
 		case 5:
-			return gExtraBlockNames[STRING_GRANITE_SLAB].name;
+			return "Granite Slab";
 		case 6:
-			return gExtraBlockNames[STRING_POLISHED_GRANITE_SLAB].name;
+			return "Polished Granite Slab";
 		case 7:
-			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_SLAB].name;
+			return "Smooth Quartz Slab";
 		}
 		break;
 
@@ -893,17 +756,17 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		case 1:
 			break;
 		case 2:
-			return gExtraBlockNames[STRING_PRISMARINE_SLAB].name;
+			return "Prismarine Slab";
 		case 3:
-			return gExtraBlockNames[STRING_PRISMARINE_BRICK_SLAB].name;
+			return "Prismarine Brick Slab";
 		case 4:
-			return gExtraBlockNames[STRING_DARK_PRISMARINE_SLAB].name;
+			return "Dark Prismarine Slab";
 		case 5:
-			return gExtraBlockNames[STRING_RED_NETHER_BRICK_SLAB].name;
+			return "Red Nether Brick Slab";
 		case 6:
-			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_SLAB].name;
+			return "Mossy Stone Brick Slab";
 		case 7:
-			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_SLAB].name;
+			return "Mossy Cobblestone Slab";
 		}
 		break;
 
@@ -911,44 +774,104 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_STR_SPRUCE_LOG].name;
+			return "Stripped Spruce Log";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_STR_BIRCH_LOG].name;
+			return "Stripped Birch Log";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_STR_JUNGLE_LOG].name;
+			return "Stripped Jungle Log";
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA:
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// dark oak
-			return gExtraBlockNames[STRING_STR_DARK_OAK_LOG].name;
+			return "Stripped Dark Oak Log";
 		}
 		break;
 	case BLOCK_STRIPPED_OAK_WOOD:
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_STR_SPRUCE_WOOD].name;
+			return "Stripped Spruce Wood";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_STR_BIRCH_WOOD].name;
+			return "Stripped Birch Wood";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_STR_JUNGLE_WOOD].name;
+			return "Stripped Jungle Wood";
 		}
 		break;
 	case BLOCK_STRIPPED_ACACIA_WOOD:
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// dark oak
-			return gExtraBlockNames[STRING_STR_DARK_OAK_WOOD].name;
+			return "Stripped Dark Oak Wood";
+		}
+		break;
+	case BLOCK_SIGN_POST:
+		switch (dataVal & (BIT_16 | BIT_32))
+		{
+		default:
+			assert(0);
+			break;
+		case 0:
+			return "Oak Standing Sign";
+		case BIT_16:	// spruce
+			return "Spruce Standing Sign";
+		case BIT_32:	// birch
+			return "Birch Standing Sign";
+		case BIT_32 | BIT_16:	// jungle
+			return "Jungle Standing Sign";
+		}
+		break;
+	case BLOCK_ACACIA_SIGN_POST:
+		switch (dataVal & (BIT_16 | BIT_32))
+		{
+		default:
+			assert(0);
+			break;
+		case 0:
+			return "Acacia Standing Sign";
+		case BIT_16:	// dark oak
+			return "Dark Oak Standing Sign";
+		}
+		break;
+	case BLOCK_WALL_SIGN:
+		switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
+		{
+		default:
+			assert(0);
+			break;
+		case 0:
+			return "Oak Wall Sign";
+		case BIT_8:	// spruce
+			return "Spruce Wall Sign";
+		case BIT_16:	// birch
+			return "Birch Wall Sign";
+		case BIT_16 | BIT_8:	// jungle
+			return "Jungle Wall Sign";
+		case BIT_32:	// acacia
+			return "Acacia Wall Sign";
+		case BIT_32 | BIT_8:	// dark oak
+			return "Dark Oak Wall Sign";
 		}
 		break;
 
@@ -956,13 +879,16 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // sandstone
-			return gExtraBlockNames[STRING_STR_SMOOTH_SANDSTONE].name;
+			return "Smooth Sandstone";
 		case 2: // red sandstone
-			return gExtraBlockNames[STRING_STR_RED_SANDSTONE].name;
+			return "Smooth Red Sandstone";
 		case 3: // quartz
-			return gExtraBlockNames[STRING_STR_QUARTZ].name;
+			return "Quartz";
 		}
 		break;
 
@@ -971,186 +897,245 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 	case BLOCK_CORAL:
 	case BLOCK_CORAL_FAN:
 	case BLOCK_CORAL_WALL_FAN:
-		// does name need to be changed?
-		if (dataVal & 0x7) {
-			// watch out if there's ever a sixth coral...
-			strcpy_s(gCoralString, 100, gCoralNames[(dataVal & 0x7) - 1].name);
-
-			switch (type) {
-			case BLOCK_CORAL_BLOCK:
-				strcat_s(gCoralString, 100, " Coral Block");
-				break;
-			case BLOCK_CORAL:
-				strcat_s(gCoralString, 100, " Coral");
-				break;
-			case BLOCK_CORAL_FAN:
-				strcat_s(gCoralString, 100, " Coral Fan");
-				break;
-			case BLOCK_CORAL_WALL_FAN:
-				strcat_s(gCoralString, 100, " Coral Wall Fan");
-				break;
-			}
-			return gCoralString;
+	case BLOCK_DEAD_CORAL_BLOCK:
+	case BLOCK_DEAD_CORAL:
+	case BLOCK_DEAD_CORAL_FAN:
+	case BLOCK_DEAD_CORAL_WALL_FAN:
+		switch (type) {
+		case BLOCK_CORAL_BLOCK:
+			sprintf_s(gConcatString, 100, "%s Coral Block", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_CORAL:
+			sprintf_s(gConcatString, 100, "%s Coral", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_CORAL_FAN:
+			sprintf_s(gConcatString, 100, "%s Coral Fan", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_CORAL_WALL_FAN:
+			sprintf_s(gConcatString, 100, "%s Coral Wall Fan", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_DEAD_CORAL_BLOCK:
+			sprintf_s(gConcatString, 100, "Dead %s Coral Block", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_DEAD_CORAL:
+			sprintf_s(gConcatString, 100, "Dead %s Coral", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_DEAD_CORAL_FAN:
+			sprintf_s(gConcatString, 100, "Dead %s Coral Fan", gCoralNames[dataVal & 0x7].name);
+			break;
+		case BLOCK_DEAD_CORAL_WALL_FAN:
+			sprintf_s(gConcatString, 100, "Dead %s Coral Wall Fan", gCoralNames[dataVal & 0x7].name);
+			break;
 		}
-		break;
+		return gConcatString;
 
 	case BLOCK_ANDESITE_DOUBLE_SLAB:
 	case BLOCK_ANDESITE_SLAB:
+		// a little wasteful if the default is returned after all
+		strcpy_s(gConcatString, 100, (type == BLOCK_ANDESITE_DOUBLE_SLAB) ? "Double " : "");
 		switch (dataVal & 0x7)
 		{
 		default:
+			assert(0);
 			break;
+		case 0:
+			return gBlockDefinitions[type].name;
 		case 1:
-			return gExtraBlockNames[STRING_POLISHED_ANDESITE_SLAB].name;
+			strcat_s(gConcatString, 100, "Polished Andesite Slab");
+			break;
 		case 2:
-			return gExtraBlockNames[STRING_DIORITE_SLAB].name;
+			strcat_s(gConcatString, 100, "Diorite Slab");
+			break;
 		case 3:
-			return gExtraBlockNames[STRING_POLISHED_DIORITE_SLAB].name;
+			strcat_s(gConcatString, 100, "Polished Diorite Slab");
+			break;
 		case 4:
-			return gExtraBlockNames[STRING_END_STONE_BRICK_SLAB].name;
+			strcat_s(gConcatString, 100, "End Stone Brick Slab");
+			break;
 		case 5:
-			return gExtraBlockNames[STRING_STONE_SLAB].name;
+			strcat_s(gConcatString, 100, "Stone Slab");
+			break;
 		}
-		break;
+		return gConcatString;
 
 	case BLOCK_STONE_DOUBLE_SLAB:
 	case BLOCK_STONE_SLAB:
+		// a little wasteful if the default is returned after all
+		strcpy_s(gConcatString, 100, (type == BLOCK_STONE_DOUBLE_SLAB) ? "Double " : "");
 		switch (dataVal & 0x7)
 		{
 		default:
+			assert(0);
 			break;
+		case 0:
+			return gBlockDefinitions[type].name;
 		case 1:
 			// sandstone
-			return gExtraBlockNames[STRING_SANDSTONE_SLAB].name;
+			strcat_s(gConcatString, 100, "Sandstone Slab");
+			break;
 		case 2:
 			// wooden
-			return gExtraBlockNames[STRING_PETRIFIED_OAK_SLAB].name;
+			strcat_s(gConcatString, 100, "Petrified Oak Slab");
+			break;
 		case 3:
 			// cobblestone
-			return gExtraBlockNames[STRING_COBBLESTONE_SLAB].name;
+			strcat_s(gConcatString, 100, "Cobblestone Slab");
+			break;
 		case 4:
 			// brick
-			return gExtraBlockNames[STRING_BRICK_SLAB].name;
+			strcat_s(gConcatString, 100, "Brick Slab");
+			break;
 		case 5:
 			// stone brick
-			return gExtraBlockNames[STRING_STONE_BRICK_SLAB].name;
+			strcat_s(gConcatString, 100, "Stone Brick Slab");
+			break;
 		case 6:
 			// nether brick
-			return gExtraBlockNames[STRING_NETHER_BRICK_SLAB].name;
+			strcat_s(gConcatString, 100, "Nether Brick Slab");
+			break;
 		case 7:
 			// quartz with distinctive sides and bottom
-			return gExtraBlockNames[STRING_QUARTZ_SLAB].name;
+			strcat_s(gConcatString, 100, "Quartz Slab");
+			break;
 		}
-		break;
+		return gConcatString;
 
 	case BLOCK_WOODEN_DOUBLE_SLAB:
 	case BLOCK_WOODEN_SLAB:
+		// a little wasteful if the default is returned after all
+		strcpy_s(gConcatString, 100, (type == BLOCK_WOODEN_DOUBLE_SLAB) ? "Double " : "");
 		switch (dataVal & 0x7)
 		{
-		default: // normal log
+		default:
+			assert(0);
 			break;
+		case 0: // normal log
+			return gBlockDefinitions[type].name;
 		case 1: // spruce (dark)
-			return gExtraBlockNames[STRING_SPRUCE_SLAB].name;
+			strcat_s(gConcatString, 100, "Spruce Slab");
+			break;
 		case 2: // birch
-			return gExtraBlockNames[STRING_BIRCH_SLAB].name;
+			strcat_s(gConcatString, 100, "Birch Slab");
+			break;
 		case 3: // jungle
-			return gExtraBlockNames[STRING_JUNGLE_SLAB].name;
+			strcat_s(gConcatString, 100, "Jungle Slab");
+			break;
 		case 4: // acacia
-			return gExtraBlockNames[STRING_ACACIA_SLAB].name;
+			strcat_s(gConcatString, 100, "Acacia Slab");
+			break;
 		case 5: // dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_SLAB].name;
+			strcat_s(gConcatString, 100, "Dark Oak Slab");
+			break;
 		}
-		break;
+		return gConcatString;
 
 	case BLOCK_COBBLESTONE_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case BIT_16:	// stone stairs
-			return gExtraBlockNames[STRING_STONE_STAIRS].name;
+			return "Stone Stairs";
 		case BIT_32:	// granite
-			return gExtraBlockNames[STRING_GRANITE_STAIRS].name;
+			return "Granite Stairs";
 		case BIT_32 | BIT_16:	// polished granite
-			return gExtraBlockNames[STRING_POLISHED_GRANITE_STAIRS].name;
+			return "Polished Granite Stairs";
 		}
 		break;
 	case BLOCK_BRICK_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case BIT_16:	// smooth quartz stairs
-			return gExtraBlockNames[STRING_SMOOTH_QUARTZ_STAIRS].name;
+			return "Smooth Quartz Stairs";
 		case BIT_32:	// diorite
-			return gExtraBlockNames[STRING_DIORITE_STAIRS].name;
+			return "Diorite Stairs";
 		case BIT_32 | BIT_16:	// polished diorite
-			return gExtraBlockNames[STRING_POLISHED_DIORITE_STAIRS].name;
+			return "Polished Diorite Stairs";
 		}
 		break;
 	case BLOCK_STONE_BRICK_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case BIT_16:	// end stone stairs
-			return gExtraBlockNames[STRING_END_STONE_BRICK_STAIRS].name;
+			return "End Stone Brick Stairs";
 		case BIT_32:	// andesite
-			return gExtraBlockNames[STRING_ANDESITE_STAIRS].name;
+			return "Andesite Stairs";
 		case BIT_32 | BIT_16:	// polished andesite
-			return gExtraBlockNames[STRING_POLISHED_ANDESITE_STAIRS].name;
+			return "Polished Andesite Stairs";
 		}
 		break;
 	case BLOCK_NETHER_BRICK_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case BIT_16:	// red nether brick stairs
-			return gExtraBlockNames[STRING_RED_NETHER_BRICK_STAIRS].name;
+			return "Red Nether Brick Stairs";
 		case BIT_32:	// mossy stone
-			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_STAIRS].name;
+			return "Mossy Stone Brick Stairs";
 		case BIT_32 | BIT_16:	// mossy cobblestone
-			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_STAIRS].name;
+			return "Mossy Cobblestone Stairs";
 		}
 		break;
 	case BLOCK_SANDSTONE_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case BIT_16:	// smooth sandstone stairs
-			return gExtraBlockNames[STRING_SMOOTH_SANDSTONE_STAIRS].name;
+			return "Smooth Sandstone Stairs";
 		case BIT_32:	// smooth red sandstone
-			return gExtraBlockNames[STRING_SMOOTH_RED_SANDSTONE_STAIRS].name;
+			return "Smooth Red Sandstone Stairs";
 		}
 		break;
 	case BLOCK_COBBLESTONE_WALL:
-		switch (dataVal & 0xf)	{
+		switch (dataVal & 0xf) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			// no change, default cobblestone is fine
 			break;
 		case 1: // mossy cobblestone
-			return gExtraBlockNames[STRING_MOSSY_COBBLESTONE_WALL].name;
+			return "Mossy Cobblestone Wall";
 		case 2: // brick wall
-			return gExtraBlockNames[STRING_BRICK_WALL].name;
+			return "Brick Wall";
 		case 3: // granite wall
-			return gExtraBlockNames[STRING_GRANITE_WALL].name;
+			return "Granite Wall";
 		case 4: // diorite wall
-			return gExtraBlockNames[STRING_DIORITE_WALL].name;
+			return "Diorite Wall";
 		case 5: // andesite wall
-			return gExtraBlockNames[STRING_ANDESITE_WALL].name;
+			return "Andesite Wall";
 		case 6: // prismarine wall
-			return gExtraBlockNames[STRING_PRISMARINE_WALL].name;
+			return "Prismarine Wall";
 		case 7: // stone brick wall
-			return gExtraBlockNames[STRING_STONE_BRICK_WALL].name;
+			return "Stone Brick Wall";
 		case 8: // mossy stone brick wall
-			return gExtraBlockNames[STRING_MOSSY_STONE_BRICK_WALL].name;
+			return "Mossy Stone Brick Wall";
 		case 9: // end stone brick wall
-			return gExtraBlockNames[STRING_END_STONE_BRICK_WALL].name;
+			return "End Stone Brick Wall";
 		case 10: // nether brick wall
-			return gExtraBlockNames[STRING_NETHER_BRICK_WALL].name;
+			return "Nether Brick Wall";
 		case 11: // red nether brick wall
-			return gExtraBlockNames[STRING_RED_NETHER_BRICK_WALL].name;
+			return "Red Nether Brick Wall";
 		case 12: // sandstone wall
-			return gExtraBlockNames[STRING_SANDSTONE_WALL].name;
+			return "Sandstone Wall";
 		case 13: // red sandstone wall
-			return gExtraBlockNames[STRING_RED_SANDSTONE_WALL].name;
+			return "Red Sandstone Wall";
 		}
 		break;
 	case BLOCK_PRISMARINE:
@@ -1158,12 +1143,13 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		{
 		default:
 			assert(0);
+			break;
 		case 0:
 			break;
 		case 1: // bricks
-			return gExtraBlockNames[STRING_PRISMARINE_BRICKS].name;
+			return "Prismarine Bricks";
 		case 2: // dark
-			return gExtraBlockNames[STRING_DARK_PRISMARINE].name;
+			return "Dark Prismarine";
 		}
 		break;
 	case BLOCK_FURNACE:
@@ -1171,27 +1157,31 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
 			assert(0);
+			break;
 		case 0:
 			break;
 		case BIT_16:	// loom
-			return gExtraBlockNames[STRING_LOOM].name;
+			return "Loom";
 		case BIT_32:	// smoker
-			return gExtraBlockNames[STRING_SMOKER].name;
+			return "Smoker";
 		case BIT_32 | BIT_16:	// blast furnace
-			return gExtraBlockNames[STRING_BLAST_FURNACE].name;
+			return "Blast Furnace";
 		}
 		break;
 	case BLOCK_CRAFTING_TABLE:
 		switch (dataVal & 0xf)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// cartography
-			return gExtraBlockNames[STRING_CARTOGRAPHY_TABLE].name;
+			return "Cartography Table";
 		case 2:	// fletching
-			return gExtraBlockNames[STRING_FLETCHING_TABLE].name;
+			return "Fletching Table";
 		case 3:	// smithing
-			return gExtraBlockNames[STRING_SMITHING_TABLE].name;
+			return "Smithing Table";
 		}
 		break;
 
@@ -1199,9 +1189,12 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x1)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// red sand
-			return gExtraBlockNames[STRING_RED_SAND].name;
+			return "Red Sand";
 		}
 		break;
 
@@ -1209,106 +1202,170 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// spruce
-			return gExtraBlockNames[STRING_SPRUCE_LOG].name;
+			return "Spruce Log";
 		case 2:	// birch
-			return gExtraBlockNames[STRING_BIRCH_LOG].name;
+			return "Birch Log";
 		case 3:	// jungle
-			return gExtraBlockNames[STRING_JUNGLE_LOG].name;
+			return "Jungle Log";
 		}
 		break;
 	case BLOCK_AD_LOG:
 		switch (dataVal & 0x3)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:	// dark oak
-			return gExtraBlockNames[STRING_DARK_OAK_LOG].name;
+			return "Dark Oak Log";
 		}
 		break;
 	case BLOCK_STATIONARY_WATER:
 		if (dataVal & BIT_16)
 		{
 			// bubble column
-			return gExtraBlockNames[STRING_BUBBLE_COLUMN].name;
+			return "Bubble Column";
 		}
 		break;
 	case BLOCK_SPONGE:
 		switch (dataVal & 0x1)
 		{
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1:
-			return gExtraBlockNames[STRING_WET_SPONGE].name;
+			return "Wet Sponge";
 		}
 		break;
 	case BLOCK_SANDSTONE:
 		switch (dataVal & 0x3) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // chiseled
-			return gExtraBlockNames[STRING_CHISELED_SANDSTONE].name;
+			return "Chiseled Sandstone";
 		case 2: // smooth
-			return gExtraBlockNames[STRING_CUT_SANDSTONE].name;
+			return "Cut Sandstone";
 		}
 		break;
 	case BLOCK_RED_SANDSTONE:
 		switch (dataVal & 0x3) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // chiseled
-			return gExtraBlockNames[STRING_CHISELED_RED_SANDSTONE].name;
+			return "Chiseled Red Sandstone";
 		case 2: // smooth
-			return gExtraBlockNames[STRING_CUT_RED_SANDSTONE].name;
+			return "Cut Red Sandstone";
 		}
 		break;
 	case BLOCK_STONE_BRICKS:
 		switch (dataVal & 0x3) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // mossy - small color difference, so this isn't added to color table
-			return gExtraBlockNames[STRING_MOSSY_STONE_BRICKS].name;
+			return "Mossy Stone Bricks";
 		case 2: // cracked
-			return gExtraBlockNames[STRING_CRACKED_STONE_BRICKS].name;
+			return "Cracked Stone Bricks";
 		case 3: // chiseled
-			return gExtraBlockNames[STRING_CHISELED_STONE_BRICKS].name;
+			return "Chiseled Stone Bricks";
 		}
 		break;
 	case BLOCK_INFESTED_STONE:
 		switch (dataVal & 0x7) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // cobblestone
-			return gExtraBlockNames[STRING_INFESTED_COBBLESTONE].name;
+			return "Infested Cobblestone";
 		case 2: // stone brick
-			return gExtraBlockNames[STRING_INFESTED_STONE_BRICKS].name;
+			return "Infested Stone Bricks";
 		case 3: // mossy - small color difference, so this isn't added to color table
-			return gExtraBlockNames[STRING_INFESTED_MOSSY_STONE_BRICKS].name;
+			return "Infested Mossy Stone Bricks";
 		case 4: // cracked
-			return gExtraBlockNames[STRING_INFESTED_CRACKED_STONE_BRICKS].name;
+			return "Infested Cracked Stone Bricks";
 		case 5: // chiseled
-			return gExtraBlockNames[STRING_INFESTED_CHISELED_STONE_BRICKS].name;
+			return "Infested Chiseled Stone Bricks";
 		}
 		break;
 	case BLOCK_QUARTZ_BLOCK:
 		switch (dataVal & 0x7) {
 		default:
+			assert(0);
+			break;
+		case 0:
 			break;
 		case 1: // chiseled quartz block
-			return gExtraBlockNames[STRING_CHISELED_QUARTZ_BLOCK].name;
+			return "Chiseled Quartz Block";
 		case 2: // quartz pillar
 		case 3: // quartz pillar
 		case 4: // quartz pillar - different directions
-			return gExtraBlockNames[STRING_QUARTZ_PILLAR].name;
+			return "Quartz Pillar";
 		}
 		break;
 
+	case BLOCK_HEAD:
+		switch (dataVal & 0x70) {
+		default:
+			assert(0);
+			break;
+		case 0:
+			sprintf_s(gConcatString, 100, "Skeleton %sSkull", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		case 1 << 4:
+			sprintf_s(gConcatString, 100, "Wither Skeleton %sSkull", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		case 2 << 4:
+			sprintf_s(gConcatString, 100, "Zombie %sHead", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		case 3 << 4:
+			sprintf_s(gConcatString, 100, "Player %sHead", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		case 4 << 4:
+			sprintf_s(gConcatString, 100, "Creeper %sHead", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		case 5 << 4:
+			sprintf_s(gConcatString, 100, "Dragon %sHead", (dataVal & 0x80) ? "" : "Wall ");
+			break;
+		}
+		return gConcatString;
+
+	case BLOCK_ANVIL:
+		switch (dataVal & 0xC)
+		{
+		default:
+			assert(0);
+			break;
+		case 0: // as is
+			break;
+		case 4:
+			return "Chipped Anvil";
+		case 8:
+			return "Damaged Anvil";
+		}
+		break;
 	}
 
 	// could add more? TODO
 
-    return gBlockDefinitions[type].name;
+	return gBlockDefinitions[type].name;
 }
 
 //copy block to bits at px,py at zoom.  bits is wxh
@@ -1450,7 +1507,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         }
         break;
 
-    case BLOCK_STAINED_CLAY:
+    case BLOCK_COLORED_TERRACOTTA:
         // from upper left corner
         dataVal = block->data[voxel];
         switch ( dataVal )
@@ -1925,8 +1982,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         // Guard against a negative voxel value. Use the top half if the bottom half doesn't exist;
         // this is entirely bogus, as we really need the bottom half to get the right bits, but perhaps
         // some modded data uses the bottom three bits in this way...
-        dataVal = (voxel >= 256) ? block->data[voxel - 256] : block->data[voxel];
-        // masking just in case it's a top half (and probably bogus)
+		// This is just a safety net now - we actually shove the data value into the upper part of the plant nowadays, in extractChunk
+		dataVal = (voxel >= 256) ? block->data[voxel - 256] : block->data[voxel];
+		// masking just in case it's a top half (and probably bogus)
         switch (dataVal & 0x7)
         {
         default:
@@ -2726,7 +2784,7 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
                     // Here is where the color of the block is retrieved.
                     // First we check if there's a special color for this block,
-                    // such as for wool, stained clay, carpet, etc. If not, then
+                    // such as for wool, terracotta, carpet, etc. If not, then
                     // we can look the quick lookup value from the table.
                     color = checkSpecialBlockColor( block, voxel, type, light, useBiome, useElevation );
 
@@ -3201,13 +3259,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
 	case BLOCK_FLOWER_POT:
-        // uses 0-11 for old-style 1.7 flower pots
-        if (dataVal < 12)
+        // uses 0-11 for old-style 1.7 flower pots; 12 and 13 for acacia and dark oak saplings, whenever those were added
+        if (dataVal < 14)
         {
             addBlock = 1;
         }
+		// add new style diagonally SE of original
 		{
-			// add new style diagonally SE of original
 			int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
 			int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
 			switch (dataVal) {
@@ -3350,7 +3408,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
     case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
-    case BLOCK_STAINED_CLAY:
+    case BLOCK_COLORED_TERRACOTTA:
     case BLOCK_CARPET:
     case BLOCK_STAINED_GLASS:
     case BLOCK_STANDING_BANNER:
@@ -3579,9 +3637,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
 		{
 			addBlock = 1;
-			// set higher bits BIT_16 and BIT_32 (BIT_8 is already set)
-			if (dataVal < 12)
-				finalDataVal |= ((dataVal & 0x7)-2)<<4;
+			// set higher bits BIT_8 and BIT_16
+			finalDataVal = ((dataVal%6)<<3) | (dataVal & 0x7);
 			switch (dataVal&0x7)
 			{
 			case 2:

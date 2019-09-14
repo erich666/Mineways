@@ -278,6 +278,7 @@ static FileList *gOutputFileList = NULL;
 
 static int gExportTexture = 0;
 static int gExportTiles = 0;
+static int g3d = 0;
 // whether we're outputting a print or render
 static int gPrint3D=0;
 
@@ -886,6 +887,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
 
     gExportTexture = (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
 	gExportTiles = (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;
+	g3d = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL) ? 1 : 0;
 
     gPrint3D = (gOptions->exportFlags & EXPT_3DPRINT) ? 1 : 0;
     gModel.pInputTerrainImage = NULL;
@@ -2132,54 +2134,64 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 						gBoxData[boxIndex].type = block->grid[chunkIndex];
 				}
 
-                // if the block is a flower pot or head, we need to extract the extra data from the block
-                if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD))
-                {
-                    // don't do extraction if 1.7 or earlier data for the flower pot, i.e. the data shows there's something in the pot right now
-                    if (!((blockID == BLOCK_FLOWER_POT) && (dataVal > 0)))
-                    {
-                        // find the entity in the list, as possible
-                        BlockEntity *pBE = block->entities;
-                        for (i = 0; i < block->numEntities; i++, pBE++) {
-                            int listChunkIndex = pBE->y << 8 | pBE->zx;
-                            if (chunkIndex == listChunkIndex) {
-                                if (pBE->type == blockID) {
-                                    // found it, data gets stored differently for heads and flowers
-                                    if (blockID == BLOCK_FLOWER_POT) {
-                                        gBoxData[boxIndex].data = pBE->data;
-                                    }
-                                    else {
-                                        // BLOCK_HEAD
+				// tile entities needed if using old data format
+				if (!isVersion13orNewer) {
+					// if the block is a flower pot or head, we need to extract the extra data from the block
+					if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD))
+					{
+						// don't do extraction if 1.7 or earlier data for the flower pot, i.e. the data shows there's something in the pot right now
+						if (!((blockID == BLOCK_FLOWER_POT) && (dataVal > 0)))
+						{
+							// find the entity in the list, as possible
+							BlockEntity *pBE = block->entities;
+							for (i = 0; i < block->numEntities; i++, pBE++) {
+								int listChunkIndex = pBE->y << 8 | pBE->zx;
+								if (chunkIndex == listChunkIndex) {
+									if (pBE->type == blockID) {
+										// found it, data gets stored differently for heads and flowers
+										if (blockID == BLOCK_FLOWER_POT) {
+											gBoxData[boxIndex].data = pBE->data;
+										}
+										else {
+											// BLOCK_HEAD
 
-                                        // most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
-                                        // If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
-                                        // 7 | 654 | 3210
-                                        // bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
-                                        // bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
-                                        // bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
-                                        if (gBoxData[boxIndex].data > 1) {
-                                            // head is on the wall, so rotation is ignored; just store the head in the high 4 bits
-                                            assert((pBE->data & 0x80) == 0x0);	// topmost bit better not be used...
-                                            // use wall rotation value 2-5 in lower 4 bits, put head type in next top 3 bits.
-                                            gBoxData[boxIndex].data |= pBE->data & 0x70;
-                                        }
-                                        else {
-                                            // head is on the floor, use the rotation angle too.
-                                            assert(gBoxData[boxIndex].data == 1);
-                                            // flag very highest bit: this means the lower data field is the rotation angle, 0-16, like sign posts.
-                                            // use head data and rotation data, and flag topmost bit to note it's this way
-                                            gBoxData[boxIndex].data = pBE->data | 0x80;
-                                        }
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                        // we should always find a match, if things are working properly
-                        // (well, the test block world does not currently generate block entities, TODO, so this is not quite true)
-                        //assert(i < block->numEntities);
-                    }
-                }
+											// most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
+											// If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
+											// 7 | 654 | 3210
+											// bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
+											// bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
+											// bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+											if (gBoxData[boxIndex].data > 1) {
+												// head is on the wall, so rotation is ignored; just store the head in the high 4 bits
+												assert((pBE->data & 0x80) == 0x0);	// topmost bit better not be used...
+												// use wall rotation value 2-5 in lower 4 bits, put head type in next top 3 bits.
+												gBoxData[boxIndex].data |= pBE->data & 0x70;
+											}
+											else {
+												// head is on the floor, use the rotation angle too.
+												assert(gBoxData[boxIndex].data == 1);
+												// flag very highest bit: this means the lower data field is the rotation angle, 0-16, like sign posts.
+												// use head data and rotation data, and flag topmost bit to note it's this way
+												gBoxData[boxIndex].data = pBE->data | 0x80;
+											}
+										}
+									}
+									break;
+								}
+							}
+							// we should always find a match, if things are working properly
+							// (well, the test block world does not currently generate block entities, TODO, so this is not quite true)
+							//assert(i < block->numEntities);
+						}
+					}
+					else if ((blockID == BLOCK_DOUBLE_FLOWER) && (gBoxData[boxIndex].data & 0x8)) {
+						// The top part of the flower doesn't always have the lower bits that identifies it. Copy these over from the block below, if available.
+						// This could screw up schematic export. TODO
+						if (y > edgeWorldBox->min[Y]) {
+							gBoxData[boxIndex].data = 0x8 | gBoxData[boxIndex - 1].data;
+						}
+					}
+				}
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
@@ -3649,6 +3661,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	int leafSize;
 	int facing;
 	float shiftX, shiftZ;
+	float x, z;
 
     dataVal = gBoxData[boxIndex].data;
 
@@ -5698,9 +5711,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // if printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom
         waterHeight = gPrint3D ? (6+(float)dataVal*3) : 6;
-        // outsides and bottom
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT, 0, 0, 16, 0, 16, 0, 16);
-        // top as 4 small faces, and corresponding inside faces
+        // outsides - if printing, just go down to bottom, no real feet, else kick it up
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | DIR_BOTTOM_BIT, 0, 0, 16, gPrint3D ? 0.0f : 3.0f, 16, 0, 16);
+		// bottom
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 16, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0,
+			0, 16, gPrint3D ? 0.0f : 3.0f, 16, 0, 16);
+		// top as 4 small faces, and corresponding faces inside
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             14, 16, waterHeight, 16, 2, 14 );	// top and lo_x
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
@@ -5709,7 +5725,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             2, 14, waterHeight, 16, 14, 16 );	// top and lo_z
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0,
             2, 14, waterHeight, 16, 0, 2 );	// top and hi_z
-        // four tiny corners, just tops
+        // four tiny corners at top, just tops
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             0, 2, 16, 16, 0, 2 );	// top
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
@@ -5718,6 +5734,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             14, 16, 16, 16, 0, 2 );	// top
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0,
             14, 16, 16, 16, 14, 16 );	// top
+
         // inside bottom
         // outside bottom
         if ( !gPrint3D || (dataVal == 0x0) )
@@ -5727,10 +5744,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 2, 14, 3, 6, 2, 14 );
 
             if ( !gPrint3D ) {
-                // outside bottom, above the cutout legs - only when not printing, as otherwise it's invisible and not needed
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 16, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0,
-                    0, 16, 3, 6, 0, 16 );
-            }
+                // Good times: make four feet that are 4x4 wide with a notch cut out, so really 2x2 each, with proper sides and bottoms
+				for (x = 0; x < 2; x++) {
+					for (z = 0; z < 2; z++) {
+						saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | (x ? DIR_LO_X_BIT : DIR_HI_X_BIT) | (z ? DIR_LO_Z_BIT : DIR_HI_Z_BIT), 0, 0+x*14, 2+x*14, 0, 3, 0+z*14, 2 + z * 14);
+						saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | (x ? DIR_HI_X_BIT : DIR_LO_X_BIT), 0, 2 + x * 10, 4 + x * 10, 0, 3, 0 + z * 14, 2 + z * 14);
+						saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | (z ? DIR_HI_Z_BIT : DIR_LO_Z_BIT), 0, 0 + x * 14, 2 + x * 14, 0, 3, 2 + z * 10, 4 + z * 10);
+					}
+				}
+			}
         }
 
         if ( dataVal > 0 && dataVal < 4 )
@@ -5928,13 +5950,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 //scale = 0.75f;
                 break;
 
-            case SAPLING_FIELD | 0x4:
+			case 12:
+			case SAPLING_FIELD | 0x4:
                 // acacia sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 4;
                 //scale = 0.75f;
                 break;
-            case SAPLING_FIELD | 0x5:
+			case 13:
+			case SAPLING_FIELD | 0x5:
                 // dark oak sapling
                 typeB = BLOCK_SAPLING;
                 dataValB = 5;
@@ -8409,10 +8433,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			gUsingTransform = 0;
 
 			// and the posts
-			for (int x = 0; x < 2; x++) {
-				for (int z = 0; z < 2; z++) {
+			for (x = 0; x < 2; x++) {
+				for (z = 0; z < 2; z++) {
 					// make bottom 2x2 if there is no bottom
-					saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, (bottom?DIR_BOTTOM_BIT:0x0) | DIR_TOP_BIT, 0x0, 0 + (float)x * 14, 2 + (float)x * 14, (float)bottom*2, 14, 0 + (float)z * 14, 2 + (float)z * 14);
+					saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, (bottom ? DIR_BOTTOM_BIT : 0x0) | DIR_TOP_BIT, 0x0, 0 + x * 14, 2 + x * 14, (float)bottom * 2, 14, 0 + z * 14, 2 + z * 14);
 				}
 			}
 		}
@@ -10141,6 +10165,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 			// to know which sort of plant
 			// (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
 			// row 19 (#18) has these
+			// old code, before we shoved the dataVal from the bottom half (if available) into the top half, in extractChunk.
+			// But, should work the same, so don't mess with it.
 			swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
 			// for material differentiation set the dataVal to the bottom half
 			origDataVal = gBoxData[boxIndex - 1].data;
@@ -11294,6 +11320,7 @@ static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint **pSeedStack, i
     }
 
     // check the six neighbors for if they're not in a group already and have the same type, filled or unfilled
+	// TODO: for rendering, we could test all edge neighbors, too, in order to not delete "blocks as roofs" or similar structures 
     for ( faceDirection = 0; faceDirection < 6; faceDirection++ )
     {
         // check that new location is valid for testing
@@ -11303,7 +11330,8 @@ static void propagateSeed(IPoint point, BoxGroup *pGroup, IPoint **pSeedStack, i
             newBoxIndex = BOX_INDEXV(newPt);
             // is neighbor not in a group, and the same sort of thing as our seed (solid or not)?
             if ( (gBoxData[newBoxIndex].group == NO_GROUP_SET) &&
-                ((gBoxData[newBoxIndex].type > BLOCK_AIR) == pGroup->solid) ) {
+				// for 3D printing, only check fully-filled cells; for rendering, check if anything is in cell, so that minor stuff will "connect" areas and so is less likely to erase anything
+                (((gPrint3D?gBoxData[newBoxIndex].type:gBoxData[newBoxIndex].origType) > BLOCK_AIR) == pGroup->solid) ) {
 
                 // note the block is a part of this group now
                 gBoxData[newBoxIndex].group = pGroup->groupID;
@@ -16488,7 +16516,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                         swatchLoc = SWATCH_INDEX(xoff, 7);
                     }
                     break;
-                case 4: // no face at all!
+                case 4: // no face at all! Uncarved
                     // http://minecraft.gamepedia.com/Pumpkin#Block_data
                     break;
                 }
@@ -16979,7 +17007,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             // add data value to retrieve proper texture
             swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY ) + dataVal;
             break;
-        case BLOCK_STAINED_CLAY:						// getSwatch
+        case BLOCK_COLORED_TERRACOTTA:						// getSwatch
             swatchLoc += dataVal;
             break;
         case BLOCK_HOPPER:						// getSwatch
@@ -17804,7 +17832,7 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v )
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
     // Multiple types can be associated with the same swatchLoc, we just save the last one (often the most
-    // visible one) here.
+    // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output. 
     gModel.uvSwatchToType[swatchLoc] = type;
 
     return uvr->index;
@@ -17977,6 +18005,65 @@ static void resolveFaceNormals()
         }
 #endif
     }
+}
+
+bool isASubblock(int type, int dataVal)
+{
+	switch (type) {
+	case BLOCK_GRASS:
+		// special case: Grass, the default popular name for that block type, actually has a data value of 1; the dead shrub is 0
+		if ((dataVal & 0x3) == 1)
+			return false;
+		break;
+	case BLOCK_PURPUR_SLAB:
+		// special case: Purpur slab, 0 and 1 are the same thing, from what I can tell
+		if (dataVal == 0 || dataVal == 1)
+			return false;
+		break;
+	case BLOCK_PUMPKIN:
+		// only if dataVal == 4 is it not carved
+		if (dataVal & 0x4)
+			return false;
+		break;
+
+	// All of these have colors or types or other characteristics, for all versions, beyond the generic name such as "Wool"
+	case BLOCK_WOOL:
+	case BLOCK_STAINED_GLASS:
+	case BLOCK_STAINED_GLASS_PANE:
+	case BLOCK_CARPET:
+	case BLOCK_CONCRETE:
+	case BLOCK_CONCRETE_POWDER:
+		// Wool wants to be White Wool when it's a subblock, so the default block name is not OK
+	case BLOCK_COLORED_TERRACOTTA:
+		// special case: the block is "colored terracotta" but subblocks have color, so always use subblock color if requested
+	case BLOCK_HEAD:
+		// which mob head, if specified?
+	case BLOCK_SIGN_POST:
+	case BLOCK_ACACIA_SIGN_POST:
+	case BLOCK_WALL_SIGN:
+		// each have names
+	case BLOCK_CORAL_BLOCK:
+	case BLOCK_CORAL:
+	case BLOCK_CORAL_FAN:
+	case BLOCK_CORAL_WALL_FAN:
+	case BLOCK_DEAD_CORAL_BLOCK:
+	case BLOCK_DEAD_CORAL:
+	case BLOCK_DEAD_CORAL_FAN:
+	case BLOCK_DEAD_CORAL_WALL_FAN:
+		// corals are named when subblocks
+	case BLOCK_REDSTONE_WIRE:
+		// so that the power is always shown
+	case BLOCK_PUMPKIN_STEM:
+	case BLOCK_MELON_STEM:
+		// so that the age is always shown
+		return true;
+
+	default:
+		if (dataVal == 0)
+			return false;
+		break;
+	}
+	return true;
 }
 
 // return 0 if no write
@@ -18186,21 +18273,22 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                     // Output group only if we're not already using it for individual blocks.
                     strcpy_s(mtlName,256,gBlockDefinitions[prevType].name);
 
-                    if (subtypeMaterial && prevDataVal != 0) {
-                        // add a dataval suffix.
+                    if (subtypeMaterial && isASubblock(prevType, prevDataVal) ) {
+                        // use subtype name or add a dataval suffix.
                         // If possible, turn these data values into the actual sub-material type names.
 						const char *subName = RetrieveBlockSubname(prevType, prevDataVal);
                         char tempString[MAX_PATH_AND_FILE];
 						if (strcmp(subName, mtlName) == 0) {
-							// sorry, no unique subname found, use the data value - TODO: could add to RetrieveBlockSubname
+							// No unique subname found for this data value, so use the data value.
+							// Shouldn't ever hit here, actually; all things should be named by now.
 							sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+							strcpy_s(mtlName, 256, tempString);
 						}
 						else {
-							// we include the original name as we know it's then unique - we really should expand
-							// RetrieveBlockSubname so that all names are unique TODOTODO
-							sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+							// Name does not match, so use it
+							// was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+							strcpy_s(mtlName, 256, subName);
 						}
-                        strcpy_s(mtlName, 256, tempString);
                     }
 
                     // substitute ' ' to '_'
@@ -18550,8 +18638,7 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-		if (gExportTiles) {
-			// swatch locations exactly correspond with tiles.h names
+		if (swatchLoc < TOTAL_TILES) {
 			char outName[MAX_PATH_AND_FILE];
 			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
 			assert(strlen(outName) > 0);
@@ -18560,7 +18647,8 @@ static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc )
 				u, v);
 		}
 		else {
-			sprintf_s(outputString, 1024, "# %s\nvt %g %g\n",
+			// old "by block" code, not really useful - better to use tiles.h name
+			sprintf_s(outputString, 1024, "# %s type\nvt %g %g\n",
 				gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
 				u, v);
 		}
@@ -18661,7 +18749,7 @@ static int writeOBJMtlFile()
 
             if (gModel.usesAlpha) {
                 sprintf_s(outputString, 2048,
-                    "map_d %s\n", textureAlpha);
+                    "%smap_d %s\n", (gExportTiles || g3d) ? "#":"", textureAlpha);
                 WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
             }
         }
@@ -18713,21 +18801,25 @@ static int writeOBJMtlFile()
 
 				// print header: material name
 				strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
-				if (subtypeMaterial && (dataVal != 0)) {
-					// add a dataval suffix:
+
+				// add a dataval suffix:
+				// If possible, turn these data values into the actual sub-material type names.
+				if (subtypeMaterial && isASubblock(type, dataVal)) {
+					// use subtype name or add a dataval suffix.
 					// If possible, turn these data values into the actual sub-material type names.
 					const char *subName = RetrieveBlockSubname(type, dataVal);
 					char tempString[MAX_PATH_AND_FILE];
 					if (strcmp(subName, mtlName) == 0) {
-						// sorry, no unique subname found, use the data value - TODO: could add to RetrieveBlockSubname
+						// No unique subname found for this data value, so use the data value.
+						// Shouldn't ever hit here, actually; all things should be named by now.
 						sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
+						strcpy_s(mtlName, 256, tempString);
 					}
 					else {
-						// we include the original name as we know it's then unique - we really should expand
-						// RetrieveBlockSubname so that all names are unique TODOTODO
-						sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+						// Name does not match, so use it
+						// was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+						strcpy_s(mtlName, 256, subName);
 					}
-					strcpy_s(mtlName, 256, tempString);
 				}
 				spacesToUnderlinesChar(mtlName);
 
@@ -18858,11 +18950,12 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 		else
 #endif
 		{
-			// otherwise, always export both, since we don't know what the modeler likes
+			// otherwise, always export both, if not exporting tiles, since we don't know what the modeler likes
+			// When exporting tiles, assume map_d is not needed, as map_Kd will have alphas if needed - spec is unclear here
 			gModel.usesRGBA = 1;
 			gModel.usesAlpha = 1;
 			typeTextureFileName = textureRGBA;
-			sprintf_s(mapdString, 256, "map_d %s\n", textureAlpha);
+			sprintf_s(mapdString, 256, "%smap_d %s\n", (gExportTiles || g3d) ? "#" : "", textureAlpha);
 		}
 	}
 	else
@@ -19047,6 +19140,7 @@ static int createBaseMaterialTexture()
     unsigned int color;
     int useTextureImage;
     int addNoise = 0;
+	int index;
 
     progimage_info *mainprog;
 
@@ -19740,7 +19834,7 @@ static int createBaseMaterialTexture()
 			}
 			else if (gTilesTable[i].flags & flagTest)
 			{
-				// could bleed to very edges, which is better, but slower. TODO
+				// could bleed to very edges, which is better, but slower.
 				static int bleedToEdge = 1;
 				switch (bleedToEdge) {
 				default:
@@ -19748,17 +19842,19 @@ static int createBaseMaterialTexture()
 					bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
 					break;
 				case 1:
-					// nother option is to carefully bleed once, but then set all other black alphas left to be the average color
-					bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
-					makeRemainingTileAverage(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow);
+					// another option is to carefully bleed once, but then set all other black alphas left to be the average color
+					index = SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY);
+					bleedPNGSwatch(mainprog, index, 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+					makeRemainingTileAverage(mainprog, index, gModel.swatchSize, gModel.swatchesPerRow);
 					break;
 				case 2:
 					// bleed multiple times, until the returned value (currently ignored) was zero, i.e., bleed to the edges, so that mipmapping works well.
 					// NOTE: this can work, mostly, but only if the "seed" of existing pixels is 3x3 in size to begin with. If smaller, no spread will happen.
 					// If no spread, then the neighbors to spread value should be set to 2, then to 1 - this code is not there.
 					int modCount = 0;
+					index = SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY);
 					do {
-						modCount = bleedPNGSwatchRecursive(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
+						modCount = bleedPNGSwatchRecursive(mainprog, index, 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
 					} while (modCount > 0);
 					break;
 				}
@@ -20490,20 +20586,20 @@ static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc )
 
     if ( addComment )
     {
-		// currently not supported for VRML
-		//if (gExportTiles) {
-		//	// swatch locations exactly correspond with tiles.h names
-		//	char outName[MAX_PATH_AND_FILE];
-		//	WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
-		//	sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
-		//		outName,
-		//		u, v);
-		//}
-		//else {
+		if (swatchLoc < TOTAL_TILES) {
+			char outName[MAX_PATH_AND_FILE];
+			WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
+			assert(strlen(outName) > 0);
+			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
+				outName,
+				u, v);
+		}
+		else {
+			// old "by block family" code, which is less useful
 			sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
 				gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
 				u, v);
-		//}
+		}
     }
     else
     {
@@ -22186,6 +22282,7 @@ static void makeRemainingTileAverage(progimage_info *dst, int dstSwatch, int swa
 
 	// better: store a list of alpha = 0 locations, X & Y, and go through these. Shrink list as alpha pixels are processed.
 	// TODO: try on a high-res tree leaf texture (one we can see through) and see how mipmapping works on it.
+	// TODO: really, we should also bleed output edges to be average color, too. Not how it works currently.
 	for (row = 0; row < 16*tileSize16; row++)
 	{
 		int offset = row * dst->width;
@@ -22211,11 +22308,14 @@ static void makeRemainingTileAverage(progimage_info *dst, int dstSwatch, int swa
 		color[1] = (unsigned char)(0.5 + 255.0 * pow((sum_color[1] / sum), 1 / 2.2));
 		color[2] = (unsigned char)(0.5 + 255.0 * pow((sum_color[2] / sum), 1 / 2.2));
 		//color[3] = 255;
-		for (row = 0; row < 16 * tileSize16; row++)
+		
+		// for output, don't pull in by one, we want to cover the whole swatch with the color
+		dsti = (unsigned int *)(&dst->image_data[0]) + drow*swatchSize*dst->width + dcol * swatchSize;
+		for (row = 0; row < 16 * tileSize16 + 2; row++)
 		{
 			int offset = row * dst->width;
 			cdsti = dsti + offset;
-			for (col = 0; col < 16 * tileSize16; col++)
+			for (col = 0; col < 16 * tileSize16 + 2; col++)
 			{
 				GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
 				if (da == 0 && dr == 0 && dg == 0 && db == 0) {

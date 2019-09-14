@@ -617,7 +617,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
     wcex.lpszMenuName	= MAKEINTRESOURCE(IDC_MINEWAYS);
     wcex.lpszClassName	= szWindowClass;
-    wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_MINEWAYS)); // was IDI_SMALL, but it wasn't smaller
 
     return RegisterClassEx(&wcex);
 }
@@ -2577,7 +2577,9 @@ static void updateStatus(int mx, int mz, int my, const char *blockLabel, int typ
     //    sbuftype[0] = '\0';
 
     //if ( (gOptions.worldType & BIOMES) && (biome >= 0) )
-    if ( biome >= 0 )
+	// TODO: sometimes the biome comes back as some crazy number - I suspect we're reading uninitialized memory, but it's hard to pin down.
+	// Let's just guard against it by not allowing it at all
+    if ( biome >= 0 && biome < 256 )
         sprintf_s( sbufbiome, 100, " - %s biome", gBiomes[biome].name );
     else
         sbufbiome[0] = '\0';

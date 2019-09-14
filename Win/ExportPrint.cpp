@@ -113,11 +113,18 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             CheckDlgButton(hDlg,IDC_CREATE_ZIP,epd.chkCreateZip[epd.fileType]);
             CheckDlgButton(hDlg,IDC_CREATE_FILES,epd.chkCreateModelFiles[epd.fileType]);
 
+			// disallow tile textures with 3D printing - 3D printing often needs composites, not floating cutouts, so tile textures won't work with it.
+
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, epd.radioExportNoMaterials[epd.fileType]);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, epd.radioExportMtlColors[epd.fileType]);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
 			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, epd.radioExportFullTexture[epd.fileType]);
 			CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, epd.radioExportTileTextures[epd.fileType]);
+			if (epd.flags & EXPT_3DPRINT) {
+				// don't allow tile output
+				CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
+				CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
+			}
 			SetDlgItemTextA(hDlg, IDC_TILE_DIR, epd.tileDirString);
 
 			// if 3D printing, A and RGBA are not options
@@ -147,14 +154,17 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 
             //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
             CheckDlgButton(hDlg,IDC_MAKE_Z_UP,epd.chkMakeZUp[epd.fileType]);
-            // under certain conditions we need to make composite overlay uncheckable, i.e. if 3D printing is on, or if detailed output is off for rendering
+            // under certain conditions we need to make composite overlay uncheckable, i.e. if 3D printing is on, or if detailed output is off for rendering (or, below, if tiling textures are in use)
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
-            CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
+			// disallow composites if tile texture is on
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.radioExportTileTextures[epd.fileType]) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
+			
+			CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
             // these next two options are only available for rendering
             CheckDlgButton(hDlg,IDC_TREE_LEAVES_SOLID,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkLeavesSolid);
             CheckDlgButton(hDlg,IDC_BLOCKS_AT_BORDERS,(epd.flags & EXPT_3DPRINT)?BST_INDETERMINATE:epd.chkBlockFacesAtBorders);
             // disallow biome color if full texture and tile texture is off
-            CheckDlgButton(hDlg,IDC_BIOME,(epd.radioExportFullTexture[epd.fileType]||epd.radioExportTileTextures[epd.fileType])?epd.chkBiome:BST_INDETERMINATE);
+			CheckDlgButton(hDlg, IDC_BIOME, (epd.radioExportFullTexture[epd.fileType] || epd.radioExportTileTextures[epd.fileType]) ? epd.chkBiome : BST_INDETERMINATE);
 
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_0,epd.radioRotate0);
             CheckDlgButton(hDlg,IDC_RADIO_ROTATE_90,epd.radioRotate90);
@@ -317,27 +327,50 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
             // - done because full blocks of the lesser objects usually looks dumb
-            CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MTL_COLORS_ONLY:
             // set the combo box material to color (might already be that, which is fine)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-            CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SOLID_TEXTURES:
             // set the combo box material to color (might already be that, which is fine)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-            CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TEXTURES:
             // set the combo box material to color (might already be that, which is fine)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-            goto ChangeMaterial;
+			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED: BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+			goto ChangeMaterial;
+
+		case IDC_RADIO_EXPORT_FULL_TILES:
+			if (epd.flags & EXPT_3DPRINT) {
+				// don't allow tile output
+				CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
+				CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
+				SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+				CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
+				CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+			}
+			else {
+				// render
+				// set the combo box material to color (might already be that, which is fine)
+				// not used in rendering, so nevermind: SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+				CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+				CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+			}
+			goto ChangeMaterial;
 
 		case IDC_TEXTURE_A:
 			{
@@ -641,12 +674,12 @@ ChangeMaterial:
                 // for rendering
                 if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
                 {
-                    // all objects has been toggled back on, so make compositing checkable, but off, which is the default for rendering
+                    // all objects export (i.e. lesser) is now on, so make compositing checkable, but off, which is the default for rendering
                     CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
                 }
                 else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
                 {
-                    // definitely make compositing uncheckable at this point - full blocks mean that composite overlay will be used, vs. separate objects
+                    // definitely make compositing uncheckable at this point - full blocks mean that composite overlay must be used, vs. separate objects
                     CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
 
                     // just to be safe:
@@ -681,7 +714,7 @@ ChangeMaterial:
             break;
 
         case IDC_COMPOSITE_OVERLAY:
-            // the indeterminate state is only for when the option is not available (i.e., 3d printing)
+            // the indeterminate state is only for when the option is not available (i.e., 3d printing - where it's always on - or tile texture output - where it's not)
             if ((epd.flags & EXPT_3DPRINT) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED))
             {
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
@@ -862,7 +895,7 @@ ChangeMaterial:
 				lepd.chkCenterModel = (IsDlgButtonChecked(hDlg, IDC_CENTER_MODEL) == BST_CHECKED);
 				// if 3D printing, or if lesser blocks is off, do composite overlay, where we make a new tile (things break otherwise)
 				lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 :
-					((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED));
+					((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED));
 
 				// solid leaves and faces at borders always true for 3D printing.
 				lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);

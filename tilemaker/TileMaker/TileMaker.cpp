@@ -101,9 +101,12 @@ static struct Chest {
 	{ L"ender", 6, 64, 64, NULL }
 };
 
-// given array of tiles read in index, return gTile index:
-static int tilesInputToTableIndex[TOTAL_TILES];
-static progimage_info tile[TOTAL_TILES];
+// make considerably higher so that we can read in many more PNGs than we use.
+#define	TOTAL_INPUT_TILES	(TOTAL_TILES*10)
+
+// given array of tiles read in index, return gTile index
+static int tilesInputToTableIndex[TOTAL_INPUT_TILES];
+static progimage_info tile[TOTAL_INPUT_TILES];
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
@@ -249,7 +252,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.09\n");  // change version below, too
+			wprintf( L"TileMaker version 2.10\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -269,7 +272,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.09\n");  // change version above, too
+        wprintf(L"TileMaker version 2.10\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
@@ -360,6 +363,7 @@ int wmain(int argc, wchar_t* argv[])
 					while ( index >= 0 )
 					{
 						int fail_code = 0;
+						//wprintf(L"INDEX: %d\n", index);
 
 						// tile is one we care about.
 						fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
@@ -395,23 +399,38 @@ int wmain(int argc, wchar_t* argv[])
 								}
 							}
 
-							// The way this works:
-							// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
-							// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
-							// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
-							// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
-							tilesInputToTableIndex[tilesFound] = index;
-
-							tilesTableIndexToInput[index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
-							tilesFound++;
-
-							// Find maximum Y resolution of output tile: expand bottom of output texture if found.
-							// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
-							// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
-							if ( outputYTiles-1 < gTilesTable[index].txrY )
+							// check if already set
+							if (tilesTableIndexToInput[index] < 0)
 							{
-								outputYTiles = gTilesTable[index].txrY + 1;
-								wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
+								if (tilesFound >= TOTAL_INPUT_TILES) {
+									wprintf(L"INTERAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
+									gErrorCount++;
+								}
+								else {
+									// The way this works:
+									// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
+									// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
+									// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
+									// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
+									tilesInputToTableIndex[tilesFound] = index;
+
+									tilesTableIndexToInput[index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
+									tilesFound++;
+
+									// Find maximum Y resolution of output tile: expand bottom of output texture if found.
+									// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
+									// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
+									if (outputYTiles - 1 < gTilesTable[index].txrY)
+									{
+										outputYTiles = gTilesTable[index].txrY + 1;
+										wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
+										gWarningCount++;
+									}
+								}
+							}
+							else {
+								wprintf(L"WARNING: file %s and alternate file %s both found, choose one to represent the tile (i.e., delete or rename the other). File %s ignored, only because it was found second.\n",
+									gTilesTable[index].filename, gTilesTable[index].altFilename, ffd.cFileName);
 								gWarningCount++;
 							}
 						}

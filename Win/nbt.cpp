@@ -762,17 +762,17 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, BLOCK_FLOWER_POT,       DEADBUSH_FIELD | 0, "potted_dead_bush", NO_PROP },
 { 0, BLOCK_FLOWER_POT,         CACTUS_FIELD | 0, "potted_cactus", NO_PROP },
 { 0, 144,           0, "skeleton_wall_skull", HEAD_WALL_PROP },
-{ 0, 144,           0, "skeleton_skull", HEAD_PROP },
+{ 0, 144,    0x80 | 0, "skeleton_skull", HEAD_PROP },
 { 0, 144,        1<<4, "wither_skeleton_wall_skull", HEAD_WALL_PROP },
-{ 0, 144,        1<<4, "wither_skeleton_skull", HEAD_PROP },
+{ 0, 144, 0x80 | 1<<4, "wither_skeleton_skull", HEAD_PROP },
 { 0, 144,        2<<4, "zombie_wall_head", HEAD_WALL_PROP },
-{ 0, 144,        2<<4, "zombie_head", HEAD_PROP },
+{ 0, 144, 0x80 | 2<<4, "zombie_head", HEAD_PROP },
 { 0, 144,        3<<4, "player_wall_head", HEAD_WALL_PROP },
-{ 0, 144,        3<<4, "player_head", HEAD_PROP },
+{ 0, 144, 0x80 | 3<<4, "player_head", HEAD_PROP },
 { 0, 144,        4<<4, "creeper_wall_head", HEAD_WALL_PROP },
-{ 0, 144,        4<<4, "creeper_head", HEAD_PROP },
+{ 0, 144, 0x80 | 4<<4, "creeper_head", HEAD_PROP },
 { 0, 144,        5<<4, "dragon_wall_head", HEAD_WALL_PROP },
-{ 0, 144,        5<<4, "dragon_head", HEAD_PROP },
+{ 0, 144, 0x80 | 5<<4, "dragon_head", HEAD_PROP },
 { 0, 209,           0, "end_gateway", NO_PROP },
 { 0, 217,           0, "structure_void", NO_PROP },
 { 0, 255,           0, "structure_block", STRUCTURE_PROP },
@@ -935,7 +935,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 9, "potted_cornflower", NO_PROP },
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 10, "potted_lily_of_the_valley", NO_PROP },
 { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 11, "potted_wither_rose", NO_PROP },
-{ 0, BLOCK_FLOWER_POT,		BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,         BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
 { 0,   6,	           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
 { 0,  72,	    HIGH_BIT, "bamboo", LEAF_SIZE_PROP },
 { 0, 182,	           1, "cut_red_sandstone_slab", SLAB_PROP }, // added to red_sandstone_slab and double slab
@@ -1058,6 +1058,8 @@ void makeHashTable()
 		}
 		// special case: flower pot uses high bit for which type of pot  - just set them all:
 		mask_array[BLOCK_FLOWER_POT] |= 0xFF;
+		// special case: mob head uses high bit for whether head is on ground or not:
+		mask_array[BLOCK_HEAD] |= 0x80;
 		// special case: redstone wire is given 16 levels of output when separated by material
 		mask_array[BLOCK_REDSTONE_WIRE] |= 0x0F;
 		for (i = 0; i < NUM_TRANS; i++)
@@ -1071,6 +1073,8 @@ void makeHashTable()
 		mask_array[BLOCK_RED_SANDSTONE_DOUBLE_SLAB] |= mask_array[BLOCK_RED_SANDSTONE_SLAB];
 		mask_array[BLOCK_PURPUR_DOUBLE_SLAB] |= mask_array[BLOCK_PURPUR_SLAB];
 		mask_array[BLOCK_ANDESITE_DOUBLE_SLAB] |= mask_array[BLOCK_ANDESITE_SLAB];
+		// special case: kelp and kelp_plant are really the same thing, material-wise
+		mask_array[BLOCK_KELP] = 0x0;
 		// really, these should all be set properly already, but might as well make sure...
 		for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
 			gBlockDefinitions[i].subtype_mask = mask_array[i];
@@ -2229,7 +2233,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case TALL_FLOWER_PROP:
 							// Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
 							// Doesn't matter to Mineways per se, but if we export a schematic, we should make
-							// this data the same as Minecraft's.
+							// this data the same as Minecraft's. TODOTODO - need to test flowers more
 							dataVal = half ? 0x8 : 0;
 							break;
 						case REDSTONE_ORE_PROP:
