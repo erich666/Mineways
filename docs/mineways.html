@@ -1233,7 +1233,19 @@ For newbies (like me): in a Viewport, middle-mouse button changes the view: mous
 <P>
 Note: <a href="http://www.autodesk.com/education/free-software/maya">Maya is free for students and teachers</a>.
 <P>
-Check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import.
+I will not give a comprehensive tutorial here; it's up to you to know the basics of Maya. The main tasks facing you when importing from Mineways is adjusting the Transparency material attribute, which Maya does not set up at all on import. The basic steps:
+<OL>
+<LI>Import an OBJ from Mineways.
+<LI>Select each transparent or cutout object in turn, right-click and drag to choose the "Material Attributes" menu.
+<LI>On the right, under Common Material Attributes, click the small checkered box to the far right of the Transparency attribute. This will let you assign a texture to the alpha channel.
+<LI>In the "Create Render Node" dialog that appears, choose "Maya | 2D Textures" on the left, then click "File" on the right. You will now see a "File Attributes" parameter dialog.
+<LI>Click on the file folder icon to the far right of "Image Name" and select the grayscale image for the alpha channel, e.g., MyModel-Alpha.png. While you're here, you can change the "Filter Type" above from Quadratic to Off; this makes the alpha channel have the blocky Minecraft look.
+<LI>The cutout object will typically disappear; you need to reverse the sense of the channel. There's probably some easier way, but scrolling down to the "Color Balance" section and setting Alpha Gain to -1 and Alpha Offset to 1 works.
+<LI>To make the colored pixels blocky, again right-click on the model and select "Material Attributes...", then click the small box with an arrow to the far right of the "Color" attribute, the first thing listed under "Common Material Attributes." Change the "Filter Type" from Quadratic to Off.
+</OL>
+There may (and probably is) a more efficient way to make these adjustments - let me know.
+<P>
+For instructions for older versions of Maya, check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import (that said, I don't know if this script still works).
 <P>
 A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
 </P>
@@ -2993,6 +3005,13 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 </UL>
 </UL>
 
+<LI>Version 7.06, 9/18/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV705.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Wood (vs. Log) blocks for versions 1.13 on were getting turned into planks. The deforestation has been fixed; they're now properly wood blocks again. <I>(Thanks to Avatar2003 for reporting this bug.)</I>
+<LI>Update import instructions for Maya.
+</UL>
+
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
@@ -3081,7 +3100,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 9/13/2019</p>
+		<p id="lastUpdate">Last updated 9/18/2019</p>
 	</div>
 </div>
 

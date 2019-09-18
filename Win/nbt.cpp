@@ -362,12 +362,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  14,           0, "gold_ore", NO_PROP },
 { 0,  15,           0, "iron_ore", NO_PROP },
 { 0,  16,           0, "coal_ore", NO_PROP },
-{ 0,   5,           0, "oak_wood", NO_PROP },
-{ 0,   5,           1, "spruce_wood", NO_PROP },
-{ 0,   5,           2, "birch_wood", NO_PROP },
-{ 0,   5,           3, "jungle_wood", NO_PROP },
-{ 0,   5,           4, "acacia_wood", NO_PROP },
-{ 0,   5,           5, "dark_oak_wood", NO_PROP },
+{ 0,  17,  BIT_16 | 0, "oak_wood", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+{ 0,  17,  BIT_16 | 1, "spruce_wood", AXIS_PROP },
+{ 0,  17,  BIT_16 | 2, "birch_wood", AXIS_PROP },
+{ 0,  17,  BIT_16 | 3, "jungle_wood", AXIS_PROP },
+{ 0, 162,  BIT_16 | 0, "acacia_wood", AXIS_PROP },
+{ 0, 162,  BIT_16 | 1, "dark_oak_wood", AXIS_PROP },
 { 0,  17,           0, "oak_log", AXIS_PROP },
 { 0,  17,           1, "spruce_log", AXIS_PROP },
 { 0,  17,           2, "birch_log", AXIS_PROP },
@@ -1079,12 +1079,13 @@ void makeHashTable()
 		for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
 			gBlockDefinitions[i].subtype_mask = mask_array[i];
 		}
+
+#ifdef WIN32
+		DWORD br;
+#endif
 #ifdef _DEBUG
 		static int outputMasks = 0;	// set to 1 to output these masks to a file
 		if (outputMasks) {
-#ifdef WIN32
-			DWORD br;
-#endif
 			char outputString[MAX_PATH_AND_FILE];
 			static PORTAFILE outFile = PortaCreate(L"c:\\temp\\mineways_subtype_masks.txt");
 			if (outFile != INVALID_HANDLE_VALUE)
@@ -1102,6 +1103,60 @@ void makeHashTable()
 			}
 		}
 #endif
+		// NOTE: this "debug" code runs only under Release, as otherwise we hit asserts in the RetrieveBlockSubname method
+		static int outputSubblockNames = 0;	// set to 1 to output all block and subblock names to files
+		if (outputSubblockNames) {
+			char outputString[MAX_PATH_AND_FILE];
+			static PORTAFILE outBlockFile = PortaCreate(L"c:\\temp\\mineways_block_names.csv");
+			int count = 0;
+			if (outBlockFile != INVALID_HANDLE_VALUE)
+			{
+				// write file
+				for (i = 0; i < NUM_BLOCKS_DEFINED; i++)
+				{
+					sprintf_s(outputString, 256, "%3d, %s\n", i, gBlockDefinitions[i].name);
+					if (PortaWrite(outBlockFile, outputString, strlen(outputString))) {
+						// write error! Should really assert, but assert(0) is not defined in nbt.
+						return;
+					}
+				}
+				PortaClose(outBlockFile);
+			}
+			static PORTAFILE outFile = PortaCreate(L"c:\\temp\\mineways_subblock_names.csv");
+			if (outFile != INVALID_HANDLE_VALUE)
+			{
+				// write file
+				for (i = 0; i < NUM_BLOCKS_DEFINED; i++)
+				{
+					// is there any subblock?
+					if (mask_array[i]) {
+						// walk through bits until new name is found
+						char prevSubName[256];
+						prevSubName[0] = 0x0;
+						for (int j = 0; j <= mask_array[i]; j++) {
+							const char *subName = RetrieveBlockSubname(i, j);
+							// dataVal 0 should just about always be valid, and otherwise try to avoid duplicates or bits outside the mask
+							if ( ((j == 0) || (j & mask_array[i])) && (strcmp(subName, prevSubName) != 0) && (strcmp(subName, gBlockDefinitions[i].name) != 0)) {
+								// new name, so output it
+								sprintf_s(outputString, 256, "%3d, %s\n", i, subName);
+								if (PortaWrite(outFile, outputString, strlen(outputString))) {
+									// write error! Should really assert, but assert(0) is not defined in nbt.
+									return;
+								}
+								strcpy_s(prevSubName, 256, subName);
+								count++;
+							}
+						}
+					}
+				}
+				sprintf_s(outputString, 256, "Total of %3d subblock names\n", count);
+				if (PortaWrite(outFile, outputString, strlen(outputString))) {
+					// write error! Should really assert, but assert(0) is not defined in nbt.
+					return;
+				}
+				PortaClose(outFile);
+			}
+		}
 	}
 }
 

@@ -15107,33 +15107,70 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             // use data to figure out which side
 			switch( type ) {
 			case BLOCK_LOG:
-				switch (dataVal & 0x3)
-				{
-				default: // normal log
-				case 0:
-					SWATCH_SWITCH_SIDE(newFaceDirection, 4, 1);
-					break;
-				case 1: // spruce (dark)
-					SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 4, 7, 12, 11);
-					break;
-				case 2: // birch
-					SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 7, 11, 11);
-					break;
-				case 3: // jungle
-					SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 9, 9, 13, 11);
-					break;
+				if (dataVal & BIT_16) {
+					// it's wood, not a log - always switch
+					switch (dataVal & 0x3)
+					{
+					default: // normal wood
+					case 0:
+						swatchLoc = SWATCH_XY_TO_INDEX(4, 1);
+						break;
+					case 1: // spruce (dark)
+						swatchLoc = SWATCH_XY_TO_INDEX(4, 7);
+						break;
+					case 2: // birch
+						swatchLoc = SWATCH_XY_TO_INDEX(5, 7);
+						break;
+					case 3: // jungle
+						swatchLoc = SWATCH_XY_TO_INDEX(9, 9);
+						break;
+					}
+				}
+				else {
+					// log - set everything to side unless it's a top or bottom
+					switch (dataVal & 0x3)
+					{
+					default: // normal log
+					case 0:
+						SWATCH_SWITCH_SIDE(newFaceDirection, 4, 1);
+						break;
+					case 1: // spruce (dark)
+						SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 4, 7, 12, 11);
+						break;
+					case 2: // birch
+						SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 7, 11, 11);
+						break;
+					case 3: // jungle
+						SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 9, 9, 13, 11);
+						break;
+					}
 				}
 				break;
 			case BLOCK_AD_LOG:
-				switch (dataVal & 0x3)
-				{
-				default: // normal log
-				case 0: // acacia
-					SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
-					break;
-				case 1: // dark oak
-					SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 19, 15, 19);
-					break;
+				if (dataVal & BIT_16) {
+					// it's wood, not a log - always switch
+					switch (dataVal & 0x3)
+					{
+					default: // normal wood
+					case 0: // acacia
+						swatchLoc = SWATCH_XY_TO_INDEX(5, 11);
+						break;
+					case 1: // dark oak
+						swatchLoc = SWATCH_XY_TO_INDEX(14, 19);
+						break;
+					}
+				} else {
+					// log - set everything to side unless it's a top or bottom
+					switch (dataVal & 0x3)
+					{
+					default: // normal log
+					case 0: // acacia
+						SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
+						break;
+					case 1: // dark oak
+						SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 19, 15, 19);
+						break;
+					}
 				}
 				break;
 			case BLOCK_STRIPPED_OAK:
@@ -18309,6 +18346,9 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                             // We can't use outputMaterial, a simple array of types. We need to
                             // instead check the whole previous list and see if the material's
                             // already on it. Check from last to first for speed, I hope.
+							// NODO: slightly better (though slower) would be to add by name, vs. typeData;
+							// there are materials with different typeData's but that actually have the same name,
+							// such as Purpur Block, but these show up only in the test world, so don't bother.
                             int curCount = gModel.mtlCount-1;
                             unsigned int typeData = prevType << 8 | prevDataVal;
                             while (curCount >= 0) {

@@ -937,7 +937,7 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		{
 		default:
 			assert(0);
-			break;
+			return gBlockDefinitions[type].name;
 		case 0:
 			return gBlockDefinitions[type].name;
 		case 1:
@@ -1008,7 +1008,7 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		{
 		default:
 			assert(0);
-			break;
+			return gBlockDefinitions[type].name;
 		case 0: // normal log
 			return gBlockDefinitions[type].name;
 		case 1: // spruce (dark)
@@ -1199,31 +1199,62 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 		break;
 
 	case BLOCK_LOG:
-		switch (dataVal & 0x3)
-		{
-		default:
-			assert(0);
-			break;
-		case 0:
-			break;
-		case 1:	// spruce
-			return "Spruce Log";
-		case 2:	// birch
-			return "Birch Log";
-		case 3:	// jungle
-			return "Jungle Log";
+		if (dataVal & BIT_16) {
+			switch (dataVal & 0x3)
+			{
+			default:
+				assert(0);
+				break;
+			case 0:
+				return "Oak Wood";
+			case 1:	// spruce
+				return "Spruce Wood";
+			case 2:	// birch
+				return "Birch Wood";
+			case 3:	// jungle
+				return "Jungle Wood";
+			}
+		} else {
+			switch (dataVal & 0x3)
+			{
+			default:
+				assert(0);
+				break;
+			case 0:
+				break;
+			case 1:	// spruce
+				return "Spruce Log";
+			case 2:	// birch
+				return "Birch Log";
+			case 3:	// jungle
+				return "Jungle Log";
+			}
 		}
 		break;
 	case BLOCK_AD_LOG:
-		switch (dataVal & 0x3)
-		{
-		default:
-			assert(0);
-			break;
-		case 0:
-			break;
-		case 1:	// dark oak
-			return "Dark Oak Log";
+		if (dataVal & BIT_16) {
+			switch (dataVal & 0x3)
+			{
+			default:
+				assert(0);
+				break;
+			case 0:
+				return "Acacia Wood";
+			case 1:	// dark oak
+				return "Dark Oak Wood";
+			}
+		}
+		else {
+			switch (dataVal & 0x3)
+			{
+			default:
+				assert(0);
+				break;
+			case 0:
+				break;
+			case 1:	// dark oak
+				return "Dark Oak Log";
+			}
 		}
 		break;
 	case BLOCK_STATIONARY_WATER:
