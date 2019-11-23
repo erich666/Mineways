@@ -4759,8 +4759,8 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
             BlockEntity blockEntities[16 * 16 * 256];
 
             block->blockType = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
-            // got block successfully?
 
+            // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
             if ((block->blockType > 0) && (block->numEntities > 0)) {
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity *)malloc(block->numEntities * sizeof(BlockEntity));

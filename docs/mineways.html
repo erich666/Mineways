@@ -439,7 +439,7 @@ You can also interactively compare these sampling methods <a href="https://skfb.
 <B>Wavefront OBJ file export options:</B></a>
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Material per block ID family," each separate block is put into a separate object, so each can be deleted, animated, or otherwise modified in a modeler.
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Material per block ID family," each separate block is put into a separate object, so each can be deleted, animated, or otherwise modified in a modeler. Note: for Blender, you must click the "Split by: Group" box to be able to then select individual blocks.
 <LI>Material per object: on by default; similar blocks are given the same material. If turned off and exporting separate types, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easy to edit) or whether individual blocks are grouped by material.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. For example, the <a href="https://minecraft-ids.grahamedgecombe.com/">Stone family</a> has stone, granite, polished granite, diorite, and so on. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states.
 </UL>
@@ -3005,11 +3005,17 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 </UL>
 </UL>
 
-<LI>Version 7.06, 9/18/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV705.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.06, 9/18/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV706.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Wood (vs. Log) blocks for versions 1.13 on were getting turned into planks. The deforestation has been fixed; they're now properly wood blocks again. <I>(Thanks to Avatar2003 for reporting this bug.)</I>
 <LI>Update import instructions for Maya.
+</UL>
+
+<LI>Version 7.07, 11/23/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV707.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Bug fix: when stairs are put next to each other and "Export individual blocks" were chosen, the sides of the top part of the stair step were not exported - fixed <I>(Thanks to "Speaker" for reporting this bug)</I>.
 </UL>
 
 </UL>
@@ -3100,7 +3106,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 9/18/2019</p>
+		<p id="lastUpdate">Last updated 11/23/2019</p>
 	</div>
 </div>
 

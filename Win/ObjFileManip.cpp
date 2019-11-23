@@ -4484,7 +4484,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
 
             // Other blocks will clear faces as needed, by the save system itself (i.e. if a small face is next to a full block,
-            // it'll be remove if and only if we're rendering).
+            // it'll be removed if and only if we're rendering).
             // Save the 2x2 block, bottom or top.
             saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, miny, maxy, 0, 16);
 
@@ -4546,9 +4546,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 // Now, try the common case of two identical steps next to each other: if this really is a 2x1 block and nothing
                 // else, no 1x1 is left, then check if the two adjoining steps touching the 1 sides (not 2) are *IDENTICAL* in
                 // their step masks and levels. The short version: are their data values exactly the same as this block's?
-                // If so, then mask out that 1x1 side face. This then covers the easy and common case where two identical steps are
-                // next to each other and continuing.
-                if (stepMask == 0x0)
+                // If so, then mask out that 1x1 side face, but only if "export separate blocks" is off. This then covers the
+				// easy and common case where two identical steps are next to each other and continuing.
+                if ((stepMask == 0x0) && !(gOptions->pEFD->chkIndividualBlocks))
                 {
 					int neighborData;
 					// OK, this is a 2x1 block. Does it go north-south or east-west?
