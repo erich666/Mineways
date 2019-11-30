@@ -2122,8 +2122,11 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
                 unsigned char dataVal = block->data[chunkIndex];
 				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
 				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-				if (isVersion13orNewer && (dataVal & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+				if (isVersion13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+					// if you hit this, something has gone odd with the dataVal, which shouldn't happen. See nbt.cpp where it says "make sure upper bits are not set - they should not be!"
+					assert(block->grid[chunkIndex] < NUM_BLOCKS_DEFINED - 256);
 					gBoxData[boxIndex].data = dataVal & 0x7F;
+					// high bit turns into +256
 					blockID = gBoxData[boxIndex].origType =
 						gBoxData[boxIndex].type = block->grid[chunkIndex] | 0x100;
 				}
@@ -2901,25 +2904,37 @@ static void computeRedstoneConnectivity(int boxIndex)
         // as we go through the blocks.
         if (gBoxData[boxIndex + 1 + gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE)
         {
-            gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+			// (upside down) stairs do not have redstone put on their sides.
+			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].type].flags & BLF_STAIRS)) {
+				gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+			}
             gBoxData[boxIndex + 1 + gBoxSizeYZ].data |= (FLAT_FACE_LO_X << 4);
             gBoxData[boxIndex].data |= (FLAT_FACE_HI_X << 4);
         }
         if (gBoxData[boxIndex + 1 - gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE)
         {
-            gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+			// (upside down) stairs do not have redstone put on their sides.
+			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSizeYZ].type].flags & BLF_STAIRS)) {
+				gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+			}
             gBoxData[boxIndex + 1 - gBoxSizeYZ].data |= (FLAT_FACE_HI_X << 4);
             gBoxData[boxIndex].data |= (FLAT_FACE_LO_X << 4);
         }
         if (gBoxData[boxIndex + 1 + gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE)
         {
-            gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+			// (upside down) stairs do not have redstone put on their sides.
+			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSize[Y]].type].flags & BLF_STAIRS)) {
+				gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+			}
             gBoxData[boxIndex + 1 + gBoxSize[Y]].data |= (FLAT_FACE_LO_Z << 4);
             gBoxData[boxIndex].data |= (FLAT_FACE_HI_Z << 4);
         }
         if (gBoxData[boxIndex + 1 - gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE)
         {
-            gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+			// (upside down) stairs do not have redstone put on their sides.
+			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSize[Y]].type].flags & BLF_STAIRS)) {
+				gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+			}
             gBoxData[boxIndex + 1 - gBoxSize[Y]].data |= (FLAT_FACE_HI_Z << 4);
             gBoxData[boxIndex].data |= (FLAT_FACE_LO_Z << 4);
         }
@@ -2928,7 +2943,7 @@ static void computeRedstoneConnectivity(int boxIndex)
     // Note that the other wires in the world will pick up the other 6 possibilities:
     // -X and -Z on this level (by these same tests below) and the 4 "wires down a level"
     // possibilities (by these same tests above).
-    // Test *all* things that redstone connects to. This could be a table, for speed.
+    // Test *all* things that redstone connects to. This could become a table, for speed.
     if ((gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].origType].flags & BLF_CONNECTS_REDSTONE) ||
         // repeaters attach only at their ends, so test the direction they're at
         (gBoxData[boxIndex + gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex + gBoxSizeYZ].data & 0x1)) ||
@@ -3666,6 +3681,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     dataVal = gBoxData[boxIndex].data;
 
     // Add to minor count if this object has some heft. This is approximate, but better than nothing.
+	// This count can be slightly off if we return 0, meaning the block wasn't a billboard or geometry after all
     if ( gBlockDefinitions[type].flags & (BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_PANE))
     {
         gMinorBlockCount++;
@@ -3918,8 +3934,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
 
-        /////////////////////////////////////////////////////////////////////////////////////////
-        // real-live solid output, baby
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // real-live solid output, baby
     case BLOCK_FENCE:						// saveBillboardOrGeometry
     case BLOCK_SPRUCE_FENCE:
     case BLOCK_BIRCH_FENCE:
@@ -8440,6 +8456,110 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				}
 			}
 		}
+		break; // saveBillboardOrGeometry
+
+	case BLOCK_HONEY:
+		topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		sideSwatchLoc = topSwatchLoc - 1;
+		bottomSwatchLoc = topSwatchLoc - 2;
+
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0x0, 0, 16, 0, 16, 0, 16);
+		if (!gPrint3D)
+		{
+			// tasty honey inside
+			saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0x0, 1, 15, 1, 15, 1, 15);
+		}
+		break; // saveBillboardOrGeometry
+
+	case BLOCK_NETHER_PORTAL:
+		if (gPrint3D) {
+			// maybe too thin (4 blocks) to print safely
+			if (dataVal == 1) {
+				// east-west
+				saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 16, 6 - fatten, 10 + fatten);
+			}
+			else {
+				// north-south
+				saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 0, 16);
+			}
+		}
+		// 4 is east-west, 8 is north-south
+		if (dataVal == 0)
+		{
+			// pre 1.13, so figure out axis if we can
+			// infer direction from surrounding neighbors
+			// north/south?
+			int ns = 0;
+			int ew = 0;
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+			if ((neighborType == BLOCK_NETHER_PORTAL) || (neighborType == BLOCK_OBSIDIAN)) {
+				ew += (neighborType == BLOCK_NETHER_PORTAL) ? 10 : 1;
+			}
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+			if ((neighborType == BLOCK_NETHER_PORTAL) || (neighborType == BLOCK_OBSIDIAN)) {
+				ew += (neighborType == BLOCK_NETHER_PORTAL) ? 10 : 1;
+			}
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+			if ((neighborType == BLOCK_NETHER_PORTAL) || (neighborType == BLOCK_OBSIDIAN)) {
+				ns += (neighborType == BLOCK_NETHER_PORTAL) ? 10 : 1;
+			}
+			neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+			if ((neighborType == BLOCK_NETHER_PORTAL) || (neighborType == BLOCK_OBSIDIAN)) {
+				ns += (neighborType == BLOCK_NETHER_PORTAL) ? 10 : 1;
+			}
+			if (ns || ew) {
+				// billboard output, so decide which wins, as best we can
+				dataVal = (ns > ew) ? 2 : 1;
+			}
+			else {
+				// can't really figure this portal out, it has *no* sensible neighbors.
+				return 0;
+			}
+		}
+		facing = (dataVal == 1) ? (DIR_LO_Z_BIT | DIR_HI_Z_BIT) : (DIR_LO_X_BIT | DIR_HI_X_BIT);
+
+		// does the portal need sides? (happens if portal is chopped off by export box)
+		if (gOptions->pEFD->chkBlockFacesAtBorders) {
+			int wx, wy, wz;
+			BOX_INDEX_TO_WORLD_XYZ(boxIndex, wx, wy, wz);
+			if (dataVal == 1)
+			{
+				// east-west, so check east and west neighbors
+				if (wx <= gSolidWorldBox.min[X]) {
+					facing |= DIR_LO_X_BIT;
+				}
+				if (wx >= gSolidWorldBox.max[X]) {
+					facing |= DIR_HI_X_BIT;
+				}
+			}
+			else {
+				// north-south
+				if (wz <= gSolidWorldBox.min[Z]) {
+					facing |= DIR_LO_Z_BIT;
+				}
+				if (wz >= gSolidWorldBox.max[Z]) {
+					facing |= DIR_HI_Z_BIT;
+				}
+			}
+			// does the portal need a top or bottom cap? Happens only if at limits
+			if (wy >= gSolidWorldBox.max[Y]) {
+				facing |= DIR_TOP_BIT;
+			}
+			if (wy <= gSolidWorldBox.min[Y]) {
+				facing |= DIR_BOTTOM_BIT;
+			}
+		}
+		// we now get the faces we *don't* want to output
+		facing = ~facing & DIR_ALL_BITS;
+		if (dataVal == 1) {
+			// east-west
+			saveBoxGeometry(boxIndex, type, dataVal, 1, facing, 0, 16, 0, 16, 6, 10);
+		}
+		else {
+			// north-south
+			saveBoxGeometry(boxIndex, type, dataVal, 1, facing, 6, 10, 0, 16, 0, 16);
+		}
+
 		break; // saveBillboardOrGeometry
 
 	default:
@@ -17597,6 +17717,82 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 		case BLOCK_SCAFFOLDING:
 			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 106, 40);
 			break;
+		case BLOCK_BEE_NEST:
+			// establish top/side/bottom
+			switch (dataVal & BIT_32) {
+			default:
+			case 0:			// bee nest
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 11, 41, 8, 41);
+				break;
+			case BIT_32:	// beehive
+				swatchLoc = SWATCH_INDEX(13, 41);	// top
+				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 42, 13, 41);
+				break;
+			}
+			// if a side, we may need to change a face to be a front or front_on
+			if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM))
+			{
+				bool filled_with_honey = ((dataVal & 0x1c) >> 2) >= 5;
+				switch (dataVal & BIT_32)
+				{
+				default:
+				case 0:			// bee_nest
+					frontLoc = SWATCH_INDEX(filled_with_honey ? 10 : 9, 41);
+					break;
+				case BIT_32:	// beehive
+					frontLoc = SWATCH_INDEX(filled_with_honey ? 15 : 14, 41);
+					break;
+				}
+				// facing ESWN
+				switch (dataVal & 0x3)
+				{
+				case 3: // North
+					if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+						swatchLoc = frontLoc;
+					break;
+				case 1: // South
+					if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+						swatchLoc = frontLoc;
+					break;
+				case 2: // West
+					if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+						swatchLoc = frontLoc;
+					break;
+				case 0: // East
+				default:
+					if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+						swatchLoc = frontLoc;
+					break;
+				}
+			}
+			else
+			{
+				// top or bottom face - rotation? Not really sure if top of bee_nests rotate, but do it anyway
+				switch (dataVal & 0x3)
+				{
+				case 3: // North -Z
+					// no rotation needed
+					break;
+				case 1: // South +Z
+					if (uvIndices) {
+						rotateIndices(localIndices, 180);
+					}
+					break;
+				case 2: // West
+					if (uvIndices) {
+						rotateIndices(localIndices, 270);
+					}
+					break;
+				case 0: // East
+				default:
+					if (uvIndices) {
+						rotateIndices(localIndices, 90);
+					}
+					break;
+				}
+			}
+			break;
+
 		}
 	}
 
@@ -17621,7 +17817,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         else
         {
             // Normal case (note that pistons go through this, too, but we compensate
-            // earlier - easier than testing for this special case here)
+            // earlier - easier than testing for that special case here)
             uvIndices[0] = standardCorners[localIndices[0]];
             uvIndices[1] = standardCorners[localIndices[1]];
             uvIndices[2] = standardCorners[localIndices[2]];
@@ -19503,7 +19699,6 @@ static int createBaseMaterialTexture()
 		//{ BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
 		//{ BLOCK_WATER /* water */, 15, 25,{ 0, 0, 0 } },
 		//{ BLOCK_WATER /* water */, 8, 26,{ 0, 0, 0 } },
-
 		
 		// These tiles come in grayscale and must be multiplied by some color.
         // They're grass, redstone wire, leaves, stems, etc.

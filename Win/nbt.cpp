@@ -300,12 +300,14 @@ static int worldVersion = 0;
 // signal_fire: true|false
 #define CAMPFIRE_PROP		EXTENDED_SWNE_FACING_PROP
 
+// axis: 1 EW, 2 NS
+#define NETHER_PORTAL_AXIS_PROP	51
 
 // If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 679
+#define NUM_TRANS 683
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -565,7 +567,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  87,           0, "netherrack", NO_PROP },
 { 0,  88,           0, "soul_sand", NO_PROP },
 { 0,  89,           0, "glowstone", NO_PROP },
-{ 0,  90,           0, "nether_portal", NO_PROP }, // axis: portal's long edge runs east-west; we don't need this info currently, so ignore it
+{ 0,  90,           0, "nether_portal", NETHER_PORTAL_AXIS_PROP }, // axis: portal's long edge runs east-west or north-south
 { 0,  35,           0, "white_wool", NO_PROP },
 { 0,  35,           1, "orange_wool", NO_PROP },
 { 0,  35,           2, "magenta_wool", NO_PROP },
@@ -996,6 +998,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  82,       HIGH_BIT, "lantern", NO_PROP },	// uses just "hanging" for bit 0x1
 { 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
 { 0,  84,       HIGH_BIT, "scaffolding", NO_PROP },	// uses just "bottom" for bit 0x1
+{ 0,  85,       HIGH_BIT, "bee_nest", EXTENDED_SWNE_FACING_PROP },	// facing is 0x3, honey_level is 0x01C, nest/hive is 0x20
+{ 0,  85,HIGH_BIT|BIT_32, "beehive", EXTENDED_SWNE_FACING_PROP },
+{ 0,  86,       HIGH_BIT, "honey_block", NO_PROP },
+{ 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
 
 };
 
@@ -1167,11 +1173,11 @@ int findIndexFromName(char *name)
 		return 0;
 	}
 // to break on a specific named block
-//#ifdef _DEBUG
-//	if (strcmp("potted_cactus", name) == 0) {
-//		name[0] = name[0];
-//	}
-//#endif
+#ifdef _DEBUG
+	//if (strcmp("acacia_stairs", name) == 0) {
+	//	name[0] = name[0];
+	//}
+#endif
 	int hashNum = computeHash(name);
 	int *hl = HashArray[hashNum & HASH_MASK];
 
@@ -1475,18 +1481,42 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 
 	len = readDword(pbf); //array length
 	if (!newFormat) {
+		// old, direct format - done
 		if (bfread(pbf, biome, len) < 0) return -5;
 	}
 	else {
-		// new format 1.13
-		unsigned char biomeint[4 * 16 * 16];
-		memset(biomeint, 0, 4 * 16 * 16);
-		if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
-		// convert to bytes, tough luck if too high (for now)
-		for (int i = 0; i < 256; i++) {
-			// wild guess as to the biome - looks like the topmost byte right now. TODO
-			int grab = 4 * i + 3;
-			biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
+		// new format 1.13+
+		if (len == 256) {
+			// 1.13 and 1.14
+			// convert to bytes, tough luck if too high (for now)
+			unsigned char biomeint[4 * 256];
+			memset(biomeint, 0, 4 * len);
+			if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
+			for (int i = 0; i < 256; i++) {
+				// wild guess as to the biome - looks like the topmost byte right now.
+				int grab = 4 * i + 3;
+				biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
+			}
+		}
+		else if ( len == 1024 ) {
+			// 1.15 on, optionally
+			// TODOTODO from https://minecraft.gamepedia.com/Java_Edition_1.15/Development_versions
+			// Biome information now stores Y-coordinates, allowing biomes to be changed based on height; previously, biome information only stored X and Z coordinates.
+			// The  Biomes array in the  Level tag for each chunk now contains 1024 integers instead of 256.
+			// len should be 1024
+			// convert to bytes, tough luck if too high (for now)
+			unsigned char biomeint[4 * 1024];
+			memset(biomeint, 0, 4 * len);
+			if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
+			for (int i = 0; i < 256; i++) {
+				// super-wild guess as to the biome - this doesn't work TODOTODO
+				int grab = 16 * i + 15;
+				biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
+			}
+		}
+		else {
+			// we should debug assert at this point.
+			memset(biome, 0, 256);
 		}
 	}
 
@@ -1507,12 +1537,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			empty = true;
 			//return -9;
 		}
-		// returning -9 here for some reason crashes things later on, I don't know why.
+		// returning -9 here for some reason crashes things later on.
 		// The path taken is then "nothing read" and there's a quick out, but for some reason
 		// this crashes the program now when exporting and redrawing just before then!
 		// It turns out to have to do with the Stack Reserve Size: changing this to 1500000 (1.5 Mb; it's 1 Mb to start)
 		// fixes the problem. See https://miztakenjoshi.wordpress.com/2010/01/27/unhandled-exception-0xc00000fd-stack-overflow/
-		// But, it's better to read in an empty chunk and cache it anyway, so new code's better.
+		// But, it's better to read in an empty chunk and cache it anyway, so this new code's better.
 		// was:    return -9;
 	}
 
@@ -1609,12 +1639,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			// for doors
 			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
 				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
-			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single, attachment;
+			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single, attachment, honey_level;
 			// to avoid Release build warning =but should always be set by code in practice
 			int typeIndex = 0;
 			half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
 				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
-			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = attachment= 0;
+			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = attachment = honey_level = 0;
 
 			int bigbufflen = 0;
 			int entry_index = 0;
@@ -1706,9 +1736,14 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 
 								// incredibly stupid special case:
 								// in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
-								if ((mcversion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0) ) {
+								if ((mcversion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0)) {
 									strcpy_s(thisBlockName, 100, "minecraft:smooth_stone_slab");
 								}
+
+								// code to look for a specific name when debugging
+								//if ((mcversion >= 13) && (strcmp("minecraft:frame", thisBlockName) == 0)) {
+								//	type = type;
+								//}
 
 								// convert name to block value. +10 is to avoid (useless) "minecraft:" string.
 								// could be dangerous if len < 10 for whatever reason.
@@ -1719,7 +1754,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								}
 								else {
 									// unknown type - call it bedrock, by tradition
-									//  THIS IS WHERE TO PUT A BREAK TO SEE WHAT NAME IS UNKNOWN
+									//  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN
 									paletteBlockEntry[entry_index] = 7;
 									paletteDataEntry[entry_index] = 0;
 								}
@@ -1747,7 +1782,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										if (strcmp(token, "snowy") == 0) {} // for grassy blocks, podzol, maybe more
 
 										// interpret token value
-										// wood axis, quartz block axis AXIS_PROP
+										// wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP
 										else if (strcmp(token, "axis") == 0) {
 											if (strcmp(value, "y") == 0) {
 												axis = 0;
@@ -1914,8 +1949,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										else if (strcmp(token, "half") == 0) {
 											// upper for sunflowers, top for stairs. Good job, guys.
 											half = ((strcmp(value, "upper") == 0) || strcmp(value, "top") == 0) ? true : false;
-											// for sunflowers
-											dataVal = half ? 8 : 0;
+											// do not set the data value, as the interpreters later on will interpret "half"
 										}
 										// DOOR_PROP only
 										else if (strcmp(token, "hinge") == 0) {
@@ -2108,6 +2142,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										else if (strcmp(token, "bottom") == 0) {
 											dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
 										}
+										// for beehive and bee_nest
+										else if (strcmp(token, "honey_level") == 0) {
+											honey_level = atoi(value);
+										}
 
 #ifdef _DEBUG
 										else {
@@ -2120,7 +2158,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(token, "drag") == 0) {}
 											else if (strcmp(token, "has_record") == 0) {}	// jukebox
 											else {
-												// unknown property, let's show it: put a break here and
+												// unknown property, let's show it: put a break here in DEBUG and
 												// put text in "Actions":
 												// token is {token} and value is {value}
 												token[0] = token[0];	// here for debug
@@ -2147,6 +2185,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case AXIS_PROP:
 							// will get OR'ed in with type of block later
 							dataVal = axis;
+							break;
+						case NETHER_PORTAL_AXIS_PROP:
+							// was 4 and 8, make it 1 and 2
+							dataVal = axis>>2;
 							break;
 						case TORCH_PROP:
 							// if dataVal is not set, i.e. is 0, then set to 5
@@ -2326,7 +2368,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							dataVal = door_facing | (face << 2) // grindstone
 								| (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern
 								| (attachment << 2) // bell
-								| (lit ? 4 : 0) | (signal_fire ? 8 : 0); // campfire
+								| (lit ? 4 : 0) | (signal_fire ? 8 : 0)
+								| (honey_level<<2); // bee_nest, beehive
 							face = 0;
 							has_book = false;
 							powered = false;
@@ -2481,6 +2524,11 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						default:
 							break;
 						}
+						// make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
+						//if (dataVal > 0x3F) {
+						//	// here's where to put a break for DEBUG
+						//	dataVal &= 0x3F;
+						//}
 						// always check for waterlogged
 						dataVal |= (waterlogged ? WATERLOGGED_BIT : 0x0);
 

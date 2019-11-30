@@ -159,7 +159,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*  87 */ "Netherrack",             		0x723a38, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 6, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},   //57
 	{ /*  88 */ "Soul Sand",              		0x554134, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 6, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},   //58
 	{ /*  89 */ "Glowstone",              		0xf9d49c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 6, 0x00, BLF_WHOLE | BLF_EMITTER},   //59
-	{ /*  90 */ "Nether Portal",				0x472272, 0.800f, 0xff7711, 0xff7711, 0.12345f,  14, 0, 0x00, BLF_PANE | BLF_TRANSPARENT | BLF_EMITTER | BLF_DNE_FLUID},   //5a/90 - 0xd67fff unpremultiplied
+	{ /*  90 */ "Nether Portal",				0x472272, 0.800f, 0xff7711, 0xff7711, 0.12345f,  14, 0, 0x00, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_PANE | BLF_TRANSPARENT | BLF_EMITTER | BLF_DNE_FLUID},   //5a/90 - 0xd67fff unpremultiplied
 	{ /*  91 */ "Jack o'Lantern",				0xe9b416, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x00, BLF_WHOLE | BLF_EMITTER},   //5b 6,7 side, 8,7 lit face
 	{ /*  92 */ "Cake",							0xfffdfd, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 7, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},   //5c 10,7 side, 11,7 inside, 12,7 under - TODO: not really whole
 	{ /*  93 */ "Redstone Repeater (inactive)",	0x560000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 8, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_DNE_FLUID | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID},   //5d
@@ -238,7 +238,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 162 */ "Acacia Log", 					0x766F64, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,19, 0x01, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },	//A2/162
 	{ /* 163 */ "Acacia Stairs",          		0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A3
 	{ /* 164 */ "Dark Oak Stairs",        		0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A4/164
-	{ /* 165 */ "Slime Block",            		0x787878, 0.500f, 0xff7711, 0xff7711, 0.12345f,   3,22, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR },	// A5/165 - 1.8
+	{ /* 165 */ "Slime Block",            		0x787878, 0.700f, 0xff7711, 0xff7711, 0.12345f,   3,22, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR },	// A5/165 - 1.8
 	{ /* 166 */ "Barrier",                		0xE30000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  14,25, 0x00, BLF_WHOLE | BLF_CUTOUTS },	// A6/166 - 1.8 - to make visible, set alpha to 1.0
 	{ /* 167 */ "Iron Trapdoor",          		0xC0C0C0, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,22, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// A7/167 - 1.8
 	{ /* 168 */ "Prismarine",             		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,22, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 1.8 add
@@ -332,7 +332,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 255 */ "Structure Block",        		0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 25, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
 	// just to be safe, we don't use 256 and consider it AIR
-	// name                               read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
+	//			 name                           read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
 	{ /* 256 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
 	{ /* 257 */ "Prismarine Stairs",      		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 	{ /* 258 */ "Prismarine Brick Stairs",		0x68A495, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -419,6 +419,9 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 338 */ "Lantern",				  		0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_EMITTER },
 	{ /* 339 */ "Campfire",               		0xE0B263, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 39, 0x00, BLF_FLATTEN | BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_EMITTER },
 	{ /* 340 */ "Scaffolding",			  		0xB38D54, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 40, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY },
+	{ /* 341 */ "Bee Nest",              		0xD2AD51, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 41, 0x20, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+	{ /* 342 */ "Honey Block",           		0xFBBB41, 0.750f, 0xff7711, 0xff7711, 0.12345f,  3, 42, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_TRANSPARENT }, // the semi-transparent one
+	{ /* 343 */ "Honeycomb Block",         		0xE69B35, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 42, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

@@ -909,7 +909,7 @@ TileMaker is a command-line utility for making a terrainExt.png file, which is t
 TileMaker works by using a few different textures from Minecraft or from a resource pack to create a new texture to feed to Mineways. Specifically, here's how to set things up:
 <UL>
 <LI>Locate TileMaker.exe and the file terrainBase.png. The terrainBase.png has the default textures for when replacement tiles in your texture pack are not found.
-<LI>In this directory where TileMaker.exe is located, make a directory called "blocks". This is where you'll put the textures you want to use instead. Copy all files from your texture pack's assets\minecraft\textures\blocks to this directory.
+<LI>In this directory where TileMaker.exe is located, make a directory called "blocks". This is where you'll put the textures you want to use instead. Copy all files from your texture pack's assets\minecraft\textures\block (or "blocks," for 1.12 and earlier) to this directory.
 <LI>While you're at it, copy "barrier.png" to the block folder from assets\minecraft\textures\items or wherever it's located.
 <LI>Copy the "chest" folder itself at assets\minecraft\textures\entity\chest to the "blocks" folder.
 <LI>Double-click TileMaker and the file terrainExt.png should be created. Cross fingers.
@@ -917,12 +917,12 @@ TileMaker works by using a few different textures from Minecraft or from a resou
 You can then feed this file to Mineways using "File | Set Terrain File". If you want this new file to be the default used at startup, simply replace the terrainExt.png file that comes with Mineways. To sum up:
 <PRE>
 TileMaker.exe and terrainBase.png
-blocks directory filled with files from assets\minecraft\textures\blocks and barrier.png perhaps from assets\minecraft\textures\items
+blocks directory filled with files from assets\minecraft\textures\block and barrier.png perhaps from assets\minecraft\textures\items
 chest directory inside a copy of the assets\minecraft\textures\entity\chest directory
 </PRE>
 <P>
 A problem with this approach is that TileMaker will run, popping up a window briefly and then disappearing. There are often warnings and sometimes errors, which you will miss. Better is to use the <a href="https://www.lifewire.com/how-to-open-command-prompt-2618089">CMD window</a>, go to the directory where TileMaker is located (using <a href="https://www.digitalcitizen.life/command-prompt-how-use-basic-commands">the "cd" command</a>), then type "TileMaker" and see what warnings and errors you get. Any error will halt execution, at which point you'll want to fix the error and run again. You can usually use the "up arrow" key to bring up the last command you typed in, e.g., "TileMaker". <P>
-A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your Minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g., 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\blocks". They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
+A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your Minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g., 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\block" (or "blocks," for 1.12 and earlier). They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 What TileMaker does by default is simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), extracts the chests from "blocks\chest", then writes out this new image as terrainExt.png. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size. Chests' sizes are ignored during this resizing calculation.
 <P>
@@ -1543,7 +1543,7 @@ Let's go with <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a
 <OL>
 <LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
 <LI>Select "Tools | Convert -> To Java." A large dialog box appears.
-<LI>For the "Minecraft Java world folder" at the top put a path where you want to create the converted world. For example, I might use "C:\Users\erich\AppData\Roaming\.minecraft\saves\bedrock_test\" - my user name is "erich" and the world directory name I want for the converted world is "bedrock_test." By putting the path "...\AppData\Roaming\.minecraft\saves\..." I am putting the converted world in the default directory for Minecraft Java worlds, which means it will then show up in Mineways' list of worlds automatically.
+<LI>For the "Minecraft Java world folder" at the top put a path where you want to create the converted world. If you leave it the default "\" you'll get a mysterious error. As an example, I use "C:\Users\erich\AppData\Roaming\.minecraft\saves\bedrock_test\" - my user name is "erich" and the world directory name I want for the converted world is "bedrock_test." By putting the path "...\AppData\Roaming\.minecraft\saves\..." I am putting the converted world in the default directory for Minecraft Java worlds, which means it will then show up in Mineways' list of worlds automatically.
 <LI>Halfway down on the left of the dialog look for "Convert into." Change this from "Empty Dimension" to "Empty World."
 <LI>Click "Convert" at the bottom of the dialog. Cross fingers.
 </OL>
@@ -3018,6 +3018,16 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Bug fix: when stairs are put next to each other and "Export individual blocks" were chosen, the sides of the top part of the stair step were not exported - fixed <I>(Thanks to "Speaker" for reporting this bug)</I>.
 </UL>
 
+<LI>Version 7.08, 11/29/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV708.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Added 1.15-pre3 bee nest, beehive, honey block, and honeycomb block.
+<LI>Added 1.15 biome reader, so we don't crash. <B>NOTE:</B> I haven't figured out how the 1024 integer biome storage works yet.
+<LI>Made nether portal have true geometry instead of a whole block.
+<LI>Bug fix: redstone wires should not run down the sides of upside-down stair blocks that have redstone on top of them and connecting redstone a level below them. <I>(Thanks to Quinlan W for reporting this bug)</I>.
+<LI>Bug fix: when using MCC ToolChest PE, the order of stair Properties is reversed, which revealed a subtle bug in Mineways when translating upside-down stairs' data values; now fixed.
+</UL>
+
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
@@ -3106,7 +3116,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 11/23/2019</p>
+		<p id="lastUpdate">Last updated 11/29/2019</p>
 	</div>
 </div>
 

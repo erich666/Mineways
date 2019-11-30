@@ -53,7 +53,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 42
+#define VERTICAL_TILES 43
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -737,14 +737,30 @@ static struct {
 	{  5, 41, 344, L"stonecutter_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
 	{  6, 41, 344, L"stonecutter_bottom", L"", SWATCH_REPEAT_ALL },
 	{  7, 41, 344, L"stonecutter_saw", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-	{  8, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{  9, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 10, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 11, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 12, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 13, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 14, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
-	{ 15, 41,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{  8, 41, 345, L"bee_nest_bottom", L"", SWATCH_REPEAT_ALL },
+	{  9, 41, 345, L"bee_nest_front", L"", SWATCH_REPEAT_ALL },
+	{ 10, 41, 345, L"bee_nest_front_honey", L"", SWATCH_REPEAT_ALL },
+	{ 11, 41, 345, L"bee_nest_side", L"", SWATCH_REPEAT_ALL },
+	{ 12, 41, 345, L"bee_nest_top", L"", SWATCH_REPEAT_ALL },
+	{ 13, 41, 345, L"beehive_end", L"", SWATCH_REPEAT_ALL },
+	{ 14, 41, 345, L"beehive_front", L"", SWATCH_REPEAT_ALL },
+	{ 15, 41, 345, L"beehive_front_honey", L"", SWATCH_REPEAT_ALL },
+	{  0, 42, 345, L"beehive_side", L"", SWATCH_REPEAT_ALL },
+	{  1, 42,  58, L"honey_block_bottom", L"", SWATCH_REPEAT_ALL },
+	{  2, 42,  58, L"honey_block_side", L"", SWATCH_REPEAT_ALL },
+	{  3, 42,  58, L"honey_block_top", L"", SWATCH_REPEAT_ALL },
+	{  4, 42, 334, L"honeycomb_block", L"", SWATCH_REPEAT_ALL },
+	{  5, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{  6, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{  7, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{  8, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{  9, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 10, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 11, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 12, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 13, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 14, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
+	{ 15, 42,   6, L"", L"", SWATCH_REPEAT_ALL }, // Unused
 };
 
 

@@ -422,7 +422,7 @@ static struct {
 	{ "Horn" },
 };
 
-const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int xoff, int y, int zoff )
+const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int xoff, int y, int zoff)
 {
 	///////////////////////////////////
 	// give a better name if possible
@@ -1214,7 +1214,8 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			case 3:	// jungle
 				return "Jungle Wood";
 			}
-		} else {
+		}
+		else {
 			switch (dataVal & 0x3)
 			{
 			default:
@@ -1392,9 +1393,12 @@ const char * RetrieveBlockSubname( int type, int dataVal, WorldBlock *block, int
 			return "Damaged Anvil";
 		}
 		break;
+	case BLOCK_BEE_NEST:
+		if (dataVal & BIT_32)
+		{
+			return "Beehive";
+		}
 	}
-
-	// could add more? TODO
 
 	return gBlockDefinitions[type].name;
 }
@@ -2470,6 +2474,18 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			break;
 		}
 		break;
+	case BLOCK_BEE_NEST:
+		dataVal = block->data[voxel];
+		if (dataVal & BIT_32)
+		{
+			// beehive
+			color = 0xB5935B;
+		}
+		else {
+			lightComputed = true;
+			color = gBlockColors[type * 16 + light];
+			break;
+		}
 
 	default:
         // Everything else
@@ -4429,6 +4445,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
 			block->data[bi] = (unsigned char)(HIGH_BIT|0x1);
 		}
+		break;
+	case BLOCK_BEE_NEST:
+		addBlock = 1;
+		// use BIT_32 on or off (beehive/bee_nest), honey_level 5 or 0, facing 0 1 2 3
+		finalDataVal = 0x80 | ((dataVal & 0x8) ? BIT_32 : 0) |	// beehive / bee_nest
+			((dataVal & 0x4) ? 5 << 2 : 0) |	// honey level
+			(dataVal & 0x3);	// facing
 		break;
 
 		// don't show special blocks to users
