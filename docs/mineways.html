@@ -3028,6 +3028,14 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Bug fix: when using MCC ToolChest PE, the order of stair Properties is reversed, which revealed a subtle bug in Mineways when translating upside-down stairs' data values; now fixed.
 </UL>
 
+<LI>Version 7.09, 12/7/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV709.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Interpret 1.15 biomes correctly. Technical details: The 1024 integer array is 64 levels of 4x4x4 voxels. In Mineways only the 4x4 biome values for levels 64-67 (level 16) are used, the rest are ignored for now.
+<LI>Bug fix: redstone wires should not run down the sides of upper-half slabs that have redstone on top of them and connecting to redstone a level below them. <I>(Thanks to Quinlan W again for reporting this bug)</I>.
+<LI>Update to now build under VS 2019.
+</UL>
+
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
@@ -3116,7 +3124,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 11/29/2019</p>
+		<p id="lastUpdate">Last updated 12/7/2019</p>
 	</div>
 </div>
 

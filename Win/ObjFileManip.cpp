@@ -2905,7 +2905,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         if (gBoxData[boxIndex + 1 + gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE)
         {
 			// (upside down) stairs do not have redstone put on their sides.
-			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].type].flags & BLF_STAIRS)) {
+			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].type].flags & (BLF_STAIRS| BLF_HALF))) {
 				gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
 			}
             gBoxData[boxIndex + 1 + gBoxSizeYZ].data |= (FLAT_FACE_LO_X << 4);
@@ -2914,7 +2914,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         if (gBoxData[boxIndex + 1 - gBoxSizeYZ].origType == BLOCK_REDSTONE_WIRE)
         {
 			// (upside down) stairs do not have redstone put on their sides.
-			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSizeYZ].type].flags & BLF_STAIRS)) {
+			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSizeYZ].type].flags & (BLF_STAIRS| BLF_HALF))) {
 				gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
 			}
             gBoxData[boxIndex + 1 - gBoxSizeYZ].data |= (FLAT_FACE_HI_X << 4);
@@ -2923,7 +2923,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         if (gBoxData[boxIndex + 1 + gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE)
         {
 			// (upside down) stairs do not have redstone put on their sides.
-			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSize[Y]].type].flags & BLF_STAIRS)) {
+			if (!(gBlockDefinitions[gBoxData[boxIndex + gBoxSize[Y]].type].flags & (BLF_STAIRS| BLF_HALF))) {
 				gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
 			}
             gBoxData[boxIndex + 1 + gBoxSize[Y]].data |= (FLAT_FACE_LO_Z << 4);
@@ -2932,7 +2932,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         if (gBoxData[boxIndex + 1 - gBoxSize[Y]].origType == BLOCK_REDSTONE_WIRE)
         {
 			// (upside down) stairs do not have redstone put on their sides.
-			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSize[Y]].type].flags & BLF_STAIRS)) {
+			if (!(gBlockDefinitions[gBoxData[boxIndex - gBoxSize[Y]].type].flags & (BLF_STAIRS| BLF_HALF))) {
 				gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
 			}
             gBoxData[boxIndex + 1 - gBoxSize[Y]].data |= (FLAT_FACE_HI_Z << 4);
@@ -8975,13 +8975,19 @@ static void setDefaultUVs( Point2 uvs[3], int skip )
 
 static FaceRecord * allocFaceRecordFromPool()
 {
-    if ( gModel.faceRecordPool->count >= FACE_RECORD_POOL_SIZE )
-    {
-        // allocate new pool
-        FaceRecordPool *pFRP = (FaceRecordPool *)malloc(sizeof(FaceRecordPool));
-        pFRP->count = 0;
-        pFRP->pPrev = gModel.faceRecordPool;
-        gModel.faceRecordPool = pFRP;
+	if (gModel.faceRecordPool->count >= FACE_RECORD_POOL_SIZE)
+	{
+		// allocate new pool
+		FaceRecordPool* pFRP = (FaceRecordPool*)malloc(sizeof(FaceRecordPool));
+		if (pFRP) {
+			pFRP->count = 0;
+			pFRP->pPrev = gModel.faceRecordPool;
+			gModel.faceRecordPool = pFRP;
+		}
+		else {
+			// out of memory! Not sure what to do...
+			assert(pFRP);
+		}
     }
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
@@ -12739,7 +12745,7 @@ static float computeHidingDistance( Point loc1, Point loc2, float norm )
     // a little wasteful; really just need X and Z squared
     Vec3Op( vec, =, loc1, -, loc2 );
     Vec2Op( vec, *=, vec );
-    return ( loc1[Y] + sqrt( vec[X] + vec[Z] ) / norm );
+    return ( (float)(loc1[Y] + sqrt( vec[X] + vec[Z] ) / norm) );
 }
 
 static void boxIndexToLoc( IPoint loc, int boxIndex )
@@ -18164,7 +18170,7 @@ static int findMatchingNormal( FaceRecord *pFace, Vector normal, Vector *normalL
         assert(0);
         return 0;
     }
-    vecdot = 1.0f/sqrt(vecdot);
+    vecdot = (float)(1.0/sqrt(vecdot));
     VecScalar( normal, *=, vecdot );
     
     // find a close match for the normal
@@ -21906,7 +21912,7 @@ static void stretchSwatchToFill(progimage_info *dst, int swatchIndex, int xlo, i
             (drow * gModel.swatchSize + row + 1) * dst->width + (dcol * gModel.swatchSize) + 1;
 
         float yf = (float)row * ywidth / tsm;
-        float yfrac = fmod(yf,1.0f);
+        float yfrac = (float)fmod(yf,1.0f);
         int yilo = (int)floor(yf);
         for (col = 0; col < gModel.tileSize; col++)
         {
@@ -21914,7 +21920,7 @@ static void stretchSwatchToFill(progimage_info *dst, int swatchIndex, int xlo, i
             // First, what is this row and column location's position?
             // This position is in terms of 0.0 to 1.0.
             float xf = (float)col * xwidth / tsm;
-            float xfrac = fmod(xf,1.0f);
+            float xfrac = (float)fmod(xf,1.0f);
             int xilo = (int)floor(xf);
 
             // To compute, we need to know the influence of the four pixels touched by the current location.

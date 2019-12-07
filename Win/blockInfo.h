@@ -269,15 +269,22 @@ extern UnitType gUnitTypeTable[];
 #define FILE_TYPE_TOTAL         7
 
 #ifdef SKETCHFAB
+// Sketchfab API field limits
+#define SKFB_NAME_LIMIT         48
+#define SKFB_DESC_LIMIT         1024
+#define SKFB_TAG_LIMIT          29   // actually 48 but "mineways " and "minecraft " are automatically added so subtract 19 total, giving 29
+#define SKFB_TOKEN_LIMIT        32
+#define SKFB_PASSWORD_LIMIT     64
+
 typedef struct PublishSkfbData
 {
 	// Sketchfab
-	char skfbApiToken[33];
-	char skfbName[49];
-	char skfbDescription[1025];
+	char skfbApiToken[SKFB_TOKEN_LIMIT+1];
+	char skfbName[SKFB_NAME_LIMIT+1];
+	char skfbDescription[SKFB_DESC_LIMIT+1];
 	char skfbTags[256];
 	bool skfbPrivate;
-	char skfbPassword[25];
+	char skfbPassword[SKFB_PASSWORD_LIMIT+1];
 	bool skfbDraft;
 	std::string skfbFilePath;
 } PublishSkfbData;
@@ -429,7 +436,7 @@ typedef struct Options {
 #define BLF_ALMOST_WHOLE    0x0002
 // stairs
 #define BLF_STAIRS			0x0004
-// half block
+// half block, i.e., a slab
 #define BLF_HALF			0x0008
 // fair-sized, worth rendering, has geometry
 #define BLF_MIDDLER			0x0010

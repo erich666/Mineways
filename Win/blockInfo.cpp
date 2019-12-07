@@ -95,7 +95,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*  23 */ "Dispenser",              		0x6f6f6f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE},	//17 14,2 front, 13,2 sides
 	{ /*  24 */ "Sandstone",              		0xe0d8a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,11, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//18 0,12 side, 0,13 bottom
 	{ /*  25 */ "Note Block",             		0x342017, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 8, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//19 10,4 side
-	{ /*  26 */ "Bed",                    		0xff3333, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 8, 0x00, BLF_HALF | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1a
+	{ /*  26 */ "Bed",                    		0xff3333, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 8, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1a
 	{ /*  27 */ "Powered Rail",           		0xAB0301, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,11, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET},	//1b/27
 	{ /*  28 */ "Detector Rail",          		0xCD5E58, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,12, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_OFFSET},	//1c
 	{ /*  29 */ "Sticky Piston",          		0x719e60, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1d

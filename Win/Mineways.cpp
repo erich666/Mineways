@@ -415,10 +415,11 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
 static bool openLogFile(ImportedSet & is);
 //static void logHandles();
 
-int APIENTRY _tWinMain(HINSTANCE hInstance,
-    HINSTANCE hPrevInstance,
-    LPTSTR    lpCmdLine,
-    int       nCmdShow)
+int APIENTRY _tWinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPTSTR lpCmdLine,
+	_In_ int nCmdShow)
 {
 #ifdef TEST_FOR_MEMORY_LEAKS
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -3440,7 +3441,7 @@ static int setSketchfabExportSettings()
 		BLF_FLATTEN_SMALL | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
 
     // Set options for Sketchfab publication. Need to determine best settings here, the user will not have the choice
-    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;	// TODOTODO - what happens if per tile is done?
+    gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_SKFB;	// TODO - what happens if per tile is done? Not really an option now, but could be nice from a mipmapping aspect
 
     gOptions.exportFlags |=
         (gpEFD->chkHollow[gpEFD->fileType] ? EXPT_HOLLOW_BOTTOM : 0x0) |
@@ -3540,8 +3541,14 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t *objFileNa
 
     // Set filepath to skfb data
     std::wstring file(wcZip);
-    std::string skfbfilepath(file.begin(), file.end());
-    skfbPData->skfbFilePath = skfbfilepath;
+	// TODO was "string" but this causes weird compile error under VS2019
+	//std::string skfbfilepath(file.begin(), file.end());
+	//skfbPData->skfbFilePath = skfbfilepath;
+	std::wstring skfbfilepath(file.begin(), file.end());
+	int length = (int)skfbfilepath.length() + 1;
+	char *pConverted = (char*)malloc(length * sizeof(char));
+	WcharToChar(skfbfilepath.c_str(), pConverted, length);
+	skfbPData->skfbFilePath = pConverted;
 
     return 0;
 }
@@ -4597,12 +4604,12 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
 }
 
 // true if all went well
-static bool importModelFile(wchar_t *importFile, ImportedSet & is)
+static bool importModelFile(wchar_t* importFile, ImportedSet& is)
 {
-    FILE *fh;
-    errno_t err = _wfopen_s(&fh, importFile, L"rt");
+	FILE* fh;
+	errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
-    if (err != 0) {
+	if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
@@ -4630,8 +4637,7 @@ static bool importModelFile(wchar_t *importFile, ImportedSet & is)
         {
             fclose(fh);
             saveErrorMessage(is, L"data on line was longer than 1024 characters - aborting!");
-            retCode = false;
-            goto Exit;
+            return false;
         }
 
         // process line, since it's valid
@@ -4673,7 +4679,6 @@ static bool importModelFile(wchar_t *importFile, ImportedSet & is)
         }
         retCode = false;
     }
-    Exit:
     fclose(fh);
     return retCode;
 }

@@ -1508,10 +1508,16 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			unsigned char biomeint[4 * 1024];
 			memset(biomeint, 0, 4 * len);
 			if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
-			for (int i = 0; i < 256; i++) {
-				// super-wild guess as to the biome - this doesn't work TODOTODO
-				int grab = 16 * i + 15;
-				biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
+			for (int loc = 0; loc < 16; loc++) {
+				// biomes are now 4x4, 64 levels, so take sea level at 16, which is at location 16 per level * 16 levels up * 4 bytes/int = 1024
+				unsigned char biomeVal = biomeint[1024 + 3 + (loc >> 2) * 16 + (loc & 0x3) * 4];
+				// offset by x and z times 4, in the output area
+				unsigned char* biomeSet = &biome[(loc >> 2) * 64 + (loc & 0x3) * 4];
+				for (int ix = 0; ix < 4; ix++) {
+					for (int iz = 0; iz < 4; iz++) {
+						biomeSet[ix * 16 + iz] = biomeVal;
+					}
+				}
 			}
 		}
 		else {

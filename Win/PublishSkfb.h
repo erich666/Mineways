@@ -33,14 +33,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "ExportPrint.h"
 #include "sketchfabUploader.h"
 
-// Sketchfab API field limits
-#define SKFB_NAME_LIMIT         48
-#define SKFB_DESC_LIMIT         1024
-#define SKFB_TAG_LIMIT          29   // 48 but "mineways " and "minecraft " are automatically added so - 19
-#define SKFB_TOKEN_LIMIT        32
-#define SKFB_PASSWORD_LIMIT     64
-
-
 static PublishSkfbData skfbPbdata;
 static std::pair<bool, std::string> lastResponse;
 static HWND uploadWindow;
