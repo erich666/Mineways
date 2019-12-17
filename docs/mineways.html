@@ -914,14 +914,15 @@ TileMaker works by using a few different textures from Minecraft or from a resou
 <LI>Copy the "chest" folder itself at assets\minecraft\textures\entity\chest to the "blocks" folder.
 <LI>Double-click TileMaker and the file terrainExt.png should be created. Cross fingers.
 </UL>
-You can then feed this file to Mineways using "File | Set Terrain File". If you want this new file to be the default used at startup, simply replace the terrainExt.png file that comes with Mineways. To sum up:
-<PRE>
-TileMaker.exe and terrainBase.png
-blocks directory filled with files from assets\minecraft\textures\block and barrier.png perhaps from assets\minecraft\textures\items
-chest directory inside a copy of the assets\minecraft\textures\entity\chest directory
-</PRE>
+You can then feed this file to Mineways using "File | Set Terrain File". If you want this new file to be the default used at startup, simply replace the terrainExt.png file that comes with Mineways. To sum up what you need and where it should be put:
+<UL>
+<LI>TileMaker.exe and terrainBase.png should be in the same directory (normally)
+<LI>"blocks" directory filled with files from assets\minecraft\textures\block in the .jar and perhaps the barrier.png file from assets\minecraft\textures\items
+<LI>Under the "blocks" directory have a "chest" directory with the contents of the assets\minecraft\textures\entity\chest .jar directory
+</UL>
 <P>
-A problem with this approach is that TileMaker will run, popping up a window briefly and then disappearing. There are often warnings and sometimes errors, which you will miss. Better is to use the <a href="https://www.lifewire.com/how-to-open-command-prompt-2618089">CMD window</a>, go to the directory where TileMaker is located (using <a href="https://www.digitalcitizen.life/command-prompt-how-use-basic-commands">the "cd" command</a>), then type "TileMaker" and see what warnings and errors you get. Any error will halt execution, at which point you'll want to fix the error and run again. You can usually use the "up arrow" key to bring up the last command you typed in, e.g., "TileMaker". <P>
+A problem with double-clicking TileMaker.exe is that TileMaker will run, popping up a window briefly and then disappearing. There are often warnings and sometimes errors, which you will miss. Better is to use the <a href="https://www.lifewire.com/how-to-open-command-prompt-2618089">CMD window</a>. In the CMD window, go to the directory where TileMaker is located (using <a href="https://www.digitalcitizen.life/command-prompt-how-use-basic-commands">the "cd" command</a>), then type "TileMaker" and see what warnings and errors you get. Any error will halt execution, at which point you'll want to fix the error and run again. You can usually use the "up arrow" key to bring up the last command you typed in, e.g., "TileMaker".
+<P>
 A little background might help. Minecraft itself and all <a href="http://minecraft.gamepedia.com/Resource_packs">resource packs</a> have their own block image files. You'll find your Minecraft executable in a directory such as "C:\Users\<i>YourName</i>\AppData\Roaming\.minecraft\versions\1.10.2". If you unzip the Minecraft jar file there, e.g., 1.10.2.jar, you'll find the tiles used in the jar directory "assets\minecraft\textures\block" (or "blocks," for 1.12 and earlier). They have names such as "anvil_base.png" and "cake_side.png". These are what Minecraft uses to display blocks, and what the TileMaker utility uses to make the terrainExt.png used by Mineways.
 <P>
 What TileMaker does by default is simple: it reads in the terrainBase.png file, overlays it with any tiles in the "blocks" subdirectory (replacing the originals), extracts the chests from "blocks\chest", then writes out this new image as terrainExt.png. TileMaker's main task is to resize all tiles to the largest tile found. For example, if you had a bunch of 16x16 size block tiles in the "blocks" directory, along with one large 64x64 tile, the output terrainExt.png would have all its tiles be 64x64 in size. Chests' sizes are ignored during this resizing calculation.
@@ -1532,14 +1533,9 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 <h2 id="mcpe">Minecraft Bedrock Support</h2>
 
-Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_Edition">Java (aka Classic) Edition</a> worlds. Minecraft <a href="https://minecraft.gamepedia.com/Bedrock_Edition">Bedrock Edition</a>, once known as the Pocket Edition (or MCPE, or Pocket/Windows 10 Edition), uses an entire different database format for its worlds, called <a href="https://github.com/Mojang/leveldb-mcpe">LevelDB</a>. This section describes how to convert a Minecraft Bedrock world to a Minecraft Java Edition one so that Mineways can read it.
+Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_Edition">Java (aka Classic) Edition</a> worlds. Minecraft for Windows 10, also known as the <a href="https://minecraft.gamepedia.com/Bedrock_Edition">Bedrock Edition</a>, uses an entirely different database format for its worlds, called <a href="https://github.com/Mojang/leveldb-mcpe">LevelDB</a>. If your level.dat files are located in a directory with the path ..."\AppData\Local\Packages\Microsoft.Minecraft"... in it, or have weird directory names like "ZAD1Xfl9AAA=", that's a Bedrock Edition save. This section describes how to convert a Minecraft Bedrock world to a Minecraft Java Edition one so that Mineways can read it.
 <P>
-There are various converters out there. The one I focus on here is <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>.
-Also, <a href="http://www.mcedit-unified.net/">MCEdit</a> has worked in the past, but it comes and goes.
-Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads.
-For consoles, you might try out <a href="http://mcctoolchest.com/Download">this utility</a> (<a href="https://mcctoolchest.weebly.com/tutorial.html">old page</a>), or <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this one</a>.
-<P>
-Let's go with <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. You download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
+Let's use the free <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
 <LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
 <LI>Select "Tools | Convert -> To Java." A large dialog box appears.
@@ -1554,6 +1550,9 @@ If you did get some error, try the "Help" button, it might actually help. I foun
 If you need more help, <a href="https://mcctoolchest.weebly.com/tutorial.html">this older site</a> <i>might</i> help (sadly, the <a href="http://www.mcctoolchest.com/">new site</a> does not have <a href="http://www.mcctoolchest.com/Tutorial">any tutorial</a> as of this writing).
 <P>
 Note that this tool can also convert from Java to Bedrock, if that's of interest. <a href="https://youtu.be/LcqD1FPcF5o?t=61">This video</a> goes through the steps for that process.
+<P>
+There are other, lesser converters out there. <a href="http://www.mcedit-unified.net/">MCEdit</a> has worked in the past, but it comes and goes. Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads. For consoles, there is also <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this poorly-rated one</a> that looks unlikely to work.
+
 
 <h3 id="structure_block">Structure Block Export</h3>
 You can also export 3D data from (only) the Bedrock Edition directly to a 3D model file format, the glTF binary format. Give yourself a structure block in Minecraft by typing the command "/give @s structure_block". Place this block near the area you want to export, then right-click it. <a href="https://minecraft.gamepedia.com/Structure_Block#3D_Export">A dialog comes up</a> in which you can specify the size of the export (never larger than 32x32x32, even if you set it higher), the offset, and the file name to export to, along with some other options. This file can then be viewed by the built-in Paint 3D program and be converted and loaded by many other programs in the <a href="https://www.khronos.org/gltf/">glTF ecosystem</a>.
@@ -3034,6 +3033,12 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Interpret 1.15 biomes correctly. Technical details: The 1024 integer array is 64 levels of 4x4x4 voxels. In Mineways only the 4x4 biome values for levels 64-67 (level 16) are used, the rest are ignored for now.
 <LI>Bug fix: redstone wires should not run down the sides of upper-half slabs that have redstone on top of them and connecting to redstone a level below them. <I>(Thanks to Quinlan W again for reporting this bug)</I>.
 <LI>Update to now build under VS 2019.
+</UL>
+
+<LI>Version 7.10, 12/xx/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Improve error message and behavior for when someone attempts to read in a Minecraft Bedrock world.
 </UL>
 
 </UL>
