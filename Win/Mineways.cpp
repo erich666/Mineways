@@ -3540,15 +3540,9 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t *objFileNa
     }
 
     // Set filepath to skfb data
-    std::wstring file(wcZip);
-	// TODO was "string" but this causes weird compile error under VS2019
-	//std::string skfbfilepath(file.begin(), file.end());
-	//skfbPData->skfbFilePath = skfbfilepath;
-	std::wstring skfbfilepath(file.begin(), file.end());
-	int length = (int)skfbfilepath.length() + 1;
-	char *pConverted = (char*)malloc(length * sizeof(char));
-	WcharToChar(skfbfilepath.c_str(), pConverted, length);
-	skfbPData->skfbFilePath = pConverted;
+    char filepath[MAX_PATH_AND_FILE];
+    sprintf_s(filepath, "%ls", wcZip);
+    skfbPData->skfbFilePath = filepath;
 
     return 0;
 }
