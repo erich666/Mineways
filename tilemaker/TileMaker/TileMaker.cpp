@@ -97,7 +97,7 @@ static ChestData gEnderChest[] = {
 // starting at corner: point to start in 16x16 tile itself
 static ChestData gNormalChest115[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   7, 26,   0, 0,  0x3 },	// MWO_chest_latch
+	{  1,  0,   6,  5,   7, 26,   0, 0,  0x3 },	// MWO_chest_latch
 	{ 28,  0,  14, 14,   9,  1,   1, 1,  0x3 },	// MWO_chest_top
 	{  0, 15,  14,  4,  10,  1,   1, 2,  0x3 },	// top of MWO_chest_side
 	{  0, 33,  14, 10,  10,  1,   1, 6,  0x3 },	// bottom of MWO_chest_side
@@ -127,7 +127,7 @@ static ChestData gNormalRightChest115[] = {
 
 static ChestData gEnderChest115[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   9, 13,   0, 0,  0x0 },	// MWO_ender_chest_latch - not rotated
+	{  1,  0,   6,  5,   9, 13,   0, 0,  0x3 },	// MWO_ender_chest_latch
 	{ 28,  0,  14, 14,  10, 13,   1, 1,  0x3 },	// MWO_ender_chest_top
 	{  0, 15,  14,  4,  11, 13,   1, 2,  0x3 },	// top of MWO_ender_chest_side
 	{  0, 33,  14, 10,  11, 13,   1, 6,  0x3 },	// bottom of MWO_ender_chest_side

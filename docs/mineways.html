@@ -1642,16 +1642,15 @@ The bottommost tile found in Minecraft's water_still.png and lava_still.png are 
 Bed (#26)
 </td>
 <td>
-<center>Proper geometry</center>
+<center>Always red, legs not solid</center>
 </td>
 <td>
 <center>Stretched to full block</center>
 </td>
 <td>
-<center>Proper geometry</center>
+<center>Area under bed is solid</center>
 </td>
 <td>
-When printed, area under bed is solid
 </td>
 </tr>
 
@@ -3039,6 +3038,8 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <BR>
 Call this one the "Minutia Release," as the debug block world helped me find a large number of little fixes and cleanups:
 <UL>
+<LI>Tilemaker updated: The new 1.15 layout for chests is now supported. If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
+<LI>The default red bed tiles are updated to 1.15 versions. Still no colored beds, nor beds with solid legs.
 <LI>Waterlogged stained glass now retains its proper color.
 <LI>Torches now have bottoms.
 <LI>Redstone repeaters and comparators now have shortened torches, for when they are on transparent blocks.
