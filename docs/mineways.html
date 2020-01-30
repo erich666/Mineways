@@ -1565,7 +1565,7 @@ Most operations in Mineways can be done with the mouse: left button drag and mou
 <h2 id="blocks">Block Types Supported</h2>
 There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can be printed as is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
 <P>
-If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the block IDs to select and export whatever block types in whatever mode you want. Alternately, you could <a href="https://www.planetminecraft.com/resources/projects/?keywords=texture+test+world">find a texture test world</a> you like, such as <a href="https://www.planetminecraft.com/project/texture-test-world-3122931/">this one</a>.
+If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the block IDs to select and export whatever block types in whatever mode you want. You can also <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">create a Debug block world</a> in Minecraft itself (short version: "Create New World", "More World Options...", hold Shift and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways <a href="#blocks">doesn't support everything</a>. Alternately, you could <a href="https://www.planetminecraft.com/resources/projects/?keywords=texture+test+world">find a texture test world</a> you like, such as <a href="https://www.planetminecraft.com/project/texture-test-world-3122931/">this one</a>.
 <P>
 Here's what Mineways exports as of version 5.01:
 <div>
@@ -1576,7 +1576,7 @@ Here's what Mineways exports as of version 5.01:
 </p>
 </div>
 <P>
-Mineways does not support export of characters, creatures, sign text, paintings, or banner patterns.
+Mineways does not support export of characters, creatures, sign text, paintings, or banner patterns, <a href="#blocks">among other things</a>.
 <P>
 All "full blocks" (stone, dirt, wood, on and on) export the same under all modes. The table below outlines the rest. "Flatten" means a billboard, such as a flower, or small object, such as a torch or lever, is flattened to be a decal on the block below, since such objects are too thin to be 3D printed.
 <TABLE id="fullBlocksTable" border="1">
@@ -2574,7 +2574,7 @@ Side texture for 3D printing is a little bit wrong, being thick on the top.
 
 <h2 id="versions">Version History</h2>
 <UL>
-<LI>Version 1.0, 12/24/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV100.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV100.rar">source</a>
+<LI>Version 1.0, 12/24/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV100.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV100.rar">source</a>. Here's the <a href="https://www.reddit.com/r/Minecraft/comments/nphd1/i_finished_mineways_a_free_program_to_3d_print_or/">announcement on Reddit</a>.
 <LI>Version 1.01, 12/27/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV101.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV101.rar">source</a> - fixed depth going to -1, added warnings about models being too large, increased map cache size, improved model summary information at top of model file.
 <LI>Version 1.02, 12/30/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV102.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV102.rar">source</a> - added "hide all blocks" feature to color scheme dialog, fixed debug mode for separate parts so that it works properly if full textures are on (the textures get turned off) and so blocks always appear, don't export billboard torch if "Export all block types" is off.
 <LI>Version 1.03, 1/2/2012 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV103.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV103.rar">source</a> - Added check to see if world reads properly, warns if not; added snowy sides to grass blocks when covered with snow; changed to "illum 4" for Wavefront OBJ export.
@@ -3035,9 +3035,19 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Update to now build under VS 2019.
 </UL>
 
-<LI>Version 7.10, 12/xx/2019 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.10, 1/xx/2010 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
+Call this one the "Minutia Release," as the debug block world helped me find a large number of little fixes and cleanups:
 <UL>
+<LI>Waterlogged stained glass now retains its proper color.
+<LI>Torches now have bottoms.
+<LI>Redstone repeaters and comparators now have shortened torches, for when they are on transparent blocks.
+<LI>Redstone repeaters now show the "locked" mode.
+<LI>If farmland moisture level is not fully wet (0x7), output dry farmland.
+<LI>Make average wet farmland map color brighter on the map.
+<LI>Buttons placed on the top or bottom of a block now properly use the east-west vs. north-south property for orientation.
+<LI>Mycellium blocks are now snowy on their sides when there is snow on top of them.
+<LI>If individual snowy grass, podzol, or mycellium blocks are exported, they will have snow on their tops.
 <LI>Improve error message and behavior for when someone attempts to read in a Minecraft Bedrock world.
 </UL>
 
@@ -3129,7 +3139,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/7/2019</p>
+		<p id="lastUpdate">Last updated 1/4/2020</p>
 	</div>
 </div>
 

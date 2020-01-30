@@ -166,12 +166,14 @@
 				<div id="macPlatformHelp" class="helpInnerSector">
 					<h2 id="mac">Mac</h2>
 					<P>
-					I once supported a Mac version using <a href="http://winebottler.kronenberg.org/">WineBottler</a>, it worked on only the 32-bit version of Mineways. However, now WineBottler doesn't even work on this, <a href="winebottler_dump.txt">it gives this error</a> - if you're an expert, let me know if you have ideas for a fix.
+					I once supported a Mac version using <a href="http://winebottler.kronenberg.org/">WineBottler</a>, it worked on only the 32-bit version of Mineways. However, now WineBottler doesn't even work on this, <a href="winebottler_dump.txt">it gives this error</a> - if you're an expert, let me know if you have ideas for a fix. The last working version of Mineways that is "self-contained," that doesn't need WINE or Crossover or Boot Camp, is <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac510.zip">version 5.10, 32-bit only</a>. This version is ancient - it does not let you read 1.13 or newer worlds, for example.
 					<P>
-					For 64-bit support, which allows larger exports,
-					<a href="https://www.davidbaumgold.com/tutorials/wine-mac/">use WINE on the Mac</a>. This option is free, works great on both the 32- and 64-bit versions of Mineways, but is a bit of work to get going and not for the faint of heart. You need to do only steps one and two of <a href="https://www.davidbaumgold.com/tutorials/wine-mac/">the directions</a> (and expect to type your password in a lot), then jump to step 4 and simply type "wine mineways.exe" in the directory where this exe is located. I am told that the TileMaker program can also be run on Mac, also by using WINE. Simply run "wine TileMaker.exe".
+					To use newer versions of Mineways,
+					<a href="https://www.davidbaumgold.com/tutorials/wine-mac/">use WINE on the Mac</a>. This option is free, but is a bit of work to get going and not for the faint of heart. You need to do only steps one and two of <a href="https://www.davidbaumgold.com/tutorials/wine-mac/">the directions</a> (and expect to type your password in a lot), then jump to step 4 and simply type "wine mineways.exe" in the directory where your mineways.exe is located. I am told that the TileMaker program can also be run on Mac, also by using WINE. Simply run "wine TileMaker.exe".
 					<P>
 					Another option is to use <a href="https://www.codeweavers.com/products/">Crossover</a>, which costs money, but does have a free 14-day trial (and <a href="http://winebottler.kronenberg.org/">the promo code "CX64BIT"</a> gives you a 25% discount). I've briefly tried this out, and it's a bit confusing to set up, but does work. You don't "install" Mineways, the program just runs. What I did was "create a new bottle," (lower left corner of main window) then "Run Command..." and pick mineways32.exe - this worked. Crossover does not appear to work on the 64-bit version of Mineways.
+					<P>
+					Yet another way is to use <a href="https://support.apple.com/en-us/HT201468">Boot Camp</a>, which lets you boot your Mac as a Windows 10 machine. This is a pretty serious commitment, but will certainly work.
 					<P>
 					By default, Mineways now uses its own tile textures that are stored in the program itself. Other "terrainExt.png" can be used - a number of these come with the program. Use "File | Set Terrain File" and select the terrainExt.png in /users/<I>&lt;your name&gt;</I>/Downloads/MinewaysMac or wherever you put Mineways. You might need to search for these files, just use <a href="http://www.macworld.co.uk/how-to/mac/how-find-lost-mac-os-x-files-3613260/">Spotlight</a> and search on "terrainExt.png". <a href="mineways.html#terrain_png">The other terrainExt*.png files</a> will be found in this directory.</p>
 					<P>
@@ -264,7 +266,7 @@
 
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 9/4/2019</p>
+		<p id="lastUpdate">Last updated 1/7/2020</p>
 	</div>
 
 </body>

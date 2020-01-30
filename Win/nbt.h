@@ -38,6 +38,7 @@ enum {BF_BUFFER, BF_GZIP};
 // for another 256 block types, this bit gets set in the dataVal field (we're out of bits with block IDs)
 // Note tthe next-to-highest bit is used for "waterlogged" so should be avoided if that property is part of the block's description
 #define BIT_8 0x08
+#define SNOWY_BIT 0x08
 #define BIT_16 0x10
 #define BIT_32 0x20
 #define WATERLOGGED_BIT 0x40

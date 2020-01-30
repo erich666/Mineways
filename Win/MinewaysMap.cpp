@@ -1606,7 +1606,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
         dataVal = block->data[voxel];
-        switch ( dataVal )
+        switch ( dataVal & 0xf )
         {
             // from 2 down, 2 to the right, basically upper left inside the frame
         default:

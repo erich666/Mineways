@@ -129,7 +129,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /*  57 */ "Block of Diamond",       		0x7fe3df, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//39
 	{ /*  58 */ "Crafting Table",         		0x825432, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 2, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//3a - and cartography, fletching, and smithing
 	{ /*  59 */ "Wheat",                  		0x766615, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 5, 0x00, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//3b
-	{ /*  60 */ "Farmland",               		0x40220b, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 5, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE},	//3c - 7,5 dry
+	{ /*  60 */ "Farmland",               		0x552F14, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 5, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE},	//3c - 7,5 dry
 	{ /*  61 */ "Furnace",                		0x767677, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x30, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//3d 13,2 side, 12,2 front
 	{ /*  62 */ "Burning Furnace",        		0x777676, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE|BLF_FENCE_NEIGHBOR},	//3e 13,2 side, 13,3 front
     { /*  63 */ "Standing Sign",          		0x9f814f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* bogus */ 4, 0, 0x30, BLF_SMALL_MIDDLER|BLF_TRUE_GEOMETRY|BLF_3D_BIT|BLF_MAYWATERLOG},	//3f (63)

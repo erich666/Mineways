@@ -30,7 +30,7 @@ static void reportReadError( int rc, wchar_t *filename );
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
 static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
-	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom);
+	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, float zoom);
 static void multPNGTileByColor(progimage_info *dst, int dst_x, int dst_y, int *color);
 static void getPNGPixel(progimage_info *src, int col, int row, unsigned char *color);
 static void getBrightestPNGPixel(progimage_info *src, unsigned long col, unsigned long row, unsigned long res, unsigned char *color, int *locc, int *locr);
@@ -53,106 +53,51 @@ typedef struct ChestData {
 	int txrY;
 	int toX;
 	int toY;
-	unsigned int flags;
 } ChestData;
 
 static ChestData gNormalChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   7, 26,   0, 0,  0x0 },	// MWO_chest_latch
-	{ 14,  0,  14, 14,   9,  1,   1, 1,  0x0 },	// MWO_chest_top
-	{  0, 14,  14,  4,  10,  1,   1, 2,  0x0 },	// top of MWO_chest_side
-	{  0, 33,  14, 10,  10,  1,   1, 6,  0x0 },	// bottom of MWO_chest_side
-	{ 14, 14,  14,  4,  11,  1,   1, 2,  0x0 },	// top of MWO_chest_front
-	{ 14, 33,  14, 10,  11,  1,   1, 6,  0x0 },	// bottom of MWO_chest_front
+	{  0,  0,   6,  5,   7, 26,   0, 0 },	// MWO_chest_latch
+	{ 14,  0,  14, 14,   9,  1,   1, 1 },	// MWO_chest_top
+	{  0, 14,  14,  4,  10,  1,   1, 2 },	// top of MWO_chest_side
+	{  0, 33,  14, 10,  10,  1,   1, 6 },	// bottom of MWO_chest_side
+	{ 14, 14,  14,  4,  11,  1,   1, 2 },	// top of MWO_chest_front
+	{ 14, 33,  14, 10,  11,  1,   1, 6 },	// bottom of MWO_chest_front
 };
 
 static ChestData gNormalDoubleChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{ 14, 14,  15,  4,   9,  2,  1, 2,  0x0 },	// MWO_double_chest_front_left top
-	{ 14, 33,  15, 10,   9,  2,  1, 6,  0x0 },	// MWO_double_chest_front_left bottom
-	{ 29, 14,  15,  4,  10,  2,  0, 2,  0x0 },	// MWO_double_chest_front_right top
-	{ 29, 33,  15, 10,  10,  2,  0, 6,  0x0 },	// MWO_double_chest_front_right bottom
-	{ 58, 14,  15,  4,   9,  3,  1, 2,  0x0 },	// MWO_double_chest_back_left top
-	{ 58, 33,  15, 10,   9,  3,  1, 6,  0x0 },	// MWO_double_chest_back_left bottom
-	{ 73, 14,  15,  4,  10,  3,  0, 2,  0x0 },	// MWO_double_chest_back_right top
-	{ 73, 33,  15, 10,  10,  3,  0, 6,  0x0 },	// MWO_double_chest_back_right bottom
-	{ 14,  0,  15, 14,   9, 14,  1, 1,  0x0 },	// MWO_double_chest_top_left
-	{ 29,  0,  15, 14,  10, 14,  0, 1,  0x0 },	// MWO_double_chest_top_right
+	{ 14, 14,  15,  4,   9,  2,  1, 2 },	// MWO_double_chest_front_left top
+	{ 14, 33,  15, 10,   9,  2,  1, 6 },	// MWO_double_chest_front_left bottom
+	{ 29, 14,  15,  4,  10,  2,  0, 2 },	// MWO_double_chest_front_right top
+	{ 29, 33,  15, 10,  10,  2,  0, 6 },	// MWO_double_chest_front_right bottom
+	{ 58, 14,  15,  4,   9,  3,  1, 2 },	// MWO_double_chest_back_left top
+	{ 58, 33,  15, 10,   9,  3,  1, 6 },	// MWO_double_chest_back_left bottom
+	{ 73, 14,  15,  4,  10,  3,  0, 2 },	// MWO_double_chest_back_right top
+	{ 73, 33,  15, 10,  10,  3,  0, 6 },	// MWO_double_chest_back_right bottom
+	{ 14,  0,  15, 14,   9, 14,  1, 1 },	// MWO_double_chest_top_left
+	{ 29,  0,  15, 14,  10, 14,  0, 1 },	// MWO_double_chest_top_right
 };
 
 static ChestData gEnderChest[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   9, 13,   0, 0,  0x0 },	// MWO_ender_chest_latch
-	{ 14,  0,  14, 14,  10, 13,   1, 1,  0x0 },	// MWO_ender_chest_top
-	{  0, 14,  14,  4,  11, 13,   1, 2,  0x0 },	// top of MWO_ender_chest_side
-	{  0, 33,  14, 10,  11, 13,   1, 6,  0x0 },	// bottom of MWO_ender_chest_side
-	{ 14, 14,  14,  4,  12, 13,   1, 2,  0x0 },	// top of MWO_ender_chest_front
-	{ 14, 33,  14, 10,  12, 13,   1, 6,  0x0 },	// bottom of MWO_ender_chest_front
+	{  0,  0,   6,  5,   9, 13,   0, 0 },	// MWO_ender_chest_latch
+	{ 14,  0,  14, 14,  10, 13,   1, 1 },	// MWO_ender_chest_top
+	{  0, 14,  14,  4,  11, 13,   1, 2 },	// top of MWO_ender_chest_side
+	{  0, 33,  14, 10,  11, 13,   1, 6 },	// bottom of MWO_ender_chest_side
+	{ 14, 14,  14,  4,  12, 13,   1, 2 },	// top of MWO_ender_chest_front
+	{ 14, 33,  14, 10,  12, 13,   1, 6 },	// bottom of MWO_ender_chest_front
 };
 
-
-// from: from upper left pixel
-// size: resolution; negative means scan backwards, and compute lower right and go from there (for my sanity)
-// to tile: in the grid of tiles, where it goes
-// starting at corner: point to start in 16x16 tile itself
-static ChestData gNormalChest115[] = {
-	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   7, 26,   0, 0,  0x3 },	// MWO_chest_latch
-	{ 28,  0,  14, 14,   9,  1,   1, 1,  0x3 },	// MWO_chest_top
-	{  0, 15,  14,  4,  10,  1,   1, 2,  0x3 },	// top of MWO_chest_side
-	{  0, 33,  14, 10,  10,  1,   1, 6,  0x3 },	// bottom of MWO_chest_side
-	{ 42, 15,  14,  4,  11,  1,   1, 2,  0x3 },	// top of MWO_chest_front
-	{ 42, 33,  14, 10,  11,  1,   1, 6,  0x3 },	// bottom of MWO_chest_front
-};
-
-// Minecraft names these left and right, but in fact they're swapped when rendered,
-// with the right chest tile's elements being put on the left, and vice versa.
-static ChestData gNormalLeftChest115[] = {
-	//  from,    size, to tile,  starting at corner
-	{ 43, 15,  15,  4,  10,  2,  0, 2,  0x3 },	// MWO_double_chest_front_left top half
-	{ 43, 33,  15, 10,  10,  2,  0, 6,  0x3 },	// MWO_double_chest_front_left bottom half
-	{ 14, 15,  15,  4,  10,  3,  0, 2,  0x2 },	// MWO_double_chest_back_left top half - should really swap with RightChest, but nah
-	{ 14, 33,  15, 10,  10,  3,  0, 6,  0x2 },	// MWO_double_chest_back_left bottom half - should really swap with RightChest, but nah
-	{ 14, 19,  15, 14,  10, 14,  0, 1,  0x2 },	// MWO_double_chest_top_left
-};
-
-static ChestData gNormalRightChest115[] = {
-	//  from,    size, to tile,  starting at corner
-	{ 43, 15,  15,  4,   9,  2,  1, 2,  0x3 },	// MWO_double_chest_front_right top half
-	{ 43, 33,  15, 10,   9,  2,  1, 6,  0x3 },	// MWO_double_chest_front_right bottom half
-	{ 14, 15,  15,  4,   9,  3,  1, 2,  0x2 },	// MWO_double_chest_back_right top half
-	{ 14, 33,  15, 10,   9,  3,  1, 6,  0x2 },	// MWO_double_chest_back_right bottom half
-	{ 14, 19,  15, 14,   9, 14,  1, 1,  0x2 },	// MWO_double_chest_top_right - note we don't flip
-};
-
-static ChestData gEnderChest115[] = {
-	//  from,    size, to tile,  starting at corner
-	{  0,  0,   6,  5,   9, 13,   0, 0,  0x0 },	// MWO_ender_chest_latch - not rotated
-	{ 28,  0,  14, 14,  10, 13,   1, 1,  0x3 },	// MWO_ender_chest_top
-	{  0, 15,  14,  4,  11, 13,   1, 2,  0x3 },	// top of MWO_ender_chest_side
-	{  0, 33,  14, 10,  11, 13,   1, 6,  0x3 },	// bottom of MWO_ender_chest_side
-	{ 42, 15,  14,  4,  12, 13,   1, 2,  0x3 },	// top of MWO_ender_chest_front
-	{ 42, 33,  14, 10,  12, 13,   1, 6,  0x3 },	// bottom of MWO_ender_chest_front
-};
-
-typedef struct Chest {
-	wchar_t* wname;
+static struct Chest {
+	wchar_t *wname;
 	int numCopies;	// number of elements we'll copy
 	int defaultResX;	// how big the image is in the default set
 	int defaultresY;
-	ChestData* data;
-} Chest;
-
-static Chest gChest114[] = {
+	ChestData *data;
+} gChest[] = {
 	{ L"normal", 6, 64, 64, NULL },
 	{ L"normal_double", 10, 128, 64, NULL },
-	{ L"ender", 6, 64, 64, NULL }
-};
-
-static Chest gChest115[] = {
-	{ L"normal", 6, 64, 64, NULL },
-	{ L"normal_left", 5, 64, 64, NULL },
-	{ L"normal_right", 5, 64, 64, NULL },
 	{ L"ender", 6, 64, 64, NULL }
 };
 
@@ -209,10 +154,12 @@ int wmain(int argc, wchar_t* argv[])
     int alternate = 1;  // always include alternate names; needed for 1.13
     int solid = 0;
     int solidcutout = 0;
-	int buildnormals = 0;
-	int buildspecular = 0;
 
     bool shulkerSide[16], shulkerBottom[16];
+
+	gChest[0].data = gNormalChest;
+	gChest[1].data = gNormalDoubleChest;
+	gChest[2].data = gEnderChest;
 
 	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME);
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
@@ -292,22 +239,12 @@ int wmain(int argc, wchar_t* argv[])
             // solid: take the average color of the incoming tile and output this solid color
             solid = 1;
         }
-		else if (wcscmp(argv[argLoc], L"-S") == 0)
-		{
-			// solid cutout: as above, but preserve the cutout transparent areas
-			solidcutout = 1;
-		}
-		else if (wcscmp(argv[argLoc], L"-bn") == 0)
-		{
-			// build normal map version
-			buildnormals = 1;
-		}
-		else if (wcscmp(argv[argLoc], L"-bs") == 0)
-		{
-			// build normal map version
-			buildspecular = 1;
-		}
-		else if ( wcscmp(argv[argLoc],L"-v") == 0 )
+        else if ( wcscmp(argv[argLoc],L"-S") == 0 )
+        {
+            // solid cutout: as above, but preserve the cutout transparent areas
+            solidcutout = 1;
+        }
+        else if ( wcscmp(argv[argLoc],L"-v") == 0 )
         {
             // verbose: tell when normal things happen
             verbose = 1;
@@ -327,9 +264,7 @@ int wmain(int argc, wchar_t* argv[])
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
             wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
             wprintf( L"  -s - take the average color of the incoming tile and output this solid color.\n");
-			wprintf( L"  -S - as above, but preserve the cutout transparent areas.\n");
-			wprintf( L"  -bn - build normal map terrainExt_n.png using all *_n.png files as input.\n");
-			wprintf( L"  -bs - build specular map terrainExt_n.png using all *_s.png files as input.\n");
+            wprintf( L"  -S - as above, but preserve the cutout transparent areas.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 			return 1;
 		}
@@ -564,9 +499,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
-    // look through tiles missing: if shulker side and bottom tiles found, note they don't need to be generated;
-	// these are not standard at all - shulkers now have their own entitities - but left in for simplicity.
-	// TODO: someday add in shulker box reader, just like chests
+    // look through tiles missing: if shulker tiles found, note they don't need to be generated
     for (i = 0; i < TOTAL_TILES; i++)
     {
         if (wcsncmp(gTilesTable[i].filename, L"shulker_side_", 13) == 0) {
@@ -686,7 +619,7 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			setBlackAlphaPNGTile( chosenTile, &tile[i] );
 		}
-		if (copyPNGTile(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
+		if (copyPNGTile(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
 			return 1;
 		}
 		if ( verbose )
@@ -694,103 +627,73 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     // Compute shulker box sides and bottoms, if not input
-	// first, worth doing?
-	bool missingSideOrBottom = false;
-	for (i = 0; (i < 16) && !missingSideOrBottom; i++) {
-		missingSideOrBottom |= ((shulkerSide[i] == false) || (shulkerBottom[i] == false));
-	}
-	if (missingSideOrBottom) {
-		// Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
-		unsigned char box_color[4];
-		int neutral_color[4], mult_color[4];
-		// which tile to use: get the bottommost
-		index = findTile(L"white_shulker_box", 1);
-		int side_index = findTile(L"MW_shulker_side", 0);
-		int bottom_index = findTile(L"MW_shulker_bottom", 0);
-		assert(index >= 0 && side_index >= 0 && bottom_index >= 0);
-		int pick_row = outputTileSize / 2;
-		int pick_col = outputTileSize / 2;
-		for (i = 0; i < 16; i++) {
-			// compute side and bottom color
-			// First, find brightest pixel
-			if (i == 0) {
-				getBrightestPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize, gTilesTable[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
-				for (j = 0; j < 4; j++) {
-					neutral_color[j] = box_color[j];
-					mult_color[j] = 255;
+    // Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
+    unsigned char box_color[4];
+    int neutral_color[4], mult_color[4];
+    // which tile to use: get the bottommost
+    index = findTile(L"white_shulker_box", 1);
+    int side_index = findTile(L"MW_shulker_side", 0);
+    int bottom_index = findTile(L"MW_shulker_bottom", 0);
+	assert(index >= 0);
+	assert(side_index >= 0);
+	assert(bottom_index >= 0);
+	int pick_row = outputTileSize / 2;
+    int pick_col = outputTileSize / 2;
+    for (i = 0; i < 16; i++) {
+        // compute side and bottom color
+        // First, find brightest pixel
+        if (i == 0) {
+            getBrightestPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize, gTilesTable[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
+            for (j = 0; j < 4; j++) {
+                neutral_color[j] = box_color[j];
+                mult_color[j] = 255;
+            }
+        }
+        else {
+            getPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize + pick_col, gTilesTable[index].txrY * outputTileSize + pick_row, box_color);
+            for (j = 0; j < 4; j++) {
+				if (neutral_color[j] > 0) {
+					mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
+				} else {
+					// avoid division by zero
+					mult_color[j] = 0;
 				}
-			}
-			else {
-				getPNGPixel(destination_ptr, gTilesTable[index].txrX * outputTileSize + pick_col, gTilesTable[index].txrY * outputTileSize + pick_row, box_color);
-				for (j = 0; j < 4; j++) {
-					if (neutral_color[j] > 0) {
-						mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
-					}
-					else {
-						// avoid division by zero
-						mult_color[j] = 0;
-					}
-				}
-			}
-			// we now have the multiplier color, so multiply base tile by it
-			if (shulkerSide[i] == false) {
-				copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 4) * outputTileSize, outputTileSize, outputTileSize,
-					destination_ptr, gTilesTable[side_index].txrX * outputTileSize, gTilesTable[side_index].txrY * outputTileSize);
-				multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 4, mult_color);
-			}
-			if (shulkerBottom[i] == false) {
-				copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
-					destination_ptr, gTilesTable[bottom_index].txrX * outputTileSize, gTilesTable[bottom_index].txrY * outputTileSize);
-				multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 5, mult_color);
-			}
-			index++;
-		}
-	}
-
-	// Test if left chest exists. If so, we assume 1.15 content is being used.
-	wchar_t chestFile[MAX_PATH];
-	wcscpy_s(chestFile, MAX_PATH, tilePath);
-	wcscat_s(chestFile, MAX_PATH, L"\\chest\\normal_left.png");
-	progimage_info testChestImage;
-	rc = readpng(&testChestImage, chestFile);
-	//bool using115 = (rc == 0);
-	int numChests;
-	Chest* chest;
-	if (rc == 0) {
-		readpng_cleanup(0, &testChestImage);
-		numChests = 4;
-		gChest115[0].data = gNormalChest115;
-		gChest115[1].data = gNormalLeftChest115;
-		gChest115[2].data = gNormalRightChest115;
-		gChest115[3].data = gEnderChest115;
-		chest = gChest115;
-	}
-	else {
-		numChests = 3;
-		gChest114[0].data = gNormalChest;
-		gChest114[1].data = gNormalDoubleChest;
-		gChest114[2].data = gEnderChest;
-		chest = gChest114;
-	}
+            }
+        }
+        // we now have the multiplier color, so multiply base tile by it
+        if (shulkerSide[i] == false) {
+            copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 4)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTilesTable[side_index].txrX * outputTileSize, gTilesTable[side_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 4, mult_color);
+        }
+        if (shulkerBottom[i] == false) {
+            copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 5)*outputTileSize, outputTileSize, outputTileSize,
+                destination_ptr, gTilesTable[bottom_index].txrX * outputTileSize, gTilesTable[bottom_index].txrY * outputTileSize);
+            multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 5, mult_color);
+        }
+        index++;
+    }
 
 	// Now for the chests, if any. Look for each chest image file, and use bits as found
-	for (i = 0; i < numChests; i++) {
+	for (i = 0; i < 3; i++) {
 		// single chest, double chest, ender chest in \textures\entity\chest
-		Chest* pChest = &chest[i];
+		Chest *pChest = &gChest[i];
 
 		// chests are normally found in \assets\minecraft\textures\entity\chest
+		wchar_t chestFile[MAX_PATH];
 		wcscpy_s(chestFile, MAX_PATH, tilePath);
-		wcscat_s(chestFile, MAX_PATH, L"\\chest\\");
+		wcscat_s(chestFile, MAX_PATH, L"\\");
+		wcscat_s(chestFile, MAX_PATH, L"chest");
+		wcscat_s(chestFile, MAX_PATH, L"\\");
 		wcscat_s(chestFile, MAX_PATH, pChest->wname);
 		wcscat_s(chestFile, MAX_PATH, L".png");
 
-		// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
 		progimage_info chestImage;
 		rc = readpng(&chestImage, chestFile);
 		if (rc != 0)
 		{
 			// file not found
-			wprintf(L"  This warning means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_left.png, normal_right.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
+			wprintf(L"  This warning means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_double.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
 			gWarningCount++;
 			break;
 		}
@@ -815,8 +718,7 @@ int wmain(int argc, wchar_t* argv[])
 				&chestImage,
 				pChest->data[index].toX, pChest->data[index].toY, 
 				pChest->data[index].toX + pChest->data[index].sizeX, pChest->data[index].toY + pChest->data[index].sizeY,
-				pChest->data[index].fromX, pChest->data[index].fromY,
-				pChest->data[index].flags,
+				pChest->data[index].fromX, pChest->data[index].fromY, 
 				(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
 		}
 	}
@@ -980,7 +882,7 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
 }
 
 static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
-	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom )
+	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, float zoom )
 {
 	unsigned long row,col,src_start;
     unsigned char* dst_data;
@@ -1018,10 +920,7 @@ static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long d
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-				// negate column and row, as Minecraft stores these reversed (left and right chest, basically)
-				getPNGPixel(src, 
-					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color);
+				getPNGPixel(src, col + src_x_lo - dst_x_lo, row + src_start + src_y_lo - dst_y_lo, color);
 				if ( color[3] == 0 )
 				{
 					memset(dst_data,0,4);
@@ -1069,9 +968,7 @@ static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long d
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-				getPNGPixel(src,
-					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color);
+				getPNGPixel(src, col + src_x_lo - dst_x_lo, row + src_start + src_y_lo - dst_y_lo, color);
 				if ( color[3] == 0 )
 				{
 					color[0] = color[1] = color[2] = 0;

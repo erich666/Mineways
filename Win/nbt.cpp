@@ -112,7 +112,7 @@ static int worldVersion = 0;
 // axis: x|y|z
 #define AXIS_PROP			  1
 // snowy: false|true
-// note that the snowy prop actually does nothing; put here mostly to keep track; could be deleted
+// note that the snowy prop actually does nothing; put here mostly to keep track; could be deleted. COULD BE REUSED
 #define SNOWY_PROP			  2
 // facing: north|south|east|west
 // half: upper|lower
@@ -258,8 +258,9 @@ static int worldVersion = 0;
 // powered: true|false - ignored
 #define REPEATER_PROP		 42
 // facing: north|east|south|west
-// mode: compare|subtract
 // powered: true|false
+// delayed: 0-3
+// locked: true|false
 #define COMPARATOR_PROP		 43
 // rotation: 0-15
 #define HEAD_PROP			 44
@@ -326,9 +327,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,   1,           5, "andesite", NO_PROP },
 { 0,   1,           6, "polished_andesite", NO_PROP },
 { 0, 170,           0, "hay_block", AXIS_PROP },
-{ 0,   2,           0, "grass_block", SNOWY_PROP }, // has SNOWY_PROP, which we don't actually pay attention to here
+{ 0,   2,           0, "grass_block", SNOWY_PROP },
 { 0,   3,           0, "dirt", NO_PROP }, // no SNOWY_PROP
-{ 0,   3,           1, "coarse_dirt", NO_PROP }, // no SNOWY_PROP
+{ 0,   3,           1, "coarse_dirt", NO_PROP }, // note no SNOWY_PROP
 { 0,   3,           2, "podzol", SNOWY_PROP }, // does indeed have snowy prop
 { 0,   4,           0, "cobblestone", NO_PROP },
 { 0,   5,           0, "oak_planks", NO_PROP },
@@ -1500,9 +1501,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 		}
 		else if ( len == 1024 ) {
 			// 1.15 on, optionally
-			// TODOTODO from https://minecraft.gamepedia.com/Java_Edition_1.15/Development_versions
+			// TODO from https://minecraft.gamepedia.com/Java_Edition_1.15/Development_versions
 			// Biome information now stores Y-coordinates, allowing biomes to be changed based on height; previously, biome information only stored X and Z coordinates.
-			// The  Biomes array in the  Level tag for each chunk now contains 1024 integers instead of 256.
+			// The Biomes array in the Level tag for each chunk now contains 1024 integers instead of 256.
 			// len should be 1024
 			// convert to bytes, tough luck if too high (for now)
 			unsigned char biomeint[4 * 1024];
@@ -1645,12 +1646,12 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			// for doors
 			bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
 				conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
-			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, sticky, hatch, leaves, single, attachment, honey_level;
+			int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, locked, sticky, hatch, leaves, single, attachment, honey_level;
 			// to avoid Release build warning =but should always be set by code in practice
 			int typeIndex = 0;
 			half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
 				= conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
-			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = sticky = hatch = leaves = single = attachment = honey_level = 0;
+			axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = locked = sticky = hatch = leaves = single = attachment = honey_level = 0;
 
 			int bigbufflen = 0;
 			int entry_index = 0;
@@ -1714,7 +1715,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 					while (nentries--) {
 						// clear, so that NO_PROP doesn't inherit from other blocks, etc.
 						dataVal = 0;
-						// avoid inheriting this property, which is always folded in (false if not found in block, so does no harm)
+						// avoid inheriting these properties, which are always folded in (false if not found in block, so does no harm)
 						waterlogged = false;
 
 						for (;;)
@@ -1784,8 +1785,13 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										// Nicer would be to be able to save the token/values away in an array, then get the
 										// name (which gets parsed after), then given the name just test the possible tokens needed.
 
-										// ignore. Very common, for grassy blocks, so checked first
-										if (strcmp(token, "snowy") == 0) {} // for grassy blocks, podzol, maybe more
+										// Very common, for grass blocks, so checked first
+										if (strcmp(token, "snowy") == 0) {
+											// blocks with the SNOWY_PROP property have only this flag, plus sub-type data values, so we can set it directly.
+											if (strcmp(value, "true") == 0) {
+												dataVal = SNOWY_BIT;
+											}
+										} // for grassy blocks, podzol, mycellium
 
 										// interpret token value
 										// wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP
@@ -2048,6 +2054,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											// 1-4
 											delay = atoi(value) - 1;
 										}
+										else if (strcmp(token, "locked") == 0) {
+											locked = (strcmp(value, "true") == 0);
+										}
 										// HOPPER_PROP
 										else if (strcmp(token, "enabled") == 0) {
 											enabled = (strcmp(value, "true") == 0);
@@ -2158,7 +2167,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											// ignore, not used by Mineways for now, BlockTranslations[typeIndex]
 											if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
 											else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-											else if (strcmp(token, "locked") == 0) {} // for repeater, ignore, doesn't affect rendering
 											else if (strcmp(token, "note") == 0) {}
 											else if (strcmp(token, "instrument") == 0) {}
 											else if (strcmp(token, "drag") == 0) {}
@@ -2319,16 +2327,18 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							}
 							break;
 						case BUTTON_PROP:
-							// dataVal is set fron "facing" already, just need face & powered
+							// dataVal is set fron "facing" already (1234), just need face & powered
+							// check for top or bottom facing
+							// if button is on top or bottom, "facing" affects angle, bit 16
 							if (face == 0) {
-								dataVal = 5;
+								dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0);
 							}
 							else if (face == 2) {
-								dataVal = 0;
+								dataVal = 0 | ((dataVal <= 3) ? BIT_16 : 0x0);
 							}
 							//else if (face == 1) {
 							// not needed, as dataVal should be set just right at this point for walls
-							dataVal |= powered ? 8 : 0;
+							dataVal |= powered ? 0x8 : 0;
 							break;
 						case TRAPDOOR_PROP:
 							dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
@@ -2336,7 +2346,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case TALL_FLOWER_PROP:
 							// Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
 							// Doesn't matter to Mineways per se, but if we export a schematic, we should make
-							// this data the same as Minecraft's. TODOTODO - need to test flowers more
+							// this data the same as Minecraft's. TODO - need to test flowers more
 							dataVal = half ? 0x8 : 0;
 							break;
 						case REDSTONE_ORE_PROP:
@@ -2408,7 +2418,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							}
 							break;
 						case REPEATER_PROP:
-							dataVal = ((door_facing + 3) % 4) | (delay << 2);
+							// facing is 0x3
+							// delay is 0xC
+							// locked is 0x10
+							dataVal = ((door_facing + 3) % 4) | (delay << 2) | (locked << 4);
 							if (powered) {
 								// use active form
 								paletteBlockEntry[entry_index]++;

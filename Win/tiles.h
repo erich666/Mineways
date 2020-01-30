@@ -606,8 +606,8 @@ static struct {
     {  2, 33, 218, L"observer_front", L"", SWATCH_REPEAT_ALL },
     {  3, 33, 218, L"observer_side", L"", SWATCH_REPEAT_ALL },
     {  4, 33, 218, L"observer_top", L"", SWATCH_REPEAT_ALL },   // alternate name is Sphax BD Craft
-    {  5, 33, 219, L"MW_shulker_side", L"", SWATCH_REPEAT_ALL },      // TEMPLATE for sides and bottoms of shulker boxes TODO: someday extract from shulkers in assets\minecraft\textures\entity\shulker - see above
-    {  6, 33, 219, L"MW_shulker_bottom", L"", SWATCH_REPEAT_ALL },    // TEMPLATE for sides and bottoms of shulker boxes TODO: someday extract from shulkers in assets\minecraft\textures\entity\shulker
+    {  5, 33, 219, L"MW_shulker_side", L"MW_SHULKER_SIDE", SWATCH_REPEAT_ALL },
+    {  6, 33, 219, L"MW_shulker_bottom", L"MW_SHULKER_BOTTOM", SWATCH_REPEAT_ALL },
     {  7, 33, 313, L"dried_kelp_top", L"", SWATCH_REPEAT_ALL },  // 1.13 starts here
     {  8, 33, 313, L"dried_kelp_side", L"", SWATCH_REPEAT_ALL },
     {  9, 33, 313, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },

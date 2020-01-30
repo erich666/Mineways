@@ -1706,9 +1706,16 @@ RButtonUp:
                     {
                         // world not loaded properly
                         wchar_t fullbuf[2048];
-                        wsprintf(fullbuf, _T("Error: cannot read world or cannot find file \"%s\", sub-error code %d. Perhaps you are trying to read in an Education Edition, Pocket Edition, or Windows 10 Minecraft Beta world? Mineways cannot read these, as they are in a different format. You can manually convert your world to the 'classic' Minecraft format, which Mineways can read. Go to http://mineways.com/mineways.html, search on `pocket edition', click on the link, and follow those instructions."), gFileOpened, gSubError);
-                        MessageBox(NULL, fullbuf,
-                                _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                        wsprintf(fullbuf, _T("Error: cannot read world or cannot find file \"%s\", sub-error code %d.\n\nYou might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' format, which Mineways can read."), gFileOpened, gSubError);
+                        int retcode = MessageBox(NULL, fullbuf,
+                                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+                        if (retcode == IDOK)
+                        {
+                            std::string bedrockUrl = "http://bit.ly/mcbedrock";
+                            wchar_t* wcharBedrockUrl = new wchar_t[4096];
+                            MultiByteToWideChar(CP_ACP, 0, bedrockUrl.c_str(), (int)(bedrockUrl.size() + 1), wcharBedrockUrl, 4096);
+                            ShellExecute(NULL, L"open", wcharBedrockUrl, NULL, NULL, SW_SHOWNORMAL);
+                        }
                         return 0;
                     }
                 }

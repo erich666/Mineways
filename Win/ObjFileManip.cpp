@@ -295,6 +295,8 @@ static int gMinorVersion=0;
 static int gMinecraftWorldVersion = 0;
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
 static int gMcVersion = 0;
+static bool gIs13orNewer; // if gMcVersion >= 13 - computed once
+
 
 static int gBadBlocksInModel=0;
 
@@ -877,6 +879,7 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
     gMinorVersion = minorVersion;
     gMinecraftWorldVersion = worldVersion;
 	gMcVersion = DATA_VERSION_TO_RELEASE_NUMBER(worldVersion);
+    gIs13orNewer = (gMcVersion >= 13);
 
     memset(&gStats,0,sizeof(ExportStatistics));
     // clear all of gModel to zeroes
@@ -2016,11 +2019,10 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
             chunkIndex = CHUNK_INDEX(bx,bz,x,worldBox->min[Y],z);
             for ( y = worldBox->min[Y]; y <= worldBox->max[Y]; y++, boxIndex++ ) {
 				// fold in the high bit to get the type
-				bool isVersion13orNewer = (gModel.mcVersion >= 13);
 
 				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
 				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-				if (isVersion13orNewer && (block->data[chunkIndex] & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+				if (gIs13orNewer && (block->data[chunkIndex] & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
 					// high bit set, so blockID >= 256
 					blockID = block->grid[chunkIndex] | 0x100;
 				}
@@ -2104,8 +2106,6 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 
     int useBiomes = ( gOptions->exportFlags & EXPT_BIOME );
 
-	bool isVersion13orNewer = (gModel.mcVersion >= 13);
-
     for ( x = loopXmin; x <= loopXmax; x++ ) {
         for ( z = loopZmin; z <= loopZmax; z++ ) {
             boxIndex = WORLD_TO_BOX_INDEX(x,edgeWorldBox->min[Y],z);
@@ -2122,7 +2122,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
                 unsigned char dataVal = block->data[chunkIndex];
 				// 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
 				// so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-				if (isVersion13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+				if (gIs13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
 					// if you hit this, something has gone odd with the dataVal, which shouldn't happen. See nbt.cpp where it says "make sure upper bits are not set - they should not be!"
 					assert(block->grid[chunkIndex] < NUM_BLOCKS_DEFINED - 256);
 					gBoxData[boxIndex].data = dataVal & 0x7F;
@@ -2138,7 +2138,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
 				}
 
 				// tile entities needed if using old data format
-				if (!isVersion13orNewer) {
+				if (!gIs13orNewer) {
 					// if the block is a flower pot or head, we need to extract the extra data from the block
 					if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD))
 					{
@@ -4895,12 +4895,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         default:    // make compiler happy
             assert(0);  // yes, fall-through
         case 0: // above
-            minx = 5;
-            maxx = 12;
             miny = 14 + bitAdd;
             maxy = 16;
-            minz = 6;
-            maxz = 10;
+            // rotate button if on top or bottom of block and this flag is set
+            if (dataVal & BIT_16) {
+                minx = 6;
+                maxx = 10;
+                minz = 5;
+                maxz = 12;
+            }
+            else {
+                minx = 5;
+                maxx = 12;
+                minz = 6;
+                maxz = 10;
+            }
             break;
         case 1: // east
             minx = 0;
@@ -4927,12 +4936,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             maxz = 16;
             break;
         case 5: // below
-            minx = 5;
-            maxx = 12;
             miny = 0;
             maxy = 2 - bitAdd;
-            minz = 6;
-            maxz = 10;
+            // rotate button if on top or bottom of block and this flag is set
+            if (dataVal & BIT_16) {
+                minx = 6;
+                maxx = 10;
+                minz = 5;
+                maxz = 12;
+            }
+            else {
+                minx = 5;
+                maxx = 12;
+                minz = 6;
+                maxz = 10;
+            }
             break;
         }
         // we *could* save one face of the stone button, the one facing the object, but don't:
@@ -5502,8 +5520,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 return 0;
             }
         }
-        // TODO: change color by wetness
-        topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        // change color by wetness. Only a wetness of 7 gives wet farmland. Default is dry
+        topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX + ((dataVal == 7)?-1:0), gBlockDefinitions[type].txrY );
         sideSwatchLoc = SWATCH_INDEX( 2,0 );
         bottomSwatchLoc = SWATCH_INDEX( 2,0 );
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 15, 0, 16);
@@ -5616,7 +5634,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		{
 			// "in_wall" property on? (1.13)
 			bool shiftGate = (dataVal & 0x20) ? true : false;
-			if (gMcVersion <= 12) {
+			if (!gIs13orNewer) {
 				// have to test if there are walls around to lower the gate - there are only two types, cobble and mossy cobble, in 1.12
 				if (dataVal & 0x1)
 				{
@@ -6434,31 +6452,45 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         transformVertices(8,mtx);
         if ( !gPrint3D && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) )
         {
-            // TODO: we don't actually chop off the bottom of the torch - at least 3 (really, 5) pixels should be chopped from bottom). Normally doesn't
-            // matter, because no one ever sees the bottom of a repeater.
-
             // the slideable one, based on dataVal
             totalVertexCount = gModel.vertexCount;
-            saveBillboardFacesExtraData( boxIndex, (type==BLOCK_REDSTONE_REPEATER_OFF)?BLOCK_REDSTONE_TORCH_OFF:BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5, 0 );
+            // locked?
+            if (dataVal & 0x10) {
+                // locked block, I think it's made of bedrock?
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_BEDROCK].txrX, gBlockDefinitions[BLOCK_BEDROCK].txrY);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 7, 9, 5, 7, 2, 14);
+                // unrotated looks bad: saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 2, 14, 5, 7, 7, 9);
+                int blockVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(blockVertexCount, mtx);
+            }
+            else {
+                // second stubby torch
+                saveBillboardFacesExtraData(boxIndex, (type == BLOCK_REDSTONE_REPEATER_OFF) ? BLOCK_REDSTONE_TORCH_OFF : BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5 | 0x10, 0);
+            }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, -3.0f/16.0f, -1.0f/16.0f + (float)(dataVal>>2)*2.0f/16.0f );
+            translateMtx(mtx, 0.0f, -3.0f / 16.0f, -1.0f / 16.0f + (float)((dataVal & 0xC) >> 2) * 2.0f / 16.0f);
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount,mtx);
-
-            // the one shifted 5 sideways
-            totalVertexCount = gModel.vertexCount;
-            saveBillboardFacesExtraData( boxIndex, (type==BLOCK_REDSTONE_REPEATER_OFF)?BLOCK_REDSTONE_TORCH_OFF:BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5, 0 );
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, -3.0f/16.0f, -5.0f/16.0f );
-            rotateMtx(mtx, 0.0f, angle, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount,mtx);
+            transformVertices(totalVertexCount, mtx);
         }
+
+        // torch shifted 5 sideways
+        totalVertexCount = gModel.vertexCount;
+        saveBillboardFacesExtraData(boxIndex, (type == BLOCK_REDSTONE_REPEATER_OFF) ? BLOCK_REDSTONE_TORCH_OFF : BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5 | 0x10, 0);
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 0.0f, -3.0f / 16.0f, -5.0f / 16.0f);
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
@@ -6486,7 +6518,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
                 // the left one shifted 5 sideways
                 totalVertexCount = gModel.vertexCount;
-                saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+                saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | 0x10, 0 );
                 totalVertexCount = gModel.vertexCount - totalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -6497,7 +6529,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
                 // the right one shifted 5 sideways
                 totalVertexCount = gModel.vertexCount;
-                saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+                saveBillboardFacesExtraData( boxIndex, in_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | 0x10, 0 );
                 totalVertexCount = gModel.vertexCount - totalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -6508,7 +6540,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
                 // the inner one moved 1 more down if not powered
                 totalVertexCount = gModel.vertexCount;
-                saveBillboardFacesExtraData( boxIndex, out_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5, 0 );
+                saveBillboardFacesExtraData( boxIndex, out_powered?BLOCK_REDSTONE_TORCH_ON:BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5|(out_powered?0x20:0x30), 0 );
                 totalVertexCount = gModel.vertexCount - totalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -10023,6 +10055,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 	float shiftZ = 0.0f;
 	bool wobbleIt = false;
 	int origDataVal = dataVal;
+    int origUsingTransform = gUsingTransform;
 
 	assert(!gPrint3D);
 
@@ -10976,13 +11009,17 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     {
         gUsingTransform = 1;
         // 11 high, 2x2 but extending out by 1 on each side
-        saveBoxGeometry(boxIndex, type, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6,10, 0,11, 7, 9);
-        saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, 0, 11, 6, 10);
+        // dataVal of 0x10 means stubby torch (5.0), 0x20 means more stubby (7.0), 0x30 means one more stubby than that (8.0)
+        float stubShift = (dataVal & 0x30) ? ((dataVal & 0x20) ? 5.0f + (float)((dataVal & 0x30)>>4) : 5.0f) : 0.0f;
+        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6,10, stubShift,11, 7, 9);
+        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift,11, 6,10);
 
         // add a tip to the torch, shift it one texel in X
         //saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
         int torchVertexCount = gModel.vertexCount;
-        saveBoxGeometry(boxIndex, type, dataVal, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, 10, 10, 6, 8);
+        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, stubShift, 10, 6, 8);
+        // torch bottom
+        saveBoxReuseGeometry(boxIndex, type, dataVal & 0xf, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0x0, 7, 9, stubShift, 10, 11, 13);
         gUsingTransform = 0;
 
         torchVertexCount = gModel.vertexCount - torchVertexCount;
@@ -10990,7 +11027,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         translateMtx(mtx, 0.0f, 0.0f, 1.0f/16.0f);
         transformVertices(torchVertexCount,mtx);
 
-        if ( dataVal != 5 )
+        if ( (dataVal & 0xf) != 5 )
         {
             //static float shr = -0.8f/2.0f;
             static float trans = 8.0f/16.0f;
@@ -11204,6 +11241,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     addBounds( anchor, &gModel.billboardBounds );
     VecScalar( anchor, +=, 1 );
     addBounds( anchor, &gModel.billboardBounds );
+
+    // pop stack, in case this is getting called from something else (e.g., comparator) that sets gUsingTransform
+    gUsingTransform = origUsingTransform;
 
     // special case:
     // for vines, return 0 (flatten to face) if there is a block above it
@@ -14933,13 +14973,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             //SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             // now use the manufactured grass block at 6,2
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 2,  2, 0 );
-            if ( faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM )
+            // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
+            // check against the original type, since the snow block is likely to be flattened
+            if (gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW))
             {
-                // check if block above is snow; if so, use snow side tile; note we
-                // check against the original type, since the snow block is likely to be flattened
-                if ( gBoxData[backgroundIndex+1].origType == BLOCK_SNOW )
+                if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
                 {
-                    swatchLoc = SWATCH_INDEX( 4, 4 );
+                    // yes, it's just the default "snowy-sided dirt" for this, too
+                    swatchLoc = SWATCH_INDEX(4, 4);
+                }
+                else if (faceDirection == DIRECTION_BLOCK_TOP) {
+                    // really shows up only in Debug World testing, but let's get it sort-of right, in case individual blocks are exported
+                    // (Minecraft actually uses the untinted grass block top for the block, but that's dumb for mycelium, etc., and for single blocks)
+                    swatchLoc = SWATCH_INDEX(2, 4);
                 }
             }
             break;
@@ -14957,16 +15003,22 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( 15,17 );
                 SWATCH_SWITCH_SIDE( faceDirection, 14,17 );
 				// same as grass block: switch to snow covered look
-				if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
-				{
-					// check if block above is snow; if so, use snow side tile; note we
-					// check against the original type, since the snow block is likely to be flattened
-					if (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW)
-					{
-						swatchLoc = SWATCH_INDEX(4, 4);
-					}
-				}
-				break;
+                // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
+                // check against the original type, since the snow block is likely to be flattened
+                if (gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW))
+                {
+                    if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
+                    {
+                        // yes, it's just the default "snowy-sided dirt" for this, too
+                        swatchLoc = SWATCH_INDEX(4, 4);
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_TOP) {
+                        // really shows up only in Debug World testing, but let's get it sort-of right, in case individual blocks are exported
+                        // (Minecraft actually uses the untinted grass block top for the block, but that's dumb for mycelium, etc., and for single blocks)
+                        swatchLoc = SWATCH_INDEX(2, 4);
+                    }
+                }
+                break;
             }
             break;
         case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
@@ -17083,6 +17135,22 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             break;
         case BLOCK_MYCELIUM:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 13, 4,  2, 0 );
+            // same as grass block: switch to snow covered look
+            // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
+            // check against the original type, since the snow block is likely to be flattened
+            if (gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW))
+            {
+                if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
+                {
+                    // yes, it's just the default "snowy-sided dirt" for this, too
+                    swatchLoc = SWATCH_INDEX(4, 4);
+                }
+                else if (faceDirection == DIRECTION_BLOCK_TOP) {
+                    // really shows up only in Debug World testing, but let's get it sort-of right, in case individual blocks are exported
+                    // (Minecraft actually uses the untinted grass block top for the block, but that's dumb for mycelium, etc., and for single blocks)
+                    swatchLoc = SWATCH_INDEX(2, 4);
+                }
+            }
             break;
         case BLOCK_ENCHANTING_TABLE:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,11,  7,11 );
@@ -18413,7 +18481,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
 				// the minus one is to get rid of the guard band and keep the numbers inside the 0-17 range
 				index = (int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) +
 					(NUM_UV_GRID_RESOLUTION + 1) * (int)(16-((((int)((1.0f-gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale));
-				assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) >= 0);	// TODOTODOTODO test
+				assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) >= 0);
 				assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale) <= 16);
 				assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale)) >= 0);
 				assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f)*resScale)) <= 16);
@@ -22798,8 +22866,9 @@ static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, in
 {
 	int retCode = MW_NO_ERROR;
 	bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
-	// TODOTODO OK, this is a horrible kludge. For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
+	// TODOTODO OK, this is a kludge
 	if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
+        // For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
 		usesAlpha = false;
 	}
 	int scol = swatchLoc % swatchesPerRow;
