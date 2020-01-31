@@ -249,6 +249,7 @@ static int worldVersion = 0;
 // axis: x|y|z
 #define QUARTZ_PILLAR_PROP	 40
 // facing: down|up|south|north|east|west
+// powered: true|false
 #define OBSERVER_PROP		 EXTENDED_FACING_PROP
 // mode: data|save|load|corner
 #define STRUCTURE_PROP		 41
@@ -282,10 +283,9 @@ static int worldVersion = 0;
 // open: true|false
 #define BARREL_PROP			 EXTENDED_FACING_PROP
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
-
 #define EXTENDED_SWNE_FACING_PROP 50
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
-// face: floor/ceiling/wall
+// face: floor|ceiling|wall
 #define GRINDSTONE_PROP		EXTENDED_SWNE_FACING_PROP
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
 // has_book: true|false
@@ -654,7 +654,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 168,           1, "prismarine_bricks", NO_PROP },
 { 0, 168,           2, "dark_prismarine", NO_PROP },
 { 0, 169,           0, "sea_lantern", NO_PROP },
-{ 0, 198,           0, "end_rod", OBSERVER_PROP },
+{ 0, 198,           0, "end_rod", EXTENDED_FACING_PROP },
 { 0, 199,           0, "chorus_plant", NO_PROP },
 { 0, 200,           0, "chorus_flower", NO_PROP },	// uses age
 { 0, 201,           0, "purpur_block", NO_PROP },
@@ -669,23 +669,23 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 215,           0, "red_nether_bricks", NO_PROP },
 { 0, 216,           0, "bone_block", AXIS_PROP },
 { 0, 218,           0, "observer", OBSERVER_PROP },
-{ 0, 219,           0, "shulker_box", NO_PROP },
-{ 0, 219,           0, "white_shulker_box", NO_PROP },	// same as above, I guess?
-{ 0, 220,           0, "orange_shulker_box", NO_PROP },
-{ 0, 221,           0, "magenta_shulker_box", NO_PROP },
-{ 0, 222,           0, "light_blue_shulker_box", NO_PROP },
-{ 0, 223,           0, "yellow_shulker_box", NO_PROP },
-{ 0, 224,           0, "lime_shulker_box", NO_PROP },
-{ 0, 225,           0, "pink_shulker_box", NO_PROP },
-{ 0, 226,           0, "gray_shulker_box", NO_PROP },
-{ 0, 227,           0, "light_gray_shulker_box", NO_PROP },
-{ 0, 228,           0, "cyan_shulker_box", NO_PROP },
-{ 0, 229,           0, "purple_shulker_box", NO_PROP },
-{ 0, 230,           0, "blue_shulker_box", NO_PROP },
-{ 0, 231,           0, "brown_shulker_box", NO_PROP },
-{ 0, 232,           0, "green_shulker_box", NO_PROP },
-{ 0, 233,           0, "red_shulker_box", NO_PROP },
-{ 0, 234,           0, "black_shulker_box", NO_PROP },
+{ 0, 229,           0, "shulker_box", EXTENDED_FACING_PROP },	// it's a pale purple one, but we just use the purple one TODO
+{ 0, 219,           0, "white_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 220,           0, "orange_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 221,           0, "magenta_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 222,           0, "light_blue_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 223,           0, "yellow_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 224,           0, "lime_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 225,           0, "pink_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 226,           0, "gray_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 227,           0, "light_gray_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 228,           0, "cyan_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 229,           0, "purple_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 230,           0, "blue_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 231,           0, "brown_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 232,           0, "green_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 233,           0, "red_shulker_box", EXTENDED_FACING_PROP },
+{ 0, 234,           0, "black_shulker_box", EXTENDED_FACING_PROP },
 { 0, 235,           0, "white_glazed_terracotta", SWNE_FACING_PROP },
 { 0, 236,           0, "orange_glazed_terracotta", SWNE_FACING_PROP },
 { 0, 237,           0, "magenta_glazed_terracotta", SWNE_FACING_PROP },
@@ -983,7 +983,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 139,             11, "red_nether_brick_wall", NO_PROP },
 { 0, 139,             12, "sandstone_wall", NO_PROP },
 { 0, 139,             13, "red_sandstone_wall", NO_PROP },
-{ 0,  75,		HIGH_BIT, "jigsaw", OBSERVER_PROP },
+{ 0,  75,		HIGH_BIT, "jigsaw", EXTENDED_FACING_PROP },
 { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
 { 0, BLOCK_FURNACE,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
 { 0, BLOCK_FURNACE,	      BIT_32, "smoker", FURNACE_PROP },
@@ -2370,13 +2370,14 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case EXTENDED_FACING_PROP:
 							// properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
 							// also WALL_SIGN_PROP, OBSERVER_PROP
-							dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0);
+							dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0);
 							triggered = false;
 							extended = false;
 							sticky = 0x0;
 							enabled = false;
 							conditional = false;
 							open = false;
+							powered = false;
 							break;
 						case EXTENDED_SWNE_FACING_PROP:
 							// properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP

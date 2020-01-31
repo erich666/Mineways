@@ -291,7 +291,7 @@ There are some solutions to the price problem:
 By the way, I hear "it would be cheaper using LEGOs" a fair bit. LEGO blocks cost around <a href="http://shop.lego.com/en-US/LEGO-Basic-Bricks-Deluxe-6177">4-5 cents a block</a>, 2 mm colored sandstone 3D printed blocks run about 6/10th of a cent. There are advantages to LEGOs (larger, reusable, fun to make) and disadvantages (no textures, not perfect cubes), but LEGO cost is not an advantage.
 <P>
 <P>
-By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</a> *.obj (and *.mtl) files are exported for rendering, <a href="http://en.wikipedia.org/wiki/VRML">VRML97</a> (aka VRML2) for 3D printing. Here's the rundown of the various file types you can select, including some subtleties about each.
+By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</a> *.obj (and *.mtl) files are exported for rendering, <a href="http://en.wikipedia.org/wiki/VRML">VRML97</a> (aka VRML2) for 3D printing. Here's the rundown of the various file types you can select, including some subtleties about each. If you want to export to the <a href="https://www.khronos.org/gltf/">glTF</a> format, one indirect way is to <a href="#sketchfab">upload to Sketchfab</a>, make the model downloadable, then download from there.
 <P>
 <B>OBJ, absolute:</B> Wavefront OBJ is an old format, so is commonly supported as an import format for a huge range of applications. If you export materials, a corresponding *.mtl file is output; if you export textures, one or more *.png files are also created. The .obj and .mtl files are text files, so can be edited or processed further. By selecting <a href="http://www.fileformat.info/format/material/">"absolute"</a> for the OBJ file, indices are absolute (positive), the norm. This is the format to use for export for upload to <a href="http://sculpteo.com">Sculpteo</a>. See other export choices in the <a href="#obj_export_options">OBJ file export options</a> documentation.
 <P>
@@ -2400,7 +2400,7 @@ The lit observer tile is in terrainExt.png, but is not tested for and displayed.
 Shulker Boxes (#219-234)
 </td>
 <td colspan="3">
-<center>Side and bottom derived</center>
+<center>Side and bottom textures are derived from templates. Default shulker box colored purple instead of pale purple (doesn't use shulker_box.png).</center>
 </td>
 <td>
 Shulker box sides and bottoms are created by using the color of the upper left pixel (2,2) of the top of the shulker box compared to the white shulker box top, multiplied by MW_SHULKER_SIDE and MW_SHULKER_BOTTOM.
@@ -3034,19 +3034,23 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Update to now build under VS 2019.
 </UL>
 
-<LI>Version 7.10, 1/xx/2010 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.10, 2/xx/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
-Call this one the "Minutia Release," as the debug block world helped me find a large number of little fixes and cleanups:
+Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">the debug block world</a> in Minecraft helped me find a large number of little fixes and cleanups:
 <UL>
-<LI>Tilemaker updated: The new 1.15 layout for chests is now supported. If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
-<LI>The default red bed tiles are updated to 1.15 versions. Still no colored beds, nor beds with solid legs.
-<LI>Waterlogged stained glass now retains its proper color.
+<LI>Tilemaker updated: The new 1.15 layout and images for chests is now supported (why Mojang changed it, I don't know). If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
+<LI>Buttons placed on the top or bottom of a block now properly use the east-west vs. north-south property for orientation (<a href="https://github.com/erich666/Mineways/issues/51">issue report</a>).
+<LI>Activator rails inactive/active states were reversed - fixed.
+<LI>Observer blocks' powered state is now shown properly for 1.13 on (it worked under old 1.12 Minecraft format).
+<LI>Shulker boxes now have orientations, and the default (no color given) shulker box is now purple (it should be a pale purple, but that's a lot more work and on the TODO list).
 <LI>Torches now have bottoms.
-<LI>Redstone repeaters and comparators now have shortened torches, for when they are on transparent blocks.
+<LI>The default red bed tiles are updated to 1.15 versions. Still no colored beds, nor beds with solid legs.
+<LI>Scaffolding and campfires (including burning ones - go figure) can now be waterlogged, as in Minecraft.
+<LI>Waterlogged stained glass now retains its proper color.
+<LI>Redstone repeaters and comparators now have shortened torches, for when they are on transparent blocks (the torch handles used to be visible under these circumstances).
 <LI>Redstone repeaters now show the "locked" mode.
 <LI>If farmland moisture level is not fully wet (0x7), output dry farmland.
 <LI>Make average wet farmland map color brighter on the map.
-<LI>Buttons placed on the top or bottom of a block now properly use the east-west vs. north-south property for orientation.
 <LI>Mycellium blocks are now snowy on their sides when there is snow on top of them.
 <LI>If individual snowy grass, podzol, or mycellium blocks are exported, they will have snow on their tops.
 <LI>Improve error message and behavior for when someone attempts to read in a Minecraft Bedrock world.
@@ -3082,7 +3086,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Work on Mac and Linux: my code is a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
 <LI>Vines should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks or other blocks they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inward from whatever block it's in to the one it's touching, but intervening properly is tricky.
-<LI>Shulker boxes would be nice to process, as we do with chests.
+<LI>Shulker boxes would be nice to process from their separate composite image files, as we do with chests. Same with beds. Also, the "default" shulker_box should use its pale purple version.
 <LI><a href="https://web.archive.org/web/20170912203020/http://www.minecraftforum.net:80/forums/mapping-and-modding/minecraft-mods/1272765-1-2-5-connected-textures-mod-v1-4-1">Connected textures</a> would give more continuous results for surfaces such as glass and bookshelves. One problem with this idea is that these are custom tiles, so this feature could be added for the default texture set, but not the various other texture packs.
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, and so on. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>. That said, this option is at the bottom of the list because I think it's the wrong workflow. Normally you want to export from Mineways and then use MeshLab or other program to preview the model to make sure it looks right, then you want to upload. Not checking the model before uploading seems over-optimistic to me in most situations.
 </UL>

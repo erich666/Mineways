@@ -606,8 +606,8 @@ static struct {
     {  2, 33, 218, L"observer_front", L"", SWATCH_REPEAT_ALL },
     {  3, 33, 218, L"observer_side", L"", SWATCH_REPEAT_ALL },
     {  4, 33, 218, L"observer_top", L"", SWATCH_REPEAT_ALL },   // alternate name is Sphax BD Craft
-    {  5, 33, 219, L"MW_shulker_side", L"MW_SHULKER_SIDE", SWATCH_REPEAT_ALL },
-    {  6, 33, 219, L"MW_shulker_bottom", L"MW_SHULKER_BOTTOM", SWATCH_REPEAT_ALL },
+    {  5, 33, 219, L"MW_SHULKER_SIDE", L"MW_shulker_side", SWATCH_REPEAT_ALL },
+    {  6, 33, 219, L"MW_SHULKER_BOTTOM", L"MW_shulker_bottom", SWATCH_REPEAT_ALL },
     {  7, 33, 313, L"dried_kelp_top", L"", SWATCH_REPEAT_ALL },  // 1.13 starts here
     {  8, 33, 313, L"dried_kelp_side", L"", SWATCH_REPEAT_ALL },
     {  9, 33, 313, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },

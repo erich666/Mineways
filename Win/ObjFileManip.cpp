@@ -3927,6 +3927,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
     case BLOCK_LILY_PAD:					// saveBillboardOrGeometry
+        // TODO: could randomize lily pad's rotation (it depends on location in Minecraft).
+        // Not doing it, because in part we'd be inconsistent between this and composite swatches,
+        // where the lily pad is always the same orientation (otherwise we'd need up to four swatches).
         return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
 
 
@@ -8278,19 +8281,19 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			switch (attachment) {
 			default:
 				assert(0);
-			case 0: // floor
+			case 0: // floor - has two supports
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 2, 14, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 2, 0, 16, 6, 10);
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 14, 16, 0, 16, 6, 10);
 				break;
-			case 1: // ceiling
+			case 1: // ceiling - single hanging support
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7, 9, 13, 16, 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
-			case 2: // single wall
+			case 2: // single wall - to one side of the support
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 3, 16, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
-			case 3:	// double wall
+			case 3:	// double wall - centered on the support
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 16, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
 				break;
 			}
@@ -10199,7 +10202,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		switch (type)
 		{
 		case BLOCK_POWERED_RAIL:
-			if (!(dataVal & 0x8))
+            // by default, activated
+            if (!(dataVal & 0x8))
 			{
 				// unpowered rail
 				swatchLoc = SWATCH_INDEX(3, 10);
@@ -10214,10 +10218,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 			}
 			break;
 		case BLOCK_ACTIVATOR_RAIL:
-			// by default, unactivated
-			if (dataVal & 0x8)
+			// by default, activated
+            if (!(dataVal & 0x8))
 			{
-				// activated rail
+				// unactivated rail
 				swatchLoc = SWATCH_INDEX(9, 17);
 			}
 			break;
@@ -15664,7 +15668,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             }
             break;
         case BLOCK_OBSERVER:
-            // I suspect the top bit is whether the observer is firing, but don't know. 
+            // The top bit 0x8 is whether the observer is firing 
             swatchLoc = (dataVal & 0x8) ? SWATCH_INDEX(1, 33) : SWATCH_INDEX(0, 33);
             switch (dataVal & 0x7)
             {
@@ -15764,29 +15768,6 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 default: break;
                 }
                 break;
-            }
-            break;
-        case BLOCK_SHULKER_CHEST:
-        case BLOCK_SHULKER_CHEST + 1:
-        case BLOCK_SHULKER_CHEST + 2:
-        case BLOCK_SHULKER_CHEST + 3:
-        case BLOCK_SHULKER_CHEST + 4:
-        case BLOCK_SHULKER_CHEST + 5:
-        case BLOCK_SHULKER_CHEST + 6:
-        case BLOCK_SHULKER_CHEST + 7:
-        case BLOCK_SHULKER_CHEST + 8:
-        case BLOCK_SHULKER_CHEST + 9:
-        case BLOCK_SHULKER_CHEST + 10:
-        case BLOCK_SHULKER_CHEST + 11:
-        case BLOCK_SHULKER_CHEST + 12:
-        case BLOCK_SHULKER_CHEST + 13:
-        case BLOCK_SHULKER_CHEST + 14:
-        case BLOCK_SHULKER_CHEST + 15:
-            if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
-                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 5);
-            }
-            else if (faceDirection != DIRECTION_BLOCK_TOP) {
-                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 4);
             }
             break;
         case BLOCK_GLAZED_TERRACOTTA:
@@ -17666,7 +17647,23 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 38, 13, 38);
 			break;
 
-        case BLOCK_BARREL:
+        case BLOCK_SHULKER_CHEST:
+        case BLOCK_SHULKER_CHEST + 1:
+        case BLOCK_SHULKER_CHEST + 2:
+        case BLOCK_SHULKER_CHEST + 3:
+        case BLOCK_SHULKER_CHEST + 4:
+        case BLOCK_SHULKER_CHEST + 5:
+        case BLOCK_SHULKER_CHEST + 6:
+        case BLOCK_SHULKER_CHEST + 7:
+        case BLOCK_SHULKER_CHEST + 8:
+        case BLOCK_SHULKER_CHEST + 9:
+        case BLOCK_SHULKER_CHEST + 10:
+        case BLOCK_SHULKER_CHEST + 11:
+        case BLOCK_SHULKER_CHEST + 12:
+        case BLOCK_SHULKER_CHEST + 13:
+        case BLOCK_SHULKER_CHEST + 14:
+        case BLOCK_SHULKER_CHEST + 15:
+        case BLOCK_BARREL:						// getSwatch
 			// copied from piston code - whew, quite the piece of work - but with further rotations for barrel top
 			// 0,38 head, 1,38 side, 2,38 bottom, 3,38 open top
 			head = bottom = 0;
@@ -17754,27 +17751,40 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			// ok, now we know head vs. bottom vs. side & angle
 			if (head)
 			{
-				if (dataVal & 8)
-				{
-					// open
-					swatchLoc = SWATCH_INDEX(3, 38);
-				}
-				else
-				{
-					// top, closed
-					swatchLoc = SWATCH_INDEX(0, 38);
-				}
+                // top of barrel
+                if (type == BLOCK_BARREL) {
+                    // open or closed?
+                    if (dataVal & 8)
+                    {
+                        // open
+                        swatchLoc = SWATCH_INDEX(3, 38);
+                    }
+                    // code below not needed, as that's the default swatch:
+                    //else
+                    //{
+                    //    // top, closed
+                    //    swatchLoc = SWATCH_INDEX(0, 38);
+                    //}
+                } // else shulker box top, which has already been selected
 			}
 			else if (bottom)
 			{
 				// easy!
-				swatchLoc = SWATCH_INDEX(2, 38);
-			}
+                if (type == BLOCK_BARREL) {
+                    swatchLoc = SWATCH_INDEX(2, 38);
+                } else {
+                    swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 5);
+                }
+            }
 			else
 			{
 				// side
-				swatchLoc = SWATCH_INDEX(1, 38);
-			}
+                if (type == BLOCK_BARREL) {
+                    swatchLoc = SWATCH_INDEX(1, 38);
+                } else {
+                    swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY + 4);
+                }
+            }
 			if (uvIndices && angle != 0)
 				rotateIndices(localIndices, angle);
 			break;
