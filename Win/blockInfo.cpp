@@ -123,7 +123,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
     { /*  51 */ "Fire",                   		0xfca100, 1.000f, 0xff7711, 0xff7711, 0.12345f,  /* somewhat bogus */ 15, 1, 0x00, BLF_BILLBOARD|BLF_CUTOUTS|BLF_EMITTER|BLF_DNE_FLUID},	//33/51 - no billboard, sadly BLF_CUTOUTS
     { /*  52 */ "Monster Spawner",       		0x254254, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 4, 0x00, BLF_ALMOST_WHOLE | BLF_CUTOUTS},	//34
 	{ /*  53 */ "Oak Stairs",             		0x9e804f, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//35
-	{ /*  54 */ "Chest",                  		0xa06f23, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 1, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//36 (10,1) side; (11,1) front
+	{ /*  54 */ "Chest",                  		0xa06f23, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 1, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	//36 (10,1) side; (11,1) front
 	{ /*  55 */ "Redstone Wire",/*"Dust"*/		0xd60000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,10, 0x0F, BLF_FLATTEN | BLF_DNE_FLUID | BLF_CUTOUTS | BLF_CONNECTS_REDSTONE | BLF_OFFSET},	//37 - really, 0xfd3200 is lit, we use a "neutral" red here
 	{ /*  56 */ "Diamond Ore",            		0x5decf5, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//38
 	{ /*  57 */ "Block of Diamond",       		0x7fe3df, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//39

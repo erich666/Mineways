@@ -292,6 +292,7 @@ static int worldVersion = 0;
 // powered: true|false
 #define LECTERN_PROP		EXTENDED_SWNE_FACING_PROP
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
+// powered: true|false
 // attachment: floor|ceiling|single_wall|double_wall
 #define BELL_PROP		EXTENDED_SWNE_FACING_PROP
 // hanging: true|false
@@ -2313,7 +2314,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							break;
 						case CHEST_PROP:
 							dataVal = 6 - dataVal;
-							// two upper bits are 1 = single, 2 = left, 3 = right half; note if no bits found, then it's an old-style chest
+							// two upper bits 0x18 are 1 = single, 2 = left, 3 = right half; note if no bits found, then it's an old-style chest
 							dataVal |= (single << 3);
 							break;
 						case FACING_PROP:
@@ -2383,8 +2384,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							// properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
 							// really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
 							dataVal = door_facing | (face << 2) // grindstone
-								| (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern
-								| (attachment << 2) // bell
+								| (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
+								| (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
 								| (lit ? 4 : 0) | (signal_fire ? 8 : 0)
 								| (honey_level<<2); // bee_nest, beehive
 							face = 0;
@@ -2393,6 +2394,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							attachment = 0;
 							lit = false;
 							signal_fire = false;
+							honey_level = 0;
 							break;
 						case VINE_PROP:
 							dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);

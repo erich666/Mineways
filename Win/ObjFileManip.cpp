@@ -640,6 +640,7 @@ static void computeRedstoneConnectivity(int boxIndex);
 static int computeFlatFlags(int boxIndex);
 static int firstFaceModifier( int isFirst, int faceIndex );
 static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ);
+static void randomRotation(int boxIndex, int& angle);
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry( int boxIndex, int type );
 static int saveTriangleGeometry( int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide );
@@ -725,6 +726,7 @@ static int saveSpecialVertices( int boxIndex, int faceDirection, IPoint loc, flo
 static int saveVertices( int boxIndex, int faceDirection, IPoint loc );
 static int saveFaceLoop( int boxIndex, int faceDirection, float heights[4], int heightIndex[4], int firstFace );
 static int getMaterialUsingGroup( int groupID );
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly = false);
 static int retrieveWoolSwatch( int dataVal );
 static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4] );
 static int getCompositeSwatch( int swatchLoc, int backgroundIndex, int faceDirection, int angle );
@@ -815,13 +817,10 @@ static void concatFileName3(wchar_t *dst, const wchar_t *src1, const wchar_t *sr
 static void concatFileName4(wchar_t *dst, const wchar_t *src1, const wchar_t *src2, const wchar_t *src3, const wchar_t *src4);
 static void wcharCleanse( wchar_t *wstring );
 
-static void myseedrand( long seed );
+static void myseedrand(long seed);
 static double myrand();
 
 static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion);
-
-static void seedWithXYZ(int boxIndex);
-static void seedWithXZ(int boxIndex);
 
 static wchar_t gSeparator[3];
 
@@ -3615,13 +3614,81 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 // Tall grass and other tall flowers - yes
 // Seagrass - yes
 // everything else (mushrooms, crops, stems, carrots, potatoes, beetroot, nether wart, kelp) do not
-static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ)
+static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
 {
-	seedWithXZ(boxIndex);
-	float val = (float)rand() / (RAND_MAX + 1);
-	shiftX = (float)(6 * val - 3);
-	val = (float)rand() / (RAND_MAX + 1);
-	shiftZ = (float)(6 * val - 3);
+    int bx, by, bz;
+    BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
+    // make the numbers positive
+    bx += 100001;
+    bz += 101031;
+
+    // pcg2d
+    unsigned int x = (unsigned int)bx;
+    unsigned int z = (unsigned int)bz;
+    x = x * 1664525u + 1013904223u;
+    z = z * 1664525u + 1013904223u;
+    x += z * 1664525u;
+    z += x * 1664525u;
+    x = x ^(x >> 16u);
+    z = z ^(z >> 16u);
+    x += z * 1664525u;
+    z += x * 1664525u;
+    x = x ^(x >> 16u);
+    z = z ^(z >> 16u);
+
+    float val = (float)x / 4294967296.0f;
+    shiftX = (float)(6 * val - 3);
+    val = (float)z / 4294967296.0f;
+    shiftZ = (float)(6 * val - 3);
+}
+
+static void randomRotation(int boxIndex, int& angle)
+{
+    int x, y, z;
+    BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
+    // make the numbers positive
+    x += 100001;
+    z += 101031;
+
+    // xxhash32(uint2 p)
+    const unsigned int PRIME32_2 = 2246822519U, PRIME32_3 = 3266489917U;
+    const unsigned int PRIME32_4 = 668265263U, PRIME32_5 = 374761393U;
+    unsigned int h32 = (unsigned int)z + PRIME32_5 + (unsigned int)x * PRIME32_3;
+    h32 = PRIME32_4 * ((h32 << 17) | (h32 >> (32 - 17)));
+    h32 = PRIME32_2 * (h32 ^ (h32 >> 15));
+    h32 = PRIME32_3 * (h32 ^ (h32 >> 13));
+    float val = (float)( h32 ^ (h32 >> 16) ) / 4294967296.0f;
+    angle = 90 * (int)(4.0f * val);
+}
+
+static float getRand3to1(int boxIndex)
+{
+    int bx, by, bz;
+    BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
+    // make the location numbers positive (y already is)
+    bx += 100001;
+    bz += 101031;
+
+    // pcg3d
+    unsigned int x = (unsigned int)bx;
+    unsigned int y = (unsigned int)by;
+    unsigned int z = (unsigned int)bz;
+    x = x * 1664525u + 1013904223u;
+    y = y * 1664525u + 1013904223u;
+    z = z * 1664525u + 1013904223u;
+    x += y * z;
+    y += z * x;
+    z += x * y;
+    x = x ^ (x >> 16u);
+    y = y ^ (y >> 16u);
+    z = z ^ (z >> 16u);
+    x += y * z;
+    // we only need x, so don't need to compute final y and z values
+    //y += z * x;
+    //z += x * y;
+
+    // convert to [0-1) range
+    return (float)x / 4294967296.0f;
 }
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide)
@@ -4212,11 +4279,13 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// side panels:
 			// if adjacent to chorus plant or flower, certainly extend.
 			// else extend randomly, based on random value: 50/50 there's a growth or not, and 50/50 the growth is a 6x6/8x8
-			seedWithXYZ(boxIndex);
-			int odds = rand()%256;
-			// if all bump out bits are on (no bumps) or all are off (four bumps), get another value
+            int odds = (int)(getRand3to1(boxIndex) * 256.0f);
+            int fallbackBoxIndex = boxIndex;
+			// if all bump out bits are on (no bumps) or all are off (four bumps), get another value, as those two values are not valid
 			while (((odds & 0x55) == 0x55) || ((odds & 0x55) == 0x0) ) {
-				odds = rand() % 256;
+                // Can't use boxIndex again, as it will give the same result. Somewhat random increment:
+                fallbackBoxIndex += 12345;
+				odds = (int)(getRand3to1(fallbackBoxIndex) * 256.0f);
 			}
 
 			// Lo X
@@ -6247,71 +6316,91 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_TRAPPED_CHEST:
         // Decide if chest is a left side, right side, or single. Get angle for rotation.
         // If it's a right-side chest or a single, make the latch (left-side chests don't get the latch, so that the right side makes just one latch).
-        chestType = 0;	// left is 1, right is 2
+        chestType = 0;	// single is 0, left is 1, right is 2
         angle = 0;
-        switch (dataVal & 0x7)
-        {
-        case 0:
-            // old bad data, so this code matches it.
-            // In reality, in 1.8 such chests just disappear! The data's still
-            // in the world, but you can't see or interact with the chests.
-        case 2: // facing north
-            // is neighbor to west also a chest?
-            if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
+        // 1.13 on have a nice "single" property, which we use here to override things.
+        if (((dataVal & 0x18) >> 3) > 0x0) {
+            // has "single" property
+            chestType = ((dataVal & 0x18) >> 3) - 1;
+            assert(chestType >= 0 && chestType <= 2);
+            switch (dataVal & 0x7)
             {
-                chestType = 1;
+            case 2: // facing north
+                angle = 180;
+                break;
+            case 3: // facing south
+                angle = 0;
+                break;
+            case 4: // facing west
+                angle = 90;
+                break;
+            case 5: // facing east
+                angle = 270;
+                break;
+            default:
+                assert(0);
+                break;
             }
-            else if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
+        } else {
+            // 1.12 or earlier - time for detective work
+            switch (dataVal & 0x7)
             {
-                chestType = 2;
+            case 0:
+                // old bad data, so this code matches it.
+                // In reality, in 1.8 such chests just disappear! The data's still
+                // in the world, but you can't see or interact with the chests.
+            case 2: // facing north
+                // is neighbor to west also a chest?
+                if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
+                {
+                    chestType = 1;
+                }
+                else if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
+                {
+                    chestType = 2;
+                }
+                angle = 180;
+                break;
+            case 3: // facing south
+                // is neighbor to east also a chest?
+                if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
+                {
+                    chestType = 1;
+                }
+                // else, is neighbor to west also a chest?
+                else if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
+                {
+                    chestType = 2;
+                }
+                angle = 0;
+                break;
+            case 4: // facing west
+                if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
+                {
+                    chestType = 2;
+                }
+                else if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
+                {
+                    chestType = 1;
+                }
+                angle = 90;
+                break;
+            case 5: // facing east
+                if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
+                {
+                    chestType = 2;
+                }
+                else if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
+                {
+                    chestType = 1;
+                }
+                angle = 270;
+                break;
+            default:
+                assert(0);
+                break;
             }
-            angle = 180;
-            break;
-        case 3: // facing south
-            // is neighbor to east also a chest?
-            if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
-            {
-                chestType = 1;
-            }
-            // else, is neighbor to west also a chest?
-            else if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
-            {
-                chestType = 2;
-            }
-            angle = 0;
-            break;
-        case 4: // facing west
-            if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
-            {
-                chestType = 2;
-            }
-            else if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
-            {
-                chestType = 1;
-            }
-            angle = 90;
-            break;
-        case 5: // facing east
-            if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
-            {
-                chestType = 2;
-            }
-            else if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
-            {
-                chestType = 1;
-            }
-            angle = 270;
-            break;
-        default:
-            assert(0);
-            break;
         }
-
-		// that detective work's nice for older chests, but 1.13 on have a nice "single" property, which we use here to override things.
-		if ((dataVal >> 3) > 0x0) {
-			// has "single" property
-			chestType = (dataVal >> 3) - 1;
-		}
 
         gUsingTransform = 1;
 
@@ -6370,6 +6459,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(9, 3);
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 2);	// front
             faceMask = DIR_LO_X_BIT;
+            break;
+        default:
+            assert(0);
             break;
         }
         // latch only if single or right
@@ -7946,10 +8038,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// +/-3 - TODO: how does Minecraft do this?
 			wobbleObjectLocation(boxIndex, shiftX, shiftZ);
 
-			seedWithXYZ(boxIndex);
+            float randVal = getRand3to1(boxIndex);
 		
-			// shift which bamboo gets used: 0-4, 4-8, 8-12
-			float txrShift = (float)(((int)((rand()/(RAND_MAX+1)) * 4))*3);
+			// shift which bamboo gets used: columns 0-2, 3-5, 6-8, or 9-11
+			float txrShift = (float)(((int)(randVal * 4.0f))*3);
 			if (age == 0) {
 				// note all six sides are used, but with different texture coordinates
 				// sides:
@@ -8260,7 +8352,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 			sideSwatchLoc = topSwatchLoc + 1;
 			bottomSwatchLoc = topSwatchLoc + 2;
-			int attachment = (dataVal & 0xc) >> 2;
+            // note that 0x04 is unused, as 0x08 is powered, to share with lectern's slot in nbt.cpp
+            // the "powered" value seems to be irrelevant to appearance.
+			int attachment = (dataVal & 0x30) >> 4;
 			facing = dataVal & 0x3;
 
 			gUsingTransform = 1;
@@ -8282,10 +8376,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			default:
 				assert(0);
 			case 0: // floor - has two supports
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 2, 14, 13, 15 + (fatten/2.0f), 7 - (fatten/2.0f), 9 + (fatten/2.0f));
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7 - (fatten / 2.0f), 9 + (fatten / 2.0f), 13, 15 + (fatten/2.0f), 2, 14);
 				swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 2, 0, 16, 6, 10);
-				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 14, 16, 0, 16, 6, 10);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 6, 10, 0, 16, 0, 2);
+				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 6, 10, 0, 16, 14, 16);
 				break;
 			case 1: // ceiling - single hanging support
 				saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 7, 9, 13, 16, 7 - (fatten/2.0f), 9 + (fatten/2.0f));
@@ -14811,6 +14905,22 @@ static int getMaterialUsingGroup( int groupID )
     return type;
 }
 
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int *localIndices, bool halfOnly)
+{
+    int angle;
+    if ( (faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM) ) {
+        // random rotation based on location - not same algorithm as Minecraft, but same idea
+        randomRotation(boxIndex, angle);
+        if (halfOnly) {
+            // rotate 180 or not at all
+            angle = ( angle >= 180 ) ? 180 : 0;
+        }
+        if (angle != 0) {
+            rotateIndices(localIndices, angle);
+        }
+    }
+}
+
 static int retrieveWoolSwatch( int dataVal )
 {
     int swatchLoc;
@@ -14971,12 +15081,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
 
         // now do anything special needed for the particular type, data, and face direction
-        switch ( type )
+        switch (type)
         {
         case BLOCK_GRASS_BLOCK:						// getSwatch
             //SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             // now use the manufactured grass block at 6,2
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 2,  2, 0 );
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 2, 2, 0);
             // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
             // check against the original type, since the snow block is likely to be flattened
             if (gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW))
@@ -14992,6 +15102,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     swatchLoc = SWATCH_INDEX(2, 4);
                 }
             }
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_DIRT:						// getSwatch
             switch ( dataVal & 0x3 )
@@ -15024,6 +15135,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 }
                 break;
             }
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            break;
+        case BLOCK_BEDROCK:
+            // half-rotate tops and bottoms randomly
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, true);
+            break;
+        case BLOCK_NETHERRACK:
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
@@ -15522,6 +15641,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( 13,17 );
                 break;
             }
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_DISPENSER:						// getSwatch
         case BLOCK_DROPPER:
@@ -17132,6 +17252,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     swatchLoc = SWATCH_INDEX(2, 4);
                 }
             }
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_ENCHANTING_TABLE:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,11,  7,11 );
@@ -17385,6 +17506,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_GRASS_PATH:						// getSwatch
             // normal block
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 9,24, 2,0 );
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
 
         case BLOCK_COMMAND_BLOCK:						// getSwatch
@@ -21049,12 +21171,12 @@ static int writeSchematicBox()
         length = swapper;
     }
 
-#define CHECK_SCHEMATIC_QUIT( b )			\
-    if ( (b) == 0 ) {						\
-    if ( blocks ) free( blocks );		\
-    if ( blockData ) free( blockData );	\
-    gzclose(gz);						\
-    return retCode|MW_CANNOT_WRITE_TO_FILE;		\
+#define CHECK_SCHEMATIC_QUIT( b )			        \
+    if ( (b) == 0 ) {						        \
+        if ( blocks ) free( blocks );		        \
+        if ( blockData ) free( blockData );	        \
+        gzclose(gz);						        \
+        return retCode|MW_CANNOT_WRITE_TO_FILE;		\
     }
 
     // check if return codes are 0, if so failed and we should abort
@@ -21112,7 +21234,7 @@ static int writeSchematicBox()
                     boxIndex = BOX_INDEX(loc[X],loc[Y],loc[Z]);
                 }
 
-				// if you're storing 1.13 types, you're out of luck - converted to grass
+				// if you're storing 1.13+ types, you're out of luck - converted to grass
 				if (gBoxData[boxIndex].type < 256) {
 					type = (unsigned char)gBoxData[boxIndex].type;
 					data = gBoxData[boxIndex].data;
@@ -23269,18 +23391,3 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
     return minHeight;
 }
 
-static void seedWithXYZ(int boxIndex)
-{
-	int x, y, z;
-	BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
-	unsigned int iseed = (((x % 199) * 215 + (z % 211)) * 223 + (y % 223)) * 197 + 2147483647;
-	srand(iseed);
-}
-
-static void seedWithXZ(int boxIndex)
-{
-	int x, y, z;
-	BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
-	unsigned int iseed = (((x % 199) * 215 + (z % 211)) * 223) * 197 + 2147483647;
-	srand(iseed);
-}

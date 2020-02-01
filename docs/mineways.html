@@ -3039,13 +3039,17 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">the debug block world</a> in Minecraft helped me find a large number of little fixes and cleanups:
 <UL>
 <LI>Tilemaker updated: The new 1.15 layout and images for chests is now supported (why Mojang changed it, I don't know). If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
+<LI>Bug fixed in which beehive and bee nest honey_level values were getting transferred to other blocks.
+<LI>Free-standing bells were rotated 90 degrees from where they were. Free-standing bell supports now also have bottoms.
 <LI>Buttons placed on the top or bottom of a block now properly use the east-west vs. north-south property for orientation (<a href="https://github.com/erich666/Mineways/issues/51">issue report</a>).
 <LI>Activator rails inactive/active states were reversed - fixed.
 <LI>Observer blocks' powered state is now shown properly for 1.13 on (it worked under old 1.12 Minecraft format).
 <LI>Shulker boxes now have orientations, and the default (no color given) shulker box is now purple (it should be a pale purple, but that's a lot more work and on the TODO list).
 <LI>Torches now have bottoms.
+<LI>Grass, dirt, coarse dirt, podzol, mycellium, grass path, sand, red sand, netherrack, and bedrock (180 degrees only) have their top and bottom faces randomly rotated, similar to how Minecraft does it, to break up repetition in large expanses of the block.
+<LI>Better randomization functions added for plant placement, bamboo texturing, and chorus plant sections.
 <LI>The default red bed tiles are updated to 1.15 versions. Still no colored beds, nor beds with solid legs.
-<LI>Scaffolding and campfires (including burning ones - go figure) can now be waterlogged, as in Minecraft.
+<LI>Chests, scaffolding, and campfires (including burning ones - go figure) can now be waterlogged, as in Minecraft.
 <LI>Waterlogged stained glass now retains its proper color.
 <LI>Redstone repeaters and comparators now have shortened torches, for when they are on transparent blocks (the torch handles used to be visible under these circumstances).
 <LI>Redstone repeaters now show the "locked" mode.
