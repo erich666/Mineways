@@ -3946,7 +3946,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
                 else
                 {
                     // couldn't find the whole-block neighbor, how weird - just pick cobblestone
-                    assert(0);
+                    // This could happen with 3D printing things like the debug test world, so we don't assert.
+                    //assert(0);
                     typeBelow = BLOCK_COBBLESTONE;
                     dataValBelow = 0;
                 }
@@ -6573,18 +6574,18 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
-        }
 
-        // torch shifted 5 sideways
-        totalVertexCount = gModel.vertexCount;
-        saveBillboardFacesExtraData(boxIndex, (type == BLOCK_REDSTONE_REPEATER_OFF) ? BLOCK_REDSTONE_TORCH_OFF : BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5 | 0x10, 0);
-        totalVertexCount = gModel.vertexCount - totalVertexCount;
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, -3.0f / 16.0f, -5.0f / 16.0f);
-        rotateMtx(mtx, 0.0f, angle, 0.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(totalVertexCount, mtx);
+            // torch shifted 5 sideways
+            totalVertexCount = gModel.vertexCount;
+            saveBillboardFacesExtraData(boxIndex, (type == BLOCK_REDSTONE_REPEATER_OFF) ? BLOCK_REDSTONE_TORCH_OFF : BLOCK_REDSTONE_TORCH_ON, BB_TORCH, 0x5 | 0x10, 0);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, 0.0f, -3.0f / 16.0f, -5.0f / 16.0f);
+            rotateMtx(mtx, 0.0f, angle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+        }
 
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
@@ -9715,7 +9716,7 @@ static int lesserNeighborCoversRectangle( int faceDirection, int boxIndex, float
         return 0;
 
     // If we are sealing borders, we haven't yet clears "air" blocks above and below, as these are needed sometimes for
-    // two-block-high plants, doors, etc. But, we should ignore them for coverage tess.
+    // two-block-high plants, doors, etc. But, we should ignore them for this coverage test.
     if (gOptions->pEFD->chkBlockFacesAtBorders) {
         if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
             IPoint anchor;
@@ -13958,6 +13959,10 @@ static int checkMakeFace( int type, int neighborType, int view3D, int testPartia
         // Face is visible for sure, it is not fully covered by the neighbor, so return.
         // A return value of 0 means our block is exposed to air and so is fully visible or neighbor is not a full block and doesn't cover face,
         // or exporting all blocks, so display. Note that just because a neighbor does cover a full block we still do more tests below.
+        // TODO: here and elsewhere below (e.g. when the neighbor is transparent), it could be the case that this face is for water,
+        // and there is a slab or stairs that is waterlogged.
+        // It would be nice if we didn't output water faces wherever there is a slab or stair piece of geometry. Right now we get both water and
+        // the slab/stair on these faces, leading to z-fighting.
         return 1;
     }
 
@@ -14346,10 +14351,8 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
             }
             break;
 
-        case BLOCK_WATER:						// lesserBlockCoversWholeFace
-        case BLOCK_STATIONARY_WATER:
         case BLOCK_LAVA:
-        case BLOCK_STATIONARY_LAVA:
+        case BLOCK_STATIONARY_LAVA:			        // lesserBlockCoversWholeFace
             // if these are above, the bottom is always a full face
             if (faceDirection == DIRECTION_BLOCK_TOP)
                 return 1;

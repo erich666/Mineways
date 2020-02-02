@@ -487,7 +487,7 @@ static struct {
     { 11, 25, 255, L"structure_block_data", L"", SWATCH_REPEAT_ALL },
     { 12, 25, 255, L"structure_block_load", L"", SWATCH_REPEAT_ALL },
     { 13, 25, 255, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
-    { 14, 25, 166, L"barrier", L"MW_barrier", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract directly, this is in assets\minecraft\textures\item
+    { 14, 25, 166, L"barrier", L"MW_barrier", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
     { 15, 25,   9, L"water_overlay", L"", SWATCH_REPEAT_ALL },    // 1.9 - water looks like this through glass.
     {  0, 26, 213, L"magma", L"", SWATCH_REPEAT_ALL },
     {  1, 26, 214, L"nether_wart_block", L"", SWATCH_REPEAT_ALL },

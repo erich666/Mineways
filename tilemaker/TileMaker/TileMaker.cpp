@@ -315,7 +315,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.11\n");  // change version below, too
+			wprintf( L"TileMaker version 2.12\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -337,12 +337,12 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.11\n");  // change version above, too
+        wprintf(L"TileMaker version 2.12\n");  // change version above, too
 
 	// add / to tile directory path
-	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"/") != 0 )
+	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"\\") != 0 )
 	{
-		wcscat_s(tilePath, MAX_PATH, L"/" );
+		wcscat_s(tilePath, MAX_PATH, L"\\" );
 	}
 
 	// add ".png" to tile output name
@@ -363,7 +363,7 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		readpng_cleanup(0,&basicterrain);
 		if ( verbose )
-			wprintf (L"The base terrain is %s\n", terrainBase);
+			wprintf (L"The base terrain is '%s'\n", terrainBase);
 
 		baseTileSize = basicterrain.width / xTiles;
 		baseYTiles = basicterrain.height / baseTileSize;
@@ -396,7 +396,7 @@ int wmain(int argc, wchar_t* argv[])
 		if (hFind == INVALID_HANDLE_VALUE) 
 		{
 			printf ("***** ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
-			wprintf (L"No files found - please put your new blocks in the directory %s.\n", tilePath);
+			wprintf (L"No files found - please put your new blocks in the directory '%s'.\n", tilePath);
 			return 1;
 		} 
 		else 
@@ -406,7 +406,7 @@ int wmain(int argc, wchar_t* argv[])
 				int len;
 
 				if ( verbose )
-					wprintf (L"The file found is %s\n", ffd.cFileName);
+					wprintf (L"The file '%s' has been found and will be used.\n", ffd.cFileName);
 
 				wcscpy_s( tileName, MAX_PATH, ffd.cFileName );
 				// check for .png suffix - note test is case insensitive
@@ -420,7 +420,7 @@ int wmain(int argc, wchar_t* argv[])
 					{
                         // see if tile is on unneeded list
 						if (findUnneededTile(ffd.cFileName) < 0) {
-							wprintf(L"WARNING: %s is a tile name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
+							wprintf(L"WARNING: '%s' is an image name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
 							gWarningCount++;
 						}
 					}
@@ -430,45 +430,45 @@ int wmain(int argc, wchar_t* argv[])
 						int fail_code = 0;
 						//wprintf(L"INDEX: %d\n", index);
 
-						// tile is one we care about.
-						fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
-
-						if (!fail_code) {
-							if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
-								wprintf(L"***** ERROR: file %s has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
-								fail_code = 1;
-								gErrorCount++;
-							}
-							if (tile[tilesFound].width > tile[tilesFound].height) {
-								wprintf(L"***** ERROR: file %s has a height that is less than its width.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
-								fail_code = 1;
-								gErrorCount++;
-							}
-						}
-
-						// check for unsupported formats
-						//if ( 
-						//	//( tile[tilesFound].bit_depth == 8 || tile[tilesFound].bit_depth == 4 ) &&
-						//	 ( tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB_ALPHA || 
-						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
-						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
-						//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
-						if (fail_code == 0)
+						// check if already set
+						if (tilesTableIndexToInput[index] < 0)
 						{
-							// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
-							if (!(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
-								// flag not set, so check for alpha == 0
-								if (checkForCutout(&tile[tilesFound])) {
-									wprintf(L"WARNING: file %s has texels that are fully transparent, but the tile is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
-									gWarningCount++;
+							// tile is one we care about.
+							fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
+
+							if (!fail_code) {
+								if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
+									wprintf(L"***** ERROR: file '%s' has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
+									fail_code = 1;
+									gErrorCount++;
+								}
+								if (tile[tilesFound].width > tile[tilesFound].height) {
+									wprintf(L"***** ERROR: file '%s' has a height that is less than its width.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
+									fail_code = 1;
+									gErrorCount++;
 								}
 							}
 
-							// check if already set
-							if (tilesTableIndexToInput[index] < 0)
+							// check for unsupported formats
+							//if ( 
+							//	//( tile[tilesFound].bit_depth == 8 || tile[tilesFound].bit_depth == 4 ) &&
+							//	 ( tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB_ALPHA || 
+							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
+							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
+							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
+							if (fail_code == 0)
 							{
+								// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
+								if (!(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+									// flag not set, so check for alpha == 0
+									if (checkForCutout(&tile[tilesFound])) {
+										wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
+										gWarningCount++;
+									}
+								}
+
 								if (tilesFound >= TOTAL_INPUT_TILES) {
-									wprintf(L"INTERAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
+									wprintf(L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
 									gErrorCount++;
 								}
 								else {
@@ -488,21 +488,21 @@ int wmain(int argc, wchar_t* argv[])
 									if (outputYTiles - 1 < gTilesTable[index].txrY)
 									{
 										outputYTiles = gTilesTable[index].txrY + 1;
-										wprintf(L"INTERAL WARNING: strangely, the number of tiles outpaces the value of 16*VERTICAL_TILES. This is an internal error: update VERTICAL_TILES.\n");
+										wprintf(L"INTERNAL WARNING: strangely, the number of images outpaces the value of 16*VERTICAL_TILES.\n  This is an internal error: update VERTICAL_TILES.\n");
 										gWarningCount++;
 									}
 								}
 							}
-							else {
-								wprintf(L"WARNING: file %s and alternate file %s both found, choose one to represent the tile (i.e., delete or rename the other). File %s ignored, only because it was found second.\n",
-									gTilesTable[index].filename, gTilesTable[index].altFilename, ffd.cFileName);
-								gWarningCount++;
-							}
+						}
+						else {
+							wprintf(L"WARNING: file '%s.png' and alternate file '%s' both found.\n  File '%s' ignored, only because it was found second.\n  To use it, remove '%s.png' from the blocks directory.\n",
+								gTilesTable[index].filename, ffd.cFileName, ffd.cFileName, gTilesTable[index].filename);
+							gWarningCount++;
 						}
 						//else
 						//{
 						//	// unknown format
-						//	_tprintf (TEXT("WARNING: file %s not used because unsupported bit depth %d and color type %d\n"), ffd.cFileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
+						//	_tprintf (TEXT("WARNING: file '%s' not used because unsupported bit depth %d and color type %d\n"), ffd.cFileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
 						//}
 						index = findNextTile(tileName, index, alternate);
 					}
@@ -529,7 +529,7 @@ int wmain(int argc, wchar_t* argv[])
 			rc = buildPathAndReadTile(tilePath, L"smooth_stone.png", &tile[tilesFound]);
 		}
 		if (rc != 0) {
-			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone could not be read again. Please report this to erich@acm.org.\n");
+			wprintf(L"INTERNAL WARNING: a tile we just read before for smooth_stone could not be read\n  again. Please report this to erich@acm.org.\n");
 			gWarningCount++;
 		}
 		else {
@@ -554,7 +554,7 @@ int wmain(int argc, wchar_t* argv[])
 			rc = buildPathAndReadTile(tilePath, L"smooth_stone_slab_side.png", &tile[tilesFound]);
 		}
 		if (rc != 0) {
-			wprintf(L"INTERAL WARNING: a tile we just read before for smooth_stone_slab_side could not be read again. Please report this to erich@acm.org.\n");
+			wprintf(L"INTERNAL WARNING: a tile we just read before for smooth_stone_slab_side could not\n  be read again. Please report this to erich@acm.org.\n");
 			gWarningCount++;
 		}
 		else {
@@ -598,7 +598,7 @@ int wmain(int argc, wchar_t* argv[])
 			{
 				// if it starts with "MW" or is the empty string, ignore miss
 				if ( wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename,L"MW",2) != 0 )
-					wprintf (L"This program needs a tile named %s that was not replaced.\n", gTilesTable[i].filename);
+					wprintf (L"This program needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
 			}
 		}
 	}
@@ -616,7 +616,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if ( verbose )
-		wprintf (L"Largest tile found is %d pixels wide.\n", overlayTileSize);
+		wprintf (L"Largest input image found was %d pixels wide.\n", overlayTileSize);
 
 	// take the larger of the overlay and base tile sizes as the target size
 	outputTileSize = ( overlayTileSize > baseTileSize ) ? overlayTileSize : baseTileSize;
@@ -627,15 +627,15 @@ int wmain(int argc, wchar_t* argv[])
 		outputTileSize = forcedTileSize;
 
 		if ( verbose )
-			wprintf (L"Output texture is forced to have tiles %d pixels wide.\n", outputTileSize);
+			wprintf (L"Output texture '%s' is forced to have tiles that are each %d pixels wide.\n", terrainExtOutput, outputTileSize);
 	}
 	else {
-		wprintf(L"Output texture will have tiles %d pixels wide.\n", outputTileSize);
+		wprintf(L"Output texture '%s' will have tiles that are each %d pixels wide.\n", terrainExtOutput, outputTileSize);
 	}
 
 	// warn user of large tiles
 	if (outputTileSize > 256) {
-		wprintf(L"WARNING: with a texture tile size of %d X %d, you could be waiting a long time\n    for TileMaker to complete. Consider quitting and using the '-t tileSize'\n    option, choosing a power of two value less than this, such as 256.\n", outputTileSize, outputTileSize);
+		wprintf(L"WARNING: with a texture image size of %d X %d, you could be waiting a long time\n  for TileMaker to complete. Consider quitting and using the '-t tileSize'\n  option, choosing a power of two value less than this, such as 256.\n", outputTileSize, outputTileSize);
 		gWarningCount++;
 	}
 
@@ -650,7 +650,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
 	if (destination_ptr->width > 16384 ) {
-		wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n    value less than this, such as 256, 512, or 1024.\n",
+		wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n  (and likely larger than anything you would ever want to use).\n  Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
 			destination_ptr->width/16, destination_ptr->width/16);
 		return 1;
 	}
@@ -666,7 +666,7 @@ int wmain(int argc, wchar_t* argv[])
 		destination_ptr->image_data.resize(outputXResolution*outputYResolution*4*sizeof(unsigned char),0x0);
 		copyPNG(destination_ptr, &basicterrain);
 		if ( verbose )
-			wprintf (L"Base texture %s copied to output.\n", terrainBase);
+			wprintf (L"Base texture '%s' copied to output.\n", terrainBase);
 	}
 
 	// copy tiles found over
@@ -678,7 +678,7 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			if ( !isPNGTileEmpty(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY) )
 			{
-				wprintf (L"UNUSED: %s was not used because there is already a tile.\n", gTilesTable[index].filename);
+				wprintf (L"UNUSED: '%s.png' was not used because there is already a image.\n", gTilesTable[index].filename);
 				continue;
 			}
 		}
@@ -690,7 +690,7 @@ int wmain(int argc, wchar_t* argv[])
 			return 1;
 		}
 		if ( verbose )
-			wprintf (L"File %s merged.\n", gTilesTable[index].filename);
+			wprintf (L"File '%s.png' merged.\n", gTilesTable[index].filename);
 	}
 
     // Compute shulker box sides and bottoms, if not input
@@ -703,10 +703,14 @@ int wmain(int argc, wchar_t* argv[])
 		// Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
 		unsigned char box_color[4];
 		int neutral_color[4], mult_color[4];
-		// which tile to use: get the bottommost
+
 		index = findTile(L"white_shulker_box", 1);
-		int side_index = findTile(L"MW_shulker_side", 0);
-		int bottom_index = findTile(L"MW_shulker_bottom", 0);
+		int side_index = findTile(L"MW_SHULKER_SIDE", 1);
+		int bottom_index = findTile(L"MW_SHULKER_BOTTOM", 1);
+		// check that the entries are in tiles.h.
+		// Note that we work from the output image file being generated, so we
+		// don't actually ever read in any of the 3 images above - they're assumed
+		// to be in the output image already (from terrainBase.png).
 		assert(index >= 0 && side_index >= 0 && bottom_index >= 0);
 		int pick_row = outputTileSize / 2;
 		int pick_col = outputTileSize / 2;
@@ -750,7 +754,7 @@ int wmain(int argc, wchar_t* argv[])
 	// Test if left chest exists. If so, we assume 1.15 content is being used.
 	wchar_t chestFile[MAX_PATH];
 	wcscpy_s(chestFile, MAX_PATH, tilePath);
-	wcscat_s(chestFile, MAX_PATH, L"\\chest\\normal_left.png");
+	wcscat_s(chestFile, MAX_PATH, L"chest/normal_left.png");
 	progimage_info testChestImage;
 	rc = readpng(&testChestImage, chestFile);
 	//bool using115 = (rc == 0);
@@ -774,13 +778,15 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// Now for the chests, if any. Look for each chest image file, and use bits as found
+	bool allChests = true;
+	bool anyChests = false;
 	for (i = 0; i < numChests; i++) {
 		// single chest, double chest, ender chest in \textures\entity\chest
 		Chest* pChest = &chest[i];
 
 		// chests are normally found in \assets\minecraft\textures\entity\chest
 		wcscpy_s(chestFile, MAX_PATH, tilePath);
-		wcscat_s(chestFile, MAX_PATH, L"\\chest\\");
+		wcscat_s(chestFile, MAX_PATH, L"chest\\");
 		wcscat_s(chestFile, MAX_PATH, pChest->wname);
 		wcscat_s(chestFile, MAX_PATH, L".png");
 
@@ -790,14 +796,20 @@ int wmain(int argc, wchar_t* argv[])
 		if (rc != 0)
 		{
 			// file not found
-			wprintf(L"  This warning means the chest subdirectory is missing.\n  Tilemaker worked, but you can add chest images if you like.\n  You can provide the images normal.png, normal_left.png, normal_right.png, and ender.png.\n  Copy these texture resources from Minecraft's jar-file assets\\minecraft\\textures\\entity\\chest\n  directory to Mineways' subdirectory blocks\\chest.\n");
-			gWarningCount++;
+			if (verbose) {
+				wprintf(L"WARNING: The chest image file '%s' does not exist\n", chestFile);
+				gWarningCount++;
+			}
+			allChests = false;
+			// try next chest
 			break;
 		}
 		readpng_cleanup(0, &chestImage);
+		// at least one chest was found
+		anyChests = true;
 
 		if (verbose)
-			wprintf(L"The chest file %s exists\n", chestFile);
+			wprintf(L"The chest image file '%s' exists and will be used.\n", chestFile);
 
 		// from size figure out scaling factor from chest to terrainExt.png
 
@@ -822,7 +834,6 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 
-
     // if solid is desired, blend final result and replace in-place
     if ( solid || solidcutout )
     {
@@ -841,10 +852,21 @@ int wmain(int argc, wchar_t* argv[])
 	}
 	writepng_cleanup(destination_ptr);
 	if ( verbose )
-		wprintf (L"New texture %s created.\n", terrainExtOutput);
+		wprintf (L"New texture '%s' created.\n", terrainExtOutput);
+
+	// warn user that nothing was done
+	// 3 is the number of MW_*.png files that come with TileMaker
+	if (tilesFound <= 3 && !anyChests) {
+		wprintf(L"WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n" );
+		gWarningCount++;
+	}
+	else if (!allChests) {
+		wprintf(L"WARNING: not all relevant chest images were found in the 'blocks\\chest' directory.\n  Tilemaker worked, but you can add chest images if you like. You can provide\n  the images normal.png, normal_left.png, normal_right.png\n  (or normal_double.png for 1.14 and earlier), and ender.png.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\chest' directory to\n  Mineways' subdirectory blocks\\chest.\n");
+		gWarningCount++;
+	}
 
 	if (gErrorCount || gWarningCount)
-		wprintf(L"Summary: %d errors and %d warnings were generated.\n", gErrorCount, gWarningCount);
+		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
 	return 0;
 }

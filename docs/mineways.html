@@ -3034,13 +3034,14 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Update to now build under VS 2019.
 </UL>
 
-<LI>Version 7.10, 2/xx/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.10, 2/2/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV710.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
-Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">the debug block world</a> in Minecraft helped me find a large number of little fixes and cleanups:
+Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">the debug block world</a> in Minecraft helped me find a large number of fixes and cleanups:
 <UL>
-<LI>Tilemaker updated: The new 1.15 layout and images for chests is now supported (why Mojang changed it, I don't know). If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
+<LI>Tilemaker updated to version 2.12: The new 1.15 layout and images for chests is now supported (why Mojang changed it, I don't know). If a "normal_left.png" image is found in blocks/chests, all chests are assumed to be in 1.15 format, else 1.14 or earlier is used.
+<LI>Bug fixed where water on top of inverted stairs or top-half slabs made the top face of these blocks disappear.
 <LI>Bug fixed in which beehive and bee nest honey_level values were getting transferred to other blocks.
-<LI>Free-standing bells were rotated 90 degrees from where they were. Free-standing bell supports now also have bottoms.
+<LI>Free-standing bells were rotated 90 degrees from where they were. Free-standing bell supports now also have bottoms. The new "powered" data value in 1.15 is now handled.
 <LI>Buttons placed on the top or bottom of a block now properly use the east-west vs. north-south property for orientation (<a href="https://github.com/erich666/Mineways/issues/51">issue report</a>).
 <LI>Activator rails inactive/active states were reversed - fixed.
 <LI>Observer blocks' powered state is now shown properly for 1.13 on (it worked under old 1.12 Minecraft format).
@@ -3065,23 +3066,24 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
-<LI>Instead of a blocks directory, read the *.jar or an unzipped directory structure to get the blocks, chests, bed, end portal, barrier, and anything else directly from the structure. Allow reading in a series of .jars and overlaying (analyze each first to get the maximum resolution needed overall). Then get rid of TerrainBase.png.
-<LI>Consider reading in the chest, bed, and other elements (maybe shulker boxes - there are a lot of them, though) as separate textures in a separate zone (say, at the bottom) of the TerrainExt.png file, like in jmc2obj. Also allows direct export of the texture.
+<LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
+<LI>Multithreaded block loading, like Minutor does. This would make scrolling the map, making it huge, etc., much faster.
+<LI>Try to deal with waterlogged objects better. A slab or stairs will have a water surface that causes z-fighting on the faces where they have geometry.
+<LI>For TileMaker, instead of a blocks directory, read the *.jar or an unzipped directory structure to get the blocks, chests, bed, end portal, barrier, and anything else directly from the structure. Allow reading in a series of .jars and overlaying (analyze each first to get the maximum resolution needed overall). Then get rid of TerrainBase.png.
+<LI>Consider reading in the chest, bed, and other elements (maybe shulker boxes - there are a lot of them, though) as separate textures in a separate zone (say, at the bottom) of the TerrainExt.png file, like in jmc2obj. Also allows direct export of these textures.
 <LI>Analyze name of file given on command line. If it's a world level.dat file (or single world directory), load that world. This functionality is easy enough to do by <a href="scripting.html#clo">making a script</a> that loads the world, but having the program figure this out would be a nice little usability addition.
-<LI>Add glTF export? Use <a href="https://github.com/Microsoft/glTF-SDK">this</a> or, better yet, <a href="https://github.com/syoyo/tinygltf">this</a>.
-<LI>Zoom further out, allowing a wider view of the world. The main problems with this idea are that Mineways does not read blocks quickly (it should multithread block reading like the newer version of Minutor does) and that selection becomes a bit imprecise.
-<LI>Export all exported model elements to a Mineways script file, so that they can be modified by scripts or text editors and reloaded.
+<LI>Add glTF export? Use <a href="https://github.com/Microsoft/glTF-SDK">this</a> or, better yet, <a href="https://github.com/syoyo/tinygltf">this</a>. Really, though, it's easier to upload directly to SketchFab and then make the model downloadable, as glTF is one of the options.
+<LI>Zoom further out, allowing a wider view of the world. The main problems with this idea are that Mineways does not read blocks quickly and that selection becomes a bit imprecise.
+<LI>Export all exported model elements to a Mineways script file as text commands, so that they can be modified by scripts or text editors and reloaded.
 <LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed. One more level of complication, though.
-<LI>Add Pocket Edition/Education Edition support. Right now MCEdit properly reads such files. This turns out to be a bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
+<LI>Add Bedrock/Pocket Edition/Education Edition support. Right now <a href="#mcpe">MCC ToolChest PE</a> and MCEdit properly reads such files. This addition turns out to be a large bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft, not to mention that Bedrock differs from Classic Minecraft in a huge number of ways. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
 <LI>Extend color schemes to the new tiles with IDs greater than 255. These new IDs are admittedly bogus, but right now there's no way to turn off the output of these newer blocks. That said, color schemes appear to be a feature that's rarely used.
 <LI>Add a "Go to location" dialog, where you give a location and the view is centered on it.
-<LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways...
-<LI>Almost out of space for composites. Go to an "on demand" system, noting which tiles are used and outputting only these.
-<LI>Try to deal with waterlogged objects better. A <a href="https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy">waterlogged slab</a> will have a water surface that causes z-fighting on the sides of it.
+<LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways' texture storage space.
+<LI>Almost out of space for composites. Go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
 <LI>TileMaker should handle non-power-of-two tiles, such as found in the <a href="https://www.mediafire.com/file/bjmdte5insbh6na/BPN--FLOWS+1.13.2.zip">BPN--FLOWS</a> texture pack.
 <LI>Go to location. Pop up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
-<LI>Make a version of Tilemaker that runs as a Windows program, both for ease of use and so that it can run on the Mac.
 <LI>Zoom out: Some people use Mineways for mapping. Being able to zoom out further has been requested. The downside: more map chunks to read so it might be slow, I'd have to mess with code I don't know well, selection could be funky. My advice is to use <a href="https://seancode.com/minutor/">Minutor</a>, which has parallelized map chunk reading and is optimized for mapping.
 <LI>Biome support: get biome color and use it to change terrain's output color. Currently only the biome at the center of the export is used to set the color of all blocks in the export. The hard part is blending (and saving all the resulting textures, a potentially large number) at biome margins.
 <LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g., pumpkin and melon stems color, farmland wetness. This will use up more texture tiles, but that might be acceptable.
@@ -3090,7 +3092,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Work on Mac and Linux: my code is a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
 <LI>Vines should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks or other blocks they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inward from whatever block it's in to the one it's touching, but intervening properly is tricky.
-<LI>Shulker boxes would be nice to process from their separate composite image files, as we do with chests. Same with beds. Also, the "default" shulker_box should use its pale purple version.
+<LI>Shulker boxes would be nice to process from their separate composite image files, as we do with chests. Also, the "default" shulker_box should use its pale purple version.
 <LI><a href="https://web.archive.org/web/20170912203020/http://www.minecraftforum.net:80/forums/mapping-and-modding/minecraft-mods/1272765-1-2-5-connected-textures-mod-v1-4-1">Connected textures</a> would give more continuous results for surfaces such as glass and bookshelves. One problem with this idea is that these are custom tiles, so this feature could be added for the default texture set, but not the various other texture packs.
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, and so on. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>. That said, this option is at the bottom of the list because I think it's the wrong workflow. Normally you want to export from Mineways and then use MeshLab or other program to preview the model to make sure it looks right, then you want to upload. Not checking the model before uploading seems over-optimistic to me in most situations.
 </UL>
@@ -3148,7 +3150,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 1/4/2020</p>
+		<p id="lastUpdate">Last updated 2/2/2020</p>
 	</div>
 </div>
 
