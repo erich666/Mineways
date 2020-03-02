@@ -34,7 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "publishSkfb.h"
 #endif
 #include "XZip.h"
-#include "lodepng.h"
+#include "rwpng.h"
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -167,6 +167,7 @@ static int gBottomControlEnabled = FALSE;
 #define	PRINTING_EXPORT		1
 #define SCHEMATIC_EXPORT	2
 #define SKETCHFAB_EXPORT	3
+#define MAP_EXPORT          4
 
 static int gPrintModel = RENDERING_EXPORT;
 static BOOL gExported=0;
@@ -414,6 +415,8 @@ static bool commandLoadColorScheme(ImportedSet & is, wchar_t *error, bool invali
 static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, char *fileName);
 static bool openLogFile(ImportedSet & is);
 //static void logHandles();
+static void showLoadWorldError(int loadErr);
+static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName);
 
 int APIENTRY _tWinMain(
 	_In_ HINSTANCE hInstance,
@@ -764,7 +767,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format.\nThese worlds will be shown as disabled in the Open World menu.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit."),
+                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.2 or later and play it, then quit."),
                     _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
             }
             wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
@@ -1533,38 +1536,7 @@ RButtonUp:
             loadErr = loadWorld(hWnd);
             if ( loadErr )
             {
-                // world not loaded properly
-                wchar_t fullbuf[2048];
-                wchar_t extrabuf[1024];
-                wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, tell me the error message and sub-error code and what directories your world and mineways.exe is located in."), gSubError);
-                switch (loadErr) {
-                case 1:
-                    if (gSubError > 0) {
-                        wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
-                    }
-                    else {
-                        wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
-                    }
-                    MessageBox(NULL, fullbuf,
-                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-                    break;
-                case 2:
-                    wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format.\nTo convert a world, run Minecraft 1.2 or later and play it, then quit.\nTo use Mineways on an old-style McRegion world, download\nVersion 1.15 from the mineways.com site.\n\n%s"), extrabuf);
-                    MessageBox(NULL, fullbuf,
-                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-                    break;
-                case 3:
-                    wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
-                    MessageBox(NULL, fullbuf,
-                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-                    break;
-                default:
-                    wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
-                    MessageBox(NULL, fullbuf,
-                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-                    break;
-                }
-
+                showLoadWorldError(loadErr);
                 return 0;
             }
             setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
@@ -1702,20 +1674,10 @@ RButtonUp:
 
                     UpdateWindow(hWnd);
                     gWorldGuide.type = WORLD_LEVEL_TYPE;
-                    if (loadWorld(hWnd))
+                    int loadErr = loadWorld(hWnd);
+                    if (loadErr)
                     {
-                        // world not loaded properly
-                        wchar_t fullbuf[2048];
-                        wsprintf(fullbuf, _T("Error: cannot read world or cannot find file \"%s\", sub-error code %d.\n\nYou might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' format, which Mineways can read."), gFileOpened, gSubError);
-                        int retcode = MessageBox(NULL, fullbuf,
-                                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
-                        if (retcode == IDOK)
-                        {
-                            std::string bedrockUrl = "http://bit.ly/mcbedrock";
-                            wchar_t* wcharBedrockUrl = new wchar_t[4096];
-                            MultiByteToWideChar(CP_ACP, 0, bedrockUrl.c_str(), (int)(bedrockUrl.size() + 1), wcharBedrockUrl, 4096);
-                            ShellExecute(NULL, L"open", wcharBedrockUrl, NULL, NULL, SW_SHOWNORMAL);
-                        }
+                        showLoadWorldError(loadErr);
                         return 0;
                     }
                 }
@@ -6101,17 +6063,23 @@ static int interpretScriptLine(char *line, ImportedSet & is)
         int model = -1;
         strPtr2 = findLineDataNoCase(strPtr, "for Rendering:");
         if (strPtr2 != NULL) {
-            model = 0;
+            model = RENDERING_EXPORT;
         }
         else {
             strPtr2 = findLineDataNoCase(strPtr, "for 3D Printing:");
             if (strPtr2 != NULL) {
-                model = 1;
+                model = PRINTING_EXPORT;
             }
             else {
                 strPtr2 = findLineDataNoCase(strPtr, "Schematic:");
                 if (strPtr2 != NULL) {
-                    model = 2;
+                    model = SCHEMATIC_EXPORT;
+                }
+                else {
+                    strPtr2 = findLineDataNoCase(strPtr, "Map:");
+                    if (strPtr2 != NULL) {
+                        model = MAP_EXPORT;  // 3 is sketchfab
+                    }
                 }
             }
         }
@@ -7561,7 +7529,7 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
         return false;
     }
 
-    // 0 - render, 1 - 3d print, 2 - schematic (,3 - sketchfab, but that should not reach here)
+    // 0 - render, 1 - 3d print, 2 - schematic (,3 - sketchfab, but that should not reach here), 4 - map
     gPrintModel = fileMode;
 
     wchar_t wcharFileName[MAX_PATH_AND_FILE];
@@ -7581,12 +7549,26 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
     wsprintf(statusbuf, L"Script exporting %s", exportName);
 	sendStatusMessage(is.ws.hwndStatus, statusbuf);
 
-    gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
-    if (gExported == 0)
-    {
-		sendStatusMessage(is.ws.hwndStatus, L"Script export operation failed");
-        swprintf_s(error, 1024, L"export operation failed.");
-        return false;
+    if (gPrintModel == MAP_EXPORT) {
+        // export 2D map image
+        int on;
+        GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+        bool isOK = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, wcharFileName);
+        if (!isOK) {
+            sendStatusMessage(is.ws.hwndStatus, L"Script export map operation failed");
+            swprintf_s(error, 1024, L"export map operation failed.");
+            return false;
+        }
+    }
+    else {
+        // export model
+        gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, false, false);
+        if (gExported == 0)
+        {
+            sendStatusMessage(is.ws.hwndStatus, L"Script export operation failed");
+            swprintf_s(error, 1024, L"export operation failed.");
+            return false;
+        }
     }
     // back to normal
 	sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
@@ -7671,3 +7653,95 @@ static void logHandles()
 }
 */
 
+static void showLoadWorldError( int loadErr )
+{
+    // world not loaded properly
+    wchar_t fullbuf[2048];
+    wchar_t extrabuf[1024];
+    wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, tell me the error message and sub-error code and what directories your world and mineways.exe is located in."), gSubError);
+    switch (loadErr) {
+    case 1:
+        if (gSubError > 0) {
+            wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
+        }
+        else if (gSubError == -3) {
+            wsprintf(fullbuf, _T("Error: cannot read world's file version. You might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read."));
+            int retcode = MessageBox(NULL, fullbuf,
+                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+            if (retcode == IDOK)
+            {
+                std::string bedrockUrl = "http://bit.ly/mcbedrock";
+                wchar_t* wcharBedrockUrl = new wchar_t[4096];
+                MultiByteToWideChar(CP_ACP, 0, bedrockUrl.c_str(), (int)(bedrockUrl.size() + 1), wcharBedrockUrl, 4096);
+                ShellExecute(NULL, L"open", wcharBedrockUrl, NULL, NULL, SW_SHOWNORMAL);
+            }
+            return;
+        }
+        else {
+            wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
+        }
+        MessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        break;
+    case 2:
+        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.2 or later and play it, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
+        MessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        break;
+    case 3:
+        wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
+        MessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        break;
+    default:
+        wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
+        MessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        break;
+    }
+}
+
+static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName)
+{
+    int temp;
+    if (xmin > xmax) {
+        // swap
+        temp = xmin;
+        xmin = xmax;
+        xmax = temp;
+    }
+    if (zmin > zmax) {
+        // swap
+        temp = zmin;
+        zmin = zmax;
+        zmax = temp;
+    }
+    int w = xmax - xmin + 1;
+    int h = zmax - zmin + 1;
+
+    // first, can we even make such an image?
+    progimage_info* mapimage;
+    mapimage = new progimage_info();
+    mapimage->width = w;
+    mapimage->height = h;
+
+    // resize and clear
+    mapimage->image_data.resize(w * h * 3 * sizeof(unsigned char), 0x0);
+    unsigned char* imageDst = &mapimage->image_data[0];
+
+    SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax);
+
+    DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, &gOptions, gHitsFound, updateProgress, gMinecraftVersion);
+
+    // check if map file has ".png" at the end - if not, add it.
+    wchar_t mapFileNameSafe[MAX_PATH_AND_FILE];
+    EnsureSuffix(mapFileNameSafe, mapFileName, L".png");
+
+    // 0 means success. Currently we don't say what goes wrong otherwise.
+    int retCode = writepng(mapimage, 3, mapFileNameSafe);
+
+    writepng_cleanup(mapimage);
+
+    SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax);
+    return (retCode == 0);
+}

@@ -805,7 +805,6 @@ static void convertAlphaToGrayscale( progimage_info *dst );
 static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow);
 static bool doesTileHaveAlpha(progimage_info *src, int swatchLoc, int swatchSize, int swatchesPerRow);
 
-static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix );
 static void removeSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix );
 //static const wchar_t *removePath( const wchar_t *src );
 static const char *removePathChar( const char *src );
@@ -23075,7 +23074,7 @@ static bool doesTileHaveAlpha(progimage_info *src, int swatchLoc, int swatchSize
 //
 // Utility functions, headers not included above
 // suffix is of form ".stl" - includes dot
-static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix )
+void EnsureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix )
 {
     int hasSuffix=0;
 
@@ -23112,7 +23111,7 @@ static void ensureSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffi
 static void removeSuffix( wchar_t *dst, const wchar_t *src, const wchar_t *suffix )
 {
     // glue the suffix on if it's missing
-    ensureSuffix( dst, src, suffix );
+    EnsureSuffix( dst, src, suffix );
     // then remove it. Yeah, pretty silly, but minimal code
     if ( wcslen(dst) > wcslen(suffix) )
         dst[wcslen(dst)-wcslen(suffix)] = (wchar_t)0;
@@ -23393,4 +23392,3 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
     }
     return minHeight;
 }
-

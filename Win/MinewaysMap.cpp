@@ -212,8 +212,6 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
     // cx/cz is the center, so find the upper left corner from that
     double startx=cx-(double)w/(2*zoom);
     double startz=cz-(double)h/(2*zoom);
-    // TODO: I suspect these want to be floors, not ints; int
-    // rounds towards 0, floor takes -4.5 and goes to -5.
     int startxblock=(int)(startx/16);
     int startzblock=(int)(startz/16);
     int shiftx=(int)((startx-startxblock*16)*zoom);
@@ -261,6 +259,120 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         // empty
         gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
         gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
+    }
+}
+
+//world = path to world saves
+//cx = center x world
+//cz = center z world
+//y = start depth
+//w = output width
+//h = output height
+//zoom = zoom amount (1.0 = 100%)
+//bits = byte array for output
+//opts = bitmasks of render options (see MinewaysMap.h)
+void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int h, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion)
+{
+    unsigned char* blockbits;
+    int z, x, px, pz;
+    int blockScale = 16;
+
+    // number of blocks to fill the screen, rounded up to nearest 16
+    int hBlocks = 1 + (w - 1) / blockScale;
+    int vBlocks = 1 + (h - 1) / blockScale;
+
+    int startx = (int)cx;
+    int startz = (int)cz;
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = startx - startxblock * 16;
+    int shifty = startz - startzblock * 16;
+
+    if (shiftx < 0)
+    {
+        // essentially the floor function
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0)
+    {
+        // essentially the floor function
+        startzblock--;
+        shifty += blockScale;
+    }
+
+    if (!gColorsInited)
+        initColors();
+
+    // x increases south, decreases north
+    for (z = 0, pz = -shifty; z < vBlocks; z++, pz += blockScale)
+    {
+        // z increases west, decreases east
+        for (x = 0, px = -shiftx; x < hBlocks; x++, px += blockScale)
+        {
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion);
+
+            // world space of block:
+            int wblockxmin = (startxblock + x) * blockScale;
+            int wblockxmax = wblockxmin + 16;
+            int wblockzmin = (startzblock + z) * blockScale;
+            int wblockzmax = wblockzmin + 16;
+
+            int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
+
+            if (wblockxmin < startx) {
+                // beginning of row, number from 0 to 15
+                b2ix = wblockxmin - startx;
+                iblockxstart = -b2ix;
+            }
+            else {
+                b2ix = ((int)(wblockxmin / 16)) * 16 - startx;
+                iblockxstart = wblockxmin % 16;
+            }
+            if (wblockxmax > startx + w) {
+                // end of row, number from 1 to 16
+                iblockxend = startx + w - wblockxmax + 16;
+            }
+            else {
+                iblockxend = 16;
+            }
+
+            if (wblockzmin < startz) {
+                // beginning of column
+                b2iz = wblockzmin - startz;
+                iblockzstart = -b2iz;
+            }
+            else {
+                b2iz = ((int)(wblockzmin / 16)) * 16 - startz;
+                iblockzstart = wblockzmin % 16;
+            }
+            if (wblockzmax > startz + h) {
+                // end of row, number from 1 to 16
+                iblockzend = startz + h - wblockzmax + 16;
+            }
+            else {
+                iblockzend = 16;
+            }
+
+            // now walk through these, grabbing from the bits
+            assert(iblockxstart < iblockxend);
+            assert(iblockxstart >= 0 && iblockxstart < 16);
+            assert(iblockxend > 0 && iblockxend <= 16);
+            assert(iblockzstart < iblockzend);
+            assert(iblockzstart >= 0 && iblockzstart < 16);
+            assert(iblockzend > 0 && iblockzend <= 16);
+            for (int iz = iblockzstart; iz < iblockzend; iz++) {
+                for (int ix = iblockxstart; ix < iblockxend; ix++) {
+                    // make sure in range
+                    assert(((iz + b2iz) * w + (ix + b2ix)) >= 0 && ((iz + b2iz) * w + (ix + b2ix)) <= w * h);
+                    unsigned char* curImg = &image[((iz+b2iz) * w + (ix+b2ix)) * 3];
+                    unsigned char* curBits = &blockbits[(iz * 16 + ix) * 4];
+                    *curImg++ = *curBits++;
+                    *curImg++ = *curBits++;
+                    *curImg++ = *curBits++;
+                }
+            }
+        }
     }
 }
 

@@ -115,7 +115,7 @@ int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int mi
 
 void WcharToChar(const wchar_t *inWString, char *outString, int maxlength);
 void StripLastString(const wchar_t *src, wchar_t *path, wchar_t *piece);
-
+void EnsureSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix);
 
 //
 //
