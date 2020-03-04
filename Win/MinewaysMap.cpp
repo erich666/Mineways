@@ -278,8 +278,8 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, double cx, do
     int blockScale = 16;
 
     // number of blocks to fill the screen, rounded up to nearest 16
-    int hBlocks = 1 + (w - 1) / blockScale;
-    int vBlocks = 1 + (h - 1) / blockScale;
+    int hBlocks = (int)floor((float)(cx + w - 1) / 16.0) - (int)floor((float)cx / 16.0) + 1;
+    int vBlocks = (int)floor((float)(cz + h - 1) / 16.0) - (int)floor((float)cz / 16.0) + 1;
 
     int startx = (int)cx;
     int startz = (int)cz;
@@ -305,8 +305,32 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, double cx, do
         initColors();
 
     // x increases south, decreases north
+    int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
     for (z = 0, pz = -shifty; z < vBlocks; z++, pz += blockScale)
     {
+        int wblockzmin = (startzblock + z) * blockScale;
+        int wblockzmax = wblockzmin + 16;
+
+        if (wblockzmin < startz) {
+            // beginning of column
+            b2iz = wblockzmin - startz;
+            iblockzstart = -b2iz;
+        }
+        else {
+            b2iz = ((int)(wblockzmin / 16)) * 16 - startz;
+            iblockzstart = wblockzmin % 16;
+        }
+        if (wblockzmax > startz + h) {
+            // end of row, number from 1 to 16
+            iblockzend = startz + h - wblockzmax + 16;
+        }
+        else {
+            iblockzend = 16;
+        }
+        assert(iblockzstart < iblockzend);
+        assert(iblockzstart >= 0 && iblockzstart < 16);
+        assert(iblockzend > 0 && iblockzend <= 16);
+
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x < hBlocks; x++, px += blockScale)
         {
@@ -315,10 +339,6 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, double cx, do
             // world space of block:
             int wblockxmin = (startxblock + x) * blockScale;
             int wblockxmax = wblockxmin + 16;
-            int wblockzmin = (startzblock + z) * blockScale;
-            int wblockzmax = wblockzmin + 16;
-
-            int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
 
             if (wblockxmin < startx) {
                 // beginning of row, number from 0 to 15
@@ -337,30 +357,12 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, double cx, do
                 iblockxend = 16;
             }
 
-            if (wblockzmin < startz) {
-                // beginning of column
-                b2iz = wblockzmin - startz;
-                iblockzstart = -b2iz;
-            }
-            else {
-                b2iz = ((int)(wblockzmin / 16)) * 16 - startz;
-                iblockzstart = wblockzmin % 16;
-            }
-            if (wblockzmax > startz + h) {
-                // end of row, number from 1 to 16
-                iblockzend = startz + h - wblockzmax + 16;
-            }
-            else {
-                iblockzend = 16;
-            }
-
             // now walk through these, grabbing from the bits
             assert(iblockxstart < iblockxend);
             assert(iblockxstart >= 0 && iblockxstart < 16);
             assert(iblockxend > 0 && iblockxend <= 16);
-            assert(iblockzstart < iblockzend);
-            assert(iblockzstart >= 0 && iblockzstart < 16);
-            assert(iblockzend > 0 && iblockzend <= 16);
+
+            // copy over the data
             for (int iz = iblockzstart; iz < iblockzend; iz++) {
                 for (int ix = iblockxstart; ix < iblockxend; ix++) {
                     // make sure in range

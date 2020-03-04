@@ -5346,6 +5346,16 @@ static int interpretImportLine(char *line, ImportedSet & is)
                 return INTERPRETER_FOUND_ERROR;
             }
         }
+        // check Y bounds
+        if (v[1] < 0 || v[1] > 255) {
+            saveErrorMessage(is, L"selection out of bounds; minimum y value outside of range 0 to 255.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (v[4] < 0 || v[4] > 255) {
+            saveErrorMessage(is, L"selection out of bounds; maximum y value outside of range 0 to 255.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        // if we process the data in this run, do it
         if (is.processData) {
             // two cases: scripting and model loading. Model loading defers loading the world, so process the data.
             if (is.readingModel || gLoaded) {
