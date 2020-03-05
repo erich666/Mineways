@@ -1,0 +1,27 @@
+// map_slices.mwscript - An example of exporting a set of maps showing cutaway layers
+//
+// version 1.00
+//
+// Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
+// Read more about each command at http://mineways.com/scripting.html
+//
+// Given a selected area, export a set of maps from levels 127 down to 0. You can of course increase
+// this to 255 to 0.
+
+// Setting the zoom level matters for the map output. We set it to 1, so that the maps are at the minimum resolution.
+// This number can range from 1 to 40; setting it to 40 would give 40,000 x 40,000 pixel output images.
+Zoom: 1
+
+// Uncomment and put your own selection area, or simply select manually in Mineways and then run this script
+//Selection location: -100, 0, -100 to 100, 255, 100
+
+Export map: map_nw.png
+
+Selection location: 0, 0, -1000 to 999, 255, -1
+Export map: map_ne.png
+
+Selection location: -1000, 0, 0 to -1, 255, 999
+Export map: map_sw.png
+
+Selection location: 0, 0, 0 to 999, 255, 999
+Export map: map_se.png

@@ -90,7 +90,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#openworld">Opening Worlds and Schematics</a> - how to view your world.
 <LI><a href="#map">Mapping</a> - lots of ways to change the view and what you see.
 <LI><a href="#select">Selecting a Region</a> - define a 3D box in your world for export.
-<LI><a href="#export">Exporting Models</a> - basics of exporting.
+<LI><a href="#export">Exporting Models and Maps</a> - basics of exporting.
 <UL>
  <LI><a href="#g3d">Displaying with G3D</a> - free viewer ideal for most Mineways rendering exports.
  <LI><a href="#schemes">Color Schemes</a> - change object colors or make them invisible.
@@ -143,7 +143,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <H2 id="install">
 Installation
 </H2>
-Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
+Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV711.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and want to clean these out, search for "Mineways" in your registry editor and you'll find them.
 <P>
@@ -233,7 +233,7 @@ The selected export depth can be changed in a number of ways, even when no area 
 <B>Key tip:</B></a> to see what you're doing, export the model and view with <a href="#previewing">a viewer</a>. I usually work by adjusting the box size and export options in Mineways, export, then viewing the file in <a href="#g3d">G3D</a> (which reloads the viewed file when you tap the "r" key) or, for .WRL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> (unfortunately, their Alt-R reload doesn't clear out the previously-loaded file) to see the results. <a href="http://www.open3mod.com/">Open 3D Model Viewer</a> is another free, solid viewer.
 
 <H2 id="export">
-Exporting Models
+Exporting Models and Maps
 </H2>
 If you want to render the model, select "Export for Rendering" from the File menu, or use Control-R, and save your file. The resulting file(s) can then be imported into a huge variety of 3D modelers and viewers, e.g., <a href="http://blender.org">Blender</a>. See <a href="#rendering">this section</a> for instructions for various popular modelers.
 <P>
@@ -243,12 +243,18 @@ The big difference between rendering and printing is that 3D print models <i>mus
 <P>
 To make your model immediately viewable on the web in 3D, choose the third option "Publish to Sketchfab." Mineways directly uploads your model to the Sketchfab site and makes it displayable to everyone. It's fun and easy, honestly. <a href="#sketchfab">Go here</a> for detailed instructions.
 <P>
-The last option is "Export Schematic", which allows you to then import your model to another world by using <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a>. Note that Mineways can read any schematic file by using <a href="#openworld">"File | Open..."</a>.
-<P>
 <a id="schematic">
-Mineways' schematic export option</a> allows you to easily grab a volume of your world and turn it into a schematic file. This type of file is commonly used to share constructions among builders. Tools such as <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, and many other operations. You can also upload and share these files on sites such as <a href="http://www.mcschematics.com/">MCSchematics.com</a> and <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
+The next option is "Export Schematic",</a> which allows you to then import your model to another world by using <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
+<a href="http://www.mcedit-unified.net/">MCEdit</a>. Note that Mineways can read any old-style schematic file by using <a href="#openworld">"File | Open..."</a>.
+<P>
+Schematic files are commonly used to share constructions among builders. Tools such as <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
+<a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, and many other operations. You can also upload and share these files on sites such as <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
+<P>
+<a id="exportmap">
+Map export is simple: whatever area you have selected is exported to a PNG-format image file, named as you wish. The zoom level affects the result, though will differ slightly from what you see on the screen for boring reasons. While you can manually export any portion of the map manually, the real power is from using <a href="scripting.html#sic">scripting</a>. You can make a simple text file to specify more than one map. Each map can be set to display a different part of your world, or even a different layer, by adjusting the maximum Y height. See (and run) the sample file "scripting/make_map_tiles.mwscript" for an example that creates four adjacent 1000x1000 maps centered around location 0,0. See the file "scripting/make_slice_maps.mwscript" for making a series of layers that you can turn into an animation. You can then make <a href="https://i.postimg.cc/vmNH6nbF/crazycake-slices.gif">animations like this</a> (and <a href="https://i.postimg.cc/85fkdCzF/crazycake-slices-slow.gif">at a slower speed</a>): 
+<P>
+<img src="https://i.postimg.cc/vmNH6nbF/crazycake-slices.gif" alt="slice animation">
+<img src="https://i.postimg.cc/85fkdCzF/crazycake-slices-slow.gif" alt="slice animation slowed">
 <P>
 <h3 id="g3d">Displaying with G3D</h3>
 Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default) and not <a href="#fcst">exporting separate tiles</a>, I recommend the free G3D viewer (pro tip: hold the Alt key down and use WASD to move fast in G3D). This viewer now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look. If you are export separate tiles, I suggest the <a href="http://www.open3mod.com/">Open 3D Model Viewer</a>. If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. See some <a href="#viewers">other viewer options here</a>.
@@ -337,7 +343,7 @@ On the left of the dialog are texture options:
 <p>
 Content is shown on the left exported with "full color texture patterns" and on the right with "tiles for textures." Mipmapping works properly with separate image tiles.</p>
 <div>
-  <img src="images/mip_bleed_be_gone.png" alt="mip bleeding vs. not bleeding">
+  <img src="images/mip_bleed_be_gone.jpg" alt="mip bleeding vs. not bleeding">
 </div>
 
 <P>
@@ -3061,11 +3067,20 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Improve error message and behavior for when someone attempts to read in a Minecraft Bedrock world.
 </UL>
 
+<LI>Version 7.11, 3/5/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV711.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Added <a href="#exportmap">"Export Map" option</a> to the "File" menu, and added "Export Map: my_map.png" command to the <a href="scripting.html#sic">scripting system</a>. Exports the selected area to a PNG. See the file "scripting/make_map_tiles.mwscript" as an example of how to export a set of maps, and "scripting/make_slice_maps.mwscript" for making cutaway animations. <I>(Thanks to Rob P and Ross for pushing for this feature.)</I>
+<LI>Fixed bug with the scripting command "Select maximum height" in which the user interface did not show the change requested.
+<LI>Added better error reporting for when ancient McRegion worlds or Bedrock world files try to be opened. <I>(Thanks to supercat 95 for reporting this problem.)</I>
+</UL>
+
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
+<LI>Due to all the new tiles added, Mineways has little room for composite swatches for colored 3D prints. Need to make the output PNG 2x2 larger and test at Shapeways and Sculpteo. Alternately, need to reuse unused swatch locations, but that's a bit fussy.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 <LI>Multithreaded block loading, like Minutor does. This would make scrolling the map, making it huge, etc., much faster.
 <LI>Try to deal with waterlogged objects better. A slab or stairs will have a water surface that causes z-fighting on the faces where they have geometry.
@@ -3101,7 +3116,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/mineways.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV711.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3150,7 +3165,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/2/2020</p>
+		<p id="lastUpdate">Last updated 3/5/2020</p>
 	</div>
 </div>
 

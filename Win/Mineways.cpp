@@ -481,13 +481,13 @@ int APIENTRY _tWinMain(
     wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), L"\\terrainExt.png");
 
     // setting this to empty means the last path used (from last session, hopefully) will be used again
+    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, L"");
     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, L"");
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
     gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
 	gWorldGuide.nbtVersion = 0;
 
-    gImportFile[0] = (wchar_t)0;
     gSchemeSelected[0] = (wchar_t)0;
 
     // start it with something, anything...
@@ -1737,6 +1737,7 @@ RButtonUp:
         case IDM_FILE_PRINTOBJ:
         case IDM_FILE_SAVEOBJ:
         case IDM_FILE_SCHEMATIC:
+        case IDM_FILE_EXPORTMAP:
             if ( !gHighlightOn )
             {
                 // we keep the export options ungrayed now so that they're selectable when the world is loaded
@@ -1755,6 +1756,9 @@ RButtonUp:
             case IDM_FILE_SCHEMATIC:
                 gPrintModel = SCHEMATIC_EXPORT;
                 break;
+            case IDM_FILE_EXPORTMAP:
+                gPrintModel = MAP_EXPORT;
+                break;
             default:
                 MY_ASSERT(gAlwaysFail);
                 gPrintModel = RENDERING_EXPORT;
@@ -1766,7 +1770,6 @@ RButtonUp:
 				ofn.lStructSize = sizeof(OPENFILENAME);
 				ofn.hwndOwner = hWnd;
 				ofn.lpstrFile = gExportPath;
-				//gExportPath[0]=0;
 				ofn.nMaxFile = MAX_PATH_AND_FILE;
 				ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
 				ofn.nFilterIndex = 1;
@@ -1781,62 +1784,87 @@ RButtonUp:
 
 				gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
 			}
-			else
-			{
-				// print model or render model - quite similar
-				ZeroMemory(&ofn, sizeof(OPENFILENAME));
-				ofn.lStructSize = sizeof(OPENFILENAME);
-				ofn.hwndOwner = hWnd;
-				ofn.lpstrFile = gExportPath;
-				//gExportPath[0]=0;
-				ofn.nMaxFile = MAX_PATH_AND_FILE;
-				ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-					L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-				ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
-				ofn.lpstrFileTitle = NULL;
-				ofn.nMaxFileTitle = 0;
-				wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-				ofn.lpstrInitialDir = path;
-				ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
-				ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            else if (gPrintModel == MAP_EXPORT)
+            {
+                // export map
+                ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                ofn.lStructSize = sizeof(OPENFILENAME);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = gExportPath;
+                ofn.nMaxFile = MAX_PATH_AND_FILE;
+                ofn.lpstrFilter = L"Portable Network Graphics (*.png)\0*.png\0";
+                ofn.nFilterIndex = 0;
+                ofn.lpstrFileTitle = NULL;
+                ofn.nMaxFileTitle = 0;
+                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                ofn.lpstrInitialDir = path;
+                ofn.lpstrTitle = L"Export Map";
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-				saveOK = GetSaveFileName(&ofn);
-				// save file type selected, no matter what (even on cancel); we
-				// always set it because even if someone cancels a save, he probably still
-				// wanted the file type chosen.
-				if (gPrintModel)
-				{
-					gExportPrintData.fileType = ofn.nFilterIndex - 1;
-				}
-				else
-				{
-					gExportViewData.fileType = ofn.nFilterIndex - 1;
-				}
-			}
-			if (saveOK)
-			{
-				// if we got this far, then previous export is off, and we also want to ask for export dialog itself.
-				gExported = 0;
-				wcscpy_s(gImportFile, MAX_PATH_AND_FILE, gExportPath);
-				// yes, drop through at this point, we're all set up to export, so it's like a "repeat"
+                saveOK = GetSaveFileName(&ofn);
+            }
+            else
+            {
+                // print model or render model - quite similar
+                ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                ofn.lStructSize = sizeof(OPENFILENAME);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = gExportPath;
+                ofn.nMaxFile = MAX_PATH_AND_FILE;
+                ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+                    L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+                ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
+                ofn.lpstrFileTitle = NULL;
+                ofn.nMaxFileTitle = 0;
+                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                ofn.lpstrInitialDir = path;
+                ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-		case IDM_FILE_REPEATPREVIOUSEXPORT:
-				// again, somehow this trashes gPrintModel! Weirdness...
-				gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+                saveOK = GetSaveFileName(&ofn);
+                // save file type selected, no matter what (even on cancel); we
+                // always set it because even if someone cancels a save, he probably still
+                // wanted the file type chosen.
+                if (gPrintModel)
+                {
+                    gExportPrintData.fileType = ofn.nFilterIndex - 1;
+                }
+                else
+                {
+                    gExportViewData.fileType = ofn.nFilterIndex - 1;
+                }
+            }
+            if (saveOK)
+            {
+                // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
+                gExported = 0;
+                // TODO: this whole export file name and path stuff could use some work.
+                wcscpy_s(gImportPath, MAX_PATH_AND_FILE, gExportPath);
 
-				SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-				enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
-				// put target depth to new depth set, if any
-				if (gTargetDepth != gpEFD->maxyVal)
-				{
-					gTargetDepth = gpEFD->minyVal;
-				}
-				gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-					bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-				updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
-				setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-				setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
-			}   // matches to "if ( saveOK )"
+                // Yes, have the code drop through at this point, we're all set up to export, so it's like a "repeat"
+
+            case IDM_FILE_REPEATPREVIOUSEXPORT:
+                if (gPrintModel == MAP_EXPORT) {
+                    // export 2D map image
+                    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+                    gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gExportPath);
+                }
+                else {
+                    gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+                }
+                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+                enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                // put target depth to new depth set, if any
+                if (gTargetDepth != gpEFD->maxyVal)
+                {
+                    gTargetDepth = gpEFD->minyVal;
+                }
+                gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+                    bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+                setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+            }   // matches to "if ( saveOK )"
             break;
 
         case IDM_PUBLISH_SKFB:
@@ -3160,33 +3188,29 @@ static void validateItems(HMENU menu)
     // gray out options that are not available
     if (gLoaded)
     {
-        EnableMenuItem(menu,IDM_JUMPSPAWN,MF_ENABLED);
-        EnableMenuItem(menu,IDM_JUMPPLAYER,MF_ENABLED);
-        // more correct is to gray if nothing is selected, but people don't know how to ungray
-        //EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,gHighlightOn?MF_ENABLED:MF_DISABLED);
-        //EnableMenuItem(menu,IDM_FILE_SAVEOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-        //EnableMenuItem(menu,IDM_FILE_PRINTOBJ,gHighlightOn?MF_ENABLED:MF_DISABLED);
-        EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_ENABLED);
-        //EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_ENABLED);
-        EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_ENABLED);
-        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_ENABLED);
-        EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_ENABLED);
+        EnableMenuItem(menu, IDM_JUMPSPAWN, MF_ENABLED);
+        EnableMenuItem(menu, IDM_JUMPPLAYER, MF_ENABLED);
+        EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_ENABLED);
+        EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_ENABLED);
+        EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_ENABLED);
+        EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_ENABLED);
+        EnableMenuItem(menu, IDM_FILE_EXPORTMAP, MF_ENABLED);
 #ifdef SKETCHFAB
-		EnableMenuItem(menu,IDM_PUBLISH_SKFB,MF_ENABLED);
+        EnableMenuItem(menu, IDM_PUBLISH_SKFB, MF_ENABLED);
 #else
-		EnableMenuItem(menu, IDM_PUBLISH_SKFB, MF_DISABLED);
+        EnableMenuItem(menu, IDM_PUBLISH_SKFB, MF_DISABLED);
 #endif
     }
     else
     {
-        EnableMenuItem(menu,IDM_JUMPSPAWN,MF_DISABLED);
-        EnableMenuItem(menu,IDM_JUMPPLAYER,MF_DISABLED);
-        //EnableMenuItem(menu,ID_FILE_IMPORTSETTINGS,MF_DISABLED);
-        EnableMenuItem(menu,IDM_FILE_SAVEOBJ,MF_DISABLED);
-        EnableMenuItem(menu,IDM_FILE_PRINTOBJ,MF_DISABLED);
-        EnableMenuItem(menu,IDM_FILE_SCHEMATIC,MF_DISABLED);
-        EnableMenuItem(menu,IDM_VIEW_JUMPTOMODEL,MF_DISABLED);
-        EnableMenuItem(menu,IDM_PUBLISH_SKFB,MF_DISABLED);
+        EnableMenuItem(menu, IDM_JUMPSPAWN, MF_DISABLED);
+        EnableMenuItem(menu, IDM_JUMPPLAYER, MF_DISABLED);
+        EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_DISABLED);
+        EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_DISABLED);
+        EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_DISABLED);
+        EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_DISABLED);
+        EnableMenuItem(menu, IDM_FILE_EXPORTMAP, MF_DISABLED);
+        EnableMenuItem(menu, IDM_PUBLISH_SKFB, MF_DISABLED);
     }
     // has a save been done?
     if (gExported)
@@ -5346,14 +5370,16 @@ static int interpretImportLine(char *line, ImportedSet & is)
                 return INTERPRETER_FOUND_ERROR;
             }
         }
-        // check Y bounds
-        if (v[1] < 0 || v[1] > 255) {
-            saveErrorMessage(is, L"selection out of bounds; minimum y value outside of range 0 to 255.", strPtr);
-            return INTERPRETER_FOUND_ERROR;
-        }
-        if (v[4] < 0 || v[4] > 255) {
-            saveErrorMessage(is, L"selection out of bounds; maximum y value outside of range 0 to 255.", strPtr);
-            return INTERPRETER_FOUND_ERROR;
+        if (!noSelection) {
+            // check Y bounds
+            if (v[1] < 0 || v[1] > 255) {
+                saveErrorMessage(is, L"selection out of bounds; minimum y value outside of range 0 to 255.", strPtr);
+                return INTERPRETER_FOUND_ERROR;
+            }
+            if (v[4] < 0 || v[4] > 255) {
+                saveErrorMessage(is, L"selection out of bounds; maximum y value outside of range 0 to 255.", strPtr);
+                return INTERPRETER_FOUND_ERROR;
+            }
         }
         // if we process the data in this run, do it
         if (is.processData) {
@@ -6466,10 +6492,9 @@ static int interpretScriptLine(char *line, ImportedSet & is)
 
         if (is.processData) {
             gCurDepth = minHeight;
-            setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
+            setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
             SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-            enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
@@ -7563,8 +7588,8 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
         // export 2D map image
         int on;
         GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
-        bool isOK = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, wcharFileName);
-        if (!isOK) {
+        gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, wcharFileName);
+        if (gExported == 0) {
             sendStatusMessage(is.ws.hwndStatus, L"Script export map operation failed");
             swprintf_s(error, 1024, L"export map operation failed.");
             return false;
@@ -7728,20 +7753,21 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     }
     int w = xmax - xmin + 1;
     int h = zmax - zmin + 1;
+    int zoom = (int)(gCurScale + 0.5f);
 
     // first, can we even make such an image?
     progimage_info* mapimage;
     mapimage = new progimage_info();
-    mapimage->width = w;
-    mapimage->height = h;
+    mapimage->width = zoom * w;
+    mapimage->height = zoom * h;
 
     // resize and clear
-    mapimage->image_data.resize(w * h * 3 * sizeof(unsigned char), 0x0);
+    mapimage->image_data.resize(w * h * 3 * zoom * zoom * sizeof(unsigned char), 0x0);
     unsigned char* imageDst = &mapimage->image_data[0];
 
     SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax);
 
-    DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, &gOptions, gHitsFound, updateProgress, gMinecraftVersion);
+    DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion);
 
     // check if map file has ".png" at the end - if not, add it.
     wchar_t mapFileNameSafe[MAX_PATH_AND_FILE];
