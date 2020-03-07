@@ -6358,7 +6358,7 @@ static int interpretScriptLine(char *line, ImportedSet & is)
             saveErrorMessage(is, L"could not read 'Zoom' value.", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }
-        if ((v < 1) || (v > 15)) {
+        if ((v < 1) || (v > 40)) {
             saveErrorMessage(is, L"zoom factor must be from 1 to 40, inclusive.", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }

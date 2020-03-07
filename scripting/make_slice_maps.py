@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # The script used to generate the actual commands in make_slice_maps.mwscript
 #
