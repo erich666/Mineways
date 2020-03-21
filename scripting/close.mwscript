@@ -1,4 +1,5 @@
-// close.mwscript - a trivial little script to close Mineways.
+// close.mwscript - A trivial little script to close Mineways. Add as the final script when running Mineways from the
+// command line and you want to shut down at the end automatically.
 //
 // See http://mineways.com/scripting.html for its use from the command line; search for "Load Eiffel".
 

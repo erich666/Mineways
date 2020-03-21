@@ -1,0 +1,516 @@
+// An example of exporting a set of maps showing cutaway layers, output in top to bottom order
+Select maximum height: 0
+Export map: slice_255.png
+Select maximum height: 1
+Export map: slice_254.png
+Select maximum height: 2
+Export map: slice_253.png
+Select maximum height: 3
+Export map: slice_252.png
+Select maximum height: 4
+Export map: slice_251.png
+Select maximum height: 5
+Export map: slice_250.png
+Select maximum height: 6
+Export map: slice_249.png
+Select maximum height: 7
+Export map: slice_248.png
+Select maximum height: 8
+Export map: slice_247.png
+Select maximum height: 9
+Export map: slice_246.png
+Select maximum height: 10
+Export map: slice_245.png
+Select maximum height: 11
+Export map: slice_244.png
+Select maximum height: 12
+Export map: slice_243.png
+Select maximum height: 13
+Export map: slice_242.png
+Select maximum height: 14
+Export map: slice_241.png
+Select maximum height: 15
+Export map: slice_240.png
+Select maximum height: 16
+Export map: slice_239.png
+Select maximum height: 17
+Export map: slice_238.png
+Select maximum height: 18
+Export map: slice_237.png
+Select maximum height: 19
+Export map: slice_236.png
+Select maximum height: 20
+Export map: slice_235.png
+Select maximum height: 21
+Export map: slice_234.png
+Select maximum height: 22
+Export map: slice_233.png
+Select maximum height: 23
+Export map: slice_232.png
+Select maximum height: 24
+Export map: slice_231.png
+Select maximum height: 25
+Export map: slice_230.png
+Select maximum height: 26
+Export map: slice_229.png
+Select maximum height: 27
+Export map: slice_228.png
+Select maximum height: 28
+Export map: slice_227.png
+Select maximum height: 29
+Export map: slice_226.png
+Select maximum height: 30
+Export map: slice_225.png
+Select maximum height: 31
+Export map: slice_224.png
+Select maximum height: 32
+Export map: slice_223.png
+Select maximum height: 33
+Export map: slice_222.png
+Select maximum height: 34
+Export map: slice_221.png
+Select maximum height: 35
+Export map: slice_220.png
+Select maximum height: 36
+Export map: slice_219.png
+Select maximum height: 37
+Export map: slice_218.png
+Select maximum height: 38
+Export map: slice_217.png
+Select maximum height: 39
+Export map: slice_216.png
+Select maximum height: 40
+Export map: slice_215.png
+Select maximum height: 41
+Export map: slice_214.png
+Select maximum height: 42
+Export map: slice_213.png
+Select maximum height: 43
+Export map: slice_212.png
+Select maximum height: 44
+Export map: slice_211.png
+Select maximum height: 45
+Export map: slice_210.png
+Select maximum height: 46
+Export map: slice_209.png
+Select maximum height: 47
+Export map: slice_208.png
+Select maximum height: 48
+Export map: slice_207.png
+Select maximum height: 49
+Export map: slice_206.png
+Select maximum height: 50
+Export map: slice_205.png
+Select maximum height: 51
+Export map: slice_204.png
+Select maximum height: 52
+Export map: slice_203.png
+Select maximum height: 53
+Export map: slice_202.png
+Select maximum height: 54
+Export map: slice_201.png
+Select maximum height: 55
+Export map: slice_200.png
+Select maximum height: 56
+Export map: slice_199.png
+Select maximum height: 57
+Export map: slice_198.png
+Select maximum height: 58
+Export map: slice_197.png
+Select maximum height: 59
+Export map: slice_196.png
+Select maximum height: 60
+Export map: slice_195.png
+Select maximum height: 61
+Export map: slice_194.png
+Select maximum height: 62
+Export map: slice_193.png
+Select maximum height: 63
+Export map: slice_192.png
+Select maximum height: 64
+Export map: slice_191.png
+Select maximum height: 65
+Export map: slice_190.png
+Select maximum height: 66
+Export map: slice_189.png
+Select maximum height: 67
+Export map: slice_188.png
+Select maximum height: 68
+Export map: slice_187.png
+Select maximum height: 69
+Export map: slice_186.png
+Select maximum height: 70
+Export map: slice_185.png
+Select maximum height: 71
+Export map: slice_184.png
+Select maximum height: 72
+Export map: slice_183.png
+Select maximum height: 73
+Export map: slice_182.png
+Select maximum height: 74
+Export map: slice_181.png
+Select maximum height: 75
+Export map: slice_180.png
+Select maximum height: 76
+Export map: slice_179.png
+Select maximum height: 77
+Export map: slice_178.png
+Select maximum height: 78
+Export map: slice_177.png
+Select maximum height: 79
+Export map: slice_176.png
+Select maximum height: 80
+Export map: slice_175.png
+Select maximum height: 81
+Export map: slice_174.png
+Select maximum height: 82
+Export map: slice_173.png
+Select maximum height: 83
+Export map: slice_172.png
+Select maximum height: 84
+Export map: slice_171.png
+Select maximum height: 85
+Export map: slice_170.png
+Select maximum height: 86
+Export map: slice_169.png
+Select maximum height: 87
+Export map: slice_168.png
+Select maximum height: 88
+Export map: slice_167.png
+Select maximum height: 89
+Export map: slice_166.png
+Select maximum height: 90
+Export map: slice_165.png
+Select maximum height: 91
+Export map: slice_164.png
+Select maximum height: 92
+Export map: slice_163.png
+Select maximum height: 93
+Export map: slice_162.png
+Select maximum height: 94
+Export map: slice_161.png
+Select maximum height: 95
+Export map: slice_160.png
+Select maximum height: 96
+Export map: slice_159.png
+Select maximum height: 97
+Export map: slice_158.png
+Select maximum height: 98
+Export map: slice_157.png
+Select maximum height: 99
+Export map: slice_156.png
+Select maximum height: 100
+Export map: slice_155.png
+Select maximum height: 101
+Export map: slice_154.png
+Select maximum height: 102
+Export map: slice_153.png
+Select maximum height: 103
+Export map: slice_152.png
+Select maximum height: 104
+Export map: slice_151.png
+Select maximum height: 105
+Export map: slice_150.png
+Select maximum height: 106
+Export map: slice_149.png
+Select maximum height: 107
+Export map: slice_148.png
+Select maximum height: 108
+Export map: slice_147.png
+Select maximum height: 109
+Export map: slice_146.png
+Select maximum height: 110
+Export map: slice_145.png
+Select maximum height: 111
+Export map: slice_144.png
+Select maximum height: 112
+Export map: slice_143.png
+Select maximum height: 113
+Export map: slice_142.png
+Select maximum height: 114
+Export map: slice_141.png
+Select maximum height: 115
+Export map: slice_140.png
+Select maximum height: 116
+Export map: slice_139.png
+Select maximum height: 117
+Export map: slice_138.png
+Select maximum height: 118
+Export map: slice_137.png
+Select maximum height: 119
+Export map: slice_136.png
+Select maximum height: 120
+Export map: slice_135.png
+Select maximum height: 121
+Export map: slice_134.png
+Select maximum height: 122
+Export map: slice_133.png
+Select maximum height: 123
+Export map: slice_132.png
+Select maximum height: 124
+Export map: slice_131.png
+Select maximum height: 125
+Export map: slice_130.png
+Select maximum height: 126
+Export map: slice_129.png
+Select maximum height: 127
+Export map: slice_128.png
+Select maximum height: 128
+Export map: slice_127.png
+Select maximum height: 129
+Export map: slice_126.png
+Select maximum height: 130
+Export map: slice_125.png
+Select maximum height: 131
+Export map: slice_124.png
+Select maximum height: 132
+Export map: slice_123.png
+Select maximum height: 133
+Export map: slice_122.png
+Select maximum height: 134
+Export map: slice_121.png
+Select maximum height: 135
+Export map: slice_120.png
+Select maximum height: 136
+Export map: slice_119.png
+Select maximum height: 137
+Export map: slice_118.png
+Select maximum height: 138
+Export map: slice_117.png
+Select maximum height: 139
+Export map: slice_116.png
+Select maximum height: 140
+Export map: slice_115.png
+Select maximum height: 141
+Export map: slice_114.png
+Select maximum height: 142
+Export map: slice_113.png
+Select maximum height: 143
+Export map: slice_112.png
+Select maximum height: 144
+Export map: slice_111.png
+Select maximum height: 145
+Export map: slice_110.png
+Select maximum height: 146
+Export map: slice_109.png
+Select maximum height: 147
+Export map: slice_108.png
+Select maximum height: 148
+Export map: slice_107.png
+Select maximum height: 149
+Export map: slice_106.png
+Select maximum height: 150
+Export map: slice_105.png
+Select maximum height: 151
+Export map: slice_104.png
+Select maximum height: 152
+Export map: slice_103.png
+Select maximum height: 153
+Export map: slice_102.png
+Select maximum height: 154
+Export map: slice_101.png
+Select maximum height: 155
+Export map: slice_100.png
+Select maximum height: 156
+Export map: slice_99.png
+Select maximum height: 157
+Export map: slice_98.png
+Select maximum height: 158
+Export map: slice_97.png
+Select maximum height: 159
+Export map: slice_96.png
+Select maximum height: 160
+Export map: slice_95.png
+Select maximum height: 161
+Export map: slice_94.png
+Select maximum height: 162
+Export map: slice_93.png
+Select maximum height: 163
+Export map: slice_92.png
+Select maximum height: 164
+Export map: slice_91.png
+Select maximum height: 165
+Export map: slice_90.png
+Select maximum height: 166
+Export map: slice_89.png
+Select maximum height: 167
+Export map: slice_88.png
+Select maximum height: 168
+Export map: slice_87.png
+Select maximum height: 169
+Export map: slice_86.png
+Select maximum height: 170
+Export map: slice_85.png
+Select maximum height: 171
+Export map: slice_84.png
+Select maximum height: 172
+Export map: slice_83.png
+Select maximum height: 173
+Export map: slice_82.png
+Select maximum height: 174
+Export map: slice_81.png
+Select maximum height: 175
+Export map: slice_80.png
+Select maximum height: 176
+Export map: slice_79.png
+Select maximum height: 177
+Export map: slice_78.png
+Select maximum height: 178
+Export map: slice_77.png
+Select maximum height: 179
+Export map: slice_76.png
+Select maximum height: 180
+Export map: slice_75.png
+Select maximum height: 181
+Export map: slice_74.png
+Select maximum height: 182
+Export map: slice_73.png
+Select maximum height: 183
+Export map: slice_72.png
+Select maximum height: 184
+Export map: slice_71.png
+Select maximum height: 185
+Export map: slice_70.png
+Select maximum height: 186
+Export map: slice_69.png
+Select maximum height: 187
+Export map: slice_68.png
+Select maximum height: 188
+Export map: slice_67.png
+Select maximum height: 189
+Export map: slice_66.png
+Select maximum height: 190
+Export map: slice_65.png
+Select maximum height: 191
+Export map: slice_64.png
+Select maximum height: 192
+Export map: slice_63.png
+Select maximum height: 193
+Export map: slice_62.png
+Select maximum height: 194
+Export map: slice_61.png
+Select maximum height: 195
+Export map: slice_60.png
+Select maximum height: 196
+Export map: slice_59.png
+Select maximum height: 197
+Export map: slice_58.png
+Select maximum height: 198
+Export map: slice_57.png
+Select maximum height: 199
+Export map: slice_56.png
+Select maximum height: 200
+Export map: slice_55.png
+Select maximum height: 201
+Export map: slice_54.png
+Select maximum height: 202
+Export map: slice_53.png
+Select maximum height: 203
+Export map: slice_52.png
+Select maximum height: 204
+Export map: slice_51.png
+Select maximum height: 205
+Export map: slice_50.png
+Select maximum height: 206
+Export map: slice_49.png
+Select maximum height: 207
+Export map: slice_48.png
+Select maximum height: 208
+Export map: slice_47.png
+Select maximum height: 209
+Export map: slice_46.png
+Select maximum height: 210
+Export map: slice_45.png
+Select maximum height: 211
+Export map: slice_44.png
+Select maximum height: 212
+Export map: slice_43.png
+Select maximum height: 213
+Export map: slice_42.png
+Select maximum height: 214
+Export map: slice_41.png
+Select maximum height: 215
+Export map: slice_40.png
+Select maximum height: 216
+Export map: slice_39.png
+Select maximum height: 217
+Export map: slice_38.png
+Select maximum height: 218
+Export map: slice_37.png
+Select maximum height: 219
+Export map: slice_36.png
+Select maximum height: 220
+Export map: slice_35.png
+Select maximum height: 221
+Export map: slice_34.png
+Select maximum height: 222
+Export map: slice_33.png
+Select maximum height: 223
+Export map: slice_32.png
+Select maximum height: 224
+Export map: slice_31.png
+Select maximum height: 225
+Export map: slice_30.png
+Select maximum height: 226
+Export map: slice_29.png
+Select maximum height: 227
+Export map: slice_28.png
+Select maximum height: 228
+Export map: slice_27.png
+Select maximum height: 229
+Export map: slice_26.png
+Select maximum height: 230
+Export map: slice_25.png
+Select maximum height: 231
+Export map: slice_24.png
+Select maximum height: 232
+Export map: slice_23.png
+Select maximum height: 233
+Export map: slice_22.png
+Select maximum height: 234
+Export map: slice_21.png
+Select maximum height: 235
+Export map: slice_20.png
+Select maximum height: 236
+Export map: slice_19.png
+Select maximum height: 237
+Export map: slice_18.png
+Select maximum height: 238
+Export map: slice_17.png
+Select maximum height: 239
+Export map: slice_16.png
+Select maximum height: 240
+Export map: slice_15.png
+Select maximum height: 241
+Export map: slice_14.png
+Select maximum height: 242
+Export map: slice_13.png
+Select maximum height: 243
+Export map: slice_12.png
+Select maximum height: 244
+Export map: slice_11.png
+Select maximum height: 245
+Export map: slice_10.png
+Select maximum height: 246
+Export map: slice_9.png
+Select maximum height: 247
+Export map: slice_8.png
+Select maximum height: 248
+Export map: slice_7.png
+Select maximum height: 249
+Export map: slice_6.png
+Select maximum height: 250
+Export map: slice_5.png
+Select maximum height: 251
+Export map: slice_4.png
+Select maximum height: 252
+Export map: slice_3.png
+Select maximum height: 253
+Export map: slice_2.png
+Select maximum height: 254
+Export map: slice_1.png
+Select maximum height: 255
+Export map: slice_0.png
+
+// Restore selection height of 255
+Select maximum height: 255

@@ -1,6 +1,6 @@
-// map_slices.mwscript - An example of exporting a set of maps showing cutaway layers
+// make_map_tiles.mwscript - An example of exporting a set of maps, each 1000 x 1000 pixels
 //
-// version 1.00
+// version 1.01
 //
 // Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
 // Read more about each command at http://mineways.com/scripting.html

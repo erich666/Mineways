@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-# Draw grid and regions on top of a map.
-# Version 1.0 - by Eric Haines
+# Annotate a map with coordinates and regions. Read the top of this file for how to set up to use it.
+# Version 1.00 - by Eric Haines
 
 # You need to install Python 3 and ImageMagick. You need to run this script from
 # the command window. Here's how to get a command window:
@@ -16,45 +16,60 @@
 # Install, and start a new command window.
 
 # Once it's all there, it's easy enough to run this script.
+# If you want to do a simple experiment, do this:
+#   * Run Mineways, then open the world you want to map
+#   * Select: "File | Import Settings" and then read in the file "export_map.mwscript"
+#   * Running that script file should create an image called "my_world_map.png"
+#   * Double-click on the file "export_and_annotate.bat"
+# You should now see a new file, "my_annotated_map.png". If you don't, make sure the map
+# file "my_world_map.png", "annotate_map.py", and "export_and_annotate.bat" are all in the
+# same directory. Things still not running? Try the step by step process below, which also
+# shows how to change the map size and how to feed this new map size into the annotator.
+
 # 1) Export your map from Mineways. Write down the world location of the upper
-#    left-hand corner of the map you exported. For example, if you ran the Mineways
-#    script, by using "File | Import Settings" on a text file containing the three lines:
+#    left-hand corner of the map you exported. You can use the "File | Export Map" command in
+#    Mineways and save to "my_world_map.pong". Or, using scripting, you could edit the provided
+#    "export_map.mwscript" file:
 #       Zoom: 1
-#       Selection location: -1257, 0, 622 to 2129, 255, 4119
+#       Selection location: -1024, 0, -512 to 1023, 255, 511
 #       Export Map: my_world_map.png
 #
-#    You'd need to note the upper left corner, which is -1257 622. If you're clever, you could
-#    put these values in the file name, e.g., "my_world_map_-1257_622.png".
+#    To use this script, run Mineways, then select "File | Import Settings" and read
+#    in "export_map.mwscript". Doing so should produce a map file "my_world_map.png".
+#    You'll need to note the upper left corner of the map, which is -1024 -512. If you're clever,
+#    you could put these values in the file name, e.g., "my_world_map_-1024_-512.png" so
+#    that you won't forget where you scribbled them down.
 #
-# 2) Run this script. You put your output map "my_world_map.png" in the same directory as
+# 2) Run this Python 3 script. You put your output map "my_world_map.png" in the same directory as
 #    this script file "annotate_map.py". Then go to your command window in the same directory
 #    and type:
-#        python annotate_map.py my_world_map.png -1257 622 my_annotated_map.png > make_map.bat
+#        python annotate_map.py my_world_map.png -1024 -512 my_annotated_map.png > magick_annotate_map.bat
 #
-#    Tip: if you will always run with the same arguments, you can put these below in the code
-#    starting at "default arguments" and then run by just:
-#        python annotate_map.py > make_map.bat
+#    This makes a set of ImageMagick commands which you'll run in the next step.
+#    Tip: if you will always run with the same names and location, you can put these all inside
+#    this file (the one you're reading, "annotate_map.py"). Put the values in the code starting at
+#    "default arguments" below. Once done and saved, then all you have to do on the command line is:
+#        python annotate_map.py > magick_annotate_map.bat
 #
-# 3) Doing that creates a file in the same directory called "make_map.bat". Run this by
-#    typing in your same command window:
-#        make_map.bat
+# 3) The previous step creates a file in the same directory, called "magick_annotate_map.bat". Run this by
+#    simply double-clicking on the file in your file explorer, or typing in your same command window:
+#        .\magick_annotate_map.bat
+#    The advantage of running it in the command window is that you can see any errors produced.
 #
-# This will chunk along and eventually produce "my_annotated_map.png" - enjoy!
+# Running "magick_annotate_map.bat" will chunk along and eventually produce "my_annotated_map.png" - enjoy!
 #
 # If you find yourself doing these three steps again and again, you could automate the process
-# to a single file you then run by double-clicking it. Put into, say, "map_and_grid.bat"
-#    mineways.exe -m make_a_map.mwscript
-#    python annotate_map.py my_world_map.png -1257 622 my_annotated_map.png > make_map.bat
-#    make_map.bat
+# to a single .bat file you then run by double-clicking it. Put into "map_and_grid.bat":
+#    <your path to >\mineways.exe -m load_world.mwscript export_map.mwscript close.mwscript
+#    python annotate_map.py my_world_map.png -1024 -512 my_annotated_map.png > magick_annotate_map.bat
+#    .\magick_annotate_map.bat
 #
-# That first line runs Mineways minimized. You also then need to put in the "make_a_map.mwscript"
-# file something like this:
-#    Minecraft world: My Cool World
-#    Selection location: -1257, 0, 622 to 2129, 255, 4119
-#    Export Map: my_world_map.png
-#    Close
+# That first line runs Mineways minimized. You will need to edit "load_world.mwscript" and put
+# your world's name in place of "My Cool World" - this name is the right-column name in the
+# list of worlds that Mineways' "File | Open World" shows. You can also edit export_map.mwscript
+# to export whatever area you want, as before.
 #
-# Once all these files are set up, just double-click "map_and_grid.bat" or run from the command line.
+# Once all these files are set up, just double-click "map_and_grid.bat" or run it from the command line.
 
 import struct
 import imghdr
@@ -66,6 +81,9 @@ filename = 'my_world_map.png'
 fnameout = 'my_annotated_map.png'
 # put the x and z coordinates of the upper left corner of your map here:
 image_start = (-1024,-1024)
+
+# if you don't want to simply print out the commands but want to directly run then, set this to True:
+run_commands = True
 
 # if you don't like the range going from 0 to 512, that it should really be 0 to 511, change this to 511:
 maxrange = 511
@@ -171,8 +189,8 @@ for y in range(starty,image_size[1]-1,512):
         gridx = math.floor((x+image_start[0])/512)
         # find approximate length of string - just a copy of the "output text" outstring below
         txttst = str(gridx*512) + ',' + str(gridy*512) + '  ' + str(gridx*512+maxrange) + ',' + str(gridy*512+maxrange)
-        txttst += ' - r.' + str(gridx) + '.' + str(gridy)
-        outstring += '-draw "rectangle '
+        txttst += ' / r.' + str(gridx) + '.' + str(gridy)
+        outstring += '-draw \"rectangle '
         outstring += str(x)
         outstring += ','
         outstring += str(y)
@@ -203,7 +221,7 @@ for y in range(starty,image_size[1]-1,512):
         outstring += ','
         outstring += str(gridy*512+maxrange)
         # MCA grid coordinates
-        outstring += ' - r.'
+        outstring += ' / r.'
         outstring += str(gridx)
         outstring += '.'
         outstring += str(gridy)
@@ -212,3 +230,5 @@ for y in range(starty,image_size[1]-1,512):
 
 outstring += fnameout
 print (outstring)
+
+

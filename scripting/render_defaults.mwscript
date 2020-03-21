@@ -1,4 +1,4 @@
-// render_defaults.mwscript - the script commands for setting a default Wavefront OBJ render export.
+// render_defaults.mwscript - The script commands for setting a default Wavefront OBJ render export, for reference.
 //
 // Reading in this script will restore Mineways' default export setting for a render.
 //

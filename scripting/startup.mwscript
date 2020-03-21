@@ -1,4 +1,5 @@
-// startup.mwscript - A sample startup script for Mineways, called by mineways.bat.
+// startup.mwscript - A sample startup script for Mineways, called by mineways.bat in the directory above.
+// Does nothing by default, until you edit it. See comments below.
 //
 // version 1.00
 //

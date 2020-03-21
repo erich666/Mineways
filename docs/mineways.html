@@ -70,7 +70,7 @@
 	<div id="content" class="clearfix">
 <h1>Documentation</h1>
 
-To quickly get started, see this <a href="downloads.html#instructions">quick step by step</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
+To quickly get started, see this <a href="downloads.html#instructions">quick step by step</a> or <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
 <P>
 Normally you can just hit "OK" on the export dialog and things will work fine. Read on if you want to understand how to make your models less expensive, use different texture packs, and otherwise tailor you want to see printed out. What follows is extensive documentation about each part of the export and print process. If you don't want to wade through it all, at least search this page for the phrase <b>"Key tip"</b>, as these bits are particularly useful.
 <P>
@@ -251,10 +251,12 @@ Schematic files are commonly used to share constructions among builders. Tools s
 <a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, and many other operations. You can also upload and share these files on sites such as <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
 <P>
 <a id="exportmap">
-Map export is simple: whatever area you have selected is exported to a PNG-format image file, named as you wish. The zoom level affects the result, though will differ slightly from what you see on the screen for boring reasons. While you can manually export any portion of the map manually, the real power is from using <a href="scripting.html#sic">scripting</a>. You can make a simple text file to specify more than one map. Each map can be set to display a different part of your world, or even a different layer, by adjusting the maximum Y height. See (and run) the sample file "scripting/make_map_tiles.mwscript" for an example that creates four adjacent 1000x1000 maps centered around location 0,0. See the file "scripting/make_slice_maps.mwscript" for making a series of layers that you can turn into an animation. You can then make <a href="https://i.postimg.cc/vmNH6nbF/crazycake-slices.gif">animations like this</a> (and <a href="https://i.postimg.cc/85fkdCzF/crazycake-slices-slow.gif">at a slower speed</a>): 
+"Export Map" is simple: whatever area you have selected is exported to a PNG-format image file, named as you wish. The zoom level affects the result, though will differ slightly from what you see on the screen for boring reasons. While you can manually export any portion of the map manually, the real power is from using <a href="scripting.html#sic">scripting</a>. You can make a simple text file to specify more than one map. Each map can be set to display a different part of your world, or even a different layer, by adjusting the maximum Y height. See (and run) the sample file "scripting/make_map_tiles.mwscript" for an example that creates four adjacent 1000x1000 maps centered around location 0,0. If you want to edit these maps, consider using <a href="https://imagemagick.org">ImageMagick</a>, which lets you perform <a href="https://imagemagick.org/script/command-line-processing.php">all sorts of annotations</a> and much more.
 <P>
-<img src="https://i.postimg.cc/vmNH6nbF/crazycake-slices.gif" alt="slice animation">
-<img src="https://i.postimg.cc/85fkdCzF/crazycake-slices-slow.gif" alt="slice animation slowed">
+See the file "scripting/make_slice_maps.mwscript" for making a series of layers that you can turn into an animation. You can then make <a href="http://www.realtimerendering.com/erich/minecraft/public/crazycake_slices.gif">animations like this</a> (and <a href="http://www.realtimerendering.com/erich/minecraft/public/crazycake_slices_slow.gif">at a slower speed</a>): 
+<P>
+<img src="http://www.realtimerendering.com/erich/minecraft/public/crazycake_slices.gif" alt="slice animation">
+<img src="http://www.realtimerendering.com/erich/minecraft/public/crazycake_slices_slow.gif" alt="slice animation slowed">
 <P>
 <h3 id="g3d">Displaying with G3D</h3>
 Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default) and not <a href="#fcst">exporting separate tiles</a>, I recommend the free G3D viewer (pro tip: hold the Alt key down and use WASD to move fast in G3D). This viewer now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look. If you are export separate tiles, I suggest the <a href="http://www.open3mod.com/">Open 3D Model Viewer</a>. If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats. See some <a href="#viewers">other viewer options here</a>.
@@ -3075,6 +3077,13 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Added better error reporting for when ancient McRegion worlds or Bedrock world files try to be opened. <I>(Thanks to supercat 95 for reporting this problem.)</I>
 </UL>
 
+<LI>Version 7.12, ?/?/2020 - TODO: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV712.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Fixed script interpreter for "Zoom:" - input was incorrectly limited to between 1 and 15, not 1 to 40.
+<LI>Added scripting/_README.txt to explain the sample scripting files. This is the least known, and most powerful, part of Mineways.
+<LI>Added file scripting/annotate_map.py, which annotates output maps with where each region file is located, along with other related scripts. Such maps can help you decide to delete remote regions from your world, for example. Read the top of the file for how to install Python and ImageMagick and then run this program. Note the mappingscripts can also be used with <a href="http://seancode.com/minutor/">Minutor</a> or any other mapper that displays at 1 pixel per block. <I>(Thanks to Rob P for testing these scripts out.)</I>
+</UL>
 </UL>
 
 <h2 id="wishlist">Wish List</h2>
@@ -3123,11 +3132,12 @@ Some links I commonly use.
 <LI> <a href="http://resourcepack.net/modern-hd-resource-pack/">Modern HD</a> by Mikeyto1o
 <LI> <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a> (just the 64x64 - there are other sizes) by Sphax84
 </UL>
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Download the latest for Mac OSX</a></b>. Ported to the Mac OS X platform by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. See <a href="downloads.html#mac">the Mac guide</a>.
 <LI>Other platforms: Mineways works on Linux and the Mac under <a href="http://www.winehq.org/">Wine</a> - see link below (and I suspect it also works on the Mac using a <a href="http://lifehacker.com/5714966/five-best-virtual-machine-applications">virtual machine like VirtualBox</a> - let me know).
+<LI><a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac.zip">Download the ancient version V5.10 for the Mac</a>. Ported to the Mac OS X platform by using <a href="http://www.davidbaumgold.com/tutorials/wine-mac/">WINE</a>. See <a href="downloads.html#mac">the Mac guide</a>.
 <LI><b><a href="https://github.com/erich666/Mineways">Download the source code (C/C++)</a></b> - on github, free for just about any use; code contributions welcome!
-<LI><b><a href="https://www.minecraftforum.net/forums/minecraft-java-edition/discussion/326119-mineways-3d-prints-of-minecraft-objects?page=100">Minecraft forum thread</a></b> - this is where I announce important update information, so subscribe to the thread if you're a serious user.
+<LI><a href="https://www.minecraftforum.net/forums/minecraft-java-edition/discussion/326119-mineways-3d-prints-of-minecraft-objects?page=100">Minecraft forum thread</a>
 <LI><b><a title="Subreddit" href="http://www.reddit.com/r/mineways/">Subreddit for Mineways</a></b> - a place to show off your work and tutorials.
+<LI><a href="https://minecraft.gamepedia.com/Programs_and_editors/3D_exporters">Related tools</a> on the Minecraft Wiki.
 <LI><b><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz">Video Playlist</a></b> - where in <a href="http://www.youtube.com/watch?v=MTAztZjP3ak&list=PL3AE7AB94E9114715&index=1&feature=plpp_video">the first two minutes</a> I install Mineways, export a model from <a href="http://vokselia.com">our Minecraft world</a>, preview the result, and then upload it to Shapeways. Tutorials:
 <UL>
 <LI><b><a href="http://www.youtube.com/watch?v=8I5K-nB86z4">Mineways tutorial: The Basics</a></b>
@@ -3165,7 +3175,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/5/2020</p>
+		<p id="lastUpdate">Last updated 3/9/2020</p>
 	</div>
 </div>
 

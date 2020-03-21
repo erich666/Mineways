@@ -1,0 +1,4 @@
+// export_map.mwscript - Given that you have already loaded a world manually, select an area and export it
+Zoom: 1
+Selection location: -1024, 0, -512 to 1023, 255, 511
+Export Map: my_world_map.png
