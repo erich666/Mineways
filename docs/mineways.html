@@ -447,7 +447,7 @@ You can also interactively compare these sampling methods <a href="https://skfb.
 <B>Wavefront OBJ file export options:</B></a>
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Material per block ID family," each separate block is put into a separate object, so each can be deleted, animated, or otherwise modified in a modeler. Note: for Blender, you must click the "Split by: Group" box to be able to then select individual blocks.
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Material per block ID family," each separate block is put into a separate object, so each can be deleted, animated, or otherwise modified in a modeler. Finally, you may also want to check the <a href="#make_group_objects">Make groups objects</a> option, as each group will then be a separate object you can manipulate.
 <LI>Material per object: on by default; similar blocks are given the same material. If turned off and exporting separate types, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easy to edit) or whether individual blocks are grouped by material.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. For example, the <a href="https://minecraft-ids.grahamedgecombe.com/">Stone family</a> has stone, granite, polished granite, diorite, and so on. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states.
 </UL>
@@ -677,6 +677,9 @@ Each block type has a separate material
 </tr>
 
 </TABLE>
+<P>
+<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box.
+
 <P>
 <b><a id="full_material">G3D full material:</a></b> Checking this box causes a more elaborate illumination model to be output. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set, and map_d is not set (most modern applications will use the alpha channel set in map_Kd, so setting a separate alpha in map_d is not needed and can be detrimental). Originally this option was meant to make the (great and free) <a href="#g3d">G3D</a> previewer happy, but now G3D works about the same whether this box is checked or not. That said, some other applications may benefit from this option, so I have left it available.
 
@@ -1024,7 +1027,7 @@ The first two steps are the same for all versions of Blender, since they involve
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle).
 </P>
 <P>
-<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export tiles for textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective.
+<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export tiles for textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective. You may wish to try the <a href="#make_group_objects">"Make groups objects" option</a> if you are <a href="#individual">exporting individual blocks</a> for animation.
 </P>
 
 <p>
@@ -1099,7 +1102,9 @@ Technical note: if you use the material option "Export tiles for textures" when 
 <P>
 <b>10) Render Size:</b> You can also set several parameters of the Renderer by selecting the Camera in the Scene Collection in the upper right, then clicking on the Context.Output icon in the vertical list of icons - it's the third one down, it looks like a printer spitting out an image. In the section "Dimensions", you can set the Resolution of the image, add a border, and so on. To export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
 <P>
-<b>11) Upload</b> your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but extremely recommended - I like seeing what people make.)
+<b>11) Optional: Split into Objects:</b> Blender 2.8+ imports a Mineways OBJ file as a single object. If you did not use the <a href="#make_group_objects">"Make groups objects" option</a> but want to split the object in Blender, do the following. First, <a href="https://www.katsbits.com/codex/edit-mode-basics/#edit-mode">switch to Edit Mode</a>. Then hit the "p" key and with your mouse select the option "By Material." The objects will now be separated in this way. Note that this may not be what you want - likely you'll need to use the <a href="#individual">"Export individual blocks" option</a> in Mineways to get "solid" blocks you can animate.
+<P>
+<b>12) Upload</b> pictures of your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but I hope you do - I like seeing what people make.)
 
 <P>
 <font size="+1"><b id="old_blender">Blender 2.79 and older</b></font>
@@ -3077,12 +3082,13 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Added better error reporting for when ancient McRegion worlds or Bedrock world files try to be opened. <I>(Thanks to supercat 95 for reporting this problem.)</I>
 </UL>
 
-<LI>Version 7.12, ?/?/2020 - TODO: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV712.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.12, 3/28/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV712.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI>Added export option <a href="#make_group_objects">"Make groups objects"</a> for OBJ export. This option makes every group formed into a separate object of the same name. It can help ease editing when exporting individual blocks, for example. <I>(Thanks to zero for reporting this problem.)</I>
+<LI>Added file scripting/annotate_map.py, which annotates output maps with where each region file is located, along with other related scripts. Such maps can help you decide to delete remote regions from your world, for example. Read the top of the file for how to install Python and ImageMagick and then run this program. Note the mapping scripts can also be used with <a href="http://seancode.com/minutor/">Minutor</a> or any other mapper that displays at 1 pixel per block. <I>(Thanks to Rob P for testing these scripts out.)</I>
 <LI>Fixed script interpreter for "Zoom:" - input was incorrectly limited to between 1 and 15, not 1 to 40.
 <LI>Added scripting/_README.txt to explain the sample scripting files. This is the least known, and most powerful, part of Mineways.
-<LI>Added file scripting/annotate_map.py, which annotates output maps with where each region file is located, along with other related scripts. Such maps can help you decide to delete remote regions from your world, for example. Read the top of the file for how to install Python and ImageMagick and then run this program. Note the mappingscripts can also be used with <a href="http://seancode.com/minutor/">Minutor</a> or any other mapper that displays at 1 pixel per block. <I>(Thanks to Rob P for testing these scripts out.)</I>
 </UL>
 </UL>
 
@@ -3175,7 +3181,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/9/2020</p>
+		<p id="lastUpdate">Last updated 3/28/2020</p>
 	</div>
 </div>
 

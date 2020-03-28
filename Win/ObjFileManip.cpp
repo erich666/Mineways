@@ -18581,11 +18581,15 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     strcpy_s(worldNameUnderlined,256,justWorldFileName);
     spacesToUnderlinesChar(worldNameUnderlined);
 
-    // Object name
-    sprintf_s(outputString,256,"\no %s__%d_%d_%d_to_%d_%d_%d\n", worldNameUnderlined,
-        worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
-        worldBox->max[X], worldBox->max[Y], worldBox->max[Z] );
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
+    int mkGroupsObjs = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
+    if (!mkGroupsObjs) {
+        // Output just one object. Else we output an object every time we output a group
+        // Object name
+        sprintf_s(outputString, 256, "\no %s__%d_%d_%d_to_%d_%d_%d\n", worldNameUnderlined,
+            worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
+            worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
+        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    }
 
 #ifdef OUTPUT_NORMALS
     resolveFaceNormals();
@@ -18657,12 +18661,6 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
         sprintf_s(outputString,256,"v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z] );
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
     }
-
-    //if ( exportMaterials && (gOptions->exportFlags & EXPT_OUTPUT_NEUTRAL_MATERIAL) )
-    //{
-    //    sprintf_s(outputString,256,"\ng world\nusemtl object_material\n");
-    //    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
-    //}
 
     prevType = -1;
     int prevDataVal = -1;
@@ -18743,6 +18741,10 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                         if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                         {
                             // new group for objects of same type (which are sorted)
+                            if (mkGroupsObjs) {
+                                sprintf_s(outputString, 256, "o %s\n", mtlName);
+                                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
                             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
@@ -18789,6 +18791,10 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                         if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
                         {
                             // new group for objects of same type (which are sorted)
+                            if (mkGroupsObjs) {
+                                sprintf_s(outputString, 256, "o %s\n", mtlName);
+                                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
                             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
@@ -18823,7 +18829,11 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
         // if we're outputting each individual block in a group, set a unique group name here.
         if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && pFace->faceIndex <= 0)
         {
-            sprintf_s(outputString,256,"\ng block_%05d\n", ++groupCount);
+            if (mkGroupsObjs) {
+                sprintf_s(outputString, 256, "o block_%05d\n", groupCount+1);   // don't increment it here
+                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+            sprintf_s(outputString,256,"g block_%05d\n", ++groupCount);
             WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
         }
 
@@ -21706,7 +21716,10 @@ static int writeStatistics(HANDLE fh, WorldGuide *pWorldGuide, IBox *worldBox, I
 			WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		}
 
-		sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkSeparateTypes ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Make groups objects: %s\n", gOptions->pEFD->chkMakeGroupsObjects ? "YES" : "no");
+        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        
+        sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkSeparateTypes ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));
 		sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
 		WERROR(PortaWrite(fh, outputString, strlen(outputString)));

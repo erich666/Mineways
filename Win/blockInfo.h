@@ -251,6 +251,9 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_SKFB							0x02000000
 #endif
 
+// when exporting materials with OBJ, each group is also made into an object
+#define EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS		0x04000000
+
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
 
@@ -377,6 +380,7 @@ typedef struct ExportFileData
 	UINT chkShowParts;
 	UINT chkShowWelds;
 
+	UINT chkMakeGroupsObjects;
 	UINT chkSeparateTypes;	// "Export separate types"
 	UINT chkIndividualBlocks;
 	UINT chkMaterialPerBlock;	// "Material per block"

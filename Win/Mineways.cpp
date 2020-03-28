@@ -3800,6 +3800,16 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
         }
 
+        if (gpEFD->chkMakeGroupsObjects)
+        {
+            // if G3D is chosen, we output the full material
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS;
+            //if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
+            //{
+            //    // G3D - use this option only if textures are on.
+            //    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
+            //}
+        }
         if (gpEFD->chkG3DMaterial)
         {
             // if G3D is chosen, we output the full material
@@ -4201,6 +4211,7 @@ static void initializePrintExportData(ExportFileData &printData)
     printData.chkShowWelds = 0;
 
     // should normally just have one material and group
+    printData.chkMakeGroupsObjects = 0;
     printData.chkSeparateTypes = 0;
     printData.chkIndividualBlocks = 0;
     printData.chkMaterialPerBlock = 0;
@@ -4278,6 +4289,7 @@ static void initializeViewExportData(ExportFileData &viewData)
     INIT_ALL_FILE_TYPES( viewData.chkHollow, 0,0,0,0,0,0,0);
     INIT_ALL_FILE_TYPES( viewData.chkSuperHollow, 0,0,0,0,0,0,0);
     // G3D material off by default for rendering
+    viewData.chkMakeGroupsObjects = 0;
     viewData.chkSeparateTypes = 1;
     viewData.chkIndividualBlocks = 0;
     viewData.chkMaterialPerBlock = 1;
@@ -5559,7 +5571,20 @@ static int interpretImportLine(char *line, ImportedSet & is)
 		return INTERPRETER_FOUND_VALID_EXPORT_LINE;
 	}
 
-	strPtr = findLineDataNoCase(line, "Export separate objects:");
+    strPtr = findLineDataNoCase(line, "Make groups objects:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Make groups objects command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMakeGroupsObjects = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Export separate objects:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
