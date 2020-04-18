@@ -406,26 +406,29 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 		case IDC_COMBO_PHYSICAL_MATERIAL:
 ChangeMaterial:
             {
-                // combo box selection will change the thickness, if previous value is set to the default
-                curPhysMaterial = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
-                if ( prevPhysMaterial != curPhysMaterial )
-                {
-                    //sprintf_s(oldString,EP_FIELD_LENGTH,"%g",METERS_TO_MM * mtlCostTable[prevPhysMaterial].minWall);
-                    sprintf_s(changeString,EP_FIELD_LENGTH,"%g",METERS_TO_MM * gMtlCostTable[curPhysMaterial].minWall);
+                // Change the scale only if 3D printing. Otherwise any material change should not change the scale!
+                if (epd.flags & EXPT_3DPRINT) {
+                    // combo box selection will change the thickness, if previous value is set to the default
+                    curPhysMaterial = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
+                    if (prevPhysMaterial != curPhysMaterial)
+                    {
+                        //sprintf_s(oldString,EP_FIELD_LENGTH,"%g",METERS_TO_MM * mtlCostTable[prevPhysMaterial].minWall);
+                        sprintf_s(changeString, EP_FIELD_LENGTH, "%g", METERS_TO_MM * gMtlCostTable[curPhysMaterial].minWall);
 
-                    // this old code cleverly changed the value only if the user hadn't set it to something else. This
-                    // is a little too clever: if the user set the value, then there was no way he could find out what
-                    // a material's minimum thickness had to be when he chose the material - he'd have to restart the
-                    // program. Better to force the user to set block size again if he changes the material type.
-                    //GetDlgItemTextA(hDlg,IDC_BLOCK_SIZE,currentString,EP_FIELD_LENGTH);
-                    //if ( strcmp(oldString,currentString) == 0)
-                    SetDlgItemTextA(hDlg,IDC_BLOCK_SIZE,changeString);
+                        // this old code cleverly changed the value only if the user hadn't set it to something else. This
+                        // is a little too clever: if the user set the value, then there was no way he could find out what
+                        // a material's minimum thickness had to be when he chose the material - he'd have to restart the
+                        // program. Better to force the user to set block size again if he changes the material type.
+                        //GetDlgItemTextA(hDlg,IDC_BLOCK_SIZE,currentString,EP_FIELD_LENGTH);
+                        //if ( strcmp(oldString,currentString) == 0)
+                        SetDlgItemTextA(hDlg, IDC_BLOCK_SIZE, changeString);
 
-                    //GetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,currentString,EP_FIELD_LENGTH);
-                    //if ( strcmp(oldString,currentString) == 0)
-                    SetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,changeString);
+                        //GetDlgItemTextA(hDlg,IDC_HOLLOW_THICKNESS,currentString,EP_FIELD_LENGTH);
+                        //if ( strcmp(oldString,currentString) == 0)
+                        SetDlgItemTextA(hDlg, IDC_HOLLOW_THICKNESS, changeString);
 
-                    prevPhysMaterial = curPhysMaterial;
+                        prevPhysMaterial = curPhysMaterial;
+                    }
                 }
 
                 // if material output turned off, don't allow debug options

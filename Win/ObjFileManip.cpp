@@ -8592,7 +8592,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		sideSwatchLoc = topSwatchLoc - 1;
 		bottomSwatchLoc = topSwatchLoc - 2;
 
-		saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, 0x0, 0x0, 0, 16, 0, 16, 0, 16);
+        // fixed in 7.13: the outer layer should all be honey bottom tiles. Noted by vktec. 4/17/20
+		saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, 0x0, 0x0, 0, 16, 0, 16, 0, 16);
 		if (!gPrint3D)
 		{
 			// tasty honey inside
@@ -20037,6 +20038,19 @@ static int createBaseMaterialTexture()
         SWATCH_TO_COL_ROW(SWATCH_INDEX(3, 7), col, row);
         setColorPNGArea(mainprog, col*gModel.swatchSize + gModel.tileSize * 0 / 16 + SWATCH_BORDER, row*gModel.swatchSize, gModel.tileSize * 4 / 16 + SWATCH_BORDER, gModel.swatchSize, 0x0);
         setColorPNGArea(mainprog, col*gModel.swatchSize + gModel.tileSize * 12 / 16 + SWATCH_BORDER, row*gModel.swatchSize, gModel.tileSize * 4 / 16 + SWATCH_BORDER, gModel.swatchSize, 0x0);
+
+        // A little hack to turn the non-lit parts of torches black. Turn this on to make a Ke emission map for light sources to use.
+        // You'll have to output twice: once with this on, to make the Ke map, once off, to make the usual Kd map.
+//#define OUTPUT_ILLUMINATION_TEXTURE
+#ifdef OUTPUT_ILLUMINATION_TEXTURE
+        static bool output_illum = false;
+        if (output_illum) {
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(0, 5), col, row);
+            setColorPNGArea(mainprog, col* gModel.swatchSize + gModel.tileSize * 7 / 16 + SWATCH_BORDER, row*gModel.swatchSize + gModel.tileSize * 8 / 16 + SWATCH_BORDER, gModel.tileSize * 2 / 16, gModel.tileSize * 8 / 16 + SWATCH_BORDER, (unsigned int)255*(unsigned int)(256*256*256));
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(3, 6), col, row);
+            setColorPNGArea(mainprog, col* gModel.swatchSize + gModel.tileSize * 7 / 16 + SWATCH_BORDER, row*gModel.swatchSize + gModel.tileSize * 9 / 16 + SWATCH_BORDER, gModel.tileSize * 2 / 16, gModel.tileSize * 7 / 16 + SWATCH_BORDER, (unsigned int)255 * (unsigned int)(256 * 256 * 256));
+        }
+#endif
 
         // Make a "top of torch" template for the torch, and redstone torch on and off
         // Torch tops goes in 0,15 / 1,15 redstone on / 2,15 redstone off

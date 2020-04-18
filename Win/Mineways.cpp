@@ -3800,15 +3800,10 @@ static int saveObjFile(HWND hWnd, wchar_t *objFileName, int printModel, wchar_t 
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
         }
 
+        // make each material group an object, too?
         if (gpEFD->chkMakeGroupsObjects)
         {
-            // if G3D is chosen, we output the full material
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS;
-            //if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
-            //{
-            //    // G3D - use this option only if textures are on.
-            //    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL;
-            //}
         }
         if (gpEFD->chkG3DMaterial)
         {
@@ -4232,7 +4227,7 @@ static void initializePrintExportData(ExportFileData &printData)
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
 
     // materials selected
-    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
     INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
@@ -4302,7 +4297,7 @@ static void initializeViewExportData(ExportFileData &viewData)
     viewData.floaterCountVal = 16;
     // irrelevant for viewing
     INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
-    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_FCS_SCULPTEO, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     INIT_ALL_FILE_TYPES( viewData.comboModelUnits,UNITS_METER,UNITS_METER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_MILLIMETER,UNITS_METER,UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
