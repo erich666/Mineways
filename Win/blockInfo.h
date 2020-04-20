@@ -416,10 +416,10 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 344
-// number of official Minecraft blocks (take highest valid block ID and add 1)
+#define NUM_BLOCKS_DEFINED 346
+// number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
-// number of blocks we want to show on the map (includes the unknown one)
+// number of blocks we want to show on the map (no longer needed - includes the unknown one)
 #define NUM_BLOCKS_MAP (NUM_BLOCKS_STANDARD)
 // Total number of blocks. We used to include 16 wool blocks, but have now deleted these.
 // NUM_BLOCKS_MAP could probably be turned into NUM_BLOCKS at this point, but keeping both for now
@@ -596,7 +596,7 @@ enum block_types {
 	BLOCK_TNT = 0x2e,
 	BLOCK_MOSSY_COBBLESTONE = 0x30,
 	BLOCK_OBSIDIAN = 0x31,
-	BLOCK_TORCH = 0x32,
+	BLOCK_TORCH = 50,
 	BLOCK_FIRE = 0x33,
 	BLOCK_MONSTER_SPAWNER = 0x34,
 	BLOCK_OAK_WOOD_STAIRS = 0x35,
@@ -621,14 +621,15 @@ enum block_types {
 	BLOCK_REDSTONE_TORCH_ON = 0x4c,
 	BLOCK_STONE_BUTTON = 0x4d,
 	BLOCK_SNOW = 0x4e,          // this is just the snow covering the ground
-	BLOCK_SNOW_BLOCK = 0x50,    // confusing, eh?
+	BLOCK_SNOW_BLOCK = 80,    // confusing, eh?
 	BLOCK_CACTUS = 0x51,
 	BLOCK_SUGAR_CANE = 0x53,
 	BLOCK_JUKEBOX = 0x54,
 	BLOCK_FENCE = 0x55,
 	BLOCK_PUMPKIN = 0x56,
-	BLOCK_GLOWSTONE = 0x59,
 	BLOCK_NETHERRACK = 87,
+	BLOCK_SOUL_SAND = 88,
+	BLOCK_GLOWSTONE = 89,
 	BLOCK_NETHER_PORTAL = 90,
 	BLOCK_JACK_O_LANTERN = 0x5b,
 	BLOCK_CAKE = 0x5c,
@@ -651,7 +652,7 @@ enum block_types {
 	BLOCK_STONE_BRICK_STAIRS = 0x6d,
 	BLOCK_MYCELIUM = 0x6e,
 	BLOCK_LILY_PAD = 0x6f,
-	BLOCK_NETHER_BRICK = 0x70,
+	BLOCK_NETHER_BRICKS = 112,
 	BLOCK_NETHER_BRICK_FENCE = 0x71,
 	BLOCK_NETHER_BRICK_STAIRS = 0x72,
 	BLOCK_NETHER_WART = 0x73,
@@ -752,7 +753,7 @@ enum block_types {
 	BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
 	BLOCK_FROSTED_ICE = 0xD4,
 	BLOCK_MAGMA_BLOCK = 0xD5,
-	BLOCK_NETHER_WART_BLOCK = 0xD6,
+	BLOCK_NETHER_WART_BLOCK = 214,
 	BLOCK_RED_NETHER_BRICK = 0xD7,
 	BLOCK_BONE_BLOCK = 0xD8,
 	BLOCK_STRUCTURE_VOID = 0xD9,
@@ -857,6 +858,8 @@ enum block_types {
 	BLOCK_BEE_NEST = 341,
 	BLOCK_HONEY = 342,
 	BLOCK_HONEYCOMB = 343,
+	BLOCK_CRYING_OBSIDIAN = 344,
+	BLOCK_RESPAWN_ANCHOR = 345,
 };
 
 #endif

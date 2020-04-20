@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 683
+#define NUM_TRANS 718
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -647,9 +647,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 151,           0, "daylight_detector", DAYLIGHT_PROP },
 { 0, 153,           0, "nether_quartz_ore", NO_PROP },
 { 0, 154,           0, "hopper", HOPPER_PROP },
-{ 0, 155,           0, "quartz_block", AXIS_PROP },
-{ 0, 155,           1, "chiseled_quartz_block", AXIS_PROP },
-{ 0, 155,           0, "quartz_pillar", QUARTZ_PILLAR_PROP },
+{ 0, 155,           0, "quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.gamepedia.com/Block_of_Quartz
+{ 0, 155,           1, "chiseled_quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.gamepedia.com/Block_of_Quartz
+{ 0, 155,           0, "quartz_pillar", QUARTZ_PILLAR_PROP },	// note this always has an axis, so will be set to 2,3,4
+{ 0, 155,           5, "quartz_bricks", NO_PROP },
 { 0, 156,           0, "quartz_stairs", STAIRS_PROP },
 { 0, 165,           0, "slime_block", NO_PROP },
 { 0, 168,           0, "prismarine", NO_PROP },
@@ -1005,7 +1006,41 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  85,HIGH_BIT|BIT_32, "beehive", EXTENDED_SWNE_FACING_PROP },
 { 0,  86,       HIGH_BIT, "honey_block", NO_PROP },
 { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
-
+// 1.16
+{ 0,  88,              1, "soul_soil", NO_PROP },	// with soul sand
+{ 0, 214,			   1, "warped_wart_block", NO_PROP },
+{ 0, 216,			   1, "basalt", AXIS_PROP },
+{ 0, 216,			   2, "polished_basalt", AXIS_PROP },
+{ 0,   3,              3, "crimson_nylium", NO_PROP }, // note no SNOWY_PROP
+{ 0,   3,              4, "warped_nylium", NO_PROP }, // note no SNOWY_PROP
+{ 0,  89,              1, "shroomlight", NO_PROP },
+{ 0, 162,     BIT_16 | 2, "crimson_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+{ 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+{ 0, 162,              2, "crimson_stem", AXIS_PROP },	// log equivalent
+{ 0, 162,              3, "warped_stem", AXIS_PROP },
+{ 0,  20,   HIGH_BIT | 2, "stripped_crimson_stem", AXIS_PROP },	// extension of stripped acacia (log)
+{ 0,  20,   HIGH_BIT | 3, "stripped_warped_stem", AXIS_PROP },
+{ 0,  22,   HIGH_BIT | 2, "stripped_crimson_hyphae", AXIS_PROP },	// extension of stripped acacia wood
+{ 0,  22,   HIGH_BIT | 3, "stripped_warped_hyphae", AXIS_PROP },
+{ 0,   5,              6, "crimson_planks", NO_PROP },
+{ 0,   5,              7, "warped_planks", NO_PROP },
+{ 0, 126,              6, "crimson_slab", SLAB_PROP },
+{ 0, 126,              7, "warped_slab", SLAB_PROP },
+{ 0,   1,              7, "blackstone", NO_PROP },
+{ 0,   1,              8, "chiseled_polished_blackstone", NO_PROP },
+{ 0,   1,              9, "polished_blackstone", NO_PROP },
+{ 0,   1,             10, "gilded_blackstone", NO_PROP },
+{ 0,   1,             11, "polished_blackstone_bricks", NO_PROP },
+{ 0,   1,             12, "cracked_polished_blackstone_bricks", NO_PROP },
+{ 0,   1,             13, "netherite_block", NO_PROP },
+{ 0,   1,             14, "ancient_debris", NO_PROP },
+{ 0,   1,             15, "nether_gold_ore", NO_PROP },
+{ 0, 112,              1, "chiseled_nether_bricks", NO_PROP },
+{ 0, 112,              2, "cracked_nether_bricks", NO_PROP },
+{ 0, BLOCK_CRAFTING_TABLE,	4, "lodestone", NO_PROP },
+{ 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
+{ 0, BLOCK_TNT,		   1, "target", NO_PROP },
+{ 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
 };
 
 #define HASH_SIZE 512
@@ -2162,6 +2197,10 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										// for beehive and bee_nest
 										else if (strcmp(token, "honey_level") == 0) {
 											honey_level = atoi(value);
+										}
+										// for respawn anchor - directly add to data val
+										else if (strcmp(token, "charges") == 0) {
+											dataVal = atoi(value);
 										}
 
 #ifdef _DEBUG

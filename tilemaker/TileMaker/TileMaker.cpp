@@ -382,6 +382,22 @@ int wmain(int argc, wchar_t* argv[])
 	// output should be the size of the output number of tiles
 	outputYTiles = VERTICAL_TILES; // used to be baseYTiles - that's no good
 
+#ifdef _DEBUG
+	// reality check: make sure no tile in the array is used twice (hey, I've done it in the past)
+	for (int tileid = 0; tileid < TOTAL_TILES - 1; tileid++) {
+		if ( (gTilesTable[tileid].txrX != tileid % 16) || (gTilesTable[tileid].txrY != (int)(tileid / 16)) ) {
+			wprintf(L"INTERNAL WARNING: tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
+		}
+		if (wcslen(gTilesTable[tileid].filename) > 0) {
+			for (int testtile = tileid + 1; testtile < TOTAL_TILES; testtile++) {
+				if (wcscmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
+					wprintf(L"INTERNAL WARNING: tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
+				}
+			}
+		}
+	}
+#endif
+
 	// look through tiles in tiles directory, see which exist, find maximum Y value.
 	if ( !notiles )
 	{

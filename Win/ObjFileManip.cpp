@@ -740,15 +740,17 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v );
 
 static void freeModel( Model *pModel );
 
+static float getEmitterLevel(int type, int dataVal);
+
 static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeOBJTextureUV( float u, float v, int addComment, int swatchLoc );
 static int writeOBJMtlFile();
-static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB, char *textureRGBA, char *textureAlpha);
+static int writeOBJFullMtlDescription(char *mtlName, int type, int dataVal, char *textureRGB, char *textureRGBA, char *textureAlpha);
 
 static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
-static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString );
+static int writeVRMLAttributeShapeSplit( int type, int dataVal, char *mtlName, char *textureOutputString );
 static int writeVRMLTextureUV( float u, float v, int addComment, int swatchLoc );
 
 static int writeSchematicBox();
@@ -2890,11 +2892,18 @@ static void computeRedstoneConnectivity(int boxIndex)
     // up the sides of the blocks
 
     // first, is the block above the redstone wire not a whole block, or is a whole block and is glass on the outside or a piston?
-    // If so, then wires can run up the sides; whole blocks that are not glass cut redstone wires.
+    // If so, then wires can run up the sides; whole blocks that are not glass (or pistons or glowstone) cut redstone wires.
+    // Said another way, partial blocks, glass, glowstone, and pistons above redstone do not block that redstone from traveling up adjacent blocks.
+    // In other words: you have a redstone wire on the ground, you have some random block (say grass) next to it with redstone on top.
+    // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston,
+    // it will chop the redstone on the ground from connecting with the neighboring redstone a level up. Whew.
     if (!(gBlockDefinitions[gBoxData[boxIndex + 1].origType].flags & BLF_WHOLE) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_PISTON) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
-        (gBoxData[boxIndex + 1].origType == BLOCK_GLOWSTONE) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_GLOWSTONE && (gBoxData[boxIndex + 1].data&0xf) == 0x0) ||   // shroomlight blocks *do* cut off redstone wires
+        (gBoxData[boxIndex + 1].origType == BLOCK_TNT) ||   // and target
+        (gBoxData[boxIndex + 1].origType == BLOCK_REDSTONE_BLOCK) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_SEA_LANTERN) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_STAINED_GLASS))
     {
         // first hurdle passed - now check each in turn: is block above wire. If so,
@@ -4800,7 +4809,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			case 6:
 				// nether brick
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY);
+				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
 				break;
 			case 7:
 				// quartz with distinctive sides and bottom
@@ -4829,13 +4838,19 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			case 3: // jungle
 				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 12);
 				break;
-			case 4: // acacia
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 22);
-				break;
-			case 5: // dark oak
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 22);
-				break;
-			}
+            case 4: // acacia
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 22);
+                break;
+            case 5: // dark oak
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 22);
+                break;
+            case 6: // crimson
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);
+                break;
+            case 7: // warped
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            }
 			break;
 
 		case BLOCK_RED_SANDSTONE_SLAB:
@@ -15054,7 +15069,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             case 6:
             case 14:
                 // nether brick
-                swatchLoc = BLOCK_NETHER_BRICK;
+                swatchLoc = BLOCK_NETHER_BRICKS;
                 break;
             case 7:	// quartz
             case 15:	// quartz
@@ -15108,7 +15123,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_DIRT:						// getSwatch
-            switch ( dataVal & 0x3 )
+            switch ( dataVal & 0xf )
             {
             default:
                 assert(0);
@@ -15136,6 +15151,14 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                         swatchLoc = SWATCH_INDEX(2, 4);
                     }
                 }
+                break;
+            case 3: // crimson nylium
+                swatchLoc = SWATCH_INDEX(2, 43);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 43, 7, 6);
+                break;
+            case 4: // warped nylium
+                swatchLoc = SWATCH_INDEX(2, 44);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 44, 7, 6);
                 break;
             }
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
@@ -15186,7 +15209,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 6:
                 // nether brick
-                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICK].txrX, gBlockDefinitions[BLOCK_NETHER_BRICK].txrY );
+                swatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY );
                 break;
             case 7:
                 // quartz with distinctive sides and bottom
@@ -15456,25 +15479,37 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 					switch (dataVal & 0x3)
 					{
 					default: // normal wood
-					case 0: // acacia
-						swatchLoc = SWATCH_XY_TO_INDEX(5, 11);
-						break;
-					case 1: // dark oak
-						swatchLoc = SWATCH_XY_TO_INDEX(14, 19);
-						break;
-					}
+                    case 0: // acacia
+                        swatchLoc = SWATCH_XY_TO_INDEX(5, 11);
+                        break;
+                    case 1: // dark oak
+                        swatchLoc = SWATCH_XY_TO_INDEX(14, 19);
+                        break;
+                    case 2: // crimson_hyphae
+                        swatchLoc = SWATCH_XY_TO_INDEX(1, 43);
+                        break;
+                    case 3: // warped_hyphae
+                        swatchLoc = SWATCH_XY_TO_INDEX(1, 44);
+                        break;
+                    }
 				} else {
 					// log - set everything to side unless it's a top or bottom
 					switch (dataVal & 0x3)
 					{
 					default: // normal log
-					case 0: // acacia
-						SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
-						break;
-					case 1: // dark oak
-						SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 19, 15, 19);
-						break;
-					}
+                    case 0: // acacia
+                        SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
+                        break;
+                    case 1: // dark oak
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 19, 15, 19);
+                        break;
+                    case 2: // crimson_stem
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 1, 43, 0, 43);
+                        break;
+                    case 3: // warped_stem
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 1, 44, 0, 44);
+                        break;
+                    }
 				}
 				break;
 			case BLOCK_STRIPPED_OAK:
@@ -15502,10 +15537,16 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				case 0: // acacia
 					SWATCH_SWITCH_SIDE(newFaceDirection, 4, 34);
 					break;
-				case 1: // dark oak
-					SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 34, 11, 34);
-					break;
-				}
+                case 1: // dark oak
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 34, 11, 34);
+                    break;
+                case 2: // stripped_crimson_stem
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 13, 43, 12, 43);
+                    break;
+                case 3: // stripped_warped_stem
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 13, 44, 12, 44);
+                    break;
+                }
 				break;
 			case BLOCK_STRIPPED_OAK_WOOD:
 				switch (dataVal & 0x3)
@@ -15530,10 +15571,16 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				default: // normal log
 				case 0: // acacia
 					break;
-				case 1: // dark oak
-					swatchLoc = SWATCH_INDEX(5, 34);
-					break;
-				}
+                case 1: // dark oak
+                    swatchLoc = SWATCH_INDEX(5, 34);
+                    break;
+                case 2: // stripped_crimson_hyphae
+                    swatchLoc = SWATCH_INDEX(13, 43);
+                    break;
+                case 3: // stripped_warped_hyphae
+                    swatchLoc = SWATCH_INDEX(13, 44);
+                    break;
+                }
 				break;
 			}
             if ( angle != 0 && uvIndices )
@@ -15565,15 +15612,21 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 swatchLoc = SWATCH_INDEX( 7,12 );
                 break;
             case 4: // acacia
-                swatchLoc = SWATCH_INDEX( 0,22 );
+                swatchLoc = SWATCH_INDEX(0, 22);
                 break;
             case 5: // dark oak
-                swatchLoc = SWATCH_INDEX( 1,22 );
+                swatchLoc = SWATCH_INDEX(1, 22);
+                break;
+            case 6: // crimson
+                swatchLoc = SWATCH_INDEX(8, 43);
+                break;
+            case 7: // warped
+                swatchLoc = SWATCH_INDEX(8, 44);
                 break;
             }
             break;
         case BLOCK_STONE:						// getSwatch
-            switch ( dataVal & 0x7 )
+            switch ( dataVal & 0xf )
             {
             default: // normal stone
                 assert(0);
@@ -15597,6 +15650,78 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 6: // polished andesite
                 swatchLoc = SWATCH_INDEX( 5,22 );
+                break;
+            case 7: // blackstone
+                swatchLoc = SWATCH_INDEX(0, 46);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 1, 46, 1, 46);
+                break;
+            case 8: // chiseled_polished_blackstone
+                swatchLoc = SWATCH_INDEX(2, 46);
+                break;
+            case 9: // polished_blackstone
+                swatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case 10: // gilded_blackstone
+                swatchLoc = SWATCH_INDEX(15, 45);
+                break;
+            case 11: // polished_blackstone_bricks
+                swatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            case 12: // cracked_polished_blackstone_bricks
+                swatchLoc = SWATCH_INDEX(3, 46);
+                break;
+            case 13: // netherite_block
+                swatchLoc = SWATCH_INDEX(13, 45);
+                break;
+            case 14: // ancient_debris
+                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 1, 45, 0, 45);
+                break;
+            case 15: // nether_gold_ore
+                swatchLoc = SWATCH_INDEX(14, 45);
+                break;
+            }
+            break;
+
+        case BLOCK_NETHER_BRICKS:						// getSwatch
+            switch (dataVal & 0xf)
+            {
+            default: // normal nether bricks
+                assert(0);
+            case 0:
+                // no change, default nether bricks is fine
+                break;
+            case 1: // chiseled nether bricks
+                swatchLoc = SWATCH_INDEX(6, 46);
+                break;
+            case 2: // cracked nether bricks
+                swatchLoc = SWATCH_INDEX(7, 46);
+                break;
+            }
+            break;
+
+        case BLOCK_SOUL_SAND:						// getSwatch
+            switch (dataVal & 0x7)
+            {
+            default: // soul sand
+                assert(0);
+            case 0:
+                // no change
+                break;
+            case 1: // soul soil
+                swatchLoc = SWATCH_INDEX(6, 42);
+                break;
+            }
+            break;
+        case BLOCK_GLOWSTONE:						// getSwatch
+            switch (dataVal & 0x7)
+            {
+            default: // glowstone
+                assert(0);
+            case 0:
+                // no change
+                break;
+            case 1: // shroomlight
+                swatchLoc = SWATCH_INDEX(8, 46);
                 break;
             }
             break;
@@ -16391,7 +16516,27 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				rotateIndices(localIndices, angle);
 			break;
         case BLOCK_TNT:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 8, 0,  10, 0 );
+            switch (dataVal & 0xf)
+            {
+            default:
+                assert(0);
+            case 0:
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 0, 10, 0);
+                break;
+            case 1:
+                // target, because, like TNT, target does not "chop" redstone wired
+                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 11, 46, 10, 46);
+                break;
+            case 2:
+                // cracked
+                swatchLoc = SWATCH_INDEX(5, 6);
+                break;
+            case 3:
+                // chiseled circle - added in 1.2.4
+                swatchLoc = SWATCH_INDEX(5, 13);
+                break;
+            }
+            break;
             break;
         case BLOCK_BOOKSHELF:						// getSwatch
             SWATCH_SWITCH_SIDE( faceDirection, 3, 2 );
@@ -16750,16 +16895,20 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 					SWATCH_SWITCH_SIDE(faceDirection, 9, 39);
 				}
 				break;
-			case 3:
-				// crafting
-				swatchLoc = SWATCH_INDEX(0, 41);
-				SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 1, 41, 2, 41);
-				if ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
-				{
-					SWATCH_SWITCH_SIDE(faceDirection, 3, 41);
-				}
-				break;
-			}
+            case 3:
+                // smithing
+                swatchLoc = SWATCH_INDEX(0, 41);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 1, 41, 2, 41);
+                if ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+                {
+                    SWATCH_SWITCH_SIDE(faceDirection, 3, 41);
+                }
+                break;
+            case 4:
+                // lodestone - why not?
+                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 12, 45, 11, 45);
+                break;
+            }
             break;
         case BLOCK_CACTUS:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6, 4,  7, 4 );
@@ -17351,11 +17500,11 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 12,15,  11,15 );
             break;
         case BLOCK_QUARTZ_BLOCK:						// getSwatch
-            // use data to figure out which type of quartz and orientation
+            // use data to figure out which type of quartz and orientation for the quartz pillar, only
             switch ( dataVal & 0x7 )
             {
-            case 0:
-                SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 6,17, 1,17 );
+            case 0: // quartz_block
+                SWATCH_SWITCH_SIDE( faceDirection, 6,17 );  // note the bottom is left as the top, despite naming confusion
                 break;
             case 1:	// chiseled quartz block
                 SWATCH_SWITCH_SIDE_VERTICAL( faceDirection, 3,17, 2,17 );
@@ -17403,6 +17552,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     break;
                 }
                 break;
+            case 5: // brick
+                swatchLoc = SWATCH_INDEX(5, 42);
+                break;
             }
             break;
         case BLOCK_PRISMARINE:						// getSwatch
@@ -17420,7 +17572,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-		// TODO could give these separate names and colors in the MinewaysMap code
+        case BLOCK_NETHER_WART_BLOCK:
+            switch (dataVal & 0x2F)
+            {
+            default:
+                assert(0);
+            case 0: // already done
+                break;
+            case 1: // warped wart block
+                swatchLoc = SWATCH_INDEX(5, 44);
+                break;
+            }
+            break;
+
 		case BLOCK_SPONGE:						// getSwatch
             switch ( dataVal & 0x1 )
             {
@@ -17433,7 +17597,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             }
             break;
-        case BLOCK_CHORUS_FLOWER:						// getSwatch
+        case BLOCK_CHORUS_FLOWER:				// getSwatch
             if ( dataVal == 5 ) {
                 // fully mature
                 swatchLoc++;
@@ -17630,9 +17794,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
                 break;
             }
-			SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
-                gBlockDefinitions[BLOCK_BONE_BLOCK].txrX-1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
-                gBlockDefinitions[BLOCK_BONE_BLOCK].txrX, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY);	// top
+            switch (dataVal & 0x3) {
+            case 0:
+                SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
+                    gBlockDefinitions[BLOCK_BONE_BLOCK].txrX - 1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
+                    gBlockDefinitions[BLOCK_BONE_BLOCK].txrX, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY);	// top
+                break;
+            case 1: // basalt
+                SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 8, 42, 7, 42);
+                break;
+            case 2: // polished_basalt
+                SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 10, 42, 9, 42);
+                break;
+            }
 			// probably not quite right, but better than not doing this; at least all the sides, regardless of direction,
 			// follow the axis, though may be flipped vertically or horizontally (for the NS and EW axis blocks)
 			if (angle != 0 && uvIndices)
@@ -17707,8 +17881,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			case 2: // red sandstone
 				swatchLoc = SWATCH_INDEX(12, 19);
 				break;
-			case 3: // quartz
-				swatchLoc = SWATCH_INDEX(7, 17);
+			case 3: // smooth quartz - use quartz_block_bottom, which is smooth (confusing!)
+				swatchLoc = SWATCH_INDEX(1, 17);
 				break;
 			}
 			break;
@@ -18001,6 +18175,15 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 				}
 			}
 			break;
+
+        case BLOCK_RESPAWN_ANCHOR:						// getSwatch
+            if (!(dataVal & 0x7)) {
+                // switch top to off, since this is the "odd man out" case
+                swatchLoc = SWATCH_INDEX(0, 41);
+            }
+            // use charge to switch side
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5 + (dataVal & 0x7), 45, 10, 45);
+            break;
 
 		}
 	}
@@ -18506,6 +18689,78 @@ bool isASubblock(int type, int dataVal)
 		break;
 	}
 	return true;
+}
+
+static float getEmitterLevel(int type, int dataVal)
+{
+    // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
+    // See https://minecraft.gamepedia.com/Light
+    float emission = 15.0f;
+    switch (type) {
+    case BLOCK_END_ROD:
+    case BLOCK_TORCH:
+        emission = 14.0f;
+        break;
+    case BLOCK_BURNING_FURNACE:
+        emission = 13.0f;
+        break;
+    case BLOCK_NETHER_PORTAL:
+        emission = 11.0f;
+        break;
+    case BLOCK_CRYING_OBSIDIAN:
+        emission = 10.0f;
+        break;
+    case BLOCK_CAMPFIRE:
+        // is it lit?
+        if (!(dataVal & 0x4)) {
+            // not lit, so turn it off
+            emission = 0.0f;
+        }
+        break;
+    // TODO SEA PICKLE, SOUL FIRE, LANTERN, TORCH, CAMPFIRE
+        // TODO REDSTONE ORE - when touched
+    case BLOCK_ENDER_CHEST:
+    case BLOCK_REDSTONE_TORCH_ON:
+        emission = 7.0f;
+        break;
+    case BLOCK_MAGMA_BLOCK:
+        emission = 3.0f;
+        break;
+    case BLOCK_BREWING_STAND:
+    case BLOCK_BROWN_MUSHROOM:
+    case BLOCK_DRAGON_EGG:
+    case BLOCK_END_PORTAL_FRAME:
+        emission = 1.0f;
+        break;
+    case BLOCK_RESPAWN_ANCHOR:
+        // is it lit? Number of charges
+        switch ( dataVal & 0x7 ) {
+        case 0:
+            // not lit, so turn it off
+            emission = 0.0f;
+            break;
+        case 1:
+            emission = 3.0f;
+            break;
+        case 2:
+            emission = 7.0f;
+            break;
+        case 3:
+            emission = 11.0f;
+            break;
+        case 4:
+            emission = 15.0f;
+            break;
+        }
+        break;
+    }
+    // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
+    // A 15 emission drops off to 14 one block away, 13 two blocks, etc.
+    // A 3 emission drops off to 2 one block away, 1 two block, then is dead.
+    // So one idea would be to store emission as "emission squared", making dim lights quite dim. We split the difference and go with
+    // raising to the 1.5 power.
+    // Really might raise to the 2.0 power TODO
+    return (float)pow(emission / 15.0f, 1.5f);
 }
 
 // return 0 if no write
@@ -19236,7 +19491,7 @@ static int writeOBJMtlFile()
 						sprintf_s(fullPathName, MAX_PATH_AND_FILE, "%s/%s", gOptions->pEFD->tileDirString, textureRGBA);
 						strcpy_s(textureRGBA, fullPathName);
 					}
-					retCode = writeOBJFullMtlDescription(mtlName, gTilesTable[i].typeForMtl, textureRGBA, textureRGBA, textureRGBA);
+					retCode = writeOBJFullMtlDescription(mtlName, gTilesTable[i].typeForMtl, gTilesTable[i].dataValForMtl, textureRGBA, textureRGBA, textureRGBA);
 					if (retCode != MW_NO_ERROR)
 						return retCode;
 				}
@@ -19278,7 +19533,7 @@ static int writeOBJMtlFile()
 				}
 				spacesToUnderlinesChar(mtlName);
 
-				retCode = writeOBJFullMtlDescription(mtlName, type, textureRGB, textureRGBA, textureAlpha);
+				retCode = writeOBJFullMtlDescription(mtlName, type, dataVal, textureRGB, textureRGBA, textureAlpha);
 				if (retCode != MW_NO_ERROR)
 					return retCode;
 			}
@@ -19290,7 +19545,7 @@ static int writeOBJMtlFile()
     return MW_NO_ERROR;
 }
 
-static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB, char *textureRGBA, char *textureAlpha)
+static int writeOBJFullMtlDescription(char *mtlName, int type, int dataVal, char *textureRGB, char *textureRGBA, char *textureAlpha)
 {
 #ifdef WIN32
 	DWORD br;
@@ -19436,23 +19691,19 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, char *textureRGB,
 		}
 		mapdString[0] = '\0';
 	}
-	// TODO it would be nice if, when various light blocks (such as campfire) are not actually on, they could be set to not be an emitter
-	if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
+
+    keString[0] = '\0';
+    mapKeString[0] = '\0';
+    if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
 	{
-		sprintf_s(keString, 256, "Ke 1 1 1\n");
-		if (gExportTexture)
-		{
-			sprintf_s(mapKeString, 256, "map_Ke %s\n", typeTextureFileName);
-		}
-		else
-		{
-			mapKeString[0] = '\0';
-		}
-	}
-	else
-	{
-		keString[0] = '\0';
-		mapKeString[0] = '\0';
+        float emission = getEmitterLevel(type, dataVal);
+        if (emission > 0.0f) {
+            sprintf_s(keString, 256, "Ke %g %g %g\n", emission, emission, emission);
+            if (gExportTexture)
+            {
+                sprintf_s(mapKeString, 256, "map_Ke %s\n", typeTextureFileName);
+            }
+        }
 	}
 
 	// Any last-minute adjustments due to material?
@@ -20730,7 +20981,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
         char mtlName[256];
         char shapeString[] = "    Shape\n    {\n      geometry DEF %s_Obj IndexedFaceSet\n      {\n        creaseAngle .5\n        solid %s\n        coord %s coord_Craft%s\n";
 
-        int beginIndex, endIndex, currentType;
+        int beginIndex, endIndex, currentType, dataVal;
 
         if ( currentFace % 1000 == 0 )
             UPDATE_PROGRESS( PG_OUTPUT + 0.3f*(PG_TEXTURE-PG_OUTPUT)*((float)currentFace/(float)gModel.faceCount));
@@ -20807,6 +21058,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
 
         beginIndex = currentFace;
         currentType = exportSingleMaterial ? BLOCK_STONE : gModel.faceList[currentFace]->materialType;
+        dataVal = exportSingleMaterial ? 0x0 : gModel.faceList[currentFace]->materialDataVal;
 
         strcpy_s(outputString,256,"        coordIndex\n        [\n");
         WERROR(PortaWrite(gModelFile, outputString, strlen(outputString) ));
@@ -20898,7 +21150,7 @@ static int writeVRML2Box(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightene
         // - if a single material or if textures are output, we use the GENERIC_MATERIAL for the type to output
         // (textured material gets multiplied by this white material)
         // - if it's a single material, then the output name is "generic"
-        retCode |= writeVRMLAttributeShapeSplit( exportSolidColors ? currentType : GENERIC_MATERIAL, 
+        retCode |= writeVRMLAttributeShapeSplit( exportSolidColors ? currentType : GENERIC_MATERIAL, dataVal,
             mtlName,
             // DEF/USE - Shapeways does not like: gExportTexture ? (firstShape ? textureDefOutputString : textureUseOutputString) : NULL );
             gExportTexture ? textureDefOutputString : NULL );
@@ -20924,7 +21176,7 @@ Exit:
 }
 
 // if type is GENERIC_MATERIAL, set the generic. If textureOutputString is set, output texture.
-static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureOutputString )
+static int writeVRMLAttributeShapeSplit( int type, int dataVal, char *mtlName, char *textureOutputString )
 {
 #ifdef WIN32
     DWORD br;
@@ -21005,7 +21257,8 @@ static int writeVRMLAttributeShapeSplit( int type, char *mtlName, char *textureO
     if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
     {
         // emitter
-        sprintf_s(keString,256,"          emissiveColor %g %g %g\n", fRed*ke, fGreen*ke, fBlue*ke );
+        ke = getEmitterLevel(type, dataVal);
+        sprintf_s(keString,256,"          emissiveColor %g %g %g\n", fRed*ke, fGreen*ke, fBlue*ke);
     }
     else
     {
