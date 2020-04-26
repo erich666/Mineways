@@ -1077,9 +1077,13 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			break;
 		case 0:
 			return "Acacia Standing Sign";
-		case BIT_16:	// dark oak
-			return "Dark Oak Standing Sign";
-		}
+        case BIT_16:	// dark oak
+            return "Dark Oak Standing Sign";
+        case BIT_32:	// dark oak
+            return "Crimson Standing Sign";
+        case BIT_32|BIT_16:	// dark oak
+            return "Warped Standing Sign";
+        }
 		break;
 	case BLOCK_WALL_SIGN:
 		switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
@@ -1099,7 +1103,11 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "Acacia Wall Sign";
 		case BIT_32 | BIT_8:	// dark oak
 			return "Dark Oak Wall Sign";
-		}
+        case BIT_32 | BIT_16:
+            return "Crimson Wall Sign";
+        case BIT_32 | BIT_16 | BIT_8:
+            return "Warped Wall Sign";
+        }
 		break;
 
 	case BLOCK_SMOOTH_STONE:
@@ -1262,6 +1270,32 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
         }
 		return gConcatString;
 
+    case BLOCK_CRIMSON_DOUBLE_SLAB:
+    case BLOCK_CRIMSON_SLAB:
+        // a little wasteful if the default is returned after all
+        strcpy_s(gConcatString, 100, (type == BLOCK_CRIMSON_DOUBLE_SLAB) ? "Double " : "");
+        switch (dataVal & 0x7)
+        {
+        default:
+            assert(0);
+            return gBlockDefinitions[type].name;
+        case 0: // crimson
+            return gBlockDefinitions[type].name;
+        case 1:
+            strcat_s(gConcatString, 100, "Warped Slab");
+            break;
+        case 2:
+            strcat_s(gConcatString, 100, "Blackstone Slab");
+            break;
+        case 3:
+            strcat_s(gConcatString, 100, "Polished Blackstone Slab");
+            break;
+        case 4:
+            strcat_s(gConcatString, 100, "Polished Blackstone Brick Slab");
+            break;
+        }
+        return gConcatString;
+
 	case BLOCK_COBBLESTONE_STAIRS:
 		switch (dataVal & (BIT_32 | BIT_16)) {
 		default:
@@ -1335,7 +1369,35 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "Smooth Red Sandstone Stairs";
 		}
 		break;
-	case BLOCK_COBBLESTONE_WALL:
+    case BLOCK_PRISMARINE_STAIRS:
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case BIT_16:
+            return "Crimson Stairs";
+        case BIT_32:
+            return "Warped Stairs";
+        }
+        break;
+    case BLOCK_PRISMARINE_BRICK_STAIRS:
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case BIT_16:
+            return "Blackstone Stairs";
+        case BIT_32:
+            return "Polished Blackstone Stairs";
+        case BIT_32 | BIT_16:
+            return "Polished Blackstone Brick Stairs";
+        }
+        break;
+    case BLOCK_COBBLESTONE_WALL:
 		switch (dataVal & 0xf) {
 		default:
 			assert(0);
@@ -1363,14 +1425,21 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "End Stone Brick Wall";
 		case 10: // nether brick wall
 			return "Nether Brick Wall";
-		case 11: // red nether brick wall
-			return "Red Nether Brick Wall";
-		case 12: // sandstone wall
-			return "Sandstone Wall";
-		case 13: // red sandstone wall
-			return "Red Sandstone Wall";
-		}
+        case 11: // red nether brick wall
+            return "Red Nether Brick Wall";
+        case 12: // sandstone wall
+            return "Sandstone Wall";
+        case 13: // red sandstone wall
+            return "Red Sandstone Wall";
+        case 14:
+            return "Blackstone Wall";
+        case 15:
+            return "Polished Blackstone Wall";
+        case 16:
+            return "Polished Blackstone Brick Wall";
+        }
 		break;
+
 	case BLOCK_PRISMARINE:
 		switch (dataVal & 0x7)
 		{
@@ -1443,6 +1512,19 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
             break;
         case 1:
             return "Target";
+        }
+        break;
+
+    case BLOCK_FIRE:
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Soul Fire";
         }
         break;
 
@@ -1974,11 +2056,30 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 5:	// dark oak
 			color = gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].pcolor;
             break;
-        case 6:	// crimson
-            color = 0x693249;
+        }
+        break;
+
+    case BLOCK_CRIMSON_DOUBLE_SLAB:
+    case BLOCK_CRIMSON_SLAB:
+        dataVal = block->data[voxel];
+        // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+        switch (dataVal & 0x7)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
             break;
-        case 7:	// warped
+        case 1:	// warped
             color = 0x2D6D68;
+            break;
+        case 2:	// blackstone top
+            color = 0x2D282F;
+            break;
+        case 3:	// polished blackstone
+            color = 0x37333D;
+            break;
+        case 4:	// polished blackstone brick
+            color = 0x322E36;
             break;
         }
         break;
@@ -2145,6 +2246,20 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             break;
         case 1:	// target
             color = 0xE7C7BE;
+            break;
+        }
+        break;
+
+    case BLOCK_FIRE:
+        dataVal = block->data[voxel];
+        switch (dataVal)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// target
+            color = 0x6BD0D5;
             break;
         }
         break;
@@ -2791,7 +2906,41 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			break;
 		}
 		break;
-
+    case BLOCK_PRISMARINE_STAIRS:
+        dataVal = block->data[voxel];
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case BIT_16:
+            color = 0x693249;
+            break;
+        case BIT_32:
+            color = 0x2D6D68;
+            break;
+        }
+        break;
+    case BLOCK_PRISMARINE_BRICK_STAIRS:
+		dataVal = block->data[voxel];
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case BIT_16:
+            color = 0x2D282F;
+            break;
+        case BIT_32:
+            color = 0x37333D;
+            break;
+        case BIT_32 | BIT_16:
+            color = 0x322E36;
+            break;
+        }
+        break;
 	case BLOCK_COBBLESTONE_WALL:
 		dataVal = block->data[voxel];
 		switch (dataVal & 0xf) {
@@ -2830,16 +2979,25 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		case 10: // nether brick wall
 			color = gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
 			break;
-		case 11: // red nether brick wall
-			color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
-			break;
-		case 12: // sandstone wall
-			color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
-			break;
-		case 13: // red sandstone wall
-			color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
-			break;
-		}
+        case 11: // red nether brick wall
+            color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
+            break;
+        case 12: // sandstone wall
+            color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+            break;
+        case 13: // red sandstone wall
+            color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
+            break;
+        case 14: // blackstone wall
+            color = 0x2D272E;
+            break;
+        case 15: // polished blackstone wall
+            color = 0x37333D;
+            break;
+        case 16: // polished blackstone brick wall
+            color = 0x322E36;
+            break;
+        }
 		break;
 
 	case BLOCK_PRISMARINE:
@@ -3506,6 +3664,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         break;
     case BLOCK_SAND:
     case BLOCK_TNT:
+    case BLOCK_FIRE:
     case BLOCK_WOODEN_PRESSURE_PLATE:
     case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_SPRUCE_PRESSURE_PLATE:
@@ -3515,6 +3674,9 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_DARK_OAK_PRESSURE_PLATE:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+    case BLOCK_CRIMSON_PRESSURE_PLATE:
+    case BLOCK_WARPED_PRESSURE_PLATE:
+    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_AD_LEAVES:
     case BLOCK_SPONGE:
         // uses 0-1
@@ -3595,7 +3757,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_CORAL_FAN:
 	case BLOCK_DEAD_CORAL_FAN:
 	case BLOCK_DEAD_CORAL:
-		// uses 0-4
+    case BLOCK_CRIMSON_DOUBLE_SLAB:
+        // uses 0-4
 		if (dataVal < 5)
 		{
 			addBlock = 1;
@@ -3609,7 +3772,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_CHORUS_FLOWER:
     case BLOCK_OBSERVER:	// could also have top bit "fired", but no graphical effect
 	case BLOCK_ANDESITE_DOUBLE_SLAB:
-	case BLOCK_BAMBOO:
+    case BLOCK_BAMBOO:
 	case BLOCK_JIGSAW:
 		// uses 0-5
         if ( dataVal < 6 )
@@ -3622,7 +3785,15 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             }
         }
         break;
-	case BLOCK_ANDESITE_SLAB:
+    case BLOCK_CRIMSON_SLAB:
+        // uses 0-4 and 8-12
+        if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_WOODEN_SLAB:
+    case BLOCK_ANDESITE_SLAB:
 		// uses 0-5 and 8-13
 		if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
 		{
@@ -3664,6 +3835,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_JUNGLE_FENCE_GATE:
     case BLOCK_DARK_OAK_FENCE_GATE:
     case BLOCK_ACACIA_FENCE_GATE:
+    case BLOCK_CRIMSON_FENCE_GATE:
+    case BLOCK_WARPED_FENCE_GATE:
     case BLOCK_FARMLAND:
     case BLOCK_BREWING_STAND:
     case BLOCK_ACACIA_WOOD_STAIRS:
@@ -3885,7 +4058,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_AD_LOG:
     case BLOCK_STRIPPED_ACACIA:
     case BLOCK_STRIPPED_ACACIA_WOOD:
-    case BLOCK_WOODEN_SLAB:
     case BLOCK_STONE_SLAB:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
@@ -4046,6 +4218,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_TORCH:
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
+    case BLOCK_SOUL_TORCH:
         if ( dataVal >= 1 && dataVal <= 5 )
         {
             addBlock = 1;
@@ -4225,6 +4398,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_JUNGLE_DOOR:
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
+    case BLOCK_CRIMSON_DOOR:
+    case BLOCK_WARPED_DOOR:
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)dataVal&0x7;
@@ -4282,7 +4457,10 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_JUNGLE_BUTTON:
 	case BLOCK_ACACIA_BUTTON:
 	case BLOCK_DARK_OAK_BUTTON:
-		trimVal = dataVal & 0x7;
+    case BLOCK_CRIMSON_BUTTON:
+    case BLOCK_WARPED_BUTTON:
+    case BLOCK_POLISHED_BLACKSTONE_BUTTON:
+        trimVal = dataVal & 0x7;
         if ( trimVal <= 5 )
         {
             addBlock = 1;
@@ -4321,6 +4499,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_JUNGLE_TRAPDOOR:
 	case BLOCK_ACACIA_TRAPDOOR:
 	case BLOCK_DARK_OAK_TRAPDOOR:
+    case BLOCK_CRIMSON_TRAPDOOR:
+    case BLOCK_WARPED_TRAPDOOR:
 		addBlock = 1;
 
         trimVal = dataVal & 0x3;
@@ -4439,6 +4619,8 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_DARK_OAK_FENCE:
     case BLOCK_ACACIA_FENCE:
     case BLOCK_NETHER_BRICK_FENCE:
+    case BLOCK_CRIMSON_FENCE:
+    case BLOCK_WARPED_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
     case BLOCK_CHORUS_PLANT:
@@ -5492,7 +5674,7 @@ int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned 
 // done from the saved colors, not from the color scheme
 void SetMapPremultipliedColors( int start )
 {
-    for ( int i= start;i<NUM_BLOCKS_DEFINED;i++)
+    for ( int i = start;i<NUM_BLOCKS_DEFINED;i++)
     {
 		unsigned int color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
 		unsigned char r=(unsigned char)((color>>16)&0xff);

@@ -398,6 +398,8 @@ static int gUsingTransform=0;
 #define REDSTONE_WIRE_3_OFF			SWATCH_INDEX( 14,26 )
 #define REDSTONE_WIRE_4_OFF         SWATCH_INDEX( 15,26 )
 
+#define SOUL_TORCH_TOP               SWATCH_INDEX( 15,46 )
+
 // these spots are used for compositing, as temporary places to put swatches to edit
 // TODO - make separate hunks of memory that don't get output.
 #define SWATCH_WORKSPACE        SWATCH_INDEX( 8, 2 )
@@ -740,7 +742,7 @@ static int saveTextureUV( int swatchLoc, int type, float u, float v );
 
 static void freeModel( Model *pModel );
 
-static float getEmitterLevel(int type, int dataVal);
+static float getEmitterLevel(int type, int dataVal, bool splitByBlockType);
 
 static int writeAsciiSTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
 static int writeBinarySTLBox(WorldGuide *pWorldGuide, IBox *box, IBox *tightenedWorldBox, const wchar_t *curDir, const wchar_t *terrainFileName, wchar_t *schemeSelected, ChangeBlockCommand *pCBC);
@@ -1780,7 +1782,7 @@ static int readTerrainPNG( const wchar_t *curDir, progimage_info *pITI, wchar_t 
 				}
 				TCHAR wcString[1024];
 				if (foundIt) {
-					wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, i);
+                    wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, i);
 				}
 				else {
 					wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, 6);	// put a sapling - should at least have cutout property
@@ -2901,7 +2903,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         (gBoxData[boxIndex + 1].origType == BLOCK_PISTON) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLOWSTONE && (gBoxData[boxIndex + 1].data&0xf) == 0x0) ||   // shroomlight blocks *do* cut off redstone wires
-        (gBoxData[boxIndex + 1].origType == BLOCK_TNT) ||   // and target
+        (gBoxData[boxIndex + 1].origType == BLOCK_TNT) ||   // and target - these both do not chop
         (gBoxData[boxIndex + 1].origType == BLOCK_REDSTONE_BLOCK) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_SEA_LANTERN) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_STAINED_GLASS))
@@ -3009,6 +3011,9 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DARK_OAK_PRESSURE_PLATE:
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+    case BLOCK_CRIMSON_PRESSURE_PLATE:
+    case BLOCK_WARPED_PRESSURE_PLATE:
+    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_SNOW:
     case BLOCK_CARPET:
     case BLOCK_REDSTONE_REPEATER_OFF:
@@ -3081,6 +3086,7 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_TORCH:						// computeFlatFlags
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
+    case BLOCK_SOUL_TORCH:
         switch ( gBoxData[boxIndex].data )
         {
         case 1: // east, +X
@@ -3178,7 +3184,10 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_JUNGLE_BUTTON:
 	case BLOCK_ACACIA_BUTTON:
 	case BLOCK_DARK_OAK_BUTTON:
-		switch ( gBoxData[boxIndex].data & 0x7 )
+    case BLOCK_CRIMSON_BUTTON:
+    case BLOCK_WARPED_BUTTON:
+    case BLOCK_POLISHED_BLACKSTONE_BUTTON:
+        switch ( gBoxData[boxIndex].data & 0x7 )
         {
         case 0: // at top of block, +Y
             gBoxData[boxIndex+1].flatFlags |= FLAT_FACE_BELOW;
@@ -3234,7 +3243,9 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_JUNGLE_TRAPDOOR:
 	case BLOCK_ACACIA_TRAPDOOR:
 	case BLOCK_DARK_OAK_TRAPDOOR:
-		if ( gBoxData[boxIndex].data & 0x4 )
+    case BLOCK_CRIMSON_TRAPDOOR:
+    case BLOCK_WARPED_TRAPDOOR:
+        if ( gBoxData[boxIndex].data & 0x4 )
         {
             // trapdoor is open, so is against a wall
             switch ( gBoxData[boxIndex].data & 0x3 )
@@ -3275,7 +3286,7 @@ static int computeFlatFlags( int boxIndex )
                     boxIndexToLoc(loc, boxIndex);
                     if ( loc[Y] > gSolidBox.min[Y] )
                     {
-                        gBoxData[boxIndex-1].origType = BLOCK_TRAPDOOR;
+                        gBoxData[boxIndex - 1].origType = gBoxData[boxIndex].type;
                     }
                 }
                 else
@@ -3719,7 +3730,7 @@ static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 			return true;
 	}
 
-	// is neighbor another fence that can adjoin? Wooden fences can join each other, nether brick fences stand alone
+	// is neighbor another fence that can adjoin? Wooden (and other, AFAIK - TODO would be test all against all) fences can join each other, nether brick fences stand alone
 	if ((type != BLOCK_NETHER_BRICK_FENCE) && (neighborType != BLOCK_NETHER_BRICK_FENCE) && (gBlockDefinitions[neighborType].flags & BLF_FENCE))
 		return true;
 
@@ -3851,6 +3862,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_TORCH:						// saveBillboardOrGeometry
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
+    case BLOCK_SOUL_TORCH:
         return saveBillboardFaces( boxIndex, type, BB_TORCH );
         break; // saveBillboardOrGeometry
     case BLOCK_RAIL:						// saveBillboardOrGeometry
@@ -4022,6 +4034,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_DARK_OAK_FENCE:
     case BLOCK_ACACIA_FENCE:
     case BLOCK_NETHER_BRICK_FENCE:
+    case BLOCK_CRIMSON_FENCE:
+    case BLOCK_WARPED_FENCE:
         //groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if ( fatten )
@@ -4117,7 +4131,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         // which posts are needed: NSEW. Brute-force it.
 
         // TODO: get more subtle, like glass panes, and generate only the faces needed. Right now there's overlap at corners, for example.
-		switch (dataVal & 0xf)
+		switch (dataVal & 0x1f)
 		{
 		default:
 			assert(0);
@@ -4163,7 +4177,17 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		case 13: // red sandstone wall
 			swatchLoc = SWATCH_INDEX(14, 13);
 			break;
-		}
+        case 14: // blackstone_wall
+            // does not appear to use blackstone_top texture
+            swatchLoc = SWATCH_INDEX(1, 46);
+            break;
+        case 15: // polished_blackstone_wall
+            swatchLoc = SWATCH_INDEX(4, 46);
+            break;
+        case 16: // polished_blackstone_brick_wall
+            swatchLoc = SWATCH_INDEX(5, 46);
+            break;
+        }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
         // Note that if a render export chops through a fence, the fence will not join.
@@ -4394,6 +4418,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_DARK_OAK_PRESSURE_PLATE:
 	case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+    case BLOCK_CRIMSON_PRESSURE_PLATE:
+    case BLOCK_WARPED_PRESSURE_PLATE:
+    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
         // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
         if ( gPrint3D &&
             ( gBoxData[boxIndex-1].origType == BLOCK_AIR ) )
@@ -4447,7 +4474,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_DARK_PRISMARINE_STAIRS:
 
         // set up textures
-        switch ( type )
+        switch (type)
         {
         default:
             assert(0);
@@ -4459,104 +4486,134 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
         case BLOCK_DARK_OAK_WOOD_STAIRS:
         case BLOCK_QUARTZ_STAIRS:
         case BLOCK_PURPUR_STAIRS:
-		case BLOCK_PRISMARINE_STAIRS:
-		case BLOCK_PRISMARINE_BRICK_STAIRS:
-		case BLOCK_DARK_PRISMARINE_STAIRS:
-			topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
+        case BLOCK_DARK_PRISMARINE_STAIRS:
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
             break;
         case BLOCK_RED_SANDSTONE_STAIRS:
             // for these stairs, top, sides, and bottom differ
-            topSwatchLoc = SWATCH_INDEX( gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrX, gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrY );
-            sideSwatchLoc = SWATCH_INDEX( 14,13 );
-            bottomSwatchLoc = SWATCH_INDEX( 5,8 );
+            topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrX, gBlockDefinitions[BLOCK_RED_SANDSTONE_STAIRS].txrY);
+            sideSwatchLoc = SWATCH_INDEX(14, 13);
+            bottomSwatchLoc = SWATCH_INDEX(5, 8);
             break;
-		case BLOCK_COBBLESTONE_STAIRS:
-			switch (dataVal & (BIT_32 | BIT_16)) {
-			default:
-			case 0x0:
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-				break;
-			case BIT_16:	// stone stairs
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
-				break;
-			case BIT_32:	// granite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 22);
-				break;
-			case BIT_32 | BIT_16:	// polished granite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 22);
-				break;
-			}
-			break;
-		case BLOCK_BRICK_STAIRS:
-			switch (dataVal & (BIT_32 | BIT_16)) {
-			default:
-			case 0x0:
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-				break;
-			case BIT_16:	// smooth quartz stairs
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 17);
-				break;
-			case BIT_32:	// diorite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 22);
-				break;
-			case BIT_32 | BIT_16:	// polished diorite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
-				break;
-			}
-			break;
-		case BLOCK_STONE_BRICK_STAIRS:
-			switch (dataVal & (BIT_32 | BIT_16)) {
-			default:
-			case 0x0:
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-				break;
-			case BIT_16:	// end stone stairs
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
-				break;
-			case BIT_32:	// andesite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 22);
-				break;
-			case BIT_32 | BIT_16:	// polished andesite
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 22);
-				break;
-			}
-			break;
-		case BLOCK_NETHER_BRICK_STAIRS:
-			switch (dataVal & (BIT_32 | BIT_16)) {
-			default:
-			case 0x0:
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-				break;
-			case BIT_16:	// red nether brick stairs
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(2, 26);
-				break;
-			case BIT_32:	// mossy stone
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
-				break;
-			case BIT_32 | BIT_16:	// mossy cobblestone
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 2);
-				break;
-			}
-			break;
-		case BLOCK_SANDSTONE_STAIRS:
-			switch (dataVal & (BIT_32 | BIT_16)) {
-			default:
-			case 0x0:
-				// for these stairs, top, sides, and bottom differ
-				topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
-				sideSwatchLoc = SWATCH_INDEX(0, 12);
-				bottomSwatchLoc = SWATCH_INDEX(0, 13);
-				break;
-			case BIT_16:	// smooth sandstone stairs
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 11);
-				break;
-			case BIT_32:	// smooth red sandstone
-				topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(12, 19);
-				break;
-			}
-			break;
-		}
-
+        case BLOCK_COBBLESTONE_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:	// stone stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
+                break;
+            case BIT_32:	// granite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 22);
+                break;
+            case BIT_32 | BIT_16:	// polished granite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 22);
+                break;
+            }
+            break;
+        case BLOCK_BRICK_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:	// smooth quartz stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 17);
+                break;
+            case BIT_32:	// diorite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 22);
+                break;
+            case BIT_32 | BIT_16:	// polished diorite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
+                break;
+            }
+            break;
+        case BLOCK_STONE_BRICK_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:	// end stone stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
+                break;
+            case BIT_32:	// andesite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 22);
+                break;
+            case BIT_32 | BIT_16:	// polished andesite
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 22);
+                break;
+            }
+            break;
+        case BLOCK_NETHER_BRICK_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:	// red nether brick stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(2, 26);
+                break;
+            case BIT_32:	// mossy stone
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
+                break;
+            case BIT_32 | BIT_16:	// mossy cobblestone
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 2);
+                break;
+            }
+            break;
+        case BLOCK_SANDSTONE_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                // for these stairs, top, sides, and bottom differ
+                topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
+                sideSwatchLoc = SWATCH_INDEX(0, 12);
+                bottomSwatchLoc = SWATCH_INDEX(0, 13);
+                break;
+            case BIT_16:	// smooth sandstone stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 11);
+                break;
+            case BIT_32:	// smooth red sandstone
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(12, 19);
+                break;
+            }
+            break;
+        case BLOCK_PRISMARINE_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:	// crimson stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);
+                break;
+            case BIT_32:	// warped stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            }
+            break;
+        case BLOCK_PRISMARINE_BRICK_STAIRS:
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0x0:
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case BIT_16:    // blackstone_stairs
+                topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(0, 46);
+                sideSwatchLoc = SWATCH_INDEX(1, 46);
+                break;
+            case BIT_32:    // polished_blackstone_stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case BIT_32 | BIT_16:	// polished_blackstone_brick_stairs
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            }
+            break;
+        }
+        // now figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
         {
             unsigned int stepMask, origStepMask;
             stepMask = origStepMask = getStairMask(boxIndex, dataVal);
@@ -4771,6 +4828,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_RED_SANDSTONE_SLAB:
 	case BLOCK_PURPUR_SLAB:
 	case BLOCK_ANDESITE_SLAB:
+    case BLOCK_CRIMSON_SLAB:
 		switch (type)
 		{
 		default:
@@ -4853,7 +4911,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
             }
 			break;
 
-		case BLOCK_RED_SANDSTONE_SLAB:
+        case BLOCK_RED_SANDSTONE_SLAB:
 			// normal, for both dataVal == 0 and == 8 
 			switch (dataVal & 0x7)
 			{
@@ -4947,7 +5005,33 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				break;
 			}
 			break;
-		}
+
+        case BLOCK_CRIMSON_SLAB:
+            switch (dataVal & 0x7)
+            {
+            default: // normal log
+                assert(0);
+            case 0:
+                // no change, default crimson slab is fine
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case 1: // warped slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            case 2: // blackstone_slab
+                topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(0, 46);
+                sideSwatchLoc = SWATCH_INDEX(1, 46);
+                break;
+            case 3: // polished_blackstone_slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case 4: // polished_blackstone_brick_slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            }
+            break;
+
+        }
 
         // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
         // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
@@ -4973,7 +5057,10 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_JUNGLE_BUTTON:
 	case BLOCK_ACACIA_BUTTON:
 	case BLOCK_DARK_OAK_BUTTON:
-		// The bottom 3 bits is direction of button. Top bit is whether it's pressed.
+    case BLOCK_CRIMSON_BUTTON:
+    case BLOCK_WARPED_BUTTON:
+    case BLOCK_POLISHED_BLACKSTONE_BUTTON:
+        // The bottom 3 bits is direction of button. Top bit is whether it's pressed.
         bitAdd = (dataVal & 0x8) ? 1.0f : 0.0f;
         miny = 6;
         maxy = 10;
@@ -5072,7 +5159,15 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// dark oak
 			swatchLoc = SWATCH_INDEX(1, 22);
 			break;
-		}
+        case BIT_32 | BIT_16:
+            // crimson
+            swatchLoc = SWATCH_INDEX(8, 43);
+            break;
+        case BIT_32 | BIT_16 | BIT_8:
+            // warped
+            swatchLoc = SWATCH_INDEX(8, 44);
+            break;
+        }
         switch (dataVal & 0x7)
         {
         default:    // make compiler happy
@@ -5230,7 +5325,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_JUNGLE_TRAPDOOR:
 	case BLOCK_ACACIA_TRAPDOOR:
 	case BLOCK_DARK_OAK_TRAPDOOR:
-		// On second thought, in testing it worked fine.
+    case BLOCK_CRIMSON_TRAPDOOR:
+    case BLOCK_WARPED_TRAPDOOR:
+        // On second thought, in testing it worked fine.
         //if ( gPrint3D && !(dataVal & 0x4) )
         //{
         //	// if printing, and door is down, check if there's air below.
@@ -5324,13 +5421,21 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 				sideSwatchLoc = SWATCH_INDEX(5, 11);    // log
 				break;
 
-			case BIT_16:
-				// dark oak
-				topSwatchLoc = SWATCH_INDEX(1, 22);
-				bottomSwatchLoc = SWATCH_INDEX(15, 19);
-				sideSwatchLoc = SWATCH_INDEX(14, 19);    // log
-				break;
-			}
+            case BIT_16:
+                // dark oak
+                topSwatchLoc = SWATCH_INDEX(1, 22);
+                bottomSwatchLoc = SWATCH_INDEX(15, 19);
+                sideSwatchLoc = SWATCH_INDEX(14, 19);    // log
+                break;
+            case BIT_32:
+                // crimson
+                topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(8, 43);
+                break;
+            case BIT_32|BIT_16:
+                // warped
+                topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            }
 		}
         // sign is two parts:
         // bottom post is output first, which saves one translation
@@ -5455,6 +5560,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_JUNGLE_DOOR:
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
+    case BLOCK_CRIMSON_DOOR:
+    case BLOCK_WARPED_DOOR:
         swatchLoc = SWATCH_INDEX( gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY );
         // at top of door, so get bottom swatch loc, as we use this for the top and bottom faces
         if ( type == BLOCK_WOODEN_DOOR || type == BLOCK_IRON_DOOR )
@@ -5627,7 +5734,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
     case BLOCK_JUNGLE_FENCE_GATE:
     case BLOCK_DARK_OAK_FENCE_GATE:
     case BLOCK_ACACIA_FENCE_GATE:
-		gUsingTransform = 1;
+    case BLOCK_CRIMSON_FENCE_GATE:
+    case BLOCK_WARPED_FENCE_GATE:
+        gUsingTransform = 1;
 		totalVertexCount = gModel.vertexCount;
 		// Check if open
         if ( dataVal & 0x4 )
@@ -9900,8 +10009,9 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
             case BLOCK_WOODEN_SLAB:
             case BLOCK_RED_SANDSTONE_SLAB:
             case BLOCK_PURPUR_SLAB:
-			case BLOCK_ANDESITE_SLAB:
-				// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+            case BLOCK_ANDESITE_SLAB:
+            case BLOCK_CRIMSON_SLAB:
+                // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
                 // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
                 if (dataVal & 0x8)
                 {
@@ -10022,7 +10132,9 @@ static int getFaceRect( int faceDirection, int boxIndex, int view3D, float faceR
 			case BLOCK_JUNGLE_TRAPDOOR:
 			case BLOCK_ACACIA_TRAPDOOR:
 			case BLOCK_DARK_OAK_TRAPDOOR:
-				if ( !(dataVal & 0x4) )
+            case BLOCK_CRIMSON_TRAPDOOR:
+            case BLOCK_WARPED_TRAPDOOR:
+                if ( !(dataVal & 0x4) )
                 {
                     // trapdoor is flat on ground
                     setTop = 3;
@@ -10237,6 +10349,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		// redstone torches stick out a bit, so need billboards
 	case BLOCK_REDSTONE_TORCH_OFF:
 	case BLOCK_REDSTONE_TORCH_ON:
+    case BLOCK_SOUL_TORCH:
 		//case BLOCK_TRIPWIRE:
 		// is torch not standing up?
 		//if ( dataVal != 5 )
@@ -10570,6 +10683,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		// adjust for growth
 		swatchLoc += (dataVal & 0x3);
 		break;
+
+    case BLOCK_FIRE:
+        if (dataVal & 0x1) {
+            swatchLoc = SWATCH_INDEX(12, 42);
+        }
+        break;
 
 	default:
 		// perfectly fine to hit here, the billboard is generic
@@ -14204,7 +14323,8 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
         case BLOCK_RED_SANDSTONE_SLAB:
         case BLOCK_PURPUR_SLAB:
 		case BLOCK_ANDESITE_SLAB:
-			// The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+        case BLOCK_CRIMSON_SLAB:
+            // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
             if ( neighborDataVal & 0x8 )
             {
@@ -14242,7 +14362,9 @@ static int lesserBlockCoversWholeFace( int faceDirection, int neighborBoxIndex, 
 		case BLOCK_JUNGLE_TRAPDOOR:
 		case BLOCK_ACACIA_TRAPDOOR:
 		case BLOCK_DARK_OAK_TRAPDOOR:
-			if ( !view3D )
+        case BLOCK_CRIMSON_TRAPDOOR:
+        case BLOCK_WARPED_TRAPDOOR:
+            if ( !view3D )
             {
                 // rotate as needed
                 if (neighborDataVal & 0x4 )
@@ -15653,7 +15775,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 7: // blackstone
                 swatchLoc = SWATCH_INDEX(0, 46);
-                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 1, 46, 1, 46);
+                SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
                 break;
             case 8: // chiseled_polished_blackstone
                 swatchLoc = SWATCH_INDEX(2, 46);
@@ -16548,11 +16670,13 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_JUNGLE_DOOR:
         case BLOCK_DARK_OAK_DOOR:
         case BLOCK_ACACIA_DOOR:
+        case BLOCK_CRIMSON_DOOR:
+        case BLOCK_WARPED_DOOR:
             // top half is default
             if ( (faceDirection == DIRECTION_BLOCK_TOP) ||
                 (faceDirection == DIRECTION_BLOCK_BOTTOM) )
             {
-                // full block "door" - on top or bottom make it full wood or iron
+                // full block "door" - on top or bottom make it full wood or iron (or planks, for crimson and warped)
                 switch ( type ) {
                 default:
                     assert(0);
@@ -16577,6 +16701,12 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 case BLOCK_ACACIA_DOOR:
                     swatchLoc = SWATCH_INDEX( 0,22 );
                     break;
+                case BLOCK_CRIMSON_DOOR:
+                    swatchLoc = SWATCH_INDEX( 8, 43);
+                    break;
+                case BLOCK_WARPED_DOOR:
+                    swatchLoc = SWATCH_INDEX( 8, 44);
+                    break;
                 }
             }
             else if ( !(dataVal & 0x8) )
@@ -16594,6 +16724,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 case BLOCK_JUNGLE_DOOR:
                 case BLOCK_DARK_OAK_DOOR:
                 case BLOCK_ACACIA_DOOR:
+                case BLOCK_CRIMSON_DOOR:
+                case BLOCK_WARPED_DOOR:
+                    // door tiles are in order bottom, top
                     swatchLoc--;
                     break;
                 }
@@ -16603,16 +16736,26 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_TORCH:						// getSwatch
         case BLOCK_REDSTONE_TORCH_ON:
         case BLOCK_REDSTONE_TORCH_OFF:
+        case BLOCK_SOUL_TORCH:
             // is torch in middle of block?
             if ( dataVal == 5 )
             {
                 // use the "from above" torch
-                if ( type == BLOCK_TORCH )
+                switch (type) {
+                default:
+                case BLOCK_TORCH:
                     swatchLoc = TORCH_TOP;
-                else if ( type == BLOCK_REDSTONE_TORCH_ON )
+                    break;
+                case BLOCK_REDSTONE_TORCH_ON:
                     swatchLoc = RS_TORCH_TOP_ON;
-                if ( type == BLOCK_REDSTONE_TORCH_OFF )
+                    break;
+                case BLOCK_REDSTONE_TORCH_OFF:
                     swatchLoc = RS_TORCH_TOP_OFF;
+                    break;
+                case BLOCK_SOUL_TORCH:
+                    swatchLoc = SOUL_TORCH_TOP;
+                    break;
+                }
             }
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
@@ -17157,7 +17300,9 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 		case BLOCK_JUNGLE_TRAPDOOR:
 		case BLOCK_ACACIA_TRAPDOOR:
 		case BLOCK_DARK_OAK_TRAPDOOR:
-		case BLOCK_DAYLIGHT_SENSOR:
+        case BLOCK_CRIMSON_TRAPDOOR:
+        case BLOCK_WARPED_TRAPDOOR:
+        case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
         case BLOCK_LILY_PAD:
@@ -17434,8 +17579,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 
             break;
         case BLOCK_COBBLESTONE_WALL:						// getSwatch
-			// TODO - this could be a subroutine, as it's exactly the same as for the other use of BLOCK_COBBLESTONE_WALL here.
-			switch (dataVal & 0xf)
+			// TODO - this could be a subroutine, as it's exactly the same as for the other saveBillboardOrGeometry use of BLOCK_COBBLESTONE_WALL here.
+			switch (dataVal & 0x1f)
 			{
 			default:
 				assert(0);
@@ -17472,16 +17617,26 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			case 10: // nether brick wall
 				swatchLoc = SWATCH_INDEX(0, 14);
 				break;
-			case 11: // red nether brick wall
-				swatchLoc = SWATCH_INDEX(2, 26);
-				break;
-			case 12: // sandstone wall
-				swatchLoc = SWATCH_INDEX(0, 12);
-				break;
-			case 13: // red sandstone wall
-				swatchLoc = SWATCH_INDEX(5, 22);
-				break;
-			}
+            case 11: // red nether brick wall
+                swatchLoc = SWATCH_INDEX(2, 26);
+                break;
+            case 12: // sandstone wall
+                swatchLoc = SWATCH_INDEX(0, 12);
+                break;
+            case 13: // red sandstone wall
+                swatchLoc = SWATCH_INDEX(5, 22);
+                break;
+            case 14: // blackstone_wall
+                // does not appear to use the blackstone top texture; same all around
+                swatchLoc = SWATCH_INDEX(1, 46);
+                break;
+            case 15: // polished_blackstone_wall
+                swatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case 16: // polished_blackstone_brick_wall
+                swatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            }
 			break;
         case BLOCK_CARPET:						// getSwatch
         case BLOCK_WOOL:
@@ -17915,34 +18070,58 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
 			break;
 
-		case BLOCK_ANDESITE_DOUBLE_SLAB:				// getSwatch
-		case BLOCK_ANDESITE_SLAB:						// getSwatch
-			switch (dataVal & 0x7)
-			{
-			default:
-				assert(0);	// fall through
-			case 0:
-				// fine as is
-				break;
-			case 1: // polished andesite
-				swatchLoc = SWATCH_INDEX(5,22);
-				break;
-			case 2: // diorite
-				swatchLoc = SWATCH_INDEX(6,22);
-				break;
-			case 3: // polished diorite
-				swatchLoc = SWATCH_INDEX(7,22);
-				break;
-			case 4: // end stone brick
-				swatchLoc = SWATCH_INDEX(3,24);
-				break;
-			case 5: // (the new 1.14) stone slab - not chiseled, more just like normal stone on all sides
-				swatchLoc = SWATCH_INDEX(1, 0);
-				break;
-			}
-			break;
+        case BLOCK_ANDESITE_DOUBLE_SLAB:				// getSwatch
+        case BLOCK_ANDESITE_SLAB:						// getSwatch
+            switch (dataVal & 0x7)
+            {
+            default:
+                assert(0);	// fall through
+            case 0:
+                // fine as is
+                break;
+            case 1: // polished andesite
+                swatchLoc = SWATCH_INDEX(5, 22);
+                break;
+            case 2: // diorite
+                swatchLoc = SWATCH_INDEX(6, 22);
+                break;
+            case 3: // polished diorite
+                swatchLoc = SWATCH_INDEX(7, 22);
+                break;
+            case 4: // end stone brick
+                swatchLoc = SWATCH_INDEX(3, 24);
+                break;
+            case 5: // (the new 1.14) stone slab - not chiseled, more just like normal stone on all sides
+                swatchLoc = SWATCH_INDEX(1, 0);
+                break;
+            }
+            break;
 
-		case BLOCK_COMPOSTER:						// getSwatch
+        case BLOCK_CRIMSON_DOUBLE_SLAB:					// getSwatch
+        case BLOCK_CRIMSON_SLAB:						// getSwatch
+            switch (dataVal & 0x7)
+            {
+            default: // normal log
+                assert(0);
+            case 0:
+                // no change, default crimson slab is fine
+                break;
+            case 1: // warped slab
+                swatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            case 2: // blackstone_slab
+                SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
+                break;
+            case 3: // polished_blackstone_slab
+                swatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case 4: // polished_blackstone_brick_slab
+                swatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            }
+            break;
+
+        case BLOCK_COMPOSTER:						// getSwatch
 			SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 38, 13, 38);
 			break;
 
@@ -18691,7 +18870,7 @@ bool isASubblock(int type, int dataVal)
 	return true;
 }
 
-static float getEmitterLevel(int type, int dataVal)
+static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
 {
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
     // See https://minecraft.gamepedia.com/Light
@@ -18707,18 +18886,19 @@ static float getEmitterLevel(int type, int dataVal)
     case BLOCK_NETHER_PORTAL:
         emission = 11.0f;
         break;
+    case BLOCK_SOUL_TORCH:
     case BLOCK_CRYING_OBSIDIAN:
         emission = 10.0f;
         break;
     case BLOCK_CAMPFIRE:
         // is it lit?
-        if (!(dataVal & 0x4)) {
+        if ( splitByBlockType && !(dataVal & 0x4)) {
             // not lit, so turn it off
             emission = 0.0f;
         }
         break;
-    // TODO SEA PICKLE, SOUL FIRE, LANTERN, TORCH, CAMPFIRE
-        // TODO REDSTONE ORE - when touched
+    // TODO SOUL FIRE, LANTERN, TORCH, CAMPFIRE
+        // TODO REDSTONE_ORE - when touched
     case BLOCK_ENDER_CHEST:
     case BLOCK_REDSTONE_TORCH_ON:
         emission = 7.0f;
@@ -18732,25 +18912,65 @@ static float getEmitterLevel(int type, int dataVal)
     case BLOCK_END_PORTAL_FRAME:
         emission = 1.0f;
         break;
+    case BLOCK_SEA_PICKLE:
+        // Number of pickles gives lit level: 6, 9, 12, 15
+        if (splitByBlockType) {
+            switch ((dataVal & 0x3)) {
+            case 0:
+                // 1 sea pickle
+                emission = 6.0f;
+                break;
+            case 1:
+                emission = 9.0f;
+                break;
+            case 2:
+                emission = 12.0f;
+                break;
+            default:
+                assert(0);
+            case 3:
+                // default: emission = 15.0f;
+                break;
+            }
+        }
+        break;
+    case BLOCK_FIRE:
+        if (splitByBlockType) {
+            switch ((dataVal & 0xf)) {
+            default:
+                assert(0);
+            case 0:
+                // default: emission = 15.0f;
+                break;
+            case 1:
+                emission = 10.0f;
+                break;
+            }
+        }
+        break;
     case BLOCK_RESPAWN_ANCHOR:
         // is it lit? Number of charges
-        switch ( dataVal & 0x7 ) {
-        case 0:
-            // not lit, so turn it off
-            emission = 0.0f;
-            break;
-        case 1:
-            emission = 3.0f;
-            break;
-        case 2:
-            emission = 7.0f;
-            break;
-        case 3:
-            emission = 11.0f;
-            break;
-        case 4:
-            emission = 15.0f;
-            break;
+        if (splitByBlockType) {
+            switch (dataVal & 0x7) {
+            case 0:
+                // not lit, so turn it off
+                emission = 0.0f;
+                break;
+            case 1:
+                emission = 3.0f;
+                break;
+            case 2:
+                emission = 7.0f;
+                break;
+            case 3:
+                emission = 11.0f;
+                break;
+            default:
+                assert(0);
+            case 4:
+                // default: emission = 15.0f;
+                break;
+            }
         }
         break;
     }
@@ -19696,7 +19916,9 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, int dataVal, char
     mapKeString[0] = '\0';
     if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
 	{
-        float emission = getEmitterLevel(type, dataVal);
+        bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+
+        float emission = getEmitterLevel(type, dataVal, subtypeMaterial);
         if (emission > 0.0f) {
             sprintf_s(keString, 256, "Ke %g %g %g\n", emission, emission, emission);
             if (gExportTexture)
@@ -20322,6 +20544,12 @@ static int createBaseMaterialTexture()
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow );
         // clear bottom half of torch
         setColorPNGArea(mainprog, col*gModel.swatchSize, row*gModel.swatchSize + gModel.tileSize*10/16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize*6/16 + SWATCH_BORDER, 0x0 );
+
+        SWATCH_TO_COL_ROW(SOUL_TORCH_TOP, col, row);
+        SWATCH_TO_COL_ROW(SWATCH_INDEX(11, 42), scol, srow);
+        copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
+        // clear bottom half of torch
+        setColorPNGArea(mainprog, col* gModel.swatchSize, row* gModel.swatchSize + gModel.tileSize * 10 / 16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize * 6 / 16 + SWATCH_BORDER, 0x0);
 
         /////////////////////////////////////////////////////
         // Add compositing dot to 4-way wire template.
@@ -21257,7 +21485,9 @@ static int writeVRMLAttributeShapeSplit( int type, int dataVal, char *mtlName, c
     if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER) )
     {
         // emitter
-        ke = getEmitterLevel(type, dataVal);
+        bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+
+        ke = getEmitterLevel(type, dataVal, subtypeMaterial);
         sprintf_s(keString,256,"          emissiveColor %g %g %g\n", fRed*ke, fGreen*ke, fBlue*ke);
     }
     else

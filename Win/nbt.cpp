@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 718
+#define NUM_TRANS 750
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -819,7 +819,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  22,  HIGH_BIT|0, "stripped_acacia_wood", AXIS_PROP },
 { 0,  22,  HIGH_BIT|1, "stripped_dark_oak_wood", AXIS_PROP },
 { 0, 176,           0, "white_banner", STANDING_SIGN_PROP },
-{ 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },
+{ 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },	// we could crush these a bit into four banners per entry by using bits 32 and 64 for different types.
 { 0,  24,    HIGH_BIT, "magenta_banner", STANDING_SIGN_PROP },
 { 0,  25,    HIGH_BIT, "light_blue_banner", STANDING_SIGN_PROP },
 { 0,  26,    HIGH_BIT, "yellow_banner", STANDING_SIGN_PROP },
@@ -1002,10 +1002,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  82,       HIGH_BIT, "lantern", NO_PROP },	// uses just "hanging" for bit 0x1
 { 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
 { 0,  84,       HIGH_BIT, "scaffolding", NO_PROP },	// uses just "bottom" for bit 0x1
+
+// 1.15
 { 0,  85,       HIGH_BIT, "bee_nest", EXTENDED_SWNE_FACING_PROP },	// facing is 0x3, honey_level is 0x01C, nest/hive is 0x20
 { 0,  85,HIGH_BIT|BIT_32, "beehive", EXTENDED_SWNE_FACING_PROP },
 { 0,  86,       HIGH_BIT, "honey_block", NO_PROP },
 { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
+
 // 1.16
 { 0,  88,              1, "soul_soil", NO_PROP },	// with soul sand
 { 0, 214,			   1, "warped_wart_block", NO_PROP },
@@ -1024,8 +1027,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  22,   HIGH_BIT | 3, "stripped_warped_hyphae", AXIS_PROP },
 { 0,   5,              6, "crimson_planks", NO_PROP },
 { 0,   5,              7, "warped_planks", NO_PROP },
-{ 0, 126,              6, "crimson_slab", SLAB_PROP },
-{ 0, 126,              7, "warped_slab", SLAB_PROP },
 { 0,   1,              7, "blackstone", NO_PROP },
 { 0,   1,              8, "chiseled_polished_blackstone", NO_PROP },
 { 0,   1,              9, "polished_blackstone", NO_PROP },
@@ -1041,16 +1042,50 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
 { 0, BLOCK_TNT,		   1, "target", NO_PROP },
 { 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
+{ 0,  51,              1, "soul_fire", NO_PROP },
+{ 0, 139,             14, "blackstone_wall", NO_PROP },
+{ 0, 139,             15, "polished_blackstone_wall", NO_PROP },
+{ 0, 139,             16, "polished_blackstone_brick_wall", NO_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
+{ 0,   1, HIGH_BIT|BIT_16, "crimson_stairs", STAIRS_PROP },
+{ 0,   1, HIGH_BIT|BIT_32, "warped_stairs", STAIRS_PROP },
+{ 0, 2, HIGH_BIT | BIT_16, "blackstone_stairs", STAIRS_PROP },
+{ 0,   2, HIGH_BIT | BIT_32, "polished_blackstone_stairs", STAIRS_PROP },
+{ 0,   2, HIGH_BIT | BIT_32 | BIT_16, "polished_blackstone_brick_stairs", STAIRS_PROP },
+{ 0,  90,       HIGH_BIT, "crimson_trapdoor", TRAPDOOR_PROP },
+{ 0,  91,       HIGH_BIT, "warped_trapdoor", TRAPDOOR_PROP },
+{ 0,  92,       HIGH_BIT, "crimson_button", BUTTON_PROP },
+{ 0,  93,       HIGH_BIT, "warped_button", BUTTON_PROP },
+{ 0,  94,       HIGH_BIT, "polished_blackstone_button", BUTTON_PROP },
+{ 0,  95,       HIGH_BIT, "crimson_fence", NO_PROP },
+{ 0,  96,       HIGH_BIT, "warped_fence", NO_PROP },
+{ 0,  97,       HIGH_BIT, "crimson_fence_gate", FENCE_GATE_PROP },
+{ 0,  98,       HIGH_BIT, "warped_fence_gate", FENCE_GATE_PROP },
+{ 0,  99,       HIGH_BIT, "crimson_door", DOOR_PROP },
+{ 0, 100,       HIGH_BIT, "warped_door", DOOR_PROP },
+{ 0, 101,       HIGH_BIT, "crimson_pressure_plate", PRESSURE_PROP },
+{ 0, 102,       HIGH_BIT, "warped_pressure_plate", PRESSURE_PROP },
+{ 0, 103,       HIGH_BIT, "polished_blackstone_pressure_plate", PRESSURE_PROP },
+{ 0, 105,       HIGH_BIT, "crimson_slab", SLAB_PROP },	// new set of slabs - note that 104 is used by the corresponding double slabs
+{ 0, 105,   HIGH_BIT | 1, "warped_slab", SLAB_PROP },
+{ 0, 105,   HIGH_BIT | 2, "blackstone_slab", SLAB_PROP },
+{ 0, 105,   HIGH_BIT | 3, "polished_blackstone_slab", SLAB_PROP },
+{ 0, 105,   HIGH_BIT | 4, "polished_blackstone_brick_slab", SLAB_PROP },
+{ 0,  70, HIGH_BIT | BIT_32, "crimson_sign", STANDING_SIGN_PROP },
+{ 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
+{ 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
+{ 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
+{ 0, 106,       HIGH_BIT, "soul_fire_torch", TORCH_PROP },
+{ 0, 106,       HIGH_BIT, "soul_fire_wall_torch", TORCH_PROP },
 };
 
 #define HASH_SIZE 512
 #define HASH_MASK 0x1ff
 
-int HashLists[HASH_SIZE+NUM_TRANS];
-int * HashArray[HASH_SIZE];
+int HashLists[HASH_SIZE + NUM_TRANS];
+int* HashArray[HASH_SIZE];
 
 
-int computeHash(char *name)
+int computeHash(char* name)
 {
 	int hashVal = 0;
 	while (*name) {
@@ -1080,7 +1115,7 @@ void makeHashTable()
 		offset += hashPerIndex[i] + 1;
 	}
 	if (offset != HASH_SIZE + NUM_TRANS) {
-		// this is an error
+		// this is an error - should assert (does not exist), so put a break here instead.
 		return;
 	}
 	// now populate the hashLists, ending with -1; first just set all to -1
@@ -1106,10 +1141,24 @@ void makeHashTable()
 		mask_array[BLOCK_HEAD] |= 0x80;
 		// special case: redstone wire is given 16 levels of output when separated by material
 		mask_array[BLOCK_REDSTONE_WIRE] |= 0x0F;
+		// special case: sea pickles have 4 levels of illumination based on number of pickles
+		mask_array[BLOCK_SEA_PICKLE] |= 0x03;
+		// special case: campfire on or off
+		mask_array[BLOCK_CAMPFIRE] |= 0x04;
+		// special case: respawn anchors have 5 levels based on charges
+		mask_array[BLOCK_RESPAWN_ANCHOR] |= 0x07;
 		for (i = 0; i < NUM_TRANS; i++)
 		{
-			// note bits used for different objects - high-bit is masked off.
-			mask_array[BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1] |= BlockTranslations[i].dataVal & 0x7F;
+			// these are special and already set, so should not be set here
+			if ((BlockTranslations[i].blockId != BLOCK_FLOWER_POT) && (BlockTranslations[i].blockId != BLOCK_HEAD)) {
+				// reality check
+				if (((BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1)) >= NUM_BLOCKS_DEFINED) {
+					// put a break here, since we can't assert
+					return;
+				}
+				// note bits used for different objects - high-bit is masked off.
+				mask_array[BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1] |= BlockTranslations[i].dataVal & 0x7F;
+			}
 		}
 		// special cases: double-slabs should be given same bits as slabs
 		mask_array[BLOCK_STONE_DOUBLE_SLAB] |= mask_array[BLOCK_STONE_SLAB];
@@ -1117,6 +1166,7 @@ void makeHashTable()
 		mask_array[BLOCK_RED_SANDSTONE_DOUBLE_SLAB] |= mask_array[BLOCK_RED_SANDSTONE_SLAB];
 		mask_array[BLOCK_PURPUR_DOUBLE_SLAB] |= mask_array[BLOCK_PURPUR_SLAB];
 		mask_array[BLOCK_ANDESITE_DOUBLE_SLAB] |= mask_array[BLOCK_ANDESITE_SLAB];
+		mask_array[BLOCK_CRIMSON_DOUBLE_SLAB] |= mask_array[BLOCK_CRIMSON_SLAB];
 		// special case: kelp and kelp_plant are really the same thing, material-wise
 		mask_array[BLOCK_KELP] = 0x0;
 		// really, these should all be set properly already, but might as well make sure...
@@ -1798,7 +1848,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								}
 								else {
 									// unknown type - call it bedrock, by tradition
-									//  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN
+									//  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
 									paletteBlockEntry[entry_index] = 7;
 									paletteDataEntry[entry_index] = 0;
 								}
@@ -2363,7 +2413,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						case FURNACE_PROP:
 							dataVal = 6 - dataVal;
 							if (lit) {
-								// light furnace
+								// light furnace: move type to be the "lit" version.
 								paletteBlockEntry[entry_index] = 62;
 							}
 							break;
