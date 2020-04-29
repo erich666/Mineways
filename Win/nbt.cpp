@@ -2672,6 +2672,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 					// Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
 					// That is, if you see "5" here, the bits in the 64-bit long long are in order 
 					// which bb should we access for these bits? Divide by 8
+					Restart:
 					unsigned int bbindex = bitpull >> 3;
 					// Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
 					// But, this works.
@@ -2692,8 +2693,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 							// incremental up above) and pull entirely from the next +15 index, as shown here.
 							if (uncompressed) {
 								// start on next long long
-								bits = bigbuff[bbindex + 15] & bitmask;
+								//bits = bigbuff[bbindex + 15] & bitmask;
 								bitpull += (8-bbshift);
+								goto Restart;
 								//next iteration it will be: bbshift = 0;
 							}
 							else {
