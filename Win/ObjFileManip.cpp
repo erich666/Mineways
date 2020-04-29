@@ -18897,8 +18897,8 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
             emission = 0.0f;
         }
         break;
-    // TODO SOUL FIRE, LANTERN, TORCH, CAMPFIRE
-        // TODO REDSTONE_ORE - when touched
+    // TODOTODO SOUL LANTERN, CAMPFIRE
+        // TODOTODO REDSTONE_ORE - when touched - figure this property out?
     case BLOCK_ENDER_CHEST:
     case BLOCK_REDSTONE_TORCH_ON:
         emission = 7.0f;
@@ -18942,7 +18942,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
             case 0:
                 // default: emission = 15.0f;
                 break;
-            case 1:
+            case 1: // soul fire
                 emission = 10.0f;
                 break;
             }

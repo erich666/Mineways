@@ -1665,7 +1665,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 	// different, unique blocks (remember that "data" matters, too, AFAIK). In such a case, the number
 	// of entries in the palette could be 4096 entries, which need 12 bits per entry.
 	// This means the array here should be 16*16*16*12/8 (the 8 is bits per byte) = 6144 bytes long.
-	unsigned char bigbuff[6144];
+#define MAX_BLOCK_STATES_ARRAY	6144
+	unsigned char bigbuff[MAX_BLOCK_STATES_ARRAY];
 	//memset(bigbuff, 0, 256 * 8);
 
 	int ret;
@@ -1774,7 +1775,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 				{
 					ret = 1;
 					bigbufflen = readDword(pbf); //array length
-					if (bigbufflen > 6144)
+					if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
 						return -19;	// TODO make better unique return codes, with names
 					// read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
 					if (bfread(pbf, bigbuff, bigbufflen * 8) < 0) return -16;
@@ -2651,25 +2652,34 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 				if (!ret)
 					if (skipType(pbf, type) < 0) return -18;
 			}
-			// now that we have all the data (I hope - TODO, check that we do), convert bigbuff layer into buff and data values
+			// now that we have all the data, convert bigbuff layer into buff and data values
 			// DEBUG: entry_index > 2 - shows just the tiles that are not all a single block type & air
+			// TODOTODO - an eleven-bit entry, i.e., 2048+ different blocks in one piece, will break this code!
+			// That said, that's extremely unlikely. It could break because of a case 1|23456789|AB, spanning 3 bytes.
+			// TODOTODO: however, 2^9 512 entries could break the uncompressed code, as we need to start on a new byte
+			// entirely, so that extra bits would be needed. Fix once we have this code working.
 			if (bigbufflen > 0 && entry_index > 0) {
-				// compute number of bits
+				// compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
 				int bitlength = bigbufflen / 64;
+				// is this the new 1.16 20w17a format?
+				bool uncompressed = (bigbufflen > 64 * bitlength);
 				unsigned long int bitmask = (1 << bitlength) - 1;
 
 				unsigned char *bout = buff + 16 * 16 * 16 * y;
 				unsigned char *dout = data + 16 * 16 * 16 * y;
-				for (int i = 0; i < 16 * 256; i++) {
-					// pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
-					unsigned int bitpull = i * bitlength;
+				unsigned int bitpull = 0;
+				for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
+					// Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
+					// That is, if you see "5" here, the bits in the 64-bit long long are in order 
 					// which bb should we access for these bits? Divide by 8
 					unsigned int bbindex = bitpull >> 3;
 					// Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
 					// But, this works.
 					bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
 					unsigned int bbshift = bitpull & 0x7;
+					// get the top bits out of the topmost byte, on down the row
 					int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
+					// Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
 					if (bbshift + bitlength > 8) {
 						if (bbindex & 0x7) {
 							// one of the middle bytes, not the bottommost one
@@ -2677,12 +2687,26 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 						}
 						else {
 							// bottommost byte, need to jump to topmost byte of next long long
-							bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
+							// If this is the new format and the length of bigbufflen is greater than expected,
+							// e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
+							// incremental up above) and pull entirely from the next +15 index, as shown here.
+							if (uncompressed) {
+								// start on next long long
+								bits = bigbuff[bbindex + 15] & bitmask;
+								bitpull += (8-bbshift);
+								//next iteration it will be: bbshift = 0;
+							}
+							else {
+								bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
+							}
 						}
 					}
 					// for larger, we'll need to check if bbshift + bitlength is > 64 and if so, then pull in higher bits
+
+					// sanity check
 					if (bits >= entry_index) {
-						// TODO reality check - should never reach here; means that a stored index value is greater than any value in the palette.
+						// Should never reach here; means that a stored index value is greater than any value in the palette.
+						// TODOTODO how can we make our own valid assert, or use Windows'?
 						bits = entry_index - 1;
 					}
 					*bout++ = paletteBlockEntry[bits];
