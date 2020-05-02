@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 752
+#define NUM_TRANS 757
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -1021,6 +1021,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 216,			   2, "polished_basalt", AXIS_PROP },
 { 0,   3,              3, "crimson_nylium", NO_PROP }, // note no SNOWY_PROP
 { 0,   3,              4, "warped_nylium", NO_PROP }, // note no SNOWY_PROP
+{ 0,  40,              1, "crimson_fungus", NO_PROP },
+{ 0,  40,              2, "warped_fungus", NO_PROP },
+{ 0,  31,			   3, "nether_sprouts", NO_PROP },
+{ 0,  31,              4, "crimson_roots", NO_PROP },
+{ 0,  31,              5, "warped_roots", NO_PROP },
 { 0,  89,              1, "shroomlight", NO_PROP },
 { 0, 162,     BIT_16 | 2, "crimson_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
 { 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 

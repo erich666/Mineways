@@ -10336,7 +10336,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		}
 		break;
 	case BLOCK_GRASS:				// saveBillboardFacesExtraData
-		switch (dataVal & 0x3)
+		switch (dataVal & 0xf)
 		{
 		case 0:
 			// dead bush appearance
@@ -10353,9 +10353,38 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 			swatchLoc = SWATCH_INDEX(8, 3);
 			wobbleIt = true;
 			break;
-		}
+        case 3: // nothing on down wobbles, so far
+            // nether sprouts
+            swatchLoc = SWATCH_INDEX(5, 43);
+            break;
+        case 4:
+            // crimson root
+            swatchLoc = SWATCH_INDEX(6, 43);
+            break;
+        case 5:
+            // warped root
+            swatchLoc = SWATCH_INDEX(6, 44);
+            break;
+        }
 		break;
-	case BLOCK_TORCH:				// saveBillboardFacesExtraData
+    case BLOCK_RED_MUSHROOM:				// saveBillboardFacesExtraData
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+        case 0:
+            // set OK already
+            break;
+        case 1:
+            // crimson fungus
+            swatchLoc = SWATCH_INDEX(4, 43);
+            break;
+        case 2:
+            // warped fungus
+            swatchLoc = SWATCH_INDEX(4, 44);
+            break;
+        }
+        case BLOCK_TORCH:				// saveBillboardFacesExtraData
 		// redstone torches stick out a bit, so need billboards
 	case BLOCK_REDSTONE_TORCH_OFF:
 	case BLOCK_REDSTONE_TORCH_ON:
@@ -17411,7 +17440,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
         case BLOCK_GRASS:						// getSwatch
-            switch ( dataVal & 0x3 )
+            switch ( dataVal & 0xf )
             {
             case 0:
                 // dead bush appearance
@@ -17423,7 +17452,19 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 break;
             case 2:
                 // fern
-                swatchLoc = SWATCH_INDEX(8,3);
+                swatchLoc = SWATCH_INDEX(8, 3);
+                break;
+            case 3:
+                // nether sprouts
+                swatchLoc = SWATCH_INDEX(5, 43);
+                break;
+            case 4:
+                // crimson root
+                swatchLoc = SWATCH_INDEX(6, 43);
+                break;
+            case 5:
+                // warped root
+                swatchLoc = SWATCH_INDEX(6, 44);
                 break;
             }
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
@@ -18840,7 +18881,7 @@ bool isASubblock(int type, int dataVal)
 	switch (type) {
 	case BLOCK_GRASS:
 		// special case: Grass, the default popular name for that block type, actually has a data value of 1; the dead shrub is 0
-		if ((dataVal & 0x3) == 1)
+		if ((dataVal & 0xf) == 1)
 			return false;
 		break;
 	case BLOCK_PURPUR_SLAB:
@@ -18914,6 +18955,34 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
     case BLOCK_CRYING_OBSIDIAN:
         emission = 10.0f;
         break;
+    case BLOCK_LANTERN:
+        if (splitByBlockType) {
+            switch (dataVal & 0xf) {
+            default:
+                assert(0);
+            case 0:
+                // default: emission = 15.0f;
+                break;
+            case 0x2: // soul lantern
+                emission = 10.0f;
+                break;
+            }
+        }
+        break;
+    case BLOCK_FIRE:
+        if (splitByBlockType) {
+            switch (dataVal & 0xf) {
+            default:
+                assert(0);
+            case 0:
+                // default: emission = 15.0f;
+                break;
+            case 1: // soul fire
+                emission = 10.0f;
+                break;
+            }
+        }
+        break;
     case BLOCK_CAMPFIRE:
         // is it lit?
         if (splitByBlockType) {
@@ -18927,7 +18996,6 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
             }
         }
         break;
-    // TODOTODO SOUL LANTERN, CAMPFIRE
         // TODOTODO REDSTONE_ORE - when touched - figure this property out?
     case BLOCK_ENDER_CHEST:
     case BLOCK_REDSTONE_TORCH_ON:
@@ -18960,20 +19028,6 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
                 assert(0);
             case 3:
                 // default: emission = 15.0f;
-                break;
-            }
-        }
-        break;
-    case BLOCK_FIRE:
-        if (splitByBlockType) {
-            switch ((dataVal & 0xf)) {
-            default:
-                assert(0);
-            case 0:
-                // default: emission = 15.0f;
-                break;
-            case 1: // soul fire
-                emission = 10.0f;
                 break;
             }
         }

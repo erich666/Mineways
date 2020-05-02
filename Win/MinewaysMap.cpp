@@ -598,7 +598,7 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 		break;
 
 	case BLOCK_GRASS:
-		switch (dataVal & 0x3)
+		switch (dataVal & 0xf)
 		{
 		default:
 			assert(0);
@@ -607,9 +607,15 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "Dead Bush";
 		case 1:	// tall grass - really, the default name Grass
 			break; // return "TALL_GRASS";
-		case 2:	// fern
-			return "Fern";
-		}
+        case 2:	// fern
+            return "Fern";
+        case 3:
+            return "Nether Sprouts";
+        case 4:
+            return "Crimson Roots";
+        case 5:
+            return "Warped Roots";
+        }
 		break;
 
 	case BLOCK_WOOL:
@@ -1515,6 +1521,21 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
         }
         break;
 
+    case BLOCK_RED_MUSHROOM:
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Crimson Fungus";
+        case 2:
+            return "Warped Fungus";
+        }
+        break;
+
     case BLOCK_LANTERN:
         switch (dataVal & 0x2)
         {
@@ -2276,7 +2297,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         }
         break;
 
-    case BLOCK_CAMPFIRE:
+    case BLOCK_RED_MUSHROOM:
         dataVal = block->data[voxel];
         switch (dataVal)
         {
@@ -2284,8 +2305,11 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
-        case 1:	// target
-            color = 0x7AD6D9;
+        case 1:
+            color = 0x9D3F2B;
+            break;
+        case 2:
+            color = 0x777965;
             break;
         }
         break;
@@ -2399,12 +2423,13 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 
     case BLOCK_GRASS:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x3)
+        switch (dataVal & 0xf)
         {
-        default:
         case 0: // dead bush
             color = 0x946428;
             break;
+        default:
+            assert(0);
         case 1:	// grass
         case 2:	// fern
             // by default, color is used for grass and ferns, which are more common
@@ -2415,6 +2440,15 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 			if ((dataVal & 0x3) == 2) {
 				color = scaleColor(color, 118.0f / 148.0f);
 			}
+            break;
+        case 3:	// nether sprouts
+            color = 0x149985;
+            break;
+        case 4:	// crimson roots
+            color = 0x83092B;
+            break;
+        case 5:	// warped roots
+            color = 0x148E7E;
             break;
         }
         break;
@@ -3725,7 +3759,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_GRASS:
     case BLOCK_SANDSTONE:
     case BLOCK_RED_SANDSTONE:
     case BLOCK_SOUL_SAND:
@@ -3733,6 +3766,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_NETHER_WART_BLOCK:
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
+    case BLOCK_RED_MUSHROOM:
         // uses 0-2
         if ( dataVal < 3 )
         {
@@ -3804,6 +3838,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			addBlock = 1;
 		}
 		break;
+    case BLOCK_GRASS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:
     case BLOCK_QUARTZ_BLOCK:
