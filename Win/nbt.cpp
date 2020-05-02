@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 750
+#define NUM_TRANS 752
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -468,7 +468,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  49,           0, "obsidian", NO_PROP },
 { 0,  50,           0, "torch", TORCH_PROP },
 { 0,  50,           0, "wall_torch", TORCH_PROP },
-{ 0,  51,           0, "fire", NO_PROP },
+{ 0, BLOCK_FIRE,    0, "fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
 { 0,  52,           0, "spawner", NO_PROP },
 { 0,  53,           0, "oak_stairs", STAIRS_PROP },
 { 0, 134,           0, "spruce_stairs", STAIRS_PROP },
@@ -1010,6 +1010,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
 
 // 1.16
+{ 0, BLOCK_FIRE,       1, "soul_fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
+{ 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+{ 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+{ 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1
+{ 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
 { 0,  88,              1, "soul_soil", NO_PROP },	// with soul sand
 { 0, 214,			   1, "warped_wart_block", NO_PROP },
 { 0, 216,			   1, "basalt", AXIS_PROP },
@@ -1042,7 +1047,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
 { 0, BLOCK_TNT,		   1, "target", NO_PROP },
 { 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
-{ 0,  51,              1, "soul_fire", NO_PROP },
 { 0, 139,             14, "blackstone_wall", NO_PROP },
 { 0, 139,             15, "polished_blackstone_wall", NO_PROP },
 { 0, 139,             16, "polished_blackstone_brick_wall", NO_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
@@ -1074,8 +1078,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
-{ 0, 106,       HIGH_BIT, "soul_fire_torch", TORCH_PROP },
-{ 0, 106,       HIGH_BIT, "soul_fire_wall_torch", TORCH_PROP },
 };
 
 #define HASH_SIZE 512
@@ -1848,9 +1850,15 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 									paletteDataEntry[entry_index] = BlockTranslations[typeIndex].dataVal;
 								}
 								else {
-									// unknown type - call it bedrock, by tradition
+									// unknown type
 									//  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
+#ifdef _DEBUG
+									// Make it bedrock, so we see it's not translated
 									paletteBlockEntry[entry_index] = 7;
+#else
+									// For release, make it air, so it doesn't gunk up the export
+									paletteBlockEntry[entry_index] = 0;
+#endif
 									paletteDataEntry[entry_index] = 0;
 								}
 							}
@@ -2667,27 +2675,29 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 
 				unsigned char *bout = buff + 16 * 16 * 16 * y;
 				unsigned char *dout = data + 16 * 16 * 16 * y;
-				unsigned int bitpull = 0;
+				int bitpull = 0;
 				for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
 					// Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
 					// That is, if you see "5" here, the bits in the 64-bit long long are in order 
 					// which bb should we access for these bits? Divide by 8
 					Restart:
-					unsigned int bbindex = bitpull >> 3;
+					int bbindex = bitpull >> 3;
 					// Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
 					// But, this works.
 					bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
-					unsigned int bbshift = bitpull & 0x7;
+					int bbshift = bitpull & 0x7;
 					// get the top bits out of the topmost byte, on down the row
 					int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
 					// Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
-					if (bbshift + bitlength > 8) {
+					// 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
+					int remainingBitLength = bitlength - (8 - bbshift);
+					while (remainingBitLength > 0) {
 						if (bbindex & 0x7) {
 							// one of the middle bytes, not the bottommost one
 							bits |= (bigbuff[bbindex - 1] << (8 - bbshift)) & bitmask;
 						}
 						else {
-							// bottommost byte, need to jump to topmost byte of next long long
+							// Bottommost byte, and not enough bits left: need to jump to topmost byte of next long long and restart.
 							// If this is the new format and the length of bigbufflen is greater than expected,
 							// e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
 							// incremental up above) and pull entirely from the next +15 index, as shown here.
@@ -2702,14 +2712,23 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 								bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
 							}
 						}
+						// a waste 99% of the time - any faster way? TODO - could unwind loops, could properly track bbindex and bbshift without
+						// recomputing them each time. Maybe try some timing tests one day to see if it matters.
+						remainingBitLength -= 8;
+						bbindex--;
+						bbshift = 0;
 					}
-					// for larger, we'll need to check if bbshift + bitlength is > 64 and if so, then pull in higher bits
 
 					// sanity check
 					if (bits >= entry_index) {
 						// Should never reach here; means that a stored index value is greater than any value in the palette.
 						// TODOTODO how can we make our own valid assert, or use Windows'?
+#ifdef _DEBUG
+						// maximum value is entry_index - 1; which is useful for debugging - see things go bad
 						bits = entry_index - 1;
+#else
+						bits = 0; // which is likely air
+#endif
 					}
 					*bout++ = paletteBlockEntry[bits];
 					*dout++ = paletteDataEntry[bits];

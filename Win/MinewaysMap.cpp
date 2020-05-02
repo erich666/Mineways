@@ -1515,6 +1515,32 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
         }
         break;
 
+    case BLOCK_LANTERN:
+        switch (dataVal & 0x2)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 2:
+            return "Soul Lantern";
+        }
+        break;
+
+    case BLOCK_CAMPFIRE:
+        switch (dataVal & 0x8)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 8:
+            return "Soul Campfire";
+        }
+        break;
+
     case BLOCK_FIRE:
         switch (dataVal & 0xf)
         {
@@ -2246,6 +2272,20 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             break;
         case 1:	// target
             color = 0xE7C7BE;
+            break;
+        }
+        break;
+
+    case BLOCK_CAMPFIRE:
+        dataVal = block->data[voxel];
+        switch (dataVal)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// target
+            color = 0x7AD6D9;
             break;
         }
         break;
@@ -3848,7 +3888,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_DARK_PRISMARINE_STAIRS:
 	case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
 	case BLOCK_PURPUR_DOUBLE_SLAB:
-	case BLOCK_CAMPFIRE:
 		// uses 0-7 - we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if ( dataVal < 8 )
         {
@@ -4087,12 +4126,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_BLACK_BANNER:
 	case BLOCK_RED_SANDSTONE_SLAB:
 	case BLOCK_PURPUR_SLAB:
-		// uses all bits, 0-15
+    case BLOCK_CAMPFIRE:
+        // uses all bits, 0-15
         addBlock = 1;
         break;
 	case BLOCK_SIGN_POST:
 	case BLOCK_ACACIA_SIGN_POST:
-		// uses all bits, 0-15
+		// uses all bits, 0-15, with variations to show other styles
 		addBlock = 1;
 		{
 			// add new style diagonally SE of original
@@ -5031,7 +5071,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 		}
 		break;
 	case BLOCK_LANTERN:
-		// uses bits 0-1
+		// uses bits 0-4
 		if ((dataVal & 0xf) < 2)
 		{
 			addBlock = 1;

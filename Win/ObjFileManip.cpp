@@ -2425,9 +2425,14 @@ static int filterBox(ChangeBlockCommand *pCBC)
 							// This check is more a symptom than a cure;
 							// there seems to be some error where data gets read and is too large, for some reason.
 							// But it's flakey - seems more like uninitialized or corrupted memory. Ugh.
-							type = BLOCK_BEDROCK;
-							gBoxData[boxIndex].type = BLOCK_BEDROCK;
-							gBoxData[boxIndex].data = 0x0;
+#ifdef _DEBUG
+                            type = BLOCK_BEDROCK;
+                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
+#else
+                            type = BLOCK_AIR;
+                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
+#endif
+                            gBoxData[boxIndex].data = 0x0;
 							gBadBlocksInModel = true;
 						}
 						int flags = gBlockDefinitions[type].flags;
@@ -2903,7 +2908,8 @@ static void computeRedstoneConnectivity(int boxIndex)
         (gBoxData[boxIndex + 1].origType == BLOCK_PISTON) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLOWSTONE && (gBoxData[boxIndex + 1].data&0xf) == 0x0) ||   // shroomlight blocks *do* cut off redstone wires
-        (gBoxData[boxIndex + 1].origType == BLOCK_TNT) ||   // and target - these both do not chop
+         // target used to conduct in 20w16a, now it does not - testing here is easier than moving the TNT elsewhere
+        (gBoxData[boxIndex + 1].origType == BLOCK_TNT && !(gBoxData[boxIndex + 1].data & 0x1)) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_REDSTONE_BLOCK) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_SEA_LANTERN) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_STAINED_GLASS))
@@ -8529,8 +8535,9 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_LANTERN: // saveBillboardOrGeometry
 	{
-		swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 		int hanging = (dataVal & 0x1);
+        int soul = (dataVal & 0x2);
+        swatchLoc = soul ? SWATCH_INDEX(13, 42) : SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 
 		gUsingTransform = 1;
 
@@ -8602,11 +8609,14 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	{
 		facing = dataVal & 0x3;
 		int lit = ((dataVal & 0x4) >> 2);
+        int soul = ((dataVal & 0x8) >> 3);
 
-		int fireSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-		int unburntSwatchLoc = fireSwatchLoc + 1;
-		// unburnt or burnt look
-		swatchLoc = unburntSwatchLoc + lit;
+		int fireSwatchLoc = soul ? SWATCH_INDEX(14,42) : SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+		int unburntSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
+		// unburnt or burnt look, and which burn
+        swatchLoc = (lit ? 
+            (soul ? SWATCH_INDEX(15,42) : unburntSwatchLoc + 1 ) :
+            unburntSwatchLoc);
 
 		gUsingTransform = 1;
 		totalVertexCount = gModel.vertexCount;
@@ -8651,7 +8661,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			// fire
 			for (i = 0; i < 2; i++) {
 				littleTotalVertexCount = gModel.vertexCount;
-				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, fireSwatchLoc, fireSwatchLoc, fireSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_CAMPFIRE, dataVal, fireSwatchLoc, fireSwatchLoc, fireSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -11373,8 +11383,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         switch (redstoneDirFlags)
         {
         case 0x0:
-            // no connections, just a dot
-            swatchLoc = redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF;
+            // no connections, just a dot; in 20w18a of 1.16 beta the dot turned into a cross
+            swatchLoc = (gMinecraftWorldVersion >= 2532 ) ? (redstoneOn ? REDSTONE_WIRE_4 : REDSTONE_WIRE_4_OFF) :
+                (redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF);
             break;
 
         case FLAT_FACE_LO_X:
@@ -17180,7 +17191,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                     {
                     case 0x0:
                         // no connections, just a dot
-                        swatchLoc = redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF;
+                        swatchLoc = (gMinecraftWorldVersion >= 2532) ? (redstoneOn ? REDSTONE_WIRE_4 : REDSTONE_WIRE_4_OFF) :
+                            (redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF);
                         break;
 
                     case FLAT_FACE_LO_X:
@@ -17313,8 +17325,20 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
         case BLOCK_PUMPKIN_STEM:
         case BLOCK_MELON_STEM:
 		case BLOCK_SEAGRASS:
-		case BLOCK_CAMPFIRE:
-			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
+            break;
+        case BLOCK_CAMPFIRE:
+            switch (dataVal & 0x8)
+            {
+            default:
+                assert(0);
+            case 0:
+                swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+                break;
+            case 0x8: // soul campfire
+                swatchLoc = getCompositeSwatch(SWATCH_INDEX(14, 42), backgroundIndex, faceDirection, 0);
+                break;
+            }
             break;
         case BLOCK_POPPY:						// getSwatch
             if ( (dataVal & 0xf) > 0 )
@@ -18892,9 +18916,15 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
         break;
     case BLOCK_CAMPFIRE:
         // is it lit?
-        if ( splitByBlockType && !(dataVal & 0x4)) {
-            // not lit, so turn it off
-            emission = 0.0f;
+        if (splitByBlockType) {
+            if (!(dataVal & 0x4)) {
+                // not lit, so turn it off
+                emission = 0.0f;
+            }
+            else if (dataVal & 0x8) {
+                // soul campfire
+                emission = 10.0f;
+            }
         }
         break;
     // TODOTODO SOUL LANTERN, CAMPFIRE
@@ -21759,8 +21789,13 @@ static int writeSchematicBox()
                     if ( gBoxData[boxIndex].type == BLOCK_UNKNOWN )
                     {
                         // convert to bedrock, I guess...
+#ifdef _DEBUG
                         data = 0x0;
                         type = BLOCK_BEDROCK;
+#else
+                        data = 0x0;
+                        type = BLOCK_AIR;
+#endif
                         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
                     }
                 }

@@ -359,18 +359,6 @@ Even with error checking, it's definitely possible to set combinations that may 
 
 <tr>
 <td>
-Export for rendering: <i>c:\temp\my_save.obj</i><br>
-Export for 3D printing: <i>my_print.stl</i><br>
-Export schematic: <i>c:\temp\my schematics\my_object.schematic</i><br>
-Export map: <i>my_map.png</i>
-</td>
-<td>
-Export the selected area using the given file type to the specified file.
-</td>
-</tr>
-
-<tr>
-<td>
 Jump to Spawn<br>
 Jump to Player<br>
 Jump to Model
@@ -455,6 +443,18 @@ Give more export memory: <i>YES</i>
 </td>
 <td>
 On the 32-bit version (and on the Mac) you can run out of memory on export. This option frees up all the allocated map data and reloads it only as needed during export, giving Mineways more memory to use for its other processes. At the end of export the visible world is reloaded for display. This option can cause export to go more slowly.
+</td>
+</tr>
+
+<tr>
+<td>
+Export for rendering: <i>c:\temp\my_save.obj</i><br>
+Export for 3D printing: <i>my_print.stl</i><br>
+Export schematic: <i>c:\temp\my schematics\my_object.schematic</i><br>
+Export map: <i>my_map.png</i>
+</td>
+<td>
+Export the selected area using the given file type to the specified file. Note that (unlike the manual process, where you pick the file then set options) this export happens immediately, so you need to set all your export options before giving this command.
 </td>
 </tr>
 
@@ -946,7 +946,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/5/2020</p>
+		<p id="lastUpdate">Last updated 4/29/2020</p>
 	</div>
 </div>
 
