@@ -754,9 +754,9 @@ static struct {
 	{  8, 42,   6, 0, L"basalt_side", L"", SWATCH_REPEAT_ALL },
     {  9, 42,   6, 0, L"polished_basalt_top", L"", SWATCH_REPEAT_ALL },
     { 10, 42,   6, 0, L"polished_basalt_side", L"", SWATCH_REPEAT_ALL },
-	{ 11, 42,   6, 0, L"soul_fire_torch", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+	{ 11, 42,   6, 0, L"soul_torch", L"soul_fire_torch", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // second name from an earlier beta
 	{ 12, 42,   6, 0, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
-	{ 13, 42,   6, 0, L"soul_fire_lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+	{ 13, 42,   6, 0, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
 	{ 14, 42,   6, 0, L"soul_campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
 	{ 15, 42,   6, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  0, 43,   6, 0, L"crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
@@ -819,7 +819,7 @@ static struct {
     {  9, 46,   6, 0, L"jigsaw_lock", L"", SWATCH_REPEAT_ALL },
     { 10, 46,   6, 0, L"target_top", L"", SWATCH_REPEAT_ALL },
     { 11, 46,   6, 0, L"target_side", L"", SWATCH_REPEAT_ALL },
-    { 12, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
+    { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
     { 14, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
     { 15, 46,   6, 0, L"MWO_flattened_soul_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above

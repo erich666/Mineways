@@ -84,7 +84,7 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
 const char * IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int *ox, int *oy, int *oz, int *type, int *dataVal, int *biome, bool schematic);
 const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block = NULL, int xoff = 0, int y = 0, int zoff = 0);
 void CloseAll();
-WorldBlock * LoadBlock(WorldGuide *pWorldGuide,int bx,int bz,int mcVersion);
+WorldBlock * LoadBlock(WorldGuide *pWorldGuide,int bx,int bz,int mcVersion, int& retCode);
 void ClearBlockReadCheck();
 int UnknownBlockRead();
 void CheckUnknownBlock( int check );

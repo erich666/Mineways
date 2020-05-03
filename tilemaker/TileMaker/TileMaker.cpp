@@ -513,8 +513,8 @@ int wmain(int argc, wchar_t* argv[])
 							}
 						}
 						else {
-							wprintf(L"WARNING: file '%s.png' and alternate file '%s' both found.\n  File '%s' ignored, only because it was found second.\n  To use it, remove '%s.png' from the blocks directory.\n",
-								gTilesTable[index].filename, ffd.cFileName, ffd.cFileName, gTilesTable[index].filename);
+							wprintf(L"WARNING: both file '%s.png' and alternate file '%s.png' were found.\n  File '%s.png' is ignored, because it is an alternate file name for the same tile.\n  To use it instead, remove file '%s.png' from the blocks directory.\n",
+								gTilesTable[index].filename, gTilesTable[index].altFilename, gTilesTable[index].altFilename, gTilesTable[index].filename);
 							gWarningCount++;
 						}
 						//else

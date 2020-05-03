@@ -3311,7 +3311,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
+        int retCode;    // TODOTODO if code > 2, decode it for what error(s) are there
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, retCode);
         if ((block == NULL) || (block->blockType == 2) ) //blank tile
         {
             // highlighting off, or fully outside real area? Use blank tile.
@@ -5328,8 +5329,10 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
 }
 
 // return NULL if no block loaded.
-WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
+WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion, int& retCode)
 {
+    retCode = 0;
+
     // if there's no world, simply return
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
         return NULL;
@@ -5462,14 +5465,15 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
     }
     else {
         // it's a real world or schematic or no world is loaded
-
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             BlockEntity blockEntities[16 * 16 * 256];
 
-            block->blockType = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
 
             // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
-            if ((block->blockType > 0) && (block->numEntities > 0)) {
+            if ((retCode > 0 && retCode <= 2) && (block->numEntities > 0)) {
+                // values 1 and 2 are valid; 3's not used
+                block->blockType = retCode & 0x3;
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity *)malloc(block->numEntities * sizeof(BlockEntity));
 
@@ -5486,7 +5490,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion)
         }
 
 		// is block valid?
-        if (block->blockType >0 ) {
+        if (retCode > 0) {
 
 			// does block have anything in it other than air?
 			if (block->blockType == 1) {

@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 757
+#define NUM_TRANS 758
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -1010,11 +1010,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
 
 // 1.16
-{ 0, BLOCK_FIRE,       1, "soul_fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
-{ 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-{ 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-{ 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1
-{ 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
 { 0,  88,              1, "soul_soil", NO_PROP },	// with soul sand
 { 0, 214,			   1, "warped_wart_block", NO_PROP },
 { 0, 216,			   1, "basalt", AXIS_PROP },
@@ -1083,6 +1078,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
+{ 0, BLOCK_FIRE,       1, "soul_fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
+{ 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+{ 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+{ 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1
+{ 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
+{ 0, 107,       HIGH_BIT, "chain", NO_PROP },
 };
 
 #define HASH_SIZE 512
@@ -1540,11 +1541,15 @@ unsigned char mod16(int val)
     return (unsigned char)(val & 0xf);
 }
 
+// need to move to nbt.h TODOTODO - also add error codes for true return errors, below, the -1, -2, etc.
+#define		NBT_ERROR_NAME_NOT_FOUND	0x4
+
 // return negative value on error, 1 on read OK, 2 on read and it's empty
 int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion)
 {
 	int len, nsections;
 	int biome_save;
+	int returnCode = 1;	// means "fine"
 	//int found;
 
 	//Level/Blocks
@@ -1864,7 +1869,9 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 									// For release, make it air, so it doesn't gunk up the export
 									paletteBlockEntry[entry_index] = 0;
 #endif
+									// data value always reset to 0
 									paletteDataEntry[entry_index] = 0;
+									returnCode |= NBT_ERROR_NAME_NOT_FOUND;
 								}
 							}
 							else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {

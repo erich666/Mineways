@@ -423,6 +423,8 @@ static int gDebugTransparentType = UNINITIALIZED_INT;
 
 static long gMySeed = 12345;
 
+static int gBlockRetCode = 0;
+
 // number in lode_png when file not found
 #define PNG_FILE_DOES_NOT_EXIST		78
 
@@ -1994,7 +1996,7 @@ static void findChunkBounds(WorldGuide *pWorldGuide, int bx, int bz, IBox *world
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
 		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
@@ -2089,7 +2091,7 @@ static void extractChunk(WorldGuide *pWorldGuide, int bx, int bz, IBox *edgeWorl
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
 		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
@@ -3050,7 +3052,8 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
 	case BLOCK_SWEET_BERRY_BUSH:
 	case BLOCK_CAMPFIRE:
-		gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
+    //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
+        gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
 		// easy ones: flattops
@@ -3800,7 +3803,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 	case BLOCK_SEAGRASS:
 	case BLOCK_TALL_SEAGRASS:
-		return saveBillboardFaces(boxIndex, type, BB_GRID);
+        return saveBillboardFaces(boxIndex, type, BB_GRID);
 		break;	// saveBillboardOrGeometry
 
 	case BLOCK_CORAL_FAN:
@@ -8310,7 +8313,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			gUsingTransform = 1;
 			swatchLoc = SWATCH_INDEX(7, 41);
 			totalVertexCount = gModel.vertexCount;
-			saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 8, 8, 8);
+			saveBoxMultitileGeometry(boxIndex, BLOCK_STONECUTTER, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 8, 8, 8);
 			totalVertexCount = gModel.vertexCount - totalVertexCount;
 			identityMtx(mtx);
 			translateToOriginMtx(mtx, boxIndex);
@@ -8563,10 +8566,11 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 		// chain & connector
 		if (!gPrint3D) {
+            // TODO: maybe make the chains not have lit materials by playing games with the type passed in here?
 			// connector at top
 			for (i = 0; i < 2 - hanging; i++) {
 				littleTotalVertexCount = gModel.vertexCount;
-				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 4, 6, 8, 8);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 4, 6, 8, 8);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -8579,7 +8583,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			if (hanging) {
 				// link
 				littleTotalVertexCount = gModel.vertexCount;
-				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 11, 15, 8, 8);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 11, 15, 8, 8);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -8590,7 +8594,7 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 
 				// top link
 				littleTotalVertexCount = gModel.vertexCount;
-				saveBoxMultitileGeometry(boxIndex, BLOCK_BAMBOO, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 8, 10, 8, 8);
+				saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 11, 14, 8, 10, 8, 8);
 				littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 				identityMtx(mtx);
 				translateToOriginMtx(mtx, boxIndex);
@@ -8604,6 +8608,40 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 		gUsingTransform = 0;
 	}
 	break; // saveBillboardOrGeometry
+
+    case BLOCK_CHAIN: // saveBillboardOrGeometry
+    {
+        if (!gPrint3D) {
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+
+            gUsingTransform = 1;
+
+            // left half
+            littleTotalVertexCount = gModel.vertexCount;
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(littleTotalVertexCount, mtx);
+
+            // right half
+            littleTotalVertexCount = gModel.vertexCount;
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(littleTotalVertexCount, mtx);
+
+            gUsingTransform = 0;
+        }
+    }
+    break; // saveBillboardOrGeometry
 
 	case BLOCK_CAMPFIRE: // saveBillboardOrGeometry
 	{
@@ -10606,21 +10644,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 			swatchLoc = SWATCH_INDEX(dataVal * 2 + 2, 18);
 		}
 		break;
-	case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
-		wobbleIt = true;
-		if (dataVal >= 8)
-		{
-			// top half of plant
-			swatchLoc = SWATCH_INDEX(15, 33);
-			// for material differentiation set the dataVal to the bottom half
-			origDataVal = gBoxData[boxIndex - 1].data;
-		}
-		//else
-		//{
-		//	// bottom half of plant, which is given
-		//}
-		break;
-	case BLOCK_KELP:				// saveBillboardFacesExtraData
+    case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
+        wobbleIt = true;
+        if (dataVal >= 8)
+        {
+            // top half of plant
+            swatchLoc = SWATCH_INDEX(15, 33);
+            // for material differentiation set the dataVal to the bottom half
+            origDataVal = gBoxData[boxIndex - 1].data;
+        }
+        //else
+        //{
+        //	// bottom half of plant, which is given
+        //}
+        break;
+    case BLOCK_KELP:				// saveBillboardFacesExtraData
 		if (dataVal > 0)
 		{
 			// subtract 1 if needed to get to "kelp", the top of the plant
@@ -16686,7 +16724,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 0, 10, 0);
                 break;
             case 1:
-                // target, because, like TNT, target does not "chop" redstone wired
+                // target. Put here because, like TNT, target does not "chop" redstone wired - however, this behavior then changed so that it now does, in 20w18a
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 11, 46, 10, 46);
                 break;
             case 2:
@@ -23929,7 +23967,7 @@ static int analyzeChunk(WorldGuide *pWorldGuide, Options *pOptions, int bx, int 
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
 		if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return minHeight;
 
