@@ -440,7 +440,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED]={
 	{ /* 360 */ "Double Crimson Slab",   		0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 	{ /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 	{ /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	//32/50 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
-	{ /* 363 */ "Chain",		          		0xC79F63, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_CUTOUTS | BLF_MAYWATERLOG },    // removed | BLF_FLATTEN_SMALL - seemed debatable
+	{ /* 363 */ "Weeping Vines",		  		0x8D211A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+	{ /* 364 */ "Chain",		          		0x3E4453, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_CUTOUTS | BLF_MAYWATERLOG },    // removed | BLF_FLATTEN_SMALL - seemed debatable
 
 	// Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

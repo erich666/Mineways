@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 758
+#define NUM_TRANS 762
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -1083,7 +1083,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
 { 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1
 { 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
-{ 0, 107,       HIGH_BIT, "chain", NO_PROP },
+{ 0, 107,       HIGH_BIT, "weeping_vines_plant", TRULY_NO_PROP },
+{ 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
+{ 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
+{ 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
+{ 0, 108,       HIGH_BIT, "chain", NO_PROP },
 };
 
 #define HASH_SIZE 512

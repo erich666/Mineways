@@ -1388,6 +1388,20 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
             return "Warped Stairs";
         }
         break;
+
+    case BLOCK_WEEPING_VINES:
+        // note we ignore BIT_32, which is top and bottom
+        switch (dataVal & 0xf) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Twisting Vines";
+        }
+        break;
+
     case BLOCK_PRISMARINE_BRICK_STAIRS:
         switch (dataVal & (BIT_32 | BIT_16)) {
         default:
@@ -2127,6 +2141,21 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
             break;
         case 4:	// polished blackstone brick
             color = 0x322E36;
+            break;
+        }
+        break;
+
+    case BLOCK_WEEPING_VINES:
+        dataVal = block->data[voxel];
+        // The 0x1 is the type
+        switch (dataVal & 0x1)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// twisting
+            color = 0x148C7C;
             break;
         }
         break;
@@ -4978,18 +5007,28 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
 		break;
-	case BLOCK_TALL_SEAGRASS:
-		if (dataVal < 1)
-		{
-			addBlock = 1;
-			// add leaves above
-			bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-			block->grid[bi] = (unsigned char)(BLOCK_TALL_SEAGRASS & 0xFF);
-			// not entirely sure about this number, but 10 seems to be the norm
-			block->data[bi] = (unsigned char)(8 | HIGH_BIT);	// like flower, add 8
-		}
-		break;
-	case BLOCK_KELP:
+    case BLOCK_TALL_SEAGRASS:
+        if (dataVal < 1)
+        {
+            addBlock = 1;
+            // add leaves above
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)(BLOCK_TALL_SEAGRASS & 0xFF);
+            block->data[bi] = (unsigned char)(8 | HIGH_BIT);	// like flower, add 8
+        }
+        break;
+    case BLOCK_WEEPING_VINES:
+        if (dataVal < 2)
+        {
+            addBlock = 1;
+            // add leaves above
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
+            // twisting vines are 0x1
+            block->data[bi] = (unsigned char)((dataVal & 0x1) | BIT_32);
+        }
+        break;
+    case BLOCK_KELP:
 		if (dataVal < 1)
 		{
 			addBlock = 1;

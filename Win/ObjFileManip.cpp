@@ -3052,6 +3052,7 @@ static int computeFlatFlags( int boxIndex )
 	case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
 	case BLOCK_SWEET_BERRY_BUSH:
 	case BLOCK_CAMPFIRE:
+    case BLOCK_WEEPING_VINES:
     //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex-1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -3798,7 +3799,8 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 	case BLOCK_CORAL:
 	case BLOCK_DEAD_CORAL:
 	case BLOCK_SWEET_BERRY_BUSH:
-		return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
+    case BLOCK_WEEPING_VINES:
+        return saveBillboardFaces( boxIndex, type, BB_FULL_CROSS );
         break;	// saveBillboardOrGeometry
 
 	case BLOCK_SEAGRASS:
@@ -10329,6 +10331,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 	bool wobbleIt = false;
 	int origDataVal = dataVal;
     int origUsingTransform = gUsingTransform;
+    bool fullHeight = false;
 
 	assert(!gPrint3D);
 
@@ -10422,7 +10425,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             swatchLoc = SWATCH_INDEX(4, 44);
             break;
         }
-        case BLOCK_TORCH:				// saveBillboardFacesExtraData
+        break;
+    case BLOCK_TORCH:				// saveBillboardFacesExtraData
 		// redstone torches stick out a bit, so need billboards
 	case BLOCK_REDSTONE_TORCH_OFF:
 	case BLOCK_REDSTONE_TORCH_ON:
@@ -10658,6 +10662,23 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         //	// bottom half of plant, which is given
         //}
         break;
+    case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
+        // the cross object should go the whole height
+        fullHeight = true;
+        if (dataVal & BIT_32)
+        {
+            // use short half of plant - twisting vines?
+            swatchLoc = (dataVal & 0x1) ? swatchLoc+15 : swatchLoc-1;
+            // for material differentiation set the dataVal to the bottom half
+            origDataVal = gBoxData[boxIndex - 1].data;
+        }
+        else {
+            // full plant; is it twisting vines instead?
+            if (dataVal & 0x1) {
+                swatchLoc += 16;
+            }
+        }
+        break;
     case BLOCK_KELP:				// saveBillboardFacesExtraData
 		if (dataVal > 0)
 		{
@@ -10794,8 +10815,14 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
             // approximate width of billboard across block, eyeballing it.
             texelWidth = 14.5f/16.0f;
-            texelLow = (1.0f - texelWidth)/2.0f;
-            texelHigh = (1.0f + texelWidth)/2.0f;
+            if ( fullHeight ) {
+                texelLow = 0.0f;
+                texelHigh = 1.0f;
+            }
+            else {
+                texelLow = (1.0f - texelWidth) / 2.0f;
+                texelHigh = (1.0f + texelWidth) / 2.0f;
+            }
             faceCount = 4;
             // two paired billboards
             faceDir[0] = DIRECTION_LO_X_HI_Z;
@@ -17437,12 +17464,15 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             } // else it's an unknown flower or flower top (weird), so just keep the default swatchLoc
             swatchLoc = getCompositeSwatch( swatchLoc, backgroundIndex, faceDirection, 0 );
             break;
-		case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
-			// bottom half of plant
-			swatchLoc = SWATCH_INDEX(14, 33);
-			swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
-			break;
-		case BLOCK_SAPLING:						// getSwatch
+        case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
+            swatchLoc = SWATCH_INDEX(14, 33);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
+            swatchLoc = (dataVal & 0x1) ? swatchLoc + 15 : swatchLoc - 1;   // twisting or weeping, and use the short bit
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_SAPLING:						// getSwatch
             switch (dataVal & 0x7)
             {
             default:
