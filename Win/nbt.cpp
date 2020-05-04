@@ -1019,8 +1019,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  40,              1, "crimson_fungus", NO_PROP },
 { 0,  40,              2, "warped_fungus", NO_PROP },
 { 0,  31,			   3, "nether_sprouts", NO_PROP },
-{ 0,  31,              4, "crimson_roots", NO_PROP },
-{ 0,  31,              5, "warped_roots", NO_PROP },
+{ 0,  31,              4, "crimson_roots", NO_PROP },	// We *don't* put these two as types of red poppy, but *do* make them this way when put in a pot.
+{ 0,  31,              5, "warped_roots", NO_PROP },	// This is done because the "in the pot" tile is different than the "in the wild" version, so this made it easier. Ugh.
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 12, "potted_crimson_fungus", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 13, "potted_warped_fungus", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 14, "potted_crimson_roots", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 15, "potted_warped_roots", NO_PROP },
 { 0,  89,              1, "shroomlight", NO_PROP },
 { 0, 162,     BIT_16 | 2, "crimson_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
 { 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
@@ -1087,10 +1091,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
 { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
 { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
-{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 12, "potted_crimson_fungus", NO_PROP },
-{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 13, "potted_warped_fungus", NO_PROP },
-{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 14, "potted_crimson_roots", NO_PROP },
-{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 15, "potted_warped_roots", NO_PROP },
 { 0, 108,       HIGH_BIT, "chain", NO_PROP },
 };
 
