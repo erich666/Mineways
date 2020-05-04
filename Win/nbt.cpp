@@ -309,7 +309,7 @@ static int worldVersion = 0;
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
 
 
-#define NUM_TRANS 762
+#define NUM_TRANS 766
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
 //hash ID data name flags
@@ -1087,6 +1087,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
 { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
 { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 12, "potted_crimson_fungus", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 13, "potted_warped_fungus", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 14, "potted_crimson_roots", NO_PROP },
+{ 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 15, "potted_warped_roots", NO_PROP },
 { 0, 108,       HIGH_BIT, "chain", NO_PROP },
 };
 

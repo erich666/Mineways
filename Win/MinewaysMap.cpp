@@ -681,9 +681,17 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "Potted Cornflower";
 		case RED_FLOWER_FIELD | 10:
 			return "Potted Lily of the Valley";
-		case RED_FLOWER_FIELD | 11:
-			return "Potted Wither Rose";
-		case SAPLING_FIELD | 0:
+        case RED_FLOWER_FIELD | 11:
+            return "Potted Wither Rose";
+        case RED_FLOWER_FIELD | 12:
+            return "Potted Crimson Fungus";
+        case RED_FLOWER_FIELD | 13:
+            return "Potted Warped Fungus";
+        case RED_FLOWER_FIELD | 14:
+            return "Potted Crimson Root";
+        case RED_FLOWER_FIELD | 15:
+            return "Potted Warped Root";
+        case SAPLING_FIELD | 0:
 		case 3:
 			return "Potted Oak Sapling";
 		case SAPLING_FIELD | 1:
@@ -751,7 +759,15 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
 			return "Lily of the Valley";
 		case 11:
 			return "Wither Rose";
-		}
+        case 12:
+            return "Crimson Fungus";
+        case 13:
+            return "Warped Fungus";
+        case 14:
+            return "Crimson Root";
+        case 15:
+            return "Warped Root";
+        }
 		break;
 
 	case BLOCK_DOUBLE_FLOWER:
@@ -4088,19 +4104,27 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			case 11:
 				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
 				block->data[neighborIndex] = RED_FLOWER_FIELD | 2;
-				break;
+                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex2] = RED_FLOWER_FIELD | 12;
+                break;
 			case 12:
 				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
 				block->data[neighborIndex] = RED_FLOWER_FIELD | 3;
-				break;
+                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex2] = RED_FLOWER_FIELD | 13;
+                break;
 			case 13:
 				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
 				block->data[neighborIndex] = RED_FLOWER_FIELD | 4;
-				break;
+                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex2] = RED_FLOWER_FIELD | 14;
+                break;
 			case 14:
 				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
 				block->data[neighborIndex] = RED_FLOWER_FIELD | 5;
-				break;
+                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex2] = RED_FLOWER_FIELD | 15;
+                break;
 			case 15:
 				block->grid[neighborIndex] = BLOCK_FLOWER_POT;
 				block->data[neighborIndex] = RED_FLOWER_FIELD | 6;

@@ -6215,8 +6215,12 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			case RED_FLOWER_FIELD | 0x8:
 			case RED_FLOWER_FIELD | 0x9:
 			case RED_FLOWER_FIELD | 0xA:
-			case RED_FLOWER_FIELD | 0xB:
-				// blue orchid through wither rose
+            case RED_FLOWER_FIELD | 0xB:
+            case RED_FLOWER_FIELD | 0xC:
+            case RED_FLOWER_FIELD | 0xD:
+            case RED_FLOWER_FIELD | 0xE:
+            case RED_FLOWER_FIELD | 0xF:
+                // blue orchid through wither rose through warped roots
                 typeB = BLOCK_POPPY;
                 dataValB = dataVal & 0xf;
                 break;
@@ -10618,10 +10622,29 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 				// row 20 has these flowers; else poppy (12,0) is used
 				swatchLoc = SWATCH_INDEX(dataVal - 1, 19);
 			}
-			else {
+			else if (dataVal < 12) {
 				// cornflower, lily of the valley, wither rose
 				swatchLoc = SWATCH_INDEX(dataVal - 6, 37);
 			}
+            else {
+                // crimson/warped fungus, roots
+                switch (dataVal) {
+                default:
+                    assert(0);
+                case 12:
+                    swatchLoc = SWATCH_INDEX(4, 43);
+                    break;
+                case 13:
+                    swatchLoc = SWATCH_INDEX(4, 44);
+                    break;
+                case 14:
+                    swatchLoc = SWATCH_INDEX(7, 43);
+                    break;
+                case 15:
+                    swatchLoc = SWATCH_INDEX(7, 44);
+                    break;
+                }
+            }
 		}
 		break;
 	case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
