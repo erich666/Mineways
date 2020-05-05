@@ -316,7 +316,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 // hash is computed once when 1.13 data is first read in.
 // second column is "traditional" type value, as found in blockInfo.cpp; third column is high-order bit and data value, fourth is Minecraft name
 // Note: the HIGH_BIT gets "transferred" to the type in MinewaysMap's IDBlock() method, about 100 lines in.
-// The list of names: https://minecraft.gamepedia.com/Java_Edition_data_values
+// The list of names and data values: https://minecraft.gamepedia.com/Java_Edition_data_values
 // and older https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
 //hash,ID,BIT|dataval,  name, common properties flags
 { 0,   0,           0, "air", NO_PROP },
@@ -462,7 +462,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 126,           4, "acacia_slab", SLAB_PROP },
 { 0, 126,           5, "dark_oak_slab", SLAB_PROP },
 { 0,  45,           0, "bricks", NO_PROP },
-{ 0,  46,           0, "tnt", NO_PROP },
+{ 0, BLOCK_TNT,     0, "tnt", TRULY_NO_PROP },
 { 0,  47,           0, "bookshelf", NO_PROP },
 { 0,  48,           0, "mossy_cobblestone", NO_PROP },
 { 0,  49,           0, "obsidian", NO_PROP },
@@ -1049,7 +1049,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 112,              2, "cracked_nether_bricks", NO_PROP },
 { 0, BLOCK_CRAFTING_TABLE,	4, "lodestone", NO_PROP },
 { 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
-{ 0, BLOCK_TNT,		   1, "target", NO_PROP },
+{ 0, BLOCK_TNT,		   1, "target", TRULY_NO_PROP },
 { 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
 { 0, 139,             14, "blackstone_wall", NO_PROP },
 { 0, 139,             15, "polished_blackstone_wall", NO_PROP },
@@ -1142,7 +1142,12 @@ void makeHashTable()
 		int index = BlockTranslations[i].hashSum & HASH_MASK;
 		HashLists[hashStart[index]++] = i;
 	}
-	// done once to initialize gBlockDefinitions[i].subtype_mask values properly
+	// done once to initialize gBlockDefinitions[i].subtype_mask values properly.
+	// These values determine if a bit determines if an object is a separate type of
+	// thing, e.g., granite vs. stone, or needs a separate material, e.g., redstone wire
+	// at different levels of illumination.
+	// Note that these values are *entirely* determined here. They are also shown in the
+	// table in blockInfo.cpp, but those are just for reference purposes.
 	static bool determineMasks = true;
 	if (determineMasks)
 	{
@@ -1173,7 +1178,8 @@ void makeHashTable()
 					return;
 				}
 				// note bits used for different objects - high-bit is masked off.
-				mask_array[BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1] |= BlockTranslations[i].dataVal & 0x7F;
+				int type = BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1;
+				mask_array[type] |= BlockTranslations[i].dataVal & 0x7F;
 			}
 		}
 		// special cases: double-slabs should be given same bits as slabs
@@ -2291,6 +2297,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(token, "instrument") == 0) {}
 											else if (strcmp(token, "drag") == 0) {}
 											else if (strcmp(token, "has_record") == 0) {}	// jukebox
+											else if (strcmp(token, "orientation") == 0) {}	// jigsaw block TODOTODO
+											else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
 											else {
 												// unknown property, let's show it: put a break here in DEBUG and
 												// put text in "Actions":
