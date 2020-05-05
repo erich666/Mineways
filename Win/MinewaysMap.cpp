@@ -919,7 +919,7 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
         break;
 
     case BLOCK_DIRT:
-		switch (dataVal)
+		switch (dataVal & 0x7)
 		{
 		default:
 			assert(0);
@@ -2291,6 +2291,9 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         case 2:	// podzol
             color = 0x5F4118;
             break;
+        case SNOWY_BIT|2:	// podzol with snow
+            color = 0xFCFFFF;
+            break;
         case 3:	// crimson nylium
             color = 0x852727;
             break;
@@ -2499,6 +2502,17 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
         break;
 
     case BLOCK_GRASS_BLOCK:
+        dataVal = block->data[voxel];
+        affectedByBiome = 1;
+        if (dataVal & SNOWY_BIT) {
+            color = 0xFCFFFF;
+        }
+        else {
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+        }
+        break;
+
     case BLOCK_VINES:
         affectedByBiome = 1;
         lightComputed = true;
@@ -3805,6 +3819,15 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
+
+    case BLOCK_GRASS_BLOCK:
+        // uses 0,8 - snowy
+        if ((dataVal & 0x7) == 0)
+        {
+            addBlock = 1;
+        }
+        break;
+
     case BLOCK_SANDSTONE:
     case BLOCK_RED_SANDSTONE:
     case BLOCK_SOUL_SAND:
@@ -3867,7 +3890,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             addBlock = 1;
         }
         break;
-    case BLOCK_DIRT:
     case BLOCK_CRAFTING_TABLE:
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
@@ -3884,6 +3906,13 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			addBlock = 1;
 		}
 		break;
+    case BLOCK_DIRT:
+        // uses 0-4, 10 for podzol with snow
+        if (dataVal < 5 || dataVal == 10)
+        {
+            addBlock = 1;
+        }
+        break;
     case BLOCK_GRASS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:

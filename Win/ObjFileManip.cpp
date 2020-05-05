@@ -15373,7 +15373,7 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_DIRT:						// getSwatch
-            switch ( dataVal & 0xf )
+            switch ( dataVal & 0x7 )
             {
             default:
                 assert(0);
