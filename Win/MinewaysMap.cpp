@@ -3723,7 +3723,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
                 b = *clr; // ++ if you add alpha
                 // highlight the block if in selected area, as otherwise it looks like it's missing with schematics.
                 // Make selected area slightly red
-                if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
+                if (gBoxHighlightUsed &&
+                    bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
                     bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
                 {
                     // blend in highlight color

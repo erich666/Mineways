@@ -1094,8 +1094,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0, 108,       HIGH_BIT, "chain", NO_PROP },
 };
 
-#define HASH_SIZE 512
-#define HASH_MASK 0x1ff
+#define HASH_SIZE 1024
+#define HASH_MASK 0x3ff
 
 int HashLists[HASH_SIZE + NUM_TRANS];
 int* HashArray[HASH_SIZE];
