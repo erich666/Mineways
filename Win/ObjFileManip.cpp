@@ -10808,7 +10808,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 		break;
 
     case BLOCK_FIRE:
-        if (dataVal & 0x1) {
+        if (dataVal & BIT_16) {
             swatchLoc = SWATCH_INDEX(12, 42);
         }
         break;
@@ -19064,13 +19064,13 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
         break;
     case BLOCK_FIRE:
         if (splitByBlockType) {
-            switch (dataVal & 0xf) {
+            switch (dataVal & BIT_16) {
             default:
                 assert(0);
             case 0:
                 // default: emission = 15.0f;
                 break;
-            case 1: // soul fire
+            case BIT_16: // soul fire
                 emission = 10.0f;
                 break;
             }

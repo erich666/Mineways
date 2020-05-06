@@ -106,6 +106,7 @@ static Options gOptions = {0,   // which world is visible
     NULL};
 
 static WorldGuide gWorldGuide;
+// find versions here: https://minecraft.gamepedia.com/Data_version
 static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
 static int gMinecraftVersion = 0;

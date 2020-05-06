@@ -468,7 +468,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  49,           0, "obsidian", NO_PROP },
 { 0,  50,           0, "torch", TORCH_PROP },
 { 0,  50,           0, "wall_torch", TORCH_PROP },
-{ 0, BLOCK_FIRE,    0, "fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
+{ 0, BLOCK_FIRE,    0, "fire", NO_PROP },
 { 0,  52,           0, "spawner", NO_PROP },
 { 0,  53,           0, "oak_stairs", STAIRS_PROP },
 { 0, 134,           0, "spruce_stairs", STAIRS_PROP },
@@ -1082,7 +1082,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
 { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
-{ 0, BLOCK_FIRE,       1, "soul_fire", TRULY_NO_PROP },	// must clear, as there's an age and side properties
+{ 0, BLOCK_FIRE,  BIT_16, "soul_fire", NO_PROP },
 { 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
 { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
 { 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1

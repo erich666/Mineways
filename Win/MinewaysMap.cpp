@@ -1603,14 +1603,14 @@ const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block, int 
         break;
 
     case BLOCK_FIRE:
-        switch (dataVal & 0xf)
+        switch (dataVal & BIT_16)
         {
         default:
             assert(0);
             break;
         case 0:
             break;
-        case 1:
+        case BIT_16:
             return "Soul Fire";
         }
         break;
@@ -2374,13 +2374,13 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 
     case BLOCK_FIRE:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & BIT_16)
         {
         default:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
-        case 1:	// target
+        case BIT_16:	// soul fire
             color = 0x6BD0D5;
             break;
         }
@@ -3829,6 +3829,10 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         if ( dataVal < 2 )
         {
             addBlock = 1;
+            if (dataVal == 1) {
+                // soul fire
+                finalDataVal = BIT_16;
+            }
         }
         break;
 
