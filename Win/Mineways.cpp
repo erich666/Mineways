@@ -71,7 +71,7 @@ static bool gAlwaysFail = false;
 #define SLIDER_LEFT	60
 
 // should probably be a subroutine, but too many variables...
-#define REDRAW_ALL  draw();\
+#define REDRAW_ALL  drawTheMap();\
                     gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,\
                         bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome,gWorldGuide.type==WORLD_LEVEL_TYPE);\
                     updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);\
@@ -205,6 +205,9 @@ static HANDLE gExecutionLogfile = 0x0;
 static wchar_t *gCustomCurrency = NULL;
 
 static int gSubError = 0;
+
+static int gOneTimeDrawError = true;
+static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
 
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
@@ -341,7 +344,7 @@ static int setWorldPath(TCHAR *path);
 static void enableBottomControl( int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel );
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
-static void draw();
+static void drawTheMap();
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel);
 static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface( HWND hWnd, HWND hwndSlider, HWND hwndLabel);
@@ -416,6 +419,7 @@ static bool commandExportFile(ImportedSet & is, wchar_t *error, int fileMode, ch
 static bool openLogFile(ImportedSet & is);
 //static void logHandles();
 static void showLoadWorldError(int loadErr);
+static void checkMapDrawErrorCode(int retCode);
 static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName);
 
 int APIENTRY _tWinMain(
@@ -2153,7 +2157,7 @@ RButtonUp:
         }
         //InvalidateRect(hWnd,NULL,TRUE);
         //UpdateWindow(hWnd);
-        draw();
+        drawTheMap();
         break;
 
     case WM_DESTROY:
@@ -2684,10 +2688,12 @@ static void updateProgress(float progress)
     SendMessage(progressBar,PBM_SETPOS,(int)(progress*100),0);
 }
 
-static void draw()
+static void drawTheMap()
 {
     if (gLoaded)
-        DrawMap(&gWorldGuide,gCurX,gCurZ,gCurDepth,bitWidth,bitHeight,gCurScale,map,&gOptions,gHitsFound,updateProgress, gMinecraftVersion);
+        checkMapDrawErrorCode(
+            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion)
+        );
     else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
@@ -2702,6 +2708,7 @@ static void draw()
         map[i+2]^=map[i];
         map[i]^=map[i+2];
     }
+    return;
 }
 
 static int loadSchematic(wchar_t *pathAndFile)
@@ -2830,6 +2837,10 @@ static int loadWorld(HWND hWnd)
     // if this is the first world you loaded, or not the same world as before (reload), set location to spawn.
     if ( !gSameWorld )
     {
+        // new world loaded
+        gOneTimeDrawError = true;
+        gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
+
         gCurX=gSpawnX;
         gCurZ=gSpawnZ;
         gSameWorld=TRUE;   // so if we reload
@@ -3239,7 +3250,7 @@ static void setSlider( HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bo
 
 static void drawInvalidateUpdate(HWND hWnd)
 {
-    draw();
+    drawTheMap();
     InvalidateRect(hWnd, NULL, FALSE);
     UpdateWindow(hWnd);
 }
@@ -7756,9 +7767,32 @@ static void showLoadWorldError( int loadErr )
     }
 }
 
+static void checkMapDrawErrorCode(int retCode)
+{
+    wchar_t fullbuf[2048];
+    // Goofy errors codes, I admit it. Negative means serious error, otherwise > 2 are one-time warning bits
+    if (retCode < 0) {
+        // error - show an error reading?
+        if (gOneTimeDrawError) {
+            wsprintf(fullbuf, _T("Error: block read error. If you're using a beta or a mod, good luck. If not, make sure you have downloaded the latest version of Mineways from mineways.com."));
+            MessageBox(NULL, fullbuf,
+                _T("Warning"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            gOneTimeDrawError = false;
+        }
+    } else if (gOneTimeDrawWarning & retCode) {
+        // NBT_WARNING_NAME_NOT_FOUND is the only one now
+        // currently the only warning - we will someday look at bits, I guess, in retCode
+        wsprintf(fullbuf, _T("Warning: unknown block type encountered and ignored. If you are not running a mod or beta, make sure you have downloaded the latest version of Mineways from mineways.com."));
+        MessageBox(NULL, fullbuf,
+            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+        gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;
+    }
+}
+
+
 static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName)
 {
-    int temp;
+    int temp, retCode;
     if (xmin > xmax) {
         // swap
         temp = xmin;
@@ -7787,14 +7821,16 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
 
     SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax);
 
-    DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion);
+    checkMapDrawErrorCode(
+        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion)
+    );
 
     // check if map file has ".png" at the end - if not, add it.
     wchar_t mapFileNameSafe[MAX_PATH_AND_FILE];
     EnsureSuffix(mapFileNameSafe, mapFileName, L".png");
 
     // 0 means success. Currently we don't say what goes wrong otherwise.
-    int retCode = writepng(mapimage, 3, mapFileNameSafe);
+    retCode = writepng(mapimage, 3, mapFileNameSafe);
 
     writepng_cleanup(mapimage);
 

@@ -1555,10 +1555,7 @@ unsigned char mod16(int val)
     return (unsigned char)(val & 0xf);
 }
 
-// need to move to nbt.h TODOTODO - also add error codes for true return errors, below, the -1, -2, etc.
-#define		NBT_ERROR_NAME_NOT_FOUND	0x4
-
-// return negative value on error, 1 on read OK, 2 on read and it's empty
+// return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
 int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion)
 {
 	int len, nsections;
@@ -1673,7 +1670,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 	// TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
 	// Right now we waste memory space with blocks (chunks) that are entirely empty.
 	if (empty) {
-		return 2;
+		return 2;	// no warnings to OR in here - it's empty
 	}
 
     nsections=readDword(pbf);
@@ -1703,7 +1700,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
         signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf,"Y")!=1) //which section of the block stack is this?
-            return 0;
+            return -19;
         if (bfread(pbf, &y, 1) < 0) return -11;
         if (bfseek(pbf, save, SEEK_SET) < 0) return -12; //rewind to start of section
 
@@ -1885,7 +1882,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 #endif
 									// data value always reset to 0
 									paletteDataEntry[entry_index] = 0;
-									returnCode |= NBT_ERROR_NAME_NOT_FOUND;
+									returnCode |= NBT_WARNING_NAME_NOT_FOUND;
 								}
 							}
 							else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
@@ -2767,13 +2764,13 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 	if (!newFormat) {
 		if (nbtFindElement(pbf, "TileEntities") != 9)
 			// all done, no TileEntities found
-			return 1;
+			return returnCode;
 
 		{
 			type = 0;
 			if (bfread(pbf, &type, 1) < 0) return -19;
 			if (type != 10)
-				return 1;
+				return returnCode;	// all done
 
 			// tile entity (aka block entity) found, parse it - get number of sections that follow
 			nsections = readDword(pbf);
@@ -2936,7 +2933,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			}
 		}
 	}
-    return 1;
+    return returnCode;
 }
 
 int nbtGetSpawn(bfFile *pbf, int *x, int *y, int *z)

@@ -423,6 +423,8 @@ static int gDebugTransparentType = UNINITIALIZED_INT;
 
 static long gMySeed = 12345;
 
+// In theory we could have a read error here, but it's much more likely in
+// the main map code. So, we have this shared value, but it gets wiped out. TODO
 static int gBlockRetCode = 0;
 
 // number in lode_png when file not found

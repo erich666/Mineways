@@ -37,7 +37,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 
 static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int topy,Options *pOpts,
-    ProgressCallback callback,float percent,int *hitsFound, int mcVersion);
+    ProgressCallback callback,float percent,int *hitsFound, int mcVersion, int & retCode);
 static void blit(unsigned char *block,unsigned char *bits,int px,int py,
     double zoom,int w,int h);
 static int createBlockFromSchematic(WorldGuide *pWorldGuide, int cx, int cz, WorldBlock *block);
@@ -182,7 +182,7 @@ void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int *hitsFound, ProgressCallback callback, int mcVersion)
+int DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int *hitsFound, ProgressCallback callback, int mcVersion)
 {
     /* We're converting between coordinate systems: 
     *
@@ -217,6 +217,9 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
     int shiftx=(int)((startx-startxblock*16)*zoom);
     int shifty=(int)((startz-startzblock*16)*zoom);
 
+    int sumRetCode = 0;
+    int retCode;
+
     if (shiftx<0)
     {
         // essentially the floor function
@@ -239,7 +242,8 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         // z increases west, decreases east
         for (x=0,px=-shiftx;x<=hBlocks;x++,px+=blockScale)
         {
-            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,pOpts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound, mcVersion);
+            blockbits = draw(pWorldGuide,startxblock+x,startzblock+z,topy,pOpts,callback,(float)(z*hBlocks+x)/(float)(vBlocks*hBlocks),hitsFound, mcVersion, retCode);
+            sumRetCode |= retCode;
             blit(blockbits,bits,px,py,zoom,w,h);
         }
     }
@@ -260,6 +264,8 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
         gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
         gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
     }
+
+    return sumRetCode;
 }
 
 //image = 3 bytes per pixel, w*h*zoom^2
@@ -271,11 +277,13 @@ void DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int
 //zoom = zoom amount (1.0 = 100%, 1 texel per pixel)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion)
+int DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion)
 {
     unsigned char* blockbits;
     int z, x, px, pz;
     int chunkSize = 16;
+    int sumRetCode = 0;
+    int retCode;
 
     assert(zoom >= 1);
 
@@ -336,7 +344,8 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, int cx, int c
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x < hBlocks; x++, px += chunkSize)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, retCode);
+            sumRetCode |= retCode;
 
             // world space of block:
             int wblockxmin = (startxblock + x) * chunkSize;
@@ -401,6 +410,7 @@ void DrawMapToArray(unsigned char *image, WorldGuide* pWorldGuide, int cx, int c
             }
         }
     }
+    return sumRetCode;
 }
 
 //bx = x coord of pixel
@@ -3325,7 +3335,7 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options *pOpts,ProgressCallback callback,float percent,int *hitsFound,int mcVersion)
+static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,Options *pOpts,ProgressCallback callback,float percent,int *hitsFound,int mcVersion, int & retCode)
 {
     WorldBlock *block, *prevblock;
     int ofs=0,prevy,prevSely,blockSolid,saveHeight;
@@ -3339,6 +3349,8 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
 
     char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, showAll;
     unsigned char *bits;
+
+    retCode = 0;
 
     //    if ((pOpts->worldType&(HELL|ENDER|SLIME))==SLIME)
     //            hasSlime = isSlimeChunk(bx, bz);
@@ -3370,7 +3382,6 @@ static unsigned char* draw(WorldGuide *pWorldGuide,int bx,int bz,int maxHeight,O
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
-        int retCode;    // TODOTODO if code > 2, decode it for what error(s) are there
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, retCode);
         if ((block == NULL) || (block->blockType == 2) ) //blank tile
         {
@@ -5424,6 +5435,7 @@ void testNumeral( WorldBlock *block, int type, int y, int digitPlace, int outTyp
 // return NULL if no block loaded.
 WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion, int& retCode)
 {
+    // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
     retCode = 0;
 
     // if there's no world, simply return
@@ -5564,8 +5576,8 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion, in
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
 
             // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
-            if ((retCode > 0 && retCode <= 2) && (block->numEntities > 0)) {
-                // values 1 and 2 are valid; 3's not used
+            if ((retCode >= 0) && (block->numEntities > 0)) {
+                // values 1 and 2 are valid; 3's not used - higher bits are warnings
                 block->blockType = retCode & 0x3;
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity *)malloc(block->numEntities * sizeof(BlockEntity));
@@ -5583,7 +5595,7 @@ WorldBlock *LoadBlock(WorldGuide *pWorldGuide, int cx, int cz, int mcVersion, in
         }
 
 		// is block valid?
-        if (retCode > 0) {
+        if (retCode >= 0) {
 
 			// does block have anything in it other than air?
 			if (block->blockType == 1) {
