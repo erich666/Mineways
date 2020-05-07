@@ -19089,7 +19089,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
             }
         }
         break;
-        // TODOTODO REDSTONE_ORE - when touched - figure this property out?
+    case BLOCK_GLOWING_REDSTONE_ORE:
+        emission = 9.0f;
+        break;
     case BLOCK_ENDER_CHEST:
     case BLOCK_REDSTONE_TORCH_ON:
         emission = 7.0f;
