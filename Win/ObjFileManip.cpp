@@ -18515,8 +18515,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
 
         case BLOCK_RESPAWN_ANCHOR:						// getSwatch
             if (!(dataVal & 0x7)) {
-                // switch top to off, since this is the "odd man out" case
-                swatchLoc = SWATCH_INDEX(0, 41);
+                // switch top to off, since this is the "odd man out" case, the only one off
+                swatchLoc = SWATCH_INDEX(4, 45);
             }
             // use charge to switch side
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5 + (dataVal & 0x7), 45, 10, 45);

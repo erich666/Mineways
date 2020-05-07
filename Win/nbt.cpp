@@ -2685,12 +2685,17 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 				if (!ret)
 					if (skipType(pbf, type) < 0) return -18;
 			}
-			// now that we have all the data, convert bigbuff layer into buff and data values
-			// DEBUG: entry_index > 2 - shows just the tiles that are not all a single block type & air
-			// TODOTODO - an eleven-bit entry, i.e., 2048+ different blocks in one piece, will break this code!
-			// That said, that's extremely unlikely. It could break because of a case 1|23456789|AB, spanning 3 bytes.
-			// TODOTODO: however, 2^9 512 entries could break the uncompressed code, as we need to start on a new byte
-			// entirely, so that extra bits would be needed. Fix once we have this code working.
+			// Now that we have all the data, convert bigbuff layer into buff and data values
+			// DEBUG: set a condition of entry_index > 2 - shows just the chunk slices that are not just a single block type & air
+			// BlockStates in Sections elements no longer contain values stretching over multiple 64 - bit fields.
+			// If the number of bits per block is not power of two (i.e., single 64 - bit value can't fill whole number of blockstates) some bits will not be used.
+			//		For example, if a single block state takes 5 bits, the highest 4 bits of every 64 - bit field will be unused.
+			//      That also means slight increase in storage size(in case of 5 bits, from 320 to 342 64 - bit fields).
+			// This example, explained:
+			// Old format:
+			// 1234512345123451234512345123451234512345123451234512345123451234 | 512345 - at the 64 - bit mark the bits just continue
+			// New format (which we call "uncompressed"):
+			// 123451234512345123451234512345123451234512345123451234512345.... | 1234512345 - at the 60 - bit mark the 5 bits won't fit, so they start again.
 			if (bigbufflen > 0 && entry_index > 0) {
 				// compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
 				int bitlength = bigbufflen / 64;
