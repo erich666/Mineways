@@ -91,29 +91,29 @@ extern bool gDebug;
 #define PRINT_MATERIAL_FCS_SCULPTEO (PRINT_MATERIAL_CUSTOM_MATERIAL-1)
 
 typedef struct MaterialCost {
-	// lame on my part: we really shouldn't be using wide characters in the dialog TODO
-	wchar_t *wname;
-	char *name;
-	wchar_t *currency;
-	// minimum recommended wall thickness in mm, though usually you want to go 50% or more above this
-	// Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
-	// White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
-	float minWall;
-	// width + height + depth in mm - colored sandstone has this limit: http://www.shapeways.com/design-rules/full_color_sandstone
-	float minDimensionSum;
-	// fixed handling cost
-	float costHandling;
-	// cost of material per cubic centimeter
-	// officially it's 1.40f for white, but calculations on a 10 cm cube show it's 1.39984314f
-	float costPerCubicCentimeter;
-	// discount: http://www.shapeways.com/blog/archives/490-Significant-price-reduction-on-dense-models.html
-	float costDiscountDensityLevel; // model has to be at least this dense - DEPRECATED, not used
-	float costDiscountCCMLevel; // first X cubic centimeters are at normal price; above this is half price - DEPRECATED, not used
-	// cost minimum is a guess, doesn't include handling TODO
-	float costMinimum;
-	// see https://www.shapeways.com/blog/archives/18174-how-much-does-it-cost-when-you-3d-print-a-thousand-different-parts-all-at-once.html
-	float costPerMachineCC;   // cost per cubic centimeter of "machine space" in the machine, for white & flexible etc.
-	float maxSize[3];
+    // lame on my part: we really shouldn't be using wide characters in the dialog TODO
+    wchar_t* wname;
+    char* name;
+    wchar_t* currency;
+    // minimum recommended wall thickness in mm, though usually you want to go 50% or more above this
+    // Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial
+    // White should really be more like 1 mm or even 2 mm, not 0.7 mm - TODO documentation
+    float minWall;
+    // width + height + depth in mm - colored sandstone has this limit: http://www.shapeways.com/design-rules/full_color_sandstone
+    float minDimensionSum;
+    // fixed handling cost
+    float costHandling;
+    // cost of material per cubic centimeter
+    // officially it's 1.40f for white, but calculations on a 10 cm cube show it's 1.39984314f
+    float costPerCubicCentimeter;
+    // discount: http://www.shapeways.com/blog/archives/490-Significant-price-reduction-on-dense-models.html
+    float costDiscountDensityLevel; // model has to be at least this dense - DEPRECATED, not used
+    float costDiscountCCMLevel; // first X cubic centimeters are at normal price; above this is half price - DEPRECATED, not used
+    // cost minimum is a guess, doesn't include handling TODO
+    float costMinimum;
+    // see https://www.shapeways.com/blog/archives/18174-how-much-does-it-cost-when-you-3d-print-a-thousand-different-parts-all-at-once.html
+    float costPerMachineCC;   // cost per cubic centimeter of "machine space" in the machine, for white & flexible etc.
+    float maxSize[3];
 } MaterialCost;
 
 extern MaterialCost gMtlCostTable[];
@@ -128,9 +128,9 @@ extern MaterialCost gMtlCostTable[];
 int unitIndex; // initialize to UNITS_METER
 
 typedef struct UnitType {
-	wchar_t *wname;
-	char *name;
-	float unitsPerMeter;
+    wchar_t* wname;
+    char* name;
+    float unitsPerMeter;
 } UnitType;
 
 extern UnitType gUnitTypeTable[];
@@ -281,138 +281,138 @@ extern UnitType gUnitTypeTable[];
 
 typedef struct PublishSkfbData
 {
-	// Sketchfab
-	char skfbApiToken[SKFB_TOKEN_LIMIT+1];
-	char skfbName[SKFB_NAME_LIMIT+1];
-	char skfbDescription[SKFB_DESC_LIMIT+1];
-	char skfbTags[256];
-	bool skfbPrivate;
-	char skfbPassword[SKFB_PASSWORD_LIMIT+1];
-	bool skfbDraft;
-	std::string skfbFilePath;
+    // Sketchfab
+    char skfbApiToken[SKFB_TOKEN_LIMIT + 1];
+    char skfbName[SKFB_NAME_LIMIT + 1];
+    char skfbDescription[SKFB_DESC_LIMIT + 1];
+    char skfbTags[256];
+    bool skfbPrivate;
+    char skfbPassword[SKFB_PASSWORD_LIMIT + 1];
+    bool skfbDraft;
+    std::string skfbFilePath;
 } PublishSkfbData;
 #endif
 
 typedef struct ExportFileData
 {
-	// dialog file type last chosen in export dialog; this is used next time.
-	// Note that this value is *not* valid during export itself; fileType is passed in.
-	int fileType;           // 0,1 - OBJ, 2,3 - Binary STL, 4 - ASCII STL, 5 - VRML2, 6 - Schematic
+    // dialog file type last chosen in export dialog; this is used next time.
+    // Note that this value is *not* valid during export itself; fileType is passed in.
+    int fileType;           // 0,1 - OBJ, 2,3 - Binary STL, 4 - ASCII STL, 5 - VRML2, 6 - Schematic
 
-	// in reality, the character fields could be kept private, but whatever
-	char minxString[EP_FIELD_LENGTH];
-	char minyString[EP_FIELD_LENGTH];
-	char minzString[EP_FIELD_LENGTH];
-	char maxxString[EP_FIELD_LENGTH];
-	char maxyString[EP_FIELD_LENGTH];
-	char maxzString[EP_FIELD_LENGTH];
-	int minxVal;
-	int minyVal;
-	int minzVal;
-	int maxxVal;
-	int maxyVal;
-	int maxzVal;
+    // in reality, the character fields could be kept private, but whatever
+    char minxString[EP_FIELD_LENGTH];
+    char minyString[EP_FIELD_LENGTH];
+    char minzString[EP_FIELD_LENGTH];
+    char maxxString[EP_FIELD_LENGTH];
+    char maxyString[EP_FIELD_LENGTH];
+    char maxzString[EP_FIELD_LENGTH];
+    int minxVal;
+    int minyVal;
+    int minzVal;
+    int maxxVal;
+    int maxyVal;
+    int maxzVal;
 
-	UINT radioExportNoMaterials[FILE_TYPE_TOTAL];
-	UINT radioExportMtlColors[FILE_TYPE_TOTAL];
-	UINT radioExportSolidTexture[FILE_TYPE_TOTAL];
-	UINT radioExportFullTexture[FILE_TYPE_TOTAL];
-	UINT radioExportTileTextures[FILE_TYPE_TOTAL];
+    UINT radioExportNoMaterials[FILE_TYPE_TOTAL];
+    UINT radioExportMtlColors[FILE_TYPE_TOTAL];
+    UINT radioExportSolidTexture[FILE_TYPE_TOTAL];
+    UINT radioExportFullTexture[FILE_TYPE_TOTAL];
+    UINT radioExportTileTextures[FILE_TYPE_TOTAL];
 
-	char tileDirString[MAX_PATH];
+    char tileDirString[MAX_PATH];
 
-	UINT chkTextureRGB;
-	UINT chkTextureA;
-	UINT chkTextureRGBA;
+    UINT chkTextureRGB;
+    UINT chkTextureA;
+    UINT chkTextureRGBA;
 
-	// I decided to make flattening always on; the only use I've seen to not flattening is to make the torches on the
-	// Eiffel tower become yellow blocks, when not exporting textures.
-	UINT chkMergeFlattop;
-	UINT chkExportAll;
-	UINT chkFatten;
-	UINT chkMakeZUp[FILE_TYPE_TOTAL];
+    // I decided to make flattening always on; the only use I've seen to not flattening is to make the torches on the
+    // Eiffel tower become yellow blocks, when not exporting textures.
+    UINT chkMergeFlattop;
+    UINT chkExportAll;
+    UINT chkFatten;
+    UINT chkMakeZUp[FILE_TYPE_TOTAL];
 
-	UINT radioRotate0;
-	UINT radioRotate90;
-	UINT radioRotate180;
-	UINT radioRotate270;
+    UINT radioRotate0;
+    UINT radioRotate90;
+    UINT radioRotate180;
+    UINT radioRotate270;
 
-	UINT radioScaleToHeight;
-	UINT radioScaleToMaterial;
-	UINT radioScaleByBlock;
-	UINT radioScaleByCost;
+    UINT radioScaleToHeight;
+    UINT radioScaleToMaterial;
+    UINT radioScaleByBlock;
+    UINT radioScaleByCost;
 
-	char modelHeightString[EP_FIELD_LENGTH];
-	char blockSizeString[EP_FIELD_LENGTH];
-	char costString[EP_FIELD_LENGTH];
-	float modelHeightVal;
-	float blockSizeVal[FILE_TYPE_TOTAL];
-	float costVal;
+    char modelHeightString[EP_FIELD_LENGTH];
+    char blockSizeString[EP_FIELD_LENGTH];
+    char costString[EP_FIELD_LENGTH];
+    float modelHeightVal;
+    float blockSizeVal[FILE_TYPE_TOTAL];
+    float costVal;
 
-	UINT chkCreateZip[FILE_TYPE_TOTAL];
-	UINT chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
+    UINT chkCreateZip[FILE_TYPE_TOTAL];
+    UINT chkCreateModelFiles[FILE_TYPE_TOTAL];	// i.e. don't delete them at end
 
-	UINT chkCenterModel;
-	UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
-	UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
-	UINT chkBiome;
-	UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
+    UINT chkCenterModel;
+    UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
+    UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
+    UINT chkBiome;
+    UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
 
-	UINT chkFillBubbles;
-	UINT chkSealEntrances;
-	UINT chkSealSideTunnels;
-	UINT chkConnectParts;
-	UINT chkConnectCornerTips;
-	UINT chkConnectAllEdges;
-	UINT chkDeleteFloaters;
-	UINT chkHollow[FILE_TYPE_TOTAL];
-	UINT chkSuperHollow[FILE_TYPE_TOTAL];
-	UINT chkMeltSnow;
+    UINT chkFillBubbles;
+    UINT chkSealEntrances;
+    UINT chkSealSideTunnels;
+    UINT chkConnectParts;
+    UINT chkConnectCornerTips;
+    UINT chkConnectAllEdges;
+    UINT chkDeleteFloaters;
+    UINT chkHollow[FILE_TYPE_TOTAL];
+    UINT chkSuperHollow[FILE_TYPE_TOTAL];
+    UINT chkMeltSnow;
 
-	char floaterCountString[EP_FIELD_LENGTH];
-	int floaterCountVal;
-	char hollowThicknessString[EP_FIELD_LENGTH];    // note we do not keep multiple of the strings, they're transitory
-	float hollowThicknessVal[FILE_TYPE_TOTAL];
+    char floaterCountString[EP_FIELD_LENGTH];
+    int floaterCountVal;
+    char hollowThicknessString[EP_FIELD_LENGTH];    // note we do not keep multiple of the strings, they're transitory
+    float hollowThicknessVal[FILE_TYPE_TOTAL];
 
-	int comboPhysicalMaterial[FILE_TYPE_TOTAL];
-	int comboModelUnits[FILE_TYPE_TOTAL];
+    int comboPhysicalMaterial[FILE_TYPE_TOTAL];
+    int comboModelUnits[FILE_TYPE_TOTAL];
 
-	UINT chkShowParts;
-	UINT chkShowWelds;
+    UINT chkShowParts;
+    UINT chkShowWelds;
 
-	UINT chkMakeGroupsObjects;
-	UINT chkSeparateTypes;	// "Export separate types"
-	UINT chkIndividualBlocks;
-	UINT chkMaterialPerBlock;	// "Material per block"
-	UINT chkSplitByBlockType;	// "Split by block type"
-	UINT chkG3DMaterial;
+    UINT chkMakeGroupsObjects;
+    UINT chkSeparateTypes;	// "Export separate types"
+    UINT chkIndividualBlocks;
+    UINT chkMaterialPerBlock;	// "Material per block"
+    UINT chkSplitByBlockType;	// "Split by block type"
+    UINT chkG3DMaterial;
 
-	UINT flags;
+    UINT flags;
 } ExportFileData;
 
 #define MAX_OUTPUT_FILES (2+TOTAL_TILES)
 
 typedef struct FileList {
-	int count;
-	wchar_t name[MAX_OUTPUT_FILES][520];  // output file list, MAX_PATH == 260 // TODO - kinda pricey now, with tile output: 349,440 bytes. Would be better to allocate as needed, release at end
+    int count;
+    wchar_t name[MAX_OUTPUT_FILES][520];  // output file list, MAX_PATH == 260 // TODO - kinda pricey now, with tile output: 349,440 bytes. Would be better to allocate as needed, release at end
 } FileList;
 
 
 typedef struct Options {
-	int worldType;          // what world we're looking at: HELL, ENDER, etc., and other option toggles
-	int saveFilterFlags;	// what objects should be kept - basic difference is flatsides get shown
-	int exportFlags;		// exporting options
-	int moreExportMemory;   // use more memory for caching or not?
-	int currentCacheSize;
-	ExportFileData *pEFD;   // print or view option values, etc.
-	///// these are really statistics, but let's shove them in here - so sloppy!
-	int dimensions[3];
-	float dim_inches[3];
-	float dim_cm[3];
-	float cost;
-	int totalBlocks;
-	float block_mm;
-	float block_inch;
+    int worldType;          // what world we're looking at: HELL, ENDER, etc., and other option toggles
+    int saveFilterFlags;	// what objects should be kept - basic difference is flatsides get shown
+    int exportFlags;		// exporting options
+    int moreExportMemory;   // use more memory for caching or not?
+    int currentCacheSize;
+    ExportFileData* pEFD;   // print or view option values, etc.
+    ///// these are really statistics, but let's shove them in here - so sloppy!
+    int dimensions[3];
+    float dim_inches[3];
+    float dim_cm[3];
+    float cost;
+    int totalBlocks;
+    float block_mm;
+    float block_inch;
 } Options;
 
 // number of blocks with entries in block info table - now that 255 is used, we need this
@@ -518,16 +518,16 @@ That means that if the color is #ffffff, and alpha is 0.5, then the color,alpha,
 // The color is kept separately so that we can toggle various classes of objects - billboards, etc. -
 // on and off someday.
 typedef struct BlockDefinition {
-	const char *name;
-	unsigned int read_color;	// r,g,b, locked in place, never written to: used for initial setting of color
-	float read_alpha;
-	unsigned int color;	// r,g,b, NOT multiplied by alpha - input by the user, result of color scheme application
-	unsigned int pcolor;	// r,g,b, premultiplied by alpha (basically, unmultColor * alpha) - used (only) in mapping
-	float alpha;
-	int txrX;   // column and row, from upper left, of 16x16 tiles in terrainExt.png, for TOP view of block
-	int txrY;
-	unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
-	unsigned int flags;
+    const char* name;
+    unsigned int read_color;	// r,g,b, locked in place, never written to: used for initial setting of color
+    float read_alpha;
+    unsigned int color;	// r,g,b, NOT multiplied by alpha - input by the user, result of color scheme application
+    unsigned int pcolor;	// r,g,b, premultiplied by alpha (basically, unmultColor * alpha) - used (only) in mapping
+    float alpha;
+    int txrX;   // column and row, from upper left, of 16x16 tiles in terrainExt.png, for TOP view of block
+    int txrY;
+    unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
+    unsigned int flags;
 } BlockDefinition;
 
 extern BlockDefinition gBlockDefinitions[];
@@ -553,334 +553,334 @@ extern BlockDefinition gBlockDefinitions[];
 
 
 enum block_types {
-	BLOCK_AIR = 0,
-	BLOCK_STONE = 1,
-	BLOCK_GRASS_BLOCK = 2,
-	BLOCK_DIRT = 3,
-	BLOCK_COBBLESTONE = 4,
-	BLOCK_OAK_PLANKS = 5,
-	BLOCK_SAPLING = 6,
-	BLOCK_BEDROCK = 7,
-	BLOCK_WATER = 8,
-	BLOCK_STATIONARY_WATER = 9,
-	BLOCK_LAVA = 10,
-	BLOCK_STATIONARY_LAVA = 11,
-	BLOCK_SAND = 12,
-	BLOCK_GRAVEL = 13,
-	BLOCK_LOG = 17,
-	BLOCK_LEAVES = 18,
-	BLOCK_SPONGE = 19,
-	BLOCK_GLASS = 20,
-	BLOCK_DISPENSER = 23,
-	BLOCK_SANDSTONE = 0x18,
-	BLOCK_NOTEBLOCK = 0x19,
-	BLOCK_BED = 0x1a,
-	BLOCK_POWERED_RAIL = 0x1b,
-	BLOCK_DETECTOR_RAIL = 0x1c,
-	BLOCK_STICKY_PISTON = 0x1d,
-	BLOCK_COBWEB = 0x1e,
-	BLOCK_GRASS = 0x1f,
-	BLOCK_DEAD_BUSH = 0x20,
-	BLOCK_PISTON = 0x21,
-	BLOCK_PISTON_HEAD = 0x22,
-	BLOCK_WOOL = 0x23,
-	BLOCK_DANDELION = 0x25,
-	BLOCK_POPPY = 0x26,
-	BLOCK_BROWN_MUSHROOM = 0x27,
-	BLOCK_RED_MUSHROOM = 40,
-	BLOCK_OF_GOLD = 41,
-	BLOCK_STONE_DOUBLE_SLAB = 43,
-	BLOCK_STONE_SLAB = 44,
-	BLOCK_BOOKSHELF = 47,
-	BLOCK_BRICK = 0x2d,
-	BLOCK_TNT = 0x2e,
-	BLOCK_MOSSY_COBBLESTONE = 0x30,
-	BLOCK_OBSIDIAN = 0x31,
-	BLOCK_TORCH = 50,
-	BLOCK_FIRE = 51,
-	BLOCK_MONSTER_SPAWNER = 0x34,
-	BLOCK_OAK_WOOD_STAIRS = 0x35,
-	BLOCK_CHEST = 0x36,
-	BLOCK_REDSTONE_WIRE = 0x37,
-	BLOCK_CRAFTING_TABLE = 58,
-	BLOCK_CROPS = 0x3b,
-	BLOCK_FARMLAND = 0x3c,
-	BLOCK_FURNACE = 61,
-	BLOCK_BURNING_FURNACE = 0x3e,
-	BLOCK_SIGN_POST = 63,
-	BLOCK_WOODEN_DOOR = 0x40,
-	BLOCK_LADDER = 0x41,
-	BLOCK_RAIL = 66,
-	BLOCK_COBBLESTONE_STAIRS = 0x43,
-	BLOCK_WALL_SIGN = 68,
-	BLOCK_LEVER = 0x45,
-	BLOCK_STONE_PRESSURE_PLATE = 70,
-	BLOCK_IRON_DOOR = 71,
-	BLOCK_WOODEN_PRESSURE_PLATE = 72,
-	BLOCK_REDSTONE_ORE = 73,
-	BLOCK_GLOWING_REDSTONE_ORE = 74,
-	BLOCK_REDSTONE_TORCH_OFF = 75,
-	BLOCK_REDSTONE_TORCH_ON = 76,
-	BLOCK_STONE_BUTTON = 77,
-	BLOCK_SNOW = 78,          // this is just the snow covering the ground
-	BLOCK_SNOW_BLOCK = 80,    // confusing, eh?
-	BLOCK_CACTUS = 0x51,
-	BLOCK_SUGAR_CANE = 0x53,
-	BLOCK_JUKEBOX = 0x54,
-	BLOCK_FENCE = 0x55,
-	BLOCK_PUMPKIN = 0x56,
-	BLOCK_NETHERRACK = 87,
-	BLOCK_SOUL_SAND = 88,
-	BLOCK_GLOWSTONE = 89,
-	BLOCK_NETHER_PORTAL = 90,
-	BLOCK_JACK_O_LANTERN = 0x5b,
-	BLOCK_CAKE = 0x5c,
-	BLOCK_REDSTONE_REPEATER_OFF = 0x5d,
-	BLOCK_REDSTONE_REPEATER_ON = 0x5e,
-	BLOCK_STAINED_GLASS = 0x5f,	// was BLOCK_LOCKED_CHEST, which went away in 1.7
-	BLOCK_TRAPDOOR = 0x60,
-	BLOCK_INFESTED_STONE = 97,
-	BLOCK_STONE_BRICKS = 0x62,
-	BLOCK_HUGE_BROWN_MUSHROOM = 0x63,
-	BLOCK_HUGE_RED_MUSHROOM = 0x64,
-	BLOCK_IRON_BARS = 0x65,
-	BLOCK_GLASS_PANE = 0x66,
-	BLOCK_MELON = 0x67,
-	BLOCK_PUMPKIN_STEM = 0x68,
-	BLOCK_MELON_STEM = 0x69,
-	BLOCK_VINES = 0x6a,
-	BLOCK_FENCE_GATE = 0x6b,
-	BLOCK_BRICK_STAIRS = 0x6c,
-	BLOCK_STONE_BRICK_STAIRS = 0x6d,
-	BLOCK_MYCELIUM = 0x6e,
-	BLOCK_LILY_PAD = 0x6f,
-	BLOCK_NETHER_BRICKS = 112,
-	BLOCK_NETHER_BRICK_FENCE = 0x71,
-	BLOCK_NETHER_BRICK_STAIRS = 0x72,
-	BLOCK_NETHER_WART = 0x73,
-	BLOCK_ENCHANTING_TABLE = 0x74,
-	BLOCK_BREWING_STAND = 117,
-	BLOCK_CAULDRON = 0x76,
-	BLOCK_END_PORTAL_FRAME = 0x78,
-	BLOCK_END_STONE = 121,
-	BLOCK_DRAGON_EGG = 0x7a,
-	BLOCK_WOODEN_DOUBLE_SLAB = 125,
-	BLOCK_WOODEN_SLAB = 126,
-	BLOCK_COCOA_PLANT = 0x7f,
-	BLOCK_SANDSTONE_STAIRS = 0x80,
-	BLOCK_ENDER_CHEST = 0x82,
-	BLOCK_TRIPWIRE_HOOK = 131,
-	BLOCK_TRIPWIRE = 132,
-	BLOCK_SPRUCE_WOOD_STAIRS = 134,
-	BLOCK_BIRCH_WOOD_STAIRS = 0x87,
-	BLOCK_JUNGLE_WOOD_STAIRS = 0x88,
-	BLOCK_COMMAND_BLOCK = 0x89,
-	BLOCK_BEACON = 0x8A,
-	BLOCK_COBBLESTONE_WALL = 139,
-	BLOCK_FLOWER_POT = 0x8C,
-	BLOCK_CARROTS = 0x8D,
-	BLOCK_POTATOES = 0x8E,
-	BLOCK_WOODEN_BUTTON = 0x8F,
-	BLOCK_HEAD = 0x90,
-	BLOCK_ANVIL = 0x91,
-	// 1.5.2
-	BLOCK_TRAPPED_CHEST = 0x92,
-	// TODO
-	BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT = 0x93,
-	BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY = 0x94,
-	BLOCK_REDSTONE_COMPARATOR = 0x95,
-	BLOCK_REDSTONE_COMPARATOR_DEPRECATED = 0x96,
-	BLOCK_DAYLIGHT_SENSOR = 0x97,	// TODO line 1916, make like trapdoor?
-	BLOCK_REDSTONE_BLOCK = 152,
-	BLOCK_NETHER_QUARTZ_ORE = 0x99,
-	BLOCK_HOPPER = 0x9A,
-	BLOCK_QUARTZ_BLOCK = 155,
-	BLOCK_QUARTZ_STAIRS = 0x9C,
-	BLOCK_ACTIVATOR_RAIL = 0x9D,
-	BLOCK_DROPPER = 0x9E,
-	// 1.6 & 1.7.2
-	BLOCK_COLORED_TERRACOTTA = 159,	// was stained clay, now called terracotta: it's colored
-	BLOCK_STAINED_GLASS_PANE = 0xA0,
-	BLOCK_AD_LEAVES = 0xA1,
-	BLOCK_AD_LOG = 162,
-	BLOCK_ACACIA_WOOD_STAIRS = 0xA3,
-	BLOCK_DARK_OAK_WOOD_STAIRS = 0xA4,
-	BLOCK_HAY = 0xAA,
-	BLOCK_CARPET = 0xAB,
-	BLOCK_HARDENED_CLAY = 0xAC,	// also called terracotta, but we keep the name here
-	BLOCK_COAL_BLOCK = 0xAD,
-	// 1.7.2
-	BLOCK_DOUBLE_FLOWER = 0xAF,
-	// 1.8
-	BLOCK_SLIME = 0xA5,
-	BLOCK_BARRIER = 0xA6,
-	BLOCK_IRON_TRAPDOOR = 0xA7,
-	BLOCK_PRISMARINE = 0xA8,
-	BLOCK_SEA_LANTERN = 0xA9,
-	BLOCK_STANDING_BANNER = 0xB0,
-	BLOCK_WALL_BANNER = 0xB1,
-	BLOCK_INVERTED_DAYLIGHT_SENSOR = 0xB2,
-	BLOCK_RED_SANDSTONE = 0xB3,
-	BLOCK_RED_SANDSTONE_STAIRS = 0xB4,
-	BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 181,
-	BLOCK_RED_SANDSTONE_SLAB = 0xB6,
-	BLOCK_SPRUCE_FENCE_GATE = 0xB7,
-	BLOCK_BIRCH_FENCE_GATE = 0xB8,
-	BLOCK_JUNGLE_FENCE_GATE = 0xB9,
-	BLOCK_DARK_OAK_FENCE_GATE = 0xBA,
-	BLOCK_ACACIA_FENCE_GATE = 0xBB,
-	BLOCK_SPRUCE_FENCE = 0xBC,
-	BLOCK_BIRCH_FENCE = 0xBD,
-	BLOCK_JUNGLE_FENCE = 0xBE,
-	BLOCK_DARK_OAK_FENCE = 0xBF,
-	BLOCK_ACACIA_FENCE = 0xC0,
-	BLOCK_SPRUCE_DOOR = 0xC1,
-	BLOCK_BIRCH_DOOR = 0xC2,
-	BLOCK_JUNGLE_DOOR = 0xC3,
-	BLOCK_ACACIA_DOOR = 0xC4,
-	BLOCK_DARK_OAK_DOOR = 0xC5,
-	BLOCK_END_ROD = 0xC6,
-	BLOCK_CHORUS_PLANT = 199,
-	BLOCK_CHORUS_FLOWER = 200,
-	BLOCK_PURPUR_BLOCK = 201,
-	BLOCK_PURPUR_PILLAR = 202,
-	BLOCK_PURPUR_STAIRS = 203,
-	BLOCK_PURPUR_DOUBLE_SLAB = 204,
-	BLOCK_PURPUR_SLAB = 205,
-	BLOCK_END_BRICKS = 206,
-	BLOCK_BEETROOT_SEEDS = 0xCF,
-	BLOCK_GRASS_PATH = 0xD0,
-	BLOCK_END_GATEWAY = 0xD1,
-	BLOCK_REPEATING_COMMAND_BLOCK = 0xD2,
-	BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
-	BLOCK_FROSTED_ICE = 0xD4,
-	BLOCK_MAGMA_BLOCK = 0xD5,
-	BLOCK_NETHER_WART_BLOCK = 214,
-	BLOCK_RED_NETHER_BRICK = 0xD7,
-	BLOCK_BONE_BLOCK = 0xD8,
-	BLOCK_STRUCTURE_VOID = 0xD9,
-	BLOCK_OBSERVER = 0xDA,
-	BLOCK_SHULKER_CHEST = 0xDB,
-	BLOCK_GLAZED_TERRACOTTA = 0xEB,
-	BLOCK_CONCRETE = 0xFB,
-	BLOCK_CONCRETE_POWDER = 0xFC,
+    BLOCK_AIR = 0,
+    BLOCK_STONE = 1,
+    BLOCK_GRASS_BLOCK = 2,
+    BLOCK_DIRT = 3,
+    BLOCK_COBBLESTONE = 4,
+    BLOCK_OAK_PLANKS = 5,
+    BLOCK_SAPLING = 6,
+    BLOCK_BEDROCK = 7,
+    BLOCK_WATER = 8,
+    BLOCK_STATIONARY_WATER = 9,
+    BLOCK_LAVA = 10,
+    BLOCK_STATIONARY_LAVA = 11,
+    BLOCK_SAND = 12,
+    BLOCK_GRAVEL = 13,
+    BLOCK_LOG = 17,
+    BLOCK_LEAVES = 18,
+    BLOCK_SPONGE = 19,
+    BLOCK_GLASS = 20,
+    BLOCK_DISPENSER = 23,
+    BLOCK_SANDSTONE = 0x18,
+    BLOCK_NOTEBLOCK = 0x19,
+    BLOCK_BED = 0x1a,
+    BLOCK_POWERED_RAIL = 0x1b,
+    BLOCK_DETECTOR_RAIL = 0x1c,
+    BLOCK_STICKY_PISTON = 0x1d,
+    BLOCK_COBWEB = 0x1e,
+    BLOCK_GRASS = 0x1f,
+    BLOCK_DEAD_BUSH = 0x20,
+    BLOCK_PISTON = 0x21,
+    BLOCK_PISTON_HEAD = 0x22,
+    BLOCK_WOOL = 0x23,
+    BLOCK_DANDELION = 0x25,
+    BLOCK_POPPY = 0x26,
+    BLOCK_BROWN_MUSHROOM = 0x27,
+    BLOCK_RED_MUSHROOM = 40,
+    BLOCK_OF_GOLD = 41,
+    BLOCK_STONE_DOUBLE_SLAB = 43,
+    BLOCK_STONE_SLAB = 44,
+    BLOCK_BOOKSHELF = 47,
+    BLOCK_BRICK = 0x2d,
+    BLOCK_TNT = 0x2e,
+    BLOCK_MOSSY_COBBLESTONE = 0x30,
+    BLOCK_OBSIDIAN = 0x31,
+    BLOCK_TORCH = 50,
+    BLOCK_FIRE = 51,
+    BLOCK_MONSTER_SPAWNER = 0x34,
+    BLOCK_OAK_WOOD_STAIRS = 0x35,
+    BLOCK_CHEST = 0x36,
+    BLOCK_REDSTONE_WIRE = 0x37,
+    BLOCK_CRAFTING_TABLE = 58,
+    BLOCK_CROPS = 0x3b,
+    BLOCK_FARMLAND = 0x3c,
+    BLOCK_FURNACE = 61,
+    BLOCK_BURNING_FURNACE = 0x3e,
+    BLOCK_SIGN_POST = 63,
+    BLOCK_WOODEN_DOOR = 0x40,
+    BLOCK_LADDER = 0x41,
+    BLOCK_RAIL = 66,
+    BLOCK_COBBLESTONE_STAIRS = 0x43,
+    BLOCK_WALL_SIGN = 68,
+    BLOCK_LEVER = 0x45,
+    BLOCK_STONE_PRESSURE_PLATE = 70,
+    BLOCK_IRON_DOOR = 71,
+    BLOCK_WOODEN_PRESSURE_PLATE = 72,
+    BLOCK_REDSTONE_ORE = 73,
+    BLOCK_GLOWING_REDSTONE_ORE = 74,
+    BLOCK_REDSTONE_TORCH_OFF = 75,
+    BLOCK_REDSTONE_TORCH_ON = 76,
+    BLOCK_STONE_BUTTON = 77,
+    BLOCK_SNOW = 78,          // this is just the snow covering the ground
+    BLOCK_SNOW_BLOCK = 80,    // confusing, eh?
+    BLOCK_CACTUS = 0x51,
+    BLOCK_SUGAR_CANE = 0x53,
+    BLOCK_JUKEBOX = 0x54,
+    BLOCK_FENCE = 0x55,
+    BLOCK_PUMPKIN = 0x56,
+    BLOCK_NETHERRACK = 87,
+    BLOCK_SOUL_SAND = 88,
+    BLOCK_GLOWSTONE = 89,
+    BLOCK_NETHER_PORTAL = 90,
+    BLOCK_JACK_O_LANTERN = 0x5b,
+    BLOCK_CAKE = 0x5c,
+    BLOCK_REDSTONE_REPEATER_OFF = 0x5d,
+    BLOCK_REDSTONE_REPEATER_ON = 0x5e,
+    BLOCK_STAINED_GLASS = 0x5f,	// was BLOCK_LOCKED_CHEST, which went away in 1.7
+    BLOCK_TRAPDOOR = 0x60,
+    BLOCK_INFESTED_STONE = 97,
+    BLOCK_STONE_BRICKS = 0x62,
+    BLOCK_HUGE_BROWN_MUSHROOM = 0x63,
+    BLOCK_HUGE_RED_MUSHROOM = 0x64,
+    BLOCK_IRON_BARS = 0x65,
+    BLOCK_GLASS_PANE = 0x66,
+    BLOCK_MELON = 0x67,
+    BLOCK_PUMPKIN_STEM = 0x68,
+    BLOCK_MELON_STEM = 0x69,
+    BLOCK_VINES = 0x6a,
+    BLOCK_FENCE_GATE = 0x6b,
+    BLOCK_BRICK_STAIRS = 0x6c,
+    BLOCK_STONE_BRICK_STAIRS = 0x6d,
+    BLOCK_MYCELIUM = 0x6e,
+    BLOCK_LILY_PAD = 0x6f,
+    BLOCK_NETHER_BRICKS = 112,
+    BLOCK_NETHER_BRICK_FENCE = 0x71,
+    BLOCK_NETHER_BRICK_STAIRS = 0x72,
+    BLOCK_NETHER_WART = 0x73,
+    BLOCK_ENCHANTING_TABLE = 0x74,
+    BLOCK_BREWING_STAND = 117,
+    BLOCK_CAULDRON = 0x76,
+    BLOCK_END_PORTAL_FRAME = 0x78,
+    BLOCK_END_STONE = 121,
+    BLOCK_DRAGON_EGG = 0x7a,
+    BLOCK_WOODEN_DOUBLE_SLAB = 125,
+    BLOCK_WOODEN_SLAB = 126,
+    BLOCK_COCOA_PLANT = 0x7f,
+    BLOCK_SANDSTONE_STAIRS = 0x80,
+    BLOCK_ENDER_CHEST = 0x82,
+    BLOCK_TRIPWIRE_HOOK = 131,
+    BLOCK_TRIPWIRE = 132,
+    BLOCK_SPRUCE_WOOD_STAIRS = 134,
+    BLOCK_BIRCH_WOOD_STAIRS = 0x87,
+    BLOCK_JUNGLE_WOOD_STAIRS = 0x88,
+    BLOCK_COMMAND_BLOCK = 0x89,
+    BLOCK_BEACON = 0x8A,
+    BLOCK_COBBLESTONE_WALL = 139,
+    BLOCK_FLOWER_POT = 0x8C,
+    BLOCK_CARROTS = 0x8D,
+    BLOCK_POTATOES = 0x8E,
+    BLOCK_WOODEN_BUTTON = 0x8F,
+    BLOCK_HEAD = 0x90,
+    BLOCK_ANVIL = 0x91,
+    // 1.5.2
+    BLOCK_TRAPPED_CHEST = 0x92,
+    // TODO
+    BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT = 0x93,
+    BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY = 0x94,
+    BLOCK_REDSTONE_COMPARATOR = 0x95,
+    BLOCK_REDSTONE_COMPARATOR_DEPRECATED = 0x96,
+    BLOCK_DAYLIGHT_SENSOR = 0x97,	// TODO line 1916, make like trapdoor?
+    BLOCK_REDSTONE_BLOCK = 152,
+    BLOCK_NETHER_QUARTZ_ORE = 0x99,
+    BLOCK_HOPPER = 0x9A,
+    BLOCK_QUARTZ_BLOCK = 155,
+    BLOCK_QUARTZ_STAIRS = 0x9C,
+    BLOCK_ACTIVATOR_RAIL = 0x9D,
+    BLOCK_DROPPER = 0x9E,
+    // 1.6 & 1.7.2
+    BLOCK_COLORED_TERRACOTTA = 159,	// was stained clay, now called terracotta: it's colored
+    BLOCK_STAINED_GLASS_PANE = 0xA0,
+    BLOCK_AD_LEAVES = 0xA1,
+    BLOCK_AD_LOG = 162,
+    BLOCK_ACACIA_WOOD_STAIRS = 0xA3,
+    BLOCK_DARK_OAK_WOOD_STAIRS = 0xA4,
+    BLOCK_HAY = 0xAA,
+    BLOCK_CARPET = 0xAB,
+    BLOCK_HARDENED_CLAY = 0xAC,	// also called terracotta, but we keep the name here
+    BLOCK_COAL_BLOCK = 0xAD,
+    // 1.7.2
+    BLOCK_DOUBLE_FLOWER = 0xAF,
+    // 1.8
+    BLOCK_SLIME = 0xA5,
+    BLOCK_BARRIER = 0xA6,
+    BLOCK_IRON_TRAPDOOR = 0xA7,
+    BLOCK_PRISMARINE = 0xA8,
+    BLOCK_SEA_LANTERN = 0xA9,
+    BLOCK_STANDING_BANNER = 0xB0,
+    BLOCK_WALL_BANNER = 0xB1,
+    BLOCK_INVERTED_DAYLIGHT_SENSOR = 0xB2,
+    BLOCK_RED_SANDSTONE = 0xB3,
+    BLOCK_RED_SANDSTONE_STAIRS = 0xB4,
+    BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 181,
+    BLOCK_RED_SANDSTONE_SLAB = 0xB6,
+    BLOCK_SPRUCE_FENCE_GATE = 0xB7,
+    BLOCK_BIRCH_FENCE_GATE = 0xB8,
+    BLOCK_JUNGLE_FENCE_GATE = 0xB9,
+    BLOCK_DARK_OAK_FENCE_GATE = 0xBA,
+    BLOCK_ACACIA_FENCE_GATE = 0xBB,
+    BLOCK_SPRUCE_FENCE = 0xBC,
+    BLOCK_BIRCH_FENCE = 0xBD,
+    BLOCK_JUNGLE_FENCE = 0xBE,
+    BLOCK_DARK_OAK_FENCE = 0xBF,
+    BLOCK_ACACIA_FENCE = 0xC0,
+    BLOCK_SPRUCE_DOOR = 0xC1,
+    BLOCK_BIRCH_DOOR = 0xC2,
+    BLOCK_JUNGLE_DOOR = 0xC3,
+    BLOCK_ACACIA_DOOR = 0xC4,
+    BLOCK_DARK_OAK_DOOR = 0xC5,
+    BLOCK_END_ROD = 0xC6,
+    BLOCK_CHORUS_PLANT = 199,
+    BLOCK_CHORUS_FLOWER = 200,
+    BLOCK_PURPUR_BLOCK = 201,
+    BLOCK_PURPUR_PILLAR = 202,
+    BLOCK_PURPUR_STAIRS = 203,
+    BLOCK_PURPUR_DOUBLE_SLAB = 204,
+    BLOCK_PURPUR_SLAB = 205,
+    BLOCK_END_BRICKS = 206,
+    BLOCK_BEETROOT_SEEDS = 0xCF,
+    BLOCK_GRASS_PATH = 0xD0,
+    BLOCK_END_GATEWAY = 0xD1,
+    BLOCK_REPEATING_COMMAND_BLOCK = 0xD2,
+    BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
+    BLOCK_FROSTED_ICE = 0xD4,
+    BLOCK_MAGMA_BLOCK = 0xD5,
+    BLOCK_NETHER_WART_BLOCK = 214,
+    BLOCK_RED_NETHER_BRICK = 0xD7,
+    BLOCK_BONE_BLOCK = 0xD8,
+    BLOCK_STRUCTURE_VOID = 0xD9,
+    BLOCK_OBSERVER = 0xDA,
+    BLOCK_SHULKER_CHEST = 0xDB,
+    BLOCK_GLAZED_TERRACOTTA = 0xEB,
+    BLOCK_CONCRETE = 0xFB,
+    BLOCK_CONCRETE_POWDER = 0xFC,
 
-	BLOCK_UNKNOWN = 0xFD,
-	BLOCK_FAKE = 0xFE,
-	BLOCK_STRUCTURE_BLOCK = 0xFF,
+    BLOCK_UNKNOWN = 0xFD,
+    BLOCK_FAKE = 0xFE,
+    BLOCK_STRUCTURE_BLOCK = 0xFF,
 
-	// 1.13
-	BLOCK_PRISMARINE_STAIRS = 257,
-	BLOCK_PRISMARINE_BRICK_STAIRS = 258,
-	BLOCK_DARK_PRISMARINE_STAIRS = 259,
-	BLOCK_SPRUCE_TRAPDOOR = 260,
-	BLOCK_BIRCH_TRAPDOOR = 261,
-	BLOCK_JUNGLE_TRAPDOOR = 262,
-	BLOCK_ACACIA_TRAPDOOR = 263,
-	BLOCK_DARK_OAK_TRAPDOOR = 264,
-	BLOCK_SPRUCE_BUTTON = 265,
-	BLOCK_BIRCH_BUTTON = 266,
-	BLOCK_JUNGLE_BUTTON = 267,
-	BLOCK_ACACIA_BUTTON = 268,
-	BLOCK_DARK_OAK_BUTTON = 269,
-	BLOCK_SPRUCE_PRESSURE_PLATE = 270,
-	BLOCK_BIRCH_PRESSURE_PLATE = 271,
-	BLOCK_JUNGLE_PRESSURE_PLATE = 272,
-	BLOCK_ACACIA_PRESSURE_PLATE = 273,
-	BLOCK_DARK_OAK_PRESSURE_PLATE = 274,
-	BLOCK_STRIPPED_OAK = 275,
-	BLOCK_STRIPPED_ACACIA = 276,
-	BLOCK_STRIPPED_OAK_WOOD = 277,
-	BLOCK_STRIPPED_ACACIA_WOOD = 278,
-	BLOCK_ORANGE_BANNER = 279,
-	BLOCK_MAGENTA_BANNER = 280,
-	BLOCK_LIGHT_BLUE_BANNER = 281,
-	BLOCK_YELLOW_BANNER = 282,
-	BLOCK_LIME_BANNER = 283,
-	BLOCK_PINK_BANNER = 284,
-	BLOCK_GRAY_BANNER = 285,
-	BLOCK_LIGHT_GRAY_BANNER = 286,
-	BLOCK_CYAN_BANNER = 287,
-	BLOCK_PURPLE_BANNER = 288,
-	BLOCK_BLUE_BANNER = 289,
-	BLOCK_BROWN_BANNER = 290,
-	BLOCK_GREEN_BANNER = 291,
-	BLOCK_RED_BANNER = 292,
-	BLOCK_BLACK_BANNER = 293,
-	BLOCK_ORANGE_WALL_BANNER = 294,
-	BLOCK_MAGENTA_WALL_BANNER = 295,
-	BLOCK_LIGHT_BLUE_WALL_BANNER = 296,
-	BLOCK_YELLOW_WALL_BANNER = 297,
-	BLOCK_LIME_WALL_BANNER = 298,
-	BLOCK_PINK_WALL_BANNER = 299,
-	BLOCK_GRAY_WALL_BANNER = 300,
-	BLOCK_LIGHT_GRAY_WALL_BANNER = 301,
-	BLOCK_CYAN_WALL_BANNER = 302,
-	BLOCK_PURPLE_WALL_BANNER = 303,
-	BLOCK_BLUE_WALL_BANNER = 304,
-	BLOCK_BROWN_WALL_BANNER = 305,
-	BLOCK_GREEN_WALL_BANNER = 306,
-	BLOCK_RED_WALL_BANNER = 307,
-	BLOCK_BLACK_WALL_BANNER = 308,
-	BLOCK_TALL_SEAGRASS = 309,
-	BLOCK_SEAGRASS = 310,
-	BLOCK_SMOOTH_STONE = 311,
-	BLOCK_BLUE_ICE = 312,
-	BLOCK_DRIED_KELP = 313,
-	BLOCK_KELP = 314,
-	BLOCK_CORAL_BLOCK = 315,
-	BLOCK_DEAD_CORAL_BLOCK = 316,
-	BLOCK_CORAL = 317,
-	BLOCK_CORAL_FAN = 318,
-	BLOCK_DEAD_CORAL_FAN = 319,
-	BLOCK_CORAL_WALL_FAN = 320,
-	BLOCK_DEAD_CORAL_WALL_FAN = 321,
-	BLOCK_CONDUIT = 322,
-	BLOCK_SEA_PICKLE = 323,
-	BLOCK_TURTLE_EGG = 324,
+    // 1.13
+    BLOCK_PRISMARINE_STAIRS = 257,
+    BLOCK_PRISMARINE_BRICK_STAIRS = 258,
+    BLOCK_DARK_PRISMARINE_STAIRS = 259,
+    BLOCK_SPRUCE_TRAPDOOR = 260,
+    BLOCK_BIRCH_TRAPDOOR = 261,
+    BLOCK_JUNGLE_TRAPDOOR = 262,
+    BLOCK_ACACIA_TRAPDOOR = 263,
+    BLOCK_DARK_OAK_TRAPDOOR = 264,
+    BLOCK_SPRUCE_BUTTON = 265,
+    BLOCK_BIRCH_BUTTON = 266,
+    BLOCK_JUNGLE_BUTTON = 267,
+    BLOCK_ACACIA_BUTTON = 268,
+    BLOCK_DARK_OAK_BUTTON = 269,
+    BLOCK_SPRUCE_PRESSURE_PLATE = 270,
+    BLOCK_BIRCH_PRESSURE_PLATE = 271,
+    BLOCK_JUNGLE_PRESSURE_PLATE = 272,
+    BLOCK_ACACIA_PRESSURE_PLATE = 273,
+    BLOCK_DARK_OAK_PRESSURE_PLATE = 274,
+    BLOCK_STRIPPED_OAK = 275,
+    BLOCK_STRIPPED_ACACIA = 276,
+    BLOCK_STRIPPED_OAK_WOOD = 277,
+    BLOCK_STRIPPED_ACACIA_WOOD = 278,
+    BLOCK_ORANGE_BANNER = 279,
+    BLOCK_MAGENTA_BANNER = 280,
+    BLOCK_LIGHT_BLUE_BANNER = 281,
+    BLOCK_YELLOW_BANNER = 282,
+    BLOCK_LIME_BANNER = 283,
+    BLOCK_PINK_BANNER = 284,
+    BLOCK_GRAY_BANNER = 285,
+    BLOCK_LIGHT_GRAY_BANNER = 286,
+    BLOCK_CYAN_BANNER = 287,
+    BLOCK_PURPLE_BANNER = 288,
+    BLOCK_BLUE_BANNER = 289,
+    BLOCK_BROWN_BANNER = 290,
+    BLOCK_GREEN_BANNER = 291,
+    BLOCK_RED_BANNER = 292,
+    BLOCK_BLACK_BANNER = 293,
+    BLOCK_ORANGE_WALL_BANNER = 294,
+    BLOCK_MAGENTA_WALL_BANNER = 295,
+    BLOCK_LIGHT_BLUE_WALL_BANNER = 296,
+    BLOCK_YELLOW_WALL_BANNER = 297,
+    BLOCK_LIME_WALL_BANNER = 298,
+    BLOCK_PINK_WALL_BANNER = 299,
+    BLOCK_GRAY_WALL_BANNER = 300,
+    BLOCK_LIGHT_GRAY_WALL_BANNER = 301,
+    BLOCK_CYAN_WALL_BANNER = 302,
+    BLOCK_PURPLE_WALL_BANNER = 303,
+    BLOCK_BLUE_WALL_BANNER = 304,
+    BLOCK_BROWN_WALL_BANNER = 305,
+    BLOCK_GREEN_WALL_BANNER = 306,
+    BLOCK_RED_WALL_BANNER = 307,
+    BLOCK_BLACK_WALL_BANNER = 308,
+    BLOCK_TALL_SEAGRASS = 309,
+    BLOCK_SEAGRASS = 310,
+    BLOCK_SMOOTH_STONE = 311,
+    BLOCK_BLUE_ICE = 312,
+    BLOCK_DRIED_KELP = 313,
+    BLOCK_KELP = 314,
+    BLOCK_CORAL_BLOCK = 315,
+    BLOCK_DEAD_CORAL_BLOCK = 316,
+    BLOCK_CORAL = 317,
+    BLOCK_CORAL_FAN = 318,
+    BLOCK_DEAD_CORAL_FAN = 319,
+    BLOCK_CORAL_WALL_FAN = 320,
+    BLOCK_DEAD_CORAL_WALL_FAN = 321,
+    BLOCK_CONDUIT = 322,
+    BLOCK_SEA_PICKLE = 323,
+    BLOCK_TURTLE_EGG = 324,
 
-	// 1.14: we give each new block type a number, trying to make it sensible. Put in blockinfo.cpp.
-	// in BlockTranslations in nbt.cpp put the name used by Minecraft to convert to a number.
-	BLOCK_DEAD_CORAL = 325, // 5 different types
-	BLOCK_ACACIA_SIGN_POST = 326,
-	BLOCK_SWEET_BERRY_BUSH = 327,
-	BLOCK_BAMBOO = 328,
-	BLOCK_ANDESITE_DOUBLE_SLAB = 329,
-	BLOCK_ANDESITE_SLAB = 330,
-	BLOCK_JIGSAW = 331,
-	BLOCK_COMPOSTER = 332,
-	BLOCK_BARREL = 333,
-	BLOCK_STONECUTTER = 334,
-	BLOCK_GRINDSTONE = 335,
-	BLOCK_LECTERN = 336,
-	BLOCK_BELL = 337,
-	BLOCK_LANTERN = 338,
-	BLOCK_CAMPFIRE = 339,
-	BLOCK_SCAFFOLDING = 340,
-	BLOCK_BEE_NEST = 341,
-	BLOCK_HONEY = 342,
-	BLOCK_HONEYCOMB = 343,
-	BLOCK_CRYING_OBSIDIAN = 344,
-	BLOCK_RESPAWN_ANCHOR = 345,
-	BLOCK_CRIMSON_TRAPDOOR = 346,
-	BLOCK_WARPED_TRAPDOOR = 347,
-	BLOCK_CRIMSON_BUTTON = 348,
-	BLOCK_WARPED_BUTTON = 349,
-	BLOCK_POLISHED_BLACKSTONE_BUTTON = 350,
-	BLOCK_CRIMSON_FENCE = 351,
-	BLOCK_WARPED_FENCE = 352,
-	BLOCK_CRIMSON_FENCE_GATE = 353,
-	BLOCK_WARPED_FENCE_GATE = 354,
-	BLOCK_CRIMSON_DOOR = 355,
-	BLOCK_WARPED_DOOR = 356,
-	BLOCK_CRIMSON_PRESSURE_PLATE = 357,
-	BLOCK_WARPED_PRESSURE_PLATE = 358,
-	BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE = 359,
-	BLOCK_CRIMSON_DOUBLE_SLAB = 360,
-	BLOCK_CRIMSON_SLAB = 361,
-	BLOCK_SOUL_TORCH = 362,
-	BLOCK_WEEPING_VINES = 363,
-	BLOCK_CHAIN = 364,
+    // 1.14: we give each new block type a number, trying to make it sensible. Put in blockinfo.cpp.
+    // in BlockTranslations in nbt.cpp put the name used by Minecraft to convert to a number.
+    BLOCK_DEAD_CORAL = 325, // 5 different types
+    BLOCK_ACACIA_SIGN_POST = 326,
+    BLOCK_SWEET_BERRY_BUSH = 327,
+    BLOCK_BAMBOO = 328,
+    BLOCK_ANDESITE_DOUBLE_SLAB = 329,
+    BLOCK_ANDESITE_SLAB = 330,
+    BLOCK_JIGSAW = 331,
+    BLOCK_COMPOSTER = 332,
+    BLOCK_BARREL = 333,
+    BLOCK_STONECUTTER = 334,
+    BLOCK_GRINDSTONE = 335,
+    BLOCK_LECTERN = 336,
+    BLOCK_BELL = 337,
+    BLOCK_LANTERN = 338,
+    BLOCK_CAMPFIRE = 339,
+    BLOCK_SCAFFOLDING = 340,
+    BLOCK_BEE_NEST = 341,
+    BLOCK_HONEY = 342,
+    BLOCK_HONEYCOMB = 343,
+    BLOCK_CRYING_OBSIDIAN = 344,
+    BLOCK_RESPAWN_ANCHOR = 345,
+    BLOCK_CRIMSON_TRAPDOOR = 346,
+    BLOCK_WARPED_TRAPDOOR = 347,
+    BLOCK_CRIMSON_BUTTON = 348,
+    BLOCK_WARPED_BUTTON = 349,
+    BLOCK_POLISHED_BLACKSTONE_BUTTON = 350,
+    BLOCK_CRIMSON_FENCE = 351,
+    BLOCK_WARPED_FENCE = 352,
+    BLOCK_CRIMSON_FENCE_GATE = 353,
+    BLOCK_WARPED_FENCE_GATE = 354,
+    BLOCK_CRIMSON_DOOR = 355,
+    BLOCK_WARPED_DOOR = 356,
+    BLOCK_CRIMSON_PRESSURE_PLATE = 357,
+    BLOCK_WARPED_PRESSURE_PLATE = 358,
+    BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE = 359,
+    BLOCK_CRIMSON_DOUBLE_SLAB = 360,
+    BLOCK_CRIMSON_SLAB = 361,
+    BLOCK_SOUL_TORCH = 362,
+    BLOCK_WEEPING_VINES = 363,
+    BLOCK_CHAIN = 364,
 };
 
 #endif

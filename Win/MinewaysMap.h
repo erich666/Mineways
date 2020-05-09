@@ -58,8 +58,8 @@ typedef void (*ProgressCallback)(float progress);
 #define WORLD_SCHEMATIC_TYPE	3
 
 typedef struct Schematic {
-    unsigned char *blocks;
-    unsigned char *data;
+    unsigned char* blocks;
+    unsigned char* data;
     int width;	// X
     int height; // Y
     int length;	// Z
@@ -72,34 +72,34 @@ typedef struct WorldGuide {
     wchar_t world[520];		// 2*MAX_PATH
     wchar_t directory[520];
     Schematic sch;
-	int nbtVersion;
+    int nbtVersion;
 } WorldGuide;
 
 
-void SetSeparatorMap(const wchar_t *separator);
+void SetSeparatorMap(const wchar_t* separator);
 void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz);
-void GetHighlightState( int *on, int *minx, int *miny, int *minz, int *maxx, int *maxy, int *maxz );
+void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz);
 int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion);
-int DrawMap(WorldGuide *pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char *bits, Options *pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion);
-const char * IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int *ox, int *oy, int *oz, int *type, int *dataVal, int *biome, bool schematic);
-const char * RetrieveBlockSubname(int type, int dataVal, WorldBlock *block = NULL, int xoff = 0, int y = 0, int zoff = 0);
+int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion);
+const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic);
+const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block = NULL, int xoff = 0, int y = 0, int zoff = 0);
 void CloseAll();
-WorldBlock * LoadBlock(WorldGuide *pWorldGuide,int bx,int bz,int mcVersion, int& retCode);
+WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int& retCode);
 void ClearBlockReadCheck();
 int UnknownBlockRead();
-void CheckUnknownBlock( int check );
+void CheckUnknownBlock(int check);
 int NeedToCheckUnknownBlock();
-int GetSpawn(const wchar_t *world,int *x,int *y,int *z);
-int GetFileVersion(const wchar_t *world, int *version, wchar_t *fileOpened, rsize_t size);
-int GetFileVersionId(const wchar_t *world, int *versionId);
-int GetFileVersionName(const wchar_t *world, char *versionName, int stringLength);
-int GetLevelName(const wchar_t *world, char *levelName, int stringLength);
-int GetPlayer(const wchar_t *world,int *px,int *py,int *pz);
-int GetSchematicWord(const wchar_t *schematic, char *field, int *word);
-int GetSchematicBlocksAndData(const wchar_t *schematic, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
+int GetSpawn(const wchar_t* world, int* x, int* y, int* z);
+int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsize_t size);
+int GetFileVersionId(const wchar_t* world, int* versionId);
+int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength);
+int GetLevelName(const wchar_t* world, char* levelName, int stringLength);
+int GetPlayer(const wchar_t* world, int* px, int* py, int* pz);
+int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
+int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors(int start);
-void SetMapPalette(unsigned int *palette,int num);
+void SetMapPalette(unsigned int* palette, int num);
 
 
 #endif

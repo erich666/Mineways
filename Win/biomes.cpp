@@ -29,7 +29,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "biomes.h"
 
-Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
+Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     //    ID    Name             Temperature, rainfall, grass, foliage colors
     //                                                  - note: the colors here are just placeholders, they are computed in the program
     { /*   0 */ "Ocean",					0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain
@@ -73,17 +73,17 @@ Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
     { /*  38 */ "Wooded Badlands Plateau",	2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /*  39 */ "Badlands Plateau",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /*  40 */ "Small End Islands",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  41 */ "End Midlands",				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  42 */ "End Highlands",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  43 */ "End Barrens",				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  44 */ "Warm Ocean",				0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  45 */ "Lukewarm Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  46 */ "Cold Ocean",				0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  47 */ "Deep Warm Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  48 */ "Deep Lukewarm Ocean",		0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  49 */ "Deep Cold Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  50 */ "Deep Frozen Ocean",		0.8f, 0.5f, 0x92BD59, 0x77AB2F },
-	{ /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /*  41 */ "End Midlands",				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  42 */ "End Highlands",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  43 */ "End Barrens",				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  44 */ "Warm Ocean",				0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  45 */ "Lukewarm Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  46 */ "Cold Ocean",				0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  47 */ "Deep Warm Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  48 */ "Deep Lukewarm Ocean",		0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  49 */ "Deep Cold Ocean",			0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  50 */ "Deep Frozen Ocean",		0.8f, 0.5f, 0x92BD59, 0x77AB2F },
+    { /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  52 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  53 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  54 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -162,11 +162,11 @@ Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
     { /* 127 */ "The Void",            		    0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain; also, no height differences
     { /* 128 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 129 */ "Sunflower Plains",			    0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-	{ /* 130 */ "Desert Lakes",					2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 131 */ "Gravelly Mountains",		    0.2f, 0.3f, 0x92BD59, 0x77AB2F },
-	{ /* 132 */ "Flower Forest",				0.7f, 0.8f, 0x92BD59, 0x77AB2F },
-	{ /* 133 */ "Taiga Mountains",			   0.25f, 0.8f, 0x92BD59, 0x77AB2F },
-	{ /* 134 */ "Swamp Hills",					0.8f, 0.9f, 0x92BD59, 0x77AB2F },
+    { /* 130 */ "Desert Lakes",					2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 131 */ "Gravelly Mountains",		    0.2f, 0.3f, 0x92BD59, 0x77AB2F },
+    { /* 132 */ "Flower Forest",				0.7f, 0.8f, 0x92BD59, 0x77AB2F },
+    { /* 133 */ "Taiga Mountains",			   0.25f, 0.8f, 0x92BD59, 0x77AB2F },
+    { /* 134 */ "Swamp Hills",					0.8f, 0.9f, 0x92BD59, 0x77AB2F },
     { /* 135 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 136 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 137 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -193,15 +193,15 @@ Biome gBiomes[256]={	// IMPORTANT: do not change 256 size here.
     { /* 158 */ "Snowy Taiga Mountains",	   -0.5f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 159 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 160 */ "Giant Spruce Taiga",		   0.25f, 0.8f, 0x92BD59, 0x77AB2F },
-	{ /* 161 */ "Giant Spruce Taiga Hills",    0.25f, 0.8f, 0x92BD59, 0x77AB2F },
-	{ /* 162 */ "Gravelly Mountains+",			0.2f, 0.3f, 0x92BD59, 0x77AB2F },
-	{ /* 163 */ "Shattered Savanna",			1.1f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 164 */ "Shattered Savanna Plateau",    1.0f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 165 */ "Eroded Badlands",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 166 */ "Modified Wooded Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 167 */ "Modified Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-	{ /* 168 */ "Bamboo Jungle",			   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
-	{ /* 168 */ "Bamboo Jungle Hills",		   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
+    { /* 161 */ "Giant Spruce Taiga Hills",    0.25f, 0.8f, 0x92BD59, 0x77AB2F },
+    { /* 162 */ "Gravelly Mountains+",			0.2f, 0.3f, 0x92BD59, 0x77AB2F },
+    { /* 163 */ "Shattered Savanna",			1.1f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 164 */ "Shattered Savanna Plateau",    1.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 165 */ "Eroded Badlands",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 166 */ "Modified Wooded Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 167 */ "Modified Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 168 */ "Bamboo Jungle",			   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
+    { /* 168 */ "Bamboo Jungle Hills",		   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
     { /* 170 */ "Soul Sand Valley",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 171 */ "Crimson Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 172 */ "Warped Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
@@ -312,12 +312,12 @@ static BiomeCorner foliageCorners[3] =
 };
 
 // NOTE: elevation is number of meters above a height of 64. If elevation is < 64, pass in 0.
-int BiomeColor( float temperature, float rainfall, int elevation, BiomeCorner corners[3] )
+int BiomeColor(float temperature, float rainfall, int elevation, BiomeCorner corners[3])
 {
     // get UVs
-    temperature = clamp(temperature - (float)elevation*0.00166667f,0.0f,1.0f);
+    temperature = clamp(temperature - (float)elevation * 0.00166667f, 0.0f, 1.0f);
     // crank it up: temperature = clamp(temperature - (float)elevation*0.166667f,0.0f,1.0f);
-    rainfall = clamp(rainfall,0.0f,1.0f);
+    rainfall = clamp(rainfall, 0.0f, 1.0f);
     rainfall *= temperature;
 
     // UV is essentially temperature, rainfall
@@ -329,44 +329,44 @@ int BiomeColor( float temperature, float rainfall, int elevation, BiomeCorner co
     lambda[2] = rainfall;
 
     float red = 0.0f, green = 0.0f, blue = 0.0f;
-    for ( int i = 0; i < 3; i++ )
+    for (int i = 0; i < 3; i++)
     {
         red += lambda[i] * corners[i].red;
         green += lambda[i] * corners[i].green;
         blue += lambda[i] * corners[i].blue;
     }
 
-    int r = (int)clamp(red,0.0f,255.0f);
-    int g = (int)clamp(green,0.0f,255.0f);
-    int b = (int)clamp(blue,0.0f,255.0f);
+    int r = (int)clamp(red, 0.0f, 255.0f);
+    int g = (int)clamp(green, 0.0f, 255.0f);
+    int b = (int)clamp(blue, 0.0f, 255.0f);
 
-    return (r<<16)|(g<<8)|b;
+    return (r << 16) | (g << 8) | b;
 }
 
-int BiomeGrassColor( float temperature, float rainfall, int elevation )
+int BiomeGrassColor(float temperature, float rainfall, int elevation)
 {
-    return BiomeColor( temperature, rainfall, elevation, grassCorners );
+    return BiomeColor(temperature, rainfall, elevation, grassCorners);
 }
 
-int BiomeFoliageColor( float temperature, float rainfall, int elevation )
+int BiomeFoliageColor(float temperature, float rainfall, int elevation)
 {
-    return BiomeColor( temperature, rainfall, elevation, foliageCorners );
+    return BiomeColor(temperature, rainfall, elevation, foliageCorners);
 }
 
 void PrecomputeBiomeColors()
 {
-    for ( int biome = 0; biome < 256; biome++ )
+    for (int biome = 0; biome < 256; biome++)
     {
-        gBiomes[biome].grass = ComputeBiomeColor( biome, 0, 1 );
-        gBiomes[biome].foliage = ComputeBiomeColor( biome, 0, 0 );
+        gBiomes[biome].grass = ComputeBiomeColor(biome, 0, 1);
+        gBiomes[biome].foliage = ComputeBiomeColor(biome, 0, 0);
     }
 }
 
 // elevation == 0 means for precomputed colors and for elevation off
 // or 64 high or below. 
-int ComputeBiomeColor( int biome, int elevation, int isGrass )
+int ComputeBiomeColor(int biome, int elevation, int isGrass)
 {
-    switch ( biome & 0x7 )
+    switch (biome & 0x7)
     {
     case SWAMPLAND_BIOME:
         // the fefefe makes it so that carries are copied to the low bit,
@@ -393,9 +393,9 @@ int ComputeBiomeColor( int biome, int elevation, int isGrass )
         //	break;
 
     case ROOFED_FOREST_BIOME:	// forestType 3
-        if ( isGrass )
+        if (isGrass)
         {
-            int color = BiomeGrassColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation );
+            int color = BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
             // the fefefe makes it so that carries are copied to the low bit,
             // then their magic "go to green" color offset is added in, then
             // divide by two gives a carry that will nicely go away.
@@ -403,7 +403,7 @@ int ComputeBiomeColor( int biome, int elevation, int isGrass )
         }
         else
         {
-            return BiomeFoliageColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation );
+            return BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
         }
 
     case MESA_BIOME:
@@ -413,22 +413,22 @@ int ComputeBiomeColor( int biome, int elevation, int isGrass )
         return isGrass ? 0x90814d : 0x9e814d;
 
     default:
-        return isGrass ? BiomeGrassColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation ) :
-            BiomeFoliageColor( gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation );
+        return isGrass ? BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :
+            BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
     }
 }
 
-int BiomeSwampRiverColor( int color )
+int BiomeSwampRiverColor(int color)
 {
-    int r=(int)((color>>16)&0xff);
-    int g=(int)((color>>8)&0xff);
-    int b=(int)color&0xff;
+    int r = (int)((color >> 16) & 0xff);
+    int g = (int)((color >> 8) & 0xff);
+    int b = (int)color & 0xff;
 
     // swamp color modifier is 0xE0FFAE
-    r=(r*0xE0)/255;
+    r = (r * 0xE0) / 255;
     // does nothing: g=(g*0xFF)/255;
-    b=(b*0xAE)/255;
-    color=(r<<16)|(g<<8)|b;
+    b = (b * 0xAE) / 255;
+    color = (r << 16) | (g << 8) | b;
 
     return color;
 }

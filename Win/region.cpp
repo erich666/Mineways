@@ -35,16 +35,16 @@ would be in region (0, -1), and one at (70, -30) would be at (3, -1).
 Region files are named "r.x.z.mcr", where x and z are the region coordinates.
 
 A region file begins with an 8KB header that describes where chunks are stored
-in the file and when they were last modified. A 4-byte big-endian integer 
-represents sector offsets and sector counts. The chunk offset for a chunk 
-located at (x, z) begins at byte 4*(x+z*32) in the file. The bottom byte of 
-the chunk offset indicates the number of sectors the chunk takes up,and 
+in the file and when they were last modified. A 4-byte big-endian integer
+represents sector offsets and sector counts. The chunk offset for a chunk
+located at (x, z) begins at byte 4*(x+z*32) in the file. The bottom byte of
+the chunk offset indicates the number of sectors the chunk takes up,and
 the top 3 bytes represent the sector number of the chunk. Given a chunk
-offset o, the chunk data begins at byte 4096*(o/256) and takes up at 
-most 4096*(o%256) bytes. A chunk cannot exceed 1MB in size. A chunk offset 
+offset o, the chunk data begins at byte 4096*(o/256) and takes up at
+most 4096*(o%256) bytes. A chunk cannot exceed 1MB in size. A chunk offset
 of 0 indicates a missing chunk.
 
-The 4-byte big-endian modification time for a chunk (x,z) begins at byte 
+The 4-byte big-endian modification time for a chunk (x,z) begins at byte
 4096+4*(x+z*32) in the file. The time is stored as the number of seconds
 since Jan 1, 1970 that the chunk was last written (aka Unix Time).
 
@@ -55,7 +55,7 @@ backwards-compatible updates to how chunks are encoded.
 
 A version number of 1 is never used, for obscure historical reasons.
 
-A version number of 2 represents a deflated (zlib compressed) NBT file. The 
+A version number of 2 represents a deflated (zlib compressed) NBT file. The
 deflated data is the chunk length - 1.
 
 */
@@ -74,15 +74,15 @@ deflated data is the chunk length - 1.
 // blockLight: a 16KB buffer to write block light into (not skylight)
 //
 // returns 1 on success, 0 on error or nothing found
-int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion) 
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion)
 {
     wchar_t filename[256];
     PORTAFILE regionFile;
 #ifdef WIN32
     DWORD br;
 #endif
-	static unsigned char buf[CHUNK_DEFLATE_MAX];
-	static unsigned char out[CHUNK_INFLATE_MAX];
+    static unsigned char buf[CHUNK_DEFLATE_MAX];
+    static unsigned char out[CHUNK_INFLATE_MAX];
 
     int sectorNumber, offset, chunkLength;
 
@@ -93,32 +93,32 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
     static int strm_initialized = 0;
 
     // open the region file - note we get the new mca 1.2 file type here!
-    swprintf_s(filename,256,L"%sregion/r.%d.%d.mca",directory,cx>>5,cz>>5);
+    swprintf_s(filename, 256, L"%sregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
 
-    regionFile=PortaOpen(filename);
+    regionFile = PortaOpen(filename);
     if (regionFile == INVALID_HANDLE_VALUE)
         return 0;
 
     // seek to the chunk offset
-    RERROR(PortaSeek(regionFile, 4*((cx&31)+(cz&31)*32)));
+    RERROR(PortaSeek(regionFile, 4 * ((cx & 31) + (cz & 31) * 32)));
 
     // get the chunk offset
-    RERROR(PortaRead(regionFile,buf, 4));
+    RERROR(PortaRead(regionFile, buf, 4));
 
     sectorNumber = buf[3]; // how many 4096B sectors the chunk takes up
-    offset = (buf[0]<<16)|(buf[1]<<8)|buf[2]; // 4KB sector the chunk is in
+    offset = (buf[0] << 16) | (buf[1] << 8) | buf[2]; // 4KB sector the chunk is in
 
     RERROR(offset == 0); // an empty chunk
 
-    RERROR(PortaSeek(regionFile, 4096*offset));
+    RERROR(PortaSeek(regionFile, 4096 * offset));
 
     RERROR(sectorNumber * 4096 > CHUNK_DEFLATE_MAX);
 
     // read chunk in one shot
     // this is faster than reading the header and data separately
-    RERROR(PortaRead(regionFile,buf, 4096 * sectorNumber));
+    RERROR(PortaRead(regionFile, buf, 4096 * sectorNumber));
 
-    chunkLength = (buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3];
+    chunkLength = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 
     // sanity check chunk size
     RERROR(chunkLength > sectorNumber * 4096 || chunkLength > CHUNK_DEFLATE_MAX);
@@ -158,5 +158,5 @@ int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, un
     bf._offset = 0;
     bf.offset = &bf._offset;
 
-	return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcversion);
+    return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcversion);
 }

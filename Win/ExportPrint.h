@@ -14,6 +14,6 @@ public:
     ~ExportPrint(void);
 };
 
-void getExportPrintData(ExportFileData *pEpd);
-void setExportPrintData(ExportFileData *pEpd);
-int doExportPrint(HINSTANCE hInst,HWND hWnd);
+void getExportPrintData(ExportFileData* pEpd);
+void setExportPrintData(ExportFileData* pEpd);
+int doExportPrint(HINSTANCE hInst, HWND hWnd);

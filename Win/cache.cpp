@@ -41,25 +41,25 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // arbitrary, let users tune this?
 // 6000 entries translates to Mineways using ~300MB of RAM (on x64)
 
-static int gHashMaxEntries=INITIAL_CACHE_SIZE;   // was 6000, Sean said to increase it - really should be 30000, because export memory toggle now changes it to this
+static int gHashMaxEntries = INITIAL_CACHE_SIZE;   // was 6000, Sean said to increase it - really should be 30000, because export memory toggle now changes it to this
 
 typedef struct block_entry {
     int x, z;
-    struct block_entry *next;
-    WorldBlock *data;
+    struct block_entry* next;
+    WorldBlock* data;
 } block_entry;
 
 typedef struct {
     int x, z;
 } IPoint2;
 
-static block_entry **gBlockCache=NULL;
+static block_entry** gBlockCache = NULL;
 
-static IPoint2 *gCacheHistory=NULL;
-static int gCacheN=0;
+static IPoint2* gCacheHistory = NULL;
+static int gCacheN = 0;
 
 static int hash_coord(int x, int z) {
-    return (x&(HASH_XDIM-1))*(HASH_ZDIM) + (z & (HASH_ZDIM - 1));
+    return (x & (HASH_XDIM - 1)) * (HASH_ZDIM)+(z & (HASH_ZDIM - 1));
 }
 
 static block_entry* hash_new(int x, int z, void* data, block_entry* next) {
@@ -71,9 +71,9 @@ static block_entry* hash_new(int x, int z, void* data, block_entry* next) {
     return ret;
 }
 
-void Change_Cache_Size( int size )
+void Change_Cache_Size(int size)
 {
-    if ( size == gHashMaxEntries )
+    if (size == gHashMaxEntries)
     {
         // no change - why did you call?
         return;
@@ -83,10 +83,10 @@ void Change_Cache_Size( int size )
     gHashMaxEntries = size;
 }
 
-void Cache_Add(int bx, int bz, void *data)
+void Cache_Add(int bx, int bz, void* data)
 {
     int hash;
-    block_entry *to_del=NULL;
+    block_entry* to_del = NULL;
 
     if (gBlockCache == NULL) {
         gBlockCache = (block_entry**)malloc(sizeof(block_entry*) * HASH_SIZE);
@@ -102,7 +102,7 @@ void Cache_Add(int bx, int bz, void *data)
         IPoint2 coord = gCacheHistory[gCacheN % gHashMaxEntries];
         int oldhash = hash_coord(coord.x, coord.z);
 
-        block_entry **cur = &gBlockCache[oldhash];
+        block_entry** cur = &gBlockCache[oldhash];
         while (*cur != NULL) {
             if ((**cur).x == coord.x && (**cur).z == coord.z) {
                 to_del = *cur;
@@ -122,7 +122,8 @@ void Cache_Add(int bx, int bz, void *data)
         to_del->z = bz;
         to_del->data = (WorldBlock*)data;
         gBlockCache[hash] = to_del;
-    } else {
+    }
+    else {
         gBlockCache[hash] = hash_new(bx, bz, data, gBlockCache[hash]);
     }
 
@@ -131,9 +132,9 @@ void Cache_Add(int bx, int bz, void *data)
     gCacheN++;
 }
 
-void *Cache_Find(int bx,int bz)
+void* Cache_Find(int bx, int bz)
 {
-    block_entry *entry;
+    block_entry* entry;
 
     if (gBlockCache == NULL)
         return NULL;
@@ -148,7 +149,7 @@ void *Cache_Find(int bx,int bz)
 void Cache_Empty()
 {
     int hash;
-    block_entry *entry,*next;
+    block_entry* entry, * next;
 
     if (gBlockCache == NULL)
         return;
@@ -158,16 +159,16 @@ void Cache_Empty()
         while (entry != NULL) {
             next = entry->next;
             // so hacky
-			if (entry->data != NULL) {
-				if (entry->data->entities != NULL) {
-					free(entry->data->entities);
-					// shouldn't be needed, but for safety's sake
-					entry->data->entities = NULL;
-					entry->data->numEntities = 0;
-				}
-				free(entry->data);
-				entry->data = NULL;
-			}
+            if (entry->data != NULL) {
+                if (entry->data->entities != NULL) {
+                    free(entry->data->entities);
+                    // shouldn't be needed, but for safety's sake
+                    entry->data->entities = NULL;
+                    entry->data->numEntities = 0;
+                }
+                free(entry->data);
+                entry->data = NULL;
+            }
             free(entry);
             entry = next;
         }
@@ -176,7 +177,7 @@ void Cache_Empty()
     free(gBlockCache);
     free(gCacheHistory);
     gBlockCache = NULL;
-	gCacheHistory = NULL;
+    gCacheHistory = NULL;
 }
 
 /* a simple malloc wrapper, based on the observation that a common
@@ -187,13 +188,13 @@ void Cache_Empty()
 ** cacheAdd(newBlock)
 **  free(oldBlock) // same size
 **
-** Repeatedly. Recycling the old block can prevent the need for 
+** Repeatedly. Recycling the old block can prevent the need for
 ** malloc and free.
 **/
 
 static WorldBlock* last_block = NULL;
 
-WorldBlock* block_alloc() 
+WorldBlock* block_alloc()
 {
     WorldBlock* ret = NULL;
     if (last_block != NULL)
@@ -209,8 +210,8 @@ WorldBlock* block_alloc()
     }
     else {
         ret = (WorldBlock*)malloc(sizeof(WorldBlock));
-		if (ret == NULL)
-			return NULL;
+        if (ret == NULL)
+            return NULL;
         ret->entities = NULL;
         ret->numEntities = 0;
         return ret;
@@ -219,7 +220,7 @@ WorldBlock* block_alloc()
 
 void block_free(WorldBlock* block)
 {
-	// keep latest freed block available in "last_block", so free the one already there
+    // keep latest freed block available in "last_block", so free the one already there
     if (last_block != NULL)
     {
         if (last_block->entities != NULL) {

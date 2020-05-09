@@ -82,7 +82,7 @@ typedef struct ChangeBlockCommand {
     unsigned short simpleFromDataBits;
     bool useFromArray;
     // if useFromArray is true, fromDataBits contains 256 entry array of bits of blocks to change
-    unsigned short *fromDataBitsArray;
+    unsigned short* fromDataBitsArray;
 
     // to location - there is always only one
     bool hasInto;
@@ -97,7 +97,7 @@ typedef struct ChangeBlockCommand {
     int maxxVal;
     int maxyVal;
     int maxzVal;
-    struct ChangeBlockCommand *next;
+    struct ChangeBlockCommand* next;
 } ChangeBlockCommand;
 
 
@@ -105,16 +105,16 @@ typedef struct ChangeBlockCommand {
 #define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) <= 1343 ? 12 : ((worldVersion) <= 1631) ? 13 : 14)
 
 
-void SetSeparatorObj(const wchar_t *separator);
+void SetSeparatorObj(const wchar_t* separator);
 void ChangeCache(int size);
 void ClearCache();
 
-int SaveVolume(wchar_t *objFileName, int fileType, Options *options, WorldGuide *gWorldGuide, const wchar_t *curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
-    ProgressCallback callback, wchar_t *terrainFileName, wchar_t *schemeSelected, FileList *outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand *pCBC);
-int GetMinimumSelectionHeight(WorldGuide *pWorldGuide, Options *pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy);
+int SaveVolume(wchar_t* objFileName, int fileType, Options* options, WorldGuide* gWorldGuide, const wchar_t* curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz,
+    ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC);
+int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy);
 
-void WcharToChar(const wchar_t *inWString, char *outString, int maxlength);
-void StripLastString(const wchar_t *src, wchar_t *path, wchar_t *piece);
+void WcharToChar(const wchar_t* inWString, char* outString, int maxlength);
+void StripLastString(const wchar_t* src, wchar_t* path, wchar_t* piece);
 void EnsureSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix);
 
 //

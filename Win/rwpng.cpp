@@ -36,7 +36,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 //Decode from disk to raw pixels with a single function call
 // return 0 on success
-int readpng(progimage_info *im, wchar_t *filename)
+int readpng(progimage_info* im, wchar_t* filename)
 {
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
@@ -62,16 +62,16 @@ int readpng(progimage_info *im, wchar_t *filename)
     return 0;
 }
 
-void readpng_cleanup(int mode, progimage_info *im)
+void readpng_cleanup(int mode, progimage_info* im)
 {
     // mode was important back when libpng was in use
-    if ( mode == 1 )
+    if (mode == 1)
     {
         im->image_data.clear();
     }
 }
 
-int readpngheader(progimage_info *im, wchar_t *filename)
+int readpngheader(progimage_info* im, wchar_t* filename)
 {
     unsigned int width, height;
     std::vector<unsigned char> buffer;
@@ -110,22 +110,22 @@ int readpngheader(progimage_info *im, wchar_t *filename)
 //Encode from raw pixels to disk with a single function call
 //The image argument has width * height RGBA pixels or width * height * 4 bytes
 // return 0 on success
-int writepng(progimage_info *im, int channels, wchar_t *filename)
+int writepng(progimage_info* im, int channels, wchar_t* filename)
 {
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
 
     //Encode the image, depending on type
     unsigned int error = 1;	// 1 means didn't reach lodepng
-    if ( channels == 4 )
+    if (channels == 4)
     {
         // 32 bit RGBA, the default
-        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA);
     }
-    else if ( channels == 3 )
+    else if (channels == 3)
     {
         // 24 bit RGB
-        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB);
     }
     else
     {
@@ -143,7 +143,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 }
 
 
-void writepng_cleanup(progimage_info *im)
+void writepng_cleanup(progimage_info* im)
 {
     im->image_data.clear();
 }

@@ -29,6 +29,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __REGION_H__
 #define __REGION_H__
 
-int regionGetBlocks(wchar_t *directory, int cx, int cz, unsigned char *block, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion);
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion);
 
 #endif

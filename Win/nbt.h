@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "zlib.h"
 #include <stdio.h>
 
-enum {BF_BUFFER, BF_GZIP};
+enum { BF_BUFFER, BF_GZIP };
 
 // for another 256 block types, this bit gets set in the dataVal field (we're out of bits with block IDs)
 // Note tthe next-to-highest bit is used for "waterlogged" so should be avoided if that property is part of the block's description
@@ -63,8 +63,8 @@ enum {BF_BUFFER, BF_GZIP};
 // wraps gzFile and memory buffers with a consistent interface
 typedef struct {
     int type;
-    unsigned char *buf;
-    int *offset;
+    unsigned char* buf;
+    int* offset;
     int _offset;
     gzFile gz;
 } bfFile;
@@ -76,17 +76,17 @@ typedef struct BlockEntity {
     unsigned char data;	// major and minor data in one byte
 } BlockEntity;
 
-bfFile newNBT(const wchar_t *filename, int *err);
-int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned char *blockLight, unsigned char *biome, BlockEntity *entities, int *numEntities, int mcversion);
-int nbtGetSpawn(bfFile *pbf,int *x,int *y,int *z);
-int nbtGetFileVersion(bfFile *pbf, int *version);
-int nbtGetFileVersionId(bfFile *pbf, int *versionId);
-int nbtGetFileVersionName(bfFile *pbf, char *versionName, int stringLength);
-int nbtGetLevelName(bfFile *pbf, char *levelName, int stringLength);
-int nbtGetPlayer(bfFile *pbf, int *px, int *py, int *pz);
+bfFile newNBT(const wchar_t* filename, int* err);
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion);
+int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z);
+int nbtGetFileVersion(bfFile* pbf, int* version);
+int nbtGetFileVersionId(bfFile* pbf, int* versionId);
+int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength);
+int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength);
+int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz);
 //void nbtGetRandomSeed(bfFile *pbf,long long *seed);
-int nbtGetSchematicWord(bfFile *pbf, char *field, int *value);
-int nbtGetSchematicBlocksAndData(bfFile *pbf, int numBlocks, unsigned char *schematicBlocks, unsigned char *schematicBlockData);
-void nbtClose(bfFile *pbf);
+int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
+int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
+void nbtClose(bfFile* pbf);
 
 #endif

@@ -31,8 +31,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 
 void PrecomputeBiomeColors();
-int ComputeBiomeColor( int biome, int elevation, int isGrass );
-int BiomeSwampRiverColor( int color );
+int ComputeBiomeColor(int biome, int elevation, int isGrass);
+int BiomeSwampRiverColor(int color);
 
 
 #define FOREST_BIOME				 4
@@ -48,7 +48,7 @@ int BiomeSwampRiverColor( int color );
 
 
 typedef struct Biome {
-    const char *name;
+    const char* name;
     float temperature;
     float rainfall;
     unsigned int grass;	// r,g,b, NOT multiplied by alpha
