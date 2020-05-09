@@ -816,7 +816,7 @@ static struct {
     {  6, 46,   6, 0, L"chiseled_nether_bricks", L"", SWATCH_REPEAT_ALL },
     {  7, 46,   6, 0, L"cracked_nether_bricks", L"", SWATCH_REPEAT_ALL },
     {  8, 46,   6, 0, L"shroomlight", L"", SWATCH_REPEAT_ALL },
-    {  9, 46,   6, 0, L"jigsaw_lock", L"", SWATCH_REPEAT_ALL }, // TODO - someday add this in. I can't figure out what property is on the tile that shows this
+    {  9, 46,   6, 0, L"jigsaw_lock", L"", SWATCH_REPEAT_ALL },
     { 10, 46,   6, 0, L"target_top", L"", SWATCH_REPEAT_ALL },
     { 11, 46,   6, 0, L"target_side", L"", SWATCH_REPEAT_ALL },
     { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },

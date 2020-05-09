@@ -292,8 +292,9 @@ static int gMajorVersion=0;
 static int gMinorVersion=0;
 // used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
 // 0 means version 1.8 and earlier
+// Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion. See https://minecraft.gamepedia.com/Data_version
 static int gMinecraftWorldVersion = 0;
-// translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
+// translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14 - IMPORTANT: 1.15 and 1.16 are still called 14, go figure
 static int gMcVersion = 0;
 static bool gIs13orNewer; // if gMcVersion >= 13 - computed once
 
@@ -18048,9 +18049,54 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // adjust swatch location
                 swatchLoc += swatchOffset;
             
+                // if this is a newfangled jigsaw, add the lock.
+                if ((type == BLOCK_JIGSAW) && (gMinecraftWorldVersion >= 2520)) {
+                    switch (dataVal & 0x7) {
+                    default:
+                        assert(0);
+                    case 2:
+                    case 3:
+                    case 4:
+                    case 5:
+                        // the lock is on the top, so check if we need to work on this
+                        if (faceDirection == DIRECTION_BLOCK_TOP) {
+                            // Magically, it's the right orientation. Just walk away.
+                            swatchLoc = SWATCH_INDEX(9, 46);
+                        }
+                        break;
+                    case 0:
+                    case 1:
+                        // put the lock on the proper side
+                        switch (dataVal & 0x18) {
+                        case 0: // west
+                            if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) {
+                                swatchLoc = SWATCH_INDEX(9, 46);
+                            }
+                            break;
+                        case BIT_8: // south
+                            if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) {
+                                swatchLoc = SWATCH_INDEX(9, 46);
+                            }
+                            break;
+                        case BIT_16: // north
+                            if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) {
+                                swatchLoc = SWATCH_INDEX(9, 46);
+                            }
+                            break;
+                        case BIT_16|BIT_8: // east
+                            if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) {
+                                swatchLoc = SWATCH_INDEX(9, 46);
+                            }
+                            break;
+                        }
+                        break;
+                    }
+                }
+
                 // very very sleazy: set faceDirection "off" so that 
                 // "faceDirection == DIRECTION_BLOCK_BOTTOM" at the end of this long method does not affect it.
                 faceDirection = -1;
+
             }
             break;
 

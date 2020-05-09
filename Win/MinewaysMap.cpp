@@ -4021,7 +4021,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_ANDESITE_DOUBLE_SLAB:
     case BLOCK_BAMBOO:
 	case BLOCK_JIGSAW:
-		// uses 0-5
+		// uses 0-5 - could use more for 1.16 orientations, TODO
         if ( dataVal < 6 )
         {
             addBlock = 1;
