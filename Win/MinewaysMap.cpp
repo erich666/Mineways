@@ -2935,6 +2935,87 @@ static unsigned int checkSpecialBlockColor( WorldBlock * block, unsigned int vox
 		}
 		break;
 
+    case BLOCK_SIGN_POST:
+        dataVal = block->data[voxel];
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case BIT_16:	// spruce
+            color = 0x745632;
+            break;
+        case BIT_32:	// birch
+            color = 0xC2B17A;
+            break;
+        case BIT_32 | BIT_16:	// jungle
+            color = 0xA37654;
+            break;
+        }
+        break;
+
+    case BLOCK_ACACIA_SIGN_POST:
+        dataVal = block->data[voxel];
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case BIT_16:	// dark oak
+            color = 0x442C15;
+            break;
+        case BIT_32:	// crimson
+            color = 0x7B3953;
+            break;
+        case BIT_32 | BIT_16:	// warped
+            color = 0x35837F;
+            break;
+        }
+        break;
+
+    case BLOCK_WALL_SIGN:
+        dataVal = block->data[voxel];
+        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case BIT_8:	// spruce
+            color = 0x745632;
+            break;
+        case BIT_16:	// birch
+            color = 0xC2B17A;
+            break;
+        case BIT_16 | BIT_8:	// jungle
+            color = 0xA37654;
+            break;
+        case BIT_32:	// acacia
+            color = 0xA95B33;
+            break;
+        case BIT_32 | BIT_8:	// dark oak
+            color = 0x442C15;
+            break;
+        case BIT_32 | BIT_16:
+            color = 0x7B3953;
+            break;
+        case BIT_32 | BIT_16 | BIT_8:
+            color = 0x35837F;
+            break;
+        }
+        break;
+
 	case BLOCK_SMOOTH_STONE:
 		dataVal = block->data[voxel];
 		switch (dataVal & 0x3)

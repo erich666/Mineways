@@ -28,6 +28,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include <string.h>
+#include <assert.h>
 
 // We know we won't run into names longer than 100 characters. The old code was
 // safe, but was also allocating strings all the time - seems slow.
@@ -899,7 +900,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  66,    HIGH_BIT, "conduit", NO_PROP },
 { 0,  67,    HIGH_BIT, "sea_pickle", PICKLE_PROP },
 { 0,  68,    HIGH_BIT, "turtle_egg", EGG_PROP },
-{ 0,  26,           0, "black_bed", BED_PROP }, // TODOTODO+ bed colors should have separate blocks or whatever
+{ 0,  26,           0, "black_bed", BED_PROP }, // TODO+ bed colors should have separate blocks or whatever
 { 0,  26,           0, "red_bed", BED_PROP },
 { 0,  26,           0, "green_bed", BED_PROP },
 { 0,  26,           0, "brown_bed", BED_PROP },
@@ -1131,7 +1132,8 @@ void makeHashTable()
 		offset += hashPerIndex[i] + 1;
 	}
 	if (offset != HASH_SIZE + NUM_TRANS) {
-		// this is an error - should assert (does not exist), so put a break here instead.
+		// this is an error
+		assert(0);
 		return;
 	}
 	// now populate the hashLists, ending with -1; first just set all to -1
@@ -1174,7 +1176,8 @@ void makeHashTable()
 			if ((BlockTranslations[i].blockId != BLOCK_FLOWER_POT) && (BlockTranslations[i].blockId != BLOCK_HEAD)) {
 				// reality check
 				if (((BlockTranslations[i].blockId | (BlockTranslations[i].dataVal & 0x80) << 1)) >= NUM_BLOCKS_DEFINED) {
-					// put a break here, since we can't assert
+					// out of bounds access
+					assert(0);
 					return;
 				}
 				// note bits used for different objects - high-bit is masked off.
@@ -1211,7 +1214,8 @@ void makeHashTable()
 				{
 					sprintf_s(outputString, 256, "%3d: 0x%02x\n", i, mask_array[i]);
 					if (PortaWrite(outFile, outputString, strlen(outputString))) {
-						// write error! Should really assert, but assert(0) is not defined in nbt.
+						// write error!
+						assert(0);
 						return;
 					}
 				}
@@ -1232,7 +1236,8 @@ void makeHashTable()
 				{
 					sprintf_s(outputString, 256, "%3d, %s\n", i, gBlockDefinitions[i].name);
 					if (PortaWrite(outBlockFile, outputString, strlen(outputString))) {
-						// write error! Should really assert, but assert(0) is not defined in nbt.
+						// write error!
+						assert(0);
 						return;
 					}
 				}
@@ -1256,7 +1261,8 @@ void makeHashTable()
 								// new name, so output it
 								sprintf_s(outputString, 256, "%3d, %s\n", i, subName);
 								if (PortaWrite(outFile, outputString, strlen(outputString))) {
-									// write error! Should really assert, but assert(0) is not defined in nbt.
+									// write error!
+									assert(0);
 									return;
 								}
 								strcpy_s(prevSubName, 256, subName);
@@ -1267,7 +1273,8 @@ void makeHashTable()
 				}
 				sprintf_s(outputString, 256, "Total of %3d subblock names\n", count);
 				if (PortaWrite(outFile, outputString, strlen(outputString))) {
-					// write error! Should really assert, but assert(0) is not defined in nbt.
+					// write error!
+					assert(0);
 					return;
 				}
 				PortaClose(outFile);
@@ -1403,12 +1410,13 @@ static int skipType(bfFile *pbf, int type)
     {
     default:
         // unknown type! That's bad.
+		assert(0);
         break;
     case 0:
         // perfectly reasonable case: type 0 is end
         return 0;
     case 1: //byte
-        return bfseek(pbf,1,SEEK_CUR);
+        return bfseek(pbf, 1, SEEK_CUR);
     case 2: //short
         return bfseek(pbf, 2, SEEK_CUR);
     case 3: //int
@@ -1632,7 +1640,8 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 			}
 		}
 		else {
-			// we should debug assert at this point.
+			// some unknown length - has the format changed yet again?
+			assert(0);
 			memset(biome, 0, 256);
 		}
 	}
@@ -2284,6 +2293,45 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 										else if (strcmp(token, "charges") == 0) {
 											dataVal = atoi(value);
 										}
+										// for jigsaw
+										else if (strcmp(token, "orientation") == 0) {
+											if (strcmp(value, "south_up") == 0) {
+												dropper_facing = 3;
+											}
+											else if (strcmp(value, "west_up") == 0) {
+												dropper_facing = 2;
+											}
+											else if (strcmp(value, "north_up") == 0) {
+												dropper_facing = 4;
+											}
+											else if (strcmp(value, "east_up") == 0) {
+												dropper_facing = 5;
+											}
+											else if (strcmp(value, "up_east") == 0) {
+												dropper_facing = 1 | BIT_16 | BIT_8;
+											}
+											else if (strcmp(value, "up_north") == 0) {
+												dropper_facing = 1 | BIT_16;
+											}
+											else if (strcmp(value, "up_west") == 0) {
+												dropper_facing = 1;
+											}
+											else if (strcmp(value, "up_south") == 0) {
+												dropper_facing = 1 | BIT_8;
+											}
+											else if (strcmp(value, "down_east") == 0) {
+												dropper_facing = 0 | BIT_16 | BIT_8;
+											}
+											else if (strcmp(value, "down_north") == 0) {
+												dropper_facing = 0 | BIT_16;
+											}
+											else if (strcmp(value, "down_west") == 0) {
+												dropper_facing = 0;
+											}
+											else if (strcmp(value, "down_south") == 0) {
+												dropper_facing = 0 | BIT_8;
+											}
+										}
 
 #ifdef _DEBUG
 										else {
@@ -2294,7 +2342,6 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 											else if (strcmp(token, "instrument") == 0) {}
 											else if (strcmp(token, "drag") == 0) {}
 											else if (strcmp(token, "has_record") == 0) {}	// jukebox
-											else if (strcmp(token, "orientation") == 0) {}	// jigsaw block TODOTODO
 											else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
 											else {
 												// unknown property, let's show it: put a break here in DEBUG and
@@ -2302,6 +2349,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 												// token is {token} and value is {value}
 												token[0] = token[0];	// here for debug
 												value[0] = value[0];	// here for debug
+												assert(0);
 											}
 										}
 #endif
@@ -2752,7 +2800,7 @@ int nbtGetBlocks(bfFile *pbf, unsigned char *buff, unsigned char *data, unsigned
 					// sanity check
 					if (bits >= entry_index) {
 						// Should never reach here; means that a stored index value is greater than any value in the palette.
-						// TODOTODO how can we make our own valid assert, or use Windows'?
+						assert(0);
 #ifdef _DEBUG
 						// maximum value is entry_index - 1; which is useful for debugging - see things go bad
 						bits = entry_index - 1;

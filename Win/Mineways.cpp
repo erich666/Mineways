@@ -334,6 +334,7 @@ INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR *argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList, int argCount);
+static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd);
 static int getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount);
 static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, const LPWSTR *argList, int argCount);
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
@@ -1632,63 +1633,14 @@ RButtonUp:
 
             if (GetOpenFileName(&ofn) == TRUE)
             {
-                // first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
-                // This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
-                rationalizeFilePath(pathAndFile);
-
-                // schematic or world?
-                wchar_t filename[MAX_PATH_AND_FILE];
-                splitToPathAndName(pathAndFile, NULL, filename);
-                size_t len = wcslen(filename);
-                if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
-                    // Read schematic as a world.
-                    gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
-                    gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
-                    gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-                    wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
-					int error = loadWorld(hWnd);
-                    if (error) {
-                    //if (loadSchematic(pathAndFile)) {
-                        // schematic world not loaded properly
-                        gWorldGuide.type = WORLD_UNLOADED_TYPE;
-						if (error == 100 + 5) {
-							MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported; this is a known issue (and is a lot of work to support, so don't hold your breath)."),
-								_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-						} else {
-							MessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
-								_T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-						}
-						return 0;
-                    }
-                    UpdateWindow(hWnd);
-                }
-                else {
-                    // read level.dat normal world
-
-                    PathRemoveFileSpec(pathAndFile);
-                    //convert path to utf8
-                    //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH_AND_FILE,NULL,NULL);
-                    gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
-                    wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
-
-                    // if this is not the same world, switch back to the aboveground view.
-                    if (!gSameWorld)
-                    {
+                int retCode = loadWorldFromFilename(pathAndFile, hWnd);
+                // load worked?
+                if (retCode) {
+                    if (retCode == 2) {
                         gotoSurface(hWnd, hwndSlider, hwndLabel);
                     }
-
-                    UpdateWindow(hWnd);
-                    gWorldGuide.type = WORLD_LEVEL_TYPE;
-                    int loadErr = loadWorld(hWnd);
-                    if (loadErr)
-                    {
-                        showLoadWorldError(loadErr);
-                        return 0;
-                    }
+                    setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
                 }
-                // the file read succeeded, so update path to it.
-                wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, pathAndFile);
-                setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
             }
             gOpenFilterIndex = ofn.nFilterIndex;
             break;
@@ -2326,6 +2278,71 @@ static int modifyWindowSizeFromCommandLine(int *x, int *y, const LPWSTR *argList
     return retCode;
 }
 
+static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
+{
+    int retCode = 1;    // assume success
+
+    // first, "rationalize" the gWorldGuide.world name: make it all \'s or all /'s, not both.
+    // This will make it nicer for comparing to see if the new world is the same as the previously-loaded world.
+    rationalizeFilePath(pathAndFile);
+
+    // schematic or world?
+    wchar_t filename[MAX_PATH_AND_FILE];
+    splitToPathAndName(pathAndFile, NULL, filename);
+    size_t len = wcslen(filename);
+    if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+        // Read schematic as a world.
+        gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
+        gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+        gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+        wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
+        int error = loadWorld(hWnd);
+        if (error) {
+            //if (loadSchematic(pathAndFile)) {
+                // schematic world not loaded properly
+            gWorldGuide.type = WORLD_UNLOADED_TYPE;
+            if (error == 100 + 5) {
+                MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported; this is a known issue (and is a lot of work to support, so don't hold your breath)."),
+                    _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            }
+            else {
+                MessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
+                    _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            }
+            return 0;
+        }
+        UpdateWindow(hWnd);
+    }
+    else {
+        // read level.dat normal world
+
+        PathRemoveFileSpec(pathAndFile);
+        //convert path to utf8
+        //WideCharToMultiByte(CP_UTF8,0,path,-1,gWorldGuide.world,MAX_PATH_AND_FILE,NULL,NULL);
+        gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
+        wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
+
+        // if this is not the same world, switch back to the aboveground view.
+        if (!gSameWorld)
+        {
+            // need to go to surface
+            retCode = 2;
+        }
+
+        UpdateWindow(hWnd);
+        gWorldGuide.type = WORLD_LEVEL_TYPE;
+        int loadErr = loadWorld(hWnd);
+        if (loadErr)
+        {
+            showLoadWorldError(loadErr);
+            return 0;
+        }
+    }
+    // the file read succeeded, so update path to it.
+    wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, pathAndFile);
+    return retCode;
+}
+
 // return true if a command line directory was found and it's valid, false means not found or not valid.
 // fill in saveWorldDirectory with user-specified directory
 static int getWorldSaveDirectoryFromCommandLine(wchar_t *saveWorldDirectory, const LPWSTR *argList, int argCount)
@@ -2411,7 +2428,7 @@ static bool processCreateArguments(WindowSet & ws, const char **pBlockLabel, LPA
         // is it a script?
         else {
             // Load a script; if it works fine, don't pop up a dialog
-			// TODO: someday maybe add a check that if the argument is a level.dat or a world save directory name, try to load that.
+			// TODO: someday maybe add a check that if the argument is a level.dat, try to load that.
             LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
             runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
             argIndex++;
@@ -4357,6 +4374,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
+// importFile is a script file, but can also be an .obj or .wrl file treated as one
 static void runImportOrScript(wchar_t *importFile, WindowSet & ws, const char **pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess)
 {
     ImportedSet is;
@@ -4482,9 +4500,22 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
     ExportFileData dummyEfd;
     initializeImportedSet(is, &dummyEfd, importFile);
 
+    int retCode = IMPORT_FAILED;
+    /* This doesn't work, for some reason. It's a kind of terrible idea, anyway, putting a level.dat's path on the command line
+    // If the user is trying to load a level.dat file (which could happen on the command line), try that for them
+    if (wcsstr(importFile, L"level.dat")) {
+        retCode = loadWorldFromFilename(importFile, is.ws.hWnd);
+        // we don't care if we get back a 1 or 2; treat as 1
+        if (retCode) {
+            retCode = IMPORT_MODEL;
+            setUIOnLoadWorld(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, is.ws.hwndInfoLabel, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel);
+        }
+        goto Exit;
+    }
+    */
+
     // Read header of exported file, as written by writeStatistics(), and get export settings from it,
     // or read file as a set of scripting commands.
-    int retCode = 0;
     FILE *fh;
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
@@ -4492,7 +4523,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
         wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
         MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-        retCode = 0;
+        retCode = IMPORT_FAILED;
         goto Exit;
     }
 
@@ -4585,7 +4616,7 @@ static int importSettings(wchar_t *importFile, ImportedSet & is, bool dialogOnSu
             MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             deleteCommandBlockSet(is.pCBChead);
             is.pCBChead = is.pCBClast = NULL;
-            retCode = false;
+            retCode = IMPORT_FAILED;
         }
         else if (is.errorMessages && (is.errorMessages[0] != (wchar_t)0)) {
             MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import warning") : _T("Script warning"), MB_OK | MB_ICONWARNING);

@@ -5396,30 +5396,30 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			default:
 			case 0:
 				// oak
-				topSwatchLoc = SWATCH_INDEX(4,0);
-				bottomSwatchLoc = SWATCH_INDEX(5, 1);
-				sideSwatchLoc = SWATCH_INDEX(4, 1);    // log
+				topSwatchLoc = SWATCH_INDEX(4,0);   // planks
+				bottomSwatchLoc = SWATCH_INDEX(5, 1);   // end of log, for the post
+				sideSwatchLoc = SWATCH_INDEX(4, 1);    // log bark, for the post
 				break;
 
 			case BIT_16:
 				// spruce
-				topSwatchLoc = SWATCH_INDEX(6, 12);
-				bottomSwatchLoc = SWATCH_INDEX(11, 11);
-				sideSwatchLoc = SWATCH_INDEX(4, 7);    // log
+				topSwatchLoc = SWATCH_INDEX(6, 12);   // planks
+				bottomSwatchLoc = SWATCH_INDEX(11, 11);   // end of log, for the post
+				sideSwatchLoc = SWATCH_INDEX(4, 7);    // log bark, for the post
 				break;
 
 			case BIT_32:
 				// birch
-				topSwatchLoc = SWATCH_INDEX(6, 13);
-				bottomSwatchLoc = SWATCH_INDEX(12, 11);
-				sideSwatchLoc = SWATCH_INDEX(5,7);    // log
+				topSwatchLoc = SWATCH_INDEX(6, 13);   // planks
+				bottomSwatchLoc = SWATCH_INDEX(12, 11);   // end of log, for the post
+				sideSwatchLoc = SWATCH_INDEX(5,7);    // log bark, for the post
 				break;
 
 			case (BIT_32 | BIT_16):
 				// jungle
-				topSwatchLoc = SWATCH_INDEX(7, 12);
-				bottomSwatchLoc = SWATCH_INDEX(13, 11);
-				sideSwatchLoc = SWATCH_INDEX(9, 9);    // log
+				topSwatchLoc = SWATCH_INDEX(7, 12);   // planks
+				bottomSwatchLoc = SWATCH_INDEX(13, 11);   // end of log, for the post
+				sideSwatchLoc = SWATCH_INDEX(9, 9);    // log bark, for the post
 				break;
 			}
 		}
@@ -5429,31 +5429,35 @@ static int saveBillboardOrGeometry( int boxIndex, int type )
 			default:
 			case 0:
 				// acacia
-				topSwatchLoc = SWATCH_INDEX(0, 22);
-				bottomSwatchLoc = SWATCH_INDEX(13, 19);
-				sideSwatchLoc = SWATCH_INDEX(5, 11);    // log
+				topSwatchLoc = SWATCH_INDEX(0, 22);   // planks
+				bottomSwatchLoc = SWATCH_INDEX(13, 19);   // end of log, for the post
+				sideSwatchLoc = SWATCH_INDEX(5, 11);    // log bark, for the post
 				break;
 
             case BIT_16:
                 // dark oak
-                topSwatchLoc = SWATCH_INDEX(1, 22);
-                bottomSwatchLoc = SWATCH_INDEX(15, 19);
-                sideSwatchLoc = SWATCH_INDEX(14, 19);    // log
+                topSwatchLoc = SWATCH_INDEX(1, 22);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(15, 19);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(14, 19);    // log bark, for the post
                 break;
             case BIT_32:
                 // crimson
-                topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(8, 43);
+                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(0, 43);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(1, 43);    // log bark, for the post
                 break;
             case BIT_32|BIT_16:
                 // warped
-                topSwatchLoc = sideSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(8, 44);
+                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(0, 44);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(1, 44);    // log bark, for the post
                 break;
             }
 		}
         // sign is two parts:
         // bottom post is output first, which saves one translation
         gUsingTransform = 1;
-        // if printing, seal the top of the post
+        // if printing, seal the top of the post; the side swatch is the log bark texture, used in the post
         saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, gPrint3D ? 0x0 : DIR_TOP_BIT, 0, 7 - fatten, 9 + fatten, 0, 14, 7 - fatten, 9 + fatten);
         gUsingTransform = 0;
         // scale sign down, move slightly away from wall
@@ -10403,14 +10407,20 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         case 3: // nothing on down wobbles, so far
             // nether sprouts
             swatchLoc = SWATCH_INDEX(5, 43);
+            // added wobble in 20w19a
+            wobbleIt = true;
             break;
         case 4:
             // crimson root
             swatchLoc = SWATCH_INDEX(6, 43);
+            // added wobble in 20w19a
+            wobbleIt = true;
             break;
         case 5:
             // warped root
             swatchLoc = SWATCH_INDEX(6, 44);
+            // added wobble in 20w19a
+            wobbleIt = true;
             break;
         }
 		break;
@@ -18019,8 +18029,8 @@ static int getSwatch( int type, int dataVal, int faceDirection, int backgroundIn
                 // need to rotate?
                 if ( swatchOffset == 2 )
                 {
-                    // it's a side
-                    if (dataVal & 0x8) {
+                    // it's a side - conditional?
+                    if ((dataVal & 0x8) && (type != BLOCK_JIGSAW)) {
                         // conditional face, go to one past the side face
                         swatchOffset++;
                     }
@@ -23694,7 +23704,7 @@ static bool writeTileFromMasterOutput(wchar_t *filename, progimage_info *src, in
 {
 	int retCode = MW_NO_ERROR;
 	bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
-	// TODOTODO OK, this is a kludge
+	// TODO OK, this is a kludge
 	if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
         // For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
 		usesAlpha = false;
