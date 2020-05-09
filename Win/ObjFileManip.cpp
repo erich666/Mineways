@@ -1003,8 +1003,8 @@ int SaveVolume(wchar_t *saveFileName, int fileType, Options *options, WorldGuide
 		// output uses this. We export the texture at the end.
         if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
         {
-            // use true textures
-            gModel.textureResolution = 2*gModel.pInputTerrainImage->width;
+            // use true textures - for 3D printing, we need to make output image larger to accomodate composite swatches.
+            gModel.textureResolution = (gPrint3D ? 4 : 2) * gModel.pInputTerrainImage->width;
             gModel.terrainWidth = gModel.pInputTerrainImage->width;
 		}
         else
@@ -1280,7 +1280,8 @@ Exit:
                     // these won't actually get used, as far as I recall. I clean them up purely for tidiness, and just in case.
                     // We could register these as previously-existing swatches, knowing that here is where we'll actually fill them in.
                     // To do so, use createCompositeSwatch - call with specific swatch location, with negative meaning "add to end".
-                    // But, not to bother, for now, until the day we're really desperate for the room. TODO.
+                    // But, not to bother, for now, until the day we're really desperate for the room (i.e., never, since I just
+                    // made the output resolution 4* - see gModel.textureResolution).
                     for (i = 0; i < FA_FINAL_TABLE_SIZE; i++)
                     {
                         compositePNGSwatches(gModel.pPNGtexture,
@@ -20078,7 +20079,7 @@ static int writeOBJFullMtlDescription(char *mtlName, int type, int dataVal, char
 		alpha = 1.0f;
 	}
 	// if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
-	// (this is true for glass panes, but stained glass pains are semitransparent)
+	// (this is true for glass panes, but stained glass panes are semitransparent)
 	if (alpha < 1.0f && (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
 	{
 		alpha = 1.0f;
