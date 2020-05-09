@@ -3891,7 +3891,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         break;
     case BLOCK_SAND:
     case BLOCK_TNT:
-    case BLOCK_FIRE:
     case BLOCK_WOODEN_PRESSURE_PLATE:
     case BLOCK_STONE_PRESSURE_PLATE:
 	case BLOCK_SPRUCE_PRESSURE_PLATE:
@@ -3906,8 +3905,18 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_AD_LEAVES:
     case BLOCK_SPONGE:
+    case BLOCK_SOUL_SAND:
+    case BLOCK_GLOWSTONE:
+    case BLOCK_NETHER_WART_BLOCK:
         // uses 0-1
         if ( dataVal < 2 )
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_FIRE:
+        // uses 0-1
+        if (dataVal < 2)
         {
             addBlock = 1;
             if (dataVal == 1) {
@@ -3927,9 +3936,6 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 
     case BLOCK_SANDSTONE:
     case BLOCK_RED_SANDSTONE:
-    case BLOCK_SOUL_SAND:
-    case BLOCK_GLOWSTONE:
-    case BLOCK_NETHER_WART_BLOCK:
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
     case BLOCK_RED_MUSHROOM:
@@ -3997,6 +4003,7 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 	case BLOCK_DEAD_CORAL_FAN:
 	case BLOCK_DEAD_CORAL:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
+    case BLOCK_RESPAWN_ANCHOR:
         // uses 0-4
 		if (dataVal < 5)
 		{
@@ -4354,14 +4361,14 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
 			int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
 			block->grid[neighborIndex] = (unsigned char)type;
 			block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
-			if (type == BLOCK_SIGN_POST) {
-				int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-				block->grid[neighborIndex2] = (unsigned char)type;
-				block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32;
-				int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-				block->grid[neighborIndex3] = (unsigned char)type;
-				block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
-			}
+
+			int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+			block->grid[neighborIndex2] = (unsigned char)type;
+			block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32;
+
+			int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+			block->grid[neighborIndex3] = (unsigned char)type;
+			block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
 		}
 		break;
     case BLOCK_WATER:
@@ -4657,19 +4664,19 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
     case BLOCK_WARPED_DOOR:
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)dataVal&0x7;
+        block->data[bi] = (unsigned char)((dataVal&0x7) | (finalDataVal & HIGH_BIT));
         if ( dataVal < 8 )
         {
             bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)8;
+            block->data[bi] = (unsigned char)(8 | (finalDataVal & HIGH_BIT));
         }
         else
         {
             // other direction door (for double doors)
             bi = BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)9;
+            block->data[bi] = (unsigned char)(9 | (finalDataVal & HIGH_BIT));
         }
         break;
     case BLOCK_BED:
@@ -4882,10 +4889,14 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8);
         block->grid[bi] = (unsigned char)type;
+        block->data[bi] = (unsigned char)finalDataVal;
 
         // put block above, too, for every fifth one, just to see it's working
-        if ( (dataVal % 5) == 4 )
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y+1,4+(dataVal%2)*8)] = (unsigned char)type;
+        if ((dataVal % 5) == 4) {
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)finalDataVal;
+        }
 
         // for just chorus plant, put endstone below
         if ( type == BLOCK_CHORUS_PLANT )
@@ -4900,22 +4911,30 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
         if ( dataVal & 0x1 )
         {
             // put block to north
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(4+(type%2)*8,y,3+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)finalDataVal;
         }
         if ( dataVal & 0x2 )
         {
             // put block to east
-            block->grid[BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(5+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)finalDataVal;
         }
         if ( dataVal & 0x4 )
         {
             // put block to south
-            block->grid[BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(4+(type%2)*8,y,5+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)finalDataVal;
         }
         if ( dataVal & 0x8 )
         {
             // put block to west
-            block->grid[BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(3+(type%2)*8,y,4+(dataVal%2)*8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)finalDataVal;
         }
         break;
     case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
@@ -5174,8 +5193,14 @@ void testBlock( WorldBlock *block, int origType, int y, int dataVal )
             // add leaves above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
-            // twisting vines are 0x1
-            block->data[bi] = (unsigned char)((dataVal & 0x1) | BIT_32);
+            if (dataVal == 0) {
+                finalDataVal = HIGH_BIT|BIT_32;
+                block->data[bi] = (unsigned char)HIGH_BIT;
+            }
+            else {
+                // twisting vines are 0x1
+                block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
+            }
         }
         break;
     case BLOCK_KELP:

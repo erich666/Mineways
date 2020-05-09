@@ -569,7 +569,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  86,           0, "carved_pumpkin", SWNE_FACING_PROP },	// black carved pumpkin
 { 0,  91,           0, "jack_o_lantern", SWNE_FACING_PROP },
 { 0,  87,           0, "netherrack", NO_PROP },
-{ 0,  88,           0, "soul_sand", NO_PROP },
+{ 0, BLOCK_SOUL_SAND, 0, "soul_sand", NO_PROP },
 { 0,  89,           0, "glowstone", NO_PROP },
 { 0,  90,           0, "nether_portal", NETHER_PORTAL_AXIS_PROP }, // axis: portal's long edge runs east-west or north-south
 { 0,  35,           0, "white_wool", NO_PROP },
@@ -1011,7 +1011,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
 
 // 1.16
-{ 0,  88,              1, "soul_soil", NO_PROP },	// with soul sand
+{ 0, BLOCK_SOUL_SAND,  1, "soul_soil", NO_PROP },	// with soul sand
 { 0, 214,			   1, "warped_wart_block", NO_PROP },
 { 0, 216,			   1, "basalt", AXIS_PROP },
 { 0, 216,			   2, "polished_basalt", AXIS_PROP },
