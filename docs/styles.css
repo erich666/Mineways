@@ -630,3 +630,6 @@
     display: none;
   }
 }
+
+h3 { font-size: 150%; }
+h4 { font-size: 120%; }

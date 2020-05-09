@@ -19,6 +19,7 @@
 *.VC.db
 *.VC.opendb
 copy_*.bat
+crush_images.bat
 update.txt
 Debug
 Release
@@ -28,6 +29,7 @@ Win/Release
 Win/x64
 Win/UpdateCheck.*
 Win/teapot*.png
+docs/images/crushed
 ipch
 TileMaker/TileMaker/blocks*
 TileMaker/TileMaker/MW_BLOCKS
