@@ -137,7 +137,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             {
                 CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, epd.chkMakeGroupsObjects);
                 CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, epd.chkSeparateTypes);
-                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+                // TODOTODO full tiles means individual blocks cannot be exported currently - when fixed, put this line back in place:
+                //CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, ((epd.flags & EXPT_3DPRINT) || epd.radioExportTileTextures[epd.fileType]) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
                 // if neither of the two above are checked, this one's indeterminate
 				CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerBlock : BST_INDETERMINATE);
 				CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
@@ -330,7 +332,11 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
             // - done because full blocks of the lesser objects usually looks dumb
 			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            // TODOTODO remove this once individual block export works for tile export
+            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE) {
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, epd.chkIndividualBlocks);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MTL_COLORS_ONLY:
@@ -338,7 +344,11 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
 			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            // TODOTODO remove this once individual block export works for tile export
+            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE) {
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, epd.chkIndividualBlocks);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SOLID_TEXTURES:
@@ -346,7 +356,11 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
 			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-			CheckDlgButton(hDlg,IDC_EXPORT_ALL, BST_UNCHECKED);
+			CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            // TODOTODO remove this once individual block export works for tile export
+            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE) {
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, epd.chkIndividualBlocks);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TEXTURES:
@@ -354,6 +368,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
             SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
 			CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED: BST_UNCHECKED);
 			CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+            // TODOTODO remove this once individual block export works for tile export
+            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE) {
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, epd.chkIndividualBlocks);
+            }
 			goto ChangeMaterial;
 
 		case IDC_RADIO_EXPORT_FULL_TILES:
@@ -371,6 +389,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg,UINT message,WPARAM wParam,LPARAM lParam)
 				// not used in rendering, so nevermind: SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
 				CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
 				CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                // TODOTODO don't allow individual block export
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
 			}
 			goto ChangeMaterial;
 
@@ -564,8 +584,9 @@ ChangeMaterial:
             break;
         case IDC_INDIVIDUAL_BLOCKS:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing)
-            if (epd.flags & EXPT_3DPRINT)
-            {
+            // TODOTODO remove this once individual block export works for tile export, and replace with "if" below it
+            if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TILES) || (epd.flags & EXPT_3DPRINT)) {
+            //if (epd.flags & EXPT_3DPRINT)
                 CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             }
             else
