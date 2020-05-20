@@ -71,6 +71,7 @@ void readpng_cleanup(int mode, progimage_info* im)
     }
 }
 
+/* currently unused
 int readpngheader(progimage_info* im, wchar_t* filename)
 {
     unsigned int width, height;
@@ -84,7 +85,7 @@ int readpngheader(progimage_info* im, wchar_t* filename)
     lodepng_state_init(&state);
     state.info_raw.colortype = colortype;
     state.info_raw.bitdepth = bitdepth;
-    /*reads header and resets other parameters in state->info_png*/
+    // reads header and resets other parameters in state->info_png
     state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
     unsigned int error = state.error;
 
@@ -104,6 +105,7 @@ int readpngheader(progimage_info* im, wchar_t* filename)
 
     return 0;
 }
+*/
 
 // from http://lodev.org/lodepng/example_encode.cpp
 

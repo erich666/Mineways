@@ -83,7 +83,7 @@ typedef struct BoxGroup
 {
     int groupID;	// which group number am I? Always matches index of gGroupInfo array - TODO: maybe could be made an unsigned short...
     int population;	// how many in the group?
-    int solid;		// solid or air group?
+    bool solid;		// solid or air group?
     IBox bounds;	// the box that this group occupies. Not valid if population is 0 (merged)
 } BoxGroup;
 
@@ -494,7 +494,9 @@ static int gFaceDirectionVector[6][3] =
     { 1,0,0},{0, 1,0},{0,0, 1}
 };
 
-#define WERROR(x) if(x) { assert(0); PortaClose(gModelFile); return MW_CANNOT_WRITE_TO_FILE; }
+#define WERROR_MODEL(x) if(x) { assert(0); PortaClose(gModelFile); return MW_CANNOT_WRITE_TO_FILE; }
+#define WERROR_FH(x) if(x) { assert(0); PortaClose(fh); return MW_CANNOT_WRITE_TO_FILE; }
+#define WERROR_SPECIFY(x,FHANDLE) if(x) { assert(0); PortaClose(FHANDLE); return MW_CANNOT_WRITE_TO_FILE; }
 
 
 // feed world coordinate in to get box index: in our coordinate system, X is dominant, Z is next, Y is weakest.
@@ -691,7 +693,7 @@ static void findNeighboringGroups(IBox* bounds, int groupID, int* neighborGroups
 
 //static void establishGroupBounds();
 
-static void fillGroups(IBox* bounds, int masterGroupID, int solid, int fillType, int* targetGroupIDs);
+static void fillGroups(IBox* bounds, int masterGroupID, bool solid, int fillType, int* targetGroupIDs);
 
 static void addBounds(IPoint loc, IBox* bounds);
 static void addBoundsToBounds(IBox inBounds, IBox* bounds);
@@ -888,9 +890,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gMcVersion = DATA_VERSION_TO_RELEASE_NUMBER(worldVersion);
     gIs13orNewer = (gMcVersion >= 13);
 
-    memset(&gStats, 0, sizeof(ExportStatistics));
+    memset(&gStats, 0, sizeof(ExportStatistics));  // cppcheck-suppress 758
     // clear all of gModel to zeroes
-    memset(&gModel, 0, sizeof(Model));
+    memset(&gModel, 0, sizeof(Model));  // cppcheck-suppress 758
     gOptions = options;
     gOptions->totalBlocks = 0;
     gOptions->cost = 0.0f;
@@ -1003,8 +1005,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         // output uses this. We export the texture at the end.
         if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
         {
-            // use true textures - for 3D printing, we need to make output image larger to accomodate composite swatches.
-            gModel.textureResolution = (gPrint3D ? 4 : 2) * gModel.pInputTerrainImage->width;
+            // use true textures - for 3D printing or if swatches are needed, we need to make output image larger to accomodate composite swatches.
+            gModel.textureResolution = ((gPrint3D || gOptions->pEFD->chkCompositeOverlay)? 4 : 2) * gModel.pInputTerrainImage->width;
             gModel.terrainWidth = gModel.pInputTerrainImage->width;
         }
         else
@@ -1712,7 +1714,6 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
 #ifdef WIN32
         DWORD br;
 #endif
-        char outputString[MAX_PATH_AND_FILE];
         int size = 4 * pITI->width * pITI->height;
 
         wchar_t codeFileNameWithSuffix[MAX_PATH_AND_FILE];
@@ -1724,10 +1725,11 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
         if (outFile != INVALID_HANDLE_VALUE)
         {
             // write .h file
+            char outputString[MAX_PATH_AND_FILE];
             sprintf_s(outputString, 256, "#ifndef __TERRAINEXTDATA_H__\n#define __TERRAINEXTDATA_H__\n\n");
-            WERROR(PortaWrite(outFile, outputString, strlen(outputString)));
+            WERROR_SPECIFY(PortaWrite(outFile, outputString, strlen(outputString)), outFile);
             sprintf_s(outputString, 256, "extern int gTerrainExtWidth;\nextern int gTerrainExtHeight;\nextern unsigned char gTerrainExt[%d];\n\n#endif\n", size);
-            WERROR(PortaWrite(outFile, outputString, strlen(outputString)));
+            WERROR_SPECIFY(PortaWrite(outFile, outputString, strlen(outputString)), outFile);
             PortaClose(outFile);
 
             // now write .cpp file
@@ -1736,7 +1738,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
             if (outFile != INVALID_HANDLE_VALUE)
             {
                 sprintf_s(outputString, 256, "#include \"stdafx.h\"\n\nint gTerrainExtWidth = %d;\nint gTerrainExtHeight = %d;\n\nunsigned char gTerrainExt[] = {\n", pITI->width, pITI->height);
-                WERROR(PortaWrite(outFile, outputString, strlen(outputString)));
+                WERROR_SPECIFY(PortaWrite(outFile, outputString, strlen(outputString)), outFile);
 
                 // dump the data
                 for (int i = 0; i < size / 16; i++)
@@ -1762,11 +1764,11 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
                             *(p + 12), *(p + 13), *(p + 14), *(p + 15)
                         );
                     }
-                    WERROR(PortaWrite(outFile, outputString, strlen(outputString)));
+                    WERROR_SPECIFY(PortaWrite(outFile, outputString, strlen(outputString)), outFile);
                 }
 
                 sprintf_s(outputString, 256, "};\n");
-                WERROR(PortaWrite(outFile, outputString, strlen(outputString)));
+                WERROR_SPECIFY(PortaWrite(outFile, outputString, strlen(outputString)), outFile);
                 PortaClose(outFile);
             }
         }
@@ -3011,8 +3013,6 @@ static int computeFlatFlags(int boxIndex)
 {
     // for this box's contents, mark the neighbor(s) that should receive
     // its flatness
-    IPoint loc;
-
     switch (gBoxData[boxIndex].type)
     {
         // the block below this one, if solid, gets marked
@@ -3299,6 +3299,7 @@ static int computeFlatFlags(int boxIndex)
                 // Y is not too low
                 if (gBoxData[boxIndex - 1].origType == BLOCK_AIR)
                 {
+                    IPoint loc;
                     boxIndexToLoc(loc, boxIndex);
                     if (loc[Y] > gSolidBox.min[Y])
                     {
@@ -3652,7 +3653,7 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
 {
     int bx, by, bz;
-    BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
+    BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);  // cppcheck-suppress 563
     // make the numbers positive
     bx += 100001;
     bz += 101031;
@@ -3680,7 +3681,7 @@ static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
 static void randomRotation(int boxIndex, int& angle)
 {
     int x, y, z;
-    BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);
+    BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);  // cppcheck-suppress 563
     // make the numbers positive
     x += 100001;
     z += 101031;
@@ -3761,23 +3762,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
     int topDataVal, bottomDataVal, shiftVal, neighborType;
-    int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;
+    // lots of these could be moved into individual cases, but let's not bother
+    int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;  // cppcheck-suppress 398
     float xrot, yrot, zrot;
-    float hasPost, newHeight;
+    float hasPost, newHeight;  // cppcheck-suppress 398
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
     // how much to add to dimension when fattening
     float fatten = (gOptions->pEFD->chkFatten) ? 2.0f : 0.0f;
-    int retCode = MW_NO_ERROR;
-    int transNeighbor, boxIndexBelow;
+    int retCode = MW_NO_ERROR;  // cppcheck-suppress 398
+    int transNeighbor, boxIndexBelow;  // cppcheck-suppress 398
     int groupByBlock;
-    int chestType, matchType;
+    int chestType, matchType;  // cppcheck-suppress 398
     float waterHeight;
     int itemCount;
-    int age;
-    int leafSize;
+    int age;  // cppcheck-suppress 398
+    int leafSize;  // cppcheck-suppress 398
     int facing;
-    float shiftX, shiftZ;
+    float shiftX, shiftZ;  // cppcheck-suppress 398
     float x, z;
 
     dataVal = gBoxData[boxIndex].data;
@@ -4097,7 +4099,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gPrint3D && (type != neighborType));
                 //saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 8 + hasPost * 4, 16);
-                firstFace = 0;	// not necessary, but for consistency in case code is added below
+                firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
             }
         }
         else
@@ -4304,7 +4306,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // this fence connects to the neighboring block, so output the fence pieces
             transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
-            firstFace = 0;	// not necessary, but for consistency in case code is added below
+            firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
         }
         break; // saveBillboardOrGeometry
 
@@ -6119,8 +6121,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             int addBillboard = 1;
             int typeB = 0;
             int dataValB = 0;
-            int billboardType = BB_FULL_CROSS;
-            float scale = 0.75f;	// hmmm, I used to think all plants were not scaled down - they are.
+            int billboardType = BB_FULL_CROSS;  // cppcheck-suppress 398
+            // hmmm, I used to think all plants were not scaled down - they are.
+            float scale = 0.75f;  // cppcheck-suppress 398
             // rendering
             // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers
             switch (dataVal & 0xff)
@@ -8988,8 +8991,8 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
         // So we then set index X == 0, Y == 1, Z == 0/1 should be set to have the Y value set to 0.0f
-        vertices[0x0 | 0x2 | 0x0][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
-        vertices[0x0 | 0x2 | 0x1][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
+        vertices[/*0x0 |*/ 0x2 /*| 0x0*/][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
+        vertices[/*0x0 |*/ 0x2 | 0x1][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
 
         // bottom and side
         saveBlockGeometry(boxIndex, typeBelow, dataValBelow, 0, DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 0, 16);
@@ -9046,8 +9049,8 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
         // We could choose to not use the chopped off vertices, or simply lower them and not think too hard. We lower them.
         // So we then set index X == 0/1, Y == 1, Z == 0 should be set to have the Y value set to 0.0f
-        vertices[0x0 | 0x2 | 0x0][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
-        vertices[0x4 | 0x2 | 0x0][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
+        vertices[/*0x0 |*/ 0x2 /*| 0x0*/][Y] -= 1.0f;	// xmin, ymax, zmin -> xmin, ymin, zmin
+        vertices[0x4 | 0x2 /*| 0x0*/][Y] -= 1.0f;	// xmin, ymax, zmax -> xmin, ymin, zmax
 
         // bottom and side
         saveBlockGeometry(boxIndex, typeBelow, dataValBelow, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 0, 16);
@@ -10318,21 +10321,21 @@ static int saveBillboardFaces(int boxIndex, int type, int billboardType)
 
 static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace, bool dontWobbleOverride /*= false*/)
 {
-    int i, j, fc, swatchLoc;
+    int i, j, fc, swatchLoc;  // cppcheck-suppress 398
     FaceRecord* face;
     int faceDir[2 * 5];			// vines need 5 total
     Point vertexOffsets[5][4];	// vines need 5 total, if one is under the block
     IPoint anchor;
     int faceCount = 0;
-    int startVertexCount = 0;   // doesn't really need initialization, but makes compilers happy
+    int startVertexCount = 0;  // cppcheck-suppress 398
     int totalVertexCount;
-    int doubleSided = 1;
+    int doubleSided = 1;  // cppcheck-suppress 398
     float height = 0.0f;
-    int uvIndices[4];
+    int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
     int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
-    int matchType;
+    int matchType;  // cppcheck-suppress 398
     bool vineUnderBlock = false;
     bool redstoneWireOnBottom = false;
     int faceDirection;
@@ -11828,7 +11831,7 @@ static void addVolumeToGroup(int groupID, int minx, int miny, int minz, int maxx
 static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, int* seedSize, int* seedCount)
 {
     int faceDirection;
-    int boxIndex, newBoxIndex;
+    int boxIndex, newBoxIndex;  // cppcheck-suppress 398
     IPoint newPt;
     int sindex;
     IPoint* seedStack;
@@ -12151,7 +12154,7 @@ static void checkAndRemoveBubbles()
 
                 // Go through this sub-box and change all groups tagged to the new fill group.
                 // We can fill air with whatever we want, since it won't be visible.
-                fillGroups(&bounds, masterGroupID, 1, fillType, neighborGroups);
+                fillGroups(&bounds, masterGroupID, true, fillType, neighborGroups);
                 // delete the air group from the count
                 gStats.bubblesFound++;
                 gAirGroups--;
@@ -12168,7 +12171,7 @@ static void checkAndRemoveBubbles()
 
                 // Go through this sub-box and change all groups tagged to the new fill group.
                 // We can fill air with whatever we want, since it won't be visible.
-                fillGroups(&bounds, i, 1, fillType, neighborGroups);
+                fillGroups(&bounds, i, true, fillType, neighborGroups);
 
                 // delete the air group from the count
                 gStats.bubblesFound++;
@@ -12266,7 +12269,7 @@ static void findNeighboringGroups(IBox* bounds, int groupID, int* neighborGroups
 // the target list will be turned to fillType. If the master group is air, solid blocks
 // in the target list will be turned to fillType (usually air).
 // Brute force it - we could be more clever, but that's OK
-static void fillGroups(IBox* bounds, int masterGroupID, int solid, int fillType, int* targetGroupIDs)
+static void fillGroups(IBox* bounds, int masterGroupID, bool solid, int fillType, int* targetGroupIDs)
 {
     int x, y, z;
     int boxIndex;
@@ -12663,7 +12666,7 @@ static int fixTouchingEdges()
         if (gTouchGrid[boxIndex].count > 0)
         {
             int boxMtlIndex = UNINITIALIZED_INT;
-            int foundBlock = 0;
+            int foundBlock = 0;  // cppcheck-suppress 398
             int faceGroupIDCount = 0;
             int faceGroupID[6];
             int masterGroupID;
@@ -12780,7 +12783,7 @@ static int fixTouchingEdges()
                 // We don't actually want to fill with bedrock, but put that in for debugging -
                 // really, groups just get merged. Also, note that the method below adds to
                 // the master group's bounds.
-                fillGroups(&bounds, masterGroupID, 1, BLOCK_LAVA, neighborGroups);
+                fillGroups(&bounds, masterGroupID, true, BLOCK_LAVA, neighborGroups);
 
                 free(neighborGroups);
             }
@@ -13285,7 +13288,7 @@ static void deleteFloatingGroups()
                 memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
                 neighborGroups[i] = 1;
                 gStats.blocksFloaterDeleted += pGroup->population;
-                fillGroups(&(pGroup->bounds), SURROUND_AIR_GROUP, 0, BLOCK_AIR, neighborGroups);
+                fillGroups(&(pGroup->bounds), SURROUND_AIR_GROUP, false, BLOCK_AIR, neighborGroups);
                 gStats.floaterGroupsDeleted++;
                 gSolidGroups--;
                 assert(gSolidGroups >= 0);
@@ -13492,7 +13495,7 @@ static void scaleByCost()
 static void hollowBottomOfModel()
 {
     int x, y, z, boxIndex;
-    int listCount, addPost;
+    int listCount, addPost;  // cppcheck-suppress 398
     int listFound = 1;
     int survived, dir, neighborCount, neighborIndex;
     IPoint loc;
@@ -14874,7 +14877,7 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
 // if it doesn't, give it one and save out the vertex location itself
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
 {
-    int vertexIndex;
+    int vertexIndex;  // cppcheck-suppress 398
     int i;
     IPoint offset;
     float* pt;
@@ -15195,7 +15198,7 @@ static int getMaterialUsingGroup(int groupID)
 
 static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly)
 {
-    int angle;
+    int angle;  // cppcheck-suppress 398
     if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
         // random rotation based on location - not same algorithm as Minecraft, but same idea
         randomRotation(boxIndex, angle);
@@ -15290,7 +15293,7 @@ else													  \
 static int getSwatch(int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4])
 {
     int swatchLoc;
-    int angle = 0;
+    int angle = 0;  // cppcheck-suppress 398
     int localIndices[4] = { 0, 1, 2, 3 };
 
     // outputting swatches
@@ -15359,10 +15362,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     {
         // Outputting textured face
 
-        int head, bottom, inside, outside, newFaceDirection, flip, neighborType;
-        int xoff, xstart, dir, dirBit, frontLoc, trimVal, xloc, yloc;
+        int head, bottom, inside, outside, newFaceDirection, flip, neighborType;  // cppcheck-suppress 398
+        int xoff, xstart, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
         // north is 0, east is 1, south is 2, west is 3
-        int faceRot[6] = { 0, 0, 1, 2, 0, 3 };
+        int faceRot[6] = { 0, 0, 1, 2, 0, 3 };  // cppcheck-suppress 398
 
         // use the textures:
         // use the txrX and txrY to find which to go to.
@@ -16807,7 +16810,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(5, 13);
                 break;
             }
-            break;
             break;
         case BLOCK_BOOKSHELF:						// getSwatch
             SWATCH_SWITCH_SIDE(faceDirection, 3, 2);
@@ -19029,7 +19031,7 @@ static void resolveFaceNormals()
             int index = findMatchingNormal(pFace, tnormal, gModel.normals, gModel.normalListCount);
             if (pFace->normalIndex != index) {
                 // put a break on this line to see any problem
-                assert(0); index;
+                assert(0);
             }
         }
 #endif
@@ -19279,7 +19281,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         return retCode | MW_CANNOT_CREATE_FILE;
 
     sprintf_s(outputString, 256, "# Wavefront OBJ file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     const char* justWorldFileName;
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
@@ -19296,7 +19298,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         sprintf_s(justMtlFileName, MAX_PATH_AND_FILE, "%s.mtl", gOutputFileRootCleanChar);
 
         sprintf_s(outputString, 256, "\nmtllib %s\n", justMtlFileName);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
     // replace spaces with underscores for world name output
@@ -19310,7 +19312,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         sprintf_s(outputString, 256, "\no %s__%d_%d_%d_to_%d_%d_%d\n", worldNameUnderlined,
             worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
             worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
 #ifdef OUTPUT_NORMALS
@@ -19320,7 +19322,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     for (i = 0; i < gModel.normalListCount; i++)
     {
         sprintf_s(outputString, 256, "vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 #endif
 
@@ -19381,7 +19383,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             UPDATE_PROGRESS(PG_OUTPUT + 0.5f * (PG_TEXTURE - PG_OUTPUT) * ((float)i / (float)gModel.vertexCount));
 
         sprintf_s(outputString, 256, "v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
     prevType = -1;
@@ -19399,7 +19401,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         if (!(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK))
         {
             sprintf_s(outputString, 256, "\nusemtl %s\n", MINECRAFT_SINGLE_MATERIAL);
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
     }
 
@@ -19438,10 +19440,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                         // use subtype name or add a dataval suffix.
                         // If possible, turn these data values into the actual sub-material type names.
                         const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
-                        char tempString[MAX_PATH_AND_FILE];
                         if (strcmp(subName, mtlName) == 0) {
                             // No unique subname found for this data value, so use the data value.
                             // Shouldn't ever hit here, actually; all things should be named by now.
+                            char tempString[MAX_PATH_AND_FILE];
                             sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
                             strcpy_s(mtlName, 256, tempString);
                         }
@@ -19459,16 +19461,16 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     {
                         // output every block individually
                         sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
-                        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                         {
                             // new group for objects of same type (which are sorted)
                             if (mkGroupsObjs) {
                                 sprintf_s(outputString, 256, "o %s\n", mtlName);
-                                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             }
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
                         if (subtypeMaterial) {
                             // We can't use outputMaterial, a simple array of types. We need to
@@ -19506,8 +19508,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     {
                         // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
                         strcpy_s(outputString, 256, "\n");
-                        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
                         // don't output group if just the tile ID differed and the block type didn't
                         if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
@@ -19515,10 +19516,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // new group for objects of same type (which are sorted)
                             if (mkGroupsObjs) {
                                 sprintf_s(outputString, 256, "o %s\n", mtlName);
-                                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             }
                             sprintf_s(outputString, 256, "g %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         }
                         if (gExportTiles) {
                             // new material per tile ID
@@ -19526,7 +19527,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             assert(prevSwatchLoc < TOTAL_TILES);
                             WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             // note in an array that this separate tile should be output as a material
                             gModel.tileList[prevSwatchLoc] = true;
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
@@ -19535,7 +19536,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                         {
                             // new material per object
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
@@ -19553,10 +19554,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         {
             if (mkGroupsObjs) {
                 sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
-                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
             sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
 
 #ifdef OUTPUT_NORMALS
@@ -19784,7 +19785,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             }
 #endif
         }
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
 Exit:
@@ -19834,7 +19835,7 @@ static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
         sprintf_s(outputString, 1024, "vt %g %g\n",
             u, v);
     }
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return MW_NO_ERROR;
 }
@@ -19877,7 +19878,7 @@ static int writeOBJMtlFile()
         num = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) ? gModel.mtlCount : 1;
     }
     sprintf_s(outputString, 2048, "Wavefront OBJ material file\n# Contains %d materials\n", num);
-    WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+    WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
 
     if (gExportTexture && !gExportTiles)
     {
@@ -19921,12 +19922,12 @@ static int writeOBJMtlFile()
                 ,
                 MINECRAFT_SINGLE_MATERIAL,
                 gModel.usesRGB ? textureRGB : textureRGBA);
-            WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+            WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
 
             if (gModel.usesAlpha) {
                 sprintf_s(outputString, 2048,
                     "%smap_d %s\n", (gExportTiles || g3d) ? "#" : "", textureAlpha);
-                WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+                WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
             }
         }
         else
@@ -19937,7 +19938,7 @@ static int writeOBJMtlFile()
                 "Ks 0 0 0\n"
                 ,
                 MINECRAFT_SINGLE_MATERIAL);
-            WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+            WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
         }
     }
     else
@@ -19984,10 +19985,10 @@ static int writeOBJMtlFile()
                     // use subtype name or add a dataval suffix.
                     // If possible, turn these data values into the actual sub-material type names.
                     const char* subName = RetrieveBlockSubname(type, dataVal);
-                    char tempString[MAX_PATH_AND_FILE];
                     if (strcmp(subName, mtlName) == 0) {
                         // No unique subname found for this data value, so use the data value.
                         // Shouldn't ever hit here, actually; all things should be named by now.
+                        char tempString[MAX_PATH_AND_FILE];
                         sprintf_s(tempString, 256, "%s__%d", mtlName, dataVal);
                         strcpy_s(mtlName, 256, tempString);
                     }
@@ -20153,7 +20154,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         }
         else
         {
-            typeTextureFileName = '\0';
+            typeTextureFileName = NULL;
         }
         mapdString[0] = '\0';
     }
@@ -20247,7 +20248,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             (float)(1.0f - alpha),
             fullMtl, tfString);
     }
-    WERROR(PortaWrite(gMtlFile, outputString, strlen(outputString)));
+    WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
 
     return MW_NO_ERROR;
 }
@@ -20305,16 +20306,16 @@ static int solidTable[] = { BLOCK_WATER, BLOCK_STATIONARY_WATER, BLOCK_LAVA, BLO
 
 static int createBaseMaterialTexture()
 {
-    int row, col, srow, scol;
-    int keepGoing;
-    int i, adj, idx;
+    int row, col, srow, scol;  // cppcheck-suppress 398
+    int keepGoing;  // cppcheck-suppress 398
+    int i, adj, idx;  // cppcheck-suppress 398
     //int faTableCount;
-    int ir, ig, ib;
+    int ir, ig, ib;  // cppcheck-suppress 398
     unsigned char r, g, b, a;
     unsigned int color;
     int useTextureImage;
-    int addNoise = 0;
-    int index;
+    int addNoise = 0;  // cppcheck-suppress 398
+    int index;  // cppcheck-suppress 398
 
     progimage_info* mainprog;
 
@@ -20403,7 +20404,7 @@ static int createBaseMaterialTexture()
 
     if (useTextureImage)
     {
-        int dstCol, dstRow, srcCol, srcRow, j;
+        int dstCol, dstRow, srcCol, srcRow, j;  // cppcheck-suppress 398
         int glassPaneTopsCol[17] = { 4, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
         int glassPaneTopsRow[17] = { 9, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21 };
 
@@ -21117,11 +21118,11 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
         // make it all 0x20 as we will output exactly 80 characters
         sprintf_s(outputString, 256, "COLOR=");
         // start to write file
-        WERROR(PortaWrite(gModelFile, outputString, 6));
-        WERROR(PortaWrite(gModelFile, &allFF, 4));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, 6));
+        WERROR_MODEL(PortaWrite(gModelFile, &allFF, 4));
         // in the example file, all the rest was 0x20's (space)
         memset(outputString, 0x20, 256);
-        WERROR(PortaWrite(gModelFile, outputString, 70));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, 70));
     }
     else
     {
@@ -21132,11 +21133,11 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
             worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
             worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
         // start to write file
-        WERROR(PortaWrite(gModelFile, outputString, 80));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, 80));
     }
 
     // number of triangles in model, unsigned int
-    WERROR(PortaWrite(gModelFile, &numTri, 4));
+    WERROR_MODEL(PortaWrite(gModelFile, &numTri, 4));
 
     // write out the faces, it's just that simple
     for (faceNo = 0; faceNo < gModel.faceCount; faceNo++)
@@ -21166,12 +21167,12 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
         for (i = 0; i < faceTriCount; i++)
         {
             // 3 float normals
-            WERROR(PortaWrite(gModelFile, &gModel.normals[pFace->normalIndex], 12));
+            WERROR_MODEL(PortaWrite(gModelFile, &gModel.normals[pFace->normalIndex], 12));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
-            WERROR(PortaWrite(gModelFile, vertex[offset], 12));
-            WERROR(PortaWrite(gModelFile, vertex[offset + i + 1], 12));
-            WERROR(PortaWrite(gModelFile, vertex[(offset + i + 2) % 4], 12));
+            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset], 12));
+            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset + i + 1], 12));
+            WERROR_MODEL(PortaWrite(gModelFile, vertex[(offset + i + 2) % 4], 12));
 
             if (writeColor)
             {
@@ -21203,7 +21204,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
                     outColor = (1 << 15) | (r << 10) | (g << 5) | b;
                 }
             }
-            WERROR(PortaWrite(gModelFile, &outColor, 2));
+            WERROR_MODEL(PortaWrite(gModelFile, &outColor, 2));
         }
     }
 
@@ -21246,7 +21247,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
     int retCode = MW_NO_ERROR;
 
-    int normalIndex;
+    int normalIndex;  // cppcheck-suppress 398
     FaceRecord* pFace;
     Point* vertex[4], * pt;
 
@@ -21273,7 +21274,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
         worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
     // start to write file
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // ready the normals for direct output, since we reuse them a zillion times
     resolveFaceNormals();
@@ -21321,26 +21322,26 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
         for (i = 0; i < faceTriCount; i++)
         {
-            WERROR(PortaWrite(gModelFile, facetNormalString[normalIndex], strlen(facetNormalString[normalIndex])));
-            WERROR(PortaWrite(gModelFile, "outer loop\n", strlen("outer loop\n")));
+            WERROR_MODEL(PortaWrite(gModelFile, facetNormalString[normalIndex], strlen(facetNormalString[normalIndex])));
+            WERROR_MODEL(PortaWrite(gModelFile, "outer loop\n", strlen("outer loop\n")));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
             pt = vertex[offset];
             sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pt = vertex[(offset + i + 1) % 4];	// shouldn't need % 4, but let's be safe, and makes cppcheck happy
             sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            pt = vertex[(offset + i + 2) % 4];
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pt = vertex[(offset + i + 2) % 4];  // cppcheck-suppress 457 - no, this really is initialized
             sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-            WERROR(PortaWrite(gModelFile, "endloop\nendfacet\n", strlen("endloop\nendfacet\n")));
+            WERROR_MODEL(PortaWrite(gModelFile, "endloop\nendfacet\n", strlen("endloop\nendfacet\n")));
         }
     }
 
     sprintf_s(outputString, 256, "endsolid %s\n", worldNameUnderlined);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // if not ok, then we will have closed the file earlier
     PortaClose(gModelFile);
@@ -21417,7 +21418,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     retCode |= writeStatistics(gModelFile, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS)
@@ -21432,7 +21433,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     //for ( i = 0; i < 6; i++ )
     //{
     //    sprintf_s(outputString,256,"vn %g %g %g\n", gModel.normals[i][0], gModel.normals[i][1], gModel.normals[i][2]);
-    //    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    //    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     //}
 
     // output vertex coordinate loops
@@ -21475,14 +21476,14 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
             gPrint3D ? "TRUE" : "FALSE",
             firstShape ? "DEF" : "USE",
             firstShape ? " Coordinate" : "");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         // if first shape, output coords and texture coords
         if (firstShape)
         {
             // Note that we just dump everything to a single indexed face set coordinate list, which then gets reused
             strcpy_s(outputString, 256, "        {\n          point\n          [\n");
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             for (j = 0; j < gModel.vertexCount; j++)
             {
@@ -21498,7 +21499,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                 {
                     sprintf_s(outputString, 256, "            %g %g %g,\n", gModel.vertices[j][X], gModel.vertices[j][Y], gModel.vertices[j][Z]);
                 }
-                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
 
             // textures need texture coordinates output, only needed when texturing
@@ -21507,7 +21508,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                 int prevSwatch = -1;
                 int k;
                 strcpy_s(outputString, 256, "          ]\n        }\n        texCoord DEF texCoord_Craft TextureCoordinate\n        {\n          point\n          [\n");
-                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
                 for (k = 0; k < gModel.uvIndexCount; k++)
                 {
@@ -21519,14 +21520,14 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
             }
             // close up coordinates themselves
             strcpy_s(outputString, 256, "          ]\n        }\n");
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
         else
         {
             if (gExportTexture)
             {
                 strcpy_s(outputString, 256, "        texCoord USE texCoord_Craft\n");
-                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
         }
 
@@ -21535,7 +21536,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
         dataVal = exportSingleMaterial ? 0x0 : gModel.faceList[currentFace]->materialDataVal;
 
         strcpy_s(outputString, 256, "        coordIndex\n        [\n");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         // output face loops until next material is found, or all, if exporting no material
         while ((currentFace < gModel.faceCount) &&
@@ -21571,7 +21572,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                     pFace->vertexIndex[(offset + 3) % 4],
                     commaString);
             }
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             currentFace++;
         }
@@ -21580,7 +21581,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
         if (gExportTexture)
         {
             strcpy_s(outputString, 256, "        ]\n        texCoordIndex\n        [\n");
-            WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             endIndex = currentFace;
 
@@ -21612,13 +21613,13 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                         pFace->uvIndex[offset + 2],
                         pFace->uvIndex[(offset + 3) % 4]);
                 }
-                WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
         }
 
         // close up the geometry
         strcpy_s(outputString, 256, "        ]\n      }\n");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         // now output material
         // - if a single material or if textures are output, we use the GENERIC_MATERIAL for the type to output
@@ -21634,14 +21635,14 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
 
         // close up shape
         strcpy_s(outputString, 256, "    }\n");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         firstShape = 0;
     }
 
     // close up Transform children
     strcpy_s(outputString, 256, "  ]\n}\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
 Exit:
     PortaClose(gModelFile);
@@ -21663,10 +21664,10 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     char attributeString[] = "      appearance Appearance\n      {\n";
 
     float fRed, fGreen, fBlue;
-    float ka, kd, ks, ke;
+    float ka, kd, ks, ke;      // cppcheck-suppress 398
     float alpha;
 
-    WERROR(PortaWrite(gModelFile, attributeString, strlen(attributeString)));
+    WERROR_MODEL(PortaWrite(gModelFile, attributeString, strlen(attributeString)));
 
     if (type == GENERIC_MATERIAL)
     {
@@ -21685,7 +21686,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     ka = 0.2f;
     kd = 0.9f;
     ks = 0.1f;
-    ke = 0.0f;
+    // not needed ke = 0.0f;
     // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
     // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
     // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
@@ -21759,16 +21760,16 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
         tfString
     );
 
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     if (textureOutputString != NULL)
     {
-        WERROR(PortaWrite(gModelFile, textureOutputString, strlen(textureOutputString)));
+        WERROR_MODEL(PortaWrite(gModelFile, textureOutputString, strlen(textureOutputString)));
     }
 
     // close up appearance
     strcpy_s(outputString, 256, "      }\n");
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return MW_NO_ERROR;
 }
@@ -21802,7 +21803,7 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
         sprintf_s(outputString, 1024, "            %g %g\n",
             u, v);
     }
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return MW_NO_ERROR;
 }
@@ -22142,7 +22143,7 @@ static int writeLines(HANDLE file, char** textLines, int lines)
     int i;
     for (i = 0; i < lines; i++)
     {
-        WERROR(PortaWrite(file, textLines[i], strlen(textLines[i])));
+        WERROR_SPECIFY(PortaWrite(file, textLines[i], strlen(textLines[i])), file);
     }
 
     return MW_NO_ERROR;
@@ -22211,7 +22212,7 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
     else {
         sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
     }
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gModel.terrainImageNotFound) {
         strcpy_s(outChar, MAX_PATH_AND_FILE, "default");
@@ -22232,7 +22233,7 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
     //}
     //sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
     sprintf_s(outputString, 256, "# Terrain file name: %s\n", outChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     // if we output the Nether or The End, note it here. Otherwise overworld is assumed.
     if (gOptions->worldType & (ENDER | HELL)) {
@@ -22243,19 +22244,19 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
             assert(gOptions->worldType & ENDER);
             sprintf_s(outputString, 256, "# View The End\n");
         }
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
     {
         sprintf_s(outputString, 256, "# Color scheme: Standard\n");
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     else
     {
         WcharToChar(schemeSelected, outChar, MAX_PATH_AND_FILE);
         sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
-        WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
 
@@ -22263,23 +22264,23 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
     _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
 
     // Print local time as a string.
-    errNum = asctime_s(timeString, 32, &newtime);
+    errNum = asctime_s(timeString, 32, &newtime);   // TODO should use strftime?
     if (!errNum)
     {
         sprintf_s(outputString, 256, "# %s", timeString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     // put the selection box near the top, since I find I use these values most of all
     sprintf_s(outputString, 256, "\n# Selection location min to max: %d, %d, %d to %d, %d, %d\n",
         worldBox->min[X], worldBox->min[Y], worldBox->min[Z],
         worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Non-empty selection location min to max: %d, %d, %d to %d, %d, %d\n\n",
         tightenedWorldBox->min[X], tightenedWorldBox->min[Y], tightenedWorldBox->min[Z],
         tightenedWorldBox->max[X], tightenedWorldBox->max[Y], tightenedWorldBox->max[Z]);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     // If STL, say which type of STL, etc.
     switch (gOptions->pEFD->fileType)
@@ -22308,7 +22309,7 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
         break;
     }
     sprintf_s(outputString, 256, "# Set %s type: %s\n", gPrint3D ? "3D print" : "render", formatString);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gPrint3D)
     {
@@ -22319,20 +22320,20 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
         {
             // If we add materials, put the material chosen here.
             sprintf_s(outputString, 256, "\n# Cost estimate for this model:\n");
-            WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+            WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
             sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "");
             sprintf_s(outputString, 256, "#   if made using the white, strong & flexible material: $ %0.2f%s\n",
                 computeMaterialCost(PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gMinorBlockCount),
                 warningString);
-            WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+            WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
 
         sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "");
         sprintf_s(outputString, 256, "#   if made using the full color sandstone material:     $ %0.2f%s\n",
             computeMaterialCost(isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gMinorBlockCount),
             warningString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         // if material is not one of these, print its cost
         if (gPhysMtl > PRINT_MATERIAL_FULL_COLOR_SANDSTONE&& gPhysMtl != PRINT_MATERIAL_FCS_SCULPTEO)
@@ -22343,17 +22344,17 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
                 gMtlCostTable[gPhysMtl].name,
                 computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount),
                 warningString);
-            WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+            WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
         gOptions->cost = computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount);
 
         sprintf_s(outputString, 256, "# For %s printer, minimum wall is %g mm, maximum size is %g x %g x %g cm\n", gMtlCostTable[gPhysMtl].name, gMtlCostTable[gPhysMtl].minWall * METERS_TO_MM,
             gMtlCostTable[gPhysMtl].maxSize[0], gMtlCostTable[gPhysMtl].maxSize[1], gMtlCostTable[gPhysMtl].maxSize[2]);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "# Units for the model vertex data itself: %s\n", gUnitTypeTable[gOptions->pEFD->comboModelUnits[gOptions->pEFD->fileType]].name);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gPrint3D)
     {
@@ -22376,52 +22377,52 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
         gOptions->dim_cm[Z] = inCM * gFilledBoxSize[Z];
         sprintf_s(outputString, 256, "\n# world dimensions: %0.2f x %0.2f x %0.2f cm%s\n",
             gOptions->dim_cm[X], gOptions->dim_cm[Y], gOptions->dim_cm[Z], errorString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         gOptions->dim_inches[X] = inCM * gFilledBoxSize[X] / 2.54f;
         gOptions->dim_inches[Y] = inCM * gFilledBoxSize[Y] / 2.54f;
         gOptions->dim_inches[Z] = inCM * gFilledBoxSize[Z] / 2.54f;
         sprintf_s(outputString, 256, "#   in inches: %0.2f x %0.2f x %0.2f inches%s\n",
             gOptions->dim_inches[X], gOptions->dim_inches[Y], gOptions->dim_inches[Z], errorString);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         gOptions->block_mm = gModel.scale * METERS_TO_MM;
         gOptions->block_inch = gOptions->block_mm / 25.4f;
         sprintf_s(outputString, 256, "# each block is %0.2f mm on a side, and has a volume of %g mm^3\n", gOptions->block_mm, inCM3 * 1000);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sumOfDimensions = 10 * inCM * (gFilledBoxSize[X] + gFilledBoxSize[Y] + gFilledBoxSize[Z]);
         sprintf_s(outputString, 256, "# sum of dimensions: %g mm\n", sumOfDimensions);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         volume = inCM3 * gBlockCount;
         sprintf_s(outputString, 256, "# volume is %g cm^3\n", volume);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         area = AREA_IN_CM2;
         sprintf_s(outputString, 256, "# surface area is %g cm^2\n", area);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_MODEL(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "# block density: %d%% of volume\n",
             (int)(gStats.density * 100.0f + 0.5f));
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     // write out a summary, useful for various reasons
     if (gExportBillboards)
     {
         sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount, gModel.billboardCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     else
     {
         sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     gOptions->totalBlocks = gBlockCount;
 
     sprintf_s(outputString, 256, "# block dimensions: X=%g by Y=%g (height) by Z=%g blocks\n", gFilledBoxSize[X], gFilledBoxSize[Y], gFilledBoxSize[Z]);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     Vec2Op(gOptions->dimensions, =, (int)gFilledBoxSize);
 
     // Summarize all the options used for output
@@ -22445,86 +22446,86 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
     else {
         sprintf_s(outputString, 256, "# File type: %s\n", outputTypeString[radio]);
     }
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "# Texture output RGB: %s\n", gOptions->pEFD->chkTextureRGB ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "# Texture output A: %s\n", gOptions->pEFD->chkTextureA ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "# Texture output RGBA: %s\n", gOptions->pEFD->chkTextureRGBA ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if ((gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
     {
         if (gOptions->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
         {
             strcpy_s(outputString, 256, "# OBJ relative coordinates\n");
-            WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+            WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
 
         sprintf_s(outputString, 256, "# Make groups objects: %s\n", gOptions->pEFD->chkMakeGroupsObjects ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "# Export separate objects: %s\n", gOptions->pEFD->chkSeparateTypes ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         sprintf_s(outputString, 256, "# Individual blocks: %s\n", gOptions->pEFD->chkIndividualBlocks ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         if (gOptions->pEFD->chkSeparateTypes || gOptions->pEFD->chkIndividualBlocks)
         {
             sprintf_s(outputString, 256, "#   Material per object: %s\n", gOptions->pEFD->chkMaterialPerBlock ? "YES" : "no");
-            WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+            WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
 
         // was, pre-7.0, "Split materials into subtypes"
         sprintf_s(outputString, 256, "#   Split by block type: %s\n", gOptions->pEFD->chkSplitByBlockType ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "# G3D full material: %s\n", gOptions->pEFD->chkG3DMaterial ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "# Make Z the up direction instead of Y: %s\n", gOptions->pEFD->chkMakeZUp[gOptions->pEFD->fileType] ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     // option only available when rendering - always true when 3D printing.
     if (!gPrint3D)
     {
         // note that we output gOptions->pEFD->chkCompositeOverlay even if gExportTiles is true
         sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gOptions->pEFD->chkCompositeOverlay ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "# Center model: %s\n", gOptions->pEFD->chkCenterModel ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "# Export lesser blocks: %s\n", gOptions->pEFD->chkExportAll ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gOptions->pEFD->chkExportAll)
     {
         sprintf_s(outputString, 256, "# Fatten lesser blocks: %s\n", gOptions->pEFD->chkFatten ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     // options only available when rendering.
     if (!gPrint3D)
     {
         sprintf_s(outputString, 256, "# Create block faces at the borders: %s\n", gOptions->pEFD->chkBlockFacesAtBorders ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "# Make tree leaves solid: %s\n", gOptions->pEFD->chkLeavesSolid ? "YES" : "no");
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "# Use biomes: %s\n", gOptions->pEFD->chkBiome ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     // now always on by default
     //sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gOptions->pEFD->chkMergeFlattop ? "YES" : "no" );
-    //WERROR(PortaWrite(fh, outputString, strlen(outputString) ));
+    //WERROR_FH(PortaWrite(fh, outputString, strlen(outputString) ));
 
     if (gOptions->pEFD->radioRotate0)
         angle = 0;
@@ -22539,125 +22540,125 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
     }
 
     sprintf_s(outputString, 256, "# Rotate model %f degrees\n", angle);
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gOptions->pEFD->radioScaleByBlock)
     {
         sprintf_s(outputString, 256, "# Scale model by making each block %g mm high\n", gOptions->pEFD->blockSizeVal[gOptions->pEFD->fileType]);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     else if (gOptions->pEFD->radioScaleByCost)
     {
         sprintf_s(outputString, 256, "# Scale model by aiming for a cost of %0.2f for the %s material\n", gOptions->pEFD->costVal, gMtlCostTable[gPhysMtl].name);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     else if (gOptions->pEFD->radioScaleToHeight)
     {
         sprintf_s(outputString, 256, "# Scale model by fitting to a height of %g cm\n", gOptions->pEFD->modelHeightVal);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
     else if (gOptions->pEFD->radioScaleToMaterial)
     {
         sprintf_s(outputString, 256, "# Scale model by using the minimum wall thickness for the %s material\n", gMtlCostTable[gPhysMtl].name);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "# Data operation options:\n#   Fill air bubbles: %s; Seal off entrances: %s; Fill in isolated tunnels in base of model: %s\n",
         (gOptions->pEFD->chkFillBubbles ? "YES" : "no"),
         (gOptions->pEFD->chkSealEntrances ? "YES" : "no"),
         (gOptions->pEFD->chkSealSideTunnels ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Connect parts sharing an edge: %s; Connect corner tips: %s; Weld all shared edges: %s\n",
         (gOptions->pEFD->chkConnectParts ? "YES" : "no"),
         (gOptions->pEFD->chkConnectCornerTips ? "YES" : "no"),
         (gOptions->pEFD->chkConnectAllEdges ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Delete floating objects: trees and parts smaller than %d blocks: %s\n",
         gOptions->pEFD->floaterCountVal,
         (gOptions->pEFD->chkDeleteFloaters ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Hollow out bottom of model, making the walls %g mm thick: %s; Superhollow: %s\n",
         gOptions->pEFD->hollowThicknessVal[gOptions->pEFD->fileType],
         (gOptions->pEFD->chkHollow[gOptions->pEFD->fileType] ? "YES" : "no"),
         (gOptions->pEFD->chkSuperHollow[gOptions->pEFD->fileType] ? "YES" : "no"));
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "# Melt snow blocks: %s\n", gOptions->pEFD->chkMeltSnow ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Debug: show separate parts as colors: %s\n", gOptions->pEFD->chkShowParts ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     sprintf_s(outputString, 256, "#   Debug: show weld blocks in bright colors: %s\n", gOptions->pEFD->chkShowWelds ? "YES" : "no");
-    WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     // write out processing stats for 3D printing
     if (gOptions->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS | EXPT_DELETE_FLOATING_OBJECTS))
     {
         sprintf_s(outputString, 256, "\n# Cleanup processing summary:\n#   Solid parts: %d\n",
             gStats.numSolidGroups);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & EXPT_FILL_BUBBLES)
     {
         sprintf_s(outputString, 256, "#   Air bubbles found and filled (with glass): %d\n",
             gStats.bubblesFound);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS))
     {
         sprintf_s(outputString, 256, "#   Total solid parts merged: %d\n",
             gStats.solidGroupsMerged);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & EXPT_CONNECT_PARTS)
     {
         sprintf_s(outputString, 256, "#   Number of edge passes made: %d\n",
             gStats.numberManifoldPasses);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "#     Edges found to fix: %d\n",
             gStats.nonManifoldEdgesFound);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "#     Weld blocks added: %d\n",
             gStats.blocksManifoldWelded);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & EXPT_CONNECT_CORNER_TIPS)
     {
         sprintf_s(outputString, 256, "#     Tip blocks added: %d\n",
             gStats.blocksCornertipWelded);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & EXPT_DELETE_FLOATING_OBJECTS)
     {
         sprintf_s(outputString, 256, "#   Floating parts removed: %d\n",
             gStats.floaterGroupsDeleted);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "#     In these floaters, total blocks removed: %d\n",
             gStats.blocksFloaterDeleted);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (gOptions->exportFlags & EXPT_HOLLOW_BOTTOM)
     {
         sprintf_s(outputString, 256, "#   Blocks removed by hollowing: %d\n",
             gStats.blocksHollowed);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "#   Blocks removed by further super-hollowing (i.e. not just vertical hollowing): %d\n",
             gStats.blocksSuperHollowed);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     if (pCBC) {
@@ -22667,11 +22668,11 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
             pCBC = pCBC->next;
         }
         sprintf_s(outputString, 256, "# Change commands issued: %d\n", cmdCount);
-        WERROR(PortaWrite(fh, outputString, strlen(outputString)));
+        WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
     }
 
     sprintf_s(outputString, 256, "\n# Full world path: %s\n", worldChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     if (gModel.terrainImageNotFound) {
         strcpy_s(outChar, MAX_PATH_AND_FILE, "default");
@@ -22680,11 +22681,11 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
         WcharToChar(terrainFileName, outChar, MAX_PATH_AND_FILE);
     }
     sprintf_s(outputString, 256, "# Full terrainExt.png path: %s\n", outChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     WcharToChar(curDir, outChar, MAX_PATH_AND_FILE);
     sprintf_s(outputString, 256, "# Full current path: %s\n", outChar);
-    WERROR(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
 
     return MW_NO_ERROR;
 }
@@ -22803,7 +22804,7 @@ static void spacesToUnderlinesChar(char* targetString)
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min)
 {
     int row;
-    int dst_offset, src_offset;
+    int dst_offset, src_offset;  // cppcheck-suppress 398
 
     for (row = 0; row < size_y; row++)
     {
@@ -22816,7 +22817,7 @@ static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int s
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value)
 {
     int row, col;
-    int dst_offset;
+    int dst_offset;  // cppcheck-suppress 398
     unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + (dst_y_min * dst->width + dst_x_min);
 
     for (row = 0; row < size_y; row++)
@@ -22832,7 +22833,7 @@ static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, i
 // startStretch is how far down the stretch should start from, e.g. 0.25 means start 1/4th the way down and stretch 3/4ths of the content up
 static void stretchSwatchToTop(progimage_info* dst, int swatchIndex, float startStretch)
 {
-    int row, drow, dcol, dst_offset, src_offset;
+    int row, drow, dcol, dst_offset, src_offset;  // cppcheck-suppress 398
     unsigned int* di, * si;
     SWATCH_TO_COL_ROW(swatchIndex, dcol, drow);
     di = ((unsigned int*)(&dst->image_data[0])) + (drow * gModel.swatchSize * dst->width + dcol * gModel.swatchSize);
@@ -22855,7 +22856,7 @@ static void stretchSwatchToFill(progimage_info* dst, int swatchIndex, int xlo, i
     int row, col, dcol, drow, scol, srow;
     float xwidth = (float)(xhi - xlo);
     float ywidth = (float)(yhi - ylo);
-    unsigned int* di, * si;
+    unsigned int* si;
 
     // copy source to workspace location, as we really can't do this in-place
     SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, scol, srow);
@@ -22871,7 +22872,7 @@ static void stretchSwatchToFill(progimage_info* dst, int swatchIndex, int xlo, i
     for (row = 0; row < gModel.tileSize; row++)
     {
         // start 1,1 in from corner of destination swatch
-        di = ((unsigned int*)(&dst->image_data[0])) +
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) +
             (drow * gModel.swatchSize + row + 1) * dst->width + (dcol * gModel.swatchSize) + 1;
 
         float yf = (float)row * ywidth / tsm;
@@ -22972,13 +22973,11 @@ static void setColorPNGTile(progimage_info* dst, int x, int y, int tileSize, uns
 static void addNoisePNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a, float noise)
 {
     int row, col;
-    unsigned int* di;
-
     assert(x * tileSize + tileSize - 1 < (int)dst->width);
 
     for (row = 0; row < tileSize; row++)
     {
-        di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
         for (col = 0; col < tileSize; col++)
         {
             double grayscale = 1.0 - noise * myrand();
@@ -22994,13 +22993,12 @@ static void addNoisePNGTile(progimage_info* dst, int x, int y, int tileSize, uns
 static void multiplyPNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
     int row, col;
-    unsigned int* di;
 
     assert(x * tileSize + tileSize - 1 < (int)dst->width);
 
     for (row = 0; row < tileSize; row++)
     {
-        di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
         for (col = 0; col < tileSize; col++)
         {
             unsigned int value = *di;
@@ -23016,14 +23014,13 @@ static void multiplyPNGTile(progimage_info* dst, int x, int y, int tileSize, uns
 static void multiplyClampPNGTile(progimage_info* dst, int x, int y, int tileSize, int r, int g, int b, unsigned char a)
 {
     int row, col;
-    unsigned int* di;
     int idr, idg, idb, imax;
 
     assert(x * tileSize + tileSize - 1 < (int)dst->width);
 
     for (row = 0; row < tileSize; row++)
     {
-        di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
         for (col = 0; col < tileSize; col++)
         {
             unsigned int value = *di;
@@ -23051,13 +23048,12 @@ static void multiplyClampPNGTile(progimage_info* dst, int x, int y, int tileSize
 static void bluePNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b)
 {
     int row, col;
-    unsigned int* di;
 
     assert(x * tileSize + tileSize - 1 < (int)dst->width);
 
     for (row = 0; row < tileSize; row++)
     {
-        di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
         for (col = 0; col < tileSize; col++)
         {
             unsigned int value = *di;
@@ -23071,7 +23067,7 @@ static void bluePNGTile(progimage_info* dst, int x, int y, int tileSize, unsigne
 
 static void rotatePNGTile(progimage_info* dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize)
 {
-    int row, col;
+    int row, col;  // cppcheck-suppress 398
     int m00, m01, m10, m11, offset0, offset1;
     unsigned int* dul = ((unsigned int*)&dst->image_data[0]) + drow * swatchSize * dst->width + dcol * swatchSize;
     unsigned int* sul = ((unsigned int*)&dst->image_data[0]) + srow * swatchSize * dst->width + scol * swatchSize;
@@ -23315,7 +23311,7 @@ static int bleedPNGSwatchRecursive(progimage_info* dst, int dstSwatch, int xmin,
                 // texel is transparent, so check its neighbors
                 int i;
                 int neighborCount = 0;
-                unsigned char nr, ng, nb, na;
+                unsigned char nr, ng, nb, na;  // cppcheck-suppress 398
                 unsigned int* cneighi;
                 int sumr = 0;
                 int sumg = 0;
@@ -23476,7 +23472,6 @@ static void makeRemainingTileAverage(progimage_info* dst, int dstSwatch, int swa
 
     int row, col;
     unsigned int* cdsti;
-    unsigned char color[4];
     unsigned char dr, dg, db, da;
 
     double dcolor[4];
@@ -23507,6 +23502,7 @@ static void makeRemainingTileAverage(progimage_info* dst, int dstSwatch, int swa
         }
     }
     if (sum > 0) {
+        unsigned char color[4];
         // gamma correct and then unassociate for PNG storage
         color[0] = (unsigned char)(0.5 + 255.0 * pow((sum_color[0] / sum), 1 / 2.2));
         color[1] = (unsigned char)(0.5 + 255.0 * pow((sum_color[1] / sum), 1 / 2.2));
@@ -23543,16 +23539,15 @@ static void setAlphaPNGSwatch(progimage_info* dst, int dstSwatch, int swatchSize
 
     int row, col;
     unsigned char dr, dg, db, da;
-    unsigned int* cdsti;
 
     for (row = 0; row < swatchSize; row++)
     {
         int offset = row * dst->width;
-        cdsti = dsti + offset;
+        unsigned int* cdsti = dsti + offset;
         for (col = 0; col < swatchSize; col++)
         {
             GET_PNG_TEXEL(dr, dg, db, da, *cdsti);
-            da = alpha;
+            da = alpha;  // cppcheck-suppress 563
             SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
             cdsti++;
         }
@@ -23578,7 +23573,7 @@ static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwa
     //unsigned char or,og,ob,oa;
     unsigned char oa;
     unsigned char ur, ug, ub, ua;
-    unsigned int* coveri, * cunderi, * cdsti;
+    unsigned int* coveri, * cunderi, * cdsti;  // cppcheck-suppress 398
 
     for (row = 0; row < swatchSize; row++)
     {
@@ -23643,7 +23638,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
     unsigned char ur, ug, ub, ua;
     // reversed, because that's how it works
     GET_PNG_TEXEL(ub, ug, ur, ua, underColor);
-    ua = 255;   // always solid underlying color
+    ua = 255;   // always solid underlying color  // cppcheck-suppress 563
 
     // these are swatch locations in index form (not yet multiplied by swatch size itself)
     int ocol = overSwatch % swatchesPerRow;
@@ -23657,7 +23652,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
     int row, col;
     unsigned char or , og, ob, oa;
     unsigned char dr, dg, db, da;
-    unsigned int* coveri, * cdsti;
+    unsigned int* coveri, * cdsti;  // cppcheck-suppress 398
 
     for (row = 0; row < swatchSize; row++)
     {
@@ -23771,7 +23766,7 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
 
     int col, row;
     int numChannels = usesAlpha ? 4 : 3;
-    unsigned char* imageDst, * imageSrc;
+    unsigned char* imageDst, * imageSrc;  // cppcheck-suppress 398
     progimage_info dst;
     dst.height = swatchSize - 2;
     dst.width = swatchSize - 2;
@@ -23811,7 +23806,7 @@ static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize
     int srow = swatchLoc / swatchesPerRow;
 
     int col, row;
-    unsigned char dr, dg, db, da;
+    unsigned char dr, dg, db, da;  // cppcheck-suppress 398
 
     // tileSize is always swatchSize-2
     for (row = 0; row < swatchSize - 2; row++)
@@ -23825,7 +23820,7 @@ static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize
                 return true;
             srci++;
         }
-    }
+    }  // cppcheck-suppress 563
     return false;
 }
 

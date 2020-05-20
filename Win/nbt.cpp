@@ -1205,13 +1205,13 @@ void makeHashTable()
 #ifdef _DEBUG
         static int outputMasks = 0;	// set to 1 to output these masks to a file
         if (outputMasks) {
-            char outputString[MAX_PATH_AND_FILE];
             static PORTAFILE outFile = PortaCreate(L"c:\\temp\\mineways_subtype_masks.txt");
             if (outFile != INVALID_HANDLE_VALUE)
             {
                 // write file
                 for (i = 0; i < NUM_BLOCKS_DEFINED; i++)
                 {
+                    char outputString[MAX_PATH_AND_FILE];
                     sprintf_s(outputString, 256, "%3d: 0x%02x\n", i, mask_array[i]);
                     if (PortaWrite(outFile, outputString, strlen(outputString))) {
                         // write error!
@@ -1228,7 +1228,6 @@ void makeHashTable()
         if (outputSubblockNames) {
             char outputString[MAX_PATH_AND_FILE];
             static PORTAFILE outBlockFile = PortaCreate(L"c:\\temp\\mineways_block_names.csv");
-            int count = 0;
             if (outBlockFile != INVALID_HANDLE_VALUE)
             {
                 // write file
@@ -1246,6 +1245,7 @@ void makeHashTable()
             static PORTAFILE outFile = PortaCreate(L"c:\\temp\\mineways_subblock_names.csv");
             if (outFile != INVALID_HANDLE_VALUE)
             {
+                int count = 0;
                 // write file
                 for (i = 0; i < NUM_BLOCKS_DEFINED; i++)
                 {
@@ -1643,7 +1643,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         }
         else {
             // some unknown length - has the format changed yet again?
-            assert(0);
+            // if the length is 0, that means it's an empty block
+            assert(len == 0);
             memset(biome, 0, 256);
         }
     }
@@ -1680,7 +1681,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
-    if (empty) {
+    // Weird false positive ("empty is always true") here from cppcheck
+    if (empty) {      // cppcheck-suppress 571
         return 2;	// no warnings to OR in here - it's empty
     }
 
@@ -2346,11 +2348,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             else if (strcmp(token, "has_record") == 0) {}	// jukebox
                                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
                                             else {
-                                                // unknown property, let's show it: put a break here in DEBUG and
-                                                // put text in "Actions":
-                                                // token is {token} and value is {value}
-                                                token[0] = token[0];	// here for debug
-                                                value[0] = value[0];	// here for debug
+                                                // unknown property - look at token and value
                                                 assert(0);
                                             }
                                         }
@@ -3061,6 +3059,7 @@ int nbtGetFileVersionId(bfFile* pbf, int* versionId)
     return 0;
 }
 
+/* currently not used: 
 int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength)
 {
     *versionName = '\0'; // initialize to empty string
@@ -3085,6 +3084,7 @@ int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength)
     versionName[len] = 0;
     return 0;
 }
+*/
 
 int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength)
 {

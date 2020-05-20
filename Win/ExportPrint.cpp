@@ -120,8 +120,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, epd.radioExportFullTexture[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, epd.radioExportTileTextures[epd.fileType]);
-        if (epd.flags & EXPT_3DPRINT) {
-            // don't allow tile output
+        if (epd.radioExportTileTextures[epd.fileType] && (epd.flags & EXPT_3DPRINT)) {
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
         }

@@ -30,6 +30,7 @@ Win/x64
 Win/UpdateCheck.*
 Win/teapot*.png
 docs/images/crushed
+mineways-cppcheck-build-dir
 ipch
 TileMaker/TileMaker/blocks*
 TileMaker/TileMaker/MW_BLOCKS

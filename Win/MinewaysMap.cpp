@@ -3297,6 +3297,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             color = gBlockColors[type * 16 + light];
             break;
         }
+        break;
 
     default:
         // Everything else
@@ -5577,7 +5578,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        int bedrockHeight = 60;
+        int bedrockHeight = 60;      // cppcheck-suppress 398
         int grassHeight = 62;
         int blockHeight = 63;
 
@@ -5688,10 +5689,17 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
 
+            // values 1 and 2 are valid; 3's not used - higher bits are warnings
+            if (retCode >= 0) {
+                block->blockType = retCode & 0x3;
+            }
+            else {
+                // negative means a serious read error, so store as-is
+                block->blockType = retCode;
+            }
+
             // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
             if ((retCode >= 0) && (block->numEntities > 0)) {
-                // values 1 and 2 are valid; 3's not used - higher bits are warnings
-                block->blockType = retCode & 0x3;
                 // transfer the relevant part of the BlockEntity array to permanent block storage
                 block->entities = (BlockEntity*)malloc(block->numEntities * sizeof(BlockEntity));
 
@@ -5704,11 +5712,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         }
         else {
             assert(pWorldGuide->type == WORLD_SCHEMATIC_TYPE);
-            block->blockType = createBlockFromSchematic(pWorldGuide, cx, cz, block);
+            retCode = block->blockType = createBlockFromSchematic(pWorldGuide, cx, cz, block);
         }
 
-        // is block valid?
-        if (retCode >= 0) {
+        // is block valid? and not empty?
+        if (retCode > 0) {
 
             // does block have anything in it other than air?
             if (block->blockType == 1) {
@@ -5760,7 +5768,8 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
     memset(block->grid, 0, 16 * 16 * 256);
     memset(block->data, 0, 16 * 16 * 256);
 
-    static int border = 1;
+    // not sure why I made this a static int, but let's leave it be, shall we?
+    static int border = 1;      // cppcheck-suppress 398
     if (pWorldGuide->sch.repeat) {
         // loop through local block locations, 0-15,0-15
         for (int y = 0; y < pWorldGuide->sch.height; y++) {
@@ -5883,6 +5892,8 @@ int GetFileVersionId(const wchar_t* world, int* versionId)
     nbtClose(&bf);
     return retcode;
 }
+
+/* currently not used
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength)
 {
@@ -5898,6 +5909,8 @@ int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength
     nbtClose(&bf);
     return retcode;
 }
+*/
+
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetLevelName(const wchar_t* world, char* levelName, int stringLength)
 {

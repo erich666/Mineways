@@ -343,7 +343,7 @@ static int loadWorld(HWND hWnd);
 static void strcpyLimited(char* dst, int len, const char* src);
 static int setWorldPath(TCHAR* path);
 //static void homePathMac(TCHAR *path);
-static void enableBottomControl(int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel);
+static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBottomLabel, */ HWND hwndInfoBottomLabel);
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
 static void drawTheMap();
@@ -506,7 +506,7 @@ int APIENTRY _tWinMain(
     initializeExportDialogData();
 #ifdef SKETCHFAB
     // Initialize Skfb data - not good practice, as std::string is involved
-    memset(&gSkfbPData, 0, sizeof(PublishSkfbData));
+    memset(&gSkfbPData, 0, sizeof(PublishSkfbData));      // cppcheck-suppress 762
 #endif
 
     memset(&gWS, 0, sizeof(gWS));
@@ -1026,7 +1026,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gSkfbPData.skfbFilePath = "";
 #endif
             SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz);
-            enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+            enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
             validateItems(GetMenu(hWnd));
             drawInvalidateUpdate(hWnd);
         }
@@ -1044,7 +1044,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
                 SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-                enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
             }
             else {
@@ -1099,7 +1099,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
             SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-            enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+            enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
             updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
 
@@ -1149,7 +1149,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                     // update target depth
                     SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-                    enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                     drawInvalidateUpdate(hWnd);
                 }
                 else
@@ -1208,7 +1208,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
                     // update target depth
                     SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-                    enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                     drawInvalidateUpdate(hWnd);
                 }
                 else if (retval == IDCANCEL)
@@ -1270,7 +1270,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //                OutputDebugStringW( bufa );
 //#endif
                 SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz);
-                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
             updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
@@ -1333,7 +1333,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
                 SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-                enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
                 break;
                 // decrement target depth by one
@@ -1343,7 +1343,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
                 SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-                enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
                 break;
             case VK_OEM_PERIOD:
@@ -1499,7 +1499,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
         SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-        enableBottomControl(on, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+        enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
         gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
             bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
@@ -1564,7 +1564,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // update target depth
                 gHighlightOn = TRUE;
                 SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1);
-                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
             break;
@@ -1810,7 +1810,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
                 }
                 SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-                enableBottomControl(1, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(1, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 // put target depth to new depth set, if any
                 if (gTargetDepth != gpEFD->maxyVal)
                 {
@@ -1976,7 +1976,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // clear selection when you switch from somewhere else to The Nether, or vice versa
                 gHighlightOn = FALSE;
                 SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
                 REDRAW_ALL;
             }
@@ -2018,7 +2018,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // clear selection when you switch from somewhere else to The End, or vice versa
                 gHighlightOn = FALSE;
                 SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-                enableBottomControl(gHighlightOn, hwndBottomSlider, hwndBottomLabel, hwndInfoBottomLabel);
+                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
                 REDRAW_ALL;
             }
@@ -2206,7 +2206,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                 _time32(&aclock);   // Get time in seconds.
                 _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
 
-                errNum = asctime_s(timeString, 32, &newtime);
+                errNum = asctime_s(timeString, 32, &newtime);   // TODO should use strftime?
                 if (!errNum)
                 {
                     char outputString[256];
@@ -2243,15 +2243,14 @@ static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList
             // found window resize
             argIndex++;
             if (argIndex < argCount) {
-                int valx;
-                int valy;
                 // convert next argument to an integer
-                valx = _wtoi(argList[argIndex]);
+                int valx = _wtoi(argList[argIndex]);
                 argIndex++;
                 if (valx > 0) {
                     if (argIndex < argCount) {
-                        valy = _wtoi(argList[argIndex]);
-                        argIndex++;
+                        int valy = _wtoi(argList[argIndex]);
+                        // next line not needed, since we always return
+                        //argIndex++;
                         if (valy > 0) {
                             // found it! Always use the first one found
                             *x = valx;
@@ -2357,7 +2356,8 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
             argIndex++;
             if (argIndex < argCount) {
                 wcscpy_s(saveWorldDirectory, MAX_PATH_AND_FILE, argList[argIndex]);
-                argIndex++;
+                // next line not needed, since we always return
+                //argIndex++;
                 if (wcscmp(saveWorldDirectory, L"none") == 0) {
                     // empty path
                     wcscpy_s(saveWorldDirectory, MAX_PATH_AND_FILE, L"");
@@ -3007,8 +3007,8 @@ void flagUnreadableWorld(wchar_t* wcWorld, char* charWorld, int errCode)
     sprintf_s(outputString, 1024, "      detected inability to read or corrupt world file: %s\n", charWorld);
     LOG_INFO(gExecutionLogfile, outputString);
 
-    wchar_t msgString[1024];
     if (errCode < 0) {
+        wchar_t msgString[1024];
         swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored, error code %d.", wcWorld, errCode);
         MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
@@ -3194,7 +3194,7 @@ static int loadWorldList(HMENU menu)
     return oldVersionDetected;
 }
 
-static void enableBottomControl(int state, HWND hwndBottomSlider, HWND hwndBottomLabel, HWND hwndInfoBottomLabel)
+static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBottomLabel, */ HWND hwndInfoBottomLabel)
 {
     if (state != gBottomControlEnabled)
     {
@@ -3204,8 +3204,9 @@ static void enableBottomControl(int state, HWND hwndBottomSlider, HWND hwndBotto
         // slider is that the map window underneath is then active instead, and you'll drag the map.
         //EnableWindow(hwndBottomSlider,state);
         //EnableWindow(hwndBottomLabel,state);
-        hwndBottomSlider;
-        hwndBottomLabel;
+        // or to include arguments but avoid warnings:
+        //hwndBottomSlider;
+        //hwndBottomLabel;
         EnableWindow(hwndInfoBottomLabel, state);
     }
 }
@@ -3441,7 +3442,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error)
     sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-    enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
     // put target depth to new depth set, if any
     if (gTargetDepth != gpEFD->maxyVal)
     {
@@ -3510,6 +3511,8 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
         swprintf_s(tempdir, MAX_PATH_AND_FILE, L"\\tmp\\");
     }
     swprintf_s(filepath, MAX_PATH_AND_FILE, L"%sMineways2Skfb", tempdir);
+
+    delete[] tempdir;
 
     return filepath;
 }
@@ -4169,8 +4172,8 @@ static void initializeExportDialogData()
 
 static void initializePrintExportData(ExportFileData& printData)
 {
-    // by default, make everything 0 - off
-    memset(&printData, 0, sizeof(ExportFileData));
+    // by default, make everything 0 - off. Yes, even floats, cppcheck
+    memset(&printData, 0, sizeof(ExportFileData));  // cppcheck-suppress 758
 
     // turn stuff on
     printData.fileType = FILE_TYPE_VRML2;
@@ -4446,7 +4449,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
 
         gHighlightOn = true;
         SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-        enableBottomControl(1, ws.hwndBottomSlider, ws.hwndBottomLabel, ws.hwndInfoBottomLabel);
+        enableBottomControl(1, /* ws.hwndBottomSlider, ws.hwndBottomLabel, */ ws.hwndInfoBottomLabel);
         // put target (bottom) depth to new depth set, if any
         gTargetDepth = gpEFD->minyVal;
         // adjust maximum height up, but not down. We export the maximum height at which
@@ -5087,7 +5090,7 @@ static int switchToNether(ImportedSet& is)
     // clear selection when you switch from somewhere else to The Nether, or vice versa
     gHighlightOn = FALSE;
     SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
 
     return 0;
 }
@@ -5127,7 +5130,7 @@ static int switchToTheEnd(ImportedSet& is)
     // clear selection when you switch from somewhere else to The End, or vice versa
     gHighlightOn = FALSE;
     SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
 
     return 0;
 }
@@ -5321,7 +5324,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     // clear selection when you switch from somewhere else to The Nether, or vice versa
                     gHighlightOn = FALSE;
                     SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
-                    enableBottomControl(gHighlightOn, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+                    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
                 }
                 else {
                     // warning: selection set but no world is loaded
@@ -5413,6 +5416,15 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 if (_stricmp(string1, "none") == 0) {
                     noSelection = true;
                 }
+                else if (_stricmp(string1, "all") == 0) {
+                    // well, not quite all, but good enough for almost all schematics
+                    // TODO: could make it apply to just schematics, but this is actually kind of handy
+                    // for Creative superflat worlds where you just want to export a model.
+                    v[0] = v[2] = -5000;
+                    v[1] = 0;
+                    v[3] = v[5] = 5000;
+                    v[4] = 255;
+                }
                 else {
                     // bad parse - warn and quit
                     goto SelectionParseError;
@@ -5461,7 +5473,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
                             gHighlightOn = true;
                             SetHighlightState(1, is.minxVal, is.minyVal, is.minzVal, is.maxxVal, is.maxyVal, is.maxzVal);
-                            enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+                            enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
                             // put target (bottom) depth to new depth set, if any
                             gTargetDepth = is.minyVal;
                             gCurDepth = is.maxyVal;
@@ -6543,7 +6555,7 @@ JumpToSpawn:
             setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
             SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
-            enableBottomControl(on, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+            enableBottomControl(on, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
@@ -7679,7 +7691,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
-    enableBottomControl(1, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, is.ws.hwndInfoBottomLabel);
+    enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
     // put target depth to new depth set, if any
     if (gTargetDepth != gpEFD->maxyVal)
     {
@@ -7726,7 +7738,7 @@ static bool openLogFile(ImportedSet& is)
         _time32(&aclock);   // Get time in seconds.
         _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
 
-        errNum = asctime_s(timeString, 32, &newtime);
+        errNum = asctime_s(timeString, 32, &newtime);   // TODO should use strftime?
         if (!errNum)
         {
             sprintf_s(outputString, 256, "  %s\n", timeString);

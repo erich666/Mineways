@@ -59,13 +59,14 @@ void ColorManager::Init(ColorScheme* cs)
         cs->colors[i] = blockColor(i);
     }
     // fill in rest, if NUM_BLOCKS_CS is higher than NUM_BLOCKS
-    for (i = NUM_BLOCKS; i < NUM_BLOCKS_CS; i++)
-    {
-        // fill the rest with almost-black; if we detect this color on loading
-        // a color scheme in a place that should have been a normal color, then
-        // we know the old color scheme is out of date and should be fixed on load.
-        cs->colors[i] = NO_COLOR_ENTRY;
-    }
+    // TODO - never needed now. Someday we might go to a different scheme, based on names of blocks.
+    //for (i = NUM_BLOCKS; i < NUM_BLOCKS_CS; i++)
+    //{
+    //    // fill the rest with almost-black; if we detect this color on loading
+    //    // a color scheme in a place that should have been a normal color, then
+    //    // we know the old color scheme is out of date and should be fixed on load.
+    //    cs->colors[i] = NO_COLOR_ENTRY;
+    //}
 }
 void ColorManager::create(ColorScheme* cs)
 {

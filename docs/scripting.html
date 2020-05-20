@@ -224,9 +224,10 @@ Selects the named color scheme, if available. "Standard" is the default.
 Selection location min to max: <i>-199, 0, -466</i> to <i>-176, 255, -442</i><br>
 Selection location: <i>60, 0, 60</i> to <i>80, 255, 100</i><br>
 Selection location: none
+Selection location: all
 </td>
 <td>
-Select the volume to be exported, inclusive. Either form is fine. The volume is defined by a minimum and maximum block location. The commas, spaces, and "to" string do matter here. If "none" is found, deselection occurs (Escape key in Mineways).
+Select the volume to be exported, inclusive. Either form is fine. The volume is defined by a minimum and maximum block location. The commas, spaces, and "to" string do matter here. If "none" is found, deselection occurs (Escape key in Mineways). If "all" is found, the values <i>-5000, 0, -5000</i> to <i>5000, 255, 5000</i> are used, which is usually enough to select any schematic imported - this is just a simple shorthand instead of writing it all out. This option is also handy for superflat Creative worlds, where you just want to export the whole place.
 </td>
 </tr>
 
@@ -652,7 +653,7 @@ Custom printer maximum size: <i>20.0 20.0 19.0</i><br>
 Custom printer minimum wall thickness: <i>1.5</i><br>
 </td>
 <td>
-The custom printer material that is used by the STL exporter can have its attributes set for showing the cost on export. You can set the cost per cubic centimeter (ccm) of material used (assuming a solid model), the cost per ccm of printer volume used (i.e., including the empty space, a bounding box around the model; Shapeways uses this for its <a href="https://www.shapeways.com/materials/strong-and-flexible-plastic?li=nav">Strong &amp; Flexible</a> material, for example), the "handling" cost (added in), the minimum cost a model will cost, the currency symbol (only the first character is used), the volume size of the 3D printer in centimeters (to warn if the print is too large), and the minimum wall thickness in <b>millimeters</b> for printing. Any or all of these can be set; the defaults are shown when not modified. PLA is typically priced at $24 for a 1 kilogram (800 cubic centimeters) spool, and <a href="http://www.fabbaloo.com/blog/2015/9/27/is-it-filament-weight-or-length">using this conversion</a>. That is, $24/800 ccm then costs $0.03 per cubic centimeter.
+The custom printer material that is used by the STL exporter can have its attributes set for showing the cost on export. You can set the cost per cubic centimeter (ccm) of material used (assuming a solid model), the cost per ccm of printer volume used (i.e., including the empty space, a bounding box around the model; Shapeways uses this for its <a href="https://www.shapeways.com/materials/strong-and-flexible-plastic?li=nav">Strong &amp; Flexible</a> material, for example), the "handling" cost (added in), the minimum cost a model will cost, the currency symbol (only the first character is used), the volume size of the 3D printer in centimeters (to warn if the print is too large), and the minimum wall thickness in <b>millimeters</b> for printing. Any or all of these can be set; the defaults are shown when not modified. PLA is typically priced at $24 for a 1 kilogram (800 cubic centimeters) spool. That is, $24/800 ccm then costs $0.03 per cubic centimeter.
 </td>
 </tr>
 
@@ -946,7 +947,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 4/29/2020</p>
+		<p id="lastUpdate">Last updated 5/20/2020</p>
 	</div>
 </div>
 

@@ -92,7 +92,7 @@ int NeedToCheckUnknownBlock();
 int GetSpawn(const wchar_t* world, int* x, int* y, int* z);
 int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsize_t size);
 int GetFileVersionId(const wchar_t* world, int* versionId);
-int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength);
+// currently not used: int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength);
 int GetLevelName(const wchar_t* world, char* levelName, int stringLength);
 int GetPlayer(const wchar_t* world, int* px, int* py, int* pz);
 int GetSchematicWord(const wchar_t* schematic, char* field, int* word);

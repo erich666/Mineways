@@ -81,7 +81,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z);
 int nbtGetFileVersion(bfFile* pbf, int* version);
 int nbtGetFileVersionId(bfFile* pbf, int* versionId);
-int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength);
+// currently not used: int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength);
 int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength);
 int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz);
 //void nbtGetRandomSeed(bfFile *pbf,long long *seed);

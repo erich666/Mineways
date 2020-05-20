@@ -37,7 +37,7 @@ typedef struct _progimage_info {
 } progimage_info;
 
 int readpng(progimage_info* mainprog_ptr, wchar_t* filename);
-int readpngheader(progimage_info* im, wchar_t* filename);
+// currently unused: int readpngheader(progimage_info* im, wchar_t* filename);
 void readpng_cleanup(int free_image_data, progimage_info* mainprog_ptr);
 
 int writepng(progimage_info* mainprog_ptr, int channels, wchar_t* filename);
