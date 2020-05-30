@@ -1523,7 +1523,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             useCustomColor(wmId, hWnd);
         }
 
-        if (wmId > IDM_WORLD&& wmId < IDM_WORLD + MAX_WORLDS - 1)
+        if (wmId > IDM_WORLD && wmId < IDM_WORLD + MAX_WORLDS - 1)
         {
             // Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
 
@@ -3053,8 +3053,8 @@ static int loadWorldList(HMENU menu)
     // did we find the directory at all?
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0\n");
-        MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+        LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0. This means Mineways couldn't find your Minecraft world saves directory.\n");
+        MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. This likely means that you're using Minecraft Bedrock edition on Windows 10. Mineways supports only Minecraft Classic (Java) world files. But, there is a free utility to convert from one to the other Minecraft world format. See http://mineways.com for more information.\n\nIf you are using Minecraft Classic (Java) and have stored your worlds elsewhere, use the 'File -> Open...' option and find your level.dat file for the world. Save files are normally at 'C:\\Users\\<your name>\\AppData\\Roaming\\.minecraft\\saves'. For Mac, worlds are usually located at '/users/<your name>/Library/Application Support/minecraft/saves'."),
             _T("Informational"), MB_OK | MB_ICONINFORMATION);
         return 0;
     }
@@ -3178,16 +3178,24 @@ static int loadWorldList(HMENU menu)
                     LOG_INFO(gExecutionLogfile, outputString);
                 }
             }
-        } while ((FindNextFile(hFind, &ffd) != 0) && (count < MAX_WORLDS) && (gNumWorlds < MAX_WORLDS));
+        } while ((FindNextFile(hFind, &ffd) != 0) && (gNumWorlds < MAX_WORLDS));
     }
     FindClose(hFind);
 
-    if (count >= MAX_WORLDS)
+    // did the search stop due to running out of room for worlds?
+    char charMsgString[1024];
+    if (gNumWorlds >= MAX_WORLDS)
     {
-        char charMsgString[1024];
         sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to list.", MAX_WORLDS, saveFilesPath);
+        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        gNumWorlds = MAX_WORLDS - 1;
+    }
+    else if (gNumWorlds == 1) {
+        sprintf_s(charMsgString, 1024, "Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
+        LOG_INFO(gExecutionLogfile, charMsgString);
+        swprintf_s(msgString, 1024, L"Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
         MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
 
@@ -7825,10 +7833,10 @@ static void checkMapDrawErrorCode(int retCode)
     if (retCode < 0) {
         // error - show an error reading?
         if (gOneTimeDrawError) {
-            wsprintf(fullbuf, _T("Error: block read error. If you're using a beta or a mod, good luck. If not, make sure you have downloaded the latest version of Mineways from mineways.com."));
+            gOneTimeDrawError = false;
+            wsprintf(fullbuf, _T("Error: chunk read error %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com."), retCode);
             MessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-            gOneTimeDrawError = false;
         }
     }
     else if (gOneTimeDrawWarning & retCode) {

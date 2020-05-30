@@ -243,7 +243,15 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
         for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
         {
             blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, retCode);
-            sumRetCode |= retCode;
+            if (retCode < 0) {
+                // preserve the error code, which will (mysteriously) be displayed
+                sumRetCode = retCode;
+            }
+            else if (sumRetCode >= 0)
+            {
+                // warnings can chained together
+                sumRetCode |= retCode;
+            }
             blit(blockbits, bits, px, py, zoom, w, h);
         }
     }

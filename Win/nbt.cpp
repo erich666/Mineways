@@ -1574,9 +1574,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     //int found;
 
     //Level/Blocks
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
     if (nbtFindElement(pbf, "Level") != 10)
         return -3;
 
@@ -1588,22 +1590,27 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     int inttype = nbtFindElement(pbf, "Biomes");
     bool newFormat = false;
     if (inttype != 7) {
-        // could be new format 1.13
-        if (inttype != 11)
-            return -4;
-        else {
+        // Could be new format 1.13
+        // Bizarrely, in the new format the Biome data may be missing for some chunks.
+        // When this happens, the Sections area will have 0 entries, i.e. it's an empty chunk.
+        // Why this chunk even exists in this funny way, I don't know.
+        // What we do is let the code proceed - it *should* zero the biome and read in an empty chunk.
+        //if (inttype != 11)
+        //    return -4;
+        //else {
             newFormat = true;
             if (!hashMade) {
                 makeHashTable();
                 hashMade = true;
             }
-        }
+        //}
     }
 
     len = readDword(pbf); //array length
     if (!newFormat) {
         // old, direct format - done
-        if (bfread(pbf, biome, len) < 0) return -5;
+        if (bfread(pbf, biome, len) < 0)
+            return -5;
     }
     else {
         // new format 1.13+
@@ -1612,7 +1619,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // convert to bytes, tough luck if too high (for now)
             unsigned char biomeint[4 * 256];
             memset(biomeint, 0, 4 * len);
-            if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
+            if (bfread(pbf, biomeint, 4 * len) < 0)
+                return -6;
             for (int i = 0; i < 256; i++) {
                 // wild guess as to the biome - looks like the topmost byte right now.
                 int grab = 4 * i + 3;
@@ -1628,7 +1636,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // convert to bytes, tough luck if too high (for now)
             unsigned char biomeint[4 * 1024];
             memset(biomeint, 0, 4 * len);
-            if (bfread(pbf, biomeint, 4 * len) < 0) return -5;
+            if (bfread(pbf, biomeint, 4 * len) < 0)
+                return -7;
             for (int loc = 0; loc < 16; loc++) {
                 // biomes are now 4x4, 64 levels, so take sea level at 16, which is at location 16 per level * 16 levels up * 4 bytes/int = 1024
                 unsigned char biomeVal = biomeint[1024 + 3 + (loc >> 2) * 16 + (loc & 0x3) * 4];
@@ -1644,22 +1653,24 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         else {
             // some unknown length - has the format changed yet again?
             // if the length is 0, that means it's an empty block
-            assert(len == 0);
+            // We don't assert, as this can evidently really be the case: no Biome, empty Section. See "Could be new format 1.13" comments earlier
+            //assert(len == 0);
             memset(biome, 0, 256);
         }
     }
 
-    if (bfseek(pbf, biome_save, SEEK_SET) < 0) return -6; //rewind to start of section
+    if (bfseek(pbf, biome_save, SEEK_SET) < 0)
+        return -8; //rewind to start of section
 
     if (nbtFindElement(pbf, "Sections") != 9)
-        return -7;
+        return -9;
 
     // does Sections have anything inside of it?
     bool empty = false;
     {
         // get rid of "\n" after "Sections".
         unsigned char uctype = 0;
-        if (bfread(pbf, &uctype, 1) < 0) return -8;
+        if (bfread(pbf, &uctype, 1) < 0) return -10;
         // did we find the "\n"? If not, it means the section is empty, so we
         /// can simply clear memory below and return - all done.
         if (uctype != 10) {
@@ -1687,7 +1698,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     }
 
     nsections = readDword(pbf);
-    if (nsections < 0) return -10;
+    if (nsections < 0) return -11;
 
     char thisName[MAX_NAME_LENGTH];
 
@@ -1713,9 +1724,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
-            return -19;
-        if (bfread(pbf, &y, 1) < 0) return -11;
-        if (bfseek(pbf, save, SEEK_SET) < 0) return -12; //rewind to start of section
+            return -12;
+        if (bfread(pbf, &y, 1) < 0)
+            return -13;
+        if (bfseek(pbf, save, SEEK_SET) < 0)
+            return -14; //rewind to start of section
 
         if (!newFormat) {
             // read all the arrays in this section
@@ -1723,25 +1736,29 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             {
                 ret = 0;
                 type = 0;
-                if (bfread(pbf, &type, 1) < 0) return -13;
+                if (bfread(pbf, &type, 1) < 0)
+                    return -15;
                 if (type == 0)
                     break;
                 len = readWord(pbf);
-                if (bfread(pbf, thisName, len) < 0) return -14;
+                if (bfread(pbf, thisName, len) < 0)
+                    return -16;
                 thisName[len] = 0;
                 if (strcmp(thisName, "BlockLight") == 0)
                 {
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
-                    if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0) return -15;
+                    if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
+                        return -17;
                 }
                 else if (strcmp(thisName, "Blocks") == 0)
                 {
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
-                    if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0) return -16;
+                    if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0)
+                        return -18;
                 }
                 else if (strcmp(thisName, "Data") == 0)
                 {
@@ -1750,7 +1767,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     len = readDword(pbf); //array length
                     // transfer the data from 4-bits to 8-bits; needed for 1.13
                     unsigned char data4buff[16 * 16 * 8];
-                    if (bfread(pbf, data4buff, len) < 0) return -17;
+                    if (bfread(pbf, data4buff, len) < 0)
+                        return -19;
                     unsigned char* din = data4buff;
                     unsigned char* dret = &data[16 * 16 * 16 * y];
                     for (int id = 0; id < 16 * 16 * 8; id++) {
@@ -1760,7 +1778,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     }
                 }
                 if (!ret)
-                    if (skipType(pbf, type) < 0) return -18;
+                    if (skipType(pbf, type) < 0)
+                        return -20;
             }
         }
         else {
@@ -1786,11 +1805,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             {
                 ret = 0;
                 type = 0;
-                if (bfread(pbf, &type, 1) < 0) return -13;
+                if (bfread(pbf, &type, 1) < 0)
+                    return -21;
                 if (type == 0)
                     break;
                 len = readWord(pbf);
-                if (bfread(pbf, thisName, len) < 0) return -14;
+                if (bfread(pbf, thisName, len) < 0)
+                    return -22;
                 thisName[len] = 0;
                 if (strcmp(thisName, "BlockLight") == 0)
                 {
@@ -1798,13 +1819,15 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     len = readDword(pbf); //array length
                     // really need just y < 16 at this point, level y = -1 doesn't have much on it, but let's future proof it here
                     if (y >= 0 && y < 16) {
-                        if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0) return -15;
+                        if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
+                            return -23;
                     }
                     else {
                         // dummy read - the 1.14 format has blocks at Y = -1 and Y = 16 that have no data
                         // except for BlockLight and SkyLight
                         unsigned char dummyBlockLight[16 * 16 * 128];
-                        if (bfread(pbf, dummyBlockLight, len) < 0) return -15;
+                        if (bfread(pbf, dummyBlockLight, len) < 0)
+                            return -24;
                     }
                 }
                 else if (strcmp(thisName, "BlockStates") == 0)
@@ -1812,9 +1835,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     ret = 1;
                     bigbufflen = readDword(pbf); //array length
                     if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
-                        return -19;	// TODO make better unique return codes, with names
+                        return -25;	// TODO make better unique return codes, with names
                     // read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
-                    if (bfread(pbf, bigbuff, bigbufflen * 8) < 0) return -16;
+                    if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
+                        return -26;
                 }
                 else if (strcmp(thisName, "Palette") == 0)
                 {
@@ -1823,15 +1847,18 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     {
                         // get rid of "\n" after "Palette".
                         unsigned char uctype = 0;
-                        if (bfread(pbf, &uctype, 1) < 0) return -8;
+                        if (bfread(pbf, &uctype, 1) < 0)
+                            return -27;
                         if (uctype != 10)
-                            return -9;
+                            return -28;
                     }
 
                     // walk through entries' names and convert to their block ID
                     int nentries = readDword(pbf);
-                    if (nentries <= 0) return -10;	// TODO someday need to clean up these error codes and treat them right
-                    if (nentries > MAX_PALETTE) return -12;
+                    if (nentries <= 0)
+                        return -29;	// TODO someday need to clean up these error codes and treat them right
+                    if (nentries > MAX_PALETTE)
+                        return -30;
 
                     char thisBlockName[MAX_NAME_LENGTH];
 
@@ -1845,22 +1872,25 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         for (;;)
                         {
                             type = 0;
-                            if (bfread(pbf, &type, 1) < 0) return -13;
+                            if (bfread(pbf, &type, 1) < 0)
+                                return -31;
                             // done walking through subarray?
                             if (type == 0)
                                 break;
                             len = readWord(pbf);
-                            if (bfread(pbf, thisBlockName, len) < 0) return -14;
+                            if (bfread(pbf, thisBlockName, len) < 0)
+                                return -32;
                             thisBlockName[len] = 0;
 
                             if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
 
                                 len = readWord(pbf);
                                 if (len < MAX_NAME_LENGTH) {
-                                    if (bfread(pbf, thisBlockName, len) < 0) return -13;
+                                    if (bfread(pbf, thisBlockName, len) < 0)
+                                        return -33;
                                 }
                                 else {
-                                    return -14;
+                                    return -34;
                                 }
                                 // have to add end of string
                                 thisBlockName[len] = 0x0;
@@ -1900,17 +1930,20 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             }
                             else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
                                 do {
-                                    if (bfread(pbf, &type, 1) < 0) return -1;
+                                    if (bfread(pbf, &type, 1) < 0)
+                                        return -35;
                                     if (type)
                                     {
                                         // read token value
                                         char token[100];
                                         char value[100];
                                         len = readWord(pbf);
-                                        if (bfread(pbf, token, len) < 0) return -1;
+                                        if (bfread(pbf, token, len) < 0)
+                                            return -36;
                                         token[len] = 0;
                                         len = readWord(pbf);
-                                        if (bfread(pbf, value, len) < 0) return -1;
+                                        if (bfread(pbf, value, len) < 0)
+                                            return -37;
                                         value[len] = 0;
 
                                         // TODO: I'm guessing that these zillion strcmps that follow are costing a lot of time.
@@ -2357,7 +2390,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                 } while (type);
                             }
                             else if (skipType(pbf, type) < 0)
-                                return -18;
+                                return -38;
                         }
                         // done, so determine and fold in dataVal
                         int tf = BlockTranslations[typeIndex].translateFlags;
@@ -2731,7 +2764,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     }
                 }
                 if (!ret)
-                    if (skipType(pbf, type) < 0) return -18;
+                    if (skipType(pbf, type) < 0)
+                        return -39;
             }
             // Now that we have all the data, convert bigbuff layer into buff and data values
             // DEBUG: set a condition of entry_index > 2 - shows just the chunk slices that are not just a single block type & air
@@ -2821,7 +2855,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
         {
             type = 0;
-            if (bfread(pbf, &type, 1) < 0) return -19;
+            if (bfread(pbf, &type, 1) < 0)
+                return -40;
             if (type != 10)
                 return returnCode;	// all done
 
@@ -2845,7 +2880,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 for (;;)
                 {
                     type = 0;
-                    if (bfread(pbf, &type, 1) < 0) return -20;
+                    if (bfread(pbf, &type, 1) < 0)
+                        return -41;
                     if (type == 0) {
                         // end of list, so process data, if any valid data found
                         if (!skipSection) {
@@ -2872,11 +2908,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
                     // always read name of field
                     len = readWord(pbf);
-                    if (bfread(pbf, thisName, len) < 0) return -21;
+                    if (bfread(pbf, thisName, len) < 0)
+                        return -42;
 
                     // if the id is one we don't care about, skip the rest of the data
                     if (skipSection) {
-                        if (skipType(pbf, type) < 0) return -22;
+                        if (skipType(pbf, type) < 0)
+                            return -43;
                     }
                     else {
                         thisName[len] = 0;
@@ -2896,7 +2934,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         {
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
-                            if (bfread(pbf, idName, len) < 0) return -23;
+                            if (bfread(pbf, idName, len) < 0)
+                                return -44;
                             idName[len] = 0;
 
                             // is it a skull or a flowerpot?
@@ -2916,7 +2955,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         {
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
-                            if (bfread(pbf, idName, len) < 0) return -24;
+                            if (bfread(pbf, idName, len) < 0)
+                                return -45;
                             idName[len] = 0;
                             /*
                             Flower Pot Contents
@@ -2960,11 +3000,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         }
                         else if (strcmp(thisName, "Rot") == 0 && type == 1)
                         {
-                            if (bfread(pbf, &dataRot, 1) < 0) return -25;
+                            if (bfread(pbf, &dataRot, 1) < 0)
+                                return -46;
                         }
                         else if (strcmp(thisName, "SkullType") == 0 && type == 1)
                         {
-                            if (bfread(pbf, &dataSkullType, 1) < 0) return -26;
+                            if (bfread(pbf, &dataSkullType, 1) < 0)
+                                return -47;
                         }
                         else if (strcmp(thisName, "Data") == 0 && type == 3)
                         {
@@ -2996,31 +3038,45 @@ int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
     //Data/SpawnX
     // don't really need this first seek to beginning of file
     //bfseek(pbf,0,SEEK_SET);
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
-    if (nbtFindElement(pbf, "SpawnX") != 3) return -4;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -3;
+    if (nbtFindElement(pbf, "SpawnX") != 3)
+        return -4;
     *x = readDword(pbf);
 
     // Annoyingly, SpawnY can come before SpawnX, so we need to re-find each time.
     // For some reason, seeking to a stored offset does not work.
     // So we seek to beginning of file and find "Data" again.
-    if (bfseek(pbf, 0, SEEK_SET) < 0) return -5;
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -6; //skip type
+    if (bfseek(pbf, 0, SEEK_SET) < 0)
+        return -5;
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -6; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -7; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -8;
-    if (nbtFindElement(pbf, "SpawnY") != 3) return -9;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -7; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -8;
+    if (nbtFindElement(pbf, "SpawnY") != 3)
+        return -9;
     *y = readDword(pbf);
 
     // We seek to beginning of file and find "Data" again.
-    if (bfseek(pbf, 0, SEEK_SET) < 0) return -10;
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -11; //skip type
+    if (bfseek(pbf, 0, SEEK_SET) < 0)
+        return -10;
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -11; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -12; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -13;
-    if (nbtFindElement(pbf, "SpawnZ") != 3) return -14;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -12; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -13;
+    if (nbtFindElement(pbf, "SpawnZ") != 3)
+        return -14;
     *z = readDword(pbf);
     return 0;
 }
@@ -3031,11 +3087,15 @@ int nbtGetFileVersion(bfFile* pbf, int* version)
     *version = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
-    if (nbtFindElement(pbf, "version") != 3) return -4;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -3;
+    if (nbtFindElement(pbf, "version") != 3)
+        return -4;
     *version = readDword(pbf);
     return 0;
 }
@@ -3049,12 +3109,17 @@ int nbtGetFileVersionId(bfFile* pbf, int* versionId)
     *versionId = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
-    if (nbtFindElement(pbf, "Version") != 10) return -4;
-    if (nbtFindElement(pbf, "Id") != 3) return -5;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -3;
+    if (nbtFindElement(pbf, "Version") != 10)
+        return -4;
+    if (nbtFindElement(pbf, "Id") != 3)
+        return -5;
     *versionId = readDword(pbf);
     return 0;
 }
@@ -3091,20 +3156,27 @@ int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength)
     *levelName = '\0'; // initialize to empty string
     int len;
     //Data/levelName
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -3;
     // 8 means a string
-    if (nbtFindElement(pbf, "LevelName") != 8) return -4;
+    if (nbtFindElement(pbf, "LevelName") != 8)
+        return -4;
     len = readWord(pbf);
     if (len < stringLength) {
-        if (bfread(pbf, levelName, len) < 0) return -5;
+        if (bfread(pbf, levelName, len) < 0)
+            return -5;
     }
     else {
         // string too long; read some, discard the rest
-        if (bfread(pbf, levelName, stringLength - 1) < 0) return -6;	// save last position for string terminator
-        if (bfseek(pbf, len - stringLength + 1, SEEK_CUR) < 0) return -7;
+        if (bfread(pbf, levelName, stringLength - 1) < 0)
+            return -6;	// save last position for string terminator
+        if (bfseek(pbf, len - stringLength + 1, SEEK_CUR) < 0)
+            return -7;
         len = stringLength - 1;
     }
     levelName[len] = 0;
@@ -3128,13 +3200,19 @@ int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz)
     int len;
     *px = *py = *pz = 0;
     //Data/Player/Pos
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
-    if (nbtFindElement(pbf, "Player") != 10) return -4;
-    if (nbtFindElement(pbf, "Pos") != 9) return -5;
-    if (bfseek(pbf, 5, SEEK_CUR) < 0) return -6; //skip subtype and num items
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return -3;
+    if (nbtFindElement(pbf, "Player") != 10)
+        return -4;
+    if (nbtFindElement(pbf, "Pos") != 9)
+        return -5;
+    if (bfseek(pbf, 5, SEEK_CUR) < 0)
+        return -6; //skip subtype and num items
     *px = (int)readDouble(pbf);
     *py = (int)readDouble(pbf);
     *pz = (int)readDouble(pbf);
@@ -3149,10 +3227,13 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value)
     *value = 0x0; // initialize
     int len;
     //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, field) != 2) return -3;
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+    if (nbtFindElement(pbf, field) != 2)
+        return -3;
     *value = readWord(pbf);
     return 1;
 }
@@ -3162,21 +3243,25 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
 {
     int len;
     //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
 
     int found = 0;
     while (found < 2)
     {
         int ret = 0;
         unsigned char type = 0;
-        if (bfread(pbf, &type, 1) < 0) return -3;
+        if (bfread(pbf, &type, 1) < 0)
+            return -3;
         if (type == 0)
             break;
         len = readWord(pbf);
         char thisName[MAX_NAME_LENGTH];
-        if (bfread(pbf, thisName, len) < 0) return -4;
+        if (bfread(pbf, thisName, len) < 0)
+            return -4;
         thisName[len] = 0;
         if (strcmp(thisName, "Blocks") == 0)
         {
@@ -3186,7 +3271,8 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             // check that array is the right size
             if (len != numBlocks)
                 return 0;
-            if (bfread(pbf, schematicBlocks, len) < 0) return -5;
+            if (bfread(pbf, schematicBlocks, len) < 0)
+                return -5;
             found++;
         }
         else if (strcmp(thisName, "Data") == 0)
@@ -3197,11 +3283,13 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             // check that array is the right size
             if (len != numBlocks)
                 return 0;
-            if (bfread(pbf, schematicBlockData, len) < 0) return -6;
+            if (bfread(pbf, schematicBlockData, len) < 0)
+                return -6;
             found++;
         }
         if (!ret)
-            if (skipType(pbf, type) < 0) return -7;
+            if (skipType(pbf, type) < 0)
+                return -7;
     }
     // Did we find two things? If so, return 1, success
     return ((found == 2) ? 1 : -8);
