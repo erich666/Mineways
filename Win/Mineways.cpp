@@ -769,12 +769,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
 
-        LOG_INFO(gExecutionLogfile, " loadWorldList\n");
-        if (loadWorldList(GetMenu(hWnd)))
-        {
-            LOG_INFO(gExecutionLogfile, "   world not converted\n");
-            MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.2 or later and play it, then quit."),
-                _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+        // if not "none"
+        if (val >= 0) {
+            LOG_INFO(gExecutionLogfile, " loadWorldList\n");
+            if (loadWorldList(GetMenu(hWnd)))
+            {
+                LOG_INFO(gExecutionLogfile, "   world not converted\n");
+                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.2 or later and play it, then quit."),
+                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+            }
         }
         wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
 

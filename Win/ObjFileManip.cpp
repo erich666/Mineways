@@ -2908,6 +2908,15 @@ static void computeRedstoneConnectivity(int boxIndex)
     // look to see whether there is wire neighboring and above: if so, run this wire
     // up the sides of the blocks
 
+    // Really, "isCross" means "is potentially a cross" - if it has no neighbors,
+    // then it becomes a cross, or is left a dot if this flag is not set.
+    //bool isCross = false; TODOTODO - this doesn't work; really need to interpret the sides parameter in nbt.cpp properly
+    // version isn't quite right, but basically 1.16 20w21a is the time
+    //if (gMinecraftWorldVersion >= 2532) {
+    //    isCross = (gBoxData[boxIndex].data == BIT_16);
+    //    gBoxData[boxIndex].data &= ~BIT_16;
+    //}
+
     // first, is the block above the redstone wire not a whole block, or is a whole block and is glass on the outside or a piston?
     // If so, then wires can run up the sides; whole blocks that are not glass (or pistons or glowstone) cut redstone wires.
     // Said another way, partial blocks, glass, glowstone, and pistons above redstone do not block that redstone from traveling up adjacent blocks.
@@ -3006,6 +3015,12 @@ static void computeRedstoneConnectivity(int boxIndex)
     {
         gBoxData[boxIndex].data |= (FLAT_FACE_LO_Z << 4);
     }
+
+    // finally finally, if ONLY waterlogged bit is set, which means there are no other connections, unset it and make this one a cross.
+    // this is a 1.16 20w21a addition, see https://minecraft.gamepedia.com/Java_Edition_20w21a
+    //if (isCross && (gBoxData[boxIndex].data & ((FLAT_FACE_HI_X | FLAT_FACE_HI_Z | FLAT_FACE_LO_X | FLAT_FACE_LO_Z) << 4)) == 0x0) {
+    //    gBoxData[boxIndex].data |= (FLAT_FACE_HI_X|FLAT_FACE_HI_Z|FLAT_FACE_LO_X|FLAT_FACE_LO_Z) << 4;
+    //}
 }
 
 // return 1 if object is flattened and block should now be considered air
@@ -11523,9 +11538,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         switch (redstoneDirFlags)
         {
         case 0x0:
-            // no connections, just a dot; in 20w18a of 1.16 beta the dot turned into a cross
-            swatchLoc = (gMinecraftWorldVersion >= 2532) ? (redstoneOn ? REDSTONE_WIRE_4 : REDSTONE_WIRE_4_OFF) :
-                (redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF);
+            // no connections, just a dot
+            swatchLoc = (redstoneOn ? REDSTONE_WIRE_DOT : REDSTONE_WIRE_DOT_OFF);
             break;
 
         case FLAT_FACE_LO_X:
@@ -21927,11 +21941,13 @@ static int writeSchematicBox()
         length = swapper;
     }
 
+    // use fclose instead of gzclose(gz) to avoid a crash on close of Mineways. See:
+    // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
 #define CHECK_SCHEMATIC_QUIT( b )			        \
     if ( (b) == 0 ) {						        \
         if ( blocks ) free( blocks );		        \
         if ( blockData ) free( blockData );	        \
-        gzclose(gz);						        \
+        fclose(fptr);						        \
         return retCode|MW_CANNOT_WRITE_TO_FILE;		\
     }
 
@@ -22028,7 +22044,10 @@ static int writeSchematicBox()
     // TAG_End
     CHECK_SCHEMATIC_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));
 
-    gzclose(gz);
+    // use fclose instead of gzclose to avoid a crash on close of Mineways. See:
+    // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
+    //gzclose(gz);
+    fclose(fptr);
 
     free(blocks);
     free(blockData);

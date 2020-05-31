@@ -67,6 +67,7 @@ typedef struct {
     int* offset;
     int _offset;
     gzFile gz;
+    FILE* fptr;
 } bfFile;
 
 typedef struct BlockEntity {

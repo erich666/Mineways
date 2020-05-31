@@ -1343,17 +1343,16 @@ int bfseek(bfFile* pbf, int offset, int whence)
 bfFile newNBT(const wchar_t* filename, int* err)
 {
     bfFile ret;
-    FILE* fptr;
     ret.type = BF_GZIP;
 
-    *err = _wfopen_s(&fptr, filename, L"rb");
-    if (fptr == NULL || *err != 0)
+    *err = _wfopen_s(&ret.fptr, filename, L"rb");
+    if (ret.fptr == NULL || *err != 0)
     {
         ret.gz = 0x0;
         return ret;
     }
 
-    ret.gz = gzdopen(_fileno(fptr), "rb");
+    ret.gz = gzdopen(_fileno(ret.fptr), "rb");
     ret._offset = 0;
     ret.offset = &ret._offset;
     return ret;
@@ -1789,12 +1788,14 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // for doors
             bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
                 conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
-            int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age, delay, locked, sticky, hatch, leaves, single, attachment, honey_level;
+            int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
+                delay, locked, sticky, hatch, leaves, single, attachment, honey_level;
             // to avoid Release build warning =but should always be set by code in practice
             int typeIndex = 0;
             half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
                 = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
-            axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age = delay = locked = sticky = hatch = leaves = single = attachment = honey_level = 0;
+            axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
+                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = 0;
 
             int bigbufflen = 0;
             int entry_index = 0;
@@ -2173,8 +2174,12 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             extended = (strcmp(value, "true") == 0);
                                         }
                                         // MUSHROOM_PROP and MUSHROOM_STEM_PROP
+                                        // also WIRE_PROP: none or side;
+                                        // we test for "side" for redstone dots vs. crosses
                                         else if (strcmp(token, "north") == 0) {
                                             north = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            // setting this bit means "make it a cross"
+                                            //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
                                         }
                                         else if (strcmp(token, "south") == 0) {
                                             south = (strcmp(value, "true") == 0) ? 2 : 0;
@@ -2744,6 +2749,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case EGG_PROP:
                             dataVal |= (hatch << 2);
                             break;
+                        //case WIRE_PROP:
+                        //    dataVal |= redstone_side;
+                        //    break;
                         case TRULY_NO_PROP:
                             dataVal = 0x0;
                             break;
@@ -3313,7 +3321,9 @@ void nbtClose(bfFile* pbf)
         // to https://stackoverflow.com/questions/9136127/what-problems-can-appear-when-using-g-compiled-dll-plugin-in-vc-compiled-a
         // It may be the case that if I rebuilt zlib (or perhaps integrated its files into Mineways itself?)
         // this would then go away.
-        gzclose(pbf->gz);
-        // tried this, didn't help: pbf->gz = 0x0;
+        // No, that's not it, there's some conflict between zlib and MSVC. The fix is to use fclose instead of gzclose. See:
+        // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
+        //gzclose(pbf->gz);
+        fclose(pbf->fptr);
     }
 }

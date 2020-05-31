@@ -251,7 +251,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
             {
                 // warnings can chained together
                 sumRetCode |= retCode;
-            }
+            } // else sumRetCode has an error code, so don't touch it
             blit(blockbits, bits, px, py, zoom, w, h);
         }
     }
