@@ -383,7 +383,7 @@ typedef struct ExportFileData
     UINT chkMakeGroupsObjects;
     UINT chkSeparateTypes;	// "Export separate types"
     UINT chkIndividualBlocks;
-    UINT chkMaterialPerBlock;	// "Material per block"
+    UINT chkMaterialPerFamily;	// "Material per family" of blocks
     UINT chkSplitByBlockType;	// "Split by block type"
     UINT chkG3DMaterial;
 

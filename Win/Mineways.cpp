@@ -3824,7 +3824,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES;
 
             // Material per block?
-            if (gpEFD->chkMaterialPerBlock)
+            if (gpEFD->chkMaterialPerFamily)
             {
                 gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
             }
@@ -3833,7 +3833,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         {
             // these must be on for individual block export, plus grouping by block (separate material for each block)
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK ;
-            if (gpEFD->chkMaterialPerBlock == 1)
+            if (gpEFD->chkMaterialPerFamily == 1)
             {
                 gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
             }
@@ -3872,11 +3872,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         {
             // Tile export must have these
             gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES;
+                // Old requirements - handy for toggling and testing:
                 // we must export a material per block (a single material is impossible)
                 //EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK |
                 // for tiles we also need to track the material changes within a block family or type
                 //EXPT_OUTPUT_OBJ_SEPARATE_TYPES |
-                // we also need this one one, to make sure different materials within a block get tracked
+                // we also need this one, to make sure different materials within a block get tracked
                 //EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
             ;
         }
@@ -4261,7 +4262,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkMakeGroupsObjects = 0;
     printData.chkSeparateTypes = 0;
     printData.chkIndividualBlocks = 0;
-    printData.chkMaterialPerBlock = 0;
+    printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
     printData.chkG3DMaterial = 0;
@@ -4339,7 +4340,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkMakeGroupsObjects = 0;
     viewData.chkSeparateTypes = 1;
     viewData.chkIndividualBlocks = 0;
-    viewData.chkMaterialPerBlock = 1;
+    viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 0;
     viewData.chkG3DMaterial = 0;
     viewData.chkCompositeOverlay = 0;
@@ -5694,7 +5695,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkMaterialPerBlock = interpretBoolean(string1);
+            is.pEFD->chkMaterialPerFamily = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

@@ -29,7 +29,7 @@ Texture output A: YES
 Texture output RGBA: YES
 Export separate objects: YES
 Individual blocks: no
-  Material per object: YES
+  Material per family: YES
   Split by block type: no
 G3D full material: no
 Make Z the up direction instead of Y: no

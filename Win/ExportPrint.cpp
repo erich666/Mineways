@@ -139,7 +139,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
             CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
             // if neither of the two above are checked, this one's indeterminate
-            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerBlock : BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkG3DMaterial);
         }
@@ -149,7 +149,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
         }
@@ -535,14 +535,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
                     // AND individual blocks is unchecked.
                     if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) != BST_CHECKED) {
-                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_INDETERMINATE);
+                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
                         CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
                     }
                 }
                 else
                 {
                     // check the box and set up state otherwise
-                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_CHECKED);
+                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_UNCHECKED);
                     if (epd.flags & EXPT_3DPRINT)
                     {
@@ -579,14 +579,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                         // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
                         // AND individual blocks is unchecked.
                         if (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) != BST_CHECKED) {
-                            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_INDETERMINATE);
+                            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
                             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
                         }
                     }
                     else
                     {
                         // checked, so the box below becomes active
-                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_CHECKED);
+                        CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
                         CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_CHECKED);
                         // turn off multiple types unless the user really really wants it
                         // and turns it back on.
@@ -599,19 +599,19 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 }
             }
             break;
-        case IDC_MATERIAL_PER_BLOCK:
+        case IDC_MATERIAL_PER_BLOCK_FAMILY:
             if ((IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
             {
                 // things are unlocked
-                if (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK) == BST_INDETERMINATE)
+                if (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY) == BST_INDETERMINATE)
                 {
-                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_UNCHECKED);
+                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_UNCHECKED);
                 }
             }
             else
             {
                 // button is not unlocked
-                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             }
             break;
         case IDC_SPLIT_BY_BLOCK_TYPE:
@@ -894,7 +894,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             {
                 lepd.chkMakeGroupsObjects = (IsDlgButtonChecked(hDlg, IDC_MAKE_GROUPS_OBJECTS) == BST_CHECKED);
                 lepd.chkSeparateTypes = (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED);
-                lepd.chkMaterialPerBlock = (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK) == BST_CHECKED);
+                lepd.chkMaterialPerFamily = (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY) == BST_CHECKED);
                 lepd.chkSplitByBlockType = (IsDlgButtonChecked(hDlg, IDC_SPLIT_BY_BLOCK_TYPE) == BST_CHECKED);
                 lepd.chkG3DMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
             }
@@ -903,7 +903,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // restore state - these should never get set to indeterminate
                 lepd.chkMakeGroupsObjects = origEpd.chkMakeGroupsObjects;
                 lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
-                lepd.chkMaterialPerBlock = origEpd.chkMaterialPerBlock;
+                lepd.chkMaterialPerFamily = origEpd.chkMaterialPerFamily;
                 lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
                 lepd.chkG3DMaterial = origEpd.chkG3DMaterial;
             }

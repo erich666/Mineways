@@ -19489,6 +19489,18 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     if ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gExportTiles)
                     {
                         if (gExportTiles) {
+                            if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+                            {
+                                // Since the material can vary and repeat, use block names
+                                // new group for each block (materials not sorted)
+                                if (mkGroupsObjs) {
+                                    sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
+                                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                }
+                                sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
+
                             // new material per tile ID
                             // swatch locations exactly correspond with tiles.h names
                             assert(prevSwatchLoc < TOTAL_TILES);
@@ -19501,9 +19513,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
                         else {
-                            // output every block individually
-                            sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            // output every block individually, single texture is shared, so by material
                             if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                             {
                                 // new group for objects of same type (which are sorted)
@@ -19514,6 +19524,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 sprintf_s(outputString, 256, "g %s\n", mtlName);
                                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             }
+                            sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             if (subtypeMaterial) {
                                 // We can't use outputMaterial, a simple array of types. We need to
                                 // instead check the whole previous list and see if the material's
@@ -19593,9 +19605,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         pFace = gModel.faceList[i];
 
         // if we're outputting each individual block in its own group, set a unique group name here.
-        // For tiles, set a group per face. TODO - fix someday
-        if (((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0)) ||
-            ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS) && gExportTiles) )
+        // TODO: slightly annoying, this means the material gets output before the group for tiled textures.
+        // Doesn't matter for functionality, just looks a bit odd.
+        if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
         {
             if (mkGroupsObjs) {
                 sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
@@ -22525,7 +22537,7 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
 
         if (gOptions->pEFD->chkSeparateTypes || gOptions->pEFD->chkIndividualBlocks)
         {
-            sprintf_s(outputString, 256, "#   Material per family: %s\n", gOptions->pEFD->chkMaterialPerBlock ? "YES" : "no");
+            sprintf_s(outputString, 256, "#   Material per family: %s\n", gOptions->pEFD->chkMaterialPerFamily ? "YES" : "no");
             WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
 

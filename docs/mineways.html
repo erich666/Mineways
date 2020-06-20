@@ -187,7 +187,7 @@ Mapping
 </H2>
 Here's basic map use:
 <ul>
-<li>Press F3 to take you to your player's location.</li>
+<li>Press F3 to take you to your (single player) player's location.</li>
 <li>Scroll around by dragging with the left mouse button, WASD keys, or arrow keys.
 </li><li>Zoom in on an area by the mouse scroll wheel, Page Up/Page Down keys, or Q/E keys.
 </li><li>Mouse over a block and look at the bottom of the screen to see its location and ID. (Note that a coordinate like "-76" means "-75 to -76"; "4" means "4 to 5"). "Y" is the height.
@@ -461,15 +461,22 @@ The Minecraft block textures are normally put in one large texture and each is g
 <a id="obj_export_options">
 <H4>Wavefront OBJ File Export Options</H4></a>
 
-If you find you want your model data to be arranged a bit differently for your rendering system, there are a bunch of options. These vary how blocks are grouped and how materials are shared among different block types. Every rendering system imports OBJ files differently, so try different combinations and see what you prefer.
+If you find you want your model data to be arranged a bit differently for your rendering system, there are a bunch of options. These vary how Minecraft blocks are grouped and how materials are shared among different block types. Every rendering system imports OBJ files differently, so try different combinations and see what you prefer. Most of these options do not affect display. These options are mostly for determining how much control you have over modifying materials and moving blocks around.
+<P>
+<a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file">Wavefront OBJ</a> has two concepts when it comes to polygon faces: named objects and named groups. In Mineways there can be one or more objects in a scene, each object can have zero, one, or more groups inside of it. Normally there is just one object exported; the "Make groups objects" creates a separate object which then contains a corresponding group.
+<P>Mineways has (rough) "block families." For example, the <a href="https://minecraft-ids.grahamedgecombe.com/">Stone family</a> has stone, granite, polished granite, diorite, and so on. Each block in this family has a separate "type." Materials can be output by one per family or one per type.
+<P>Any number of polygons can be in an object or group. There is also a set of materials (defined in the .mtl file). One and only one material is applied to each polygon.
 <UL>
-<LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are grouped together into objects. Turning this option off makes the whole model a single object, which can be useful for simplifying import into rendering packages. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. If you also turn on "Material per block ID family," each separate block is put into a separate object, so each can be deleted, animated, or otherwise modified in a modeler. Finally, you may also want to check the <a href="#make_group_objects">Make groups objects</a> option, as each group will then be a separate object you can manipulate.
-<LI>Material per object: on by default; similar blocks are given the same material. If turned off and exporting separate types, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easy to edit) or whether individual blocks are grouped by material.
-<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. For example, the <a href="https://minecraft-ids.grahamedgecombe.com/">Stone family</a> has stone, granite, polished granite, diorite, and so on. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. A block being "active" or a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
+<LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_group_objects">Make groups objects</a> option, as each group will then be a separate object you can manipulate. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible.
+<LI>Material per family: on by default; blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
+<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
 <P>
-Confused yet? There are non-obvious interactions among the various settings. Here is a table summarizing the combinations.
+Confused yet? There are non-obvious interactions among the various settings. A table follows, describing the results when using this 2x3 set of blocks - two grass blocks, two stone, two diorite - as the exported volume. Recall that diorite is part of the stone family.
+<P>
+<img src="images/grass_stone_diorite.jpg">
+
 <TABLE id="objectMaterialCombos" border="1">
 <tr>
 <td>
@@ -479,7 +486,7 @@ Confused yet? There are non-obvious interactions among the various settings. Her
 <B>Export individual blocks</B>
 </td>
 <td>
-<B>Material per object</B>
+<B>Material per family</B>
 </td>
 <td>
 <B>Split by block type</B>
@@ -506,31 +513,10 @@ SELECTED
 unchecked
 </td>
 <td>
-<b>Default for rendering:</b> Polygons are grouped by block family
+<b>Default for rendering:</b> Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces and one Stone group using the Stone material applied to 14 faces.
 </td>
 <td>
-Each block family has a separate material
-</td>
-</tr>
-
-<tr>
-<td>
-SELECTED
-</td>
-<td>
-unchecked
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-Polygons are grouped by block type
-</td>
-<td>
-Each block type has a separate material
+Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
 </td>
 </tr>
 
@@ -542,16 +528,16 @@ SELECTED
 unchecked
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-Polygons are grouped by block family
+Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces, one Stone group using the Stone material applied to 6 faces, and one Diorite group using the Diorite material applied to 8 block faces.
 </td>
 <td>
-Single material
+Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -566,13 +552,34 @@ unchecked
 unchecked
 </td>
 <td>
+unchecked
+</td>
+<td>
+Polygons are grouped by block family. Result is one Grass_Block group with 8 block faces and one Stone group with 14 faces.
+</td>
+<td>
+Single material. A default MC_material is created and applied to all polygons.
+</td>
+</tr>
+
+<tr>
+<td>
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type
+unchecked
 </td>
 <td>
-Single material
+unchecked
+</td>
+<td>
+SELECTED
+</td>
+<td>
+Polygons are grouped by block type. Result is one Grass_Block group with 8 block faces, one Stone group with 6 faces, and one Diorite group with 8 block faces.
+</td>
+<td>
+Single material. A default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -596,10 +603,10 @@ unchecked
 (grayed out)
 </td>
 <td>
-<B>Default for 3D printing:</B> No group for the whole model, just the material
+<B>Default for 3D printing:</B> No groups are created at all. Result is 22 block faces.
 </td>
 <td>
-Single material
+Single material. A default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -623,31 +630,10 @@ SELECTED
 unchecked
 </td>
 <td>
-Each individual block is in its own group
+Each individual block is in its own group. Result is 6 block faces in each of six groups: block_00001, block_00002, etc. The related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
 </td>
 <td>
-Each block family has a separate material
-</td>
-</tr>
-
-<tr>
-<td>
-unchecked
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-Each individual block is in its own group
-</td>
-<td>
-Each block type has a separate material
+Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
 </td>
 </tr>
 
@@ -659,16 +645,16 @@ unchecked
 SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block family
+Each individual block is in its own group. Result is 6 block faces in each of six groups: block_00001, block_00002, etc. The related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
 </td>
 <td>
-Each block family has a separate material
+Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -683,20 +669,43 @@ SELECTED
 unchecked
 </td>
 <td>
+unchecked
+</td>
+<td>
+Individual blocks are output, but grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 12 block faces and one Stone group using the Stone material applied to 24 faces.
+</td>
+<td>
+Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
+</td>
+</tr>
+
+<tr>
+<td>
+unchecked
+</td>
+<td>
 SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block type
+unchecked
 </td>
 <td>
-Each block type has a separate material
+SELECTED
+</td>
+<td>
+Individual blocks are output, but grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to 12 block faces, one Stone group using the Stone material applied to 12 faces, and one Diorite group using the Diorite material applied to 12 block faces.
+</td>
+<td>
+Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
 </TABLE>
 <P>
-<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box.
+When exporting <B>Tiles for textures</B> these settings have slightly different meanings, because separate materials are created depending on the tile needed, not the Minecraft block family or type. "Export individual blocks" then means that "Split by block type" has no effect, since materials are set as needed. Similarly, if neither "Export separate types" nor "Export individual blocks" is on, materials are output as needed, since there can be no "single material for all" with tiles for textures. Long and short: try various options out and see what they do.
 
+<P>
+<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box.
 
 <a id="full_material"><H4>G3D Full Material</H4></a>
 
@@ -1294,7 +1303,7 @@ There may (and probably is) a more efficient way to make these adjustments - let
 <P>
 For instructions for older versions of Maya, check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import (that said, I don't know if this script still works).
 <P>
-A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per object" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per object (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
+A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per family" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per block family (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
 </P>
 
 <P><H4 id="c4d">Cinema 4D</H4><p>
@@ -3173,13 +3182,22 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 7.15, 5/30/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV715.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Add the toggle for whether isolated <a href="https://minecraft.gamepedia.com/Java_Edition_20w21a">redstone dust blocks are dots or crosses</a>, added in 1.16 20w21a. Not entirely reliable, but the full fix is a lot of work - next release.
-<LI>Fix problem of reading empty (not yet created) chunks that have no Biomes array in them yet. <I>(thanks to Артём Бойко for reporting this)</I>
+<LI>Fix problem of reading empty (not yet created) chunks that have no Biomes array in them yet. <I>(thanks to Artiom Boyko for reporting this)</I>
 <LI>Improved warning messages for when there are no worlds in the Minecraft save directory.
 <LI>Fix <a href="https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464">conflict between zlib and MSVC for closing files</a>; use fclose instead of gzclose on gzipped files.
 </UL>
 
-<LI>Version X.XX - upcoming fixes
+<LI>Version 7.16, 6/20/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV716.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Fix gaps due to path and farmland blocks not truly filling the full block.
+<LI>Fixed tiled texture output so that individual block export and other options work better.
+<LI>Lower the lily pad by 0.5 in pixelspace <a href="https://minecraft.gamepedia.com/Solid_block">to match Minecraft</a>.
+<LI>The export property "Material per object" is now called "Material per family".
+<LI>Improve documentation for <a href="#obj_export_options">Wavefront OBJ export options</a> by adding an example, etc.
+</UL>
+
+<LI>Version 7.XX, XX/XX/2020 - upcoming
 <BR>
 <UL>
 <LI>Add the toggle for whether isolated <a href="https://minecraft.gamepedia.com/Java_Edition_20w21a">redstone dust blocks are dots or crosses</a>, added in 1.16 20w21a.
@@ -3228,7 +3246,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV715.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV716.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3278,7 +3296,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/30/2020</p>
+		<p id="lastUpdate">Last updated 6/20/2020</p>
 	</div>
 </div>
 
