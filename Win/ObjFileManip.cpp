@@ -19418,14 +19418,16 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     if (exportMaterials)
     {
         // should there be just one single material in this OBJ file?
-        if (!(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK))
+        if (!(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) && !gExportTiles)
         {
             sprintf_s(outputString, 256, "\nusemtl %s\n", MINECRAFT_SINGLE_MATERIAL);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
     }
 
-    bool subtypeMaterial = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+    bool subtypeGroup = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+    // for whether to search for a material change (but not necessarily make a group)
+    bool subtypeMaterial = subtypeGroup || gExportTiles;
 
     // how often to update progress? Add some minimum check of 1000 faces, plus true # of faces per 1%.
     int progCheck = (int)((float)gModel.faceCount / (100.0f * 0.5f * (PG_TEXTURE - PG_OUTPUT))) + 1000;
@@ -19439,14 +19441,16 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         if (exportMaterials)
         {
             // should there be more than one material or group output in this OBJ file?
-            if (gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES))
+            if ((gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gExportTiles )
             {
                 // if the material type has changed, or the material subtype has changed, a new group is possible.
                 bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal));
+                    (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
+                bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
+                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                    (gExportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
                 // did we reach a new material?
-                if (newGroupPossible ||
-                    (gExportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc)))
+                if (newMaterialPossible)
                 {
                     // New material definitely found, so make a new one to be output.
                     prevType = gModel.faceList[i]->materialType;
@@ -19587,7 +19591,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
         // if we're outputting each individual block in its own group, set a unique group name here.
         // For tiles, set a group per face. TODO - fix someday
-        if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0 || gExportTiles) )
+        if (((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0)) ||
+            ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS) && gExportTiles) )
         {
             if (mkGroupsObjs) {
                 sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
@@ -19912,7 +19917,7 @@ static int writeOBJMtlFile()
         num = gModel.tileListCount;
     }
     else {
-        num = (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) ? gModel.mtlCount : 1;
+        num = ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) || gExportTiles) ? gModel.mtlCount : 1;
     }
     sprintf_s(outputString, 2048, "Wavefront OBJ material file\n# Contains %d materials\n", num);
     WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
@@ -19930,7 +19935,7 @@ static int writeOBJMtlFile()
     // for 3D prints, only usesRGB is true, if texture is output
     // for Sketchfab export, only RGBA is needed
     // for other rendering, either only RGB is needed (no alphas found), or RGBA/RGB/A are all output
-    if (!(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK))
+    if (!(gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) && !gExportTiles)
     {
         // output a single material - should not really affect per tile output, but just in case
         if (gOptions->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
