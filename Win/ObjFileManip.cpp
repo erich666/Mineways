@@ -11181,6 +11181,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
         // distanceOffset is used for silly case https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy
         // in which the lily pad is actually on top of a slab
+        // Note that lily pads are officially 1.5/16 above still water: https://minecraft.gamepedia.com/Solid_block
+        distanceOffset *= 0.5f;
         Vec3Scalar(vertexOffsets[0][0], =, 1.0f, distanceOffset, 1.0f);
         Vec3Scalar(vertexOffsets[0][1], =, 1.0f, distanceOffset, 0.0f);
         Vec3Scalar(vertexOffsets[0][2], =, 0.0f, distanceOffset, 0.0f);

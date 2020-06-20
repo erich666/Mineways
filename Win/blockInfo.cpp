@@ -63,6 +63,7 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
 
 // First column "comment" number is from https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
 // For sub-blocks, see https://minecraft-ids.grahamedgecombe.com/
+// Other interesting pages: https://minecraft.gamepedia.com/Solid_block maximum block height, https://minecraft.gamepedia.com/Materials material attributes (not all that useful to me, but still)
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
@@ -128,7 +129,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  57 */ "Block of Diamond",       		0x7fe3df, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//39
     { /*  58 */ "Crafting Table",         		0x825432, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 2, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//3a - and cartography, fletching, and smithing
     { /*  59 */ "Wheat",                  		0x766615, 1.000f, 0xff7711, 0xff7711, 0.12345f,  15, 5, 0x00, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//3b
-    { /*  60 */ "Farmland",               		0x552F14, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 5, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE},	//3c - 7,5 dry
+    { /*  60 */ "Farmland",               		0x552F14, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 5, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE},	//3c - 7,5 dry
     { /*  61 */ "Furnace",                		0x767677, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x30, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//3d 13,2 side, 12,2 front
     { /*  62 */ "Burning Furnace",        		0x777676, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER},	//3e 13,2 side, 13,3 front
     { /*  63 */ "Standing Sign",          		0xA58551, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG},	//3f (63)
@@ -281,7 +282,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 205 */ "Purpur Slab",            		0xA77BA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,24, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 206 */ "End Stone Bricks",       		0xE2E8AC, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,24, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 207 */ "Beetroot Seeds",         		0x6D7F44, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,24, 0x00, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
-    { /* 208 */ "Grass Path",             		0x977E48, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,24, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+    { /* 208 */ "Grass Path",             		0x977E48, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,24, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
     { /* 209 */ "End Gateway",            		0x1A1828, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,11, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
     { /* 210 */ "Repeating Command Block",		0x8577B2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,24, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 211 */ "Chain Command Block",    		0x8AA59A, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,25, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
