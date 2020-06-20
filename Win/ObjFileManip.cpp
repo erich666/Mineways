@@ -13992,15 +13992,20 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         rotateLocation(pt);
     }
 
-    // If we are exporting per tile, group by tile type - required, as we need to output a separate material per tile ID
-    if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
-        qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdCompare, NULL);
-    }
-    // If we are grouping by material (e.g., STL does not need this), then we need to sort by material
-    else if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+    // If we are grouping by material (e.g., STL does not need this), and we are not outputting per block, then we need to sort by material
+    if ((gOptions->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
     {
-        qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), faceIdCompare, NULL);
+        // Check if we are exporting per tile
+        if (gOptions->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+            // group by tile type; minimizes material changes
+            qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdCompare, NULL);
+        }
+        else {
+            // don't bother with swatchLoc sorting
+            qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), faceIdCompare, NULL);
+        }
     }
+    // else we are exporting by block, so 
 
     return retCode;
 }
@@ -19412,8 +19417,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // should only be needed for when objects are not sorted by material (grouped by block).
     memset(outputMaterial, 0, sizeof(outputMaterial));
 
-    // TODOTODO should make "Split by block type" and "Material per object" have an effect for tiles
-
     // test for a single material output. If so, do it now and reset materials in general
     if (exportMaterials)
     {
@@ -19574,7 +19577,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                         }
                         else if (gOptions->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
                         {
-                            // new material per object
+                            // new material per family
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
@@ -22522,7 +22525,7 @@ static int writeStatistics(HANDLE fh, WorldGuide* pWorldGuide, IBox* worldBox, I
 
         if (gOptions->pEFD->chkSeparateTypes || gOptions->pEFD->chkIndividualBlocks)
         {
-            sprintf_s(outputString, 256, "#   Material per object: %s\n", gOptions->pEFD->chkMaterialPerBlock ? "YES" : "no");
+            sprintf_s(outputString, 256, "#   Material per family: %s\n", gOptions->pEFD->chkMaterialPerBlock ? "YES" : "no");
             WERROR_FH(PortaWrite(fh, outputString, strlen(outputString)));
         }
 

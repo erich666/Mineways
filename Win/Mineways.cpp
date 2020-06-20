@@ -3831,7 +3831,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
         else if (gpEFD->chkIndividualBlocks)
         {
-            // these must be on for individual block export, plus grouping by block (seperate material for each block)
+            // these must be on for individual block export, plus grouping by block (separate material for each block)
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK ;
             if (gpEFD->chkMaterialPerBlock == 1)
             {
@@ -5681,11 +5681,15 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Material per object:");
+    // try both variants
+    strPtr = findLineDataNoCase(line, "Material per family:");
+    if (strPtr == NULL) {
+        strPtr = findLineDataNoCase(line, "Material per object:");
+    }
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Material per object command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for Material per family command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
