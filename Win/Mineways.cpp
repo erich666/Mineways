@@ -3870,9 +3870,14 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // we set tile export options last, as these override some of those above, and can be turned off by others.
         else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
         {
+            // Tile export must have these
             gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES |
-                // we must Export separate types; not export individual blocks; Material per object
-                EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
+                // we must export a material per block (a single material is impossible)
+                EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK |
+                // for tiles we also need to track the material changes within a block family or type
+                EXPT_OUTPUT_OBJ_SEPARATE_TYPES |
+                // we also need this one one, to make sure different materials within a block get tracked
+                EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
             ;
         }
     }

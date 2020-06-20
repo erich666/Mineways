@@ -14006,7 +14006,8 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 }
 
 #define UV_TO_SWATCHLOC(pUV) 
-// compare swatch locations and sort by these.
+// sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
+// Sorting by swatch location allows better grouping and less material switching (can't do this for individual block output).
 static int tileIdCompare(void* context, const void* str1, const void* str2)
 {
     FaceRecord* f1;
@@ -14017,7 +14018,7 @@ static int tileIdCompare(void* context, const void* str1, const void* str2)
     if (f1->materialType == f2->materialType)
     {
         // tie break of the data value
-        // TODO: do this test only if we really want sub-materials
+        // TODO: do this test only if we really want sub-materials; would have to pass in some context
         if (f1->materialDataVal == f2->materialDataVal) {
             // compare swatchLocs
             int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
@@ -14038,6 +14039,7 @@ static int tileIdCompare(void* context, const void* str1, const void* str2)
     else return ((f1->materialType < f2->materialType) ? -1 : 1);
 }
 
+// sort by block type, then by data value using submaterial mask, then by face index
 static int faceIdCompare(void* context, const void* str1, const void* str2)
 {
     FaceRecord* f1;
@@ -14048,7 +14050,7 @@ static int faceIdCompare(void* context, const void* str1, const void* str2)
     if (f1->materialType == f2->materialType)
     {
         // tie break of the data value
-        // TODO: do this test only if we really want sub-materials
+        // TODO: do this test only if we really want sub-materials; would have to pass in some context
         if (f1->materialDataVal == f2->materialDataVal) {
             // Not necessary, but...
             // Tie break is face loop starting vertex, so that data is
@@ -19410,6 +19412,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // should only be needed for when objects are not sorted by material (grouped by block).
     memset(outputMaterial, 0, sizeof(outputMaterial));
 
+    // TODOTODO should make "Split by block type" and "Material per object" have an effect for tiles
+
     // test for a single material output. If so, do it now and reset materials in general
     if (exportMaterials)
     {
@@ -19437,6 +19441,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             // should there be more than one material or group output in this OBJ file?
             if (gOptions->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES))
             {
+                // if the material type has changed, or the material subtype has changed, a new group is possible.
                 bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
                     (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal));
                 // did we reach a new material?
@@ -19472,7 +19477,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar(mtlName);
-                    // export materials by individual blocks, but only if separate tiles are not being exported - those need special treatment
+                    // export by individual blocks
                     // usemtl materialName
                     if ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gExportTiles)
                     {
@@ -19480,6 +19485,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // new material per tile ID
                             // swatch locations exactly correspond with tiles.h names
                             assert(prevSwatchLoc < TOTAL_TILES);
+                            // TODO: could someday store mtlName in this same table; no need to convert every time
                             WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -19579,9 +19585,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         // output the actual face
         pFace = gModel.faceList[i];
 
-        // if we're outputting each individual block in a group, set a unique group name here.
-        // For tiles, set a group per face (in the tiles output, faces are sorted by material, so we have lost
-        // all sense of a block at this point; all we can do is output each face as an object).
+        // if we're outputting each individual block in its own group, set a unique group name here.
+        // For tiles, set a group per face. TODO - fix someday
         if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0 || gExportTiles) )
         {
             if (mkGroupsObjs) {
