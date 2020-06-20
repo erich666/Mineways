@@ -3602,7 +3602,7 @@ static void transformVertices(int count, float mtx[4][4])
 // of a block anyway (so negative zero is not needed).
 static int firstFaceModifier(int isFirst, int faceIndex)
 {
-    if ((gOptions->exportFlags & EXPT_GROUP_BY_BLOCK) && isFirst)
+    if ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS) && isFirst)
         return -faceIndex;
     else
         return faceIndex;
@@ -3787,7 +3787,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     float fatten = (gOptions->pEFD->chkFatten) ? 2.0f : 0.0f;
     int retCode = MW_NO_ERROR;  // cppcheck-suppress 398
     int transNeighbor, boxIndexBelow;  // cppcheck-suppress 398
-    int groupByBlock;
+    int individualBlocks;
     int chestType, matchType;  // cppcheck-suppress 398
     float waterHeight;
     int itemCount;
@@ -4161,7 +4161,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_COBBLESTONE_WALL:						// saveBillboardOrGeometry
-        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
+        individualBlocks = (gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS);
         // which posts are needed: NSEW. Brute-force it.
 
         // TODO: get more subtle, like glass panes, and generate only the faces needed. Right now there's overlap at corners, for example.
@@ -4292,7 +4292,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             // this fence connects to the neighboring block, so output the fence pieces
             // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
             firstFace = 0;
         }
@@ -4301,7 +4301,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
             firstFace = 0;
         }
@@ -4310,7 +4310,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
             firstFace = 0;
         }
@@ -4319,7 +4319,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (type != neighborType);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gPrint3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
             firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
         }
@@ -6451,12 +6451,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CACTUS:						// saveBillboardOrGeometry
         // are top and bottom needed?
-        groupByBlock = (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK);
+        individualBlocks = (gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS);
 
         faceMask = 0x0;
-        if ((gBoxData[boxIndex + 1].origType == BLOCK_CACTUS) && !groupByBlock)
+        if ((gBoxData[boxIndex + 1].origType == BLOCK_CACTUS) && !individualBlocks)
             faceMask |= DIR_TOP_BIT;
-        if ((gBoxData[boxIndex - 1].origType == BLOCK_CACTUS) && !groupByBlock)
+        if ((gBoxData[boxIndex - 1].origType == BLOCK_CACTUS) && !individualBlocks)
             faceMask |= DIR_BOTTOM_BIT;
         // remember that this gives the top of the block:
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
@@ -7382,7 +7382,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //}
 
         // after all that, if we're 3D printing details (and so need a perfect seal) or if we're doing per-block output, then output all faces
-        if (gPrint3D || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK))
+        if (gPrint3D || (gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS))
         {
             faceMask = tbFaceMask = 0x0;
         }
@@ -9911,7 +9911,7 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
     int type, neighborType, neighborBoxIndex;
     float neighborRect[4];
 
-    if (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
+    if (gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS)
     {
         // mode where every block is output regardless of neighbors, so return false
         return 0;
@@ -14255,7 +14255,7 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
     // face is hidden and can be discarded instead of output.
 
     // if neighboring face does not cover block type fully, or if individual (i.e., all) blocks are being output as separate entities, then output the face.
-    if (!neighborMayCoverFace(neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK))
+    if (!neighborMayCoverFace(neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || (gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS))
     {
         // Face is visible for sure, it is not fully covered by the neighbor, so return.
         // A return value of 0 means our block is exposed to air and so is fully visible or neighbor is not a full block and doesn't cover face,
@@ -19472,51 +19472,65 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
                     // substitute ' ' to '_'
                     spacesToUnderlinesChar(mtlName);
+                    // export materials by individual blocks, but only if separate tiles are not being exported - those need special treatment
                     // usemtl materialName
-                    if (gOptions->exportFlags & EXPT_GROUP_BY_BLOCK)
+                    if ((gOptions->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gExportTiles)
                     {
-                        // output every block individually
-                        sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
-                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
-                        {
-                            // new group for objects of same type (which are sorted)
-                            if (mkGroupsObjs) {
-                                sprintf_s(outputString, 256, "o %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            }
-                            sprintf_s(outputString, 256, "g %s\n", mtlName);
+                        if (gExportTiles) {
+                            // new material per tile ID
+                            // swatch locations exactly correspond with tiles.h names
+                            assert(prevSwatchLoc < TOTAL_TILES);
+                            WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        }
-                        if (subtypeMaterial) {
-                            // We can't use outputMaterial, a simple array of types. We need to
-                            // instead check the whole previous list and see if the material's
-                            // already on it. Check from last to first for speed, I hope.
-                            // NODO: slightly better (though slower) would be to add by name, vs. typeData;
-                            // there are materials with different typeData's but that actually have the same name,
-                            // such as Purpur Block, but these show up only in the test world, so don't bother.
-                            int curCount = gModel.mtlCount - 1;
-                            unsigned int typeData = prevType << 8 | prevDataVal;
-                            while (curCount >= 0) {
-                                if (gModel.mtlList[curCount--] == typeData) {
-                                    // found it; exit loop
-                                    curCount = -999;
-                                }
-                            }
-                            // did we find it?
-                            if (curCount != -999) {
-                                // did not find type/data combinationTOD - add it to list
-                                gModel.mtlList[gModel.mtlCount++] = typeData;
-                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                            }
+                            // note in an array that this separate tile should be output as a material
+                            gModel.tileList[prevSwatchLoc] = true;
+                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
                         else {
-                            // note which material is to be output, if not output already
-                            if (outputMaterial[prevType] == 0)
+                            // output every block individually
+                            sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                             {
-                                gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
-                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                                outputMaterial[prevType] = 1;
+                                // new group for objects of same type (which are sorted)
+                                if (mkGroupsObjs) {
+                                    sprintf_s(outputString, 256, "o %s\n", mtlName);
+                                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                }
+                                sprintf_s(outputString, 256, "g %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
+                            if (subtypeMaterial) {
+                                // We can't use outputMaterial, a simple array of types. We need to
+                                // instead check the whole previous list and see if the material's
+                                // already on it. Check from last to first for speed, I hope.
+                                // NODO: slightly better (though slower) would be to add by name, vs. typeData;
+                                // there are materials with different typeData's but that actually have the same name,
+                                // such as Purpur Block, but these show up only in the test world, so don't bother.
+                                int curCount = gModel.mtlCount - 1;
+                                unsigned int typeData = prevType << 8 | prevDataVal;
+                                while (curCount >= 0) {
+                                    if (gModel.mtlList[curCount--] == typeData) {
+                                        // found it; exit loop
+                                        curCount = -999;
+                                    }
+                                }
+                                // did we find it?
+                                if (curCount != -999) {
+                                    // did not find type/data combinationTOD - add it to list
+                                    gModel.mtlList[gModel.mtlCount++] = typeData;
+                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                }
+                            }
+                            else {
+                                // note which material is to be output, if not output already
+                                if (outputMaterial[prevType] == 0)
+                                {
+                                    gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                    outputMaterial[prevType] = 1;
+                                }
                             }
                         }
                     }
@@ -19566,7 +19580,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         pFace = gModel.faceList[i];
 
         // if we're outputting each individual block in a group, set a unique group name here.
-        if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && pFace->faceIndex <= 0)
+        // For tiles, set a group per face (in the tiles output, faces are sorted by material, so we have lost
+        // all sense of a block at this point; all we can do is output each face as an object).
+        if ((gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0 || gExportTiles) )
         {
             if (mkGroupsObjs) {
                 sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here

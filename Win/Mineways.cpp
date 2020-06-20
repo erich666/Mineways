@@ -3829,10 +3829,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
             }
         }
-        else if ((gpEFD->chkIndividualBlocks) && !(gpEFD->radioExportTileTextures[gpEFD->fileType] == 1))
+        else if (gpEFD->chkIndividualBlocks)
         {
-            // these must be on for individual block export, plus grouping by block
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_GROUP_BY_BLOCK;
+            // these must be on for individual block export, plus grouping by block (seperate material for each block)
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK ;
             if (gpEFD->chkMaterialPerBlock == 1)
             {
                 gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
@@ -3871,8 +3871,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
         {
             gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES |
-                // we must Export separate types; not export individual blocks; Material per object; Split by block type
-                EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
+                // we must Export separate types; not export individual blocks; Material per object
+                EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
             ;
         }
     }
@@ -3952,8 +3952,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             gOptions.exportFlags &= ~(EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
             gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_SWATCHES;
         }
-        // we don't want to group by block for debugging
-        gOptions.exportFlags &= ~EXPT_GROUP_BY_BLOCK;
+        // we don't want individual blocks for debugging
+        gOptions.exportFlags &= ~EXPT_INDIVIDUAL_BLOCKS;
     }
 
     // OK, all set, let's go!

@@ -219,15 +219,15 @@ extern UnitType gUnitTypeTable[];
 
 // when exporting objects with OBJ, do we want to export groups at all? For rendering, the default is on; 3D printing, off. "Export separate types"
 #define EXPT_OUTPUT_OBJ_SEPARATE_TYPES		0x00010000
-// do we want to export by block? That is, every individual Minecraft block is in its own group? Normally off.
-#define EXPT_GROUP_BY_BLOCK					0x00020000
+// do we want to export individual blocks? That is, every individual Minecraft block is in its own group? Normally off.
+#define EXPT_INDIVIDUAL_BLOCKS					0x00020000
 
-// when exporting objects with OBJ, do we want multiple materials?
-// This is the norm, but for things like Blender and Maya, a single material can be less work.
+// When exporting objects with OBJ, do we want multiple materials, i.e., one per family or type of block?
+// This is the norm, but for things like Blender and Maya, a single material can be less work when importing and hand-editing.
 // A single material for all objects has the EXPT_OUTPUT_OBJ_MTL_PER_TYPE off entirely.
-// To have a material for each object type, both of the flags that follow are on. On by default.
+// To have a material for each object *type*, both of the flags that follow are on. On by default.
 #define EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK	0x00040000
-// If true (and EXPT_OUTPUT_OBJ_SEPARATE_TYPES is on), then there's a separate material for each type of block.
+// If true (and EXPT_OUTPUT_OBJ_SEPARATE_TYPES is on), then there's a separate material for each *type* of block.
 #define EXPT_OUTPUT_OBJ_MTL_PER_TYPE		0x00080000
 // If true, output each individual block as its own group
 #define EXPT_OUTPUT_EACH_BLOCK_A_GROUP		0x00100000
