@@ -10743,21 +10743,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         if (dataVal > 0)
         {
             // subtract 1 if needed to get to "kelp", the top of the plant
-            swatchLoc = SWATCH_INDEX(11 - dataVal, 33);
+            swatchLoc = SWATCH_INDEX(11 - (dataVal & 0x1), 33);
         }
         break;
     case BLOCK_CORAL:				// saveBillboardFacesExtraData
         if (dataVal > 0)
         {
-            // add to get to tile
-            swatchLoc = SWATCH_INDEX(11 + dataVal, 35);
+            // add 0-4 to get to tile
+            swatchLoc = SWATCH_INDEX(11 + (dataVal & 0x7), 35);
         }
         break;
     case BLOCK_CORAL_FAN:				// saveBillboardFacesExtraData
     case BLOCK_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
         if (dataVal > 0)
         {
-            // add to get to tile
+            // add 0-4 to get to tile
             swatchLoc = SWATCH_INDEX((dataVal & 0x7), 36);
         }
         break;
@@ -10765,14 +10765,14 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     case BLOCK_DEAD_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
         if (dataVal > 0)
         {
-            // add to get to tile
+            // add 0-4 to get to tile
             swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
         }
         break;
     case BLOCK_DEAD_CORAL:				// saveBillboardFacesExtraData
         if (dataVal > 0)
         {
-            // add to get to tile
+            // add 0-4 to get to tile
             swatchLoc = SWATCH_INDEX(14 + (dataVal & 0x7), 36);
         }
         break;

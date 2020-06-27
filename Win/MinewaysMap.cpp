@@ -748,7 +748,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_POPPY:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -796,7 +796,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
             dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
         }
         // dataVal will not be correct for 1.12 and earlier if block is not available. 1.13 on, it will.
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -817,7 +817,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_OAK_PLANKS:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -842,7 +842,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_STONE:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -883,7 +883,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_NETHER_BRICKS:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -898,7 +898,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_SOUL_SAND:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -911,7 +911,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_GLOWSTONE:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -924,7 +924,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_NETHER_WART_BLOCK:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -956,7 +956,7 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_SAPLING:
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -1935,7 +1935,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_WOOL:
     case BLOCK_CARPET:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
             // I picked the color from the tile location 2 from the left, 3 down.
         default:
@@ -1996,7 +1996,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_COLORED_TERRACOTTA:
         // from upper left corner
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
             // I picked the color from the tile location 2 from the left, 3 down.
         default:
@@ -2197,7 +2197,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_STONE:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2253,7 +2253,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_NETHER_BRICKS:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2270,7 +2270,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_SOUL_SAND:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2284,7 +2284,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_GLOWSTONE:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2298,7 +2298,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_DIRT:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2324,7 +2324,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_NETHER_WART_BLOCK:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2338,7 +2338,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_SAND:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2352,7 +2352,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_TNT:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2366,7 +2366,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_RED_MUSHROOM:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2564,7 +2564,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_STONE_SLAB:
         dataVal = block->data[voxel];
         alphaComputed = true;
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
         case 8:	// full stone
@@ -2662,7 +2662,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_POPPY:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:	// poppy
             lightComputed = true;
@@ -2744,7 +2744,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_SPONGE:
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2769,7 +2769,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_CONCRETE:
         // from upper left corner
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
@@ -2828,7 +2828,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_CONCRETE_POWDER:
         // from upper left corner
         dataVal = block->data[voxel];
-        switch (dataVal)
+        switch (dataVal & 0xf)
         {
         default:
             assert(0);
