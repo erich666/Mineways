@@ -1859,7 +1859,7 @@ Redstone Wire (#55)
 </td>
 <td>
 In Mineways wire is show either off or on, baked into the texture, with no gradations.
-When "Split by block type" is used, the redstone wire is separated into up to 16 (identical - you may edit these) materials, "Redstone_Wire_power_15" down to "_power_0" to show how bright the wire should appear.
+When "Split by block type" is used, the redstone wire is separated into up to 16 (identical - you may edit these) materials, "Redstone_Wire_power_15" down to "_power_0" to show how bright the wire should appear. For 1.16, the ability to turn an isolated dot into a cross is not supported in Mineways current.
 </td>
 </tr>
 
@@ -3197,10 +3197,10 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Improve documentation for <a href="#obj_export_options">Wavefront OBJ export options</a> by adding an example, etc.
 </UL>
 
-<LI>Version 7.17, 6/24/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV717.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 7.17, 6/27/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV717.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Coral was getting converted to jigsaw pieces when underwater, because I missed masking off a "waterlogged" bit. I've masked out other blocks' bits now, just in case.
+<LI>Coral was getting converted to jigsaw pieces when underwater, because I missed masking off a "waterlogged" bit. I've also masked out other blocks' unneeded bits now when checking the subtype, just in case.
 </UL>
 
 <LI>Version 7.18, xx/yy/2020 - upcoming
@@ -3252,7 +3252,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV716.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV717.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#terrain_png">here</a> to see previews:
 <UL>
 <LI> <a href="http://www.minecraftforum.net/topic/115061-16x-mc12-%E2%97%84-coterie-craft-%E2%96%BA-v232-t-884-updated-2032012-less-skyrim-more-updates/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3302,7 +3302,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 6/20/2020</p>
+		<p id="lastUpdate">Last updated 6/27/2020</p>
 	</div>
 </div>
 
