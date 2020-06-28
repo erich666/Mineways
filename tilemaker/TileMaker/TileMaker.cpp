@@ -447,6 +447,11 @@ int wmain(int argc, wchar_t* argv[])
 		if (readTilesInDirectory(jarFullPath, false, hasJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
 			return 1;
 		}
+
+		// load the barrier.png - maybe we get it, maybe we don't
+		wcscpy_s(jarFullPath, MAX_PATH, jarPath);
+		wcscat_s(jarFullPath, MAX_PATH, L"assets\\minecraft\\textures\\item\\");
+		loadAndProcessTile(jarFullPath, L"barrier.png", verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
 	}
 
 	// if smooth_stone is missing, use stone_slab_top, and vice versa
