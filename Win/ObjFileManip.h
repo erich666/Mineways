@@ -46,32 +46,33 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED           (1<<5)
 #define MW_NOT_ENOUGH_ROWS                          (1<<6)
 #define MW_CHANGE_BLOCK_COMMAND_OUT_OF_BOUNDS		(1<<7)
+#define MW_TEXTURE_RESOLUTION_HIGH          		(1<<8)
 
 // errors
-#define MW_BEGIN_ERRORS                           (1<<8)
+#define MW_BEGIN_ERRORS                           (1<<9)
 
-#define MW_NO_BLOCKS_FOUND                          (1<<8)
-#define MW_ALL_BLOCKS_DELETED                       (1<<9)
-#define MW_CANNOT_CREATE_FILE                       (1<<10)
-#define MW_CANNOT_WRITE_TO_FILE                     (1<<11)
-#define MW_IMAGE_WRONG_WIDTH                        (1<<12)
-#define MW_NEED_16_ROWS                             (1<<13)
-#define MW_DIMENSION_TOO_LARGE                      (1<<14)
-#define MW_CANNOT_READ_IMPORT_FILE                  (1<<15)
-#define MW_CANNOT_PARSE_IMPORT_FILE                 (1<<16)
-#define MW_TEXTURE_TOO_LARGE						(1<<17)
-#define MW_WORLD_EXPORT_TOO_LARGE					(1<<18)
-#define MW_CANNOT_CREATE_DIRECTORY                  (1<<19)
-#define MW_INTERNAL_ERROR							(1<<20)
+#define MW_NO_BLOCKS_FOUND                          (1<<9)
+#define MW_ALL_BLOCKS_DELETED                       (1<<10)
+#define MW_CANNOT_CREATE_FILE                       (1<<11)
+#define MW_CANNOT_WRITE_TO_FILE                     (1<<12)
+#define MW_IMAGE_WRONG_WIDTH                        (1<<13)
+#define MW_NEED_16_ROWS                             (1<<14)
+#define MW_DIMENSION_TOO_LARGE                      (1<<15)
+#define MW_CANNOT_READ_IMPORT_FILE                  (1<<16)
+#define MW_CANNOT_PARSE_IMPORT_FILE                 (1<<17)
+#define MW_TEXTURE_TOO_LARGE						(1<<18)
+#define MW_WORLD_EXPORT_TOO_LARGE					(1<<19)
+#define MW_CANNOT_CREATE_DIRECTORY                  (1<<20)
+#define MW_INTERNAL_ERROR							(1<<21)
 
-#define MW_BEGIN_PNG_ERRORS                        (1<<21)
+#define MW_BEGIN_PNG_ERRORS                        (1<<22)
 
-#define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<21)
-#define MW_CANNOT_CREATE_PNG_FILE                   (1<<22)
+#define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<22)
+#define MW_CANNOT_CREATE_PNG_FILE                   (1<<23)
 
-#define MW_ERRORS                                 (1<<22)
+#define MW_ERRORS                                 (1<<23)
 
-#define MW_NUM_CODES                                23
+#define MW_NUM_CODES                                24
 
 // scripts can override the various blocks with other blocks while exporting
 typedef struct ChangeBlockCommand {

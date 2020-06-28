@@ -1046,6 +1046,13 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         goto Exit;
     }
 
+    // check if resolution is massively high; warn once
+    static bool warnOnSize = true;
+    if (warnOnSize && gModel.textureResolution >= 16384 && !gExportTiles) {
+        warnOnSize = false;
+        retCode |= MW_TEXTURE_RESOLUTION_HIGH;
+    }
+
     UPDATE_PROGRESS(0.50f * PG_MAKE_FACES);
     retCode |= initializeModelData();
     if (retCode >= MW_BEGIN_ERRORS)
@@ -19870,26 +19877,27 @@ static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
 #endif
     char outputString[1024];
 
+    // we go a bit nuts with the precision here, not sure it helps, but can't hurt; used to use just "%g"
     if (addComment)
     {
         if (swatchLoc < TOTAL_TILES) {
             char outName[MAX_PATH_AND_FILE];
             WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
             assert(strlen(outName) > 0);
-            sprintf_s(outputString, 1024, "# %s\nvt %g %g\n",
+            sprintf_s(outputString, 1024, "# %s\nvt %.9f %.9f\n",
                 outName,
                 u, v);
         }
         else {
             // old "by block" code, not really useful - better to use tiles.h name
-            sprintf_s(outputString, 1024, "# %s type\nvt %g %g\n",
+            sprintf_s(outputString, 1024, "# %s type\nvt %.9f %.9f\n",
                 gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
                 u, v);
         }
     }
     else
     {
-        sprintf_s(outputString, 1024, "vt %g %g\n",
+        sprintf_s(outputString, 1024, "vt %.9f %.9f\n",
             u, v);
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));

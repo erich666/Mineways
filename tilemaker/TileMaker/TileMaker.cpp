@@ -20,6 +20,7 @@
 #define TILE_PATH	L"blocks"
 #define OUTPUT_FILENAME L"terrainExt.png"
 
+int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square);
 int findTile( wchar_t *tileName, int alternate );
 int findNextTile( wchar_t *tileName, int index, int alternate );
 int findUnneededTile( wchar_t *tileName );
@@ -27,6 +28,7 @@ int trueWidth(int tileLoc);
 
 static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info *pTile);
 static void reportReadError( int rc, wchar_t *filename );
+static void saveErrorForEnd();
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src);
 static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
@@ -166,6 +168,11 @@ static progimage_info tile[TOTAL_INPUT_TILES];
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
+static wchar_t gErrorString[MAX_PATH];
+// 1000 errors of 100 characters each - sounds sufficient
+#define CONCAT_ERROR_LENGTH	(1000*100)
+static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
+
 
 typedef struct int2 {
 	int x;
@@ -194,6 +201,8 @@ int wmain(int argc, wchar_t* argv[])
 	wchar_t terrainBase[MAX_PATH];
 	wchar_t terrainExtOutput[MAX_PATH];
 	wchar_t tilePath[MAX_PATH];
+
+	gConcatErrorString[0] = 0;
 
 	int argLoc = 1;
 
@@ -315,7 +324,7 @@ int wmain(int argc, wchar_t* argv[])
 		else
 		{
 			// go to here-----------------------------------------------------------------------------|
-			wprintf( L"TileMaker version 2.14\n");  // change version below, too
+			wprintf( L"TileMaker version 2.15\n");  // change version below, too
 			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
@@ -337,7 +346,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
     if ( verbose )
-        wprintf(L"TileMaker version 2.14\n");  // change version above, too
+        wprintf(L"TileMaker version 2.15\n");  // change version above, too
 
 	// add / to tile directory path
 	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"\\") != 0 )
@@ -411,8 +420,10 @@ int wmain(int argc, wchar_t* argv[])
 
 		if (hFind == INVALID_HANDLE_VALUE) 
 		{
-			printf ("***** ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
-			wprintf (L"No files found - please put your new blocks in the directory '%s'.\n", tilePath);
+			wsprintf (gErrorString, L"***** ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
+			saveErrorForEnd();
+			wsprintf (gErrorString, L"No files found - please put your new blocks in the directory '%s'.\n", tilePath);
+			saveErrorForEnd();
 			return 1;
 		} 
 		else 
@@ -453,16 +464,8 @@ int wmain(int argc, wchar_t* argv[])
 							fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
 
 							if (!fail_code) {
-								if (fmod(log2((float)(tile[tilesFound].width)), 1.0f) != 0.0f) {
-									wprintf(L"***** ERROR: file '%s' has a width that is not a power of two.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
-									fail_code = 1;
-									gErrorCount++;
-									readpng_cleanup(1, &tile[tilesFound]);
-								}
-								if (tile[tilesFound].width > tile[tilesFound].height) {
-									wprintf(L"***** ERROR: file '%s' has a height that is less than its width.\n  This will cause copying errors, so we ignore it.\n  We recommend you remove or resize this file.\n", ffd.cFileName);
-									fail_code = 1;
-									gErrorCount++;
+								fail_code = testFileForPowerOfTwo(tile[tilesFound].width, tile[tilesFound].height, ffd.cFileName, true);
+								if (fail_code) {
 									readpng_cleanup(1, &tile[tilesFound]);
 								}
 							}
@@ -486,7 +489,8 @@ int wmain(int argc, wchar_t* argv[])
 								}
 
 								if (tilesFound >= TOTAL_INPUT_TILES) {
-									wprintf(L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
+									wsprintf(gErrorString, L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
+									saveErrorForEnd();
 									gErrorCount++;
 								}
 								else {
@@ -668,10 +672,14 @@ int wmain(int argc, wchar_t* argv[])
 
 	// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
 	if (destination_ptr->width > 16384 ) {
-		wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n  (and likely larger than anything you would ever want to use).\n  Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
+		wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
 			destination_ptr->width/16, destination_ptr->width/16);
+		// quit!
 		return 1;
 	}
+
+	///////////////////////////////////
+	// Export starts here
 
 	if ( nobase )
 	{
@@ -820,8 +828,15 @@ int wmain(int argc, wchar_t* argv[])
 			}
 			allChests = false;
 			// try next chest
-			break;
+			continue;
 		}
+		// chests must be powers of two
+		if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
+			allChests = false;
+			readpng_cleanup(1, &chestImage);
+			continue;
+		}
+
 		readpng_cleanup(0, &chestImage);
 		// at least one chest was found
 		anyChests = true;
@@ -866,6 +881,7 @@ int wmain(int argc, wchar_t* argv[])
 	if ( rc != 0 )
 	{
 		reportReadError(rc,terrainExtOutput);
+		// quit
 		return 1;
 	}
 	writepng_cleanup(destination_ptr);
@@ -883,10 +899,39 @@ int wmain(int argc, wchar_t* argv[])
 		gWarningCount++;
 	}
 
+	if (gErrorCount)
+		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
+
 	if (gErrorCount || gWarningCount)
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
 	return 0;
+}
+
+int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square )
+{
+	int fail_code = 0;
+	if (fmod(log2((float)(width)), 1.0f) != 0.0f) {
+		wsprintf(gErrorString, L"***** ERROR: file '%s' has a width that is not a power of two.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		saveErrorForEnd();
+		gErrorCount++;
+		fail_code = 1;
+	}
+	// check if height is not a power of two AND is not a multiple of the width.
+	// if not square (i.e., a chest), the height may be half that of the width.
+	else if ( fmod((float)(height) / (float)width, square ? 1.0f : 0.5f) != 0.0f ) {
+		wsprintf(gErrorString, L"***** ERROR: file '%s' has a height that is not a multiple of its width.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		saveErrorForEnd();
+		gErrorCount++;
+		fail_code = 1;
+	}
+	if (square && width > height) {
+		wsprintf(gErrorString, L"***** ERROR: file '%s' has a height that is less than its width.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		saveErrorForEnd();
+		gErrorCount++;
+		fail_code = 1;
+	}
+	return fail_code;
 }
 
 int findTile( wchar_t *tileName, int alternate )
@@ -969,24 +1014,33 @@ static void reportReadError( int rc, wchar_t *filename )
 	gErrorCount++;
 	switch (rc) {
 	case 1:
-		wprintf(L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
+		wsprintf(gErrorString, L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
 		break;
 	case 2:
-		wprintf(L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
+		wsprintf(gErrorString, L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
 		break;
     case 4:
-        wprintf(L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
+        wsprintf(gErrorString, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
         break;
     case 63:
-        wprintf(L"***** ERROR [%s] read failed - chunk too long.\n", filename);
+        wsprintf(gErrorString, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
         break;
     default:
-		wprintf(L"***** ERROR [%s] read failed - unknown readpng_init() error.", filename);
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.", filename);
 		break;
 	}
-    wprintf(L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
+	saveErrorForEnd();
+	
+	wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
+	saveErrorForEnd();
 }
 
+static void saveErrorForEnd()
+{
+	wprintf(gErrorString);
+	wcscat_s(gConcatErrorString, L"  ");
+	wcscat_s(gConcatErrorString, gErrorString);
+}
 
 //================================ Image Manipulation ====================================
 
@@ -1019,6 +1073,9 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info *src)
 	}
 }
 
+// Give the destination image, the tile location on that destination (multiplied by destination width/16),
+// the source image, the upper left and lower right destination pixels, the upper left source location, any flags,
+// and the zoom factor for going from source to destination - zoom > 1 means destination is larger, zoom < 1 means source is larger
 static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info *src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom )
 {
@@ -1080,7 +1137,8 @@ static int copyPNGTile(progimage_info *dst, unsigned long dst_x, unsigned long d
 		tileSize = (int)((float)dst->width / zoom)/16;
 
 		if (tileSize <= 0) {
-			wprintf(L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			wsprintf(gErrorString, L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			saveErrorForEnd();
 			gErrorCount++;
 			return 1;
 		}

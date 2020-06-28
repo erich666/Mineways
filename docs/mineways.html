@@ -3206,7 +3206,15 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 7.18, xx/yy/2020 - upcoming
 <BR>
 <UL>
-<LI>Add the toggle for whether isolated <a href="https://minecraft.gamepedia.com/Java_Edition_20w21a">redstone dust blocks are dots or crosses</a>, added in 1.16 20w21a.
+<LI>Improve TileMaker:
+<UL>
+<LI>Test all input images to make sure their height is a reasonable multiple of their width. If not, give an error and ignore.
+<LI>Test input chest images to ensure they are using powers of two. If not, give an error and ignore.
+<LI>Add option '-j pathname' that lets the user point directly at the directory location where the texture pack has been unzipped. Note the block directory (specified with '-d directory', or default of 'block') will be checked first for the texture. This allows the user to put modified/resized/their own textures in the 'block' directory without having to mess with the original unzipped texture pack's contents.
+<LI>Show all errors at the end of the console output, so the user can easily see them.
+</UL>
+<LI>If the Terrain File and export settings lead to a single texture that is 16,384 x 16,384 pixels or larger, warn the user that this size can cause problems for other programs and give suggestions for better ways to export the data.
+<LI>Add a few more (possibly useless) digits to the vertex texture coordinate output for OBJs, just to make sure we're doing the best we can when high resolution Terrain File textures are used.
 </UL>
 
 
