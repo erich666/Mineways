@@ -20,6 +20,9 @@
 #define TILE_PATH	L"blocks"
 #define OUTPUT_FILENAME L"terrainExt.png"
 
+int readTilesInDirectory(wchar_t* tilePath, bool usingBlockDirectory, bool hasJar, int verbose, int alternate, int* tilesTableIndexToInput, int& tilesFound, int outputYTiles);
+void loadAndProcessTile(wchar_t* tilePath, wchar_t* origTileName, int verbose, int alternate, int* tilesTableIndexToInput, int& tilesFound, int outputYTiles);
+
 int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square);
 int findTile( wchar_t *tileName, int alternate );
 int findNextTile( wchar_t *tileName, int index, int alternate );
@@ -201,6 +204,8 @@ int wmain(int argc, wchar_t* argv[])
 	wchar_t terrainBase[MAX_PATH];
 	wchar_t terrainExtOutput[MAX_PATH];
 	wchar_t tilePath[MAX_PATH];
+	wchar_t jarPath[MAX_PATH];
+	bool hasJar = false;
 
 	gConcatErrorString[0] = 0;
 
@@ -225,6 +230,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME);
 	wcscpy_s(tilePath, MAX_PATH, TILE_PATH );
+	wcscpy_s(jarPath, MAX_PATH, L"");
 	wcscpy_s(terrainExtOutput, MAX_PATH, OUTPUT_FILENAME );
 
 	for (i = 0; i < TOTAL_TILES; i++) {
@@ -233,7 +239,7 @@ int wmain(int argc, wchar_t* argv[])
     memset(shulkerSide, 0, 16 * sizeof(bool));
     memset(shulkerBottom, 0, 16 * sizeof(bool));
 
-	// usage: [-i terrainBase.png] [-d tiles_directory] [-o terrainExt.png] [-t forceTileSize]
+	// usage: [-i terrainBase.png] [-d tiles_directory] [-j assets jar directory] [-o terrainExt.png] [-t forceTileSize]
 	// single argument is alternate subdirectory other than "tiles"
 	while (argLoc < argc)
 	{
@@ -242,10 +248,16 @@ int wmain(int argc, wchar_t* argv[])
 			argLoc++;
 			wcscpy_s(terrainBase,MAX_PATH,argv[argLoc]);
 		}
-		else if ( wcscmp(argv[argLoc],L"-d") == 0 )
+		else if (wcscmp(argv[argLoc], L"-d") == 0)
 		{
 			argLoc++;
-			wcscpy_s(tilePath,MAX_PATH,argv[argLoc]);
+			wcscpy_s(tilePath, MAX_PATH, argv[argLoc]);
+		}
+		else if (wcscmp(argv[argLoc], L"-j") == 0)
+		{
+			argLoc++;
+			wcscpy_s(jarPath, MAX_PATH, argv[argLoc]);
+			hasJar = true;
 		}
 		else if ( wcscmp(argv[argLoc],L"-o") == 0 )
 		{
@@ -325,14 +337,15 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// go to here-----------------------------------------------------------------------------|
 			wprintf( L"TileMaker version 2.15\n");  // change version below, too
-			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
+			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-j jar] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
+			wprintf( L"  -j jar - optional directory where a texture pack has been unzipped.\n");
 			wprintf( L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 			wprintf( L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
 			wprintf( L"  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),\n    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
 			wprintf( L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
-			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    only the base image is read (and probably zoomed, otherwise this\n    option is pointless).\n");
+			wprintf( L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    just the base texture is read, along with the optional unzipped jar directory.\n");
 			wprintf( L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
             wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
             wprintf( L"  -s - take the average color of the incoming tile and output this solid color.\n");
@@ -349,9 +362,13 @@ int wmain(int argc, wchar_t* argv[])
         wprintf(L"TileMaker version 2.15\n");  // change version above, too
 
 	// add / to tile directory path
-	if ( wcscmp( &tilePath[wcslen(tilePath)-1], L"\\") != 0 )
+	if (wcscmp(&tilePath[wcslen(tilePath) - 1], L"\\") != 0)
 	{
-		wcscat_s(tilePath, MAX_PATH, L"\\" );
+		wcscat_s(tilePath, MAX_PATH, L"\\");
+	}
+	if (hasJar && wcscmp(&jarPath[wcslen(jarPath) - 1], L"\\") != 0)
+	{
+		wcscat_s(jarPath, MAX_PATH, L"\\");
 	}
 
 	// add ".png" to tile output name
@@ -410,128 +427,25 @@ int wmain(int argc, wchar_t* argv[])
 	// look through tiles in tiles directory, see which exist, find maximum Y value.
 	if ( !notiles )
 	{
-		HANDLE hFind;
-		WIN32_FIND_DATA ffd;
-
-		wchar_t tileSearch[MAX_PATH];
-		wcscpy_s( tileSearch, MAX_PATH, tilePath );
-		wcscat_s( tileSearch, MAX_PATH, L"*.png" );
-		hFind=FindFirstFile(tileSearch,&ffd);
-
-		if (hFind == INVALID_HANDLE_VALUE) 
-		{
-			wsprintf (gErrorString, L"***** ERROR: FindFirstFile failed (error # %d).\n", GetLastError());
-			saveErrorForEnd();
-			wsprintf (gErrorString, L"No files found - please put your new blocks in the directory '%s'.\n", tilePath);
-			saveErrorForEnd();
+		// read tiles in directory
+		if (readTilesInDirectory(tilePath, true, hasJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
 			return 1;
-		} 
-		else 
-		{
-			do {
-				wchar_t tileName[MAX_PATH];
-				int len;
+		}
+	}
 
-				if ( verbose )
-					wprintf (L"The file '%s' has been found and will be used.\n", ffd.cFileName);
+	// now look through all unzipped jar assets, as possible.
+	if (hasJar) {
+		// three locations:
+		// * blocks in \assets\minecraft\textures\block
+		// * chests in \assets\minecraft\textures\entity\chest - these are dealt with separately below
+		// * barrier.png in \assets\minecraft\textures\item - for Minecraft 1.11 on, don't flag an error if not found, just a warning
+		// read tiles in directory
+		wchar_t jarFullPath[MAX_PATH];
+		wcscpy_s(jarFullPath, MAX_PATH, jarPath);
+		wcscat_s(jarFullPath, MAX_PATH, L"assets\\minecraft\\textures\\block\\");
 
-				wcscpy_s( tileName, MAX_PATH, ffd.cFileName );
-				// check for .png suffix - note test is case insensitive
-				len = (int)wcslen(tileName);
-				if ( _wcsicmp( &tileName[len-4], L".png" ) == 0 )
-				{
-					// remove .png suffix
-					tileName[len-4] = 0x0;
-					index = findTile(tileName, alternate);
-					if ( index < 0 )
-					{
-                        // see if tile is on unneeded list
-						if (findUnneededTile(ffd.cFileName) < 0) {
-							wprintf(L"WARNING: '%s' is an image name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", ffd.cFileName);
-							gWarningCount++;
-						}
-					}
-
-					while ( index >= 0 )
-					{
-						int fail_code = 0;
-						//wprintf(L"INDEX: %d\n", index);
-
-						// check if already set
-						if (tilesTableIndexToInput[index] < 0)
-						{
-							// tile is one we care about.
-							fail_code = buildPathAndReadTile(tilePath, ffd.cFileName, &tile[tilesFound]);
-
-							if (!fail_code) {
-								fail_code = testFileForPowerOfTwo(tile[tilesFound].width, tile[tilesFound].height, ffd.cFileName, true);
-								if (fail_code) {
-									readpng_cleanup(1, &tile[tilesFound]);
-								}
-							}
-
-							// check for unsupported formats
-							//if ( 
-							//	//( tile[tilesFound].bit_depth == 8 || tile[tilesFound].bit_depth == 4 ) &&
-							//	 ( tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB_ALPHA || 
-							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
-							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
-							//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
-							if (fail_code == 0)
-							{
-								// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
-								if (!(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
-									// flag not set, so check for alpha == 0
-									if (checkForCutout(&tile[tilesFound])) {
-										wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", ffd.cFileName);
-										gWarningCount++;
-									}
-								}
-
-								if (tilesFound >= TOTAL_INPUT_TILES) {
-									wsprintf(gErrorString, L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
-									saveErrorForEnd();
-									gErrorCount++;
-								}
-								else {
-									// The way this works:
-									// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
-									// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
-									// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
-									// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
-									tilesInputToTableIndex[tilesFound] = index;
-
-									tilesTableIndexToInput[index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
-									tilesFound++;
-
-									// Find maximum Y resolution of output tile: expand bottom of output texture if found.
-									// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
-									// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
-									if (outputYTiles - 1 < gTilesTable[index].txrY)
-									{
-										outputYTiles = gTilesTable[index].txrY + 1;
-										wprintf(L"INTERNAL WARNING: strangely, the number of images outpaces the value of 16*VERTICAL_TILES.\n  This is an internal error: update VERTICAL_TILES.\n");
-										gWarningCount++;
-									}
-								}
-							}
-						}
-						else {
-							wprintf(L"WARNING: both file '%s.png' and alternate file '%s.png' were found.\n  File '%s.png' is ignored, because it is an alternate file name for the same tile.\n  To use it instead, remove file '%s.png' from the blocks directory.\n",
-								gTilesTable[index].filename, gTilesTable[index].altFilename, gTilesTable[index].altFilename, gTilesTable[index].filename);
-							gWarningCount++;
-						}
-						//else
-						//{
-						//	// unknown format
-						//	_tprintf (TEXT("WARNING: file '%s' not used because unsupported bit depth %d and color type %d\n"), ffd.cFileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
-						//}
-						index = findNextTile(tileName, index, alternate);
-					}
-				}
-			} while (FindNextFile(hFind,&ffd)!=0);
-
-			FindClose(hFind);
+		if (readTilesInDirectory(jarFullPath, false, hasJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
+			return 1;
 		}
 	}
 
@@ -908,6 +822,165 @@ int wmain(int argc, wchar_t* argv[])
 	return 0;
 }
 
+int readTilesInDirectory(wchar_t* tilePath, bool usingBlockDirectory, bool hasJar, int verbose, int alternate, int* tilesTableIndexToInput, int& tilesFound, int outputYTiles)
+{
+
+	HANDLE hFind;
+	WIN32_FIND_DATA ffd;
+
+	wchar_t tileSearch[MAX_PATH];
+	wcscpy_s(tileSearch, MAX_PATH, tilePath);
+	wcscat_s(tileSearch, MAX_PATH, L"*.png");
+	hFind = FindFirstFile(tileSearch, &ffd);
+
+	if (hFind == INVALID_HANDLE_VALUE)
+	{
+		// error types:
+		// This is the block directory, there's no jar directory: likely an error
+		// This is the block directory, there's a jar directory: error
+		// Jar directory: error
+
+		if (usingBlockDirectory) {
+			wsprintf(gErrorString, L"***** ERROR: cannot find files (Windows error code # %d).\n", GetLastError());
+			saveErrorForEnd();
+			gErrorCount++;
+			wsprintf(gErrorString, L"  No textures found in the directory '%s'.\n", tilePath);
+			saveErrorForEnd();
+			// exit program if no directory found and there's not a jar unzipped that's getting used
+			if (hasJar) {
+				wsprintf(gErrorString, L"  The unzipped texture pack jar directory will be searched.\n");
+				saveErrorForEnd();
+			}
+			wsprintf(gErrorString, L"  Use the '-nt' option to specify you do not want to use a blocks directory.\n");
+			saveErrorForEnd();
+		}
+		else {
+			// it's a jar directory that's missing
+			wsprintf(gErrorString, L"***** ERROR: cannot find files, error code # %d.\n", GetLastError());
+			saveErrorForEnd();
+			gErrorCount++;
+			wsprintf(gErrorString, L"  No textures found in the unzipped texture pack jar directory '%s'.\n", tilePath);
+			saveErrorForEnd();
+		}
+		return 0;
+	}
+	else
+	{
+		// go through all the files in the blocks directory
+		do {
+			loadAndProcessTile(tilePath, ffd.cFileName, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
+		} while (FindNextFile(hFind, &ffd) != 0);
+
+		FindClose(hFind);
+	}
+	return 0;
+}
+
+void loadAndProcessTile(wchar_t* tilePath, wchar_t* origTileName, int verbose, int alternate, int *tilesTableIndexToInput, int &tilesFound, int outputYTiles)
+{
+	wchar_t tileName[MAX_PATH];
+	int len;
+
+	if (verbose)
+		wprintf(L"The file '%s' has been found and will be used.\n", origTileName);
+
+	wcscpy_s(tileName, MAX_PATH, origTileName);
+	// check for .png suffix - note test is case insensitive
+	len = (int)wcslen(tileName);
+	if (_wcsicmp(&tileName[len - 4], L".png") == 0)
+	{
+		// remove .png suffix
+		tileName[len - 4] = 0x0;
+		int index = findTile(tileName, alternate);
+		if (index < 0)
+		{
+			// see if tile is on unneeded list
+			if (findUnneededTile(origTileName) < 0) {
+				wprintf(L"WARNING: '%s' is an image name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", origTileName);
+				gWarningCount++;
+			}
+		}
+
+		while (index >= 0)
+		{
+			int fail_code = 0;
+			//wprintf(L"INDEX: %d\n", index);
+
+			// check if already set
+			if (tilesTableIndexToInput[index] < 0)
+			{
+				// tile is one we care about.
+				fail_code = buildPathAndReadTile(tilePath, origTileName, &tile[tilesFound]);
+
+				if (!fail_code) {
+					fail_code = testFileForPowerOfTwo(tile[tilesFound].width, tile[tilesFound].height, origTileName, true);
+					if (fail_code) {
+						readpng_cleanup(1, &tile[tilesFound]);
+					}
+				}
+
+				// check for unsupported formats
+				//if ( 
+				//	//( tile[tilesFound].bit_depth == 8 || tile[tilesFound].bit_depth == 4 ) &&
+				//	 ( tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB_ALPHA || 
+				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
+				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
+				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
+				if (fail_code == 0)
+				{
+					// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
+					if (!(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+						// flag not set, so check for alpha == 0
+						if (checkForCutout(&tile[tilesFound])) {
+							wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", origTileName);
+							gWarningCount++;
+						}
+					}
+
+					if (tilesFound >= TOTAL_INPUT_TILES) {
+						wsprintf(gErrorString, L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
+						saveErrorForEnd();
+						gErrorCount++;
+					}
+					else {
+						// The way this works:
+						// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
+						// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
+						// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
+						// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
+						tilesInputToTableIndex[tilesFound] = index;
+
+						tilesTableIndexToInput[index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
+						tilesFound++;
+
+						// Find maximum Y resolution of output tile: expand bottom of output texture if found.
+						// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
+						// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
+						if (outputYTiles - 1 < gTilesTable[index].txrY)
+						{
+							outputYTiles = gTilesTable[index].txrY + 1;
+							wprintf(L"INTERNAL WARNING: strangely, the number of images out paces the value of 16*VERTICAL_TILES.\n  This is an internal error: update VERTICAL_TILES.\n");
+							gWarningCount++;
+						}
+					}
+				}
+			}
+			else {
+				wprintf(L"WARNING: both file '%s.png' and alternate file '%s.png' were found.\n  File '%s.png' is ignored, because it is an alternate file name for the same tile.\n  To use it instead, remove file '%s.png' from the blocks directory.\n",
+					gTilesTable[index].filename, gTilesTable[index].altFilename, gTilesTable[index].altFilename, gTilesTable[index].filename);
+				gWarningCount++;
+			}
+			//else
+			//{
+			//	// unknown format
+			//	_tprintf (TEXT("WARNING: file '%s' not used because unsupported bit depth %d and color type %d\n"), origTileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
+			//}
+			index = findNextTile(tileName, index, alternate);
+		}
+	}
+}
+
+
 int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square )
 {
 	int fail_code = 0;
@@ -1011,7 +1084,6 @@ static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_
 
 static void reportReadError( int rc, wchar_t *filename )
 {
-	gErrorCount++;
 	switch (rc) {
 	case 1:
 		wsprintf(gErrorString, L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
@@ -1030,7 +1102,8 @@ static void reportReadError( int rc, wchar_t *filename )
 		break;
 	}
 	saveErrorForEnd();
-	
+	gErrorCount++;
+
 	wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
 	saveErrorForEnd();
 }
