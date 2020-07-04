@@ -29,7 +29,8 @@ int findNextTile( wchar_t *tileName, int index, int alternate );
 int findUnneededTile( wchar_t *tileName );
 int trueWidth(int tileLoc);
 
-static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info *pTile);
+static int tryReadingTile(wchar_t* blockPath, wchar_t* jarPath, wchar_t* fileName, bool hasDir, bool hasJar, progimage_info* pTile);
+static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info* pTile);
 static void reportReadError( int rc, wchar_t *filename );
 static void saveErrorForEnd();
 
@@ -186,7 +187,7 @@ typedef struct int2 {
 
 int wmain(int argc, wchar_t* argv[])
 {
-	int rc;
+	int rc = 0;
 	progimage_info basicterrain;
 	progimage_info destination;
 	progimage_info *destination_ptr = &destination;
@@ -205,7 +206,7 @@ int wmain(int argc, wchar_t* argv[])
 	wchar_t terrainExtOutput[MAX_PATH];
 	wchar_t tilePath[MAX_PATH];
 	wchar_t jarPath[MAX_PATH];
-	bool hasJar = false;
+	bool useJar = false;
 
 	gConcatErrorString[0] = 0;
 
@@ -216,7 +217,7 @@ int wmain(int argc, wchar_t* argv[])
 	int chosenTile = 0;
 
 	int nobase = 0;
-	int notiles = 0;
+	bool useTiles = true;
 	int onlyreplace = 0;
 	int verbose = 0;
 	int checkmissing = 0;
@@ -239,7 +240,7 @@ int wmain(int argc, wchar_t* argv[])
     memset(shulkerSide, 0, 16 * sizeof(bool));
     memset(shulkerBottom, 0, 16 * sizeof(bool));
 
-	// usage: [-i terrainBase.png] [-d tiles_directory] [-j assets jar directory] [-o terrainExt.png] [-t forceTileSize]
+	// usage: [-i terrainBase.png] [-d tiles_directory] [-z assets zip directory] [-o terrainExt.png] [-t forceTileSize]
 	// single argument is alternate subdirectory other than "tiles"
 	while (argLoc < argc)
 	{
@@ -253,11 +254,11 @@ int wmain(int argc, wchar_t* argv[])
 			argLoc++;
 			wcscpy_s(tilePath, MAX_PATH, argv[argLoc]);
 		}
-		else if (wcscmp(argv[argLoc], L"-j") == 0)
+		else if (wcscmp(argv[argLoc], L"-z") == 0)
 		{
 			argLoc++;
 			wcscpy_s(jarPath, MAX_PATH, argv[argLoc]);
-			hasJar = true;
+			useJar = true;
 		}
 		else if ( wcscmp(argv[argLoc],L"-o") == 0 )
 		{
@@ -284,7 +285,7 @@ int wmain(int argc, wchar_t* argv[])
 		else if ( wcscmp(argv[argLoc],L"-nt") == 0 )
 		{
 			// no tiles
-			notiles = 1;
+			useTiles = false;
 		}
 		else if ( wcscmp(argv[argLoc],L"-r") == 0 )
 		{
@@ -337,10 +338,10 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// go to here-----------------------------------------------------------------------------|
 			wprintf( L"TileMaker version 2.15\n");  // change version below, too
-			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-j jar] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
+			wprintf( L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-z zip] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-v]\n");
 			wprintf( L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 			wprintf( L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
-			wprintf( L"  -j jar - optional directory where a texture pack has been unzipped.\n");
+			wprintf( L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
 			wprintf( L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 			wprintf( L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
 			wprintf( L"  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),\n    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
@@ -366,7 +367,7 @@ int wmain(int argc, wchar_t* argv[])
 	{
 		wcscat_s(tilePath, MAX_PATH, L"\\");
 	}
-	if (hasJar && wcscmp(&jarPath[wcslen(jarPath) - 1], L"\\") != 0)
+	if (useJar && wcscmp(&jarPath[wcslen(jarPath) - 1], L"\\") != 0)
 	{
 		wcscat_s(jarPath, MAX_PATH, L"\\");
 	}
@@ -425,33 +426,34 @@ int wmain(int argc, wchar_t* argv[])
 #endif
 
 	// look through tiles in tiles directory, see which exist, find maximum Y value.
-	if ( !notiles )
+	if ( useTiles )
 	{
 		// read tiles in directory
-		if (readTilesInDirectory(tilePath, true, hasJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
+		if (readTilesInDirectory(tilePath, true, useJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
 			return 1;
 		}
 	}
 
 	// now look through all unzipped jar assets, as possible.
-	if (hasJar) {
+	wchar_t jarBlockPath[MAX_PATH];
+	if (useJar) {
 		// three locations:
 		// * blocks in \assets\minecraft\textures\block
 		// * chests in \assets\minecraft\textures\entity\chest - these are dealt with separately below
 		// * barrier.png in \assets\minecraft\textures\item - for Minecraft 1.11 on, don't flag an error if not found, just a warning
 		// read tiles in directory
-		wchar_t jarFullPath[MAX_PATH];
-		wcscpy_s(jarFullPath, MAX_PATH, jarPath);
-		wcscat_s(jarFullPath, MAX_PATH, L"assets\\minecraft\\textures\\block\\");
+		wcscpy_s(jarBlockPath, MAX_PATH, jarPath);
+		wcscat_s(jarBlockPath, MAX_PATH, L"assets\\minecraft\\textures\\block\\");
 
-		if (readTilesInDirectory(jarFullPath, false, hasJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
+		if (readTilesInDirectory(jarBlockPath, false, useJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
 			return 1;
 		}
 
 		// load the barrier.png - maybe we get it, maybe we don't
-		wcscpy_s(jarFullPath, MAX_PATH, jarPath);
-		wcscat_s(jarFullPath, MAX_PATH, L"assets\\minecraft\\textures\\item\\");
-		loadAndProcessTile(jarFullPath, L"barrier.png", verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
+		wchar_t jarBarrierPath[MAX_PATH];
+		wcscpy_s(jarBarrierPath, MAX_PATH, jarPath);
+		wcscat_s(jarBarrierPath, MAX_PATH, L"assets\\minecraft\\textures\\item\\");
+		loadAndProcessTile(jarBarrierPath, L"barrier.png", verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
 	}
 
 	// if smooth_stone is missing, use stone_slab_top, and vice versa
@@ -462,12 +464,14 @@ int wmain(int argc, wchar_t* argv[])
 		if (tilesTableIndexToInput[smooth_stone_index] < 0) {
 			// missing smooth_stone, so set it
 			index = findTile(L"smooth_stone", 1);
-			rc = buildPathAndReadTile(tilePath, L"stone_slab_top.png", &tile[tilesFound]);
+			rc = tryReadingTile(tilePath, jarBlockPath, L"stone_slab_top.png", useTiles, useJar, &tile[tilesFound]);
+			//rc = buildPathAndReadTile(tilePath, L"stone_slab_top.png", &tile[tilesFound]);
 		}
 		else {
 			// missing stone_slab_top, so set it
 			index = findTile(L"stone_slab_top", 1);
-			rc = buildPathAndReadTile(tilePath, L"smooth_stone.png", &tile[tilesFound]);
+			rc = tryReadingTile(tilePath, jarBlockPath, L"smooth_stone.png", useTiles, useJar, &tile[tilesFound]);
+			//rc = buildPathAndReadTile(tilePath, L"smooth_stone.png", &tile[tilesFound]);
 		}
 		if (rc != 0) {
 			wprintf(L"INTERNAL WARNING: a tile we just read before for smooth_stone could not be read\n  again. Please report this to erich@acm.org.\n");
@@ -487,16 +491,19 @@ int wmain(int argc, wchar_t* argv[])
 		if (tilesTableIndexToInput[smooth_stone_slab_side_index] < 0) {
 			// missing smooth_stone_slab_side, so set it
 			index = findTile(L"smooth_stone_slab_side", 1);
-			rc = buildPathAndReadTile(tilePath, L"stone_slab_side.png", &tile[tilesFound]);
+			rc = tryReadingTile(tilePath, jarBlockPath, L"stone_slab_side.png", useTiles, useJar, &tile[tilesFound]);
+			//rc = buildPathAndReadTile(tilePath, L"stone_slab_side.png", &tile[tilesFound]);
 		}
 		else {
 			// missing stone_slab_side, so set it
 			index = findTile(L"stone_slab_side", 1);
-			rc = buildPathAndReadTile(tilePath, L"smooth_stone_slab_side.png", &tile[tilesFound]);
+			rc = tryReadingTile(tilePath, jarBlockPath, L"smooth_stone_slab_side.png", useTiles, useJar, &tile[tilesFound]);
+			//rc = buildPathAndReadTile(tilePath, L"smooth_stone_slab_side.png", &tile[tilesFound]);
 		}
 		if (rc != 0) {
-			wprintf(L"INTERNAL WARNING: a tile we just read before for smooth_stone_slab_side could not\n  be read again. Please report this to erich@acm.org.\n");
-			gWarningCount++;
+			wsprintf(gErrorString, L"INTERNAL ERROR: a tile we just read before for smooth_stone_slab_side could not\n  be read again. Please report this to erich@acm.org.\n");
+			saveErrorForEnd();
+			gErrorCount++;
 		}
 		else {
 			tilesInputToTableIndex[tilesFound] = index;
@@ -576,7 +583,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user of large tiles
 	if (outputTileSize > 256) {
-		wprintf(L"WARNING: with a texture image size of %d X %d, you could be waiting a long time\n  for TileMaker to complete. Consider quitting and using the '-t tileSize'\n  option, choosing a power of two value less than this, such as 256.\n", outputTileSize, outputTileSize);
+		wprintf(L"WARNING: with a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures. Consider running again, using the '-t tileSize'\n  option, choosing a power of two value less than this, such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
 		gWarningCount++;
 	}
 
@@ -596,9 +603,6 @@ int wmain(int argc, wchar_t* argv[])
 		// quit!
 		return 1;
 	}
-
-	///////////////////////////////////
-	// Export starts here
 
 	if ( nobase )
 	{
@@ -698,10 +702,18 @@ int wmain(int argc, wchar_t* argv[])
 
 	// Test if left chest exists. If so, we assume 1.15 content is being used.
 	wchar_t chestFile[MAX_PATH];
-	wcscpy_s(chestFile, MAX_PATH, tilePath);
-	wcscat_s(chestFile, MAX_PATH, L"chest/normal_left.png");
+	wchar_t chestJarFile[MAX_PATH];
 	progimage_info testChestImage;
-	rc = readpng(&testChestImage, chestFile);
+	if (useTiles) {
+		wcscpy_s(chestFile, MAX_PATH, tilePath);
+		wcscat_s(chestFile, MAX_PATH, L"chest\\normal_left.png");
+		rc = readpng(&testChestImage, chestFile);
+	}
+	if (useJar && (rc != 0)) {
+		wcscpy_s(chestFile, MAX_PATH, jarPath);
+		wcscat_s(chestFile, MAX_PATH, L"assets\\minecraft\\textures\\entity\\chest\\normal_left.png");
+		rc = readpng(&testChestImage, chestFile);
+	}
 	//bool using115 = (rc == 0);
 	int numChests;
 	Chest* chest;
@@ -735,14 +747,26 @@ int wmain(int argc, wchar_t* argv[])
 		wcscat_s(chestFile, MAX_PATH, pChest->wname);
 		wcscat_s(chestFile, MAX_PATH, L".png");
 
+		wcscpy_s(chestJarFile, MAX_PATH, jarPath); 
+		wcscat_s(chestJarFile, MAX_PATH, L"assets\\minecraft\\textures\\entity\\chest\\");
+		wcscat_s(chestJarFile, MAX_PATH, pChest->wname);
+		wcscat_s(chestJarFile, MAX_PATH, L".png");
+
 		// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
 		progimage_info chestImage;
-		rc = readpng(&chestImage, chestFile);
+		bool useTileChest = false;
+		if (useTiles) {
+			rc = readpng(&chestImage, chestFile);
+			useTileChest = (rc == 0);
+		}
+		if (useJar && (rc != 0) ) {
+			rc = readpng(&chestImage, chestJarFile);
+		}
 		if (rc != 0)
 		{
-			// file not found
+			// file not found anywhere
 			if (verbose) {
-				wprintf(L"WARNING: The chest image file '%s' does not exist\n", chestFile);
+				wprintf(L"WARNING: The chest image file '%s' does not exist\n", useJar ? chestJarFile : chestFile);
 				gWarningCount++;
 			}
 			allChests = false;
@@ -750,7 +774,7 @@ int wmain(int argc, wchar_t* argv[])
 			continue;
 		}
 		// chests must be powers of two
-		if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
+		if (testFileForPowerOfTwo(chestImage.width, chestImage.height, useTileChest ? chestFile : chestJarFile, false)) {
 			allChests = false;
 			readpng_cleanup(1, &chestImage);
 			continue;
@@ -761,7 +785,7 @@ int wmain(int argc, wchar_t* argv[])
 		anyChests = true;
 
 		if (verbose)
-			wprintf(L"The chest image file '%s' exists and will be used.\n", chestFile);
+			wprintf(L"The chest image file '%s' exists and will be used.\n", useTileChest ? chestFile : chestJarFile);
 
 		// from size figure out scaling factor from chest to terrainExt.png
 
@@ -784,7 +808,6 @@ int wmain(int argc, wchar_t* argv[])
 				(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
 		}
 	}
-
 
     // if solid is desired, blend final result and replace in-place
     if ( solid || solidcutout )
@@ -990,7 +1013,7 @@ int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square )
 {
 	int fail_code = 0;
 	if (fmod(log2((float)(width)), 1.0f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s' has a width that is not a power of two.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a width of %d that is not a power of two.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
@@ -998,13 +1021,13 @@ int testFileForPowerOfTwo(int width, int height, WCHAR *cFileName, bool square )
 	// check if height is not a power of two AND is not a multiple of the width.
 	// if not square (i.e., a chest), the height may be half that of the width.
 	else if ( fmod((float)(height) / (float)width, square ? 1.0f : 0.5f) != 0.0f ) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s' has a height that is not a multiple of its width.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a height of %d that is not a multiple of its width of %d.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
 	}
 	if (square && width > height) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s' has a height that is less than its width.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a height of %d that is less than its width of %d.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
@@ -1068,6 +1091,30 @@ int trueWidth( int tileLoc )
 }
 
 //====================== statics ==========================
+
+static int tryReadingTile(wchar_t* blockPath, wchar_t* jarPath, wchar_t* fileName, bool hasTiles, bool hasJar, progimage_info* pTile)
+{
+	bool fileFound = false;
+	// read image file - build path
+	wchar_t readFileName[MAX_PATH];
+	if (hasTiles) {
+		wcscpy_s(readFileName, MAX_PATH, blockPath);
+		wcscat_s(readFileName, MAX_PATH, fileName);
+		// read in tile for later
+		int rc = readpng(pTile, readFileName);
+		readpng_cleanup(0, pTile);
+		fileFound = (rc == 0);
+	}
+	if (!fileFound && hasJar) {
+		wcscpy_s(readFileName, MAX_PATH, jarPath);
+		wcscat_s(readFileName, MAX_PATH, fileName);
+		// read in tile for later
+		int rc = readpng(pTile, readFileName);
+		readpng_cleanup(0, pTile);
+		fileFound = (rc == 0);
+	}
+	return fileFound ? 0 : 1;
+}
 
 static int buildPathAndReadTile(wchar_t* tilePath, wchar_t* fileName, progimage_info *pTile)
 {
