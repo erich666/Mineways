@@ -809,7 +809,7 @@ static int bleedPNGSwatch(progimage_info* dst, int dstSwatch, int xmin, int xmax
 static int bleedPNGSwatchRecursive(progimage_info* dst, int dstSwatch, int xmin, int xmax, int ymin, int ymax, int swatchSize, int swatchesPerRow, unsigned char alpha);
 static void makeRemainingTileAverage(progimage_info* dst, int chosenTile, int swatchSize, int swatchesPerRow);
 static void setAlphaPNGSwatch(progimage_info* dst, int dstSwatch, int swatchSize, int swatchesPerRow, unsigned char alpha);
-static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid);
+static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow /*, int forceSolid*/);
 static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow);
 static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename);
 static void convertAlphaToGrayscale(progimage_info* dst);
@@ -1245,7 +1245,7 @@ Exit:
                     {
                         compositePNGSwatches(gModel.pPNGtexture,
                             faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-                            gModel.swatchSize, gModel.swatchesPerRow, 0);
+                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
                     }
                     else {
                         compositePNGSwatchOverColor(gModel.pPNGtexture,
@@ -1296,7 +1296,7 @@ Exit:
                     {
                         compositePNGSwatches(gModel.pPNGtexture,
                             faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
-                            gModel.swatchSize, gModel.swatchesPerRow, 0);
+                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
                     }
                 }
             }
@@ -15407,7 +15407,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_GRASS_BLOCK:						// getSwatch
             //SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             // now use the manufactured grass block at 6,2
-            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 2, 2, 0);
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 0, 2, 0);
             // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
             // check against the original type, since the snow block is likely to be flattened
             if (gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW))
@@ -18741,7 +18741,7 @@ static int createCompositeSwatch(int swatchLoc, int backgroundSwatchLoc, int ang
     }
 
     // where result goes, over, under
-    compositePNGSwatches(gModel.pPNGtexture, gModel.swatchCount, swatchLoc, backgroundSwatchLoc, gModel.swatchSize, gModel.swatchesPerRow, 0);
+    compositePNGSwatches(gModel.pPNGtexture, gModel.swatchCount, swatchLoc, backgroundSwatchLoc, gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
     pSwatch->compositeSwatchLoc = gModel.swatchCount++;
 
     // link it up
@@ -19498,8 +19498,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                         if (gExportTiles) {
                             if (!(gOptions->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                             {
-                                // Since the material can vary and repeat, use block names
-                                // new group for each block (materials not sorted)
+                                // Since the material can vary and repeat, use block names.
+                                // New group for each block (materials not sorted)
                                 if (mkGroupsObjs) {
                                     sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
                                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -20550,144 +20550,148 @@ static int createBaseMaterialTexture()
         );
 
 
-        // now do clamp and tile of edges of swatches
-        for (row = 0; row < gModel.verticalTiles; row++)
+        // Don't need to do this for gTextureTile, since we don't output or otherwise use the fringes
+        if (!gExportTiles)
         {
-            for (col = 0; col < 16; col++)
+            // now do clamp and tile of edges of swatches
+            for (row = 0; row < gModel.verticalTiles; row++)
             {
-                SWATCH_TO_COL_ROW(currentSwatchCount, dstCol, dstRow);
-                // copy left and right edges only if block is solid - billboards don't tile
-                if (gTilesTable[row * 16 + col].flags & SBIT_REPEAT_SIDES)
+                for (col = 0; col < 16; col++)
                 {
-                    // copy right edge from left side of tile
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER,    // copy to rightmost column
-                        gModel.swatchSize * dstRow + SWATCH_BORDER,  // one down from top
-                        SWATCH_BORDER, gModel.tileSize,  // 1 wide
-                        mainprog,
-                        gModel.swatchSize * dstCol + SWATCH_BORDER,
-                        gModel.swatchSize * dstRow + SWATCH_BORDER
-                    );
-                    // copy left edge from right side of tile
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * dstCol,    // copy to leftmost column
-                        gModel.swatchSize * dstRow + SWATCH_BORDER,
-                        SWATCH_BORDER, gModel.tileSize,  // 1 wide
-                        mainprog,
-                        gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER - 1,
-                        gModel.swatchSize * dstRow + SWATCH_BORDER
-                    );
-                }
-                else
-                {
-                    if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_LEFT)
+                    SWATCH_TO_COL_ROW(currentSwatchCount, dstCol, dstRow);
+                    // copy left and right edges only if block is solid - billboards don't tile
+                    if (gTilesTable[row * 16 + col].flags & SBIT_REPEAT_SIDES)
                     {
-                        // copy left edge from left side of tile
+                        // copy right edge from left side of tile
                         copyPNGArea(mainprog,
-                            gModel.swatchSize * dstCol,    // copy to leftmost column
+                            gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER,    // copy to rightmost column
                             gModel.swatchSize * dstRow + SWATCH_BORDER,  // one down from top
                             SWATCH_BORDER, gModel.tileSize,  // 1 wide
                             mainprog,
                             gModel.swatchSize * dstCol + SWATCH_BORDER,
                             gModel.swatchSize * dstRow + SWATCH_BORDER
                         );
-                    }
-                    if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_RIGHT)
-                    {
-                        // copy right edge from right side of tile
+                        // copy left edge from right side of tile
                         copyPNGArea(mainprog,
-                            gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER,    // copy to rightmost column
-                            gModel.swatchSize * dstRow + SWATCH_BORDER,  // one down from top
+                            gModel.swatchSize * dstCol,    // copy to leftmost column
+                            gModel.swatchSize * dstRow + SWATCH_BORDER,
                             SWATCH_BORDER, gModel.tileSize,  // 1 wide
                             mainprog,
                             gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER - 1,
                             gModel.swatchSize * dstRow + SWATCH_BORDER
                         );
                     }
-                }
+                    else
+                    {
+                        if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_LEFT)
+                        {
+                            // copy left edge from left side of tile
+                            copyPNGArea(mainprog,
+                                gModel.swatchSize * dstCol,    // copy to leftmost column
+                                gModel.swatchSize * dstRow + SWATCH_BORDER,  // one down from top
+                                SWATCH_BORDER, gModel.tileSize,  // 1 wide
+                                mainprog,
+                                gModel.swatchSize * dstCol + SWATCH_BORDER,
+                                gModel.swatchSize * dstRow + SWATCH_BORDER
+                            );
+                        }
+                        if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_RIGHT)
+                        {
+                            // copy right edge from right side of tile
+                            copyPNGArea(mainprog,
+                                gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER,    // copy to rightmost column
+                                gModel.swatchSize * dstRow + SWATCH_BORDER,  // one down from top
+                                SWATCH_BORDER, gModel.tileSize,  // 1 wide
+                                mainprog,
+                                gModel.swatchSize * (dstCol + 1) - SWATCH_BORDER - 1,
+                                gModel.swatchSize * dstRow + SWATCH_BORDER
+                            );
+                        }
+                    }
 
-                // Now do top and bottom. Note we copy the swatchSize here, not tileSize
-                // top edge
-                if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_BOTTOM)
-                {
-                    // hold and repeat bottom of billboard, and of any "side" blocks where top and bottom don't tile
-                    // NOTE: this really won't work for SWATCH_BORDER > 1, you really need to loop through each
-                    // row one by one and copy it.
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER,    // copy to bottom of dstRow
-                        gModel.swatchSize, SWATCH_BORDER,     // 1 high
-                        mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER - 1  // copy bottom dstRow that exists
-                    );
+                    // Now do top and bottom. Note we copy the swatchSize here, not tileSize
+                    // top edge
+                    if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_BOTTOM)
+                    {
+                        // hold and repeat bottom of billboard, and of any "side" blocks where top and bottom don't tile
+                        // NOTE: this really won't work for SWATCH_BORDER > 1, you really need to loop through each
+                        // row one by one and copy it.
+                        copyPNGArea(mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER,    // copy to bottom of dstRow
+                            gModel.swatchSize, SWATCH_BORDER,     // 1 high
+                            mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER - 1  // copy bottom dstRow that exists
+                        );
+                    }
+                    if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_TOP)
+                    {
+                        // hold and repeat top (otherwise, top remains all zeroes, which is good for billboards)
+                        copyPNGArea(mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * dstRow,    // copy to top of dstRow
+                            gModel.swatchSize, SWATCH_BORDER,     // 1 high
+                            mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * dstRow + SWATCH_BORDER  // copy top dstRow that exists
+                        );
+                    }
+                    else if (gTilesTable[row * 16 + col].flags & SBIT_REPEAT_TOP_BOTTOM)
+                    {
+                        // repeat tile
+                        // copy upper fringe from self!
+                        copyPNGArea(mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * dstRow,    // copy to top of dstRow
+                            gModel.swatchSize, SWATCH_BORDER,     // 1 high
+                            mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER - 1   // copy bottom dstRow that exists
+                        );
+                        // copy lower fringe
+                        copyPNGArea(mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER,    // copy to bottom of dstRow
+                            gModel.swatchSize, SWATCH_BORDER,     // 1 high
+                            mainprog,
+                            gModel.swatchSize * dstCol,
+                            gModel.swatchSize * dstRow + SWATCH_BORDER  // copy top dstRow that exists
+                        );
+                    }
+                    currentSwatchCount++;
                 }
-                if (gTilesTable[row * 16 + col].flags & SBIT_CLAMP_TOP)
-                {
-                    // hold and repeat top (otherwise, top remains all zeroes, which is good for billboards)
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * dstRow,    // copy to top of dstRow
-                        gModel.swatchSize, SWATCH_BORDER,     // 1 high
-                        mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * dstRow + SWATCH_BORDER  // copy top dstRow that exists
-                    );
-                }
-                else if (gTilesTable[row * 16 + col].flags & SBIT_REPEAT_TOP_BOTTOM)
-                {
-                    // repeat tile
-                    // copy upper fringe from self!
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * dstRow,    // copy to top of dstRow
-                        gModel.swatchSize, SWATCH_BORDER,     // 1 high
-                        mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER - 1   // copy bottom dstRow that exists
-                    );
-                    // copy lower fringe
-                    copyPNGArea(mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * (dstRow + 1) - SWATCH_BORDER,    // copy to bottom of dstRow
-                        gModel.swatchSize, SWATCH_BORDER,     // 1 high
-                        mainprog,
-                        gModel.swatchSize * dstCol,
-                        gModel.swatchSize * dstRow + SWATCH_BORDER  // copy top dstRow that exists
-                    );
-                }
-                currentSwatchCount++;
             }
-        }
 
-        // involved corrective: truly tile between double-chest front, back, top shared edges, grabbing samples from *adjacent* swatch
-        for (i = 0; i < 3; i++)
-        {
-            if (i < 2) {
-                // i=0 is front at 14,1 in output, i=1 is back at 2,2 in output
-                SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 2 + i), col, row);
+            // involved corrective: truly tile between double-chest front, back, top shared edges, grabbing samples from *adjacent* swatch
+            for (i = 0; i < 3; i++)
+            {
+                if (i < 2) {
+                    // i=0 is front at 14,1 in output, i=1 is back at 2,2 in output
+                    SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 2 + i), col, row);
+                }
+                else {
+                    // MW_DCHEST_TOP_RIGHT - to 10,8 (column 10, row 8, starting at 0,0) in output
+                    SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 14), col, row);
+                }
+                // copy left edge from left side of tile
+                copyPNGArea(mainprog,
+                    gModel.swatchSize * col,    // copy to rightmost column
+                    gModel.swatchSize * row,  // full column
+                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide
+                    mainprog,
+                    gModel.swatchSize * col - 2 * SWATCH_BORDER,
+                    gModel.swatchSize * row
+                );
+                copyPNGArea(mainprog,
+                    gModel.swatchSize * col - SWATCH_BORDER,    // copy to rightmost column
+                    gModel.swatchSize * row,  // full column
+                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide
+                    mainprog,
+                    gModel.swatchSize * col + SWATCH_BORDER,
+                    gModel.swatchSize * row
+                );
             }
-            else {
-                // MW_DCHEST_TOP_RIGHT - to 10,8 (column 10, row 8, starting at 0,0) in output
-                SWATCH_TO_COL_ROW(SWATCH_INDEX(10, 14), col, row);
-            }
-            // copy left edge from left side of tile
-            copyPNGArea(mainprog,
-                gModel.swatchSize * col,    // copy to rightmost column
-                gModel.swatchSize * row,  // full column
-                SWATCH_BORDER, gModel.swatchSize,  // 1 wide
-                mainprog,
-                gModel.swatchSize * col - 2 * SWATCH_BORDER,
-                gModel.swatchSize * row
-            );
-            copyPNGArea(mainprog,
-                gModel.swatchSize * col - SWATCH_BORDER,    // copy to rightmost column
-                gModel.swatchSize * row,  // full column
-                SWATCH_BORDER, gModel.swatchSize,  // 1 wide
-                mainprog,
-                gModel.swatchSize * col + SWATCH_BORDER,
-                gModel.swatchSize * row
-            );
         }
 
         // The tile for water in 1.13 is gray now, so for all worlds we need to make it blue
@@ -20804,13 +20808,14 @@ static int createBaseMaterialTexture()
         }
 
         // We need to form a special grass block side, namely
-        // put into WORKSPACE (8, 2) tile 3, 0 grass and overlay tile 6, 2
-        // which is now colored with the biome's color for grass.			
-        SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
-        SWATCH_TO_COL_ROW(SWATCH_INDEX(3, 0), scol, srow);
-        copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
-        // composite biome's grass over normally colored grass
-        compositePNGSwatches(mainprog, SWATCH_INDEX(6, 2), SWATCH_INDEX(6, 2), SWATCH_WORKSPACE, gModel.swatchSize, gModel.swatchesPerRow, 0);
+        // put into WORKSPACE (8, 2) tile 3, 0 grass and overlay tile 6, 2,
+        // which is now colored with the biome's color for grass using multTable or the biome color, above.			
+        //SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
+        //SWATCH_TO_COL_ROW(SWATCH_INDEX(3, 0), scol, srow);
+        // copy backdrop grass side to workspace location
+        //copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
+        // composite biome's grass over normally colored grass and replace grass_block_side
+        compositePNGSwatches(mainprog, SWATCH_INDEX(3, 0), SWATCH_INDEX(6, 2), SWATCH_INDEX(3, 0), gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
 
         // For torches, some like Sphax include extra data for their more elaborate geometry in the outer edges of the tiles.
         // Clear these areas, we can't use them currently, and they might mess up bleeding. TODO - someday, geometry from JSON descriptions or whatever.
@@ -20871,9 +20876,9 @@ static int createBaseMaterialTexture()
 
         // We first apply the red color for the wire to all colors (multiply). This is done above by multTable to our dot, vertical, and horizontal wires.
         // We then apply the overlay atop the tiles, using the rules: no blending, just replace if alpha >= 128, alpha otherwise ignored.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_VERT, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_VERT, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_HORIZ, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_HORIZ, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_DOT, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_DOT, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_VERT, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_VERT, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_HORIZ, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_HORIZ, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_DOT, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_DOT, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // We have our three building blocks.
         // Make the horizontal line for the 4-way.
@@ -20897,18 +20902,18 @@ static int createBaseMaterialTexture()
         setColorPNGArea(mainprog, col * gModel.swatchSize, row * gModel.swatchSize, gModel.tileSize * 8 / 16 + SWATCH_BORDER, gModel.swatchSize, 0x0);
 
         // Now composite this horizontal right half in wire-3 on to the vertical top half of wire-2: 2 angle is now done, other than the dot.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2, REDSTONE_WIRE_3, REDSTONE_WIRE_ANGLED_2, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2, REDSTONE_WIRE_3, REDSTONE_WIRE_ANGLED_2, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Now composite the full vertical line on to the 3-angle.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_3, REDSTONE_WIRE_VERT, REDSTONE_WIRE_3, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_3, REDSTONE_WIRE_VERT, REDSTONE_WIRE_3, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Now form the four wire: add vertical wire.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_4, REDSTONE_WIRE_VERT, REDSTONE_WIRE_4, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_4, REDSTONE_WIRE_VERT, REDSTONE_WIRE_4, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Finally, add dots to 2,3,4 wires.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2, REDSTONE_WIRE_DOT, REDSTONE_WIRE_ANGLED_2, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_3, REDSTONE_WIRE_DOT, REDSTONE_WIRE_3, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_4, REDSTONE_WIRE_DOT, REDSTONE_WIRE_4, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2, REDSTONE_WIRE_DOT, REDSTONE_WIRE_ANGLED_2, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_3, REDSTONE_WIRE_DOT, REDSTONE_WIRE_3, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_4, REDSTONE_WIRE_DOT, REDSTONE_WIRE_4, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         //////////////////////////////////////////////////
         // Do the whole thing again, but with a dimmer red
@@ -20932,9 +20937,9 @@ static int createBaseMaterialTexture()
         multiplyPNGTile(mainprog, col, row, gModel.swatchSize, r, g, b, a);
 
         // We then apply the overlay atop the tiles, using the rules: no blending, just replace if alpha >= 128, alpha otherwise ignored.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_VERT_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_HORIZ_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_HORIZ_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_DOT_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_VERT_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_HORIZ_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_HORIZ_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_OVERLAY, REDSTONE_WIRE_DOT_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // We have our three building blocks.
         // Make the horizontal line for the 4-way.
@@ -20958,18 +20963,18 @@ static int createBaseMaterialTexture()
         setColorPNGArea(mainprog, col * gModel.swatchSize, row * gModel.swatchSize, gModel.tileSize * 8 / 16 + SWATCH_BORDER, gModel.swatchSize, 0x0);
 
         // Now composite this horizontal right half in wire-3 on to the vertical top half of wire-2: 2 angle is now done, other than the dot.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2_OFF, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_ANGLED_2_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2_OFF, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_ANGLED_2_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Now composite the full vertical line on to the 3-angle.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_3_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_3_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Now form the four wire: add vertical wire.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_4_OFF, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_4_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_4_OFF, REDSTONE_WIRE_VERT_OFF, REDSTONE_WIRE_4_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         // Finally, add dots to 2,3,4 wires.
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_ANGLED_2_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_3_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
-        compositePNGSwatches(mainprog, REDSTONE_WIRE_4_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_4_OFF, gModel.swatchSize, gModel.swatchesPerRow, FORCE_CUTOUT);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_ANGLED_2_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_3_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, REDSTONE_WIRE_4_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_4_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
 
         // Stretch tiles to fill the area
@@ -21998,6 +22003,7 @@ static int writeSchematicBox()
     if ( (b) == 0 ) {						        \
         if ( blocks ) free( blocks );		        \
         if ( blockData ) free( blockData );	        \
+        gzflush(gz, Z_FINISH);                      \
         fclose(fptr);						        \
         return retCode|MW_CANNOT_WRITE_TO_FILE;		\
     }
@@ -22097,6 +22103,9 @@ static int writeSchematicBox()
 
     // use fclose instead of gzclose to avoid a crash on close of Mineways. See:
     // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
+    // However, ugh, if I use fclose and don't use gzclose(), nothing gets written. Maybe there's some way to
+    // flush before closing? Yes, let's try this:
+    gzflush(gz, Z_FINISH);
     //gzclose(gz);
     fclose(fptr);
 
@@ -23624,8 +23633,9 @@ static void setAlphaPNGSwatch(progimage_info* dst, int dstSwatch, int swatchSize
     }
 }
 
-
-static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow, int forceSolid)
+// FORCE_SOLID means the under alpha is forced to be 255, fully opaque- a "safety's sake" thing
+// FORCE_CUTOUT means the under alpha is forced to be 0 or 255, whichever is closer.
+static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwatch, int underSwatch, int swatchSize, int swatchesPerRow /*, int forceSolid*/)
 {
     // these are swatch locations in index form (not yet multiplied by swatch size itself)
     int ocol = overSwatch % swatchesPerRow;
@@ -23640,9 +23650,8 @@ static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwa
     unsigned int* dsti = (unsigned int*)(&dst->image_data[0]) + drow * swatchSize * dst->width + dcol * swatchSize;
 
     int row, col;
-    //unsigned char or,og,ob,oa;
-    unsigned char oa;
-    unsigned char ur, ug, ub, ua;
+    int overRed, overGreen, overBlue, overAlpha;
+    int underRed, underGreen, underBlue, underAlpha;
     unsigned int* coveri, * cunderi, * cdsti;  // cppcheck-suppress 398
 
     for (row = 0; row < swatchSize; row++)
@@ -23655,47 +23664,52 @@ static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwa
         {
             //GET_PNG_TEXEL( or,og,ob,oa, *coveri );
             // need only oa
-            oa = (unsigned char)(((*coveri) >> 24) & 0xff);
-            GET_PNG_TEXEL(ur, ug, ub, ua, *cunderi);
-
-            if (forceSolid == FORCE_SOLID)
-            {
-                ua = 255;
-            }
-            else if (forceSolid == FORCE_CUTOUT)
-            {
-                // for redstone wires, just make sure the alpha is 0 or 255
-                ua = (ua < 128) ? 0 : 255;
-            }
-
-            // finally have all data: composite o over u
-            // Minecraft use oa as a cutout, so < 128 means 0
-            if (oa < 128)
-            {
-                // copy the under pixel
-                SET_PNG_TEXEL(*cdsti, ur, ug, ub, ua);
-                // essentially *cdsti = *cunderi;, but with ua possibly changed
-            }
-            else
+            GET_PNG_TEXEL(overRed, overGreen, overBlue, overAlpha, *coveri);
+            //overAlpha = (unsigned char)(((*coveri) >> 24) & 0xff);
+            if (overAlpha == 255)
             {
                 // copy the over pixel
                 *cdsti = *coveri;
             }
-            //else if (oma == 0)
-            //{
-            //	// copy the over pixel
-            //	*cdsti = *coveri;
-            //}
-            //else
-   // we never blend - Minecraft basically uses alpha as a cutout, 0 or 255
-   //         {
-   //             // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
-   //             dr = (unsigned char)((or*oa*255 + ur*ua*oma)/(255*255));
-   //             dg = (unsigned char)((og*oa*255 + ug*ua*oma)/(255*255));
-   //             db = (unsigned char)((ob*oa*255 + ub*ua*oma)/(255*255));
-   //             da = (unsigned char)((oa*255 + ua*oma)/255);
-   //             SET_PNG_TEXEL( *cdsti, dr,dg,db,da );
-   //         }
+            else if (overAlpha == 0)
+            {
+                // copy the under pixel
+                *cdsti = *cunderi;
+            }
+            else {
+                // under matters
+                GET_PNG_TEXEL(underRed, underGreen, underBlue, underAlpha, *cunderi);
+                // Is this forcing still necessary? It's working around bugs in the incoming data
+                //if (forceSolid == FORCE_CUTOUT)
+                //{
+                //    // for redstone wires, just make sure the under alpha is 0 or 255
+                //    underAlpha = (underAlpha < 128) ? 0 : 255;
+
+                //    // finally have all data: composite o over u
+                //    // vanilla Minecraft use overAlpha purely as a cutout, so < 128 means 0
+                //    if (overAlpha < 128)
+                //    {
+                //        // copy the under pixel
+                //        SET_PNG_TEXEL(*cdsti, underRed, underGreen, underBlue, underAlpha);
+                //        // essentially *cdsti = *cunderi;, but with ua possibly changed
+                //    }
+                //    else
+                //    {
+                //        // copy the over pixel
+                //        *cdsti = *coveri;
+                //    }
+                //}
+                //else {
+                    // full composite
+                    // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
+                    int oma = 255 - overAlpha;
+                    int dr = (unsigned char)((overRed *overAlpha * 255 + underRed * underAlpha * oma) / (255 * 255));
+                    int dg = (unsigned char)((overGreen * overAlpha * 255 + underGreen * underAlpha * oma) / (255 * 255));
+                    int db = (unsigned char)((overBlue * overAlpha * 255 + underBlue * underAlpha * oma) / (255 * 255));
+                    int da = (unsigned char)((overAlpha * 255 + underAlpha * oma) / 255);
+                    SET_PNG_TEXEL(*cdsti, dr, dg, db, da);
+                //}
+            }
             coveri++;
             cunderi++;
             cdsti++;

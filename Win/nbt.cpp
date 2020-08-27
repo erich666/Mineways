@@ -3323,6 +3323,7 @@ void nbtClose(bfFile* pbf)
         // this would then go away.
         // No, that's not it, there's some conflict between zlib and MSVC. The fix is to use fclose instead of gzclose. See:
         // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
+        gzflush(pbf->gz, Z_FINISH);
         //gzclose(pbf->gz);
         fclose(pbf->fptr);
     }

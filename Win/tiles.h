@@ -24,10 +24,15 @@
 // special bit: if the tile is a leaf tile, Mineways itself can optionally make it solid
 #define SBIT_LEAVES				0x200
 
+// If this tile is not the final tile, identify it as being something that gets used to synthesize a new output tile.
+// That is, the tile, when output by Mineways, will have a different name with a _y.png suffix.
+#define SBIT_SYTHESIZED         0x400
+
 // If set, the incoming .png's black pixels should be treated as having an alpha of 0.
 // Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
 // Currently not needed - they've cleaned up their act.
 #define SBIT_BLACK_ALPHA		0x8000
+
 
 // types of blocks: tiling, billboard, and sides (which tile only horizontally)
 // Internally, an 18x18 tile is made from a 16x16, and the four border edges of this new tile are each classified as of three things:
@@ -58,7 +63,7 @@
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
     int txrY;
-    int typeForMtl;	// representative type, usually the first block to use this tile. Mostly needed for knowing about alpha for the tile; use crossCorrelate code in _DEBUG in Mineways to help build this column
+    int typeForMtl;	// representative type, usually the first block to use this tile. Mostly needed for knowing about alpha for the tile, but also for emission; use crossCorrelate code in _DEBUG in Mineways to help build this column
     int dataValForMtl;  // the data value associated with the tile type. Needed just for sea pickles, campfires, and respawn anchors, to give the illumination level.
     const TCHAR* filename;
     const TCHAR* altFilename;   // new 1.13 name
@@ -71,17 +76,17 @@ static struct {
     // creates on the fly internally.
     // TODO: someday, just read from the unzipped texture pack itself, using the proper paths.
 } gTilesTable[TOTAL_TILES] = {
-    {  0,  0,   2, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL },	// tinted by grass.png
+    {  0,  0,   2, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// tinted by grass color
     {  1,  0,   1, 0, L"stone", L"", SWATCH_REPEAT_ALL },
     {  2,  0,   3, 0, L"dirt", L"", SWATCH_REPEAT_ALL },
-    {  3,  0,   6, 0, L"grass_block_side", L"grass_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  3,  0,   6, 0, L"grass_block_side", L"grass_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_SYTHESIZED },
     {  4,  0,   5, 0, L"oak_planks", L"planks_oak", SWATCH_REPEAT_ALL },
-    {  5,  0,   6, 0, L"stone_slab_side", L"", SWATCH_REPEAT_ALL }, // no longer used? we substitute 11,23
-    {  6,  0,   6, 0, L"stone_slab_top", L"", SWATCH_REPEAT_ALL }, // no longer used? we substitute 10,23
+    {  5,  0,   6, 0, L"stone_slab_side", L"", SWATCH_REPEAT_ALL }, // no longer used in 1.16; we substitute 11,23
+    {  6,  0,   6, 0, L"stone_slab_top", L"", SWATCH_REPEAT_ALL }, // no longer used in 1.16; we substitute 10,23
     {  7,  0,  45, 0, L"bricks", L"brick", SWATCH_REPEAT_ALL },
-    {  8,  0,   6, 0, L"tnt_side", L"", SWATCH_REPEAT_ALL },
+    {  8,  0,  46, 0, L"tnt_side", L"", SWATCH_REPEAT_ALL },
     {  9,  0,  46, 0, L"tnt_top", L"", SWATCH_REPEAT_ALL },
-    { 10,  0,   6, 0, L"tnt_bottom", L"", SWATCH_REPEAT_ALL },
+    { 10,  0,  46, 0, L"tnt_bottom", L"", SWATCH_REPEAT_ALL },
     { 11,  0,  30, 0, L"cobweb", L"web", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 12,  0,  38, 0, L"poppy", L"flower_rose", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 13,  0,  37, 0, L"dandelion", L"flower_dandelion", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -110,7 +115,7 @@ static struct {
     {  4,  2,  48, 0, L"mossy_cobblestone", L"cobblestone_mossy", SWATCH_REPEAT_ALL },
     {  5,  2,  49, 0, L"obsidian", L"", SWATCH_REPEAT_ALL },
     {  6,  2,   6, 0, L"grass_block_side_overlay", L"grass_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
-    {  7,  2,  31, 0, L"grass", L"tallgrass", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7,  2,  31, 0, L"grass", L"tallgrass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     {  8,  2,   6, 0, L"MWO_workspace1", L"", SWATCH_REPEAT_ALL },	// we use it for temporary work - output as white? top grayscale, but we don't use it, nor does Mojang - left as "it's stone"
     {  9,  2,   6, 0, L"MWO_double_chest_front_left", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // was beacon - taken by chest
     { 10,  2,   6, 0, L"MWO_double_chest_front_right", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
@@ -123,16 +128,16 @@ static struct {
     {  1,  3,  20, 0, L"glass", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  2,  3,  56, 0, L"diamond_ore", L"", SWATCH_REPEAT_ALL },
     {  3,  3,  73, 0, L"redstone_ore", L"", SWATCH_REPEAT_ALL },
-    {  4,  3,  18, 0, L"oak_leaves", L"leaves_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  4,  3,  18, 0, L"oak_leaves", L"leaves_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
     {  5,  3,   6, 0, L"coarse_dirt", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8 - replaced leaves_oak_opaque
     {  6,  3,  98, 0, L"stone_bricks", L"stonebrick", SWATCH_REPEAT_ALL },
     {  7,  3,  32, 0, L"dead_bush", L"deadbush", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8,  3,   6, 0, L"fern", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  8,  3,   6, 0, L"fern", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     {  9,  3,   6, 0, L"MWO_double_chest_back_left", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
     { 10,  3,   6, 0, L"MWO_double_chest_back_right", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
     { 11,  3,   6, 0, L"crafting_table_side", L"", SWATCH_REPEAT_ALL },
     { 12,  3,   6, 0, L"crafting_table_front", L"", SWATCH_REPEAT_ALL },
-    { 13,  3,   6, 0, L"furnace_front_on", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    { 13,  3,  62, 0, L"furnace_front_on", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },   // note that we make only the front of the furnace be an emitter, by calling it 62
     { 14,  3,  23, 0, L"furnace_top", L"", SWATCH_REPEAT_ALL },	// also used for dispenser
     { 15,  3,   6, 0, L"spruce_sapling", L"sapling_spruce", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0,  4,  35, 0, L"white_wool", L"wool_colored_white", SWATCH_REPEAT_ALL },
@@ -147,7 +152,7 @@ static struct {
     {  9,  4,  83, 0, L"sugar_cane", L"reeds", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 10,  4,   6, 0, L"jukebox_side", L"", SWATCH_REPEAT_ALL },	// was noteblock, which is now below
     { 11,  4,  84, 0, L"jukebox_top", L"", SWATCH_REPEAT_ALL },
-    { 12,  4, 111, 0, L"lily_pad", L"waterlily", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 12,  4, 111, 0, L"lily_pad", L"waterlily", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     { 13,  4,   6, 0, L"mycelium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 14,  4, 110, 0, L"mycelium_top", L"", SWATCH_REPEAT_ALL },
     { 15,  4,   6, 0, L"birch_sapling", L"sapling_birch", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -171,8 +176,8 @@ static struct {
     {  1,  6,   6, 0, L"oak_door_bottom", L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  2,  6,   6, 0, L"iron_door_bottom", L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  3,  6,  76, 0, L"redstone_torch", L"redstone_torch_on", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4,  6,   6, 0, L"mossy_stone_bricks", L"stonebrick_mossy", SWATCH_REPEAT_ALL },
-    {  5,  6,   6, 0, L"cracked_stone_bricks", L"stonebrick_cracked", SWATCH_REPEAT_ALL },
+    {  4,  6,   6, 0, L"mossy_stone_bricks", L"stone_bricks_mossy", SWATCH_REPEAT_ALL },
+    {  5,  6,   6, 0, L"cracked_stone_bricks", L"stone_bricks_cracked", SWATCH_REPEAT_ALL },
     {  6,  6,  86, 0, L"pumpkin_top", L"", SWATCH_REPEAT_ALL },
     {  7,  6,  87, 0, L"netherrack", L"", SWATCH_REPEAT_ALL },
     {  8,  6,  88, 0, L"soul_sand", L"", SWATCH_REPEAT_ALL },
@@ -182,7 +187,7 @@ static struct {
     { 12,  6,  29, 0, L"piston_side", L"", SWATCH_REPEAT_ALL },
     { 13,  6,   6, 0, L"piston_bottom", L"", SWATCH_REPEAT_ALL },
     { 14,  6,   6, 0, L"piston_inner", L"", SWATCH_REPEAT_ALL },
-    { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     {  0,  7,   6, 0, L"rail_corner", L"rail_normal_turned", SWATCH_CLAMP_BOTTOM_AND_RIGHT | SBIT_DECAL },
     {  1,  7,   6, 0, L"black_wool", L"wool_colored_black", SWATCH_REPEAT_ALL },
     {  2,  7,   6, 0, L"gray_wool", L"wool_colored_gray", SWATCH_REPEAT_ALL },
@@ -191,19 +196,19 @@ static struct {
     {  5,  7,   6, 0, L"birch_log", L"log_birch", SWATCH_REPEAT_ALL },
     {  6,  7,   6, 0, L"pumpkin_side", L"", SWATCH_REPEAT_ALL },
     {  7,  7,   6, 0, L"carved_pumpkin", L"pumpkin_face_off", SWATCH_REPEAT_ALL },
-    {  8,  7,   6, 0, L"jack_o_lantern", L"pumpkin_face_on", SWATCH_REPEAT_ALL },
+    {  8,  7,  91, 0, L"jack_o_lantern", L"pumpkin_face_on", SWATCH_REPEAT_ALL },
     {  9,  7,  92, 0, L"cake_top", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
-    { 10,  7,   6, 0, L"cake_side", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
-    { 11,  7,   6, 0, L"cake_inner", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
-    { 12,  7,   6, 0, L"cake_bottom", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
+    { 10,  7,  92, 0, L"cake_side", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
+    { 11,  7,  92, 0, L"cake_inner", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
+    { 12,  7,  92, 0, L"cake_bottom", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
     { 13,  7, 100, 0, L"red_mushroom_block", L"mushroom_block_skin_red", SWATCH_REPEAT_ALL },
     { 14,  7,  99, 0, L"brown_mushroom_block", L"mushroom_block_skin_brown", SWATCH_REPEAT_ALL },
-    { 15,  7,   6, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15,  7,   6, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     {  0,  8,  66, 0, L"rail", L"rail_normal", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     {  1,  8, 217, 0, L"red_wool", L"wool_colored_red", SWATCH_REPEAT_ALL },
     {  2,  8,   6, 0, L"pink_wool", L"wool_colored_pink", SWATCH_REPEAT_ALL },
     {  3,  8,  93, 0, L"repeater", L"repeater_off", SWATCH_REPEAT_ALL },
-    {  4,  8,   6, 0, L"spruce_leaves", L"leaves_spruce", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  4,  8,   6, 0, L"spruce_leaves", L"leaves_spruce", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
     {  5,  8,   6, 0, L"red_sandstone_bottom", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     {  6,  8,  26, 0, L"MW_bed_feet_top", L"bed_feet_top", SWATCH_CLAMP_ALL },
     {  7,  8,   6, 0, L"MW_bed_head_top", L"bed_head_top", SWATCH_CLAMP_ALL },
@@ -214,7 +219,7 @@ static struct {
     { 12,  8,  25, 0, L"note_block", L"noteblock", SWATCH_REPEAT_ALL },
     { 13,  8,   6, 0, L"mushroom_stem", L"mushroom_block_skin_stem", SWATCH_REPEAT_ALL },
     { 14,  8,   6, 0, L"mushroom_block_inside", L"", SWATCH_REPEAT_ALL },
-    { 15,  8, 106, 0, L"vine", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// grayscale
+    { 15,  8, 106, 0, L"vine", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// grayscale
     {  0,  9,  22, 0, L"lapis_block", L"", SWATCH_REPEAT_ALL },
     {  1,  9,   6, 0, L"green_wool", L"wool_colored_green", SWATCH_REPEAT_ALL },
     {  2,  9,   6, 0, L"lime_wool", L"wool_colored_lime", SWATCH_REPEAT_ALL },
@@ -256,18 +261,18 @@ static struct {
     {  6, 11,   6, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11,   6, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
     {  8, 11, 119, 0, L"MW_end_portal", L"", SWATCH_REPEAT_ALL },    // custom - the 3D effect seen through the end portal - TODO: extract a small chunk from assets\minecraft\textures\entity
-    {  9, 11,   6, 0, L"item_frame", L"itemframe_background", SWATCH_REPEAT_ALL },	// frame around item, unimplemented, should really never be output
+    {  9, 11,   6, 0, L"item_frame", L"item_frame_front", SWATCH_REPEAT_ALL },	// frame around item, unimplemented, should really never be output TODO
     { 10, 11, 140, 0, L"flower_pot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 11,   6, 0, L"birch_log_top", L"log_birch_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 12, 11,   6, 0, L"spruce_log_top", L"log_spruce_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 13, 11,   6, 0, L"jungle_log_top", L"log_jungle_top", SWATCH_REPEAT_ALL },	// ADD-IN
-    { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// ADD-IN
-    { 15, 11,   6, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// ADD-IN
+    { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// ADD-IN
+    { 15, 11,   6, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// ADD-IN
     {  0, 12,   6, 0, L"sandstone", L"sandstone_normal", SWATCH_REPEAT_ALL },
     {  1, 12,   6, 0, L"purple_wool", L"wool_colored_purple", SWATCH_REPEAT_ALL },
     {  2, 12,   6, 0, L"magenta_wool", L"wool_colored_magenta", SWATCH_REPEAT_ALL },
     {  3, 12,  28, 0, L"detector_rail", L"rail_detector", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 12,   6, 0, L"jungle_leaves", L"leaves_jungle", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  4, 12,   6, 0, L"jungle_leaves", L"leaves_jungle", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
     {  5, 12,   6, 0, L"chiseled_red_sandstone", L"red_sandstone_carved", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     {  6, 12, 134, 0, L"spruce_planks", L"planks_spruce", SWATCH_REPEAT_ALL },
     {  7, 12, 136, 0, L"jungle_planks", L"planks_jungle", SWATCH_REPEAT_ALL },
@@ -288,13 +293,13 @@ static struct {
     {  6, 13, 135, 0, L"birch_planks", L"planks_birch", SWATCH_REPEAT_ALL },
     {  7, 13, 145, 0, L"anvil", L"anvil_base", SWATCH_REPEAT_ALL },
     {  8, 13,   6, 0, L"chipped_anvil_top", L"anvil_top_damaged_1", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  9, 13,   6, 0, L"MWO_ender_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    {  9, 13, 130, 0, L"MWO_ender_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 10, 13, 130, 0, L"MWO_ender_chest_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 11, 13,   6, 0, L"MWO_ender_chest_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 12, 13,   6, 0, L"MWO_ender_chest_front", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },	// ADD-IN
+    { 11, 13, 130, 0, L"MWO_ender_chest_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 13, 130, 0, L"MWO_ender_chest_front", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN
     { 14, 13,   6, 0, L"red_sandstone", L"red_sandstone_normal", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    { 15, 13,   8, 0, L"water_still", L"", SWATCH_REPEAT_ALL },
+    { 15, 13,   9, 0, L"water_still", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },
     {  0, 14, 112, 0, L"nether_bricks", L"nether_brick", SWATCH_REPEAT_ALL },
     {  1, 14,   6, 0, L"light_gray_wool", L"wool_colored_silver", SWATCH_REPEAT_ALL },
     {  2, 14,   6, 0, L"nether_wart_stage0", L"nether_wart_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -311,9 +316,9 @@ static struct {
     { 13, 14,   0, 0, L"coal_block", L"", SWATCH_REPEAT_ALL },
     { 14, 14, 149, 0, L"comparator", L"comparator_off", SWATCH_REPEAT_ALL },
     { 15, 14, 150, 0, L"comparator_on", L"", SWATCH_REPEAT_ALL },
-    {  0, 15,   6, 0, L"MWO_flattened_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened torch top; not used in rendering, but 3D printing uses for composites for torches from above
-    {  1, 15,   6, 0, L"MWO_flattened_redstone_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, on; not used in rendering, but 3D printing uses for composites for torches from above
-    {  2, 15,   6, 0, L"MWO_flattened_redstone_torch_top_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, off; not used in rendering, but 3D printing uses for composites for torches from above
+    {  0, 15,  50, 0, L"MWO_flattened_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened torch top; not used in rendering, but 3D printing uses for composites for torches from above
+    {  1, 15,  76, 0, L"MWO_flattened_redstone_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, on; not used in rendering, but 3D printing uses for composites for torches from above
+    {  2, 15,  75, 0, L"MWO_flattened_redstone_torch_top_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, off; not used in rendering, but 3D printing uses for composites for torches from above
     {  3, 15,   6, 0, L"MWO_redstone_dust_angled", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for angled redstone wire
     {  4, 15,   6, 0, L"MWO_redstone_dust_three_way", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for three-way redstone wire
     {  5, 15,   6, 0, L"daylight_detector_side", L"", SWATCH_REPEAT_ALL },	// destroy, etc. unused
@@ -326,7 +331,7 @@ static struct {
     { 12, 15,   6, 0, L"hopper_outside", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 13, 15, 154, 0, L"hopper_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 15, 152, 0, L"redstone_block", L"", SWATCH_REPEAT_ALL },
-    { 15, 15,  10, 0, L"lava_still", L"", SWATCH_REPEAT_ALL },
+    { 15, 15,  11, 0, L"lava_still", L"", SWATCH_REPEAT_ALL },
     {  0, 16, 159, 0, L"white_terracotta", L"hardened_clay_stained_white", SWATCH_REPEAT_ALL }, //** Brave new world, off the 256x256 edge
     {  1, 16,   6, 0, L"orange_terracotta", L"hardened_clay_stained_orange", SWATCH_REPEAT_ALL },
     {  2, 16,   6, 0, L"magenta_terracotta", L"hardened_clay_stained_magenta", SWATCH_REPEAT_ALL },
@@ -365,10 +370,10 @@ static struct {
     {  3, 18,   6, 0, L"sunflower_top", L"double_plant_sunflower_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 18,   6, 0, L"lilac_bottom", L"double_plant_syringa_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },	// lily
     {  5, 18,   6, 0, L"lilac_top", L"double_plant_syringa_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  6, 18,   6, 0, L"tall_grass_bottom", L"double_plant_grass_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  7, 18,   6, 0, L"tall_grass_top", L"double_plant_grass_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 18,   6, 0, L"large_fern_bottom", L"double_plant_fern_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  9, 18,   6, 0, L"large_fern_top", L"double_plant_fern_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 18,   6, 0, L"tall_grass_bottom", L"double_plant_grass_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  7, 18,   6, 0, L"tall_grass_top", L"double_plant_grass_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  8, 18,   6, 0, L"large_fern_bottom", L"double_plant_fern_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  9, 18,   6, 0, L"large_fern_top", L"double_plant_fern_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     { 10, 18,   6, 0, L"rose_bush_bottom", L"double_plant_rose_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 11, 18,   6, 0, L"rose_bush_top", L"double_plant_rose_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 12, 18,   6, 0, L"peony_bottom", L"double_plant_paeonia_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },	// peony
@@ -384,9 +389,9 @@ static struct {
     {  6, 19,   6, 0, L"pink_tulip", L"flower_tulip_pink", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 19,   6, 0, L"oxeye_daisy", L"flower_oxeye_daisy", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 19,   6, 0, L"seagrass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// 1.13 - was flower_paeonia - no longer used TODO
-    {  9, 19,   6, 0, L"acacia_leaves", L"leaves_acacia", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },	// ADD-IN 1.7.2
+    {  9, 19,   6, 0, L"acacia_leaves", L"leaves_acacia", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN 1.7.2
     { 10, 19,   6, 0, L"cut_red_sandstone", L"red_sandstone_smooth", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    { 11, 19, 161, 0, L"dark_oak_leaves", L"leaves_big_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },	// ADD-IN 1.7.2
+    { 11, 19, 161, 0, L"dark_oak_leaves", L"leaves_big_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN 1.7.2
     { 12, 19, 179, 0, L"red_sandstone_top", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     { 13, 19, 162, 0, L"acacia_log_top", L"log_acacia_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     { 14, 19,   6, 0, L"dark_oak_log", L"log_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
@@ -428,9 +433,9 @@ static struct {
     {  2, 22, 167, 0, L"iron_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// 1.8
     {  3, 22, 165, 0, L"slime_block", L"slime", SWATCH_REPEAT_ALL },
     {  4, 22, 329, 0, L"andesite", L"stone_andesite", SWATCH_REPEAT_ALL },
-    {  5, 22,   6, 0, L"polished_andesite", L"stone_andesite_smooth", SWATCH_REPEAT_ALL },
+    {  5, 22,   6, 0, L"polished_andesite", L"andesite_smooth", SWATCH_REPEAT_ALL },
     {  6, 22,   6, 0, L"diorite", L"stone_diorite", SWATCH_REPEAT_ALL },
-    {  7, 22,   6, 0, L"polished_diorite", L"stone_diorite_smooth", SWATCH_REPEAT_ALL },
+    {  7, 22,   6, 0, L"polished_diorite", L"diorite_smooth", SWATCH_REPEAT_ALL },
     {  8, 22,   6, 0, L"granite", L"stone_granite", SWATCH_REPEAT_ALL },
     {  9, 22,   6, 0, L"polished_granite", L"stone_granite_smooth", SWATCH_REPEAT_ALL },
     { 10, 22, 258, 0, L"prismarine_bricks", L"", SWATCH_REPEAT_ALL },
@@ -449,7 +454,7 @@ static struct {
     {  7, 23, 196, 0, L"acacia_door_top", L"door_acacia_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  8, 23,   6, 0, L"dark_oak_door_bottom", L"door_dark_oak_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  9, 23, 197, 0, L"dark_oak_door_top", L"door_dark_oak_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    { 10, 23,  43, 0, L"smooth_stone", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner; NOTE: this looks a heckuva lot like "stone_slab_top" - which gets used? This one, so it's used for 6,0
+    { 10, 23,  43, 0, L"smooth_stone", L"smooth_stone_top", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner; NOTE: this looks a heckuva lot like "stone_slab_top" - which gets used? This one, so it's used for 6,0
     { 11, 23,   6, 0, L"smooth_stone_slab_side", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was bottom of banner; NOTE: this looks a heckuva lot like "stone_slab_side" - which gets used? This one, so it's used for 5,0
     { 12, 23, 198, 0, L"end_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 23, 199, 0, L"chorus_plant", L"", SWATCH_REPEAT_ALL },
@@ -486,7 +491,7 @@ static struct {
     { 12, 25,   6, 0, L"structure_block_load", L"", SWATCH_REPEAT_ALL },
     { 13, 25,   6, 0, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
     { 14, 25, 166, 0, L"barrier", L"MW_barrier", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
-    { 15, 25,   6, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL },    // 1.9 - water looks like this through glass.
+    { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },    // 1.9 - water looks like this through glass.
     {  0, 26, 213, 0, L"magma", L"", SWATCH_REPEAT_ALL },
     {  1, 26, 214, 0, L"nether_wart_block", L"", SWATCH_REPEAT_ALL },
     {  2, 26, 215, 0, L"red_nether_bricks", L"red_nether_brick", SWATCH_REPEAT_ALL },
@@ -495,8 +500,8 @@ static struct {
     {  5, 26,   6, 0, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
     {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved
     {  7, 26,   6, 0, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  8, 26,   6, 0, L"water_flow", L"", SWATCH_REPEAT_ALL },	// special: double-wide
-    {  9, 26,   6, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
+    {  8, 26,   8, 0, L"water_flow", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// special: double-wide
+    {  9, 26,  10, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
     { 10, 26,   6, 0, L"MWO_redstone_dust_line0_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF
     { 11, 26,   6, 0, L"MWO_redstone_dust_line1_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF
     { 12, 26,   6, 0, L"MWO_redstone_dust_dot_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_DOT_OFF
@@ -658,8 +663,8 @@ static struct {
     {  8, 36,   6, 0, L"dead_fire_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  9, 36,   6, 0, L"dead_horn_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 10, 36, 324, 0, L"turtle_egg", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 11, 36,   6, 0, L"turtle_egg_slightly_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 12, 36,   6, 0, L"turtle_egg_very_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 11, 36, 324, 0, L"turtle_egg_slightly_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 36, 324, 0, L"turtle_egg_very_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 36, 322, 0, L"conduit", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 36, 325, 0, L"dead_tube_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15, 36,   6, 0, L"dead_brain_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -688,7 +693,7 @@ static struct {
     {  6, 38,   6, 0, L"bell_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  7, 38,   6, 0, L"blast_furnace_top", L"", SWATCH_REPEAT_ALL },
     {  8, 38,   6, 0, L"blast_furnace_side", L"", SWATCH_REPEAT_ALL },
-    {  9, 38,   6, 0, L"blast_furnace_front", L"", SWATCH_REPEAT_ALL },
+    {  9, 38,   6, 0, L"blast_furnace_front", L"blast_furnace_front_off", SWATCH_REPEAT_ALL },
     { 10, 38,   6, 0, L"blast_furnace_front_on", L"", SWATCH_REPEAT_ALL },
     { 11, 38, 332, 0, L"composter_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 38,   6, 0, L"composter_side", L"", SWATCH_REPEAT_ALL },
@@ -697,8 +702,8 @@ static struct {
     { 15, 38,   6, 0, L"composter_ready", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 39, 339, 0, L"campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 39,   6, 0, L"campfire_log", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  2, 39,   6, 4, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
-    {  3, 39,   6, 0, L"cartography_table_top", L"cartography_top_bottom", SWATCH_REPEAT_ALL },
+    {  2, 39, 339, 4, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+    {  3, 39,   6, 0, L"cartography_table_top", L"cartography_top", SWATCH_REPEAT_ALL },
     {  4, 39,   6, 0, L"cartography_table_side1", L"cartography_sides", SWATCH_REPEAT_ALL },
     {  5, 39,   6, 0, L"cartography_table_side2", L"cartography_sides", SWATCH_REPEAT_ALL },
     {  6, 39,   6, 0, L"cartography_table_side3", L"cartography_sides", SWATCH_REPEAT_ALL },
@@ -754,11 +759,11 @@ static struct {
     {  8, 42,   6, 0, L"basalt_side", L"", SWATCH_REPEAT_ALL },
     {  9, 42,   6, 0, L"polished_basalt_top", L"", SWATCH_REPEAT_ALL },
     { 10, 42,   6, 0, L"polished_basalt_side", L"", SWATCH_REPEAT_ALL },
-    { 11, 42,   6, 0, L"soul_torch", L"soul_fire_torch", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // second name from an earlier beta
-    { 12, 42,   6, 0, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
-    { 13, 42,   6, 0, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
-    { 14, 42,   6, 0, L"soul_campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 42,   6, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+    { 11, 42, 362, 0, L"soul_torch", L"soul_fire_torch", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // second name from an earlier beta
+    { 12, 42,  51, 0, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
+    { 13, 42, 338, 0, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
+    { 14, 42, 339, 0, L"soul_campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 42, 339, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  0, 43,   6, 0, L"crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  1, 43,   6, 0, L"crimson_stem", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  2, 43,   6, 0, L"crimson_nylium", L"", SWATCH_REPEAT_ALL },
@@ -795,13 +800,13 @@ static struct {
     {  1, 45,   6, 0, L"ancient_debris_side", L"", SWATCH_REPEAT_ALL },
     {  2, 45, 344, 0, L"crying_obsidian", L"", SWATCH_REPEAT_ALL },
     {  3, 45, 345, 0, L"respawn_anchor_top", L"", SWATCH_REPEAT_ALL },
-    {  4, 45,   6, 0, L"respawn_anchor_top_off", L"", SWATCH_REPEAT_ALL },
-    {  5, 45,   6, 0, L"respawn_anchor_side0", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  6, 45,   6, 1, L"respawn_anchor_side1", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  7, 45,   6, 2, L"respawn_anchor_side2", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  8, 45,   6, 3, L"respawn_anchor_side3", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  9, 45,   6, 4, L"respawn_anchor_side4", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    { 10, 45,   6, 0, L"respawn_anchor_bottom", L"", SWATCH_REPEAT_ALL },
+    {  4, 45, 345, 0, L"respawn_anchor_top_off", L"", SWATCH_REPEAT_ALL },
+    {  5, 45, 345, 0, L"respawn_anchor_side0", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  6, 45, 345, 1, L"respawn_anchor_side1", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  7, 45, 345, 2, L"respawn_anchor_side2", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  8, 45, 345, 3, L"respawn_anchor_side3", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  9, 45, 345, 4, L"respawn_anchor_side4", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    { 10, 45, 345, 0, L"respawn_anchor_bottom", L"", SWATCH_REPEAT_ALL },
     { 11, 45,   6, 0, L"lodestone_top", L"", SWATCH_REPEAT_ALL },
     { 12, 45,   6, 0, L"lodestone_side", L"", SWATCH_REPEAT_ALL },
     { 13, 45,   6, 0, L"netherite_block", L"", SWATCH_REPEAT_ALL },
@@ -822,12 +827,12 @@ static struct {
     { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
     { 14, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
-    { 15, 46,   6, 0, L"MWO_flattened_soul_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
+    { 15, 46, 362, 0, L"MWO_flattened_soul_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
 };
 
 
 // tiles we know we don't use
-const TCHAR* gUnneeded[] = {
+const wchar_t* gUnneeded[] = {
     L"debug",
     L"debug2",
     L"destroy_stage_0",

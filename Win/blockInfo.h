@@ -92,8 +92,8 @@ extern bool gDebug;
 
 typedef struct MaterialCost {
     // lame on my part: we really shouldn't be using wide characters in the dialog TODO
-    wchar_t* wname;
-    char* name;
+    const wchar_t* wname;
+    const char* name;
     wchar_t* currency;
     // minimum recommended wall thickness in mm, though usually you want to go 50% or more above this
     // Minimum *supported* wall thickness in mm http://www.shapeways.com/tutorials/thin_walls_tutorial

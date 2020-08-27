@@ -224,8 +224,9 @@ int wmain(int argc, wchar_t* argv[])
     int alternate = 1;  // always include alternate names; needed for 1.13
     int solid = 0;
     int solidcutout = 0;
-	int buildnormals = 0;
-	int buildspecular = 0;
+	// someday...
+	//int buildnormals = 0;
+	//int buildspecular = 0;
 
     bool shulkerSide[16], shulkerBottom[16];
 
@@ -319,16 +320,16 @@ int wmain(int argc, wchar_t* argv[])
 			// solid cutout: as above, but preserve the cutout transparent areas
 			solidcutout = 1;
 		}
-		else if (wcscmp(argv[argLoc], L"-bn") == 0)
-		{
-			// build normal map version
-			buildnormals = 1;
-		}
-		else if (wcscmp(argv[argLoc], L"-bs") == 0)
-		{
-			// build normal map version
-			buildspecular = 1;
-		}
+		//else if (wcscmp(argv[argLoc], L"-bn") == 0)
+		//{
+		//	// build normal map version
+		//	buildnormals = 1;
+		//}
+		//else if (wcscmp(argv[argLoc], L"-bs") == 0)
+		//{
+		//	// build normal map version
+		//	buildspecular = 1;
+		//}
 		else if ( wcscmp(argv[argLoc],L"-v") == 0 )
         {
             // verbose: tell when normal things happen
@@ -351,8 +352,8 @@ int wmain(int argc, wchar_t* argv[])
             wprintf( L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
             wprintf( L"  -s - take the average color of the incoming tile and output this solid color.\n");
 			wprintf( L"  -S - as above, but preserve the cutout transparent areas.\n");
-			wprintf( L"  -bn - build normal map terrainExt_n.png using all *_n.png files as input.\n");
-			wprintf( L"  -bs - build specular map terrainExt_n.png using all *_s.png files as input.\n");
+			//wprintf( L"  -bn - build normal map terrainExt_n.png using all *_n.png files as input.\n");
+			//wprintf( L"  -bs - build specular map terrainExt_n.png using all *_s.png files as input.\n");
 			wprintf( L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 			return 1;
 		}

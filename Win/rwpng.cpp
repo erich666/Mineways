@@ -57,15 +57,15 @@ int readpng(progimage_info* im, wchar_t* filename)
     im->width = (int)width;
     im->height = (int)height;
 
-    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
+    //the pixels are now in the vector "image", for color+alpha these are 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
 
     return 0;
 }
 
-void readpng_cleanup(int mode, progimage_info* im)
+void readpng_cleanup(int mode, progimage_info *im)
 {
     // mode was important back when libpng was in use
-    if (mode == 1)
+    if ( mode == 1 )
     {
         im->image_data.clear();
     }
@@ -110,24 +110,29 @@ int readpngheader(progimage_info* im, wchar_t* filename)
 // from http://lodev.org/lodepng/example_encode.cpp
 
 //Encode from raw pixels to disk with a single function call
-//The image argument has width * height RGBA pixels or width * height * 4 bytes
+//The image argument has width * height RGBA pixels or width * height * channels
 // return 0 on success
-int writepng(progimage_info* im, int channels, wchar_t* filename)
+int writepng(progimage_info *im, int channels, wchar_t *filename)
 {
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
 
     //Encode the image, depending on type
     unsigned int error = 1;	// 1 means didn't reach lodepng
-    if (channels == 4)
+    if ( channels == 4 )
     {
         // 32 bit RGBA, the default
-        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA);
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGBA );
     }
-    else if (channels == 3)
+    else if ( channels == 3 )
     {
         // 24 bit RGB
-        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB);
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_RGB );
+    }
+    else if (channels == 1)
+    {
+        // 8 bit grayscale
+        error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_GREY);
     }
     else
     {
@@ -145,7 +150,7 @@ int writepng(progimage_info* im, int channels, wchar_t* filename)
 }
 
 
-void writepng_cleanup(progimage_info* im)
+void writepng_cleanup(progimage_info *im)
 {
     im->image_data.clear();
 }
