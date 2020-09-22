@@ -25,8 +25,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
 #pragma once
+
 // define #include <crtdbg.h> below and this line to test memory leaks, see https://msdn.microsoft.com/en-us/library/x98tx3cf.aspx
 //#define TEST_FOR_MEMORY_LEAKS
 #ifdef TEST_FOR_MEMORY_LEAKS
@@ -66,8 +66,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <tchar.h>
 #include <stdio.h>
 
-#define MINEWAYS_MAJOR_VERSION 7
-#define MINEWAYS_MINOR_VERSION 19
+#define MINEWAYS_MAJOR_VERSION 8
+#define MINEWAYS_MINOR_VERSION 00
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))

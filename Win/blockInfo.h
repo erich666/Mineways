@@ -26,9 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#ifndef __BLOCKINFO_H__
-#define __BLOCKINFO_H__
+#pragma once
 
 #include <stdlib.h>
 #include <string>
@@ -124,8 +122,6 @@ extern MaterialCost gMtlCostTable[];
 #define UNITS_CENTIMETER 1
 #define UNITS_MILLIMETER 2
 #define UNITS_INCHES 3
-
-int unitIndex; // initialize to UNITS_METER
 
 typedef struct UnitType {
     wchar_t* wname;
@@ -262,14 +258,15 @@ extern UnitType gUnitTypeTable[];
 // use this variant if you notice textures getting shaded different colors.
 #define FILE_TYPE_WAVEFRONT_ABS_OBJ 0
 #define FILE_TYPE_WAVEFRONT_REL_OBJ 1
-#define FILE_TYPE_BINARY_MAGICS_STL 2
-#define FILE_TYPE_BINARY_VISCAM_STL 3
-#define FILE_TYPE_ASCII_STL 4
-#define FILE_TYPE_VRML2 5
+#define FILE_TYPE_USD               2
+#define FILE_TYPE_BINARY_MAGICS_STL 3
+#define FILE_TYPE_BINARY_VISCAM_STL 4
+#define FILE_TYPE_ASCII_STL         5
+#define FILE_TYPE_VRML2             6
 // this is an entirely separate file type, only exportable through the schematic export option
-#define FILE_TYPE_SCHEMATIC 6
+#define FILE_TYPE_SCHEMATIC         7
 
-#define FILE_TYPE_TOTAL         7
+#define FILE_TYPE_TOTAL         8
 
 #ifdef SKETCHFAB
 // Sketchfab API field limits
@@ -297,7 +294,7 @@ typedef struct ExportFileData
 {
     // dialog file type last chosen in export dialog; this is used next time.
     // Note that this value is *not* valid during export itself; fileType is passed in.
-    int fileType;           // 0,1 - OBJ, 2,3 - Binary STL, 4 - ASCII STL, 5 - VRML2, 6 - Schematic
+    int fileType;           // 0,1 - OBJ, 2 - USD, 3,4 - Binary STL, 5 - ASCII STL, 6 - VRML2, 7 - Schematic
 
     // in reality, the character fields could be kept private, but whatever
     char minxString[EP_FIELD_LENGTH];
@@ -882,5 +879,3 @@ enum block_types {
     BLOCK_WEEPING_VINES = 363,
     BLOCK_CHAIN = 364,
 };
-
-#endif

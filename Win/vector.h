@@ -1,4 +1,5 @@
 /* From Graphics Gems series, http://graphicsgems.org - free to reuse, period. - Eric Haines */
+#pragma once
 
 /***********************************************************************
 *  The following macros handle most vector operations, the exceptions

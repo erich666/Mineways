@@ -26,8 +26,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#ifndef __NBT_H__
-#define __NBT_H__
+#pragma once
 
 #define ZLIB_WINAPI
 #include "zlib.h"
@@ -90,4 +89,3 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
 void nbtClose(bfFile* pbf);
 
-#endif

@@ -36,14 +36,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 //Decode from disk to raw pixels with a single function call
 // return 0 on success
-int readpng(progimage_info* im, wchar_t* filename)
+int readpng(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
 {
     //char filename[MAX_PATH];
     //dumb_wcharToChar(wfilename,filename);
 
     //decode
     unsigned int width, height;
-    unsigned int error = lodepng::decode(im->image_data, width, height, filename);
+    unsigned int error = lodepng::decode(im->image_data, width, height, filename, colortype);
 
     //if there's an error, display it
     if (error)

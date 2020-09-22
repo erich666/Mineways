@@ -3,9 +3,7 @@
 
 //#include "targetver.h"
 
-#ifndef TILES_H
-#define TILES_H
-
+#pragma once
 
 #define SBIT_REPEAT_SIDES       0x01
 #define SBIT_REPEAT_TOP_BOTTOM  0x02
@@ -65,8 +63,8 @@ static struct {
     int txrY;
     int typeForMtl;	// representative type, usually the first block to use this tile. Mostly needed for knowing about alpha for the tile, but also for emission; use crossCorrelate code in _DEBUG in Mineways to help build this column
     int dataValForMtl;  // the data value associated with the tile type. Needed just for sea pickles, campfires, and respawn anchors, to give the illumination level.
-    const TCHAR* filename;
-    const TCHAR* altFilename;   // new 1.13 name
+    const wchar_t* filename;
+    const wchar_t* altFilename;   // new 1.13 name
     int flags;
 
     // Mineways uses a few special tiles for input, and for output. Tiles starting "MW_" are ones that are not (easily) found in Minecraft
@@ -240,8 +238,8 @@ static struct {
     {  1, 10,   6, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,   6, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
     {  3, 10,   6, 0, L"powered_rail", L"rail_golden", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// vertical (runs north-south)
-    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// horizontal, rotated
+    {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south)
+    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// horizontal, rotated
     {  6, 10, 116, 0, L"enchanting_table_top", L"", SWATCH_REPEAT_ALL },
     {  7, 10, 122, 0, L"dragon_egg", L"", SWATCH_REPEAT_ALL },
     {  8, 10, 127, 0, L"cocoa_stage2", L"cocoa_stage_2", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -256,7 +254,7 @@ static struct {
     {  1, 11,   6, 0, L"blue_wool", L"wool_colored_blue", SWATCH_REPEAT_ALL },
     {  2, 11,   6, 0, L"light_blue_wool", L"wool_colored_light_blue", SWATCH_REPEAT_ALL },
     {  3, 11,  27, 0, L"powered_rail_on", L"rail_golden_powered", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 11,   6, 0, L"redstone_dust_dot", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  4, 11,   6, 0, L"redstone_dust_dot", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },
     {  5, 11,   6, 0, L"acacia_log", L"log_acacia", 0x0 },	// ADD-IN 1.7.2
     {  6, 11,   6, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11,   6, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
@@ -832,7 +830,7 @@ static struct {
 
 
 // tiles we know we don't use
-const wchar_t* gUnneeded[] = {
+static const wchar_t* gUnneeded[] = {
     L"debug",
     L"debug2",
     L"destroy_stage_0",
@@ -860,4 +858,3 @@ const wchar_t* gUnneeded[] = {
     L""
 };
 
-#endif

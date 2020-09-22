@@ -26,9 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#ifndef __CACHE_H__
-#define __CACHE_H__
+#pragma once
 
 #include "nbt.h"
 
@@ -83,5 +81,3 @@ void Cache_Empty();
 
 WorldBlock* block_alloc();           // allocate memory for a block
 void block_free(WorldBlock* block); // release memory for a block
-
-#endif

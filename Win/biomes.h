@@ -25,8 +25,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef __BIOMES_H__
-#define __BIOMES_H__
+#pragma once
 
 #include <stdlib.h>
 
@@ -56,5 +55,3 @@ typedef struct Biome {
 } Biome;
 
 extern Biome gBiomes[];
-
-#endif

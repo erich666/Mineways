@@ -1678,7 +1678,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gImportFile);
             ofn.lpstrFile = pathAndFile;
             ofn.nMaxFile = MAX_PATH_AND_FILE;
-            ofn.lpstrFilter = L"All files (*.obj;*.txt;*.wrl;*.mwscript)\0*.obj;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
+            ofn.lpstrFilter = L"All files (*.obj;*.usda;*.txt;*.wrl;*.mwscript)\0*.obj;*.usda;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
             ofn.nFilterIndex = gImportFilterIndex;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;
@@ -1772,8 +1772,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.hwndOwner = hWnd;
                 ofn.lpstrFile = gExportPath;
                 ofn.nMaxFile = MAX_PATH_AND_FILE;
-                ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-                    L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+                ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+                    L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
                 ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
                 ofn.lpstrFileTitle = NULL;
                 ofn.nMaxFileTitle = 0;
@@ -3337,6 +3337,9 @@ static void copyOverExportPrintData(ExportFileData* pEFD)
         count = 2;
         service = 1;
         break;
+    case FILE_TYPE_USD:
+        // just ignore, we don't really use USD with print anyway
+        break;
     case FILE_TYPE_VRML2:
         dest[0] = FILE_TYPE_WAVEFRONT_ABS_OBJ;
         dest[1] = FILE_TYPE_WAVEFRONT_REL_OBJ;
@@ -3869,7 +3872,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES;
         }
         // we set tile export options last, as these override some of those above, and can be turned off by others.
-        else if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
+        if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
         {
             // Tile export must have these
             gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES;
@@ -3880,6 +3883,35 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 //EXPT_OUTPUT_OBJ_SEPARATE_TYPES |
                 // we also need this one, to make sure different materials within a block get tracked
                 //EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
+            ;
+        }
+    }
+
+    // set USD
+    else if (gpEFD->fileType == FILE_TYPE_USD)
+    {
+        // TODOUSD - this will evolve as I understand USD better
+        if (gpEFD->chkIndividualBlocks)
+        {
+            // these must be on for individual block export, plus grouping by block (separate material for each block)
+            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
+            if (gpEFD->chkMaterialPerFamily == 1)
+            {
+                gOptions.exportFlags |= EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
+            }
+        }
+        // we set tile export options last, as these override some of those above, and can be turned off by others.
+        if (gpEFD->radioExportTileTextures[gpEFD->fileType] == 1)
+        {
+            // Tile export must have these
+            gOptions.exportFlags |= EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES;
+            // Old requirements - handy for toggling and testing:
+            // we must export a material per block (a single material is impossible)
+            //EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK |
+            // for tiles we also need to track the material changes within a block family or type
+            //EXPT_OUTPUT_OBJ_SEPARATE_TYPES |
+            // we also need this one, to make sure different materials within a block get tracked
+            //EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
             ;
         }
     }
@@ -4171,14 +4203,15 @@ static const wchar_t* removePath(const wchar_t* src)
     return strPtr;
 }
 
-#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5,v6)    \
+#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5,v6,v7)    \
     (a)[FILE_TYPE_WAVEFRONT_REL_OBJ] = (v0);    \
     (a)[FILE_TYPE_WAVEFRONT_ABS_OBJ] = (v1);    \
-    (a)[FILE_TYPE_BINARY_MAGICS_STL] = (v2);    \
-    (a)[FILE_TYPE_BINARY_VISCAM_STL] = (v3);    \
-    (a)[FILE_TYPE_ASCII_STL] = (v4);    \
-    (a)[FILE_TYPE_VRML2] = (v5);	\
-    (a)[FILE_TYPE_SCHEMATIC] = (v6);
+    (a)[FILE_TYPE_USD] = (v2);    \
+    (a)[FILE_TYPE_BINARY_MAGICS_STL] = (v3);    \
+    (a)[FILE_TYPE_BINARY_VISCAM_STL] = (v4);    \
+    (a)[FILE_TYPE_ASCII_STL] = (v5);    \
+    (a)[FILE_TYPE_VRML2] = (v6);	\
+    (a)[FILE_TYPE_SCHEMATIC] = (v7);
 
 static void initializeExportDialogData()
 {
@@ -4196,22 +4229,22 @@ static void initializePrintExportData(ExportFileData& printData)
     // turn stuff on
     printData.fileType = FILE_TYPE_VRML2;
 
-    INIT_ALL_FILE_TYPES(printData.chkCreateZip, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkCreateZip,            1, 1, 1, 0, 0, 0, 1, 0);
     // I used to set the last value to 0, meaning only the zip would be created. The idea
     // was that the naive user would then only have the zip, and so couldn't screw up
     // when uploading the model file. But this setting is a pain if you want to preview
     // the model file, you have to always remember to check the box so you can get the
     // preview files. So, now it's off.
-    INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles, 1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
 
     // OBJ and VRML have color, depending...
     // order: Sculpteo OBJ, relative OBJ, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML
-    INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials, 0, 0, 0, 0, 1, 0, 1);
+    INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
     // might as well export color with OBJ and binary STL - nice for previewing
-    INIT_ALL_FILE_TYPES(printData.radioExportMtlColors, 0, 0, 1, 1, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);
 
     strcpy_s(printData.tileDirString, MAX_PATH, "");
 
@@ -4223,7 +4256,7 @@ static void initializePrintExportData(ExportFileData& printData)
     // Shapeways imports VRML files and displays them with Y up, that is, it
     // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
     // STL uses Z is up, even though i.materialise's previewer shows Y is up.
-    INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 1, 0, 0);
     printData.chkCenterModel = 1;
     printData.chkExportAll = 0;
     printData.chkFatten = 0;
@@ -4237,6 +4270,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.radioScaleByBlock = 1;
     printData.modelHeightVal = 5.0f;    // 5 cm target height
     INIT_ALL_FILE_TYPES(printData.blockSizeVal,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
@@ -4269,9 +4303,10 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkG3DMaterial = 0;
 
     printData.floaterCountVal = 16;
-    INIT_ALL_FILE_TYPES(printData.chkHollow, 1, 1, 0, 0, 0, 1, 0);
-    INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 1, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES(printData.hollowThicknessVal,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
@@ -4281,9 +4316,9 @@ static void initializePrintExportData(ExportFileData& printData)
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
 
     // materials selected
-    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
+    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
     printData.flags = EXPT_3DPRINT;
 }
@@ -4298,14 +4333,14 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 
     // don't really need to create a zip for rendering output
-    INIT_ALL_FILE_TYPES(viewData.chkCreateZip, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.chkCreateModelFiles, 1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES(viewData.chkCreateZip,            0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
 
-    INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials, 0, 0, 0, 0, 1, 0, 1);
-    INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors, 0, 0, 1, 1, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture, 1, 1, 0, 0, 0, 1, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
+    INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 1, 0);
 
     strcpy_s(viewData.tileDirString, MAX_PATH, "textures");
 
@@ -4315,11 +4350,12 @@ static void initializeViewExportData(ExportFileData& viewData)
 
     viewData.chkExportAll = 1;
     // for renderers, assume Y is up, which is the norm
-    INIT_ALL_FILE_TYPES(viewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0, 0);
 
     viewData.modelHeightVal = 100.0f;    // 100 cm - view doesn't need a minimum, really
     INIT_ALL_FILE_TYPES(viewData.blockSizeVal,
         1000.0f,	// 1 meter
+        1000.0f,
         1000.0f,
         1000.0f,
         1000.0f,
@@ -4335,8 +4371,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkConnectCornerTips = 0;
     viewData.chkConnectAllEdges = 0;
     viewData.chkDeleteFloaters = 0;
-    INIT_ALL_FILE_TYPES(viewData.chkHollow, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.chkSuperHollow, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkHollow,      0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkSuperHollow, 0, 0, 0, 0, 0, 0, 0, 0);
     // G3D material off by default for rendering
     viewData.chkMakeGroupsObjects = 0;
     viewData.chkSeparateTypes = 1;
@@ -4350,9 +4386,9 @@ static void initializeViewExportData(ExportFileData& viewData)
 
     viewData.floaterCountVal = 16;
     // irrelevant for viewing
-    INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
-    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
-    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER);
+    INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
+    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_METER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
     //gExportSchematicData.chkDeleteFloaters = 1;
@@ -4399,7 +4435,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-// importFile is a script file, but can also be an .obj or .wrl file treated as one
+// importFile is a script file, but can also be an .obj, .usda, or .wrl file treated as one, as well as the .txt statistics files from STL exports
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess)
 {
     ImportedSet is;
@@ -4559,8 +4595,10 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     fclose(fh);
 
     //  Is it in export file format?
+    // TODOUSD - need to figure out how comments are added to USDA/USD and fold in here.
     bool exported = false;
     if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
+        (strstr(lineString, "#usda 1.0") != NULL) ||
         (strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
         (strstr(lineString, "# Minecraft world:") != NULL) ||
         (strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
@@ -5259,6 +5297,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
         {
             is.pEFD->fileType = FILE_TYPE_WAVEFRONT_REL_OBJ;
         }
+        else if (strstr(strPtr, "USD 1.0")) // just USDA for now
+        {
+            is.pEFD->fileType = FILE_TYPE_USD;
+        }
         else if (strstr(strPtr, "Binary STL iMaterialise"))
         {
             is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
@@ -5288,17 +5330,21 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 {
                     is.pEFD->fileType = FILE_TYPE_BINARY_MAGICS_STL;
                 }
+                else if (wcsstr(is.importFile, L".usda"))
+                {
+                    is.pEFD->fileType = FILE_TYPE_USD;
+                }
                 else if (wcsstr(is.importFile, L".wrl"))
                 {
                     is.pEFD->fileType = FILE_TYPE_VRML2;
                 }
                 else {
-                    saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is being read.", strPtr);
+                    saveErrorMessage(is, L"could not determine what type of model file (OBJ, USD, VRML, STL) is being read.", strPtr);
                     return INTERPRETER_FOUND_ERROR;
                 }
             }
             else {
-                saveErrorMessage(is, L"could not determine what type of model file (OBJ, VRML, STL) is desired.", strPtr);
+                saveErrorMessage(is, L"could not determine what type of model file (OBJ, USD, VRML, STL) is desired.", strPtr);
                 return INTERPRETER_FOUND_ERROR;
             }
         }

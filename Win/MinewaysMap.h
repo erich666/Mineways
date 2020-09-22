@@ -26,9 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#ifndef __MINEWAYS_MAP_H__
-#define __MINEWAYS_MAP_H__
+#pragma once
 
 #include "tiles.h"
 #include "blockInfo.h"
@@ -100,6 +98,3 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int* palette, int num);
-
-
-#endif

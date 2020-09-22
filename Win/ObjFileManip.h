@@ -25,15 +25,17 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#ifndef __OBJ_FILE_H__
-#define __OBJ_FILE_H__
+#pragma once
 
 #ifndef WIN32
 #define __declspec(a)
 #define dllexport 0
 #define __cdecl
 #endif
+
+#include "vector.h"
+#include "blockinfo.h"
+#include "rwpng.h"
 
 // If you change something here, you must also change gPopupInfo array in Mineways.cpp
 #define MW_NO_ERROR 0
@@ -102,6 +104,159 @@ typedef struct ChangeBlockCommand {
 } ChangeBlockCommand;
 
 
+#define TOTAL_CATEGORIES	5
+#define	CATEGORY_RGBA		0
+#define	CATEGORY_NORMALS	1
+#define	CATEGORY_METALLIC	2
+#define	CATEGORY_EMISSION	3
+#define	CATEGORY_ROUGHNESS	4
+
+static int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1 };
+static LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY };
+static wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_m", L"_e", L"_r" };
+// OBJ output is assumed to be in non-wide characters - TODO I wonder if that's required by other programs?
+static char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "_r" };
+
+// We store a set of normals that get reused: 
+// 26 predefined, plus 30 known to be needed for 196 blocks, plus another 400 for water and lava and just in case.
+// Extra normals are from torches, levers, brewing stands, and sunflowers
+#define NORMAL_LIST_SIZE (26+30+400)
+// the UVs appears in the range [0-16],[0-16] within the 16x16 tiles.
+#define NUM_UV_GRID_RESOLUTION	16
+
+typedef struct UVRecord
+{
+    float u;
+    float v;
+    int index;
+} UVRecord;
+
+typedef struct UVList
+{
+    int size;
+    int count;
+    UVRecord* records;
+} UVList;
+
+typedef struct UVOutput
+{
+    float uc;
+    float vc;
+    int swatchLoc;	// where this record is stored, for purposes of outputting comments and sorting
+} UVOutput;
+
+
+typedef struct FaceRecord {
+    int faceIndex;	// tie breaker, so that faces get near each other in location
+    int vertexIndex[4];
+    short materialType;	// block id; note we use negatives for some things
+    unsigned short materialDataVal;	// extended data value, identifying unique block materials
+    short normalIndex;    // always the same! normals all the same for the face - shared, so need only around 335
+    short uvIndex[4];	// around 3800 unique values, since we use sharing.
+} FaceRecord;
+
+#define FACE_RECORD_POOL_SIZE 10000
+
+typedef struct FaceRecordPool {
+    FaceRecord fr[FACE_RECORD_POOL_SIZE];
+    struct FaceRecordPool* pPrev;
+    int count;
+} FaceRecordPool;
+
+
+typedef struct SwatchComposite {
+    int swatchLoc;
+    int backgroundSwatchLoc;
+    int angle;
+    int compositeSwatchLoc;
+    struct SwatchComposite* next;
+} SwatchComposite;
+
+
+typedef struct Model {
+    float scale;    // size of a block, in meters
+    Point center;
+
+    // the standard normals, already rotated into position.
+    // first six are the block directions
+    // next four are for diagonal billboards
+    // next eight are for angled tracks
+    // next eight are for the angled signs and banners. Whew.
+    Vector normals[NORMAL_LIST_SIZE];
+    int normalListCount;
+
+    Point* vertices;    // vertices to be output, in a given order
+    // a little indirect: there is one of these for every grid *corner* location.
+    // The index is therefore a block location, possibly +1 in X, Y, and Z
+    // (use gFaceToVertexOffset[face][corner 0-3] to get these offsets)
+    // What is returned is the index into the vertices[] array itself, where to
+    // find the vertex information.
+    int* vertexIndices;
+    int vertexCount;    // lowest unused vertex index;
+    int vertexListSize;
+
+    // One for each SwatchLoc - each UVList potentially contains a list of UVs associated with this particular swatch.
+    // During output of the 
+    UVList uvSwatches[NUM_MAX_SWATCHES];
+    int uvIndexCount;
+    // points into uv Records actually stored at the swatch locations
+    UVOutput* uvIndexList;
+    // a 17 x 17 grid of all the possible UV locations in a tile
+    int uvGridListCount;	// number of locations used in uvGridList
+    int uvGridList[(NUM_UV_GRID_RESOLUTION + 1) * (NUM_UV_GRID_RESOLUTION + 1)];
+    int uvIndexListSize;
+    // For each swatchLoc there is some type (often more than one, but we save just the last one).
+    // This lets us export the type as a comment.
+    int uvSwatchToType[NUM_MAX_SWATCHES];
+
+    int billboardCount;
+    IBox billboardBounds;
+
+    FaceRecord** faceList;
+    int faceCount;
+    int faceSize;
+    int triangleCount;	// the number of true triangles output - currently just sloped rail sides
+
+    // The absolute maximum number of materials possible. It's actually much smaller than this, as data values
+    // do not usually generate sub-materials, but we're playing it safe.
+#define NUM_SUBMATERIALS	2000
+    unsigned int mtlList[NUM_SUBMATERIALS];
+    bool tileList[TOTAL_CATEGORIES][TOTAL_TILES];
+    int tileListCount; // number of tiles actually used in tileList
+    int mtlCount;
+
+    progimage_info* pInputTerrainImage[TOTAL_CATEGORIES];
+    bool terrainImageNotFound;
+
+    int textureResolution;  // size of output texture
+    float invTextureResolution; // inverse, commonly used
+    int terrainWidth;   // width of input image (needed for noisy textures, when an image is not actually read in)
+    int tileSize;    // number of pixels in a tile, e.g. 16
+    int verticalTiles;	// number of rows of tiles, e.g. a 16x19 set of tiles gives 19
+    int swatchSize;  // number of pixels in a swatch, e.g. 18
+    int swatchesPerRow;  // a swatch is a tile with a +1 border (or SWATCH_BORDER) around it
+    float textureUVPerSwatch; // how much a swatch spans in UV space
+    float textureUVPerTile; // how much the interior tile spans in UV space
+    int swatchCount;        // total number of swatches generated
+    int swatchListSize;         // the absolute maximum number of swatches available
+    SwatchComposite* swatchCompositeList;   // additional swatches of combinations of two types
+    SwatchComposite* swatchCompositeListEnd;   // last one on list
+    progimage_info* pPNGtexture;
+    int usesRGB;    // 1 if the RGB (only) texture is used and so should be output
+    int usesRGBA;   // 1 if the RGBA texture is used
+    int usesAlpha;   // 1 if the Alpha-only texture is used
+    FaceRecordPool* faceRecordPool;
+    bool alreadyAskedForComposite;
+    int mcVersion;	// 12 for 1.12.2 and earlier, 13 for 1.13 and later
+
+    Options* options;
+    int exportTexture;
+    int exportTiles;
+} Model;
+
+extern Model gModel;
+
+
 // translate the world version from https://minecraft.gamepedia.com/Data_version to a version number: 12, 13, 14
 #define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) <= 1343 ? 12 : ((worldVersion) <= 1631) ? 13 : 14)
 
@@ -118,6 +273,8 @@ void WcharToChar(const wchar_t* inWString, char* outString, int maxlength);
 void StripLastString(const wchar_t* src, wchar_t* path, wchar_t* piece);
 void EnsureSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix);
 
+bool IsASubblock(int type, int dataVal);
+
 //
 //
 //#ifdef __cplusplus
@@ -132,5 +289,3 @@ void EnsureSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix);
 //#ifdef __cplusplus
 //}
 //#endif
-
-#endif

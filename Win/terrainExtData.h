@@ -1,8 +1,6 @@
-#ifndef __TERRAINEXTDATA_H__
-#define __TERRAINEXTDATA_H__
+#pragma once
 
 extern int gTerrainExtWidth;
 extern int gTerrainExtHeight;
 extern unsigned char gTerrainExt[770048];
 
-#endif

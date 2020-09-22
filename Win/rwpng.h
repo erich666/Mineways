@@ -25,8 +25,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef RWPNG_H
-#define RWPNG_H
+#pragma once
 
 #include "lodepng.h"
 
@@ -36,11 +35,8 @@ typedef struct _progimage_info {
     int height;
 } progimage_info;
 
-int readpng(progimage_info* mainprog_ptr, wchar_t* filename);
-// currently unused: int readpngheader(progimage_info* im, wchar_t* filename);
+int readpng(progimage_info *mainprog_ptr, wchar_t *filename, LodePNGColorType colortype /*= LCT_RGBA*/);
 void readpng_cleanup(int free_image_data, progimage_info *mainprog_ptr);
 
 int writepng(progimage_info *mainprog_ptr, int channels, wchar_t *filename);
 void writepng_cleanup(progimage_info *mainprog_ptr);
-
-#endif

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <curl/include/curl.h>
 #include <picojson/picojson.h>
 #include "stdafx.h"
