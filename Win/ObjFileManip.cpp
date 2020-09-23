@@ -55,6 +55,10 @@ static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
 static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
 
+#ifdef WIN32
+DWORD br;
+#endif
+
 #define MINECRAFT_SINGLE_MATERIAL "MC_material"
 
 #define NO_GROUP_SET 0
@@ -738,10 +742,6 @@ void ClearCache()
 int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax,
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC)
 {
-    //#ifdef WIN32
-    //    DWORD br;
-    //#endif
-
     // * Read the texture for the materials.
     // * populateBox:
     //  ** Read through the chunks once, only the data within the box specified. Keep track of the "solid box", the bounds where objects actually exist.
@@ -1693,9 +1693,6 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     static bool outputPNG = false;
     if (outputPNG && category == CATEGORY_RGBA)
     {
-#ifdef WIN32
-        DWORD br;
-#endif
         int size = 4 * pITI->width * pITI->height;
 
         wchar_t codeFileNameWithSuffix[MAX_PATH_AND_FILE];
@@ -11841,7 +11838,7 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
         *seedSize += 6;
         *seedSize = (int)(*seedSize * 1.4 + 1);
         seeds = (IPoint*)malloc(*seedSize * sizeof(IPoint));
-        memcpy(seeds, (*pSeedStack), *seedCount * sizeof(IPoint));
+        memcpy((void*)seeds, (*pSeedStack), *seedCount * sizeof(IPoint));
         free((*pSeedStack));
         (*pSeedStack) = seeds;
     }
@@ -12075,7 +12072,7 @@ static void checkAndRemoveBubbles()
         if (!gGroupList[i].solid)
         {
             // a bubble is found, so merge it, along with all solid groups that border it, into one solid group.
-            memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
+            memset((void*)neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
 
             // the first group should always be the outside air group, the second should be solid. Just in case,
             // see if this assumption is wrong. Really, we could probably change i = 2 as the starting condition.
@@ -12532,7 +12529,7 @@ static int fixTouchingEdges()
 
     // big allocation, not much to be done about it.
     gTouchGrid = (TouchCell*)malloc(gBoxSizeXYZ * sizeof(TouchCell));
-    memset(gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
+    memset((void*)gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
 
     gTouchSize = 0;
 
@@ -13283,7 +13280,7 @@ static void deleteFloatingGroups()
             {
                 assert(i == pGroup->groupID);
                 neighborGroups = (int*)malloc((gGroupCount + 1) * sizeof(int));
-                memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
+                memset((void*)neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
                 neighborGroups[i] = 1;
                 gStats.blocksFloaterDeleted += pGroup->population;
                 fillGroups(&(pGroup->bounds), SURROUND_AIR_GROUP, false, BLOCK_AIR, neighborGroups);
@@ -13771,7 +13768,7 @@ static void hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, i
                 *seedSize += 6;
                 *seedSize = (int)(*seedSize * 1.4 + 1);
                 seeds = (IPoint*)malloc(*seedSize * sizeof(IPoint));
-                memcpy(seeds, (*pSeedList), *seedCount * sizeof(IPoint));
+                memcpy((void*)seeds, (*pSeedList), *seedCount * sizeof(IPoint));
                 free((*pSeedList));
                 (*pSeedList) = seeds;
             }
@@ -18830,7 +18827,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
             UVRecord* records;
             int newSize = gModel.uvSwatches[swatchLoc].size * 3;	// I forget why I triple it - I think it's "floodgates are open, we need a lot more"
             records = (UVRecord*)malloc(newSize * sizeof(UVRecord));    // TODOTODO - should use realloc here and elsewhere
-            memcpy(records, gModel.uvSwatches[swatchLoc].records, count * sizeof(UVRecord));
+            memcpy((void*)records, gModel.uvSwatches[swatchLoc].records, count * sizeof(UVRecord));
             free(gModel.uvSwatches[swatchLoc].records);
             gModel.uvSwatches[swatchLoc].records = records;
             gModel.uvSwatches[swatchLoc].size = newSize;
@@ -18851,7 +18848,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
         UVOutput* output;
         int newSize = (int)(gModel.uvIndexListSize * 1.4 + 1);
         output = (UVOutput*)malloc(newSize * sizeof(UVOutput));
-        memcpy(output, gModel.uvIndexList, gModel.uvIndexCount * sizeof(UVOutput));
+        memcpy((void*)output, gModel.uvIndexList, gModel.uvIndexCount * sizeof(UVOutput));
         free(gModel.uvIndexList);
         gModel.uvIndexList = output;
         gModel.uvIndexListSize = newSize;
@@ -19289,9 +19286,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // set to 1 if you want absolute (positive) indices used in the faces
     int absoluteIndices = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_REL_COORDINATES) ? 0 : 1;
 
-#ifdef WIN32
-    DWORD br;
-#endif
     wchar_t objFileNameWithSuffix[MAX_PATH_AND_FILE];
 
     char outputString[MAX_PATH_AND_FILE];
@@ -19852,9 +19846,6 @@ Exit:
 
 static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
     char outputString[1024];
 
     // we go a bit nuts with the precision here, not sure it helps, but can't hurt; used to use just "%g"
@@ -19888,10 +19879,6 @@ static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
 
 static int writeOBJMtlFile()
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     wchar_t mtlFileName[MAX_PATH_AND_FILE];
     char outputString[2048];
 
@@ -20069,10 +20056,6 @@ static int writeOBJMtlFile()
 
 static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char* textureRGB, char* textureRGBA, char* textureAlpha, char *textureRoot, int swatchLoc)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     char outputString[2048];
     char tfString[256];
     char mapdString[256];
@@ -21135,10 +21118,6 @@ static int createBaseMaterialTexture()
 
 static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     char worldNameUnderlined[MAX_PATH_AND_FILE];
 
@@ -21296,10 +21275,6 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
 
 static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     char worldNameUnderlined[MAX_PATH_AND_FILE];
     wchar_t statsFileName[MAX_PATH_AND_FILE];
@@ -21424,10 +21399,6 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 //===============================================================================================
 static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     wchar_t wrlFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char* justWorldFileName;
     char justTextureFileName[MAX_PATH_AND_FILE];	// without path
@@ -21709,10 +21680,6 @@ Exit:
 // if type is GENERIC_MATERIAL, set the generic. If textureOutputString is set, output texture.
 static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, char* textureOutputString)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     char outputString[1024];
     char tfString[256];
     char keString[256];
@@ -21832,9 +21799,6 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
 
 static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
     char outputString[1024];
 
     if (addComment)
@@ -21866,8 +21830,9 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
 
 
 //===============================================================================================
-// TODOUSD
 
+//#define PLAN_A
+#ifdef PLAN_A
 // Globals for Omniverse Connection and base Stage
 
 extern int openUSDFile(const std::string& destinationPath);
@@ -21881,8 +21846,6 @@ extern int closeUSDFile();
 
 static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
 {
-//#define PLAN_A
-#ifdef PLAN_A
     wchar_t fileNameWithSuffix[MAX_PATH_AND_FILE];
     char usdFileNameWithSuffix[MAX_PATH_AND_FILE];
     char worldNameUnderlined[MAX_PATH_AND_FILE];
@@ -21933,12 +21896,435 @@ Exit:
         // TODOUSD failed to quit
     }
 #else
+static int openUSDFile(wchar_t* destination);
+static int writeCommentUSD(char* commentString);
+static int finishCommentsUSD();
+static int createCameraUSD();
+static int createMaterialsUSD();
+static int createMeshesUSD();
+static boolean allocOutData(int nverts, int nfaces);
+static void freeOutData();
+static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
+static int createLightingUSD();
+static int closeUSDFile();
 
+typedef struct OutDataArrays
+{
+    int     nverts;
+    Point*  points;
+    Point*  normals;
+    Point2* uvs;
+    int*    indices;
+    int     nfaces;
+    int*    faceVertexCounts;
+} OutDataArrays;
+
+OutDataArrays   gOutData;
+
+static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand * pCBC)
+{
     // Write the file in a simple way.
-#ifdef WIN32
-    DWORD br;
+    wchar_t fileNameWithSuffix[MAX_PATH_AND_FILE];
+    char worldNameUnderlined[MAX_PATH_AND_FILE];
+    int retCode = MW_NO_ERROR;
+    char outputString[256];
+
+    concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
+
+    if (retCode |= openUSDFile(fileNameWithSuffix)) {
+        // TODOUSD cannot open file
+        goto Exit;
+    }
+
+    // write comments for Import Settings and write globals
+    sprintf_s(outputString, 256, "\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
+    if (retCode |= writeCommentUSD(outputString)) {
+        // failed to write
+        goto Exit;
+    }
+    retCode |= writeStatistics(gModelFile, writeCommentUSD, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
+    if (retCode >= MW_BEGIN_ERRORS) {
+        goto Exit;
+    }
+    if (retCode |= finishCommentsUSD()) {
+        // failed to write
+        goto Exit;
+    }
+
+    // export a reasonable camera
+    //if (createCameraUSD()) {
+    //}
+
+    // export the materials
+    if (retCode |= createMaterialsUSD()) {
+        // failed to write
+        goto Exit;
+    }
+
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    if (strlen(worldNameUnderlined)) {
+        sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
+    }
+    else {
+        sprintf_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
+    }
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    if (retCode |= createMeshesUSD()) {
+        goto Exit;
+    }
+
+    if (retCode |= createLightingUSD()) {
+        goto Exit;
+    }
+
+    // close braces for Xform
+    sprintf_s(outputString, 256, "}\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+Exit:
+    if (retCode |= closeUSDFile()) {
+        // TODOUSD failed to quit
+    }
+    return retCode;
+}
+
+static int openUSDFile(wchar_t* destination)
+{
+    char outputString[256];
+    gModelFile = PortaCreate(destination);
+    addOutputFilenameToList(destination);
+    if (gModelFile == INVALID_HANDLE_VALUE)
+        return MW_CANNOT_CREATE_FILE;
+
+    sprintf_s(outputString, 256, "#usda 1.0\n(\n    \"\"\"");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    return 0;
+}
+
+static int writeCommentUSD(char* commentString)
+{
+    char outputString[256];
+
+    // if comment string has any "\", turn them into "\\"
+    if (strchr(commentString, '\\') ) {
+        char* curIn = commentString;
+        char* curOut = outputString;
+        do {
+            if (*curIn == '\\') {
+                *curOut++ = '\\';
+            }
+            *curOut++ = *curIn++;
+        } while (*curIn);
+        *curOut = (char)0;
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    }
+    else {
+        WERROR_MODEL(PortaWrite(gModelFile, commentString, strlen(commentString)));
+    }
+
+    return 0;
+}
+
+static int finishCommentsUSD()
+{
+    char outputString[256];
+    sprintf_s(outputString, 256, "\"\"\"\n    metersPerUnit = 1\n    upAxis = \"Y\"\n)\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    return 0;
+}
+
+//static int createCameraUSD()
+//{
+//    return 0;
+//}
+static int createMaterialsUSD()
+{
+    /* TODOUSD */
+    return 0;
+}
+
+// Multiplatform array size
+#define HW_ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
+
+static int createMeshesUSD()
+{
+    char outputString[256];
+
+    char mtlName[MAX_PATH_AND_FILE];
+    int i, j;
+
+    int startRun = 0;
+    int nextStart = 0;
+    int numVerts;
+
+    float resScale = 16.0f / gModel.tileSize;
+
+    gOutData.nverts = gOutData.nfaces = 0;
+
+    while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
+        // Go through data and make arrays
+
+        // Create the geometry inside of "Root" (actually, whatever the user-defined name is)
+
+        // Add all of the vertices
+        // TODO: right now we do nothing to compress the number of duplicate points, where the location, normal, and UVs are all the same.
+        // That said, I don't think there are a lot of these, if any, given that the UVs always go from 0 to 1, not 0 to 1, 1 to 2, etc.
+        // and everything has UVs.
+        int numFaces = nextStart - startRun;
+        allocOutData(numVerts, numFaces);
+
+        int iv = 0;
+        for (i = 0; i < nextStart - startRun; i++)
+        {
+            FaceRecord* pFace = gModel.faceList[startRun+i];
+            int nvf = (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
+
+            gOutData.faceVertexCounts[i] = nvf;
+
+            for (j = 0; j < nvf; j++)
+            {
+                gOutData.indices[iv] = iv;
+
+                Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+                Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
+
+                // if output per tile, then we use the UV values to find the index to the new index in the grid
+                float uc, vc;
+                if (gModel.exportTiles) {
+                    uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) / (float)NUM_UV_GRID_RESOLUTION;
+                    vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale)) / (float)NUM_UV_GRID_RESOLUTION;
+                }
+                else {
+                    int vt = pFace->uvIndex[j];
+                    uc = gModel.uvIndexList[vt].uc;
+                    vc = gModel.uvIndexList[vt].vc;
+                }
+                Vec2Scalar(gOutData.uvs[iv], =, uc, vc);
+
+                iv++;
+            }
+        }
+
+        // output mesh's arrays
+        sprintf_s(outputString, 256, "    def Mesh \"%s\"\n    {\n", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        sprintf_s(outputString, 256, "        int[] faceVertexCounts = [");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        for (i = 0; i < numFaces; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        sprintf_s(outputString, 256, "        int[] faceVertexIndices = [");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        sprintf_s(outputString, 256, "        normal3f[] normals = [");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        sprintf_s(outputString, 256, "        point3f[] points = [");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        sprintf_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        sprintf_s(outputString, 256, "    }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+
+        // go to next group
+        startRun = nextStart;
+    }
+
+    freeOutData();
+
+    return 0;
+}
+
+// TODO: we return false when out of memory, but don't do anything about it (really, a problem throughout the code...)
+static boolean allocOutData(int nverts, int nfaces)
+{
+    if (gOutData.nverts < nverts) {
+        if (gOutData.nverts > 0) {
+            free(gOutData.points);
+            free(gOutData.normals);
+            free(gOutData.uvs);
+            free(gOutData.indices);
+            gOutData.points = NULL;
+            gOutData.normals = NULL;
+            gOutData.uvs = NULL;
+            gOutData.indices = NULL;
+        }
+        gOutData.nverts = 2 * nverts + 100;
+        gOutData.points = (Point*)malloc(gOutData.nverts * sizeof(Point));
+        gOutData.normals = (Point*)malloc(gOutData.nverts * sizeof(Point));
+        gOutData.uvs = (Point2*)malloc(gOutData.nverts * sizeof(Point2));
+        gOutData.indices = (int*)malloc(gOutData.nverts * sizeof(int));
+    }
+    if (gOutData.nfaces < nfaces) {
+        if (gOutData.nfaces > 0) {
+            free(gOutData.faceVertexCounts);
+            gOutData.faceVertexCounts = NULL;
+        }
+        gOutData.nfaces = 2 * nfaces + 100;
+        gOutData.faceVertexCounts = (int*)malloc(gOutData.nfaces * sizeof(int));
+    }
+    return ((gOutData.points != NULL) &&
+        (gOutData.normals != NULL) &&
+        (gOutData.uvs != NULL) &&
+        (gOutData.indices != NULL) &&
+        (gOutData.faceVertexCounts != NULL));
+}
+
+static void freeOutData()
+{
+    if (gOutData.nverts > 0) {
+        free(gOutData.points);
+        free(gOutData.normals);
+        free(gOutData.uvs);
+        free(gOutData.indices);
+        gOutData.points = NULL;
+        gOutData.normals = NULL;
+        gOutData.uvs = NULL;
+        gOutData.indices = NULL;
+    }
+    gOutData.nverts = 0;
+    if (gOutData.nfaces > 0) {
+        free(gOutData.faceVertexCounts);
+        gOutData.faceVertexCounts = NULL;
+    }
+    gOutData.nfaces = 0;
+}
+
+static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts)
+{
+    numVerts = 0;
+    nextStart = startRun;
+    if (startRun >= gModel.faceCount)
+        return false;
+
+    // Output each mesh, grouped by material
+    int exportMaterials = gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS;
+    bool subtypeGroup = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+    // for whether to search for a material change (but not necessarily make a group)
+    bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
+
+    // Initialize material
+    int prevType = gModel.faceList[startRun]->materialType;
+    int prevDataVal = gModel.faceList[startRun]->materialDataVal;
+    int prevSwatchLoc = gModel.uvIndexList[gModel.faceList[startRun]->uvIndex[0]].swatchLoc;
+    // New ID encountered, so output it: material name, and group.
+    // Group isn't really required, but can be useful.
+    // Output group only if we're not already using it for individual blocks.
+    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+
+    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+        // use subtype name or add a dataval suffix.
+        // If possible, turn these data values into the actual sub-material type names.
+        const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
+        if (strcmp(subName, mtlName) == 0) {
+            // No unique subname found for this data value, so use the data value.
+            // Shouldn't ever hit here, actually; all things should be named by now.
+            char tempString[MAX_PATH_AND_FILE];
+            sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+            strcpy_s(mtlName, 256, tempString);
+        }
+        else {
+            // Name does not match, so use it
+            // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+            strcpy_s(mtlName, 256, subName);
+        }
+    }
+    // a lot of crazy logic deleted here for now... TODOUSD
+    if (gModel.exportTiles) {
+        // new material per tile ID
+        // swatch locations exactly correspond with tiles.h names
+        assert(prevSwatchLoc < TOTAL_TILES);
+        WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+        // note in an array that this separate tile should be output as a material
+        gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;
+        assert(gModel.mtlCount < NUM_SUBMATERIALS);
+    }
+    else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
+    {
+        // new material per family
+        gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+        assert(gModel.mtlCount < NUM_SUBMATERIALS);
+    }
+    // else don't output material, there's only one for the whole scene - TODOUSD
+
+    for (int i = startRun; i < gModel.faceCount; i++)
+    {
+        // TODOUSD
+        //// every 1% or so check on progress
+        //if (i % progCheck == 0)
+        //    UPDATE_PROGRESS(PG_OUTPUT + 0.5f * (PG_TEXTURE - PG_OUTPUT) + 0.5f * (PG_TEXTURE - PG_OUTPUT) * ((float)i / (float)gModel.faceCount));
+
+        FaceRecord* pFace = gModel.faceList[i];
+
+        if (exportMaterials)
+        {
+            // should there be more than one material or group output in this OBJ file?
+            if ((gModel.options->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gModel.exportTiles)
+            {
+                // if the material type has changed, or the material subtype has changed, a new group is possible.
+                //bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
+                //    (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
+                bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
+                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                    (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
+                // did we reach a new material?
+                if (newMaterialPossible)
+                {
+                    nextStart = i;
+                    return true;
+                }
+            }
+        }
+
+        numVerts += (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
+    }
+    nextStart = gModel.faceCount;
+    return true;
+}
+
+// Create a light source in the scene.
+static int createLightingUSD()
+{
+    char outputString[1024];
+    sprintf_s(outputString, 1024, "\n    def DistantLight \"Sun\"\n    {\n        float angle = 0.53\n        color3f color = (1, 0.9, 0.8)\n        float intensity = 5000\n    }\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    return 0;
+}
+
+static int closeUSDFile()
+{
+    PortaClose(gModelFile);
+    return 0;
+}
 #endif
 
+/*
     wchar_t usdFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char* justWorldFileName;
 
@@ -21957,6 +22343,8 @@ Exit:
 
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
+
+
 
     sprintf_s(outputString, 256, "#usda 1.0\n\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -21978,16 +22366,13 @@ Exit:
 
     return retCode;
 }
+*/
 
 /*
 #ifndef PLAN_A
 // if type is GENERIC_MATERIAL, set the generic. If textureOutputString is set, output texture.
 static int writeUSDAttributeShapeSplit(int type, int dataVal, char* mtlName, char* textureOutputString)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     char outputString[1024];
     char tfString[256];
     char keString[256];
@@ -22107,9 +22492,6 @@ static int writeUSDAttributeShapeSplit(int type, int dataVal, char* mtlName, cha
 
 static int writeUSDTextureUV(float u, float v, int addComment, int swatchLoc)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
     char outputString[1024];
 
     if (addComment)
@@ -22144,9 +22526,6 @@ static int writeUSDTextureUV(float u, float v, int addComment, int swatchLoc)
 //===============================================================================================
 static int writeSchematicBox()
 {
-#ifdef WIN32
-    //DWORD br;
-#endif
     FILE* fptr;
     int err;
     gzFile gz;
@@ -22553,10 +22932,6 @@ static void formCategoryFileName(char* catFile, int category, char* textureRGB)
 
 static int writeLines(HANDLE file, char** textLines, int lines)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     int i;
     for (i = 0; i < lines; i++)
     {
@@ -22600,10 +22975,6 @@ static float min3(Point pt)
 
 static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, const wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
 {
-#ifdef WIN32
-    DWORD br;
-#endif
-
     char outputString[256];
     char timeString[256];
     char formatString[256];

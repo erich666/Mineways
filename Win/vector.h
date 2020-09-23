@@ -87,6 +87,11 @@ typedef struct IBox3Struct {		/* 3d box */
     V[2] assign_op c    \
     )
 
+#define Vec2Scalar(V,assign_op,a,b)   \
+    (   V[0] assign_op a,   \
+    V[1] assign_op b    \
+    )
+
 /* Vec2Op provides for operations with two vectors. */
 
 #define Vec2Op(A,assign_op,B)   \

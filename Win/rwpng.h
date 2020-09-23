@@ -31,8 +31,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct _progimage_info {
     std::vector<unsigned char> image_data; //the raw pixels
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
 } progimage_info;
 
 int readpng(progimage_info *mainprog_ptr, wchar_t *filename, LodePNGColorType colortype /*= LCT_RGBA*/);
