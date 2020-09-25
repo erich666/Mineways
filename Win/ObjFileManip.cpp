@@ -497,6 +497,7 @@ typedef struct TouchRecord {
 static int gAssertFacesNotReusedMask = 0x0;
 #endif
 
+static int modifyAndWriteTextures(int needDifferentTextures);
 
 static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName);
 
@@ -670,6 +671,7 @@ static void addOutputFilenameToList(wchar_t* filename);
 static void spacesToUnderlines(wchar_t* targetString);
 static void spacesToUnderlinesChar(char* targetString);
 
+static float retrieveMtlAlpha(int type);
 static int createBaseMaterialTexture();
 
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
@@ -696,6 +698,7 @@ static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename);
 static void convertAlphaToGrayscale(progimage_info* dst);
 static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
 static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
+//static int isTileCutoutOrAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
 
 static void removeSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix);
 //static const wchar_t *removePath( const wchar_t *src );
@@ -1077,319 +1080,7 @@ Exit:
     // if there were major errors, don't bother
     if (retCode < MW_BEGIN_ERRORS)
     {
-        if (gModel.pPNGtexture != NULL)
-        {
-            int col, row;
-            // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
-#define FA_TABLE__RENDER_BLOCK_START 7
-#define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
-#define FA_TABLE_SIZE 59
-            static FillAlpha faTable[FA_TABLE_SIZE] =
-            {
-                // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
-                // Negative values for the underlay means "use this block's solid color", whatever it is.
-                // Incredible laziness: we use TRIPWIRE to mean black, since that's its "color". We can't use AIR because AIR is the same
-                // value as SWATCH_INDEX(0,0), which is grass.
-                { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
-                { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
-
-                { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
-
-                { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
-
-                // count is FA_TABLE__RENDER_BLOCK_START up to this point
-
-                /////////////////////////////////// always do:
-                // stuff that is put in always, fringes that need to be filled
-                { SWATCH_INDEX(10, 11), -BLOCK_FLOWER_POT }, // flower pot
-
-                // count is FA_TABLE__VIEW_SIZE up to this point
-
-                // stuff filled in for 3D printing only
-                { SWATCH_INDEX(11, 0), SWATCH_INDEX(6, 3) }, // spiderweb over stone block
-                { SWATCH_INDEX(12, 0), SWATCH_INDEX(0, 0) }, // red flower over grass
-                { SWATCH_INDEX(13, 0), SWATCH_INDEX(0, 0) }, // yellow flower over grass
-                { SWATCH_INDEX(15, 0), SWATCH_INDEX(0, 0) }, // sapling over grass
-                { SWATCH_INDEX(12, 1), SWATCH_INDEX(0, 0) }, // red mushroom over grass
-                { SWATCH_INDEX(13, 1), SWATCH_INDEX(0, 0) }, // brown mushroom over grass
-                { SWATCH_INDEX(1, 3), -BLOCK_GLASS }, // glass over glass color
-                { SWATCH_INDEX(4, 3), -BLOCK_TRIPWIRE }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
-                { SWATCH_INDEX(7, 3), SWATCH_INDEX(2, 1) }, // dead bush over grass
-                { SWATCH_INDEX(8, 3), SWATCH_INDEX(0, 0) }, // sapling over grass
-                { SWATCH_INDEX(1, 4), SWATCH_INDEX(1, 0) }, // spawner over stone
-                { SWATCH_INDEX(9, 4), SWATCH_INDEX(0, 0) }, // reeds over grass
-                { SWATCH_INDEX(15, 4), SWATCH_INDEX(0, 0) }, // sapling over grass
-                { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass
-                { SWATCH_INDEX(1, 5), SWATCH_INDEX(10, 23) }, // wooden door top over slab top - was over 6, 0
-                { SWATCH_INDEX(2, 5), SWATCH_INDEX(10, 23) }, // door top over slab top - was over 6, 0
-                { SWATCH_INDEX(5, 5), SWATCH_INDEX(6, 3) }, // iron bars over stone block
-                { SWATCH_INDEX(8, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(9, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(10, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(11, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(12, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(13, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(14, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(15, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-                { SWATCH_INDEX(0, 6), SWATCH_INDEX(1, 0) }, // lever over stone
-                { SWATCH_INDEX(15, 6), SWATCH_INDEX(6, 5) }, // melon stem over farmland
-                { SWATCH_INDEX(15, 7), SWATCH_INDEX(6, 5) }, // mature stem over farmland
-                { SWATCH_INDEX(4, 8), -BLOCK_TRIPWIRE }, // leaves over air (black) - doesn't really matter, not used
-                { SWATCH_INDEX(10, 8), -BLOCK_TRIPWIRE }, // cauldron over air (black)
-                { SWATCH_INDEX(4, 9), -BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
-                { SWATCH_INDEX(13, 9), SWATCH_INDEX(1, 0) }, // brewing stand over stone
-                { SWATCH_INDEX(14,11), SWATCH_INDEX(6, 5) }, // pumpkin stem over farmland
-                { SWATCH_INDEX(15,11), SWATCH_INDEX(6, 5) }, // mature stem over farmland
-                { SWATCH_INDEX(4,12), -BLOCK_TRIPWIRE }, // jungle leaves over air (black) - doesn't really matter, not used
-                { SWATCH_INDEX(2,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-                { SWATCH_INDEX(3,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-                { SWATCH_INDEX(4,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-                { SWATCH_INDEX(11,14), -BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
-                { SWATCH_INDEX(8,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
-                { SWATCH_INDEX(9,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-                { SWATCH_INDEX(10,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-                { SWATCH_INDEX(8,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(9,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(10,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(11,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(12,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(13,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-                { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
-            };
-
-            int rc;
-
-            // do only if true textures used
-            if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
-            {
-                int i;
-                int faTableCount;
-
-                // fill in all alphas that 3D export wants filled
-                // For printing we also then composite over other backgrounds as the defaults.
-                faTableCount = gPrint3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
-                // start at solid rendering vs. leave it transparent for true cutaway rendering;
-                // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
-                for (i = (gPrint3D || !gModel.options->pEFD->chkExportAll) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++)
-                {
-                    // passing in a negative swatch location means "use the absolute value as the index into the color of the block".
-                    // See faTable explanation above.
-                    if (faTable[i].underlay >= 0)
-                    {
-                        compositePNGSwatches(gModel.pPNGtexture,
-                            faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
-                    }
-                    else {
-                        compositePNGSwatchOverColor(gModel.pPNGtexture,
-                            faTable[i].cutout, faTable[i].cutout, gBlockDefinitions[-faTable[i].underlay].color,
-                            gModel.swatchSize, gModel.swatchesPerRow);
-                    }
-                }
-
-                // final swatch cleanup if textures are used and we're doing 3D printing
-                if (gPrint3D)
-                {
-
-
-#define FA_FINAL_TABLE_SIZE 19
-                    static FillAlpha faFinalTable[] =
-                    {
-                        { SWATCH_INDEX(0, 8), SWATCH_INDEX(1, 0) }, // rail over stone
-                        { SWATCH_INDEX(0, 7), SWATCH_INDEX(1, 0) }, // curved rail over stone
-                        { SWATCH_INDEX(0, 5), SWATCH_INDEX(1, 0) }, // torch over stone
-                        { REDSTONE_WIRE_VERT,   SWATCH_INDEX(1, 0) }, // wire over stone
-                        { SWATCH_INDEX(3, 5), SWATCH_INDEX(1, 0) }, // ladder over stone
-                        { SWATCH_INDEX(3, 11), SWATCH_INDEX(1, 0) }, // powered rail over stone
-                        { SWATCH_INDEX(3, 10), SWATCH_INDEX(1, 0) }, // unpowered rail over stone
-                        { SWATCH_INDEX(3, 12), SWATCH_INDEX(1, 0) }, // detector rail over stone
-                        { SWATCH_INDEX(3, 6), SWATCH_INDEX(1, 0) }, // redstone torch on over stone
-                        { SWATCH_INDEX(3, 7), SWATCH_INDEX(1, 0) }, // redstone torch off over stone
-                        { SWATCH_INDEX(12, 4), SWATCH_INDEX(15, 13) }, // lily pad over stationary water
-                        { SWATCH_INDEX(4, 5), SWATCH_INDEX(1, 0) }, // trapdoor over stone
-                        { SWATCH_INDEX(15, 8), SWATCH_INDEX(0, 0) }, // vines over grass
-
-                        // stuff we don't use, so don't need defaults for
-                        { REDSTONE_WIRE_HORIZ, SWATCH_INDEX(1, 0) }, // wire over stone
-                        { REDSTONE_WIRE_DOT, SWATCH_INDEX(1, 0) }, // wire over stone
-
-                        { SWATCH_INDEX(0, 15), SWATCH_INDEX(1, 0) }, // torch top
-                        { SWATCH_INDEX(1, 15), SWATCH_INDEX(1, 0) }, // redstone torch on top
-                        { SWATCH_INDEX(2, 15), SWATCH_INDEX(1, 0) }, // redstone torch off top
-                        { SWATCH_INDEX(2, 22), SWATCH_INDEX(1, 0) }, // iron trapdoor over stone
-                    };
-
-                    // For 3D printing, now that we're totally done, fill in the main pieces which were left empty as templates;
-                    // these won't actually get used, as far as I recall. I clean them up purely for tidiness, and just in case.
-                    // We could register these as previously-existing swatches, knowing that here is where we'll actually fill them in.
-                    // To do so, use createCompositeSwatch - call with specific swatch location, with negative meaning "add to end".
-                    // But, not to bother, for now, until the day we're really desperate for the room (i.e., never, since I just
-                    // made the output resolution 4* - see gModel.textureResolution).
-                    for (i = 0; i < FA_FINAL_TABLE_SIZE; i++)
-                    {
-                        compositePNGSwatches(gModel.pPNGtexture,
-                            faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
-                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
-                    }
-                }
-            }
-
-            // if we're debugging groups, make the largest group transparent and set it to red
-            if ((gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
-                gModel.exportTexture)
-            {
-                unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
-                unsigned char r = 0xff;
-                unsigned char g = 0x00;
-                unsigned char b = 0x00;
-                unsigned int color = (a << 24) | (b << 16) | (g << 8) | r;
-
-                SWATCH_TO_COL_ROW(gDebugTransparentType, col, row);
-                setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, color);
-            }
-
-            // just to avoid confusion as to what gets used for what, clear out the workspace texture location with white
-            SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
-            setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
-
-            UPDATE_PROGRESS(PG_TEXTURE + 0.04f);
-
-            // Exporting individual tiles?
-            if (gModel.exportTiles)
-            {
-                // if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
-                if (gModel.options->pEFD->chkTextureRGBA || gModel.options->pEFD->chkTextureRGB || gModel.options->pEFD->chkTextureA) {
-                    wchar_t subpath[MAX_PATH_AND_FILE] = L"";
-                    if (strlen(gModel.options->pEFD->tileDirString) > 0) {
-                        wchar_t directoryPath[MAX_PATH_AND_FILE];
-                        charToWchar(gModel.options->pEFD->tileDirString, subpath);
-                        wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
-                        // create subdirectory if it doesn't exist
-                        if (wcschr(subpath, (wchar_t)':')) {
-                            // looks like an absolute path is being specified
-                            wcscpy_s(directoryPath, MAX_PATH_AND_FILE, subpath);
-                        }
-                        else {
-                            // relative path
-                            concatFileName4(directoryPath, gOutputFilePath, subpath, L"", L"");
-                        }
-                        if (!(CreateDirectoryW(directoryPath, NULL) ||
-                            ERROR_ALREADY_EXISTS == GetLastError()))
-                        {
-                            // Failed to create directory.
-                            retCode |= MW_CANNOT_CREATE_DIRECTORY;
-                            return retCode;
-                        }
-                    }
-                    for (int i = 0; i < TOTAL_TILES; i++) {
-                        // tile name is material name, period
-                        if (gModel.tileList[CATEGORY_RGBA][i]) {
-                            // tile found that should be output
-                            wchar_t materialTile[MAX_PATH_AND_FILE];
-                            if (gTilesTable[i].flags & SBIT_SYTHESIZED) {
-                                concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L"_y.png");
-                            }
-                            else {
-                                concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L".png");
-                            }
-                            rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
-                            assert(rc == 0);
-                            retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                            // if we can't write one file, we can't write any, so break out
-                            if (rc)
-                                break;
-
-                            // Check if there is a normal map to output. If the middlish pixel is black, it's not a normal map, so don't output.
-                            // Else output, copying directly from the input texture, and note that it's output.
-                            if (gModel.tileList[CATEGORY_NORMALS][i]) {
-                                concatFileName5(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
-                                rc = writeTileFromCategoryInput(materialTile, i, CATEGORY_NORMALS);
-                                assert(rc == 0);
-                                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                                // if we can't write one file, we can't write any, so break out
-                                if (rc)
-                                    break;
-                            }
-
-                            // update status
-                            if ( i % (int)(1+(gModel.tileListCount/16)) == 0 )
-                                UPDATE_PROGRESS(PG_TEXTURE + 0.16f * (float)i / (float)gModel.tileListCount);
-                        }
-                    }
-                }
-            }
-
-            // do we need three textures, or just the one RGBA texture?
-            else if (needDifferentTextures)
-            {
-                // need all three
-                wchar_t textureRGB[MAX_PATH_AND_FILE];
-                wchar_t textureRGBA[MAX_PATH_AND_FILE];
-                wchar_t textureAlpha[MAX_PATH_AND_FILE];
-
-                // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
-                // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
-                // The all-alpha image is needed for various renderers to properly read cutouts
-                concatFileName4(textureRGB, gOutputFilePath, gOutputFileRootClean, PNG_RGB_SUFFIX, L".png");
-                concatFileName4(textureRGBA, gOutputFilePath, gOutputFileRootClean, PNG_RGBA_SUFFIX, L".png");
-                concatFileName4(textureAlpha, gOutputFilePath, gOutputFileRootClean, PNG_ALPHA_SUFFIX, L".png");
-
-                if (gModel.usesRGBA && gModel.options->pEFD->chkTextureRGBA)
-                {
-                    // output RGBA version
-                    rc = writepng(gModel.pPNGtexture, 4, textureRGBA);
-                    assert(rc == 0);
-                    addOutputFilenameToList(textureRGBA);
-                    UPDATE_PROGRESS(PG_TEXTURE + 0.08f);
-                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                }
-
-                if (gModel.usesRGB && gModel.options->pEFD->chkTextureRGB)
-                {
-                    // output RGB version
-                    rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureRGB);
-                    assert(rc == 0);
-                    // not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
-                    UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
-                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                }
-
-                if (gModel.usesAlpha && gModel.options->pEFD->chkTextureA)
-                {
-                    // output Alpha version, which is actually RGBA, to make 3DS MAX happy
-                    convertAlphaToGrayscale(gModel.pPNGtexture);
-                    rc = writepng(gModel.pPNGtexture, 4, textureAlpha);
-                    assert(rc == 0);
-                    addOutputFilenameToList(textureAlpha);
-                    UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
-                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                }
-            }
-            else
-            {
-                // just the one (for VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
-                wchar_t textureFileName[MAX_PATH_AND_FILE];
-                concatFileName3(textureFileName, gOutputFilePath, gOutputFileRootClean, L".png");
-                if (gPrint3D && !(gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS))
-                {
-                    rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureFileName);
-                }
-                else
-                {
-                    rc = writepng(gModel.pPNGtexture, 4, textureFileName);
-                    addOutputFilenameToList(textureFileName);
-                }
-                assert(rc == 0);
-                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-            }
-
-            writepng_cleanup(gModel.pPNGtexture);
-        }
+        retCode |= modifyAndWriteTextures(needDifferentTextures);
     }
 
     // 91%
@@ -1419,6 +1110,327 @@ Exit:
 
     return retCode;
 }
+
+static int modifyAndWriteTextures(int needDifferentTextures)
+{
+    int retCode = MW_NO_ERROR;
+
+    if (gModel.pPNGtexture != NULL)
+    {
+        int col, row;
+        // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
+#define FA_TABLE__RENDER_BLOCK_START 7
+#define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
+#define FA_TABLE_SIZE 59
+        static FillAlpha faTable[FA_TABLE_SIZE] =
+        {
+            // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
+            // Negative values for the underlay means "use this block's solid color", whatever it is.
+            // Incredible laziness: we use TRIPWIRE to mean black, since that's its "color". We can't use AIR because AIR is the same
+            // value as SWATCH_INDEX(0,0), which is grass.
+            { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
+            { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
+
+            { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
+            { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
+            { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
+            { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
+
+            { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
+
+            // count is FA_TABLE__RENDER_BLOCK_START up to this point
+
+            /////////////////////////////////// always do:
+            // stuff that is put in always, fringes that need to be filled
+            { SWATCH_INDEX(10, 11), -BLOCK_FLOWER_POT }, // flower pot
+
+            // count is FA_TABLE__VIEW_SIZE up to this point
+
+            // stuff filled in for 3D printing only
+            { SWATCH_INDEX(11, 0), SWATCH_INDEX(6, 3) }, // spiderweb over stone block
+            { SWATCH_INDEX(12, 0), SWATCH_INDEX(0, 0) }, // red flower over grass
+            { SWATCH_INDEX(13, 0), SWATCH_INDEX(0, 0) }, // yellow flower over grass
+            { SWATCH_INDEX(15, 0), SWATCH_INDEX(0, 0) }, // sapling over grass
+            { SWATCH_INDEX(12, 1), SWATCH_INDEX(0, 0) }, // red mushroom over grass
+            { SWATCH_INDEX(13, 1), SWATCH_INDEX(0, 0) }, // brown mushroom over grass
+            { SWATCH_INDEX(1, 3), -BLOCK_GLASS }, // glass over glass color
+            { SWATCH_INDEX(4, 3), -BLOCK_TRIPWIRE }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
+            { SWATCH_INDEX(7, 3), SWATCH_INDEX(2, 1) }, // dead bush over grass
+            { SWATCH_INDEX(8, 3), SWATCH_INDEX(0, 0) }, // sapling over grass
+            { SWATCH_INDEX(1, 4), SWATCH_INDEX(1, 0) }, // spawner over stone
+            { SWATCH_INDEX(9, 4), SWATCH_INDEX(0, 0) }, // reeds over grass
+            { SWATCH_INDEX(15, 4), SWATCH_INDEX(0, 0) }, // sapling over grass
+            { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass
+            { SWATCH_INDEX(1, 5), SWATCH_INDEX(10, 23) }, // wooden door top over slab top - was over 6, 0
+            { SWATCH_INDEX(2, 5), SWATCH_INDEX(10, 23) }, // door top over slab top - was over 6, 0
+            { SWATCH_INDEX(5, 5), SWATCH_INDEX(6, 3) }, // iron bars over stone block
+            { SWATCH_INDEX(8, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(9, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(10, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(11, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(12, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(13, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(14, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(15, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+            { SWATCH_INDEX(0, 6), SWATCH_INDEX(1, 0) }, // lever over stone
+            { SWATCH_INDEX(15, 6), SWATCH_INDEX(6, 5) }, // melon stem over farmland
+            { SWATCH_INDEX(15, 7), SWATCH_INDEX(6, 5) }, // mature stem over farmland
+            { SWATCH_INDEX(4, 8), -BLOCK_TRIPWIRE }, // leaves over air (black) - doesn't really matter, not used
+            { SWATCH_INDEX(10, 8), -BLOCK_TRIPWIRE }, // cauldron over air (black)
+            { SWATCH_INDEX(4, 9), -BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
+            { SWATCH_INDEX(13, 9), SWATCH_INDEX(1, 0) }, // brewing stand over stone
+            { SWATCH_INDEX(14,11), SWATCH_INDEX(6, 5) }, // pumpkin stem over farmland
+            { SWATCH_INDEX(15,11), SWATCH_INDEX(6, 5) }, // mature stem over farmland
+            { SWATCH_INDEX(4,12), -BLOCK_TRIPWIRE }, // jungle leaves over air (black) - doesn't really matter, not used
+            { SWATCH_INDEX(2,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+            { SWATCH_INDEX(3,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+            { SWATCH_INDEX(4,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+            { SWATCH_INDEX(11,14), -BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
+            { SWATCH_INDEX(8,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
+            { SWATCH_INDEX(9,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+            { SWATCH_INDEX(10,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+            { SWATCH_INDEX(8,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(9,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(10,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(11,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(12,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(13,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+            { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
+        };
+
+        int rc;
+
+        // do only if true textures used
+        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
+        {
+            int i;
+            int faTableCount;
+
+            // fill in all alphas that 3D export wants filled
+            // For printing we also then composite over other backgrounds as the defaults.
+            faTableCount = gPrint3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+            // start at solid rendering vs. leave it transparent for true cutaway rendering;
+            // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
+            for (i = (gPrint3D || !gModel.options->pEFD->chkExportAll) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++)
+            {
+                // passing in a negative swatch location means "use the absolute value as the index into the color of the block".
+                // See faTable explanation above.
+                if (faTable[i].underlay >= 0)
+                {
+                    compositePNGSwatches(gModel.pPNGtexture,
+                        faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
+                        gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                }
+                else {
+                    compositePNGSwatchOverColor(gModel.pPNGtexture,
+                        faTable[i].cutout, faTable[i].cutout, gBlockDefinitions[-faTable[i].underlay].color,
+                        gModel.swatchSize, gModel.swatchesPerRow);
+                }
+            }
+
+            // final swatch cleanup if textures are used and we're doing 3D printing
+            if (gPrint3D)
+            {
+
+
+#define FA_FINAL_TABLE_SIZE 19
+                static FillAlpha faFinalTable[] =
+                {
+                    { SWATCH_INDEX(0, 8), SWATCH_INDEX(1, 0) }, // rail over stone
+                    { SWATCH_INDEX(0, 7), SWATCH_INDEX(1, 0) }, // curved rail over stone
+                    { SWATCH_INDEX(0, 5), SWATCH_INDEX(1, 0) }, // torch over stone
+                    { REDSTONE_WIRE_VERT,   SWATCH_INDEX(1, 0) }, // wire over stone
+                    { SWATCH_INDEX(3, 5), SWATCH_INDEX(1, 0) }, // ladder over stone
+                    { SWATCH_INDEX(3, 11), SWATCH_INDEX(1, 0) }, // powered rail over stone
+                    { SWATCH_INDEX(3, 10), SWATCH_INDEX(1, 0) }, // unpowered rail over stone
+                    { SWATCH_INDEX(3, 12), SWATCH_INDEX(1, 0) }, // detector rail over stone
+                    { SWATCH_INDEX(3, 6), SWATCH_INDEX(1, 0) }, // redstone torch on over stone
+                    { SWATCH_INDEX(3, 7), SWATCH_INDEX(1, 0) }, // redstone torch off over stone
+                    { SWATCH_INDEX(12, 4), SWATCH_INDEX(15, 13) }, // lily pad over stationary water
+                    { SWATCH_INDEX(4, 5), SWATCH_INDEX(1, 0) }, // trapdoor over stone
+                    { SWATCH_INDEX(15, 8), SWATCH_INDEX(0, 0) }, // vines over grass
+
+                    // stuff we don't use, so don't need defaults for
+                    { REDSTONE_WIRE_HORIZ, SWATCH_INDEX(1, 0) }, // wire over stone
+                    { REDSTONE_WIRE_DOT, SWATCH_INDEX(1, 0) }, // wire over stone
+
+                    { SWATCH_INDEX(0, 15), SWATCH_INDEX(1, 0) }, // torch top
+                    { SWATCH_INDEX(1, 15), SWATCH_INDEX(1, 0) }, // redstone torch on top
+                    { SWATCH_INDEX(2, 15), SWATCH_INDEX(1, 0) }, // redstone torch off top
+                    { SWATCH_INDEX(2, 22), SWATCH_INDEX(1, 0) }, // iron trapdoor over stone
+                };
+
+                // For 3D printing, now that we're totally done, fill in the main pieces which were left empty as templates;
+                // these won't actually get used, as far as I recall. I clean them up purely for tidiness, and just in case.
+                // We could register these as previously-existing swatches, knowing that here is where we'll actually fill them in.
+                // To do so, use createCompositeSwatch - call with specific swatch location, with negative meaning "add to end".
+                // But, not to bother, for now, until the day we're really desperate for the room (i.e., never, since I just
+                // made the output resolution 4* - see gModel.textureResolution).
+                for (i = 0; i < FA_FINAL_TABLE_SIZE; i++)
+                {
+                    compositePNGSwatches(gModel.pPNGtexture,
+                        faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
+                        gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                }
+            }
+        }
+
+        // if we're debugging groups, make the largest group transparent and set it to red
+        if ((gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
+            gModel.exportTexture)
+        {
+            unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
+            unsigned char r = 0xff;
+            unsigned char g = 0x00;
+            unsigned char b = 0x00;
+            unsigned int color = (a << 24) | (b << 16) | (g << 8) | r;
+
+            SWATCH_TO_COL_ROW(gDebugTransparentType, col, row);
+            setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, color);
+        }
+
+        // just to avoid confusion as to what gets used for what, clear out the workspace texture location with white
+        SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
+        setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
+
+        UPDATE_PROGRESS(PG_TEXTURE + 0.04f);
+
+        // Exporting individual tiles?
+        if (gModel.exportTiles)
+        {
+            // if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
+            if (gModel.options->pEFD->chkTextureRGBA || gModel.options->pEFD->chkTextureRGB || gModel.options->pEFD->chkTextureA) {
+                wchar_t subpath[MAX_PATH_AND_FILE] = L"";
+                if (strlen(gModel.options->pEFD->tileDirString) > 0) {
+                    wchar_t directoryPath[MAX_PATH_AND_FILE];
+                    charToWchar(gModel.options->pEFD->tileDirString, subpath);
+                    wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+                    // create subdirectory if it doesn't exist
+                    if (wcschr(subpath, (wchar_t)':')) {
+                        // looks like an absolute path is being specified
+                        wcscpy_s(directoryPath, MAX_PATH_AND_FILE, subpath);
+                    }
+                    else {
+                        // relative path
+                        concatFileName4(directoryPath, gOutputFilePath, subpath, L"", L"");
+                    }
+                    if (!(CreateDirectoryW(directoryPath, NULL) ||
+                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    {
+                        // Failed to create directory.
+                        retCode |= MW_CANNOT_CREATE_DIRECTORY;
+                        return retCode;
+                    }
+                }
+                for (int i = 0; i < TOTAL_TILES; i++) {
+                    // tile name is material name, period
+                    if (gModel.tileList[CATEGORY_RGBA][i]) {
+                        // tile found that should be output
+                        wchar_t materialTile[MAX_PATH_AND_FILE];
+                        if (gTilesTable[i].flags & SBIT_SYTHESIZED) {
+                            concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L"_y.png");
+                        }
+                        else {
+                            concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L".png");
+                        }
+                        rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
+                        assert(rc == 0);
+                        retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+                        // if we can't write one file, we can't write any, so break out
+                        if (rc)
+                            break;
+
+                        // Check if there is a normal map to output. If the middlish pixel is black, it's not a normal map, so don't output.
+                        // Else output, copying directly from the input texture, and note that it's output.
+                        if (gModel.tileList[CATEGORY_NORMALS][i]) {
+                            concatFileName5(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
+                            rc = writeTileFromCategoryInput(materialTile, i, CATEGORY_NORMALS);
+                            assert(rc == 0);
+                            retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+                            // if we can't write one file, we can't write any, so break out
+                            if (rc)
+                                break;
+                        }
+
+                        // update status
+                        if (i % (int)(1 + (gModel.tileListCount / 16)) == 0)
+                            UPDATE_PROGRESS(PG_TEXTURE + 0.16f * (float)i / (float)gModel.tileListCount);
+                    }
+                }
+            }
+        }
+
+        // do we need three textures, or just the one RGBA texture?
+        else if (needDifferentTextures)
+        {
+            // need all three
+            wchar_t textureRGB[MAX_PATH_AND_FILE];
+            wchar_t textureRGBA[MAX_PATH_AND_FILE];
+            wchar_t textureAlpha[MAX_PATH_AND_FILE];
+
+            // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
+            // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
+            // The all-alpha image is needed for various renderers to properly read cutouts
+            concatFileName4(textureRGB, gOutputFilePath, gOutputFileRootClean, PNG_RGB_SUFFIX, L".png");
+            concatFileName4(textureRGBA, gOutputFilePath, gOutputFileRootClean, PNG_RGBA_SUFFIX, L".png");
+            concatFileName4(textureAlpha, gOutputFilePath, gOutputFileRootClean, PNG_ALPHA_SUFFIX, L".png");
+
+            if (gModel.usesRGBA && gModel.options->pEFD->chkTextureRGBA)
+            {
+                // output RGBA version
+                rc = writepng(gModel.pPNGtexture, 4, textureRGBA);
+                assert(rc == 0);
+                addOutputFilenameToList(textureRGBA);
+                UPDATE_PROGRESS(PG_TEXTURE + 0.08f);
+                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+            }
+
+            if (gModel.usesRGB && gModel.options->pEFD->chkTextureRGB)
+            {
+                // output RGB version
+                rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureRGB);
+                assert(rc == 0);
+                // not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
+                UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
+                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+            }
+
+            if (gModel.usesAlpha && gModel.options->pEFD->chkTextureA)
+            {
+                // output Alpha version, which is actually RGBA, to make 3DS MAX happy
+                convertAlphaToGrayscale(gModel.pPNGtexture);
+                rc = writepng(gModel.pPNGtexture, 4, textureAlpha);
+                assert(rc == 0);
+                addOutputFilenameToList(textureAlpha);
+                UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
+                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+            }
+        }
+        else
+        {
+            // just the one (for VRML). If we're printing, and not debugging (debugging needs transparency), we can convert this one down to RGB
+            wchar_t textureFileName[MAX_PATH_AND_FILE];
+            concatFileName3(textureFileName, gOutputFilePath, gOutputFileRootClean, L".png");
+            if (gPrint3D && !(gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS))
+            {
+                rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureFileName);
+            }
+            else
+            {
+                rc = writepng(gModel.pPNGtexture, 4, textureFileName);
+                addOutputFilenameToList(textureFileName);
+            }
+            assert(rc == 0);
+            retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+        }
+
+        writepng_cleanup(gModel.pPNGtexture);
+    }
+    return retCode;
+}
+
 
 // assumes same maximum length (or longer) for both strings
 void WcharToChar(const wchar_t* inWString, char* outString, int maxlength)
@@ -20142,38 +20154,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     ka = 0.2;
     kd = 1.0;
     ks = 0.0;
-    // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
-    // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
-    // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
-    // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
-    // do not support textures (e.g. Blender).
-    //alpha = ( gPrint3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
-    // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-    // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
-    alpha = gBlockDefinitions[type].alpha;
-    if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
-    {
-        // if showing groups, make the alpha of the largest group transparent
-        if (gDebugTransparentType == type)
-        {
-            alpha = DEBUG_DISPLAY_ALPHA;
-        }
-        else
-        {
-            alpha = 1.0f;
-        }
-    }
-    else if (gPrint3D)
-    {
-        // for 3d printing, alpha is always 1.0
-        alpha = 1.0f;
-    }
-    // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f for export
-    // (this is true for glass panes, but stained glass panes are semitransparent)
-    if (alpha < 1.0f && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
-    {
-        alpha = 1.0f;
-    }
+    alpha = retrieveMtlAlpha(type);
 
     if (alpha < 1.0f)
     {
@@ -20393,6 +20374,43 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_REDSTONE_WIRE /* REDSTONE_WIRE_HORIZ */, 5,10, {0,0,0} },
     { BLOCK_REDSTONE_WIRE /* REDSTONE_WIRE_DOT */, 4, 11, { 0, 0, 0 } },
 };
+
+static float retrieveMtlAlpha(int type)
+{
+    // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
+    // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
+    // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
+    // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
+    // do not support textures (e.g. Blender).
+    //alpha = ( gPrint3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
+    // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
+    // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
+    float alpha = gBlockDefinitions[type].alpha;
+    if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
+    {
+        // if showing groups, make the alpha of the largest group transparent
+        if (gDebugTransparentType == type)
+        {
+            alpha = DEBUG_DISPLAY_ALPHA;
+        }
+        else
+        {
+            alpha = 1.0f;
+        }
+    }
+    else if (gPrint3D)
+    {
+        // for 3d printing, alpha is always 1.0
+        alpha = 1.0f;
+    }
+    // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
+    if (alpha < 1.0f && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
+    {
+        alpha = 1.0f;
+    }
+    return alpha;
+}
+
 
 // the blocks that should be solid if valid water tile is not found
 int solidCount = 5;
@@ -21751,37 +21769,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     kd = 0.9f;
     ks = 0.1f;
     // not needed ke = 0.0f;
-    // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
-    // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
-    // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
-    // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
-    // do not support textures (e.g. Blender).
-    //alpha = ( gPrint3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
-    // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-    // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
-    alpha = gBlockDefinitions[type].alpha;
-    if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
-    {
-        // if showing groups, make the alpha of the largest group transparent
-        if (gDebugTransparentType == type)
-        {
-            alpha = DEBUG_DISPLAY_ALPHA;
-        }
-        else
-        {
-            alpha = 1.0f;
-        }
-    }
-    else if (gPrint3D)
-    {
-        // for 3d printing, alpha is always 1.0
-        alpha = 1.0f;
-    }
-    // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
-    if (alpha < 1.0f && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
-    {
-        alpha = 1.0f;
-    }
+    alpha = retrieveMtlAlpha(type);
 
     if (alpha < 1.0f)
     {
@@ -22001,6 +21989,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
     }
     else {
+        // no name given, which happens with the block test world
         sprintf_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22027,6 +22016,9 @@ Exit:
     if (retCode |= closeUSDFile()) {
         // TODOUSD failed to quit
     }
+
+    // note that textures get written out in SaveVolume(), which calls this function.
+
     return retCode;
 }
 
@@ -22267,11 +22259,18 @@ static int createMaterialsUSD()
     int numVerts;
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
-        // Get the tile name - that's all we need
-
         // TODOUSD: should get the swatchLoc passed back from findEndOfGroup
         FaceRecord* pFace = gModel.faceList[startRun];
         int swatchLoc = gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc;
+
+        bool isTransparent = false;
+        float alpha = retrieveMtlAlpha(pFace->materialType);
+        if (!gPrint3D &&
+            (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
+            (alpha < 1.0 || (gBlockDefinitions[pFace->materialType].flags & BLF_CUTOUTS)) &&
+            !(gModel.options->pEFD->chkLeavesSolid && (gBlockDefinitions[pFace->materialType].flags & BLF_LEAF_PART))) {
+            isTransparent = true;
+        }
 
         sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22291,12 +22290,12 @@ static int createMaterialsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         sprintf_s(outputString, 256, "            uniform token info:implementationSource = \"sourceAsset\"\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @OmniPBR.mdl@\n");
+        sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @OmniPBR%s.mdl@\n", isTransparent?"_Opacity":"");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"OmniPBR\"\n");
+        sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"OmniPBR%s\"\n", isTransparent ? "_Opacity" : "");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         // add the "_y" if synthesized - material name differs from tile file name in this case
-        sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @textures\\%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y":"");
+        sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y":"");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         sprintf_s(outputString, 256, "                customData = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22310,6 +22309,67 @@ static int createMaterialsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         sprintf_s(outputString, 256, "            )\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        // transparent? This logic needs to be more convoluted...
+        if (isTransparent) {
+
+            // transparent - cutout or semitransparent? TODOUSD - use glass material if semitrans or glass?
+            sprintf_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                customData = { \n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                    bool default = 0\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                }\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayName = \"Enable Opacity\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            )\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            int inputs:opacity_mode = 0 (\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                customData = { \n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                    int default = 1\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                }\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayName = \"Opacity Mono Source\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                renderType = \"::base::mono_mode\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                sdrMetadata = { \n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                    string __SDR__enum_value = \"mono_average\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                    string options = \"mono_alpha:0|mono_average:1|mono_luminance:2|mono_maximum:3\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                }\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            )\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                colorSpace = \"raw\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                customData = { \n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                    asset default = @@\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                }\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "                displayName = \"Opacity Map\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            )\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
         sprintf_s(outputString, 256, "            token outputs:out\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         sprintf_s(outputString, 256, "        }\n");
@@ -24779,6 +24839,39 @@ static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize
     return false;
 }
 
+/*
+static int isTileCutoutOrAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow)
+{
+    bool isCutout = false;
+    // these are swatch locations in index form (not yet multiplied by swatch size itself)
+    int scol = swatchLoc % swatchesPerRow;
+    int srow = swatchLoc / swatchesPerRow;
+
+    int col, row;
+    unsigned char dr, dg, db, da;  // cppcheck-suppress 398
+
+    // tileSize is always swatchSize-2
+    for (row = 0; row < swatchSize - 2; row++)
+    {
+        // upper left corner, starting location, plus 1 row and column
+        unsigned int* srci = (unsigned int*)(&src->image_data[0]) + (srow * swatchSize + 1 + row) * src->width + scol * swatchSize + 1;
+        for (col = 0; col < swatchSize - 2; col++)
+        {
+            GET_PNG_TEXEL(dr, dg, db, da, *srci);
+            if (da != 255) {
+                if (da != 0) {
+                    // semi-transparent
+                    return 2;
+                }
+                // it's at least a cutout
+                isCutout = true;
+            }
+            srci++;
+        }
+    }
+    return isCutout?1:0;
+}
+*/
 
 
 ///////////////////////////////////////////////////////////
