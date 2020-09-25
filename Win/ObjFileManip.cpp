@@ -589,6 +589,7 @@ static void hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, in
 
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
+static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
 
 static int getDimensionsAndCount(Point dimensions);
@@ -13976,8 +13977,14 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     {
         // Check if we are exporting per tile
         if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
-            // group by tile type; minimizes material changes
-            qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdCompare, NULL);
+            // for USD, group by actual tile, as we don't care about groups so much
+            if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
+                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
+            }
+            else {
+                // group by tile type; minimizes material changes
+                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdCompare, NULL);
+            }
         }
         else {
             // don't bother with swatchLoc sorting
@@ -14022,6 +14029,40 @@ static int tileIdCompare(void* context, const void* str1, const void* str2)
     }
     else return ((f1->materialType < f2->materialType) ? -1 : 1);
 }
+
+// sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
+// Sorting by swatch location allows better grouping and less material switching (can't do this for individual block output).
+static int tileUSDIdCompare(void* context, const void* str1, const void* str2)
+{
+    FaceRecord* f1;
+    FaceRecord* f2;
+    f1 = *(FaceRecord**)str1;
+    f2 = *(FaceRecord**)str2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    // compare swatchLocs
+    int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
+    int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
+    if (swatchLoc1 == swatchLoc2) {
+        if (f1->materialType == f2->materialType)
+        {
+            // tie break of the data value
+            // TODO: do this test only if we really want sub-materials; would have to pass in some context
+            if (f1->materialDataVal == f2->materialDataVal) {
+                // Not necessary, but...
+                // Tie break is face loop starting vertex, so that data is
+                // output with some coherence. May help mesh caching and memory access.
+                // Also, the data just looks more tidy in the file.
+                return ((f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1);
+            }
+            else {
+                return ((f1->materialDataVal < f2->materialDataVal) ? -1 : 1);
+            }
+        }
+        else return ((f1->materialType < f2->materialType) ? -1 : 1);
+    }
+    else return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
+}
+
 
 // sort by block type, then by data value using submaterial mask, then by face index
 static int faceIdCompare(void* context, const void* str1, const void* str2)
@@ -21900,10 +21941,10 @@ static int openUSDFile(wchar_t* destination);
 static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD();
 static int createCameraUSD();
-static int createMaterialsUSD();
 static int createMeshesUSD();
 static boolean allocOutData(int nverts, int nfaces);
 static void freeOutData();
+static int createMaterialsUSD();
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD();
 static int closeUSDFile();
@@ -21955,12 +21996,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     //if (createCameraUSD()) {
     //}
 
-    // export the materials
-    if (retCode |= createMaterialsUSD()) {
-        // failed to write
-        goto Exit;
-    }
-
     getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
     if (strlen(worldNameUnderlined)) {
         sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
@@ -21973,14 +22008,20 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     if (retCode |= createMeshesUSD()) {
         goto Exit;
     }
+    // close the Xform
+    sprintf_s(outputString, 256, "}\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+
+    // export the materials
+    if (retCode |= createMaterialsUSD()) {
+        // failed to write
+        goto Exit;
+    }
 
     if (retCode |= createLightingUSD()) {
         goto Exit;
     }
-
-    // close braces for Xform
-    sprintf_s(outputString, 256, "}\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
 Exit:
     if (retCode |= closeUSDFile()) {
@@ -22033,16 +22074,6 @@ static int finishCommentsUSD()
     sprintf_s(outputString, 256, "\"\"\"\n    metersPerUnit = 1\n    upAxis = \"Y\"\n)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    return 0;
-}
-
-//static int createCameraUSD()
-//{
-//    return 0;
-//}
-static int createMaterialsUSD()
-{
-    /* TODOUSD */
     return 0;
 }
 
@@ -22109,7 +22140,7 @@ static int createMeshesUSD()
         }
 
         // output mesh's arrays
-        sprintf_s(outputString, 256, "    def Mesh \"%s\"\n    {\n", mtlName);
+        sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startRun?"\n":"", mtlName);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "        int[] faceVertexCounts = [");
@@ -22125,6 +22156,9 @@ static int createMeshesUSD()
             sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
+
+        sprintf_s(outputString, 256, "        rel material:binding = </Looks/%s>\n", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         sprintf_s(outputString, 256, "        normal3f[] normals = [");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22215,12 +22249,94 @@ static void freeOutData()
     gOutData.nfaces = 0;
 }
 
+//static int createCameraUSD()
+//{
+//    return 0;
+//}
+static int createMaterialsUSD()
+{
+    char outputString[256];
+    sprintf_s(outputString, 256, "\ndef Scope \"Looks\" (\n    kind = \"model\"\n)\n{\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // spin out all the shaders, one per tile.
+    char mtlName[MAX_PATH_AND_FILE];
+
+    int startRun = 0;
+    int nextStart = 0;
+    int numVerts;
+
+    while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
+        // Get the tile name - that's all we need
+
+        // TODOUSD: should get the swatchLoc passed back from findEndOfGroup
+        FaceRecord* pFace = gModel.faceList[startRun];
+        int swatchLoc = gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc;
+
+        sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "    {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        token outputs:mdl:displacement.connect = </Looks/%s/Shader.outputs:out>\n", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        token outputs:mdl:surface.connect = </Looks/%s/Shader.outputs:out>\n", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        token outputs:mdl:volume.connect = </Looks/%s/Shader.outputs:out>\n", mtlName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        def Shader \"Shader\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "            uniform token info:implementationSource = \"sourceAsset\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @OmniPBR.mdl@\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"OmniPBR\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        // add the "_y" if synthesized - material name differs from tile file name in this case
+        sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @textures\\%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y":"");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "                customData = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "                    asset default = @@\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "                }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "                displayGroup = \"Albedo\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "                displayName = \"Albedo Map\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "            )\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "            token outputs:out\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "    }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        // go to next group
+        startRun = nextStart;
+    }
+
+    sprintf_s(outputString, 256, "}\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    return 0;
+}
+
+
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts)
 {
     numVerts = 0;
     nextStart = startRun;
     if (startRun >= gModel.faceCount)
         return false;
+
+    // TODOUSD: we should really get rid of all of this and just pay attention to swatchLoc
+    // TODOUSD: also, gray out all options except "no textures" and "tiled textures", I think.
 
     // Output each mesh, grouped by material
     int exportMaterials = gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS;
@@ -22289,9 +22405,11 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
                 // if the material type has changed, or the material subtype has changed, a new group is possible.
                 //bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
                 //    (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
-                bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
-                    (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
+                //bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
+                //    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                //    (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
+                // works only for tiled export - group by swatch loc (tile name) only
+                bool newMaterialPossible = (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc);
                 // did we reach a new material?
                 if (newMaterialPossible)
                 {
@@ -22310,8 +22428,39 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 // Create a light source in the scene.
 static int createLightingUSD()
 {
-    char outputString[1024];
-    sprintf_s(outputString, 1024, "\n    def DistantLight \"Sun\"\n    {\n        float angle = 0.53\n        color3f color = (1, 0.9, 0.8)\n        float intensity = 5000\n    }\n");
+    char outputString[256];
+
+    sprintf_s(outputString, 256, "\ndef DistantLight \"Sun\" (\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    prepend apiSchemas = [\"ShapingAPI\"]\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    kind = \"model\"\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, ")\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "{\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float angle = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float intensity = 400\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float shaping:cone:softness\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float shaping:focus\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    color3f shaping:focusTint\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    asset shaping:ies:file\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float3 xformOp:rotateZYX = (290, 350, 0)\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;
