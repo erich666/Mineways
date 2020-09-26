@@ -22063,7 +22063,36 @@ static int writeCommentUSD(char* commentString)
 static int finishCommentsUSD()
 {
     char outputString[256];
-    sprintf_s(outputString, 256, "\"\"\"\n    metersPerUnit = 1\n    upAxis = \"Y\"\n)\n");
+    // close comments
+    sprintf_s(outputString, 256, "\"\"\"\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // render settings - could make a separate function
+    sprintf_s(outputString, 256, "    customLayerData = { \n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "        dictionary renderSettings = {\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            float \"rtx:ambientOcclusion:rayLength\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            bool \"rtx:indirectDiffuse:enabled\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            float \"rtx:pathtracing:fireflyFilter:maxIntensityPerSample\" = 50000\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            float \"rtx:pathtracing:maxBounces\" = 10\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            float \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 150\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "        }\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    }\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    metersPerUnit = 1\n    upAxis = \"%s\"\n)\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;
