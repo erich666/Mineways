@@ -499,7 +499,7 @@ static int gAssertFacesNotReusedMask = 0x0;
 
 static int modifyAndWriteTextures(int needDifferentTextures);
 
-static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName);
+static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation);
 
 static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
 static int initializeModelData();
@@ -669,7 +669,7 @@ static int finalModelChecks();
 static void addOutputFilenameToList(wchar_t* filename);
 
 static void spacesToUnderlines(wchar_t* targetString);
-static void spacesToUnderlinesChar(char* targetString);
+static void changeCharToUnderline(char toReplace, char* targetString);
 
 static float retrieveMtlAlpha(int type);
 static int createBaseMaterialTexture();
@@ -1493,7 +1493,7 @@ void StripLastString(const wchar_t* src, wchar_t* path, wchar_t* piece)
     *endPathPtr = (wchar_t)0;
 }
 
-static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName)
+static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation)
 {
     char worldChar[MAX_PATH_AND_FILE];
     const char* justWorldFileName;
@@ -1502,7 +1502,15 @@ static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName
 
     // replace spaces with underscores for world name output
     strcpy_s(worldNameUnderlined, MAX_PATH_AND_FILE, justWorldFileName);
-    spacesToUnderlinesChar(worldNameUnderlined);
+    changeCharToUnderline(' ', worldNameUnderlined);
+    // convert all punctuation found in Windows file names to underscores
+    if (convertPunctuation ) {
+        char* charFound = strpbrk(worldNameUnderlined, "-+=[]{}`~,.';!@#$%^&()");
+        while (charFound) {
+            *charFound = '_';
+            charFound = strpbrk(charFound, "-+=[]{}`~,.';!@#$%^&()");
+        }
+    }
 }
 
 
@@ -1783,10 +1791,10 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
                 }
                 wchar_t wcString[1024];
                 if (foundIt) {
-                    wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, i);
+                    swprintf_s(wcString, 1024, L"Tile %2d, %2d,  %3d\n", col, row, i);
                 }
                 else {
-                    wsprintf(wcString, L"Tile %2d, %2d,  %3d\n", col, row, 6);	// put a sapling - should at least have cutout property
+                    swprintf_s(wcString, 1024, L"Tile %2d, %2d,  %3d\n", col, row, 6);	// put a sapling - should at least have cutout property
                 }
                 OutputDebugString(wcString);
                 index++;
@@ -19390,7 +19398,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     int mkGroupsObjs = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
     if (!mkGroupsObjs) {
@@ -19518,7 +19526,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     }
 
                     // substitute ' ' to '_'
-                    spacesToUnderlinesChar(mtlName);
+                    changeCharToUnderline(' ', mtlName);
                     // export by individual blocks
                     // usemtl materialName
                     if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gModel.exportTiles)
@@ -20093,7 +20101,7 @@ static int writeOBJMtlFile()
                         strcpy_s(mtlName, 256, subName);
                     }
                 }
-                spacesToUnderlinesChar(mtlName);
+                changeCharToUnderline(' ', mtlName);
 
                 retCode = writeOBJFullMtlDescription(mtlName, type, dataVal, textureRGB, textureRGBA, textureAlpha, NULL, -1);
                 if (retCode != MW_NO_ERROR)
@@ -21213,7 +21221,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     if (isMagics)
     {
@@ -21358,7 +21366,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     // Object name - give them a hint where it's from: world name and coordinates
     sprintf_s(outputString, 256, "solid %s__%d_%d_%d_to_%d_%d_%d\n", worldNameUnderlined,
@@ -21555,7 +21563,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
         else
         {
             strcpy_s(mtlName, 256, gBlockDefinitions[gModel.faceList[currentFace]->materialType].name);
-            spacesToUnderlinesChar(mtlName);
+            changeCharToUnderline(' ', mtlName);
         }
         sprintf_s(outputString, 256, shapeString,
             mtlName,
@@ -21910,7 +21918,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     if (createCameraUSD()) {
     }
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, true);
 
     if (createMeshesUSD(worldNameUnderlined)) {
         goto Exit;
@@ -21961,7 +21969,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
 
     if (retCode |= openUSDFile(fileNameWithSuffix)) {
-        // TODOUSD cannot open file
+        // cannot open file
         goto Exit;
     }
 
@@ -21983,8 +21991,8 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     // export a reasonable camera
     //if (createCameraUSD()) {
     //}
-
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world);
+    // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
+    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, true);
     if (strlen(worldNameUnderlined)) {
         sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
     }
@@ -22014,7 +22022,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
 Exit:
     if (retCode |= closeUSDFile()) {
-        // TODOUSD failed to quit
+        // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
     }
 
     // note that textures get written out in SaveVolume(), which calls this function.
@@ -22118,6 +22126,9 @@ static int createMeshesUSD()
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         // Go through data and make arrays
+
+        // there are unlikely to be *that* many groups, so just update on each found
+        UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)nextStart / (float)gModel.faceCount));
 
         // Create the geometry inside of "Root" (actually, whatever the user-defined name is)
 
@@ -22288,7 +22299,6 @@ static int createMaterialsUSD()
     int numVerts;
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
-        // TODOUSD: should get the swatchLoc passed back from findEndOfGroup
         FaceRecord* pFace = gModel.faceList[startRun];
         int swatchLoc = gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc;
 
@@ -22339,7 +22349,7 @@ static int createMaterialsUSD()
         sprintf_s(outputString, 256, "            )\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-        // transparent? This logic needs to be more convoluted...
+        // transparent?
         if (isTransparent) {
 
             // transparent - cutout or semitransparent? TODOUSD - use glass material if semitrans or glass?
@@ -22424,8 +22434,8 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
     if (startRun >= gModel.faceCount)
         return false;
 
-    // TODOUSD: we should really get rid of all of this and just pay attention to swatchLoc
-    // TODOUSD: also, gray out all options except "no textures" and "tiled textures", I think.
+    // TODOUSD: we could really get rid of all of this and just pay attention to swatchLoc
+    // TODOUSD: also, I need to gray out all options except "no textures" and "tiled textures", I think.
 
     // Output each mesh, grouped by material
     int exportMaterials = gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS;
@@ -22479,11 +22489,6 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 
     for (int i = startRun; i < gModel.faceCount; i++)
     {
-        // TODOUSD
-        //// every 1% or so check on progress
-        //if (i % progCheck == 0)
-        //    UPDATE_PROGRESS(PG_OUTPUT + 0.5f * (PG_TEXTURE - PG_OUTPUT) + 0.5f * (PG_TEXTURE - PG_OUTPUT) * ((float)i / (float)gModel.faceCount));
-
         FaceRecord* pFace = gModel.faceList[i];
 
         if (exportMaterials)
@@ -23818,16 +23823,16 @@ static void spacesToUnderlines(wchar_t* targetString)
 }
 
 // substitute ' ' to '_'
-static void spacesToUnderlinesChar(char* targetString)
+static void changeCharToUnderline(char toReplace, char* targetString)
 {
     char* strPtr;
 
-    strPtr = strchr(targetString, (int)' ');
+    strPtr = strchr(targetString, (int)toReplace);
     while (strPtr)
     {
         // changes targetString itself
         *strPtr = '_';
-        strPtr = strchr(targetString, (int)' ');
+        strPtr = strchr(targetString, (int)toReplace);
     }
 }
 
