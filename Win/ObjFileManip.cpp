@@ -22090,11 +22090,19 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 150\n");
+    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 500\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float \"rtx:post:dlss:execMode\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 4\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22361,7 +22369,7 @@ static int createMaterialsUSD()
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 8000.0 * emission);
+                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 90000.0 * emission);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22577,7 +22585,7 @@ static int createLightingUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 400\n");
+    strcpy_s(outputString, 256, "    float intensity = 100\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22598,7 +22606,76 @@ static int createLightingUSD()
     strcpy_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    return 0;
+    strcpy_s(outputString, 256, "\ndef DomeLight \"DomeLight\" (\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    prepend apiSchemas = [\"ShapingAPI\"]\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, ")\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "{\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float intensity = 10\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float shaping:cone:softness\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float shaping:focus\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    color3f shaping:focusTint\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    asset texture:file = @textures/_domelight.png@\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    token texture:format = \"latlong\"\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float3 xformOp:rotateZYX = (270, 0, 0)\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "}\n\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // Create the dome light texture and write it out.
+    // 128x128 for no particular reason. Could be 1x128 but this is easier for the user to see.
+    int retCode = MW_NO_ERROR;
+
+    int numChannels = 3;
+    unsigned char* imageDst;
+    progimage_info dst;
+    dst.height = dst.width = 128;
+    dst.image_data.resize(dst.height * dst.width * numChannels);
+
+    imageDst = &dst.image_data[0];
+
+    for (int row = 0; row < dst.height; row++)
+    {
+        for (int col = 0; col < dst.width; col++)
+        {
+            if (row < dst.height / 2) {
+                // sky
+                *imageDst++ = 134;
+                *imageDst++ = 169;
+                *imageDst++ = 251;
+            }
+            else {
+                *imageDst++ = 74;
+                *imageDst++ = 101;
+                *imageDst++ = 73;
+            }
+        }
+    }
+
+    wchar_t filename[] = L"textures\\_domelight.png";
+    retCode |= writepng(&dst, 3, filename);
+    addOutputFilenameToList(filename);
+
+    writepng_cleanup(&dst);
+
+    return retCode;
 }
 
 static int closeUSDFile()
@@ -24856,7 +24933,8 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
 
     int col, row;
     int numChannels = usesAlpha ? 4 : 3;
-    unsigned char* imageDst, * imageSrc;  // cppcheck-suppress 398
+    unsigned char* imageDst;
+    unsigned char* imageSrc;
     progimage_info dst;
     dst.height = swatchSize - 2;
     dst.width = swatchSize - 2;

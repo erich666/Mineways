@@ -406,6 +406,7 @@ static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6]);
 static void deleteCommandBlockSet(ChangeBlockCommand* pCBC);
 static char* findLineDataNoCase(char* line, char* findStr);
 static char* removeLeadingWhitespace(char* line);
+static void cleanseBackslashes(char* line);
 static void saveErrorMessage(ImportedSet& is, wchar_t* error, char* restOfLine = NULL);
 static void saveWarningMessage(ImportedSet& is, wchar_t* error);
 static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine = NULL);
@@ -5361,6 +5362,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (is.processData) {
             // TODO - somehow, this message never gets replaced when reloading world. sendStatusMessage(is.ws.hwndStatus, L"Importing model: reading terrain file");
             strcpy_s(is.terrainFile, MAX_PATH_AND_FILE, strPtr);
+            cleanseBackslashes(is.terrainFile);
             if (!is.readingModel) {
                 if (!commandLoadTerrainFile(is, error)) {
                     saveErrorMessage(is, error);
@@ -7333,6 +7335,19 @@ static char* removeLeadingWhitespace(char* line)
         }
     }
     return line;
+}
+
+static void cleanseBackslashes(char* line)
+{
+    // search for two backslashes together (four here, because they're escaped)
+    char* loc = strstr(line, "\\\\");
+    while (loc != NULL) {
+        // go to and remove second slash
+        loc++;
+        strcpy_s(loc, strlen(loc), loc + 1);
+        loc--;
+        loc = strstr(loc, "\\\\");
+    }
 }
 
 static void saveErrorMessage(ImportedSet& is, wchar_t* error, char* restOfLine)
