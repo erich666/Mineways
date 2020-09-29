@@ -22076,7 +22076,7 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // render settings - could make a separate function
-    strcpy_s(outputString, 256, "    customLayerData = { \n");
+    strcpy_s(outputString, 256, "    customLayerData = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        dictionary renderSettings = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22349,13 +22349,54 @@ static int createMaterialsUSD()
         strcpy_s(outputString, 256, "            )\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+        // emitter?
+        if (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) {
+            float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true);
+            if (emission > 0.0f) {
+                strcpy_s(outputString, 256, "            color3f inputs:emissive_color = (1, 1, 1) (\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Emissive Color\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 8000.0 * emission);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Emissive Intensity\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Emissive Mask map\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            bool inputs:enable_emission = 1 (\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Enable Emission\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+        }
+
         // transparent?
         if (isTransparent) {
 
             // transparent - cutout or semitransparent? TODOUSD - use glass material if semitrans or glass?
             strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = { \n");
+            strcpy_s(outputString, 256, "                customData = {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                    bool default = 0\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22369,7 +22410,7 @@ static int createMaterialsUSD()
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "            int inputs:opacity_mode = 0 (\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = { \n");
+            strcpy_s(outputString, 256, "                customData = {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                    int default = 1\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22381,7 +22422,7 @@ static int createMaterialsUSD()
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                renderType = \"::base::mono_mode\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                sdrMetadata = { \n");
+            strcpy_s(outputString, 256, "                sdrMetadata = {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                    string __SDR__enum_value = \"mono_average\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22395,7 +22436,7 @@ static int createMaterialsUSD()
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = { \n");
+            strcpy_s(outputString, 256, "                customData = {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                    asset default = @@\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
