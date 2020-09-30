@@ -898,10 +898,13 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
             // For individual tile export, try to read all possible terrainExt file names and process each. RGBA/normals/M/E/R
             if ((fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ)) {
-                totalInputTextures = 2; // RGBA and normals
+                totalInputTextures = 2; // RGBA and normals, the first two
             }
-            // TODOUDS for USD, number is 5 == TOTAL_CATEGORIES
+            else if (fileType == FILE_TYPE_USD) {
+                totalInputTextures = 2; // 5; // everything TODOUSD
+            }
         }
+        // try reading each category's file type
         for (catIndex = 0; catIndex < totalInputTextures; catIndex++) {
             gModel.pInputTerrainImage[catIndex] = new progimage_info();
 
@@ -1484,7 +1487,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                     }
                 }
 
-                assert(gModel.tileListCount);   // should be determined before calling this function
+                assert(gModel.tileListCount);   // should be computed before calling this function
                 int outputCount = 0;
                 int frequency = (int)(1 + (gModel.tileListCount / 16));
                 for (int i = 0; i < TOTAL_TILES; i++) {
@@ -22477,6 +22480,17 @@ static int createMaterialsUSD()
     int nextStart = 0;
     int numVerts;
 
+    // get path to textures subdirectory specified by user
+    // TODOUSD - I suspect absolute path name for texture directory will break this - TEST!
+    char texturePath[MAX_PATH_AND_FILE];
+    strcpy_s(texturePath, MAX_PATH_AND_FILE, gModel.options->pEFD->tileDirString);
+    // get rid of backslashes for USD
+    char *fc = strchr(texturePath, '\\');
+    while (fc) {
+        *fc = '/';
+        fc = strchr(texturePath, '\\');
+    }
+
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         FaceRecord* pFace = gModel.faceList[startRun];
         int swatchLoc = gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc;
@@ -22513,7 +22527,7 @@ static int createMaterialsUSD()
         sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"OmniPBR%s\"\n", isTransparent ? "_Opacity" : "");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         // add the "_y" if synthesized - material name differs from tile file name in this case
-        sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y":"");
+        sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y":"");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "                customData = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22531,6 +22545,9 @@ static int createMaterialsUSD()
         // emitter?
         if (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) {
             float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
+
+            // TODOTODOUSD - test for whether there is an emitter tile - if so, mark one for output. If not, we will
+            // generate one special ourselves in our own texture output method, at the end of things.
             if (emission > 0.0f) {
                 strcpy_s(outputString, 256, "            color3f inputs:emissive_color = (1, 1, 1) (\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22548,7 +22565,7 @@ static int createMaterialsUSD()
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22563,6 +22580,32 @@ static int createMaterialsUSD()
                 strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                displayName = \"Enable Emission\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+        }
+
+        // normals?
+        // If exporting tiles (which we're currently always doing), check if normals texture is available
+        if (gModel.exportTiles) {
+            // if normals exists and swatch is not black, is needed, then use it and note it.
+            if (gModel.pInputTerrainImage[CATEGORY_NORMALS] && !isTileBlack(CATEGORY_NORMALS, swatchLoc, false)) {
+                gModel.tileList[CATEGORY_NORMALS][swatchLoc] = true;
+
+                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s/%s_n.png@ (\n", texturePath, mtlName);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                customData = {\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                    asset default = @@\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                }\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Normal Map\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22611,7 +22654,7 @@ static int createMaterialsUSD()
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "            )\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @textures/%s%s.png@ (\n", mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+            sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
