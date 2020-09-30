@@ -1670,6 +1670,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 rationalizeFilePath(pathAndFile);
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+                wchar_t title[MAX_PATH_AND_FILE];
+                formTitle(&gWorldGuide, title);
+                SetWindowTextW(hWnd, title);
             }
             break;
         case ID_FILE_IMPORTSETTINGS:
@@ -7438,6 +7441,17 @@ static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
     {
         wcscat_s(title, MAX_PATH_AND_FILE - 1, stripWorldName(pWorldGuide->world));
     }
+
+    // Really, there should always be a path and name.
+    // We could test if it's terrain.png and ignore, I guess (assumes someone hasn't used the same name elsewhere
+    //if (wcslen(gSelectTerrainPathAndName) > 0)
+    const wchar_t* terrainName = removePath(gSelectTerrainPathAndName);
+    if (wcscmp(terrainName,L"terrainExt.png") != 0)
+    {
+        // get terrain file name and append
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, L", terrain: ");
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, terrainName);
+    }
 }
 
 // change any '/' to '\', or vice versa, as preferred
@@ -7667,6 +7681,9 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
             }
             // success, copy file and path (directory is fine)
             wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+            wchar_t title[MAX_PATH_AND_FILE];
+            formTitle(&gWorldGuide, title);
+            SetWindowTextW(is.ws.hWnd, title);
             fclose(fh);
         }
     }
@@ -7681,6 +7698,9 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
         // success, copy file name&path, and directory
         wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
         wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, tempPath);
+        wchar_t title[MAX_PATH_AND_FILE];
+        formTitle(&gWorldGuide, title);
+        SetWindowTextW(is.ws.hWnd, title);
         fclose(fh);
     }
     return true;

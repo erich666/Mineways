@@ -22102,7 +22102,7 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0\n");
+    strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
