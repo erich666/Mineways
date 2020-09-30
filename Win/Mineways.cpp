@@ -4333,8 +4333,14 @@ static void initializeViewExportData(ExportFileData& viewData)
     // copy view data from print, and change what's needed
     initializePrintExportData(viewData);
 
+// TODOUSD
+#define FAVOR_USD
+#ifdef FAVOR_USD
     // Now that I've figured out that Blender can show materials OK, change to "true spec"
     viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
+#else
+    viewData.fileType = FILE_TYPE_USD;
+#endif
 
     // don't really need to create a zip for rendering output
     INIT_ALL_FILE_TYPES(viewData.chkCreateZip,            0, 0, 0, 0, 0, 0, 0, 0);

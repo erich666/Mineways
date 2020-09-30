@@ -825,6 +825,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // set up a bunch of globals
     gpCallback = &callback;
 
+    // show "progress" (not much, really), just so the progress bar shows something, so that the user knows that something is happening.
+    UPDATE_PROGRESS(0.05 / 1.05); // 1.05 is used in determineProgressValues to kick past this point
+
     gMajorVersion = majorVersion;
     gMinorVersion = minorVersion;
     gMinecraftWorldVersion = worldVersion;
@@ -870,8 +873,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     spacesToUnderlines(gOutputFileRootClean);
     WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
 
-    // start exporting for real
-    UPDATE_PROGRESS(0.0f);
+    // start exporting for real - this should be the same value as above, in the first call of UPDATE_PROGRESS,
+    // before gProgress was populated
+    //UPDATE_PROGRESS(gProgress.start.startup);
 
     if (options->moreExportMemory)
     {
@@ -1256,6 +1260,9 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     // normalize to 1.00
     float total = gProgress.relative.startup + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.texture + gProgress.relative.zip;
 
+    // ensure progress at start: multiply total by 1.05 to force a block to show some progress on the progress bar, for long exports.
+    total *= 1.05f;
+
     // absolute values are in the range 0.0 to 1.0 of the time predicted to be spent on an activity
     gProgress.absolute.startup = gProgress.relative.startup / total;
     gProgress.absolute.makeFaces = gProgress.relative.makeFaces / total;
@@ -1264,7 +1271,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     gProgress.absolute.zip = gProgress.relative.zip / total;
 
     // starting points for progress, i.e., makefaces starts after the startup time is spent.
-    gProgress.start.startup = 0.0f;
+    gProgress.start.startup = 1.0f - (gProgress.absolute.startup + gProgress.absolute.makeFaces + gProgress.absolute.output + gProgress.absolute.texture + gProgress.absolute.zip);
     gProgress.start.makeFaces = gProgress.start.startup + gProgress.absolute.startup;
     gProgress.start.output = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
     gProgress.start.texture = gProgress.start.output + gProgress.absolute.output;
