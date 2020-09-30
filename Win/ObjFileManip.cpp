@@ -401,12 +401,23 @@ static int gFaceDirectionVector[6][3] =
 
 // when should output be part of the progress bar? That is, 0.80 means 80% done when we start outputting the file
 // number is how far along we are when that part begins, approx.
-#define PG_MAKE_FACES 0.15f
-#define PG_OUTPUT 0.20f
-#define PG_TEXTURE 0.75f
-#define PG_CLEANUP 0.91f
-// leave some time for zipping files
-#define PG_END 0.95f
+typedef struct ProgressCategories {
+    float startup;
+    float makeFaces;
+    float output;
+    float swatches;
+    float texture;
+    float cleanup;
+    float zip;
+} ProgressCategories;
+
+typedef struct ProgressValues {
+    ProgressCategories relative;
+    ProgressCategories absolute;
+    ProgressCategories start;
+} ProgressValues;
+
+ProgressValues gProgress;
 
 #define NO_INDEX_SET 0xffffffff
 
@@ -510,6 +521,8 @@ OutDataArrays   gOutData;
 // if we use the Reused command, make sure we're not outputting a face twice - that's an error.
 static int gAssertFacesNotReusedMask = 0x0;
 #endif
+
+static void determineProgressValues(int fileType);
 
 static int modifyAndWriteTextures(int needDifferentTextures);
 
@@ -788,7 +801,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // set up a bunch of globals
     gpCallback = &callback;
     // initial "quick" progress just so progress bar moves a bit.
-    UPDATE_PROGRESS(0.20f * PG_MAKE_FACES);
+    //UPDATE_PROGRESS(0.04f);
 
     gMajorVersion = majorVersion;
     gMinorVersion = minorVersion;
@@ -854,7 +867,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gOutputFileList = outputFileList;
 
-    UPDATE_PROGRESS(0.30f * PG_MAKE_FACES);
+    // compute progress increments
+    determineProgressValues(fileType);
+
+    UPDATE_PROGRESS(gProgress.relative.makeFaces);
 
     // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
@@ -944,7 +960,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         }
     }
 
-    UPDATE_PROGRESS(0.40f * PG_MAKE_FACES);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.40f * gProgress.absolute.startup);
 
     initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
     tightenedWorldBox = worldBox;
@@ -1014,14 +1030,14 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= MW_TEXTURE_RESOLUTION_HIGH;
     }
 
-    UPDATE_PROGRESS(0.50f * PG_MAKE_FACES);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.50f * gProgress.absolute.startup);
     retCode |= initializeModelData();
     if (retCode >= MW_BEGIN_ERRORS)
     {
         goto Exit;
     }
 
-    UPDATE_PROGRESS(0.60f * PG_MAKE_FACES);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.60f * gProgress.absolute.startup);
 
     // process all billboards and "minor geometry"
     retCode |= filterBox(pCBC);
@@ -1031,7 +1047,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(0.90f * PG_MAKE_FACES);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.90f * gProgress.absolute.startup);
 
 
     // At this point all data is read in and filtered. Check if we're outputting a
@@ -1048,13 +1064,13 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(PG_MAKE_FACES);
+    UPDATE_PROGRESS(gProgress.start.makeFaces);
 
     // create database and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-    UPDATE_PROGRESS(PG_OUTPUT);
+    UPDATE_PROGRESS(gProgress.start.output);
 
     switch (fileType)
     {
@@ -1098,7 +1114,7 @@ Exit:
 
     // write out texture files, if any input data
     // 45%
-    UPDATE_PROGRESS(PG_TEXTURE);
+    UPDATE_PROGRESS(gProgress.start.swatches);
 
     // if there were major errors, don't bother
     if (retCode < MW_BEGIN_ERRORS)
@@ -1112,7 +1128,7 @@ Exit:
     }
 
     // 91%
-    UPDATE_PROGRESS(PG_CLEANUP);
+    UPDATE_PROGRESS(gProgress.start.cleanup);
 
     freeModel(&gModel);
 
@@ -1126,7 +1142,7 @@ Exit:
 
 
     // 95%
-    UPDATE_PROGRESS(PG_END);
+    UPDATE_PROGRESS(gProgress.start.zip);
 
     if (gBadBlocksInModel)
         // if ( UnknownBlockRead() && gBadBlocksInModel )
@@ -1137,6 +1153,96 @@ Exit:
     }
 
     return retCode;
+}
+
+static void determineProgressValues(int fileType)
+{
+    switch (fileType)
+    {
+    case FILE_TYPE_WAVEFRONT_REL_OBJ:
+    case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+        gProgress.relative.startup = 15;
+        gProgress.relative.makeFaces = 5;
+        gProgress.relative.output = 55;
+        gProgress.relative.swatches = 2;
+        gProgress.relative.texture = 16;
+        gProgress.relative.cleanup = 4;
+        break;
+    case FILE_TYPE_USD:
+        gProgress.relative.startup = 15;
+        gProgress.relative.makeFaces = 5;
+        gProgress.relative.output = 55;
+        gProgress.relative.swatches = 2;
+        gProgress.relative.texture = 4;
+        gProgress.relative.cleanup = 4;
+        break;
+    case FILE_TYPE_BINARY_MAGICS_STL:
+    case FILE_TYPE_BINARY_VISCAM_STL:
+    case FILE_TYPE_ASCII_STL:
+        gProgress.relative.startup = 15;
+        gProgress.relative.makeFaces = 5;
+        gProgress.relative.output = 55;
+        gProgress.relative.swatches = 0;
+        gProgress.relative.texture = 0;
+        gProgress.relative.cleanup = 4;
+        break;
+    case FILE_TYPE_VRML2:
+        gProgress.relative.startup = 15;
+        gProgress.relative.makeFaces = 5;
+        gProgress.relative.output = 55;
+        gProgress.relative.swatches = 2;
+        gProgress.relative.texture = 16;
+        gProgress.relative.cleanup = 4;
+        break;
+    case FILE_TYPE_SCHEMATIC:
+        gProgress.relative.startup = 15;
+        gProgress.relative.makeFaces = 60;
+        gProgress.relative.output = 20;
+        gProgress.relative.swatches = 0;
+        gProgress.relative.texture = 0;
+        gProgress.relative.cleanup = 0;
+        break;
+    default:
+        assert(0);
+        break;
+    }
+
+    // if textures, check if tiled
+    if (gModel.pPNGtexture) {
+        if (gModel.exportTiles) {
+            // usually takes a lot less time: a few small textures vs. 2-3 big ones
+            gProgress.relative.texture /= 10;
+        }
+    }
+    else {
+        // if no textures, get rid of that time
+        gProgress.relative.swatches = 0;
+        gProgress.relative.texture = 0;
+    }
+
+    // time for zipping up files
+    gProgress.relative.zip = gModel.options->pEFD->chkCreateZip ? 5.0f : 0.0f;
+
+    // normalize to 1.00
+    float total = gProgress.relative.startup + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.swatches + gProgress.relative.texture + gProgress.relative.cleanup + gProgress.relative.zip;
+
+    // absolute values are in the range 0.0 to 1.0 of the time predicted to be spent on an activity
+    gProgress.absolute.startup = gProgress.relative.startup / total;
+    gProgress.absolute.makeFaces = gProgress.relative.makeFaces / total;
+    gProgress.absolute.output = gProgress.relative.output / total;
+    gProgress.absolute.swatches = gProgress.relative.swatches / total;
+    gProgress.absolute.texture = gProgress.relative.texture / total;
+    gProgress.absolute.cleanup = gProgress.relative.cleanup / total;
+    gProgress.absolute.zip = gProgress.relative.zip / total;
+
+    // starting points for progress, i.e., makefaces starts after the startup time is spent.
+    gProgress.start.startup = 0.0f;
+    gProgress.start.makeFaces = gProgress.start.startup + gProgress.absolute.startup;
+    gProgress.start.output = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
+    gProgress.start.swatches = gProgress.start.output + gProgress.absolute.output;
+    gProgress.start.texture = gProgress.start.swatches + gProgress.absolute.swatches;
+    gProgress.start.cleanup = gProgress.start.texture + gProgress.absolute.texture;
+    gProgress.start.zip = gProgress.start.cleanup + gProgress.absolute.cleanup;
 }
 
 static int modifyAndWriteTextures(int needDifferentTextures)
@@ -1324,7 +1430,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
         SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
         setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
 
-        UPDATE_PROGRESS(PG_TEXTURE + 0.04f);
+        UPDATE_PROGRESS(gProgress.start.texture);
 
         // Exporting individual tiles?
         if (gModel.exportTiles)
@@ -1385,7 +1491,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
 
                         // update status
                         if (i % (int)(1 + (gModel.tileListCount / 16)) == 0)
-                            UPDATE_PROGRESS(PG_TEXTURE + 0.16f * (float)i / (float)gModel.tileListCount);
+                            UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * (float)i / (float)gModel.tileListCount);
                     }
                 }
             }
@@ -1412,7 +1518,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 rc = writepng(gModel.pPNGtexture, 4, textureRGBA);
                 assert(rc == 0);
                 addOutputFilenameToList(textureRGBA);
-                UPDATE_PROGRESS(PG_TEXTURE + 0.08f);
+                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.33f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
             }
 
@@ -1422,7 +1528,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureRGB);
                 assert(rc == 0);
                 // not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
-                UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
+                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.66f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
             }
 
@@ -1433,7 +1539,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 rc = writepng(gModel.pPNGtexture, 4, textureAlpha);
                 assert(rc == 0);
                 addOutputFilenameToList(textureAlpha);
-                UPDATE_PROGRESS(PG_TEXTURE + 0.12f);
+                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.99f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
             }
         }
@@ -2604,7 +2710,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
         }
 
         // 1%
-        UPDATE_PROGRESS(0.70f * PG_MAKE_FACES);
+        UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.70f);
         // were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
         if (foundBlock == 0 && (flatten || gExportBillboards))
             return retCode | MW_NO_BLOCKS_FOUND;
@@ -2724,7 +2830,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                 }
             }
             // 2%
-            UPDATE_PROGRESS(0.80f * PG_MAKE_FACES);
+            UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.80f);
 
             // 2) Non-manifold edges. For Minecraft, this always means "where two cubes touch at only an edge", i.e.
             //    diagonal (along exactly two axes - touching at a corner is fine). Fix by adding "weld blocks" next to them.
@@ -2763,7 +2869,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
             } while (foundTouching);
 
             // 3.5%
-            UPDATE_PROGRESS(0.85f * PG_MAKE_FACES);
+            UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.85f);
 
 
             // 3) Hanging objects. Tree tops, for example, commonly will sit in the air at the boundaries of the selection.
@@ -13869,11 +13975,11 @@ static void meltSnow()
     }
 }
 
+// last thing called before output of faces
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 {
     int i, boxIndex;
     IPoint loc;
-    float pgFaceStart, pgFaceOffset;
 
     int retCode = MW_NO_ERROR;
 
@@ -13977,17 +14083,14 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         Vec2Op(gModel.normals[i], =, normals[i]);
     }
 
-    pgFaceStart = PG_MAKE_FACES + 0.01f;
-    // 6%
-    UPDATE_PROGRESS(pgFaceStart);
-    pgFaceOffset = PG_OUTPUT - PG_MAKE_FACES - 0.01f;   // save 0.01 for sorting
+    UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.90f);
 
     // At this point all partial blocks have been output, and their type set to BLOCK_AIR. Now output the fully solid blocks.
     // Go through blocks and see which is solid; output these solid blocks.
     for (loc[X] = gSolidBox.min[X]; loc[X] <= gSolidBox.max[X]; loc[X]++)
     {
         // update on each row of X
-        UPDATE_PROGRESS(pgFaceStart + pgFaceOffset * ((float)(loc[X] - gSolidBox.min[X] + 1) / (float)(gSolidBox.max[X] - gSolidBox.min[X] + 1)));
+        //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset * ((float)(loc[X] - gSolidBox.min[X] + 1) / (float)(gSolidBox.max[X] - gSolidBox.min[X] + 1)));
         for (loc[Z] = gSolidBox.min[Z]; loc[Z] <= gSolidBox.max[Z]; loc[Z]++)
         {
             boxIndex = BOX_INDEX(loc[X], gSolidBox.min[Y], loc[Z]);
@@ -14005,7 +14108,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
     }
 
-    UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
+    //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
 
     // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
     for (i = 0; i < gModel.vertexCount; i++)
@@ -14020,6 +14123,8 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         // rotate location as needed
         rotateLocation(pt);
     }
+
+    UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.95f);
 
     // If we are grouping by material (e.g., STL does not need this), and we are not outputting per block, then we need to sort by material
     if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
@@ -18982,7 +19087,7 @@ static void freeModel(Model* pModel)
         int i = 0;
         while (pPool)
         {
-            UPDATE_PROGRESS(PG_CLEANUP + 0.9f * (PG_END - PG_CLEANUP) * ((float)i / (float)pModel->faceCount));
+            //UPDATE_PROGRESS(PG_CLEANUP + 0.9f * (PG_END - PG_CLEANUP) * ((float)i / (float)pModel->faceCount));
             i += FACE_RECORD_POOL_SIZE;
             FaceRecordPool* pPrev = pPool->pPrev;
             free(pPool);
@@ -19470,10 +19575,13 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         }
     }
 
+    // every 4% update the progress
+    int noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.04f));
     for (i = 0; i < gModel.vertexCount; i++)
     {
-        if (i % 1000 == 0)
-            UPDATE_PROGRESS(PG_OUTPUT + 0.5f * (PG_TEXTURE - PG_OUTPUT) * ((float)i / (float)gModel.vertexCount));
+        if (i % noteProgress == 0) {
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount));
+        }
 
         sprintf_s(outputString, 256, "v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -19502,16 +19610,17 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // for whether to search for a material change (but not necessarily make a group)
     bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
 
-    // how often to update progress? Add some minimum check of 1000 faces, plus true # of faces per 1%.
-    int progCheck = (int)((float)gModel.faceCount / (100.0f * 0.5f * (PG_TEXTURE - PG_OUTPUT))) + 1000;
+    // how often to update progress? # of faces per 4%
+    noteProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
 
     float resScale = 16.0f / gModel.tileSize;
 
     for (i = 0; i < gModel.faceCount; i++)
     {
-        // every 1% or so check on progress
-        if (i % progCheck == 0)
-            UPDATE_PROGRESS(PG_OUTPUT + 0.5f * (PG_TEXTURE - PG_OUTPUT) + 0.5f * (PG_TEXTURE - PG_OUTPUT) * ((float)i / (float)gModel.faceCount));
+        // every 4% or so check on progress
+        if (i % noteProgress == 0) {
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
+        }
 
         if (exportMaterials)
         {
@@ -21280,13 +21389,15 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     // number of triangles in model, unsigned int
     WERROR_MODEL(PortaWrite(gModelFile, &numTri, 4));
 
+    int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
+
     // write out the faces, it's just that simple
     for (faceNo = 0; faceNo < gModel.faceCount; faceNo++)
     {
         int faceTriCount;
 
-        if (faceNo % 1000 == 0)
-            UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)faceNo / (float)gModel.faceCount));
+        if (faceNo % noteProgress == 0)
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)faceNo / (float)gModel.faceCount));
 
         pFace = gModel.faceList[faceNo];
         // get four face indices for the four corners
@@ -21413,13 +21524,15 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         sprintf_s(facetNormalString[i], 256, "facet normal %e %e %e\n", gModel.normals[i][X], gModel.normals[i][Y], gModel.normals[i][Z]);
     }
 
+    int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
+
     // write out the faces, it's just that simple
     for (faceNo = 0; faceNo < gModel.faceCount; faceNo++)
     {
         int faceTriCount;
 
-        if (faceNo % 1000 == 0)
-            UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)faceNo / (float)gModel.faceCount));
+        if (faceNo % noteProgress == 0)
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / (float)gModel.faceCount));
 
         pFace = gModel.faceList[faceNo];
         // get four face indices for the four corners
@@ -21574,15 +21687,13 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
 
     firstShape = 1;
     currentFace = 0;
+    int noteFaceProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
     while (currentFace < gModel.faceCount)
     {
         char mtlName[256];
         char shapeString[] = "    Shape\n    {\n      geometry DEF %s_Obj IndexedFaceSet\n      {\n        creaseAngle .5\n        solid %s\n        coord %s coord_Craft%s\n";
 
         int beginIndex, endIndex, currentType, dataVal;
-
-        if (currentFace % 1000 == 0)
-            UPDATE_PROGRESS(PG_OUTPUT + 0.3f * (PG_TEXTURE - PG_OUTPUT) * ((float)currentFace / (float)gModel.faceCount));
 
         // start new shape
         if (exportSingleMaterial)
@@ -21608,10 +21719,12 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
             strcpy_s(outputString, 256, "        {\n          point\n          [\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+            int noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.04f));
             for (j = 0; j < gModel.vertexCount; j++)
             {
-                if (j % 1000 == 0)
-                    UPDATE_PROGRESS(PG_OUTPUT + 0.3f * (PG_TEXTURE - PG_OUTPUT) + 0.7f * (PG_TEXTURE - PG_OUTPUT) * ((float)j / (float)gModel.vertexCount));
+                if (j % noteProgress == 0) {
+                    UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)j / (float)gModel.vertexCount));
+                }
 
                 if (j == gModel.vertexCount - 1)
                 {
@@ -21665,6 +21778,10 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
         while ((currentFace < gModel.faceCount) &&
             ((currentType == gModel.faceList[currentFace]->materialType) || exportSingleMaterial))
         {
+            if (currentFace % noteFaceProgress == 0) {
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)currentFace / (float)gModel.faceCount)));
+            }
+
             char commaString[256];
             strcpy_s(commaString, 256, (currentFace == gModel.faceCount - 1 || (currentType != gModel.faceList[currentFace + 1]->materialType)) ? "" : ",");
 
@@ -22161,7 +22278,7 @@ static int createMeshesUSD()
         {
             if (i + startRun > progressTick) {
                 // there are unlikely to be *that* many groups, so just update on each found
-                UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)(i+startRun) / (float)gModel.faceCount));
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i+startRun) / (float)gModel.faceCount));
                 progressTick += progressIncrement;
             }
 
@@ -23059,8 +23176,8 @@ static int writeSchematicBox()
     blocks = block_ptr = (unsigned char*)malloc(totalSize);
     blockData = blockData_ptr = (unsigned char*)malloc(totalSize);
 
-    progressStart = 0.80f * PG_MAKE_FACES;
-    progressOffset = PG_END - progressStart;
+    progressStart = gProgress.start.output;
+    progressOffset = gProgress.absolute.output;
 
     // go through blocks and see which is solid; use solid blocks to generate faces
     // Order is YZX according to http://www.minecraftwiki.net/wiki/Schematic_file_format
