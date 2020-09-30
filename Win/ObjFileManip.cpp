@@ -279,6 +279,7 @@ static int gUsingTransform = 0;
 wchar_t gOutputFilePath[MAX_PATH_AND_FILE];
 wchar_t gOutputFileRoot[MAX_PATH_AND_FILE];
 wchar_t gOutputFileRootClean[MAX_PATH_AND_FILE]; // used by all files that are referenced inside text files
+wchar_t gTextureDirectoryPath[MAX_PATH_AND_FILE];
 char gOutputFileRootCleanChar[MAX_PATH_AND_FILE];
 
 // how many blocks are needed to make a thick enough wall
@@ -491,6 +492,19 @@ typedef struct TouchRecord {
 #define EDIT_MODE_CLEAR_ALL                     1
 #define EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES      2
 
+// for USD
+typedef struct OutDataArrays
+{
+    int     nverts;
+    Point* points;
+    Point* normals;
+    Point2* uvs;
+    int* indices;
+    int     nfaces;
+    int* faceVertexCounts;
+} OutDataArrays;
+
+OutDataArrays   gOutData;
 
 #ifdef _DEBUG
 // if we use the Reused command, make sure we're not outputting a face twice - that's an error.
@@ -638,8 +652,17 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
 static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc);
 
 static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC);
-static int writeUSDAttributeShapeSplit(int type, int dataVal, char* mtlName, char* textureOutputString);
-static int writeUSDTextureUV(float u, float v, int addComment, int swatchLoc);
+static int openUSDFile(wchar_t* destination);
+static int writeCommentUSD(char* commentString);
+static int finishCommentsUSD();
+static int createMeshesUSD();
+static boolean allocOutData(int nverts, int nfaces);
+static void freeOutData();
+static int createMaterialsUSD();
+static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
+static int createLightingUSD();
+static int closeUSDFile();
+static int writeUSDTextures();
 
 static int writeSchematicBox();
 static int schematicWriteCompoundTag(gzFile gz, char* tag);
@@ -709,7 +732,7 @@ static void getPathAndRoot(const wchar_t* src, int fileType, wchar_t* path, wcha
 static void concatFileName2(wchar_t* dst, const wchar_t* src1, const wchar_t* src2);
 static void concatFileName3(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3);
 static void concatFileName4(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4);
-static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5);
+//static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5);
 static void wcharCleanse(wchar_t* wstring);
 
 static void myseedrand(long seed);
@@ -1073,7 +1096,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // done!
 Exit:
 
-    // write out texture file, if any input data
+    // write out texture files, if any input data
     // 45%
     UPDATE_PROGRESS(PG_TEXTURE);
 
@@ -1081,6 +1104,11 @@ Exit:
     if (retCode < MW_BEGIN_ERRORS)
     {
         retCode |= modifyAndWriteTextures(needDifferentTextures);
+    }
+
+    if (fileType == FILE_TYPE_USD)
+    {
+        writeUSDTextures();
     }
 
     // 91%
@@ -1114,6 +1142,7 @@ Exit:
 static int modifyAndWriteTextures(int needDifferentTextures)
 {
     int retCode = MW_NO_ERROR;
+    wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, L"");
 
     if (gModel.pPNGtexture != NULL)
     {
@@ -1302,21 +1331,21 @@ static int modifyAndWriteTextures(int needDifferentTextures)
         {
             // if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
             if (gModel.options->pEFD->chkTextureRGBA || gModel.options->pEFD->chkTextureRGB || gModel.options->pEFD->chkTextureA) {
-                wchar_t subpath[MAX_PATH_AND_FILE] = L"";
+                // create the directory for the textures subdirectory
                 if (strlen(gModel.options->pEFD->tileDirString) > 0) {
-                    wchar_t directoryPath[MAX_PATH_AND_FILE];
+                    wchar_t subpath[MAX_PATH_AND_FILE];
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
                     wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
                     // create subdirectory if it doesn't exist
                     if (wcschr(subpath, (wchar_t)':')) {
                         // looks like an absolute path is being specified
-                        wcscpy_s(directoryPath, MAX_PATH_AND_FILE, subpath);
+                        wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, subpath);
                     }
                     else {
                         // relative path
-                        concatFileName4(directoryPath, gOutputFilePath, subpath, L"", L"");
+                        concatFileName4(gTextureDirectoryPath, gOutputFilePath, subpath, L"", L"");
                     }
-                    if (!(CreateDirectoryW(directoryPath, NULL) ||
+                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
                         ERROR_ALREADY_EXISTS == GetLastError()))
                     {
                         // Failed to create directory.
@@ -1330,10 +1359,10 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         // tile found that should be output
                         wchar_t materialTile[MAX_PATH_AND_FILE];
                         if (gTilesTable[i].flags & SBIT_SYTHESIZED) {
-                            concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L"_y.png");
+                            concatFileName3(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, L"_y.png");
                         }
                         else {
-                            concatFileName4(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, L".png");
+                            concatFileName3(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, L".png");
                         }
                         rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
                         assert(rc == 0);
@@ -1345,7 +1374,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         // Check if there is a normal map to output. If the middlish pixel is black, it's not a normal map, so don't output.
                         // Else output, copying directly from the input texture, and note that it's output.
                         if (gModel.tileList[CATEGORY_NORMALS][i]) {
-                            concatFileName5(materialTile, gOutputFilePath, subpath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
+                            concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
                             rc = writeTileFromCategoryInput(materialTile, i, CATEGORY_NORMALS);
                             assert(rc == 0);
                             retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
@@ -21933,30 +21962,6 @@ Exit:
         // TODOUSD failed to quit
     }
 #else
-static int openUSDFile(wchar_t* destination);
-static int writeCommentUSD(char* commentString);
-static int finishCommentsUSD();
-static int createCameraUSD();
-static int createMeshesUSD();
-static boolean allocOutData(int nverts, int nfaces);
-static void freeOutData();
-static int createMaterialsUSD();
-static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
-static int createLightingUSD();
-static int closeUSDFile();
-
-typedef struct OutDataArrays
-{
-    int     nverts;
-    Point*  points;
-    Point*  normals;
-    Point2* uvs;
-    int*    indices;
-    int     nfaces;
-    int*    faceVertexCounts;
-} OutDataArrays;
-
-OutDataArrays   gOutData;
 
 static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand * pCBC)
 {
@@ -22086,6 +22091,9 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:fireflyFilter:maxIntensityPerSample\" = 50000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // avoids fireflies for outside scenes.
+    strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:lightcache:cached:enabled\" = 0\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxBounces\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
@@ -22132,11 +22140,12 @@ static int createMeshesUSD()
 
     gOutData.nverts = gOutData.nfaces = 0;
 
+    // update progress bar every 4%
+    int progressIncrement = 1 + (int)((float)gModel.faceCount / 25.0f);
+    int progressTick = progressIncrement;
+
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         // Go through data and make arrays
-
-        // there are unlikely to be *that* many groups, so just update on each found
-        UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)nextStart / (float)gModel.faceCount));
 
         // Create the geometry inside of "Root" (actually, whatever the user-defined name is)
 
@@ -22150,6 +22159,12 @@ static int createMeshesUSD()
         int iv = 0;
         for (i = 0; i < nextStart - startRun; i++)
         {
+            if (i + startRun > progressTick) {
+                // there are unlikely to be *that* many groups, so just update on each found
+                UPDATE_PROGRESS(PG_OUTPUT + (PG_TEXTURE - PG_OUTPUT) * ((float)(i+startRun) / (float)gModel.faceCount));
+                progressTick += progressIncrement;
+            }
+
             FaceRecord* pFace = gModel.faceList[startRun+i];
             int nvf = (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
 
@@ -22639,6 +22654,18 @@ static int createLightingUSD()
     strcpy_s(outputString, 256, "}\n\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+    return MW_NO_ERROR;
+}
+
+static int closeUSDFile()
+{
+    PortaClose(gModelFile);
+    return 0;
+}
+
+static int writeUSDTextures()
+{
+    // just the background dome light texture
     // Create the dome light texture and write it out.
     // 128x128 for no particular reason. Could be 1x128 but this is easier for the user to see.
     int retCode = MW_NO_ERROR;
@@ -22657,9 +22684,9 @@ static int createLightingUSD()
         {
             if (row < dst.height / 2) {
                 // sky
-                *imageDst++ = 134;
-                *imageDst++ = 169;
-                *imageDst++ = 251;
+                *imageDst++ = 136;
+                *imageDst++ = 172;
+                *imageDst++ = 255;
             }
             else {
                 *imageDst++ = 78;
@@ -22669,19 +22696,15 @@ static int createLightingUSD()
         }
     }
 
-    wchar_t filename[] = L"textures\\_domelight.png";
-    retCode |= writepng(&dst, 3, filename);
+    wchar_t filename[MAX_PATH_AND_FILE];
+    concatFileName2(filename, gTextureDirectoryPath, L"_domelight.png");
+    int rc = writepng(&dst, 3, filename);
+    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);
 
     return retCode;
-}
-
-static int closeUSDFile()
-{
-    PortaClose(gModelFile);
-    return 0;
 }
 #endif
 
@@ -23218,7 +23241,7 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue)
 
 static int writeTileFromCategoryInput(wchar_t *filename, int index, int category)
 {
-    int retCode = MW_NO_ERROR;
+    int rc = MW_NO_ERROR;
 
     int numChannels = gCatChannels[category];
     unsigned char* imageDst, * imageSrc;  // cppcheck-suppress 398
@@ -23243,12 +23266,12 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
         }
     }
 
-    retCode |= writepng(&dst, numChannels, filename);
+    rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);
 
-    return retCode;
+    return rc;
 }
 
 static boolean isTileBlack(int category, int swatchLoc, boolean checkAllPixels)
@@ -24863,7 +24886,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
 
 static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename)
 {
-    int retCode = MW_NO_ERROR;
+    int rc = MW_NO_ERROR;
     int row, col;
     unsigned char* imageDst, * imageSrc;
     progimage_info dst;
@@ -24886,12 +24909,12 @@ static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename)
         }
     }
 
-    retCode |= writepng(&dst, 3, filename);
+    rc |= writepng(&dst, 3, filename);
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);
 
-    return retCode;
+    return rc;
 }
 
 // for debugging
@@ -24921,7 +24944,7 @@ static void convertAlphaToGrayscale(progimage_info* dst)
 
 static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow)
 {
-    int retCode = MW_NO_ERROR;
+    int rc = MW_NO_ERROR;
     bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
     // TODO OK, this is a kludge
     if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
@@ -24959,12 +24982,12 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
         }
     }
 
-    retCode |= writepng(&dst, numChannels, filename);
+    rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
     writepng_cleanup(&dst);
 
-    return retCode;
+    return rc;
 }
 
 static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow)
@@ -25189,14 +25212,14 @@ static void concatFileName4(wchar_t* dst, const wchar_t* src1, const wchar_t* sr
     wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src4);
 }
 
-static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5)
-{
-    wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src3);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src4);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src5);
-}
+//static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5)
+//{
+//    wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
+//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
+//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src3);
+//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src4);
+//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src5);
+//}
 
 static void charToWchar(char* inString, wchar_t* outWString)
 {
