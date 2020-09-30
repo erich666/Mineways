@@ -395,7 +395,26 @@ static int gFaceDirectionVector[6][3] =
     (((z)-(bz)*16)*16) + \
     ((x)-(bx)*16)  )
 
-#define UPDATE_PROGRESS(p)		if (*gpCallback){ (*gpCallback)((float)(p));}
+#ifdef _DEBUG
+clock_t gStartTimeStamp;
+clock_t gTimeStamp;
+
+#define UPDATE_PROGRESS(p)		{                               \
+if (*gpCallback) { (*gpCallback)((float)(p)); }                 \
+clock_t now = clock();                                          \
+double diffTime = (now-gTimeStamp)/(CLOCKS_PER_SEC/1000);       \
+gTimeStamp = now;                                               \
+char progString[256];                                           \
+sprintf_s(progString,256,"At line %d time %g\n", __LINE__, diffTime);     \
+OutputDebugStringA(progString);                                 \
+}
+#else
+
+#define UPDATE_PROGRESS(p)		{                               \
+if (*gpCallback) { (*gpCallback)((float)(p)); }                 \
+}
+
+#endif
 
 #define AREA_IN_CM2     (gModel.faceCount * gModel.scale * gModel.scale * METERS_TO_CM * METERS_TO_CM)
 
@@ -405,9 +424,7 @@ typedef struct ProgressCategories {
     float startup;
     float makeFaces;
     float output;
-    float swatches;
     float texture;
-    float cleanup;
     float zip;
 } ProgressCategories;
 
@@ -503,6 +520,9 @@ typedef struct TouchRecord {
 #define EDIT_MODE_CLEAR_ALL                     1
 #define EDIT_MODE_CLEAR_TYPE_AND_ENTRANCES      2
 
+// raise light emission by this power, for OBJ files, as an approximation of Minecraft's actual effect
+#define OBJ_EMITTER_POWER 1.5f
+
 // for USD
 typedef struct OutDataArrays
 {
@@ -522,7 +542,7 @@ OutDataArrays   gOutData;
 static int gAssertFacesNotReusedMask = 0x0;
 #endif
 
-static void determineProgressValues(int fileType);
+static void determineProgressValues(int fileType, int xdim, int zdim);
 
 static int modifyAndWriteTextures(int needDifferentTextures);
 
@@ -649,7 +669,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v);
 
 static void freeModel(Model* pModel);
 
-static float getEmitterLevel(int type, int dataVal, bool splitByBlockType);
+static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
 static int mosaicUVtoSeparateUV();
 
@@ -791,6 +811,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // * filterBox: output all minor geometry objects that are not full blocks. Billboards, small geometry, and snow and wires are flattened onto the face below. The "type" of these is all set to be empty immediately after they're processed, so origType is used if we want to find if anything was in the cell.
     //  ** Fill, connect, hollow, melt: various operations to add or subtract blocks, mostly needed for 3D printing.
 
+#ifdef _DEBUG
+    gStartTimeStamp = gTimeStamp = clock();
+#endif
+
     IBox worldBox;
     IBox tightenedWorldBox;
     int retCode = MW_NO_ERROR;
@@ -800,8 +824,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // set up a bunch of globals
     gpCallback = &callback;
-    // initial "quick" progress just so progress bar moves a bit.
-    //UPDATE_PROGRESS(0.04f);
 
     gMajorVersion = majorVersion;
     gMinorVersion = minorVersion;
@@ -849,6 +871,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
 
     // start exporting for real
+    UPDATE_PROGRESS(0.0f);
 
     if (options->moreExportMemory)
     {
@@ -866,11 +889,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     myseedrand(12345);
 
     gOutputFileList = outputFileList;
-
-    // compute progress increments
-    determineProgressValues(fileType);
-
-    UPDATE_PROGRESS(gProgress.relative.makeFaces);
 
     // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
@@ -960,7 +978,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         }
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.40f * gProgress.absolute.startup);
+    // compute progress increments, now that we know the input texture size
+    determineProgressValues(fileType, xmax-xmin, zmax-zmin);
+
+    UPDATE_PROGRESS(gProgress.start.startup + 0.10f * gProgress.absolute.startup);
 
     initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
     tightenedWorldBox = worldBox;
@@ -1030,14 +1051,14 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= MW_TEXTURE_RESOLUTION_HIGH;
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.50f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.45f * gProgress.absolute.startup);
     retCode |= initializeModelData();
     if (retCode >= MW_BEGIN_ERRORS)
     {
         goto Exit;
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.60f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.startup + 0.65f * gProgress.absolute.startup);
 
     // process all billboards and "minor geometry"
     retCode |= filterBox(pCBC);
@@ -1047,8 +1068,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(gProgress.start.startup + 0.90f * gProgress.absolute.startup);
-
 
     // At this point all data is read in and filtered. Check if we're outputting a
     // non-polygonal output format, like schematic. If so, do that and be done.
@@ -1057,6 +1076,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= writeSchematicBox();
         goto Exit;
     }
+
+    UPDATE_PROGRESS(gProgress.start.startup + 0.90f * gProgress.absolute.startup);
 
     retCode |= determineScaleAndHollowAndMelt();
     if (retCode >= MW_BEGIN_ERRORS)
@@ -1112,10 +1133,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // done!
 Exit:
 
-    // write out texture files, if any input data
-    // 45%
-    UPDATE_PROGRESS(gProgress.start.swatches);
-
+    // write out texture files, if any input data.
     // if there were major errors, don't bother
     if (retCode < MW_BEGIN_ERRORS)
     {
@@ -1127,8 +1145,7 @@ Exit:
         writeUSDTextures();
     }
 
-    // 91%
-    UPDATE_PROGRESS(gProgress.start.cleanup);
+    UPDATE_PROGRESS(gProgress.start.zip);
 
     freeModel(&gModel);
 
@@ -1141,9 +1158,6 @@ Exit:
     gBiome = NULL;
 
 
-    // 95%
-    UPDATE_PROGRESS(gProgress.start.zip);
-
     if (gBadBlocksInModel)
         // if ( UnknownBlockRead() && gBadBlocksInModel )
     {
@@ -1152,104 +1166,116 @@ Exit:
         //CheckUnknownBlock( 0 );
     }
 
+#ifdef _DEBUG
+    clock_t now = clock();
+    double diffTime = (now - gStartTimeStamp) / (CLOCKS_PER_SEC / 1000);
+    char progString[256];
+    sprintf_s(progString, 256, "Export took a total of %g milliseconds\n", diffTime);
+    OutputDebugStringA(progString);
+#endif
+
     return retCode;
 }
 
-static void determineProgressValues(int fileType)
+static void determineProgressValues(int fileType, int xdim, int zdim)
 {
+    // defaults for a 200x200 export and a 16x16 tile size
+    gProgress.relative.startup = 200;
+    gProgress.relative.makeFaces = 650;
+    gProgress.relative.output = 11400;
+    gProgress.relative.texture = 740;
+    gProgress.relative.zip = 0;
+
     switch (fileType)
     {
     case FILE_TYPE_WAVEFRONT_REL_OBJ:
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
-        gProgress.relative.startup = 15;
-        gProgress.relative.makeFaces = 5;
-        gProgress.relative.output = 55;
-        gProgress.relative.swatches = 2;
-        gProgress.relative.texture = 16;
-        gProgress.relative.cleanup = 4;
         break;
     case FILE_TYPE_USD:
-        gProgress.relative.startup = 15;
-        gProgress.relative.makeFaces = 5;
-        gProgress.relative.output = 55;
-        gProgress.relative.swatches = 2;
-        gProgress.relative.texture = 4;
-        gProgress.relative.cleanup = 4;
+        gProgress.relative.output = 92000;  // TODOUSD - any way to make this output faster? It's so slow...
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
     case FILE_TYPE_ASCII_STL:
-        gProgress.relative.startup = 15;
-        gProgress.relative.makeFaces = 5;
-        gProgress.relative.output = 55;
-        gProgress.relative.swatches = 0;
         gProgress.relative.texture = 0;
-        gProgress.relative.cleanup = 4;
         break;
     case FILE_TYPE_VRML2:
-        gProgress.relative.startup = 15;
-        gProgress.relative.makeFaces = 5;
-        gProgress.relative.output = 55;
-        gProgress.relative.swatches = 2;
-        gProgress.relative.texture = 16;
-        gProgress.relative.cleanup = 4;
+        gProgress.relative.output = 15600;
+        gProgress.relative.texture = 350;
         break;
     case FILE_TYPE_SCHEMATIC:
-        gProgress.relative.startup = 15;
-        gProgress.relative.makeFaces = 60;
-        gProgress.relative.output = 20;
-        gProgress.relative.swatches = 0;
+        // very fast
+        gProgress.relative.startup = 100;
+        gProgress.relative.makeFaces = 84;
+        gProgress.relative.output = 54;
         gProgress.relative.texture = 0;
-        gProgress.relative.cleanup = 0;
         break;
     default:
         assert(0);
         break;
     }
 
+    // time for zipping up files - pricey! And no progress bar update occurs - TODO: add progress update for zip files
+    gProgress.relative.zip = gModel.options->pEFD->chkCreateZip[fileType] ? 45000.0f : 0.0f;
+
+    // scale by size of exported area (ignore height, just because).
+    // fabs just in case xdim or zdim are negative
+    float scale = (float)((fabs((double)xdim) + 1) * (fabs((double)zdim) + 1)) / (float)(200 * 200);
+    gProgress.relative.makeFaces *= scale;
+    gProgress.relative.output *= scale;
+    // a wild guess - the textures should affect this, too, but less so, I suspect.
+    gProgress.relative.zip *= scale;
+
+    // individual blocks
+    if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) {
+        // individual blocks definitely take longer
+        // The vertices/faces ratio for time goes from 1:1 to about 1:5,
+        // which is not reflected in the progress bar. Someday TODO
+        gProgress.relative.output *= 8.0;
+    }
+
     // if textures, check if tiled
-    if (gModel.pPNGtexture) {
+    if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) {
+        // a 256-wide texture takes 700 ms for all three mosaics.
+        // It's roughly (width/256)^1.5 longer for textures
+        gProgress.relative.texture *= (float)pow(gModel.pInputTerrainImage[CATEGORY_RGBA]->width / 256.0, 1.5);
+
         if (gModel.exportTiles) {
             // usually takes a lot less time: a few small textures vs. 2-3 big ones
-            gProgress.relative.texture /= 10;
+            gProgress.relative.texture /= 8;
         }
     }
     else {
         // if no textures, get rid of that time
-        gProgress.relative.swatches = 0;
         gProgress.relative.texture = 0;
     }
 
-    // time for zipping up files
-    gProgress.relative.zip = gModel.options->pEFD->chkCreateZip ? 5.0f : 0.0f;
-
     // normalize to 1.00
-    float total = gProgress.relative.startup + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.swatches + gProgress.relative.texture + gProgress.relative.cleanup + gProgress.relative.zip;
+    float total = gProgress.relative.startup + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.texture + gProgress.relative.zip;
 
     // absolute values are in the range 0.0 to 1.0 of the time predicted to be spent on an activity
     gProgress.absolute.startup = gProgress.relative.startup / total;
     gProgress.absolute.makeFaces = gProgress.relative.makeFaces / total;
     gProgress.absolute.output = gProgress.relative.output / total;
-    gProgress.absolute.swatches = gProgress.relative.swatches / total;
     gProgress.absolute.texture = gProgress.relative.texture / total;
-    gProgress.absolute.cleanup = gProgress.relative.cleanup / total;
     gProgress.absolute.zip = gProgress.relative.zip / total;
 
     // starting points for progress, i.e., makefaces starts after the startup time is spent.
     gProgress.start.startup = 0.0f;
     gProgress.start.makeFaces = gProgress.start.startup + gProgress.absolute.startup;
     gProgress.start.output = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
-    gProgress.start.swatches = gProgress.start.output + gProgress.absolute.output;
-    gProgress.start.texture = gProgress.start.swatches + gProgress.absolute.swatches;
-    gProgress.start.cleanup = gProgress.start.texture + gProgress.absolute.texture;
-    gProgress.start.zip = gProgress.start.cleanup + gProgress.absolute.cleanup;
+    gProgress.start.texture = gProgress.start.output + gProgress.absolute.output;
+    gProgress.start.zip = gProgress.start.texture + gProgress.absolute.texture;
 }
 
 static int modifyAndWriteTextures(int needDifferentTextures)
 {
+    UPDATE_PROGRESS(gProgress.start.texture);
+
     int retCode = MW_NO_ERROR;
     wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, L"");
 
+    // this swatch manipulation takes little time, < ms, as it's all in memory, no disk
     if (gModel.pPNGtexture != NULL)
     {
         int col, row;
@@ -1430,8 +1456,6 @@ static int modifyAndWriteTextures(int needDifferentTextures)
         SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
         setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
 
-        UPDATE_PROGRESS(gProgress.start.texture);
-
         // Exporting individual tiles?
         if (gModel.exportTiles)
         {
@@ -1459,6 +1483,10 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         return retCode;
                     }
                 }
+
+                assert(gModel.tileListCount);   // should be determined before calling this function
+                int outputCount = 0;
+                int frequency = (int)(1 + (gModel.tileListCount / 16));
                 for (int i = 0; i < TOTAL_TILES; i++) {
                     // tile name is material name, period
                     if (gModel.tileList[CATEGORY_RGBA][i]) {
@@ -1477,8 +1505,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         if (rc)
                             break;
 
-                        // Check if there is a normal map to output. If the middlish pixel is black, it's not a normal map, so don't output.
-                        // Else output, copying directly from the input texture, and note that it's output.
+                        // Check if there is a normal map to output, copying directly from the input texture, and note that it's output.
                         if (gModel.tileList[CATEGORY_NORMALS][i]) {
                             concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
                             rc = writeTileFromCategoryInput(materialTile, i, CATEGORY_NORMALS);
@@ -1490,8 +1517,10 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         }
 
                         // update status
-                        if (i % (int)(1 + (gModel.tileListCount / 16)) == 0)
+                        if (outputCount % frequency == 0)
                             UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * (float)i / (float)gModel.tileListCount);
+
+                        outputCount++;
                     }
                 }
             }
@@ -1518,7 +1547,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 rc = writepng(gModel.pPNGtexture, 4, textureRGBA);
                 assert(rc == 0);
                 addOutputFilenameToList(textureRGBA);
-                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.33f);
+                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.45f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
             }
 
@@ -1528,7 +1557,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureRGB);
                 assert(rc == 0);
                 // not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
-                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.66f);
+                UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.80f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
             }
 
@@ -2710,7 +2739,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
         }
 
         // 1%
-        UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.70f);
+        UPDATE_PROGRESS(gProgress.start.startup + gProgress.absolute.startup * 0.89f);
         // were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
         if (foundBlock == 0 && (flatten || gExportBillboards))
             return retCode | MW_NO_BLOCKS_FOUND;
@@ -14083,7 +14112,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         Vec2Op(gModel.normals[i], =, normals[i]);
     }
 
-    UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.90f);
+    //UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.90f);
 
     // At this point all partial blocks have been output, and their type set to BLOCK_AIR. Now output the fully solid blocks.
     // Go through blocks and see which is solid; output these solid blocks.
@@ -14124,7 +14153,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         rotateLocation(pt);
     }
 
-    UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.95f);
+    UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.75f);
 
     // If we are grouping by material (e.g., STL does not need this), and we are not outputting per block, then we need to sort by material
     if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
@@ -19299,7 +19328,7 @@ bool IsASubblock(int type, int dataVal)
     return true;
 }
 
-static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
+static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power)
 {
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
     // See https://minecraft.gamepedia.com/Light
@@ -19430,7 +19459,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType)
     // So one idea would be to store emission as "emission squared", making dim lights quite dim. We split the difference and go with
     // raising to the 1.5 power.
     // Really might raise to the 2.0 power TODO
-    return (float)pow(emission / 15.0f, 1.5f);
+    return (float)pow(emission / 15.0f, power);
 }
 
 static int mosaicUVtoSeparateUV()
@@ -20371,7 +20400,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     {
         bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
-        float emission = getEmitterLevel(type, dataVal, subtypeMaterial);
+        float emission = getEmitterLevel(type, dataVal, subtypeMaterial, OBJ_EMITTER_POWER);
         if (emission > 0.0f) {
             sprintf_s(keString, 256, "Ke %g %g %g\n", emission, emission, emission);
             if (gModel.exportTexture)
@@ -21940,7 +21969,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
         // emitter
         bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
-        ke = getEmitterLevel(type, dataVal, subtypeMaterial);
+        ke = getEmitterLevel(type, dataVal, subtypeMaterial, OBJ_EMITTER_POWER);
         sprintf_s(keString, 256, "          emissiveColor %g %g %g\n", fRed * ke, fGreen * ke, fBlue * ke);
     }
     else
@@ -22148,6 +22177,13 @@ Exit:
     }
 
     // note that textures get written out in SaveVolume(), which calls this function.
+    // But we need this value computed, for the progress bar
+    for (int i = 0; i < TOTAL_TILES; i++) {
+        // tile name is material name, period
+        if (gModel.tileList[CATEGORY_RGBA][i]) {
+            gModel.tileListCount++;
+        }
+    }
 
     return retCode;
 }
@@ -22339,6 +22375,10 @@ static int createMeshesUSD()
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
 
+        // if we're writing out a huge array, take a moment and update the progress
+        if (nextStart - startRun > 10000)
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)nextStart / (float)gModel.faceCount));
+
         strcpy_s(outputString, 256, "        point3f[] points = [");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         for (i = 0; i < numVerts; i++) {
@@ -22355,7 +22395,6 @@ static int createMeshesUSD()
 
         strcpy_s(outputString, 256, "    }\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
 
         // go to next group
         startRun = nextStart;
@@ -22491,7 +22530,7 @@ static int createMaterialsUSD()
 
         // emitter?
         if (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) {
-            float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true);
+            float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
             if (emission > 0.0f) {
                 strcpy_s(outputString, 256, "            color3f inputs:emissive_color = (1, 1, 1) (\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
