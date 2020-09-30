@@ -22096,7 +22096,7 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:dlss:execMode\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 4\n");
+    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 3\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22369,7 +22369,7 @@ static int createMaterialsUSD()
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 90000.0 * emission);
+                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 10000.0 * emission);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22614,7 +22614,7 @@ static int createLightingUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 10\n");
+    strcpy_s(outputString, 256, "    float intensity = 20\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22662,9 +22662,9 @@ static int createLightingUSD()
                 *imageDst++ = 251;
             }
             else {
-                *imageDst++ = 74;
+                *imageDst++ = 78;
                 *imageDst++ = 101;
-                *imageDst++ = 73;
+                *imageDst++ = 64;
             }
         }
     }
