@@ -694,9 +694,9 @@ static int finishCommentsUSD();
 static int createMeshesUSD();
 static boolean allocOutData(int nverts, int nfaces);
 static void freeOutData();
-static int createMaterialsUSD();
+static int createMaterialsUSD(char *texturePath);
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
-static int createLightingUSD();
+static int createLightingUSD(char* texturePath);
 static int closeUSDFile();
 static int writeUSDTextures();
 
@@ -755,7 +755,7 @@ static void compositePNGSwatches(progimage_info* dst, int dstSwatch, int overSwa
 static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int overSwatch, int underColor, int swatchSize, int swatchesPerRow);
 static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename);
 static void convertAlphaToGrayscale(progimage_info* dst);
-static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
+static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow, bool makeGrayscale, int clampToBlack);
 static bool doesTileHaveAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
 //static int isTileCutoutOrAlpha(progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow);
 
@@ -1511,7 +1511,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         else {
                             concatFileName3(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, L".png");
                         }
-                        rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow);
+                        rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, false, 0);
                         assert(rc == 0);
                         retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
                         // if we can't write one file, we can't write any, so break out
@@ -1522,7 +1522,26 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         for (int j = 1; j < gTotalInputTextures; j++) {
                             if (gModel.tileList[j][i]) {
                                 concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[j], L".png");
-                                rc = writeTileFromCategoryInput(materialTile, i, j);
+                                if (j == CATEGORY_EMISSION && gModel.tileEmissionNeeded[i]) {
+                                    int clampLevel = 0;
+                                    switch (i) {    // TODOUSD need to add burning furnace, glowing redstone ore, jack o lantern, portal?, brewing stand, dragon egg, redstone lamp,
+                                        // TODOUSD ender chest, beacon, block of redstone, sea lantern, end rod, end gateway, magma?, conduit, sea pickle, lantern, campfire? crying obsidian, respawn anchor
+                                    case 80: // torch
+                                    case 99: // redstone torch on
+                                    case 240: // torch top
+                                    case 241: // redstone torch top
+                                    case 683: // soul torch
+                                    case 751: // soul torch top - TODO USD: is this still needed? Can't we now just trim the polygon itself?
+                                        clampLevel = 167;
+                                        break;
+                                    default:
+                                        break;
+                                    }
+                                    rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, true, clampLevel);
+                                }
+                                else {
+                                    rc = writeTileFromCategoryInput(materialTile, i, j);
+                                }
                                 assert(rc == 0);
                                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
                                 // if we can't write one file, we can't write any, so break out
@@ -22175,14 +22194,24 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     strcpy_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+    // get path to textures subdirectory specified by user
+    // TODOUSD - I suspect absolute path name for texture directory will break this - TEST!
+    char texturePath[MAX_PATH_AND_FILE];
+    strcpy_s(texturePath, MAX_PATH_AND_FILE, gModel.options->pEFD->tileDirString);
+    // get rid of backslashes for USD
+    char* fc = strchr(texturePath, '\\');
+    while (fc) {
+        *fc = '/';
+        fc = strchr(texturePath, '\\');
+    }
 
     // export the materials
-    if (retCode |= createMaterialsUSD()) {
+    if (retCode |= createMaterialsUSD(texturePath)) {
         // failed to write
         goto Exit;
     }
 
-    if (retCode |= createLightingUSD()) {
+    if (retCode |= createLightingUSD(texturePath)) {
         goto Exit;
     }
 
@@ -22272,7 +22301,9 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:dlss:execMode\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 3\n");
+    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 2\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:filmIso\" = 200\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22479,7 +22510,7 @@ static void freeOutData()
 //{
 //    return 0;
 //}
-static int createMaterialsUSD()
+static int createMaterialsUSD(char *texturePath)
 {
     char outputString[256];
     strcpy_s(outputString, 256, "\ndef Scope \"Looks\" (\n    kind = \"model\"\n)\n{\n");
@@ -22491,17 +22522,6 @@ static int createMaterialsUSD()
     int startRun = 0;
     int nextStart = 0;
     int numVerts;
-
-    // get path to textures subdirectory specified by user
-    // TODOUSD - I suspect absolute path name for texture directory will break this - TEST!
-    char texturePath[MAX_PATH_AND_FILE];
-    strcpy_s(texturePath, MAX_PATH_AND_FILE, gModel.options->pEFD->tileDirString);
-    // get rid of backslashes for USD
-    char *fc = strchr(texturePath, '\\');
-    while (fc) {
-        *fc = '/';
-        fc = strchr(texturePath, '\\');
-    }
 
     static bool outputCustomData = false;
 
@@ -22580,11 +22600,12 @@ static int createMaterialsUSD()
                 emission = 1.0f;
             }
 
-            // TODOUSD we should flag emitters that don't have but need to have a texture synthesized for them, and output these later, with the dome light texture.
+            // we flag emitters that don't have an emissive so need to have a texture synthesized for them
+            if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                gModel.tileEmissionNeeded[swatchLoc] = true;
+                gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+            }
 
-
-            // TODOTODOUSD - test for whether there is, alternately, an emitter *tile* - if so, mark one for output. If not, we will
-            // generate one special ourselves in our own texture output method, at the end of things.
             if (emission > 0.0f) {
                 unsigned int color = gBlockDefinitions[pFace->materialType].read_color;
                 unsigned char r, g, b;
@@ -22615,7 +22636,7 @@ static int createMaterialsUSD()
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            float inputs:emissive_intensity = 10000 (\n");
+                sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 10000.0 * emission);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
                     strcpy_s(outputString, 256, "                customData = {\n");
@@ -22984,7 +23005,7 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 }
 
 // Create a light source in the scene.
-static int createLightingUSD()
+static int createLightingUSD(char *texturePath)
 {
     char outputString[256];
 
@@ -23000,7 +23021,7 @@ static int createLightingUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 100\n");
+    strcpy_s(outputString, 256, "    float intensity = 30\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23029,7 +23050,7 @@ static int createLightingUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 20\n");
+    strcpy_s(outputString, 256, "    float intensity = 6\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23041,7 +23062,7 @@ static int createLightingUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    asset texture:file = @textures/_domelight.png@\n");
+    sprintf_s(outputString, 256, "    asset texture:file = @%s/_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    token texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -25143,13 +25164,14 @@ static void convertAlphaToGrayscale(progimage_info* dst)
 
 // for output of tiles
 
-static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow)
+static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow, bool makeGrayscale, int clampToBlack)
 {
     int rc = MW_NO_ERROR;
     bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
     // TODO OK, this is a kludge
     if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
         // For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
+        // TODOUSD - may want to do this for torches and other stuff too, someday
         usesAlpha = false;
     }
     int scol = swatchLoc % swatchesPerRow;
@@ -25157,6 +25179,9 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
 
     int col, row;
     int numChannels = usesAlpha ? 4 : 3;
+    if (makeGrayscale) {
+        numChannels = 1;
+    }
     unsigned char* imageDst;
     unsigned char* imageSrc;
     progimage_info dst;
@@ -25172,14 +25197,28 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
         imageSrc = &src->image_data[0] + ((srow * swatchSize + 1 + row) * src->width + scol * swatchSize + 1) * 4;
         for (col = 0; col < dst.width; col++)
         {
-            // copy RGB only
-            *imageDst++ = *imageSrc++;
-            *imageDst++ = *imageSrc++;
-            *imageDst++ = *imageSrc++;
-            if (usesAlpha)
+            if (makeGrayscale) {
+                // if surfaces is there (alpha>0) AND if any channel value is >= clamp value, output grayscale, else output black (the surface does not emit)
+                if (imageSrc[3] > 0 && (imageSrc[0] >= clampToBlack || imageSrc[1] >= clampToBlack || imageSrc[2] >= clampToBlack) ) {
+                    // crappy, non-gamma luminance, but good enough
+                    *imageDst++ = (unsigned char)((0.30f * imageSrc[0]) + (0.59f * imageSrc[1]) + (0.11f * imageSrc[2]) + 0.5);
+                }
+                else {
+                    // pixel is a cutout or not considered an emitter, so set it to black
+                    *imageDst++ = 0;
+                }
+                imageSrc += 4;
+            }
+            else {
+                // copy RGB only
                 *imageDst++ = *imageSrc++;
-            else
-                imageSrc++;
+                *imageDst++ = *imageSrc++;
+                *imageDst++ = *imageSrc++;
+                if (usesAlpha)
+                    *imageDst++ = *imageSrc++;
+                else
+                    imageSrc++;
+            }
         }
     }
 

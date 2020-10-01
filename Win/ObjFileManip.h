@@ -223,6 +223,7 @@ typedef struct Model {
     unsigned int mtlList[NUM_SUBMATERIALS];
     bool tileList[TOTAL_CATEGORIES][TOTAL_TILES];
     int tileListCount; // number of tiles actually used in tileList
+    bool tileEmissionNeeded[TOTAL_TILES];
     int mtlCount;
 
     progimage_info* pInputTerrainImage[TOTAL_CATEGORIES];
