@@ -516,7 +516,7 @@ That means that if the color is #ffffff, and alpha is 0.5, then the color,alpha,
 // on and off someday.
 typedef struct BlockDefinition {
     const char* name;
-    unsigned int read_color;	// r,g,b, locked in place, never written to: used for initial setting of color
+    unsigned int read_color;	// r,g,b, locked in place, never written to: used for initial setting of color for map (and light source emission color)
     float read_alpha;
     unsigned int color;	// r,g,b, NOT multiplied by alpha - input by the user, result of color scheme application
     unsigned int pcolor;	// r,g,b, premultiplied by alpha (basically, unmultColor * alpha) - used (only) in mapping
