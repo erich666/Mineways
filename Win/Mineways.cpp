@@ -7452,10 +7452,10 @@ static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
     // We could test if it's terrain.png and ignore, I guess (assumes someone hasn't used the same name elsewhere
     //if (wcslen(gSelectTerrainPathAndName) > 0)
     const wchar_t* terrainName = removePath(gSelectTerrainPathAndName);
-    if (wcscmp(terrainName,L"terrainExt.png") != 0)
+    if (_wcsicmp(terrainName, L"terrainExt.png") != 0)
     {
         // get terrain file name and append
-        wcscat_s(title, MAX_PATH_AND_FILE - 1, L", terrain: ");
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, L"; ");
         wcscat_s(title, MAX_PATH_AND_FILE - 1, terrainName);
     }
 }
