@@ -148,6 +148,9 @@ static ProgressCallback* gpCallback = NULL;
 
 static FileList* gOutputFileList = NULL;
 
+// normally we output only the RGB texture
+static int gTotalInputTextures = 1;
+
 static int g3d = 0;
 // whether we're outputting a print or render
 static int gPrint3D = 0;
@@ -820,7 +823,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
     int catIndex;
-    int totalInputTextures = 1;
+    gTotalInputTextures = 1;
 
     // set up a bunch of globals
     gpCallback = &callback;
@@ -902,14 +905,14 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
             // For individual tile export, try to read all possible terrainExt file names and process each. RGBA/normals/M/E/R
             if ((fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ)) {
-                totalInputTextures = 2; // RGBA and normals, the first two
+                gTotalInputTextures = 2; // RGBA and normals, the first two
             }
             else if (fileType == FILE_TYPE_USD) {
-                totalInputTextures = 5;
+                gTotalInputTextures = 5;
             }
         }
         // try reading each category's file type
-        for (catIndex = 0; catIndex < totalInputTextures; catIndex++) {
+        for (catIndex = 0; catIndex < gTotalInputTextures; catIndex++) {
             gModel.pInputTerrainImage[catIndex] = new progimage_info();
 
             // note that any failure in readTerrainPNG will cause the "sub-error code" (in the shifted bits MW_NUM_CODES)
@@ -1515,15 +1518,17 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         if (rc)
                             break;
 
-                        // Check if there is a normal map to output, copying directly from the input texture, and note that it's output.
-                        if (gModel.tileList[CATEGORY_NORMALS][i]) {
-                            concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[CATEGORY_NORMALS], L".png");
-                            rc = writeTileFromCategoryInput(materialTile, i, CATEGORY_NORMALS);
-                            assert(rc == 0);
-                            retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-                            // if we can't write one file, we can't write any, so break out
-                            if (rc)
-                                break;
+                        // Check if there is a normal map etc. to output, copying directly from the input texture, and note that it's output.
+                        for (int j = 1; j < gTotalInputTextures; j++) {
+                            if (gModel.tileList[j][i]) {
+                                concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[j], L".png");
+                                rc = writeTileFromCategoryInput(materialTile, i, j);
+                                assert(rc == 0);
+                                retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+                                // if we can't write one file, we can't write any, so break out
+                                if (rc)
+                                    break;
+                            }
                         }
 
                         // update status
@@ -22511,6 +22516,19 @@ static int createMaterialsUSD()
             isTransparent = true;
         }
 
+        // check if there are normals and MER textures, as needed
+        if (gModel.exportTiles) {
+            for (int i = 1; i < gTotalInputTextures; i++) {
+                // if texture exists and swatch is not black, is needed, then use it and note it.
+                // In theory we could check just the first pixel for a normal map, but there might be cutouts,
+                // and who knows how those are handled in the normal map.
+                //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
+                if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, true)) {
+                    gModel.tileList[i][swatchLoc] = true;
+                }
+            }
+        }
+
         sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "    {\n");
@@ -22550,8 +22568,16 @@ static int createMaterialsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         // emitter?
-        if (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) {
+        if ( (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) || (gModel.tileList[CATEGORY_EMISSION][swatchLoc]) ){
             float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
+
+            // if some block is being coerced into emitting, i.e., normally has no emissive component, give it a value
+            if (emission == 0.0f && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                emission = 1.0f;
+            }
+
+            // TODOUSD we should flag emitters that don't have but need to have a texture synthesized for them, and output these later, with the dome light texture.
+
 
             // TODOTODOUSD - test for whether there is, alternately, an emitter *tile* - if so, mark one for output. If not, we will
             // generate one special ourselves in our own texture output method, at the end of things.
@@ -22572,7 +22598,12 @@ static int createMaterialsUSD()
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                // if there's a specific emitter texture available, use it, adding the "_e" suffix.
+                sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
+                // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
+                //sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName,
+                //    gModel.tileList[CATEGORY_EMISSION][swatchLoc] ? "_e" : 
+                //        (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22597,10 +22628,9 @@ static int createMaterialsUSD()
         // If exporting tiles (which we're currently always doing), check if normals texture is available
         if (gModel.exportTiles) {
             // if normals exists and swatch is not black, is needed, then use it and note it.
-            if (gModel.pInputTerrainImage[CATEGORY_NORMALS] && !isTileBlack(CATEGORY_NORMALS, swatchLoc, false)) {
-                gModel.tileList[CATEGORY_NORMALS][swatchLoc] = true;
+            if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
 
-                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s/%s_n.png@ (\n", texturePath, mtlName);
+                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));

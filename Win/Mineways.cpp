@@ -4337,9 +4337,9 @@ static void initializeViewExportData(ExportFileData& viewData)
 #define FAVOR_USD
 #ifdef FAVOR_USD
     // Now that I've figured out that Blender can show materials OK, change to "true spec"
-    viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
-#else
     viewData.fileType = FILE_TYPE_USD;
+#else
+    viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 #endif
 
     // don't really need to create a zip for rendering output
