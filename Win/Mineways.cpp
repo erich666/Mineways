@@ -4333,7 +4333,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     // copy view data from print, and change what's needed
     initializePrintExportData(viewData);
 
-// TODOUSD
+// TODOUSD - defining this makes USDA be the normal export file format. Good for testing but should be turned off for release
 #define FAVOR_USD
 #ifdef FAVOR_USD
     // Now that I've figured out that Blender can show materials OK, change to "true spec"
@@ -4605,7 +4605,6 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     fclose(fh);
 
     //  Is it in export file format?
-    // TODOUSD - need to figure out how comments are added to USDA/USD and fold in here.
     bool exported = false;
     if ((strstr(lineString, "# Wavefront OBJ file made by Mineways") != NULL) ||
         (strstr(lineString, "#usda 1.0") != NULL) ||

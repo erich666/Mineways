@@ -905,7 +905,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                 totalInputTextures = 2; // RGBA and normals, the first two
             }
             else if (fileType == FILE_TYPE_USD) {
-                totalInputTextures = 2; // 5; // everything TODOUSD
+                totalInputTextures = 5;
             }
         }
         // try reading each category's file type
@@ -22553,7 +22553,7 @@ static int createMaterialsUSD()
         if (gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) {
             float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
-            // TODOTODOUSD - test for whether there is an emitter tile - if so, mark one for output. If not, we will
+            // TODOTODOUSD - test for whether there is, alternately, an emitter *tile* - if so, mark one for output. If not, we will
             // generate one special ourselves in our own texture output method, at the end of things.
             if (emission > 0.0f) {
                 strcpy_s(outputString, 256, "            color3f inputs:emissive_color = (1, 1, 1) (\n");
@@ -22704,7 +22704,8 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
     if (startRun >= gModel.faceCount)
         return false;
 
-    // TODOUSD: we could really get rid of all of this and just pay attention to swatchLoc
+    // TODOUSD: we could really get rid of all of this and just pay attention to swatchLoc;
+    // but, someday, most/all output options should be available (well, 3 texture output and individual blocks, at least)
     // TODOUSD: also, I need to gray out all options except "no textures" and "tiled textures", I think.
 
     // Output each mesh, grouped by material
@@ -22913,205 +22914,6 @@ static int writeUSDTextures()
     return retCode;
 }
 #endif
-
-/*
-    wchar_t usdFileNameWithSuffix[MAX_PATH_AND_FILE];
-    const char* justWorldFileName;
-
-    char outputString[256];
-    char worldChar[MAX_PATH_AND_FILE];
-
-    int retCode = MW_NO_ERROR;
-
-    concatFileName3(usdFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
-
-    // create the USDA file
-    gModelFile = PortaCreate(usdFileNameWithSuffix);
-    addOutputFilenameToList(usdFileNameWithSuffix);
-    if (gModelFile == INVALID_HANDLE_VALUE)
-        return retCode | MW_CANNOT_CREATE_FILE;
-
-    WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
-    justWorldFileName = removePathChar(worldChar);
-
-
-
-    sprintf_s(outputString, 256, "#usda 1.0\n\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
-    if (retCode >= MW_BEGIN_ERRORS)
-        goto Exit;
-
-    // Export the following, in this order:
-    // MDL materials and shaders
-    // Geometry
-    // Lighting, along with dumb lighting texture
-
-    // lights TODOUSD
-
-Exit:
-    PortaClose(gModelFile);
-#endif
-
-    return retCode;
-}
-*/
-
-/*
-#ifndef PLAN_A
-// if type is GENERIC_MATERIAL, set the generic. If textureOutputString is set, output texture.
-static int writeUSDAttributeShapeSplit(int type, int dataVal, char* mtlName, char* textureOutputString)
-{
-    char outputString[1024];
-    char tfString[256];
-    char keString[256];
-
-    char attributeString[] = "      appearance Appearance\n      {\n";
-
-    float fRed, fGreen, fBlue;
-    float ka, kd, ks, ke;      // cppcheck-suppress 398
-    float alpha;
-
-    WERROR_MODEL(PortaWrite(gModelFile, attributeString, strlen(attributeString)));
-
-    if (type == GENERIC_MATERIAL)
-    {
-        fRed = fGreen = fBlue = 1.0f;
-        // note that this "generic" type will never match the debug type
-        type = BLOCK_STONE;
-    }
-    else
-    {
-        fRed = (gBlockDefinitions[type].color >> 16) / 255.0f;
-        fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff) / 255.0f;
-        fBlue = (gBlockDefinitions[type].color & 0xff) / 255.0f;
-    }
-
-    // good for blender:
-    ka = 0.2f;
-    kd = 0.9f;
-    ks = 0.1f;
-    // not needed ke = 0.0f;
-    // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
-    // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
-    // in case the model viewer tries to multiply alpha by texture; also, VRML just has one material for textures, generic.
-    // Really, we could have no colors at all when textures are output, but the colors are useful for previewers that
-    // do not support textures (e.g. Blender).
-    //alpha = ( gPrint3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
-    // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
-    // alpha = gPrint3D ? 1.0f : gBlockDefinitions[type].alpha;
-    alpha = gBlockDefinitions[type].alpha;
-    if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
-    {
-        // if showing groups, make the alpha of the largest group transparent
-        if (gDebugTransparentType == type)
-        {
-            alpha = DEBUG_DISPLAY_ALPHA;
-        }
-        else
-        {
-            alpha = 1.0f;
-        }
-    }
-    else if (gPrint3D)
-    {
-        // for 3d printing, alpha is always 1.0
-        alpha = 1.0f;
-    }
-    // if semitransparent, and a truly transparent thing, then alpha is used; otherwise it's probably a cutout and the overall alpha should be 1.0f
-    if (alpha < 1.0f && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) && !(gBlockDefinitions[type].flags & BLF_TRANSPARENT))
-    {
-        alpha = 1.0f;
-    }
-
-    if (alpha < 1.0f)
-    {
-        // semitransparent block, such as water
-        sprintf_s(tfString, 256, "           transparency %g\n", alpha);
-    }
-    else
-    {
-        tfString[0] = '\0';
-    }
-
-    if (!gPrint3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
-    {
-        // emitter
-        bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
-
-        ke = getEmitterLevel(type, dataVal, subtypeMaterial);
-        sprintf_s(keString, 256, "          emissiveColor %g %g %g\n", fRed * ke, fGreen * ke, fBlue * ke);
-    }
-    else
-    {
-        keString[0] = '\0';
-    }
-
-    sprintf_s(outputString, 1024,
-        "        material DEF %s Material\n"
-        "        {\n"
-        "          ambientIntensity %g\n"
-        "          diffuseColor %g %g %g\n"
-        "          specularColor %g %g %g\n"
-        "          shininess .5\n"
-        "%s"
-        "%s"
-        "        }\n",
-        mtlName,
-        ka,
-        kd * fRed, kd * fGreen, kd * fBlue,
-        ks * fRed, ks * fGreen, ks * fBlue,
-        keString,
-        tfString
-    );
-
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    if (textureOutputString != NULL)
-    {
-        WERROR_MODEL(PortaWrite(gModelFile, textureOutputString, strlen(textureOutputString)));
-    }
-
-    // close up appearance
-    strcpy_s(outputString, 256, "      }\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    return MW_NO_ERROR;
-}
-
-static int writeUSDTextureUV(float u, float v, int addComment, int swatchLoc)
-{
-    char outputString[1024];
-
-    if (addComment)
-    {
-        if (swatchLoc < TOTAL_TILES) {
-            char outName[MAX_PATH_AND_FILE];
-            WcharToChar(gTilesTable[swatchLoc].filename, outName, MAX_PATH_AND_FILE);
-            assert(strlen(outName) > 0);
-            sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
-                outName,
-                u, v);
-        }
-        else {
-            // old "by block family" code, which is less useful
-            sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
-                gBlockDefinitions[gModel.uvSwatchToType[swatchLoc]].name,
-                u, v);
-        }
-    }
-    else
-    {
-        sprintf_s(outputString, 1024, "            %g %g\n",
-            u, v);
-    }
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    return MW_NO_ERROR;
-}
-#endif
-*/
 
 //===============================================================================================
 static int writeSchematicBox()
