@@ -9055,7 +9055,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
         // 4 is east-west, 8 is north-south
-        if (dataVal == 0)
+        if (dataVal < 4)
         {
             // pre 1.13, so figure out axis if we can
             // infer direction from surrounding neighbors
