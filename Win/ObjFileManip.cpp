@@ -1532,7 +1532,41 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                                     case 241: // redstone torch top
                                     case 683: // soul torch
                                     case 751: // soul torch top - TODO USD: is this still needed? Can't we now just trim the polygon itself?
+                                    case 3 * 16 + 13: // furnace front on - misses a few darker bits, but avoids lots of bright furnace surfaces
+                                        clampLevel = 226;
+                                        break;
+                                    case 9 * 16 + 13: // brewing stand
                                         clampLevel = 167;
+                                        break;
+                                    case 13 * 16 + 4: // redstone lamp
+                                        clampLevel = 110;
+                                        break;
+                                    case 37 * 16 + 11: // lantern
+                                    case 42 * 16 + 13: // soul lantern
+                                        clampLevel = 115;
+                                        break;
+                                    case 23 * 16 + 12: // end rod
+                                    case 38 * 16 + 10: // blast furnace front on
+                                        clampLevel = 203;
+                                        break;
+                                    case 40 * 16 + 15: // smoker front on - not quite right, as the top edge of the cover is higher than this
+                                        clampLevel = 187;
+                                        break;
+                                    case 626:   // campfire log lit
+                                    case 687:   // soul campfire log lit
+                                        clampLevel = 155;
+                                        break;
+                                    case 723: // respawn anchor faces
+                                    case 725: // respawn anchor faces
+                                    case 726: // respawn anchor faces
+                                    case 727: // respawn anchor faces
+                                    case 728: // respawn anchor faces
+                                    case 729: // respawn anchor faces
+                                    case 730: // respawn anchor faces
+                                        clampLevel = 147;
+                                        break;
+                                    case 9 * 16 + 12: // brewing stand base - should emit no light. TODO: it'd be nicer to emit no texture at all.
+                                        clampLevel = 255;
                                         break;
                                     default:
                                         break;
@@ -1703,10 +1737,10 @@ static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName
     changeCharToUnderline(' ', worldNameUnderlined);
     // convert all punctuation found in Windows file names to underscores
     if (convertPunctuation ) {
-        char* charFound = strpbrk(worldNameUnderlined, "-+=[]{}`~,.';!@#$%^&()");
+        char* charFound = strpbrk(worldNameUnderlined, " -+=[]{}`~,.';!@#$%^&()");
         while (charFound) {
             *charFound = '_';
-            charFound = strpbrk(charFound, "-+=[]{}`~,.';!@#$%^&()");
+            charFound = strpbrk(charFound, " -+=[]{}`~,.';!@#$%^&()");
         }
     }
 }
@@ -22179,7 +22213,15 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
     getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, true);
     if (strlen(worldNameUnderlined)) {
-        sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
+        // is first character a numeral? Illegal in USD
+        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
+            // name is assumed valid
+            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
+        }
+        else {
+            // put a _ in front of the illegal name, making it valid
+            sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
+        }
     }
     else {
         // no name given, which happens with the block test world
@@ -22597,16 +22639,17 @@ static int createMaterialsUSD(char *texturePath)
 
             // if some block is being coerced into emitting, i.e., normally has no emissive component, give it a value
             if (emission == 0.0f && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                // could instead analyze the mask and get a value? TODO
                 emission = 1.0f;
             }
 
-            // we flag emitters that don't have an emissive so need to have a texture synthesized for them
-            if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
-                gModel.tileEmissionNeeded[swatchLoc] = true;
-                gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
-            }
-
             if (emission > 0.0f) {
+                // we flag emitters that don't have an emissive so need to have a texture synthesized for them
+                if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                    gModel.tileEmissionNeeded[swatchLoc] = true;
+                    gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+                }
+
                 unsigned int color = gBlockDefinitions[pFace->materialType].read_color;
                 unsigned char r, g, b;
                 r = (unsigned char)(color >> 16);
