@@ -22655,6 +22655,24 @@ static int createMaterialsUSD(char *texturePath)
                 r = (unsigned char)(color >> 16);
                 g = (unsigned char)(color >> 8);
                 b = (unsigned char)(color);
+                // special: torches should be pretty white; set to soft yellow
+                if (pFace->materialType == BLOCK_TORCH) {
+                    r = g = 255;
+                    b = 150;
+                }
+                    
+                // scale to max - we assume the "map visible" color is more about hue and saturation than luminance
+                float max = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
+                r = (unsigned char)(0.5f + ((float)r * 255.0f / max));
+                g = (unsigned char)(0.5f + ((float)g * 255.0f / max));
+                b = (unsigned char)(0.5f + ((float)b * 255.0f / max));
+                // to avoid clamping with tone mapping, give every channel a minimum value of 0.1
+                if (r < 25)
+                    r = 25;
+                if (g < 25)
+                    g = 25;
+                if (b < 25)
+                    b = 25;
                 sprintf_s(outputString, 256, "            color3f inputs:emissive_color = (%g, %g, %g) (\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f );
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
