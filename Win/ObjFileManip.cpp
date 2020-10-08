@@ -158,6 +158,7 @@ static int gPrint3D = 0;
 static int gPhysMtl;
 
 static float gUnitsScale = 1.0f;
+static float gXformScale = 1.0f;
 
 static int gExportBillboards = 0;
 
@@ -1096,6 +1097,16 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         goto Exit;
     }
     UPDATE_PROGRESS(gProgress.start.makeFaces);
+
+    // if we have matrix transforms available, transfer the unit scale to that scale factor instead
+    if (fileType == FILE_TYPE_USD) {
+        gXformScale = gUnitsScale;
+        gUnitsScale = 1.0f;
+    }
+    else {
+        // reset, just in case
+        gXformScale = 1.0f;
+    }
 
     // create database and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
@@ -22229,6 +22240,11 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+    if (gXformScale != 1.0f) {
+        sprintf_s(outputString, 256, "    float3 xformOp : scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    }
+
     if (retCode |= createMeshesUSD()) {
         goto Exit;
     }
@@ -22358,7 +22374,7 @@ static int finishCommentsUSD()
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // TODO: centimeters is what OV Kit likes. This setting doesn't quite get used properly.
-    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gUnitsScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
+    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gXformScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;
