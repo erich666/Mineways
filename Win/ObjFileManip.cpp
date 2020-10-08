@@ -22357,7 +22357,8 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "    metersPerUnit = 1\n    upAxis = \"%s\"\n)\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
+    // TODO: centimeters is what OV Kit likes. This setting doesn't quite get used properly.
+    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gUnitsScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;
