@@ -7454,7 +7454,7 @@ static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
     if (_wcsicmp(terrainName, L"terrainExt.png") != 0)
     {
         // get terrain file name and append
-        wcscat_s(title, MAX_PATH_AND_FILE - 1, L"; ");
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, L" / ");
         wcscat_s(title, MAX_PATH_AND_FILE - 1, terrainName);
     }
 }
