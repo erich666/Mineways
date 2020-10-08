@@ -620,6 +620,7 @@ enum block_types {
     BLOCK_REDSTONE_TORCH_ON = 76,
     BLOCK_STONE_BUTTON = 77,
     BLOCK_SNOW = 78,          // this is just the snow covering the ground
+    BLOCK_ICE = 79,
     BLOCK_SNOW_BLOCK = 80,    // confusing, eh?
     BLOCK_CACTUS = 0x51,
     BLOCK_SUGAR_CANE = 0x53,
@@ -634,14 +635,14 @@ enum block_types {
     BLOCK_CAKE = 0x5c,
     BLOCK_REDSTONE_REPEATER_OFF = 0x5d,
     BLOCK_REDSTONE_REPEATER_ON = 0x5e,
-    BLOCK_STAINED_GLASS = 0x5f,	// was BLOCK_LOCKED_CHEST, which went away in 1.7
+    BLOCK_STAINED_GLASS = 95,	// was BLOCK_LOCKED_CHEST, which went away in 1.7
     BLOCK_TRAPDOOR = 0x60,
     BLOCK_INFESTED_STONE = 97,
     BLOCK_STONE_BRICKS = 0x62,
     BLOCK_HUGE_BROWN_MUSHROOM = 0x63,
     BLOCK_HUGE_RED_MUSHROOM = 0x64,
     BLOCK_IRON_BARS = 0x65,
-    BLOCK_GLASS_PANE = 0x66,
+    BLOCK_GLASS_PANE = 102,
     BLOCK_MELON = 0x67,
     BLOCK_PUMPKIN_STEM = 0x68,
     BLOCK_MELON_STEM = 0x69,
@@ -697,23 +698,23 @@ enum block_types {
     BLOCK_DROPPER = 0x9E,
     // 1.6 & 1.7.2
     BLOCK_COLORED_TERRACOTTA = 159,	// was stained clay, now called terracotta: it's colored
-    BLOCK_STAINED_GLASS_PANE = 0xA0,
+    BLOCK_STAINED_GLASS_PANE = 160,
     BLOCK_AD_LEAVES = 0xA1,
     BLOCK_AD_LOG = 162,
     BLOCK_ACACIA_WOOD_STAIRS = 0xA3,
     BLOCK_DARK_OAK_WOOD_STAIRS = 0xA4,
-    BLOCK_HAY = 0xAA,
-    BLOCK_CARPET = 0xAB,
-    BLOCK_HARDENED_CLAY = 0xAC,	// also called terracotta, but we keep the name here
-    BLOCK_COAL_BLOCK = 0xAD,
     // 1.7.2
     BLOCK_DOUBLE_FLOWER = 0xAF,
     // 1.8
-    BLOCK_SLIME = 0xA5,
+    BLOCK_SLIME = 165,
     BLOCK_BARRIER = 0xA6,
     BLOCK_IRON_TRAPDOOR = 0xA7,
     BLOCK_PRISMARINE = 0xA8,
     BLOCK_SEA_LANTERN = 0xA9,
+    BLOCK_HAY = 0xAA,
+    BLOCK_CARPET = 0xAB,
+    BLOCK_HARDENED_CLAY = 0xAC,	// also called terracotta, but we keep the name here
+    BLOCK_COAL_BLOCK = 0xAD,
     BLOCK_STANDING_BANNER = 0xB0,
     BLOCK_WALL_BANNER = 0xB1,
     BLOCK_INVERTED_DAYLIGHT_SENSOR = 0xB2,
@@ -750,7 +751,7 @@ enum block_types {
     BLOCK_END_GATEWAY = 0xD1,
     BLOCK_REPEATING_COMMAND_BLOCK = 0xD2,
     BLOCK_CHAIN_COMMAND_BLOCK = 0xD3,
-    BLOCK_FROSTED_ICE = 0xD4,
+    BLOCK_FROSTED_ICE = 212,
     BLOCK_MAGMA_BLOCK = 0xD5,
     BLOCK_NETHER_WART_BLOCK = 214,
     BLOCK_RED_NETHER_BRICK = 0xD7,
