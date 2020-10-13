@@ -1655,7 +1655,12 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_Edition">Java (aka Classic) Edition</a> worlds. Minecraft for Windows 10, also known as the <a href="https://minecraft.gamepedia.com/Bedrock_Edition">Bedrock Edition</a>, uses an entirely different database format for its worlds, called <a href="https://github.com/Mojang/leveldb-mcpe">LevelDB</a>. If your level.dat files are located in a directory with the path ..."\AppData\Local\Packages\Microsoft.Minecraft"... in it, or have weird directory names like "ZAD1Xfl9AAA=", that's a Bedrock Edition save. This section describes how to convert a Minecraft Bedrock world to a Minecraft Java Edition one so that Mineways can read it.
 <P>
-Let's use the free <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
+The options I know of are:
+<UL>
+  <LI><a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a> - a little quirky, but free.</LI>
+  <LI><a href="https://www.universalminecraftconverter.com/">Universal Minecraft Converter</a> - evidently more reliable than the MCC ToolChest, but is a (rather pricey) subscription service.</LI>
+</UL>
+<P>What follows are instructions for the free <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
 <LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
 <LI>Select "Tools | Convert -> To Java." A large dialog box appears.
