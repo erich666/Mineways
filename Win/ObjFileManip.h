@@ -113,9 +113,9 @@ typedef struct ChangeBlockCommand {
 
 static int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1 };
 static LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY };
-static wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_m", L"_e", L"_r" };
+static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_m", L"_e", L"_r" };
 // OBJ output is assumed to be in non-wide characters - TODO I wonder if that's required by other programs?
-static char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "_r" };
+static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "_r" };
 
 // We store a set of normals that get reused: 
 // 26 predefined, plus 30 known to be needed for 196 blocks, plus another 400 for water and lava and just in case.

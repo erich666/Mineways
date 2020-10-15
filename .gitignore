@@ -50,3 +50,8 @@ TileMaker/TileMaker/x64
 Win/My Inspector Results - Mineways/*
 *.log
 .vs/Mineways/v16/*
+ChannelMixer/.vs/*
+TileMaker/.vs/*
+TileMaker/TileMaker/*.txt
+TileMaker/TileMaker/*.bat
+TileMaker/TileMaker/*.pl
