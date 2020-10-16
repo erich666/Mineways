@@ -1,6 +1,7 @@
 // ChannelMixer : Read in a 3 channel texture and separate out the layers to 3 grayscale textures.
 
 #include "rwpng.h"
+#include "tiles.h"
 #include <assert.h>
 #include <windows.h>
 #include <tchar.h>
@@ -29,12 +30,43 @@ typedef struct Channel {
 
 #define TOTAL_INPUT_TILES	1000
 
+#define TOTAL_CATEGORIES		9
+#define	CATEGORY_RGBA			0
+#define	CATEGORY_NORMALS		1
+#define	CATEGORY_NORMALS_LONG	2
+#define	CATEGORY_METALLIC		3
+#define	CATEGORY_EMISSION		4
+#define	CATEGORY_ROUGHNESS		5
+#define CATEGORY_SPECULAR		6
+#define CATEGORY_MER			7
+#define CATEGORY_SYNTHETIC		8
+
+static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y" };
+static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_normal", "_m", "_e", "_r", "_s", "_mer", "_y" };
+
 typedef struct Tile {
 	wchar_t name[MAX_PATH];
 	progimage_info image;
 } Tile;
 
+typedef struct FileRecord {
+	wchar_t* rootName;
+	wchar_t* fullFilename;
+	wchar_t* path;
+	boolean exists;
+} FileRecord;
 
+typedef struct FileGrid {
+	int fileCount;
+	int totalCategories;
+	int totalTiles;
+	int types[TOTAL_CATEGORIES];
+	FileRecord fr[TOTAL_CATEGORIES * TOTAL_TILES];
+} FileGrid;
+
+static FileGrid gFG;
+
+#define MAX_PATH_AND_FILE (2*MAX_PATH)
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
@@ -44,27 +76,38 @@ static wchar_t gErrorString[MAX_PATH];
 #define CONCAT_ERROR_LENGTH	(1000*100)
 static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 
+void initializeFileGrid(FileGrid* pfg);
+bool dirExists(const wchar_t* path);
+int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
+boolean testIfTileExists(FileGrid* fg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate);
+boolean removePNGsuffix(wchar_t* name);
+int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes);
+int findTileIndex(const wchar_t* tileName, int alternate);
+progimage_info* allocateImage(progimage_info* source_ptr);
+
 
 void printHelp();
-int readTilesInDirectory(const wchar_t* inputDirectory, const wchar_t* inputSuffix, int& tilesFound, Tile* tiles, boolean verbose);
-void loadAndProcessTile(const wchar_t* inputDirectory, const wchar_t* inputSuffix, const wchar_t* inputFile, int& tilesFound, Tile* tiles, boolean verbose);
-static int buildPathAndReadTile(const wchar_t* tilePath, const wchar_t* fileName, int& tilesFound, Tile* tiles, const wchar_t* tileRootName);
-static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose);
+//int readTilesInDirectory(const wchar_t* inputDirectory, const wchar_t* inputSuffix, int& tilesFound, Tile* tiles, boolean verbose);
+//void loadAndProcessTile(const wchar_t* inputDirectory, const wchar_t* inputSuffix, const wchar_t* inputFile, int& tilesFound, Tile* tiles, boolean verbose);
+//static int buildPathAndReadTile(const wchar_t* tilePath, const wchar_t* fileName, int& tilesFound, Tile* tiles, const wchar_t* tileRootName);
+//static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose);
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
 
+void copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
+void processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
+void processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
+
 static int isChannelAllBlack(progimage_info* src, int channel);
+static int isNearlyGrayscale(progimage_info* src);
 static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
 static void invertChannel(progimage_info* dst);
-static void multiplyPNGTile(progimage_info* dst, int channels, unsigned int color);
-static void compositePNGTiles(progimage_info* dst, progimage_info* src);
-static int compressPNGTile(progimage_info* dst);
 
 
 int wmain(int argc, wchar_t* argv[])
 {
 	int argLoc = 1;
-	int i, it;
+	int i;
 	wchar_t inputSuffix[MAX_PATH] = L"_mer";
 	wchar_t inputDirectory[MAX_PATH] = L"";
 	wchar_t outputDirectory[MAX_PATH] = L"";
@@ -72,11 +115,14 @@ int wmain(int argc, wchar_t* argv[])
 	wchar_t negateSuffix[MAX_PATH] = L"";
 	static Channel outChannel[3];
 	boolean verbose = false;
-	boolean splitFiles = false;
-	boolean createLeaves = false;
-	boolean negateChannel = false;
+	//boolean splitFiles = false;
+	//boolean createLeaves = false;
+	//boolean negateChannel = false;
 
-	int tilesFound = 0;
+	initializeFileGrid(&gFG);
+
+	// two means even try the alternate name list
+	int alternate = 2;
 	Tile tiles[TOTAL_INPUT_TILES];
 
 	// by default assume _mer input and _m/_e/_r output PNGs
@@ -101,6 +147,7 @@ int wmain(int argc, wchar_t* argv[])
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(outputDirectory, MAX_PATH, argv[argLoc]);
 		}
+		/*
 		else if (wcscmp(argv[argLoc], L"-y") == 0)
 		{
 			// create sYnthesized color composited leaves, grass, water, etc. - suffix is "_y"
@@ -138,7 +185,7 @@ int wmain(int argc, wchar_t* argv[])
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(synthOutSuffix, MAX_PATH, argv[argLoc]);
 			createLeaves = true;
-		}
+		}*/
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
 			// verbose: tell when normal things happen
@@ -155,6 +202,18 @@ int wmain(int argc, wchar_t* argv[])
 	if (verbose)
 		wprintf(L"ChannelMixer version 1.00\n");  // change version above, too
 
+	if (!dirExists(inputDirectory)) {
+		wprintf(L"\nERROR: Input directory '%s' does not exist.\n", inputDirectory);
+		return 1;
+	}
+
+	// from https://stackoverflow.com/questions/9235679/create-a-directory-if-it-doesnt-exist
+	if (CreateDirectoryW(outputDirectory, NULL) ||
+		ERROR_ALREADY_EXISTS != GetLastError()) {
+		wprintf(L"\nERROR: Output directory '%s' could not be created.\n", outputDirectory);
+		return 1;
+	}
+
 	// add \ to end of directory paths
 	if (wcscmp(&inputDirectory[wcslen(inputDirectory) - 1], L"\\") != 0)
 	{
@@ -165,79 +224,37 @@ int wmain(int argc, wchar_t* argv[])
 		wcscat_s(outputDirectory, MAX_PATH, L"\\");
 	}
 
-	if (splitFiles) {
+	// How it works:
+	// Look through all directories for files, warn of duplicates that get ignored. TODO: just have one directory now
+	// Copy files over if output directory is different than input directory.
+	// Split _mer and _s files into _m _e _r files.
 
-		// look through tiles in tiles directory, see which exist, find maximum Y value.
-		// read textures in input directory
-		if (readTilesInDirectory(inputDirectory, inputSuffix, tilesFound, tiles, verbose)) {
-			return 1;
-		}
+	boolean sameDir = (_wcsicmp(inputDirectory, outputDirectory) == 0);
 
-		if (tilesFound == 0) {
-			wprintf(L"\nERROR: No textures found in directory '%s' with a suffix of '%s'.\n", inputDirectory, inputSuffix);
-			return 1;
-		}
-
-		// which channel, if any, should be inverted?
-		int invertedChan = -1;
-		if (negateChannel && wcslen(negateSuffix) > 0) {
-
-			for (i = 0; i < 3; i++) {
-				if (wcscmp(outChannel[i].suffix, negateSuffix) == 0) {
-					invertedChan = i;
-					break;
-				}
-			}
-		}
-
-		for (it = 0; it < tilesFound; it++) {
-			for (i = 0; i < 3; i++) {
-				if (outChannel[i].inUse && wcscmp(outChannel[i].suffix, L"*") != 0) {
-
-					// output the channel if it's not all black
-					if (!isChannelAllBlack(&tiles[it].image, i)) {
-						wchar_t outputFile[MAX_PATH];
-						wcscpy_s(outputFile, MAX_PATH, outputDirectory);
-						wcscat_s(outputFile, MAX_PATH, tiles[it].name);
-						wcscat_s(outputFile, MAX_PATH, outChannel[i].suffix);
-						wcscat_s(outputFile, MAX_PATH, L".png");
-
-						// allocate output image and fill it up
-						progimage_info* destination_ptr = new progimage_info();
-
-						destination_ptr->width = tiles[it].image.width;
-						destination_ptr->height = tiles[it].image.height;
-						destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 1 * sizeof(unsigned char), 0x0);
-
-						copyOneChannel(destination_ptr, i, &tiles[it].image);
-
-						if (i == invertedChan) {
-							invertChannel(destination_ptr);
-						}
-
-						if (verbose)
-							wprintf(L"Opening '%s' for output.\n", outputFile);
-
-						// write out the result
-						int rc = writepng(destination_ptr, 1, outputFile);
-						if (rc != 0)
-						{
-							reportReadError(rc, outputFile);
-							// quit
-							return 1;
-						}
-						writepng_cleanup(destination_ptr);
-						if (verbose)
-							wprintf(L"New texture '%s' created.\n", outputFile);
-					}
-				}
-			}
-		}
+	// look through tiles in tiles directory, see which exist
+	if (checkTilesInDirectory(&gFG, inputDirectory, verbose, alternate) == 0) {
+		wprintf(L"\nERROR: Input directory '%s' does not have any Minecraft image textures of interest - nothing to do.\n", inputDirectory);
+		return 1;
 	}
 
-	if (createLeaves) {
-		createCompositedLeaves(inputDirectory, outputDirectory, synthOutSuffix, verbose);
+	// See what we need to do. If sameDir is false, we need to copy over all color and normals files.
+	// Work we always do: look at _s files and _mer files and split out.
+	// _s files might be grayscale (roughness only) or SME.
+	if (!sameDir) {
+		copyFiles(&gFG, outputDirectory, verbose);
 	}
+
+	if (gFG.types[CATEGORY_SPECULAR] > 0) {
+		processSpecularFiles(&gFG, outputDirectory, verbose);
+	}
+
+	if (gFG.types[CATEGORY_MER] > 0) {
+		processMERFiles(&gFG, outputDirectory, verbose);
+	}
+
+	//if (createLeaves) {
+	//	createCompositedLeaves(inputDirectory, outputDirectory, synthOutSuffix, verbose);
+	//}
 
 	if (gErrorCount)
 		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
@@ -251,18 +268,393 @@ int wmain(int argc, wchar_t* argv[])
 void printHelp()
 {
 	wprintf(L"ChannelMixer version 1.00\n");  // change version below, too
-	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory]\n        [-im _mer] [-oc _m _e _r]\n");
+	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory]\n"); // [-im _mer] [-oc _m _e _r] \n");
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
-	wprintf(L"  -y - create composite colored tiles, such as grass block sides, for reuse.\n      Suffix of output files is '*_y.png'.\n");
-	wprintf(L"  -im _mer - the merged input file suffix, e.g., 'anvil_mer.png'.\n");
-	wprintf(L"  -oc _m _e _r - the output channel file suffixes, e.g., 'anvil_m.png',\n        'anvil_e.png', 'anvil_r.png' are produced from the RGB input channels.\n");
-	wprintf(L"  -n _r - iNvert the output _r channel (making it shininess, or vice versa).\n");
-	wprintf(L"  -oy _y - create composite colored tiles, with given suffix ('_y' is default).\n");
+	//wprintf(L"  -y - create composite colored tiles, such as grass block sides, for reuse.\n      Suffix of output files is '*_y.png'.\n");
+	//wprintf(L"  -im _mer - the merged input file suffix, e.g., 'anvil_mer.png'.\n");
+	//wprintf(L"  -oc _m _e _r - the output channel file suffixes, e.g., 'anvil_m.png',\n        'anvil_e.png', 'anvil_r.png' are produced from the RGB input channels.\n");
+	//wprintf(L"  -n _r - iNvert the output _r channel (making it shininess, or vice versa).\n");
+	//wprintf(L"  -oy _y - create composite colored tiles, with given suffix ('_y' is default).\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-int readTilesInDirectory(const wchar_t* inputDirectory, const wchar_t* inputSuffix, int &tilesFound, Tile *tiles, boolean verbose)
+void initializeFileGrid(FileGrid* pfg)
+{
+	int i;
+	pfg->fileCount = 0;
+	pfg->totalCategories = TOTAL_CATEGORIES;
+	pfg->totalTiles = TOTAL_TILES;
+	for (i = 0; i < TOTAL_CATEGORIES; i++) {
+		pfg->types[i] = 0;
+	}
+	for (i = 0; i < TOTAL_CATEGORIES * TOTAL_TILES; i++) {
+		pfg->fr[i].rootName = NULL;
+		pfg->fr[i].fullFilename = NULL;
+		pfg->fr[i].path = NULL;
+		pfg->fr[i].exists = false;
+	}
+}
+
+// from https://stackoverflow.com/questions/8233842/how-to-check-if-directory-exist-using-c-and-winapi
+bool dirExists(const wchar_t* path)
+{
+	DWORD ftyp = GetFileAttributesW(path);
+	if (ftyp == INVALID_FILE_ATTRIBUTES)
+		return false;  //something is wrong with your path!
+
+	if (ftyp & FILE_ATTRIBUTE_DIRECTORY)
+		return true;   // this is a directory!
+
+	return false;    // this is not a directory!
+}
+
+// returns number of useful tiles found
+int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate)
+{
+	HANDLE hFind;
+	WIN32_FIND_DATA ffd;
+	pfg->fileCount = 0;
+
+	wchar_t tileSearch[MAX_PATH];
+	wcscpy_s(tileSearch, MAX_PATH, tilePath);
+	wcscat_s(tileSearch, MAX_PATH, L"*.png");
+	hFind = FindFirstFile(tileSearch, &ffd);
+
+	if (hFind != INVALID_HANDLE_VALUE)
+	{
+		// go through all the files in the blocks directory
+		do {
+			pfg->fileCount += testIfTileExists( pfg, tilePath, ffd.cFileName, verbose, alternate) ? 1 : 0;
+		} while (FindNextFile(hFind, &ffd) != 0);
+
+		FindClose(hFind);
+	}
+	return pfg->fileCount;
+}
+
+// returns true if file exists and is usable (not a duplicate, alternate name of something already in use)
+boolean testIfTileExists(FileGrid* fg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate)
+{
+	wchar_t tileName[MAX_PATH];
+
+	if (verbose)
+		wprintf(L"The file '%s' has been found and will be tested to see if it's needed.\n", origTileName);
+
+	wcscpy_s(tileName, MAX_PATH, origTileName);
+
+	if (removePNGsuffix(tileName)) {
+		// has a PNG suffix, now removed, so test if it's a file name type we understand.
+		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+		assert(type >= 0);
+		// return a negative value if tile is not found in any way
+		int index = findTileIndex(tileName, alternate);
+		if (index >= 0) {
+			int fullIndex = type * fg->totalTiles + index;
+			if (fg->fr[fullIndex].exists) {
+				// duplicate, so warn and exit
+				wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, fg->fr[fullIndex].fullFilename, fg->fr[fullIndex].path);
+				return false;
+			}
+			else {
+				// it's new and unique
+				fg->types[type]++;
+				fg->fr[fullIndex].rootName = _wcsdup(tileName);
+				fg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
+				fg->fr[fullIndex].path = _wcsdup(tilePath);
+				fg->fr[fullIndex].exists = true;
+				return true;
+			}
+		}
+	}
+	if (verbose)
+		wprintf(L"The file '%s' is one that is not needed.\n", origTileName);
+	return false;
+}
+
+boolean removePNGsuffix(wchar_t* name)
+{
+	// check for .png suffix - note test is case insensitive
+	int len = (int)wcslen(name);
+	if (len > 4 && _wcsicmp(&name[len - 4], L".png") == 0)
+	{
+		// remove .png suffix
+		name[len - 4] = 0x0;
+		return true;
+	}
+	return false;
+}
+
+// return -1 if no suffix matches
+int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes)
+{
+	int type = -1;
+	for (int i = 0; i < numSuffixes; i++) {
+		int suffixLen = (int)wcslen(suffixes[i]);
+		if (suffixLen > 0) {
+			int len = (int)wcslen(tileName);
+			if (_wcsicmp(&tileName[len - suffixLen], suffixes[i]) == 0) {
+				// now for the annoying exceptions
+				int j = 0;
+				bool stripSuffix = true;
+				while (wcslen(gNormalsList[j]) > 0) {
+					if (_wcsicmp(tileName, gNormalsList[j]) == 0) {
+						// doesn't count - the name has "_normal" at the end of it.
+						stripSuffix = false;
+						type = 0;	// double-triple sure
+						break;
+					}
+					j++;
+				}
+				if (stripSuffix) {
+					tileName[len - suffixLen] = 0x0;
+				}
+				type = i;
+				break;
+			}
+		}
+		else {
+			// normally type of first "" suffix is 0, but just in case...
+			// and that means we can return -1 if no suffix is found, by feeding in a different list of suffixes.
+			type = i;
+		}
+	}
+	return type;
+}
+
+int findTileIndex(const wchar_t* tileName, int alternate)
+{
+	int i;
+	int index = -1;
+
+	for (i = 0; i < TOTAL_TILES; i++)
+	{
+		if (_wcsicmp(tileName, gTilesTable[i].filename) == 0) {
+			return i;
+		}
+		if (alternate && _wcsicmp(tileName, gTilesTable[i].altFilename) == 0) {
+			return i;
+		}
+	}
+
+	// none of those worked, so now try some more rules - good times!
+	if ( alternate > 1) {
+		i = 0;
+		while (wcslen(gTilesAlternates[i].filename) > 0) {
+			if (_wcsicmp(tileName, gTilesAlternates[i].altFilename) == 0) {
+				// tricksy - search only the normal names to find the index of this alternate name
+				return findTileIndex(gTilesAlternates[i].filename, 1);
+			}
+			i++;
+		}
+	}
+
+	return index;
+}
+
+void copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+
+	int copyTypes[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
+	int numTypes = sizeof(copyTypes) / sizeof(int);
+	for (int type = 0; type < numTypes; type++) {
+		if (pfg->types[copyTypes[type]] > 0) {
+			// there are files to copy
+			for (int i = 0; i < pfg->totalTiles; i++) {
+				int fullIndex = copyTypes[type] * pfg->totalTiles + i;
+				if (pfg->fr[fullIndex].exists) {
+					// file exists - copy it.
+					wchar_t inputFile[MAX_PATH_AND_FILE];
+					wcscpy_s(inputFile, MAX_PATH, pfg->fr[fullIndex].path);
+					wcscat_s(inputFile, MAX_PATH, L"\\");
+					wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].fullFilename);
+
+					wchar_t outputFile[MAX_PATH_AND_FILE];
+					wcscpy_s(outputFile, MAX_PATH, outputDirectory);
+					wcscat_s(outputFile, MAX_PATH, L"\\");
+					wcscat_s(outputFile, MAX_PATH, pfg->fr[fullIndex].fullFilename);
+
+					if (CopyFile(inputFile, outputFile, true) == 0) {
+						wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+						saveErrorForEnd();
+						gErrorCount++;
+					}
+					else if (verbose) {
+						wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+					}
+
+					if (type == CATEGORY_NORMALS_LONG) {
+						int otherIndex = copyTypes[CATEGORY_NORMALS] * pfg->totalTiles + i;
+						if (pfg->fr[otherIndex].exists) {
+							wsprintf(gErrorString, L"WARNING: file '%s' also has a version named '%s_n.png'.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+	int rc;
+
+	// SME order, inverting the red channel:
+	int category[] = { CATEGORY_ROUGHNESS, CATEGORY_METALLIC, CATEGORY_EMISSION };
+
+	for (int i = 0; i < pfg->totalTiles; i++) {
+		int fullIndex = CATEGORY_SPECULAR * pfg->totalTiles + i;
+		if (pfg->fr[fullIndex].exists) {
+			// file exists - process it.
+			// Read file's contents.
+			// Check if file's channels are all quite close to one another:
+			// If so, then this is just a roughness map.
+			// Else, this is an SME texture, so output each.
+			wchar_t inputFile[MAX_PATH_AND_FILE];
+			wcscpy_s(inputFile, MAX_PATH, pfg->fr[fullIndex].path);
+			wcscat_s(inputFile, MAX_PATH, L"\\");
+			wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].fullFilename);
+
+			// read in tile for later
+			progimage_info tile;
+			rc = readpng(&tile, inputFile, LCT_RGB);
+			if (rc != 0)
+			{
+				reportReadError(rc, inputFile);
+			}
+
+			wchar_t outputFile[MAX_PATH_AND_FILE];
+			if (isNearlyGrayscale(&tile)) {
+				// specular only: output just the roughness channel
+				// always export specular in inverted
+				progimage_info* destination_ptr = allocateImage(&tile);
+				copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
+				invertChannel(destination_ptr);
+
+				wcscpy_s(outputFile, MAX_PATH, outputDirectory);
+				wcscat_s(inputFile, MAX_PATH, L"\\");
+				wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].rootName);
+				wcscat_s(inputFile, MAX_PATH, gCatSuffixes[CATEGORY_ROUGHNESS]);
+				wcscat_s(inputFile, MAX_PATH, L".png");
+
+				rc = writepng(destination_ptr, 1, outputFile);
+				if (rc != 0)
+				{
+					reportReadError(rc, outputFile);
+					// quit - if we can't write one file, we're unlikely to write the rest.
+					return;
+				}
+				writepng_cleanup(destination_ptr);
+				if (verbose)
+					wprintf(L"New texture '%s' created.\n", outputFile);
+			}
+			else {
+				// SME: output all three
+				for (i = 0; i < 3; i++) {
+					// output the channel if it's not all black
+					if (!isChannelAllBlack(&tile, i)) {
+						progimage_info* destination_ptr = allocateImage(&tile);
+						copyOneChannel(destination_ptr, i, &tile);
+						if (i == CHANNEL_RED) {
+							invertChannel(destination_ptr);
+						}
+
+						wcscpy_s(outputFile, MAX_PATH, outputDirectory);
+						wcscat_s(inputFile, MAX_PATH, L"\\");
+						wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].rootName);
+						wcscat_s(inputFile, MAX_PATH, gCatSuffixes[category[i]]);
+						wcscat_s(inputFile, MAX_PATH, L".png");
+
+						rc = writepng(destination_ptr, 1, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit - if we can't write one file, we're unlikely to write the rest.
+							return;
+						}
+						writepng_cleanup(destination_ptr);
+						if (verbose)
+							wprintf(L"New texture '%s' created.\n", outputFile);
+					}
+				}
+			}
+			readpng_cleanup(1, &tile);
+		}
+	}
+}
+
+progimage_info* allocateImage(progimage_info* source_ptr)
+{
+	// allocate output image and fill it up
+	progimage_info* destination_ptr = new progimage_info();
+
+	destination_ptr->width = source_ptr->width;
+	destination_ptr->height = source_ptr->height;
+	destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 1 * sizeof(unsigned char), 0x0);
+
+	return destination_ptr;
+}
+
+void processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+	int rc;
+
+	// MER order
+	int category[] = { CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
+
+	for (int i = 0; i < pfg->totalTiles; i++) {
+		int fullIndex = CATEGORY_SPECULAR * pfg->totalTiles + i;
+		if (pfg->fr[fullIndex].exists) {
+			// file exists - process it.
+			// Read file's contents.
+			// Check if file's channels are all quite close to one another:
+			// If so, then this is just a roughness map.
+			// Else, this is an SME texture, so output each.
+			wchar_t inputFile[MAX_PATH_AND_FILE];
+			wcscpy_s(inputFile, MAX_PATH, pfg->fr[fullIndex].path);
+			wcscat_s(inputFile, MAX_PATH, L"\\");
+			wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].fullFilename);
+
+			// read in tile
+			progimage_info tile;
+			rc = readpng(&tile, inputFile, LCT_RGB);
+			if (rc != 0)
+			{
+				reportReadError(rc, inputFile);
+			}
+
+			wchar_t outputFile[MAX_PATH_AND_FILE];
+
+			// MER: output all three
+			for (i = 0; i < 3; i++) {
+				// output the channel if it's not all black
+				if (!isChannelAllBlack(&tile, i)) {
+					progimage_info* destination_ptr = allocateImage(&tile);
+					copyOneChannel(destination_ptr, i, &tile);
+
+					wcscpy_s(outputFile, MAX_PATH, outputDirectory);
+					wcscat_s(inputFile, MAX_PATH, L"\\");
+					wcscat_s(inputFile, MAX_PATH, pfg->fr[fullIndex].rootName);
+					wcscat_s(inputFile, MAX_PATH, gCatSuffixes[category[i]]);
+					wcscat_s(inputFile, MAX_PATH, L".png");
+
+					rc = writepng(destination_ptr, 1, outputFile);
+					if (rc != 0)
+					{
+						reportReadError(rc, outputFile);
+						// quit - if we can't write one file, we're unlikely to write the rest.
+						return;
+					}
+					writepng_cleanup(destination_ptr);
+					if (verbose)
+						wprintf(L"New texture '%s' created.\n", outputFile);
+				}
+			}
+
+			readpng_cleanup(1, &tile);
+		}
+	}
+}
+
+/*
+int readTilesInDirectory(const wchar_t* inputDirectory, const wchar_t* inputSuffix, int& tilesFound, Tile* tiles, boolean verbose)
 {
 	HANDLE hFind;
 	WIN32_FIND_DATA ffd;
@@ -350,7 +742,9 @@ static int buildPathAndReadTile(const wchar_t* tilePath, const wchar_t* fileName
 	tilesFound++;
 	return fail_code;
 }
+*/
 
+/*
 static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose)
 {
 	int rc = 0;
@@ -451,6 +845,7 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 		}
 	}
 }
+*/
 
 static void reportReadError(int rc, const wchar_t* filename)
 {
@@ -497,12 +892,34 @@ static int isChannelAllBlack(progimage_info* src, int channel)
 {
 	// look at all data: black?
 	int row, col;
-	unsigned char *src_data = &src->image_data[0] + channel;
+	unsigned char* src_data = &src->image_data[0] + channel;
 	for (row = 0; row < src->height; row++)
 	{
 		for (col = 0; col < src->width; col++)
 		{
 			if (*src_data != 0)
+			{
+				return 0;
+			}
+			src_data += 3;
+		}
+	}
+	return 1;
+};
+
+static int isNearlyGrayscale(progimage_info* src)
+{
+	// if R = G = B +- grayEpsilon for whole image, this is a grayscale image
+	int grayEpsilon = 2;
+
+	int row, col;
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			if (abs(src_data[0] - src_data[1]) > grayEpsilon ||
+				abs(src_data[1] - src_data[2]) > grayEpsilon )
 			{
 				return 0;
 			}
@@ -541,92 +958,3 @@ static void invertChannel(progimage_info* dst)
 		}
 	}
 }
-
-
-static void multiplyPNGTile(progimage_info* dst, int channels, unsigned int color)
-{
-	int row, col, ic;
-	unsigned int colArray[3];
-	colArray[0] = color >> 16;
-	colArray[1] = (color >> 8) & 0xff;
-	colArray[2] = color & 0xff;
-	assert(channels == 3 || channels == 4);
-	boolean fourChannels = channels == 4;
-
-	unsigned char* duc = ((unsigned char*)(&dst->image_data[0]));
-	for (row = 0; row < dst->height; row++)
-	{
-		for (col = 0; col < dst->width; col++)
-		{
-			for (ic = 0; ic < 3; ic++) {
-				*duc++ = (unsigned char)((unsigned int)*duc * colArray[ic] / 255);
-			}
-			// leave alpha unchanged
-			if (fourChannels)
-				duc++;
-		}
-	}
-}
-
-// input 4 channels, squish data to 3 (without realloc) 
-static void compositePNGTiles(progimage_info* dst, progimage_info *src)
-{
-	int row, col, ic;
-	unsigned char* suc = ((unsigned char*)(&src->image_data[0]));
-	unsigned char* duc = ((unsigned char*)(&dst->image_data[0]));
-
-	for (row = 0; row < dst->height; row++)
-	{
-		for (col = 0; col < dst->width; col++)
-		{
-			unsigned int alpha = suc[3];
-			unsigned int oneMinusAlpha = 255 - alpha;
-			for (ic = 0; ic < 3; ic++) {
-				*duc++ = (unsigned char)((oneMinusAlpha * (unsigned int)*duc + alpha * (unsigned int)*suc++) / 255);
-			}
-			suc++;
-		}
-	}
-}
-
-// input 4 channels, squish data to 3 (without realloc)
-// This is quite sleazy, doing it in place and not reallocing, but
-// we know we're going to write and quit immediately after anyway
-// so we don't bother reallocing, etc.
-static int compressPNGTile(progimage_info* dst)
-{
-	int row, col, ic;
-	unsigned char* duc = ((unsigned char*)(&dst->image_data[0])) + 3;
-	boolean compress = true;
-
-	// should we compress?
-	for (row = 0; row < dst->height && compress; row++)
-	{
-		for (col = 0; col < dst->width && compress; col++)
-		{
-			if (*duc < 255) {
-				compress = false;
-				break;
-			}
-			duc += 4;
-		}
-	}
-	if (compress) {
-		unsigned char* suc = duc = ((unsigned char*)(&dst->image_data[0]));
-		for (row = 0; row < dst->height; row++)
-		{
-			for (col = 0; col < dst->width; col++)
-			{
-				for (ic = 0; ic < 3; ic++) {
-					*duc++ = *suc++;
-				}
-				suc++;
-			}
-		}
-		return 3;
-	}
-	else {
-		return 4;
-	}
-}
-

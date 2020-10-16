@@ -46,6 +46,7 @@
 #define SWATCH_TILE_BOTTOM_AND_TOP          SBIT_REPEAT_TOP_BOTTOM
 // Bottom and right is for the curved rail
 #define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
+#define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
 // Bottom and top clamp only (no repeat) for double-height (two block high) plants, kelp, tall sea grass
 #define SWATCH_CLAMP_BOTTOM_AND_TOP         (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
 // Clamp bottom and sides for bed and enchanting table and stonecutter
@@ -189,7 +190,7 @@ static struct {
     {  0,  7,   6, 0, L"rail_corner", L"rail_normal_turned", SWATCH_CLAMP_BOTTOM_AND_RIGHT | SBIT_DECAL },
     {  1,  7,   6, 0, L"black_wool", L"wool_colored_black", SWATCH_REPEAT_ALL },
     {  2,  7,   6, 0, L"gray_wool", L"wool_colored_gray", SWATCH_REPEAT_ALL },
-    {  3,  7,  75, 0, L"redstone_torch_off", L"redstone_torch_off", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3,  7,  75, 0, L"redstone_torch_off", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4,  7,   6, 0, L"spruce_log", L"log_spruce", SWATCH_REPEAT_ALL },
     {  5,  7,   6, 0, L"birch_log", L"log_birch", SWATCH_REPEAT_ALL },
     {  6,  7,   6, 0, L"pumpkin_side", L"", SWATCH_REPEAT_ALL },
@@ -828,6 +829,88 @@ static struct {
     { 15, 46, 362, 0, L"MWO_flattened_soul_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
 };
 
+// There is more than one alternate name, so test more of them
+// In good part derived from https://github.com/TheDuckCow/MCprep/blob/master/mcprep_data_refresh.py#L199
+// Note that case doesn't matter, since we ignore case on all tests - easier to copy and edit from MCPrep
+static const struct {
+    const wchar_t* altFilename; // the "yet another alternative" name to search on
+    const wchar_t* filename;    // the real name we use, which we search for in the table above
+} gTilesAlternates[] = {
+    { L"Acacia_Door", L"acacia_door_bottom" },
+    { L"Birch_Door", L"birch_door_bottom" },
+    { L"Cactus", L"cactus_side" },
+    { L"Command_Block", L"chain_command_block_front" }, // wild guess - haven't seen this one myself
+    { L"Carrots", L"carrots_stage3" },
+    { L"Campfire", L"campfire_log" },
+    { L"Crafting_Table", L"crafting_table_top" },
+    { L"Crafting_Table__Cartography_Table", L"cartography_table_top" },
+    { L"Crafting_Table__Fletching_Table", L"fletching_table_top" },
+    { L"Crafting_Table__Smithing_Table", L"smithing_table_top" },
+    { L"Dark_Oak_Door", L"dark_oak_door_bottom" },
+    { L"Enchanting_Table", L"enchanting_table_top" },
+    { L"Furnace", L"furnace_front_on" }, // assume on? meshswap implication
+    { L"Furnace__Blast_Furnace", L"blast_furnace_front_on" }, // assume on? meshswap implication
+    { L"Furnace__Loom", L"loom_top" },
+    { L"Furnace__Smoker", L"smoker_front_on" }, // assume on? meshswap implication
+    { L"Fire", L"fire_0" },
+    { L"Grass__Fern", L"fern" }, // single block high
+    { L"Grass__Tall_Grass", L"grass" }, // ie tall grass
+    { L"Glass_Pane", L"glass_pane_top" },
+    { L"Iron_Door", L"iron_door_bottom" },
+    { L"Jack_o'Lantern", L"jack_o_lantern" },
+    { L"Pumpkin", L"carved_pumpkin" },
+    { L"Large_Flowers", L"sunflower_bottom" }, // decide block
+    { L"Large_Flowers__1", L"lilac_bottom" },
+    { L"Large_Flowers__2", L"tall_grass_bottom" },
+    { L"Large_Flowers__3", L"large_fern_bottom" },
+    { L"Large_Flowers__4", L"rose_bush_bottom" },
+    { L"Large_Flowers__5", L"peony_bottom" },
+    { L"Magma_Block", L"magma" },
+    { L"Poppy__Allium", L"allium" },
+    { L"Poppy__Azure_Bluet", L"azure_bluet" },
+    { L"Poppy__Blue_Orchid", L"blue_orchid" },
+    { L"Poppy__Orange_Tulip", L"orange_tulip" },
+    { L"Poppy__Oxeye_Daisy", L"oxeye_daisy" },
+    { L"Poppy__Pink_Tulip", L"pink_tulip" },
+    { L"Poppy__Red_Tulip", L"red_tulip" },
+    { L"Poppy__White_Tulip", L"white_tulip" },
+    { L"Poppy__Wither_Rose", L"wither_rose" },
+    { L"Redstone_Lamp_(active)", L"redstone_lamp" },
+    { L"Redstone_Lamp_(inactive)", L"redstone_lamp_off" },
+    { L"Redstone_Torch_(active)", L"redstone_torch" },
+    { L"Redstone_Torch_(inactive)", L"redstone_torch_off" },
+    { L"Sapling", L"oak_sapling" },
+    { L"Sapling__Acacia_Sapling", L"acacia_sapling" },
+    { L"Sapling__Birch_Sapling", L"birch_sapling" },
+    { L"Sapling__Dark_Oak_Sapling", L"dark_oak_sapling" },
+    { L"Sapling__Jungle_Sapling", L"jungle_sapling" },
+    { L"Sapling__Spruce_Sapling", L"spruce_sapling" },
+    { L"Spruce_Door", L"spruce_door_bottom" },
+    { L"Seagrass", L"tall_seagrass_bottom" },
+    { L"Stationary_Lava", L"lava_still" },
+    { L"Stationary_Water", L"water_still" },
+    { L"Stone_Cutter", L"stonecutter_top" }, // should be a meshswap item evetually
+    { L"Sunflower", L"sunflower_bottom" },
+    { L"TNT", L"tnt_top" }, // really? not the side?
+    { L"Vines", L"vine" },
+    { L"Wheat", L"wheat_stage7" },
+    { L"Wooden_Door", L"oak_door_bottom" },
+
+    // tag that denotes end of list for while loop
+    { L"", L"" }
+};
+
+
+// tiles where "_normal" is part of the name
+static const wchar_t* gNormalsList[] = {
+    L"piston_top_normal",
+    L"rail_normal",
+    L"sandstone_normal",
+    L"red_sandstone_normal",
+
+    // this empty string is used to mark the end of this array
+    L""
+};
 
 // tiles we know we don't use
 static const wchar_t* gUnneeded[] = {
