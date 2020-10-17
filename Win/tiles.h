@@ -839,7 +839,8 @@ static const struct {
     { L"Acacia_Door", L"acacia_door_bottom" },
     { L"Birch_Door", L"birch_door_bottom" },
     { L"Cactus", L"cactus_side" },
-    { L"Command_Block", L"chain_command_block_front" }, // wild guess - haven't seen this one myself
+    // there seems to be, in Absolution for example, a separate command block image that is sort of like the front, but is something else...
+    { L"Command_Block", L"command_block_front" }, // wild guess - haven't seen this one myself; original had it going to chain_command_block, which seems wrong
     { L"Carrots", L"carrots_stage3" },
     { L"Campfire", L"campfire_log" },
     { L"Crafting_Table", L"crafting_table_top" },
@@ -896,20 +897,37 @@ static const struct {
     { L"Wheat", L"wheat_stage7" },
     { L"Wooden_Door", L"oak_door_bottom" },
 
+    // still more, not in MCPrep
+    { L"acacia_door_lower", L"acacia_door_bottom" },    // Absolution
+    { L"acacia_door_upper", L"acacia_door_top" },    // Absolution
+    { L"birch_door_lower", L"birch_door_bottom" },    // Absolution
+    { L"birch_door_upper", L"birch_door_top" },    // Absolution
+    { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
+    { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
+    { L"daylight_detector", L"daylight_detector_top" },    // Meteor
+    { L"iron_door_lower", L"iron_door_bottom" },    // Absolution
+    { L"iron_door_upper", L"iron_door_top" },    // Absolution
+    { L"itemframe_background", L"item_frame" },    // Absolution
+    { L"jungle_door_lower", L"jungle_door_bottom" },    // Absolution
+    { L"jungle_door_upper", L"jungle_door_top" },    // Absolution
+    { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
+    { L"oak_door_upper", L"oak_door_top" },    // Absolution
+    { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
+    { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
+    { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
+    { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
+    { L"stone_andesite_smooth", L"polished_andesite" },    // OV
+    { L"stone_diorite_smooth", L"polished_diorite" },    // OV
+    { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
+
+    // just plain typos - might as well fix them as I find them
+    { L"diamon_block", L"diamond_block" },    // Absolution
+    { L"light_blue_conctrete", L"light_blue_concrete" },    // Absolution
+    { L"megenta_concrete", L"magenta_concrete" },    // Absolution
+
+
     // tag that denotes end of list for while loop
     { L"", L"" }
-};
-
-
-// tiles where "_normal" is part of the name
-static const wchar_t* gNormalsList[] = {
-    L"piston_top_normal",
-    L"rail_normal",
-    L"sandstone_normal",
-    L"red_sandstone_normal",
-
-    // this empty string is used to mark the end of this array
-    L""
 };
 
 // tiles we know we don't use
