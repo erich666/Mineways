@@ -100,9 +100,9 @@ static struct {
     {  6,  1,  42, 0, L"iron_block", L"", SWATCH_REPEAT_ALL },
     {  7,  1,  41, 0, L"gold_block", L"", SWATCH_REPEAT_ALL },
     {  8,  1,  57, 0, L"diamond_block", L"", SWATCH_REPEAT_ALL },
-    {  9,  1,  54, 0, L"MWO_chest_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest. Find chests in \assets\minecraft\textures\entity\chest and include in blocks\chest subdirectory
-    { 10,  1,   6, 0, L"MWO_chest_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
-    { 11,  1,   6, 0, L"MWO_chest_front", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
+    {  9,  1,  54, 0, L"MWO_chest_top", L"chest_top", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest. Find chests in \assets\minecraft\textures\entity\chest and include in blocks\chest subdirectory
+    { 10,  1,   6, 0, L"MWO_chest_side", L"chest_side", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
+    { 11,  1,   6, 0, L"MWO_chest_front", L"chest_front", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest - note these three are sometimes in Bedrock with the alternate name
     { 12,  1,  40, 0, L"red_mushroom", L"mushroom_red", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 13,  1,  39, 0, L"brown_mushroom", L"mushroom_brown", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14,  1,   6, 0, L"jungle_sapling", L"sapling_jungle", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -239,7 +239,7 @@ static struct {
     {  1, 10,   6, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,   6, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
     {  3, 10,   6, 0, L"powered_rail", L"rail_golden", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south)
+    {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south) - TODO, this is one of those one to many situations, where redstone_dust_line (in Muddle and Smoolistic) could be this and the next
     {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// horizontal, rotated
     {  6, 10, 116, 0, L"enchanting_table_top", L"", SWATCH_REPEAT_ALL },
     {  7, 10, 122, 0, L"dragon_egg", L"", SWATCH_REPEAT_ALL },
@@ -293,12 +293,12 @@ static struct {
     {  7, 13, 145, 0, L"anvil", L"anvil_base", SWATCH_REPEAT_ALL },
     {  8, 13,   6, 0, L"chipped_anvil_top", L"anvil_top_damaged_1", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  9, 13, 130, 0, L"MWO_ender_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 10, 13, 130, 0, L"MWO_ender_chest_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 11, 13, 130, 0, L"MWO_ender_chest_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 12, 13, 130, 0, L"MWO_ender_chest_front", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 10, 13, 130, 0, L"MWO_ender_chest_top", L"ender_chest_to", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 11, 13, 130, 0, L"MWO_ender_chest_side", L"ender_chest_side", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 13, 130, 0, L"MWO_ender_chest_front", L"ender_chest_front", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN
     { 14, 13,   6, 0, L"red_sandstone", L"red_sandstone_normal", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    { 15, 13,   9, 0, L"water_still", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },
+    { 15, 13,   9, 0, L"water_still", L"water_still_grey", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },   // we really want to use the "water_still_grey", but at least this gives a warning
     {  0, 14, 112, 0, L"nether_bricks", L"nether_brick", SWATCH_REPEAT_ALL },
     {  1, 14,   6, 0, L"light_gray_wool", L"wool_colored_silver", SWATCH_REPEAT_ALL },
     {  2, 14,   6, 0, L"nether_wart_stage0", L"nether_wart_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -348,7 +348,7 @@ static struct {
     { 14, 16,   6, 0, L"red_terracotta", L"hardened_clay_stained_red", SWATCH_REPEAT_ALL },
     { 15, 16,   6, 0, L"black_terracotta", L"hardened_clay_stained_black", SWATCH_REPEAT_ALL },
     {  0, 17, 172, 0, L"terracotta", L"hardened_clay", SWATCH_REPEAT_ALL },
-    {  1, 17,   6, 0, L"quartz_block_bottom", L"", SWATCH_REPEAT_ALL },    // despite the name, this is used on all sides of the smooth quartz block and nothing else
+    {  1, 17,   6, 0, L"quartz_block_bottom", L"smooth_quartz", SWATCH_REPEAT_ALL },    // despite the name, this is used on all sides of the smooth quartz block and nothing else
     {  2, 17,   6, 0, L"chiseled_quartz_block_top", L"quartz_block_chiseled_top", SWATCH_REPEAT_ALL },
     {  3, 17,   6, 0, L"chiseled_quartz_block", L"quartz_block_chiseled", SWATCH_REPEAT_ALL },
     {  4, 17,   6, 0, L"quartz_pillar_top", L"quartz_block_lines_top", SWATCH_REPEAT_ALL },
@@ -435,7 +435,7 @@ static struct {
     {  5, 22,   6, 0, L"polished_andesite", L"andesite_smooth", SWATCH_REPEAT_ALL },
     {  6, 22,   6, 0, L"diorite", L"stone_diorite", SWATCH_REPEAT_ALL },
     {  7, 22,   6, 0, L"polished_diorite", L"diorite_smooth", SWATCH_REPEAT_ALL },
-    {  8, 22,   6, 0, L"granite", L"stone_granite", SWATCH_REPEAT_ALL },
+    {  8, 22,   6, 0, L"granite", L"stone_granite", SWATCH_REPEAT_ALL },    // I've also seen stone_granite be something different, in Vanilla-Normals-Renewed-master
     {  9, 22,   6, 0, L"polished_granite", L"stone_granite_smooth", SWATCH_REPEAT_ALL },
     { 10, 22, 258, 0, L"prismarine_bricks", L"", SWATCH_REPEAT_ALL },
     { 11, 22, 259, 0, L"dark_prismarine", L"prismarine_dark", SWATCH_REPEAT_ALL },
@@ -497,9 +497,9 @@ static struct {
     {  3, 26,   6, 0, L"bone_block_side", L"", SWATCH_REPEAT_ALL },
     {  4, 26, 216, 0, L"bone_block_top", L"", SWATCH_REPEAT_ALL },
     {  5, 26,   6, 0, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
-    {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved
+    {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"redstone_dust_cross", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved
     {  7, 26,   6, 0, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  8, 26,   8, 0, L"water_flow", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// special: double-wide
+    {  8, 26,   8, 0, L"water_flow", L"water_flow_grey", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// special: double-wide. TODO: some packs make "water_flow" a colored version, using "water_flow_grey" for the right one
     {  9, 26,  10, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
     { 10, 26,   6, 0, L"MWO_redstone_dust_line0_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF
     { 11, 26,   6, 0, L"MWO_redstone_dust_line1_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF
@@ -617,7 +617,7 @@ static struct {
     { 11, 33, 314, 0, L"kelp_plant", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 12, 33, 323, 0, L"sea_pickle", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 33, 312, 0, L"blue_ice", L"", SWATCH_REPEAT_ALL },
-    { 14, 33, 309, 0, L"tall_seagrass_bottom", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 33, 309, 0, L"tall_seagrass_bottom", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // seagrass_doubletall_bottom in Muddle, but in TGA
     { 15, 33, 310, 0, L"tall_seagrass_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0, 34, 277, 0, L"stripped_oak_log", L"", SWATCH_REPEAT_ALL },
     {  1, 34,   6, 0, L"stripped_spruce_log", L"", SWATCH_REPEAT_ALL },
@@ -636,48 +636,48 @@ static struct {
     { 14, 34, 262, 0, L"jungle_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 15, 34, 263, 0, L"acacia_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  0, 35, 264, 0, L"dark_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
-    {  1, 35, 316, 0, L"dead_tube_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  2, 35,   6, 0, L"dead_brain_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  3, 35,   6, 0, L"dead_bubble_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  4, 35,   6, 0, L"dead_fire_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  5, 35,   6, 0, L"dead_horn_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  6, 35, 315, 0, L"tube_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  7, 35,   6, 0, L"brain_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  8, 35,   6, 0, L"bubble_coral_block", L"", SWATCH_REPEAT_ALL },
-    {  9, 35,   6, 0, L"fire_coral_block", L"", SWATCH_REPEAT_ALL },
-    { 10, 35,   6, 0, L"horn_coral_block", L"", SWATCH_REPEAT_ALL },
-    { 11, 35, 317, 0, L"tube_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 12, 35,   6, 0, L"brain_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 13, 35,   6, 0, L"bubble_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 14, 35,   6, 0, L"fire_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 35,   6, 0, L"horn_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  0, 36,   6, 0, L"tube_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  1, 36,   6, 0, L"brain_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 36,   6, 0, L"bubble_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 36,   6, 0, L"fire_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 36,   6, 0, L"horn_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  5, 36, 319, 0, L"dead_tube_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  6, 36,   6, 0, L"dead_brain_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  7, 36,   6, 0, L"dead_bubble_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 36,   6, 0, L"dead_fire_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  9, 36,   6, 0, L"dead_horn_coral_fan", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 10, 36, 324, 0, L"turtle_egg", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    {  1, 35, 316, 0, L"dead_tube_coral_block", L"coral_blue_dead", SWATCH_REPEAT_ALL },
+    {  2, 35,   6, 0, L"dead_brain_coral_block", L"coral_pink_dead", SWATCH_REPEAT_ALL },
+    {  3, 35,   6, 0, L"dead_bubble_coral_block", L"coral_purple_dead", SWATCH_REPEAT_ALL },
+    {  4, 35,   6, 0, L"dead_fire_coral_block", L"coral_red_dead", SWATCH_REPEAT_ALL },
+    {  5, 35,   6, 0, L"dead_horn_coral_block", L"coral_yellow_dead", SWATCH_REPEAT_ALL },
+    {  6, 35, 315, 0, L"tube_coral_block", L"coral_blue", SWATCH_REPEAT_ALL },
+    {  7, 35,   6, 0, L"brain_coral_block", L"coral_pink", SWATCH_REPEAT_ALL },
+    {  8, 35,   6, 0, L"bubble_coral_block", L"coral_purple", SWATCH_REPEAT_ALL },
+    {  9, 35,   6, 0, L"fire_coral_block", L"coral_red", SWATCH_REPEAT_ALL },
+    { 10, 35,   6, 0, L"horn_coral_block", L"coral_yellow", SWATCH_REPEAT_ALL },
+    { 11, 35, 317, 0, L"tube_coral", L"coral_plant_blue", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 12, 35,   6, 0, L"brain_coral", L"coral_plant_pink", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 13, 35,   6, 0, L"bubble_coral", L"coral_plant_purple", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 35,   6, 0, L"fire_coral", L"coral_plant_red", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 35,   6, 0, L"horn_coral", L"coral_plant_yellow", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 36,   6, 0, L"tube_coral_fan", L"coral_fan_blue", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 36,   6, 0, L"brain_coral_fan", L"coral_fan_pink", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 36,   6, 0, L"bubble_coral_fan", L"coral_fan_purple", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 36,   6, 0, L"fire_coral_fan", L"coral_fan_red", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 36,   6, 0, L"horn_coral_fan", L"coral_fan_yellow", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 36, 319, 0, L"dead_tube_coral_fan", L"coral_fan_blue_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 36,   6, 0, L"dead_brain_coral_fan", L"coral_fan_pink_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 36,   6, 0, L"dead_bubble_coral_fan", L"coral_fan_purple_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  8, 36,   6, 0, L"dead_fire_coral_fan", L"coral_fan_red_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  9, 36,   6, 0, L"dead_horn_coral_fan", L"coral_fan_yellow_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 10, 36, 324, 0, L"turtle_egg", L"turtle_egg_not_cracked", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 36, 324, 0, L"turtle_egg_slightly_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 36, 324, 0, L"turtle_egg_very_cracked", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 36, 322, 0, L"conduit", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 14, 36, 325, 0, L"dead_tube_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 36,   6, 0, L"dead_brain_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  0, 37,   6, 0, L"dead_bubble_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  1, 37,   6, 0, L"dead_fire_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 37,   6, 0, L"dead_horn_coral", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 37,   6, 0, L"cornflower", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 37,   6, 0, L"lily_of_the_valley", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  5, 37,   6, 0, L"wither_rose", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  6, 37,   6, 0, L"bamboo_large_leaves", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 36, 325, 0, L"dead_tube_coral", L"coral_plant_blue_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 36,   6, 0, L"dead_brain_coral", L"coral_plant_pink_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 37,   6, 0, L"dead_bubble_coral", L"coral_plant_purple_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 37,   6, 0, L"dead_fire_coral", L"coral_plant_red_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 37,   6, 0, L"dead_horn_coral", L"coral_plant_yellow_dead", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 37,   6, 0, L"cornflower", L"flower_cornflower", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 37,   6, 0, L"lily_of_the_valley", L"flower_lily_of_the_valley", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 37,   6, 0, L"wither_rose", L"flower_wither_rose", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 37,   6, 0, L"bamboo_large_leaves", L"bamboo_leaf", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 37,   6, 0, L"bamboo_singleleaf", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 37,   6, 0, L"bamboo_small_leaves", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  9, 37,   6, 0, L"bamboo_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// X decal
-    { 10, 37, 328, 0, L"bamboo_stalk", L"", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+    {  8, 37,   6, 0, L"bamboo_small_leaves", L"bamboo_small_leaf", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  9, 37,   6, 0, L"bamboo_stage0", L"bamboo_sapling", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// X decal
+    { 10, 37, 328, 0, L"bamboo_stalk", L"bamboo_stem", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     { 11, 37, 338, 0, L"lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 37, 327, 0, L"sweet_berry_bush_stage0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 13, 37,   6, 0, L"sweet_berry_bush_stage1", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -697,9 +697,9 @@ static struct {
     { 11, 38, 332, 0, L"composter_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 38,   6, 0, L"composter_side", L"", SWATCH_REPEAT_ALL },
     { 13, 38,   6, 0, L"composter_bottom", L"", SWATCH_REPEAT_ALL },
-    { 14, 38,   6, 0, L"composter_compost", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 15, 38,   6, 0, L"composter_ready", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  0, 39, 339, 0, L"campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 38,   6, 0, L"composter_compost", L"compost", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },  // Alternate name from Muddle
+    { 15, 38,   6, 0, L"composter_ready", L"compost_ready", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },  // Alternate name from Muddle
+    {  0, 39, 339, 0, L"campfire_fire", L"campfire", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 39,   6, 0, L"campfire_log", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  2, 39, 339, 4, L"campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  3, 39,   6, 0, L"cartography_table_top", L"cartography_top", SWATCH_REPEAT_ALL },
@@ -729,7 +729,7 @@ static struct {
     { 11, 40,   6, 0, L"smoker_top", L"", SWATCH_REPEAT_ALL },
     { 12, 40,   6, 0, L"smoker_side", L"", SWATCH_REPEAT_ALL },
     { 13, 40,   6, 0, L"smoker_bottom", L"", SWATCH_REPEAT_ALL },
-    { 14, 40,   6, 0, L"smoker_front", L"", SWATCH_REPEAT_ALL },
+    { 14, 40,   6, 0, L"smoker_front", L"smoker_front_off", SWATCH_REPEAT_ALL },
     { 15, 40,   6, 0, L"smoker_front_on", L"", SWATCH_REPEAT_ALL },
     {  0, 41,   6, 0, L"smithing_table_top", L"", SWATCH_REPEAT_ALL },
     {  1, 41,   6, 0, L"smithing_table_side", L"", SWATCH_REPEAT_ALL },
@@ -744,14 +744,14 @@ static struct {
     { 10, 41,   6, 0, L"bee_nest_front_honey", L"", SWATCH_REPEAT_ALL },
     { 11, 41,   6, 0, L"bee_nest_side", L"", SWATCH_REPEAT_ALL },
     { 12, 41, 341, 0, L"bee_nest_top", L"", SWATCH_REPEAT_ALL },
-    { 13, 41,   6, 0, L"beehive_end", L"", SWATCH_REPEAT_ALL },
+    { 13, 41,   6, 0, L"beehive_end", L"beehive_top", SWATCH_REPEAT_ALL },  // alternate from Homa
     { 14, 41,   6, 0, L"beehive_front", L"", SWATCH_REPEAT_ALL },
     { 15, 41,   6, 0, L"beehive_front_honey", L"", SWATCH_REPEAT_ALL },
     {  0, 42,   6, 0, L"beehive_side", L"", SWATCH_REPEAT_ALL },
-    {  1, 42,   6, 0, L"honey_block_bottom", L"", SWATCH_REPEAT_ALL },
-    {  2, 42,   6, 0, L"honey_block_side", L"", SWATCH_REPEAT_ALL },
-    {  3, 42, 342, 0, L"honey_block_top", L"", SWATCH_REPEAT_ALL },
-    {  4, 42, 343, 0, L"honeycomb_block", L"", SWATCH_REPEAT_ALL },
+    {  1, 42,   6, 0, L"honey_block_bottom", L"honey_bottom", SWATCH_REPEAT_ALL },
+    {  2, 42,   6, 0, L"honey_block_side", L"honey_side", SWATCH_REPEAT_ALL },
+    {  3, 42, 342, 0, L"honey_block_top", L"honey_top", SWATCH_REPEAT_ALL },
+    {  4, 42, 343, 0, L"honeycomb_block", L"honeycomb", SWATCH_REPEAT_ALL },
     {  5, 42,   6, 0, L"quartz_bricks", L"", SWATCH_REPEAT_ALL },  // 1.16
     {  6, 42,   6, 0, L"soul_soil", L"", SWATCH_REPEAT_ALL },
     {  7, 42,   6, 0, L"basalt_top", L"", SWATCH_REPEAT_ALL },
@@ -761,11 +761,11 @@ static struct {
     { 11, 42, 362, 0, L"soul_torch", L"soul_fire_torch", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // second name from an earlier beta
     { 12, 42,  51, 0, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
     { 13, 42, 338, 0, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
-    { 14, 42, 339, 0, L"soul_campfire_fire", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 42, 339, 0, L"soul_campfire_fire", L"soul_campfire", SBIT_CLAMP_BOTTOM | SBIT_DECAL },    // alternate in Smoolistic
     { 15, 42, 339, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  0, 43,   6, 0, L"crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  1, 43,   6, 0, L"crimson_stem", L"", SWATCH_REPEAT_ALL },	// more like a log
-    {  2, 43,   6, 0, L"crimson_nylium", L"", SWATCH_REPEAT_ALL },
+    {  2, 43,   6, 0, L"crimson_nylium", L"crimson_nylium_top", SWATCH_REPEAT_ALL },
     {  3, 43,   6, 0, L"crimson_nylium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  4, 43,   6, 0, L"crimson_fungus", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 43,   6, 0, L"nether_sprouts", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -777,11 +777,11 @@ static struct {
     { 11, 43,   6, 0, L"crimson_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 12, 43,   6, 0, L"stripped_crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like wood? TODO is used?
     { 13, 43,   6, 0, L"stripped_crimson_stem", L"", SWATCH_REPEAT_ALL },	// more like wood
-    { 14, 43,   6, 0, L"weeping_vines", L"", SBIT_CLAMP_TOP | SBIT_DECAL },	// bizarrely, upside down
-    { 15, 43,   6, 0, L"weeping_vines_plant", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 43,   6, 0, L"weeping_vines", L"weeping_vines_bottom", SBIT_CLAMP_TOP | SBIT_DECAL },	// bizarrely, upside down
+    { 15, 43,   6, 0, L"weeping_vines_plant", L"weeping_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  0, 44,   6, 0, L"warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  1, 44,   6, 0, L"warped_stem", L"", SWATCH_REPEAT_ALL },	// more like a log				
-    {  2, 44,   6, 0, L"warped_nylium", L"", SWATCH_REPEAT_ALL },
+    {  2, 44,   6, 0, L"warped_nylium", L"warped_nylium_top", SWATCH_REPEAT_ALL },  // alternate from Homa
     {  3, 44,   6, 0, L"warped_nylium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  4, 44,   6, 0, L"warped_fungus", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 44,   6, 0, L"warped_wart_block", L"", SWATCH_REPEAT_ALL },
@@ -793,8 +793,8 @@ static struct {
     { 11, 44,   6, 0, L"warped_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 12, 44,   6, 0, L"stripped_warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like wood?
     { 13, 44,   6, 0, L"stripped_warped_stem", L"", SWATCH_REPEAT_ALL },	// more like wood
-    { 14, 44,   6, 0, L"twisting_vines", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 44,   6, 0, L"twisting_vines_plant", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 44,   6, 0, L"twisting_vines", L"twisting_vines_bottom", SBIT_CLAMP_BOTTOM | SBIT_DECAL },  // alternate from Homa
+    { 15, 44,   6, 0, L"twisting_vines_plant", L"twisting_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },  // alternate from Homa
     {  0, 45,   6, 0, L"ancient_debris_top", L"", SWATCH_REPEAT_ALL },
     {  1, 45,   6, 0, L"ancient_debris_side", L"", SWATCH_REPEAT_ALL },
     {  2, 45, 344, 0, L"crying_obsidian", L"", SWATCH_REPEAT_ALL },
@@ -840,9 +840,9 @@ static const struct {
     { L"Birch_Door", L"birch_door_bottom" },
     { L"Cactus", L"cactus_side" },
     // there seems to be, in Absolution for example, a separate command block image that is sort of like the front, but is something else...
-    { L"Command_Block", L"command_block_front" }, // wild guess - haven't seen this one myself; original had it going to chain_command_block, which seems wrong
+    //{ L"Command_Block", L"command_block_front" }, // disagree
     { L"Carrots", L"carrots_stage3" },
-    { L"Campfire", L"campfire_log" },
+    //{ L"Campfire", L"campfire_log" }, // I disagree - in Bedrock "campfire" is "campfire_fire"
     { L"Crafting_Table", L"crafting_table_top" },
     { L"Crafting_Table__Cartography_Table", L"cartography_table_top" },
     { L"Crafting_Table__Fletching_Table", L"fletching_table_top" },
@@ -905,6 +905,9 @@ static const struct {
     { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
     { L"daylight_detector", L"daylight_detector_top" },    // Meteor
+    { L"dried_kelp_side_a", L"dried_kelp_side" },    // Muddle
+    { L"fletcher_table_side1", L"fletching_table_side" },    // Muddle
+    { L"fletcher_table_top", L"fletching_table_top" },    // Muddle
     { L"iron_door_lower", L"iron_door_bottom" },    // Absolution
     { L"iron_door_upper", L"iron_door_top" },    // Absolution
     { L"itemframe_background", L"item_frame" },    // Absolution
@@ -912,16 +915,21 @@ static const struct {
     { L"jungle_door_upper", L"jungle_door_top" },    // Absolution
     { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
+    { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
     { L"stone_andesite_smooth", L"polished_andesite" },    // OV
     { L"stone_diorite_smooth", L"polished_diorite" },    // OV
+    { L"stonebrick_cracked", L"cracked_stone_bricks" },    // Muddle
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
 
     // just plain typos - might as well fix them as I find them
+    { L"conrflower", L"cornflower" },    // miejojo128 v1.16
     { L"diamon_block", L"diamond_block" },    // Absolution
+    { L"grey_stained_glass", L"gray_stained_glass" },    // Vanilla-Normals-Renewed-master
+    { L"grey_stained_glass_pane_top", L"gray_stained_glass_pane_top" },    // Vanilla-Normals-Renewed-master
     { L"light_blue_conctrete", L"light_blue_concrete" },    // Absolution
     { L"megenta_concrete", L"magenta_concrete" },    // Absolution
 
@@ -954,6 +962,7 @@ static const wchar_t* gUnneeded[] = {
     L"fire_1",
     L"shulker_box", // generic 1.13; specific colors now used per box
     L"soul_fire_1",
+    L"flower_paeonia", // experimental block, never used: https://minecraft.gamepedia.com/Java_Edition_removed_features#Paeonia
 
     // this empty string is used to mark the end of this array
     L""
