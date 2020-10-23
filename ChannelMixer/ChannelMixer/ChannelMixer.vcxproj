@@ -88,7 +88,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\Win</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Win;..\..\TileMaker\TileMaker</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,7 +103,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\Win</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Win;..\..\TileMaker\TileMaker</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -118,7 +118,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\Win</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Win;..\..\TileMaker\TileMaker</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -133,7 +133,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\..\Win</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\Win;..\..\TileMaker\TileMaker</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,11 +143,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\TileMaker\TileMaker\tilegrid.cpp" />
     <ClCompile Include="..\..\Win\lodepng.cpp" />
     <ClCompile Include="..\..\Win\rwpng.cpp" />
     <ClCompile Include="ChannelMixer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\TileMaker\TileMaker\tilegrid.h" />
     <ClInclude Include="..\..\Win\lodepng.h" />
     <ClInclude Include="..\..\Win\rwpng.h" />
     <ClInclude Include="stdafx.h" />

@@ -1,5 +1,4 @@
 // tiles.h - defines where each Minecraft texture block is used (if used at all)
-//
 
 //#include "targetver.h"
 

@@ -71,7 +71,6 @@ void readpng_cleanup(int mode, progimage_info *im)
     }
 }
 
-/* currently unused
 int readpngheader(progimage_info* im, wchar_t* filename)
 {
     unsigned int width, height;
@@ -105,7 +104,6 @@ int readpngheader(progimage_info* im, wchar_t* filename)
 
     return 0;
 }
-*/
 
 // from http://lodev.org/lodepng/example_encode.cpp
 

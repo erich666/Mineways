@@ -14,6 +14,9 @@
 #include <stdio.h>
 
 #include "tiles.h"
+#include "tilegrid.h"
+
+#define	VERSION_STRING	L"3.00"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -119,6 +122,8 @@ typedef struct Chest {
 	ChestData* data;
 } Chest;
 
+
+// note these are NOT const, as they do get modified and used
 static Chest gChest114[] = {
 	{ L"normal", 6, 64, 64, NULL },
 	{ L"normal_double", 10, 128, 64, NULL },
@@ -131,43 +136,37 @@ static Chest gChest115[] = {
 	{ L"normal_right", 5, 64, 64, NULL },
 	{ L"ender", 6, 64, 64, NULL }
 };
+#define	TOTAL_CHEST_TILES	5
+#define CHEST_NORMAL		0
+#define CHEST_NORMAL_DOUBLE	1
+#define CHEST_NORMAL_LEFT	2
+#define CHEST_NORMAL_RIGHT	3
+#define CHEST_ENDER			4
+const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender" };
 
-#define TOTAL_CATEGORIES	5
-#define	CATEGORY_RGBA		0
-#define	CATEGORY_NORMALS	1
-#define	CATEGORY_METALLIC	2
-#define	CATEGORY_EMISSION	3
-#define	CATEGORY_ROUGHNESS	4
+typedef struct ChestGrid {
+	int chestCount;
+	int totalCategories;
+	int totalTiles;
+	int categories[TOTAL_CATEGORIES];
+	FileRecord fr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
+} ChestGrid;
 
-typedef struct Category {
-	boolean	inUse;
-	int tilesFound;	// at least one tile with this extension was found, so output the mosaic version
-	wchar_t suffix[MAX_PATH];
-} Category;
+static ChestGrid gCG;
 
-static Category gCat[TOTAL_CATEGORIES];
 
-static int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1 };
-static LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY };
-
-// make considerably higher so that we can read in many more PNGs than we use.
-#define	TOTAL_INPUT_TILES	(TOTAL_TILES*5*10)
-
-// given array of tiles read in index, return gTile index
-static int tilesInputToTableIndex[TOTAL_INPUT_TILES];
-static int tilesInputToTableCategory[TOTAL_INPUT_TILES];
-static progimage_info tile[TOTAL_INPUT_TILES];
+static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1, 3, 3, 3 };
+static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB };
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
-static wchar_t gErrorString[MAX_PATH];
+static wchar_t gErrorString[1000];
 // 1000 errors of 100 characters each - sounds sufficient
 #define CONCAT_ERROR_LENGTH	(1000*100)
 static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 
-
-#define	IGNORE_TILE	99999
+#define MAX_PATH_AND_FILE (2*MAX_PATH)
 
 #define INC_AND_TEST_ARG_INDEX( loc )		argLoc++; \
 											if (argLoc == argc) { \
@@ -175,23 +174,26 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 												return 1; \
 											}
 
+//-------------------------------------------------------------------------
 void printHelp();
+
+void initializeChestGrid(ChestGrid* pcg);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost);
+int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
+void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
+int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int fullIndex);
+int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
+
 int readTilesInDirectory(const wchar_t* tilePath, bool usingBlockDirectory, bool hasJar, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles);
 void loadAndProcessTile(const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
-int findFileTile(const wchar_t* tileName, int alternate, Category* cat, int& catIndex);
-int findTile(const wchar_t* tileName, int alternate);
-int findNextTile(const wchar_t* tileName, int index, int alternate);
-int findUnneededTile(const wchar_t* tileName);
-int trueWidth(int tileLoc);
 
-static int tryReadingTile(const wchar_t* blockPath, const wchar_t* jarPath, const wchar_t* fileName, bool hasDir, bool hasJar, LodePNGColorType colortype, progimage_info* pTile);
-static int buildPathAndReadTile(const wchar_t* tilePath, const wchar_t* fileName, LodePNGColorType colortype, progimage_info* pTile);
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info* src);
+static int setBlackToNearlyBlack(progimage_info* src);
 static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info* src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom);
 static void multPNGTileByColor(progimage_info* dst, int dst_x, int dst_y, int* color);
@@ -216,27 +218,27 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info* destination_ptr = &destination;
 
 	int i, j, catIndex;
-	int index;
-	int width;
+	int index, fullIndex;
 
-	int tilesFound = 0;
-	int* tilesTableIndexToInput[TOTAL_CATEGORIES];
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
 	int outputTileSize, outputYTiles;
 	unsigned long outputXResolution, outputYResolution;
 
-	wchar_t terrainBase[MAX_PATH];
-	wchar_t terrainExtOutputTemplate[MAX_PATH];
-	wchar_t terrainExtOutput[MAX_PATH];
-	wchar_t tilePath[MAX_PATH];
-	wchar_t jarPath[MAX_PATH];
-	bool useJar = false;
+	wchar_t terrainBase[MAX_PATH_AND_FILE];
+	wchar_t terrainExtOutputTemplate[MAX_PATH_AND_FILE];
+	wchar_t terrainExtOutputRoot[MAX_PATH_AND_FILE];
+	wchar_t terrainExtOutput[MAX_PATH_AND_FILE];
+
+#define MAX_INPUT_DIRECTORIES 100
+	wchar_t* inputDirectoryList[MAX_INPUT_DIRECTORIES + 1];	// 1 extra, for the null terminator
+	int numInputDirectories = 0;
 
 	gConcatErrorString[0] = 0;
 
 	int argLoc = 1;
 
 	int overlayTileSize = 0;
+	int overlayChestSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -249,29 +251,14 @@ int wmain(int argc, wchar_t* argv[])
 	int solid = 0;
 	int solidcutout = 0;
 
-	bool shulkerSide[16], shulkerBottom[16];
+	bool allChests = true;
+	bool anyChests = false;
 
-	wcscpy_s(terrainBase, MAX_PATH, BASE_INPUT_FILENAME);
-	wcscpy_s(tilePath, MAX_PATH, TILE_PATH);
-	wcscpy_s(jarPath, MAX_PATH, L"");
-	wcscpy_s(terrainExtOutputTemplate, MAX_PATH, OUTPUT_FILENAME);
+	initializeFileGrid(&gFG);
+	initializeChestGrid(&gCG);
 
-	for (catIndex = 0; catIndex < TOTAL_CATEGORIES; catIndex++) {
-		tilesTableIndexToInput[catIndex] = (int*)malloc(TOTAL_TILES * sizeof(int));
-		for (i = 0; i < TOTAL_TILES; i++) {
-			tilesTableIndexToInput[catIndex][i] = -1;
-		}
-	}
-	memset(shulkerSide, 0, 16 * sizeof(bool));
-	memset(shulkerBottom, 0, 16 * sizeof(bool));
-
-	gCat[CATEGORY_RGBA].inUse = true;	// always use RGBA
-	gCat[CATEGORY_RGBA].tilesFound = 0;
-	wcscpy_s(gCat[CATEGORY_RGBA].suffix, MAX_PATH, L"");
-	for (i = 1; i < TOTAL_CATEGORIES; i++) {
-		gCat[i].inUse = false;
-		gCat[i].tilesFound = 0;
-	}
+	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
+	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
 
 	// usage: [-i terrainBase.png] [-d tiles_directory] [-z assets zip directory] [-o terrainExt.png] [-t forceTileSize]
 	// single argument is alternate subdirectory other than "tiles"
@@ -280,23 +267,40 @@ int wmain(int argc, wchar_t* argv[])
 		if (wcscmp(argv[argLoc], L"-i") == 0)
 		{
 			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(terrainBase, MAX_PATH, argv[argLoc]);
+			wcscpy_s(terrainBase, MAX_PATH_AND_FILE, argv[argLoc]);
+			if (!isPNGfile(terrainBase)) {
+				wprintf(L"***** ERROR: '-i %s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainBase);
+				// quit!
+				return 1;
+			}
 		}
-		else if (wcscmp(argv[argLoc], L"-d") == 0)
+		else if (wcscmp(argv[argLoc], L"-d") == 0 || wcscmp(argv[argLoc], L"-z") == 0)
 		{
+			if (wcscmp(argv[argLoc], L"-z") == 0 ) {
+				wprintf(L"Note: the '-z directory' command-line argument is deprecated;\n  use '-d directory' (multiple times, if you like).\n");
+			}
 			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(tilePath, MAX_PATH, argv[argLoc]);
+			inputDirectoryList[numInputDirectories++] = _wcsdup(argv[argLoc]);
+			if (numInputDirectories >= MAX_INPUT_DIRECTORIES) {
+				wprintf(L"***** ERROR: Sorry, there is a maximum of %d input directories you can specify, you wacky person you.\n", MAX_INPUT_DIRECTORIES);
+				return 1;
+			}
 		}
-		else if (wcscmp(argv[argLoc], L"-z") == 0)
-		{
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(jarPath, MAX_PATH, argv[argLoc]);
-			useJar = true;
-		}
+		//else if (wcscmp(argv[argLoc], L"-z") == 0)
+		//{
+		//	INC_AND_TEST_ARG_INDEX(argLoc);
+		//	wcscpy_s(jarPath, MAX_PATH_AND_FILE, argv[argLoc]);
+		//	useJar = true;
+		//}
 		else if (wcscmp(argv[argLoc], L"-o") == 0)
 		{
 			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(terrainExtOutputTemplate, MAX_PATH, argv[argLoc]);
+			wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, argv[argLoc]);
+			if (!isPNGfile(terrainExtOutputTemplate)) {
+				wprintf(L"***** ERROR: '-o %s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainExtOutputTemplate);
+				// quit!
+				return 1;
+			}
 		}
 		else if (wcscmp(argv[argLoc], L"-t") == 0)
 		{
@@ -352,41 +356,6 @@ int wmain(int argc, wchar_t* argv[])
 			// solid cutout: as above, but preserve the cutout transparent areas
 			solidcutout = 1;
 		}
-		else if (wcscmp(argv[argLoc], L"-bc") == 0)
-		{
-			// build normal map type
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(gCat[CATEGORY_RGBA].suffix, MAX_PATH, argv[argLoc]);
-			gCat[CATEGORY_RGBA].inUse = true;	// should always be true, but just in case things change
-		}
-		else if (wcscmp(argv[argLoc], L"-bn") == 0)
-		{
-			// build normal map type
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(gCat[CATEGORY_NORMALS].suffix, MAX_PATH, argv[argLoc]);
-			gCat[CATEGORY_NORMALS].inUse = true;
-		}
-		else if (wcscmp(argv[argLoc], L"-bm") == 0)
-		{
-			// build metallic map type
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(gCat[CATEGORY_METALLIC].suffix, MAX_PATH, argv[argLoc]);
-			gCat[CATEGORY_METALLIC].inUse = true;
-		}
-		else if (wcscmp(argv[argLoc], L"-be") == 0)
-		{
-			// build emission map type
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(gCat[CATEGORY_EMISSION].suffix, MAX_PATH, argv[argLoc]);
-			gCat[CATEGORY_EMISSION].inUse = true;
-		}
-		else if (wcscmp(argv[argLoc], L"-br") == 0)
-		{
-			// build roughness map type
-			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(gCat[CATEGORY_ROUGHNESS].suffix, MAX_PATH, argv[argLoc]);
-			gCat[CATEGORY_ROUGHNESS].inUse = true;
-		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
 			// verbose: tell when normal things happen
@@ -401,23 +370,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if (verbose)
-		wprintf(L"TileMaker version 2.16\n");  // change version below, too
-
-	// add / to tile directory path
-	if (wcscmp(&tilePath[wcslen(tilePath) - 1], L"\\") != 0)
-	{
-		wcscat_s(tilePath, MAX_PATH, L"\\");
-	}
-	if (useJar && wcscmp(&jarPath[wcslen(jarPath) - 1], L"\\") != 0)
-	{
-		wcscat_s(jarPath, MAX_PATH, L"\\");
-	}
-
-	// add ".png" to tile output name
-	if (_wcsicmp(&terrainExtOutputTemplate[wcslen(terrainExtOutputTemplate) - 4], L".png") != 0)
-	{
-		wcscat_s(terrainExtOutputTemplate, MAX_PATH, L".png");
-	}
+		wprintf(L"TileMaker version %s\n", VERSION_STRING);  // change version below, too
 
 	xTiles = 16;	// this should always be the same for all things
 	if (!nobase)
@@ -451,151 +404,48 @@ int wmain(int argc, wchar_t* argv[])
 	outputYTiles = VERTICAL_TILES; // used to be baseYTiles - that's no good
 
 #ifdef _DEBUG
-	// reality check: make sure no tile in the array is used twice (hey, I've made this mistake it in the past)
+	// reality check: make sure no tile in the tiles.h array is used twice (hey, I've made this mistake it in the past)
 	for (int tileid = 0; tileid < TOTAL_TILES - 1; tileid++) {
 		if ((gTilesTable[tileid].txrX != tileid % 16) || (gTilesTable[tileid].txrY != (int)(tileid / 16))) {
 			wprintf(L"INTERNAL WARNING: tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
+			gWarningCount++;
 		}
 		if (wcslen(gTilesTable[tileid].filename) > 0) {
 			for (int testtile = tileid + 1; testtile < TOTAL_TILES; testtile++) {
-				if (wcscmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
+				if (_wcsicmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
 					wprintf(L"INTERNAL WARNING: tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
+					gWarningCount++;
 				}
 			}
 		}
 	}
 #endif
 
-	// look through tiles in tiles directory, see which exist, find maximum Y value.
-	if (useTiles)
-	{
-		// read tiles in directory
-		if (readTilesInDirectory(tilePath, true, useJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
-			return 1;
-		}
+	// If there is no directory specified, use "blocks"
+	if (numInputDirectories == 0) {
+		inputDirectoryList[numInputDirectories++] = _wcsdup(TILE_PATH);
+	}
+	// put a NULL pointer on the end of the list
+	inputDirectoryList[numInputDirectories] = NULL;
+
+	// look through tiles in tiles directories, see which exist. Find maximum Y value when done.
+	int filesProcessed = 0;
+	wchar_t** inputDirectoryPtr = inputDirectoryList;
+	while (*inputDirectoryPtr != NULL) {
+		// Strategy: does the directory exist?
+		// If so, categorize the directory. If it's
+		//  "block" or "blocks" - look through it for block names
+		//  "chest" or "chests" - look for chest names and fill in
+		//  "item" or "items" - look for barrier.png, only
+		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
+		filesProcessed += searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, verbose, alternate, true);
+		inputDirectoryPtr++;
 	}
 
-	// now look through all unzipped jar assets, as possible.
-	wchar_t jarBlockPath[MAX_PATH];
-	if (useJar) {
-		// three locations:
-		// * blocks in \assets\minecraft\textures\block
-		// * chests in \assets\minecraft\textures\entity\chest - these are dealt with separately below
-		// * barrier.png in \assets\minecraft\textures\item - for Minecraft 1.11 on, don't flag an error if not found, just a warning
-		// read tiles in directory
-		wcscpy_s(jarBlockPath, MAX_PATH, jarPath);
-		wcscat_s(jarBlockPath, MAX_PATH, L"assets\\minecraft\\textures\\block\\");
-
-		if (readTilesInDirectory(jarBlockPath, false, useJar, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles)) {
-			return 1;
-		}
-
-		// load the barrier.png - maybe we get it, maybe we don't
-		wchar_t jarBarrierPath[MAX_PATH];
-		wcscpy_s(jarBarrierPath, MAX_PATH, jarPath);
-		wcscat_s(jarBarrierPath, MAX_PATH, L"assets\\minecraft\\textures\\item\\");
-		loadAndProcessTile(jarBarrierPath, L"barrier.png", verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
-	}
-
-	// if smooth_stone is missing, use stone_slab_top, and vice versa
-	wchar_t textureName[MAX_PATH];
-	// TODOTODO needs to handle all categories! Make a loop here!
-	int smooth_stone_index = findTile(L"smooth_stone", 1);
-	int stone_slab_top_index = findTile(L"stone_slab_top", 1);
-	if ((tilesTableIndexToInput[CATEGORY_RGBA][smooth_stone_index] == -1) ^ (tilesTableIndexToInput[CATEGORY_RGBA][stone_slab_top_index] == -1)) {
-		// found one, not the other
-		if (tilesTableIndexToInput[CATEGORY_RGBA][smooth_stone_index] < 0) {
-			// missing smooth_stone, so set it
-			index = findTile(L"smooth_stone", 1);
-			//
-			wcscpy_s(textureName, MAX_PATH, L"stone_slab_top");
-			wcscat_s(textureName, MAX_PATH, gCat[CATEGORY_RGBA].suffix);
-			wcscat_s(textureName, MAX_PATH, L".png");
-			rc = tryReadingTile(tilePath, jarBlockPath, textureName, useTiles, useJar, LCT_RGBA, &tile[tilesFound]);
-			//rc = buildPathAndReadTile(tilePath, L"stone_slab_top.png", &tile[tilesFound]);
-		}
-		else {
-			// missing stone_slab_top, so set it
-			index = findTile(L"stone_slab_top", 1);
-			wcscpy_s(textureName, MAX_PATH, L"smooth_stone");
-			wcscat_s(textureName, MAX_PATH, gCat[CATEGORY_RGBA].suffix);
-			wcscat_s(textureName, MAX_PATH, L".png");
-			rc = tryReadingTile(tilePath, jarBlockPath, textureName, useTiles, useJar, LCT_RGBA, &tile[tilesFound]);
-			//rc = buildPathAndReadTile(tilePath, L"smooth_stone.png", &tile[tilesFound]);
-		}
-		if (rc != 0) {
-			wprintf(L"INTERNAL WARNING: a tile we just read before for smooth_stone could not be read\n  again. Please report this to erich@acm.org.\n");
-			gWarningCount++;
-		}
-		else {
-			tilesInputToTableIndex[tilesFound] = index;
-			tilesInputToTableCategory[tilesFound] = CATEGORY_RGBA;
-			tilesTableIndexToInput[CATEGORY_RGBA][index] = tilesFound;
-			tilesFound++;
-			gCat[CATEGORY_RGBA].tilesFound++;
-		}
-	}
-	// similarly, if smooth_stone_slab_side is missing, use stone_slab_side, and vice versa
-	int smooth_stone_slab_side_index = findTile(L"smooth_stone_slab_side", 1);
-	int stone_slab_side_index = findTile(L"stone_slab_side", 1);
-	if ((tilesTableIndexToInput[CATEGORY_RGBA][smooth_stone_slab_side_index] == -1) ^ (tilesTableIndexToInput[CATEGORY_RGBA][stone_slab_side_index] == -1)) {
-		// found one, not the other
-		if (tilesTableIndexToInput[CATEGORY_RGBA][smooth_stone_slab_side_index] < 0) {
-			// missing smooth_stone_slab_side, so set it
-			index = findTile(L"smooth_stone_slab_side", 1);
-			wcscpy_s(textureName, MAX_PATH, L"stone_slab_side");
-			wcscat_s(textureName, MAX_PATH, gCat[CATEGORY_RGBA].suffix);
-			wcscat_s(textureName, MAX_PATH, L".png");
-			rc = tryReadingTile(tilePath, jarBlockPath, textureName, useTiles, useJar, LCT_RGBA, &tile[tilesFound]);
-			//rc = buildPathAndReadTile(tilePath, L"stone_slab_side.png", &tile[tilesFound]);
-		}
-		else {
-			// missing stone_slab_side, so set it
-			index = findTile(L"stone_slab_side", 1);
-			wcscpy_s(textureName, MAX_PATH, L"smooth_stone_slab_side");
-			wcscat_s(textureName, MAX_PATH, gCat[CATEGORY_RGBA].suffix);
-			wcscat_s(textureName, MAX_PATH, L".png");
-			rc = tryReadingTile(tilePath, jarBlockPath, textureName, useTiles, useJar, LCT_RGBA, &tile[tilesFound]);
-			//rc = buildPathAndReadTile(tilePath, L"smooth_stone_slab_side.png", &tile[tilesFound]);
-		}
-		if (rc != 0) {
-			wsprintf(gErrorString, L"INTERNAL ERROR: a tile we just read before for smooth_stone_slab_side could not\n  be read again. Please report this to erich@acm.org.\n");
-			saveErrorForEnd();
-			gErrorCount++;
-		}
-		else {
-			tilesInputToTableIndex[tilesFound] = index;
-			tilesInputToTableCategory[tilesFound] = CATEGORY_RGBA;
-			tilesTableIndexToInput[CATEGORY_RGBA][index] = tilesFound;
-			tilesFound++;
-			gCat[CATEGORY_RGBA].tilesFound++;
-		}
-	}
-
-	// look through tiles missing: if shulker side and bottom tiles found, note they don't need to be generated;
-	// these are not standard at all - shulkers now have their own entitities - but left in for simplicity.
-	// TODO: someday add in shulker box reader, just like chests
-	// TODOTODO - multiple categories?
-	for (i = 0; i < TOTAL_TILES; i++)
-	{
-		if (wcsncmp(gTilesTable[i].filename, L"shulker_side_", 13) == 0) {
-			if (tilesTableIndexToInput[CATEGORY_RGBA][i] < 0) {
-				// it's missing, but optional, so ignore it. We mark it with a bogus index.
-				tilesTableIndexToInput[CATEGORY_RGBA][i] = IGNORE_TILE;
-			}
-			else {
-				shulkerSide[gTilesTable[i].txrX] = 1;
-			}
-		}
-		else if (wcsncmp(gTilesTable[i].filename, L"shulker_bottom_", 15) == 0) {
-			if (tilesTableIndexToInput[CATEGORY_RGBA][i] < 0) {
-				// it's missing, but optional, so ignore it.
-				tilesTableIndexToInput[CATEGORY_RGBA][i] = IGNORE_TILE;
-			}
-			else {
-				shulkerBottom[gTilesTable[i].txrX] = 1;
-			}
-		}
+	// any data found? Not needed if forcing a tile size (resizing the base texture).
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0)) {
+		wprintf(L"ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
+		return 1;
 	}
 
 	// look for tiles not input?
@@ -603,29 +453,42 @@ int wmain(int argc, wchar_t* argv[])
 	{
 		for (i = 0; i < TOTAL_TILES; i++)
 		{
-			if (tilesTableIndexToInput[CATEGORY_RGBA][i] < 0)
+			if (!gFG.fr[i].exists)
 			{
 				// if it starts with "MW" or is the empty string, ignore miss
-				if (wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename, L"MW", 2) != 0)
-					wprintf(L"This program needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
+				if (wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename, L"MW", 2) != 0) {
+					wprintf(L"WARNING: TileMaker needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
+					gWarningCount++;
+				}
 			}
 		}
 	}
 
-	// find largest tile. Hmmm, beware of flowing lava & water, which is twice as wide.
-	for (i = 0; i < tilesFound; i++)
-	{
-		// for water_flow and lava_flow, the width is twice normal, so halve it.
-		width = trueWidth(i);
-
-		if (overlayTileSize < width)
-		{
-			overlayTileSize = width;
+	// Find largest tile.
+	int lavaFlowIndex = findTileIndex(L"lava_flow", 0);
+	int waterFlowIndex = findTileIndex(L"water_flow", 0);
+	assert(lavaFlowIndex >= 0 && waterFlowIndex >= 0);
+	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
+		for (index = 0; index < gFG.totalTiles; index++) {
+			fullIndex = catIndex * gFG.totalTiles + index;
+			if (gFG.fr[fullIndex].exists) {
+				overlayTileSize = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, false, true, index, lavaFlowIndex, waterFlowIndex, fullIndex);
+			}
 		}
 	}
 
-	if (verbose)
+	// check over chest tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gCG.totalCategories; catIndex++) {
+		for (index = 0; index < gCG.totalTiles; index++) {
+			fullIndex = catIndex * gCG.totalTiles + index;
+			if (gCG.fr[fullIndex].exists) {
+				overlayChestSize = checkFileWidth(&gFG.fr[fullIndex], overlayChestSize, true, false, -1, 0, 0, fullIndex);
+			}
+		}
+	}
+	if (verbose) {
 		wprintf(L"Largest input image found was %d pixels wide.\n", overlayTileSize);
+	}
 
 	// take the larger of the overlay and base tile sizes as the target size
 	outputTileSize = (overlayTileSize > baseTileSize) ? overlayTileSize : baseTileSize;
@@ -648,88 +511,132 @@ int wmain(int argc, wchar_t* argv[])
 		gWarningCount++;
 	}
 
+	// now add new textures as needed.
+	shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
+	shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
+
+	// if there are _n and _normal textures for the same tile, favor the _n textures
+	for (index = 0; index < gFG.totalTiles; index++) {
+		int fullIndexN = CATEGORY_NORMALS * gFG.totalTiles + index;
+		int fullIndexNormals = CATEGORY_NORMALS_LONG * gFG.totalTiles + index;
+		// does _normal version exist? Deal with it
+		if (gFG.fr[fullIndexNormals].exists) {
+			// does _n version exist?
+			if (gFG.fr[fullIndexN].exists) {
+				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+				wprintf(L"WARNING: file '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
+				gWarningCount++;
+			} else {
+				// move the _normal to _n
+				copyFileRecord(&gFG, CATEGORY_NORMALS_LONG, fullIndexN, &gFG.fr[fullIndexNormals]);
+				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+			}
+		}
+	}
+	// these should all now be cleared out
+	assert(gFG.categories[CATEGORY_NORMALS_LONG] == 0);
+
+	// get "root" of output file, i.e., without '.png', for ease of writing the PBR output files
+	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
+	removePNGsuffix(terrainExtOutputRoot);
+
 	// write out tiles found
-	bool allChests = true;
-	bool anyChests = false;
-	for (catIndex = 0; catIndex < TOTAL_CATEGORIES; catIndex++) {
-		if (gCat[catIndex].inUse) {
-			if (gCat[catIndex].tilesFound > 0) {
-				// set output file to properly suffixed name
-				wcscpy_s(terrainExtOutput, MAX_PATH, terrainExtOutputTemplate);
-				// check for .png suffix - note test is case insensitive
-				int len = (int)wcslen(terrainExtOutput);
-				if (_wcsicmp(&terrainExtOutput[len - 4], L".png") == 0)
-				{
-					// remove .png suffix
-					terrainExtOutput[len - 4] = 0x0;
-				}
-				else {
-					wprintf(L"***** ERROR: '%s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainExtOutputTemplate);
-					// quit!
-					return 1;
-				}
-				// retrieve number of channels, and set hard-wired suffix
-				int channels = gCatChannels[catIndex];
-				switch (catIndex) {
-				default:
-				case CATEGORY_RGBA:
-					// no suffix, else: wcscat_s(terrainExtOutput, MAX_PATH, L"");
-					break;
-				case CATEGORY_NORMALS:
-					wcscat_s(terrainExtOutput, MAX_PATH, L"_n");
-					break;
-				case CATEGORY_METALLIC:
-					wcscat_s(terrainExtOutput, MAX_PATH, L"_m");
-					break;
-				case CATEGORY_EMISSION:
-					wcscat_s(terrainExtOutput, MAX_PATH, L"_e");
-					break;
-				case CATEGORY_ROUGHNESS:
-					wcscat_s(terrainExtOutput, MAX_PATH, L"_r");
-					break;
-				}
-				// and add ".png"
-				wcscat_s(terrainExtOutput, MAX_PATH, L".png");
+	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
+		if (gFG.categories[catIndex] > 0 &&
+			((catIndex == CATEGORY_RGBA) ||
+				(catIndex == CATEGORY_NORMALS) ||	// note that, above, all _normals (LONG) versions have been moved over
+				(catIndex == CATEGORY_METALLIC) ||
+				(catIndex == CATEGORY_EMISSION) ||
+				(catIndex == CATEGORY_ROUGHNESS)))
+		{
+			// set output file to properly suffixed name
+			wcscpy_s(terrainExtOutput, MAX_PATH_AND_FILE, terrainExtOutputRoot);
 
+			// retrieve number of channels, and set hard-wired suffix
+			int channels = gCatChannels[catIndex];
+			switch (catIndex) {
+			default:
+				assert(0);
+			case CATEGORY_RGBA:
+				// no suffix, else: wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L"");
+				break;
+			case CATEGORY_NORMALS:
+				wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L"_n");
+				break;
+			case CATEGORY_METALLIC:
+				wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L"_m");
+				break;
+			case CATEGORY_EMISSION:
+				wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L"_e");
+				break;
+			case CATEGORY_ROUGHNESS:
+				wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L"_r");
+				break;
+			}
+			// and add ".png"
+			wcscat_s(terrainExtOutput, MAX_PATH_AND_FILE, L".png");
+
+			if (verbose)
+				wprintf(L"Populating '%s' for output.\n", terrainExtOutput);
+
+			// allocate output image and fill it up
+			destination_ptr = new progimage_info();
+
+			outputXResolution = xTiles * outputTileSize;
+			outputYResolution = outputYTiles * outputTileSize;
+
+			destination_ptr->width = outputXResolution;
+			destination_ptr->height = outputYResolution;
+
+			// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
+			if (destination_ptr->width > 16384) {
+				wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
+					destination_ptr->width / 16, destination_ptr->width / 16);
+				// quit!
+				return 1;
+			}
+
+			if (nobase || (catIndex != CATEGORY_RGBA))
+			{
+				// for debug and for non-color categories, to see just the tiles placed
+				destination_ptr->image_data.resize(outputXResolution * outputYResolution * channels * sizeof(unsigned char), 0x0);
+			}
+			else
+			{
+				// copy base texture over - assumes RGBA
+				destination_ptr->image_data.resize(outputXResolution * outputYResolution * channels * sizeof(unsigned char), 0x0);
+				copyPNG(destination_ptr, &basicterrain);
 				if (verbose)
-					wprintf(L"Populating '%s' for output.\n", terrainExtOutput);
+					wprintf(L"Base texture '%s' copied to output file '%s'.\n", terrainBase, terrainExtOutput);
+			}
 
-				// allocate output image and fill it up
-				destination_ptr = new progimage_info();
+			// copy tiles found over to the output file
+			for (index = 0; index < gFG.totalTiles; index++) {
+				fullIndex = catIndex * gFG.totalTiles + index;
+				if (gFG.fr[fullIndex].exists) {
 
-				outputXResolution = xTiles * outputTileSize;
-				outputYResolution = outputYTiles * outputTileSize;
+					// read tile
+					wchar_t inputFile[MAX_PATH_AND_FILE];
+					wcscpy_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[fullIndex].path);
+					wcscat_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[fullIndex].fullFilename);
 
-				destination_ptr->width = outputXResolution;
-				destination_ptr->height = outputYResolution;
+					progimage_info tile;
+					rc = readpng(&tile, inputFile, gCatFormat[catIndex]);
+					if (rc != 0)
+					{
+						reportReadError(rc, inputFile);
+						continue;
+					}
+					else {
+						// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
+						if (catIndex == CATEGORY_RGBA && !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+							// flag not set, so check for alpha == 0
+							if (checkForCutout(&tile)) {
+								wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+								gWarningCount++;
+							}
+						}
 
-				// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
-				if (destination_ptr->width > 16384) {
-					wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
-						destination_ptr->width / 16, destination_ptr->width / 16);
-					// quit!
-					return 1;
-				}
-
-				if (nobase || catIndex > CATEGORY_RGBA)
-				{
-					// for debug and for non-color categories, to see just the tiles placed
-					destination_ptr->image_data.resize(outputXResolution * outputYResolution * channels * sizeof(unsigned char), 0x0);
-				}
-				else
-				{
-					// copy base texture over - assumes RGBA
-					destination_ptr->image_data.resize(outputXResolution * outputYResolution * channels * sizeof(unsigned char), 0x0);
-					copyPNG(destination_ptr, &basicterrain);
-					if (verbose)
-						wprintf(L"Base texture '%s' copied to output file '%s'.\n", terrainBase, terrainExtOutput);
-				}
-
-				// copy tiles found over
-				for (i = 0; i < tilesFound; i++)
-				{
-					if (catIndex == tilesInputToTableCategory[i]) {
-						index = tilesInputToTableIndex[i];
 						// -r option on?
 						if (onlyreplace)
 						{
@@ -741,221 +648,229 @@ int wmain(int argc, wchar_t* argv[])
 						}
 						// If set, the incoming .png's black pixels should be treated as having an alpha of 0.
 						// Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
-						// Currently not needed - they've cleaned up their act.
-						if (catIndex == CATEGORY_RGBA && (gTilesTable[index].flags & SBIT_BLACK_ALPHA))
-						{
-							setBlackAlphaPNGTile(chosenTile, &tile[i]);
+						// Not needed for newer textures - they've cleaned up their act.
+						if (catIndex == CATEGORY_RGBA) {
+							if (gTilesTable[index].flags & SBIT_BLACK_ALPHA) {
+								setBlackAlphaPNGTile(chosenTile, &tile);
+							}
 						}
-						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile[i], 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(i) * 16))) {
+						else if (catIndex == CATEGORY_METALLIC || catIndex == CATEGORY_EMISSION || catIndex == CATEGORY_ROUGHNESS) {
+							// if an image is entirely black, make it 01 black, so that Mineways will take it seriously.
+							// Mineways assumes an image that is all black is not actually set, so ignores it.
+							setBlackToNearlyBlack(&tile);
+						}
+						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16))) {
 							return 1;
 						}
 						if (verbose)
-							wprintf(L"File '%s.png' merged.\n", gTilesTable[index].filename);
+							wprintf(L"File '%s' merged.\n", gFG.fr[fullIndex].fullFilename);
 					}
+					readpng_cleanup(1, &tile);
 				}
+			}
 
-				if (catIndex == CATEGORY_RGBA) {
+			////////////////////////
+			// Special stuff - shulker boxes, and chests
+			if (catIndex == CATEGORY_RGBA) {
+				// Compute shulker box sides and bottoms, if not input
 
-					// Compute shulker box sides and bottoms, if not input
-					// first, worth doing?
-					bool missingSideOrBottom = false;
-					for (i = 0; (i < 16) && !missingSideOrBottom; i++) {
-						missingSideOrBottom |= ((shulkerSide[i] == false) || (shulkerBottom[i] == false));
-					}
-					if (missingSideOrBottom) {
+				// look through tiles missing: if shulker side and bottom tiles found, note they don't need to be generated;
+				// these are not standard at all - shulkers now have their own entitities - but are left in for simplicity.
+				// TODO: someday add in shulker box reader, just like chests
+				int topIndex = findTileIndex(L"white_shulker_box", 0);
+				int startIndex = findTileIndex(L"shulker_side_white", 0);
+				int neutralSideIndex = findTileIndex(L"MW_SHULKER_SIDE", 0);
+				int neutralBottomIndex = findTileIndex(L"MW_SHULKER_BOTTOM", 0);
+				// where do shulker sides start?
+				fullIndex = catIndex * gFG.totalTiles + startIndex + index;
+				// go through 16 side and bottoms
+				for (index = 0; index < 16; index++) {
+					boolean sideNeeded = !gFG.fr[fullIndex].exists;
+					boolean bottomNeeded = !gFG.fr[fullIndex + 16].exists;	// bottoms follow sides
+					if (sideNeeded || bottomNeeded) {
+						// Compute shulker box sides and bottoms, if not input
+
 						// Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
 						unsigned char box_color[4];
 						int neutral_color[4], mult_color[4];
 
-						index = findTile(L"white_shulker_box", 1);
-						int side_index = findTile(L"MW_SHULKER_SIDE", 1);
-						int bottom_index = findTile(L"MW_SHULKER_BOTTOM", 1);
 						// check that the entries are in tiles.h.
 						// Note that we work from the output image file being generated, so we
 						// don't actually ever read in any of the 3 images above - they're assumed
 						// to be in the output image already (from terrainBase.png).
-						assert(index >= 0 && side_index >= 0 && bottom_index >= 0);
+						assert(topIndex >= 0 && neutralSideIndex >= 0 && neutralBottomIndex >= 0);
 						int pick_row = outputTileSize / 2;
 						int pick_col = outputTileSize / 2;
-						for (i = 0; i < 16; i++) {
-							// compute side and bottom color
-							// First, find brightest pixel
-							if (i == 0) {
-								getBrightestPNGPixel(destination_ptr, channels, gTilesTable[index].txrX * outputTileSize, gTilesTable[index].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
-								for (j = 0; j < 4; j++) {
-									neutral_color[j] = box_color[j];
-									mult_color[j] = 255;
+
+						// compute side and bottom color
+						// First, find brightest pixel
+						if (index == 0) {
+							// the white box needs no adjustment
+							getBrightestPNGPixel(destination_ptr, channels, gTilesTable[topIndex].txrX * outputTileSize, gTilesTable[topIndex].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
+							for (j = 0; j < 4; j++) {
+								neutral_color[j] = box_color[j];
+								mult_color[j] = 255;
+							}
+						}
+						else {
+							getPNGPixel(destination_ptr, channels, gTilesTable[topIndex].txrX * outputTileSize + pick_col, gTilesTable[topIndex].txrY * outputTileSize + pick_row, box_color);
+							for (j = 0; j < 4; j++) {
+								if (neutral_color[j] > 0) {
+									mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
+								}
+								else {
+									// avoid division by zero
+									mult_color[j] = 0;
 								}
 							}
-							else {
-								getPNGPixel(destination_ptr, channels, gTilesTable[index].txrX * outputTileSize + pick_col, gTilesTable[index].txrY * outputTileSize + pick_row, box_color);
-								for (j = 0; j < 4; j++) {
-									if (neutral_color[j] > 0) {
-										mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
-									}
-									else {
-										// avoid division by zero
-										mult_color[j] = 0;
-									}
-								}
-							}
-							// we now have the multiplier color, so multiply base tile by it
-							if (shulkerSide[i] == false) {
-								copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 4) * outputTileSize, outputTileSize, outputTileSize,
-									destination_ptr, gTilesTable[side_index].txrX * outputTileSize, gTilesTable[side_index].txrY * outputTileSize);
-								multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 4, mult_color);
-							}
-							if (shulkerBottom[i] == false) {
-								copyPNGArea(destination_ptr, gTilesTable[index].txrX * outputTileSize, (gTilesTable[index].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
-									destination_ptr, gTilesTable[bottom_index].txrX * outputTileSize, gTilesTable[bottom_index].txrY * outputTileSize);
-								multPNGTileByColor(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY + 5, mult_color);
-							}
-							index++;
+						}
+						// we now have the multiplier color, so multiply base tile by it
+						if (sideNeeded) {
+							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 4) * outputTileSize, outputTileSize, outputTileSize,
+								destination_ptr, gTilesTable[neutralSideIndex].txrX * outputTileSize, gTilesTable[neutralSideIndex].txrY * outputTileSize);
+							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 4, mult_color);
+						}
+						if (bottomNeeded) {
+							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
+								destination_ptr, gTilesTable[neutralBottomIndex].txrX * outputTileSize, gTilesTable[neutralBottomIndex].txrY * outputTileSize);
+							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 5, mult_color);
 						}
 					}
+					topIndex++;
+					fullIndex++;
+				}
+			}
 
-					// Test if left chest exists. If so, we assume 1.15 content is being used.
-					wchar_t chestFile[MAX_PATH];
-					wchar_t chestJarFile[MAX_PATH];
-					progimage_info testChestImage;
-					if (useTiles) {
-						wcscpy_s(chestFile, MAX_PATH, tilePath);
-						wcscat_s(chestFile, MAX_PATH, L"chest\\normal_left.png");
-						rc = readpng(&testChestImage, chestFile, LCT_RGBA);
-					}
-					if (useJar && (rc != 0)) {
-						wcscpy_s(chestFile, MAX_PATH, jarPath);
-						wcscat_s(chestFile, MAX_PATH, L"assets\\minecraft\\textures\\entity\\chest\\normal_left.png");
-						rc = readpng(&testChestImage, chestFile, LCT_RGBA);
-					}
-					//bool using115 = (rc == 0);
-					int numChests;
-					Chest* chest;
-					if (rc == 0) {
-						readpng_cleanup(0, &testChestImage);
-						numChests = 4;
-						gChest115[0].data = gNormalChest115;
-						gChest115[1].data = gNormalLeftChest115;
-						gChest115[2].data = gNormalRightChest115;
-						gChest115[3].data = gEnderChest115;
-						chest = gChest115;
-					}
-					else {
-						numChests = 3;
-						gChest114[0].data = gNormalChest;
-						gChest114[1].data = gNormalDoubleChest;
-						gChest114[2].data = gEnderChest;
-						chest = gChest114;
-					}
+			// Note: done for all categories
+			// Test if any chest exists for this category
+			if (gCG.fr[CHEST_NORMAL + catIndex * gCG.totalTiles].exists ||
+				gCG.fr[CHEST_NORMAL_DOUBLE + catIndex * gCG.totalTiles].exists ||
+				gCG.fr[CHEST_NORMAL_LEFT + catIndex * gCG.totalTiles].exists ||
+				gCG.fr[CHEST_NORMAL_RIGHT + catIndex * gCG.totalTiles].exists ||
+				gCG.fr[CHEST_ENDER + catIndex * gCG.totalTiles].exists) {
 
-					// Now for the chests, if any. Look for each chest image file, and use bits as found
-					for (i = 0; i < numChests; i++) {
-						// single chest, double chest, ender chest in \textures\entity\chest
-						Chest* pChest = &chest[i];
+				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
+				int numChests;
+				Chest* chest;
+				if ( gCG.fr[CHEST_NORMAL_LEFT + catIndex*gCG.totalTiles].exists) {
+					numChests = 4;
+					gChest115[0].data = gNormalChest115;
+					gChest115[1].data = gNormalLeftChest115;
+					gChest115[2].data = gNormalRightChest115;
+					gChest115[3].data = gEnderChest115;
+					chest = gChest115;
+				}
+				else {
+					numChests = 3;
+					gChest114[0].data = gNormalChest;
+					gChest114[1].data = gNormalDoubleChest;
+					gChest114[2].data = gEnderChest;
+					chest = gChest114;
+				}
+
+				// Now for the chests, if any. Look for each chest image file, and use bits as found
+				for (i = 0; i < numChests; i++) {
+					// single chest, double chest, ender chest in \textures\entity\chest
+					Chest* pChest = &chest[i];
+
+					//findChestIndex()
+					index = -1;
+					for (j = 0; j < gCG.totalTiles; j++) {
+						if (_wcsicmp(pChest->wname, gChestNames[j]) == 0) {
+							index = j;
+							break;
+						}
+					}
+					assert(index >= 0);
+
+					if (gCG.fr[index + catIndex * gCG.totalTiles].exists) {
+
+						// read chest and process
 
 						// chests are normally found in \assets\minecraft\textures\entity\chest
-						wcscpy_s(chestFile, MAX_PATH, tilePath);
-						wcscat_s(chestFile, MAX_PATH, L"chest\\");
-						wcscat_s(chestFile, MAX_PATH, pChest->wname);
-						wcscat_s(chestFile, MAX_PATH, L".png");
-
-						wcscpy_s(chestJarFile, MAX_PATH, jarPath);
-						wcscat_s(chestJarFile, MAX_PATH, L"assets\\minecraft\\textures\\entity\\chest\\");
-						wcscat_s(chestJarFile, MAX_PATH, pChest->wname);
-						wcscat_s(chestJarFile, MAX_PATH, L".png");
+						wchar_t chestFile[MAX_PATH_AND_FILE];
+						wcscpy_s(chestFile, MAX_PATH_AND_FILE, gCG.fr[index + catIndex * gCG.totalTiles].path);
+						wcscat_s(chestFile, MAX_PATH_AND_FILE, gCG.fr[index + catIndex * gCG.totalTiles].fullFilename);
 
 						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
 						progimage_info chestImage;
-						bool useTileChest = false;
-						if (useTiles) {
-							rc = readpng(&chestImage, chestFile, LCT_RGBA);
-							useTileChest = (rc == 0);
-						}
-						if (useJar && (rc != 0)) {
-							rc = readpng(&chestImage, chestJarFile, LCT_RGBA);
-						}
+						rc = readpng(&chestImage, chestFile, gCatFormat[catIndex]);
 						if (rc != 0)
 						{
-							// file not found anywhere
-							if (verbose) {
-								wprintf(L"WARNING: The chest image file '%s' does not exist\n", useJar ? chestJarFile : chestFile);
-								gWarningCount++;
-							}
-							allChests = false;
+							// file not found
+							reportReadError(rc, chestFile);
 							// try next chest
 							continue;
 						}
 						// chests must be powers of two
-						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, useTileChest ? chestFile : chestJarFile, false)) {
+						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
 							allChests = false;
 							readpng_cleanup(1, &chestImage);
 							continue;
 						}
 
-						readpng_cleanup(0, &chestImage);
-						// at least one chest was found
+						readpng_cleanup(1, &chestImage);
+
+						// if we got this far, at least one chest was found
 						anyChests = true;
 
 						if (verbose)
-							wprintf(L"The chest image file '%s' exists and will be used.\n", useTileChest ? chestFile : chestJarFile);
+							wprintf(L"The chest image file '%s' exists and will be used.\n", chestFile);
 
 						// from size figure out scaling factor from chest to terrainExt.png
 
 						// loop through bits to copy
-						for (index = 0; index < pChest->numCopies; index++) {
+						for (int copyIndex = 0; copyIndex < pChest->numCopies; copyIndex++) {
 							// clear tile if it's a new one (don't wipe out previous copies)
-							if ((index == 0) ||
-								(pChest->data[index].txrX != pChest->data[index - 1].txrX) ||
-								(pChest->data[index].txrY != pChest->data[index - 1].txrY)) {
-								makePNGTileEmpty(destination_ptr, pChest->data[index].txrX, pChest->data[index].txrY);
+							if (catIndex == CATEGORY_RGBA &&
+								((copyIndex == 0) ||
+									(pChest->data[copyIndex].txrX != pChest->data[copyIndex - 1].txrX) ||
+									(pChest->data[copyIndex].txrY != pChest->data[copyIndex - 1].txrY))) {
+								makePNGTileEmpty(destination_ptr, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY);
 							}
 
 							// copy from area to area, scaling as needed
-							copyPNGTile(destination_ptr, channels, pChest->data[index].txrX, pChest->data[index].txrY, 0,
+							copyPNGTile(destination_ptr, channels, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY, 0,
 								&chestImage,
-								pChest->data[index].toX, pChest->data[index].toY,
-								pChest->data[index].toX + pChest->data[index].sizeX, pChest->data[index].toY + pChest->data[index].sizeY,
-								pChest->data[index].fromX, pChest->data[index].fromY,
-								pChest->data[index].flags,
+								pChest->data[copyIndex].toX, pChest->data[copyIndex].toY,
+								pChest->data[copyIndex].toX + pChest->data[copyIndex].sizeX, pChest->data[copyIndex].toY + pChest->data[copyIndex].sizeY,
+								pChest->data[copyIndex].fromX, pChest->data[copyIndex].fromY,
+								pChest->data[copyIndex].flags,
 								(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
 						}
 					}
+				}
 
-					// if solid is desired, blend final result and replace in-place
-					if (solid || solidcutout)
+				// if solid is desired, blend final result and replace in-place
+				if (solid || solidcutout)
+				{
+					for (i = 0; i < TOTAL_TILES; i++)
 					{
-						for (i = 0; i < TOTAL_TILES; i++)
-						{
-							makeSolidTile(destination_ptr, i, solid);
-						}
+						makeSolidTile(destination_ptr, i, solid);
 					}
 				}
-
-				if (verbose)
-					wprintf(L"Opening '%s' for output.\n", terrainExtOutput);
-
-				// write out the result
-				rc = writepng(destination_ptr, channels, terrainExtOutput);
-				if (rc != 0)
-				{
-					reportReadError(rc, terrainExtOutput);
-					// quit
-					return 1;
-				}
-				writepng_cleanup(destination_ptr);
-				if (verbose)
-					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
 			}
-			else {
-				wprintf(L"WARNING: Though '%s' was specified as a suffix, no files of this type were found.\n  See http://mineways.com for more about TileMaker.\n", gCat[catIndex].suffix);
-				gWarningCount++;
+
+			if (verbose)
+				wprintf(L"Opening '%s' for output.\n", terrainExtOutput);
+
+			// write out the result
+			rc = writepng(destination_ptr, channels, terrainExtOutput);
+			if (rc != 0)
+			{
+				reportReadError(rc, terrainExtOutput);
+				// quit
+				return 1;
 			}
+			writepng_cleanup(destination_ptr);
+			if (verbose)
+				wprintf(L"New texture '%s' created.\n", terrainExtOutput);
 		}
 	}
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that come with TileMaker
-	if (tilesFound <= 3 && !anyChests) {
+	if (gFG.fileCount <= 3 && !anyChests) {
 		wprintf(L"WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
@@ -970,195 +885,247 @@ int wmain(int argc, wchar_t* argv[])
 	if (gErrorCount || gWarningCount)
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
+	wprintf(L"TileMaker summary: %d files read in and processed.\n", filesProcessed);
 	return 0;
 }
 
 void printHelp()
 {
-	wprintf(L"TileMaker version 2.16\n");  // change version above, too
-	wprintf(L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-z zip] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-b[m|e|r|n] suffix] [-v]\n");
+	wprintf(L"TileMaker version %s\n", VERSION_STRING); // TODOTODO redo next line.
+	wprintf(L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-b[m|e|r|n] suffix] [-v]\n");
 	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
-	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'.\n");
-	wprintf(L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
+	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be called multiple times.\n");
+	//wprintf(L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
 	wprintf(L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 	wprintf(L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
-	wprintf(L"  -c chosenTile - for tiles with multiple versions (e.g. water, lava, portal),\n    choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
+	wprintf(L"  -c chosenTile - for tiles with multiple versions in a vertical strip,\n     (e.g. water, lava, portal), choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
 	wprintf(L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
-	wprintf(L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    just the base texture is read, along with the optional unzipped jar directory.\n");
-	wprintf(L"  -r - replace (from the 'blocks' directory) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions.\n");
+	wprintf(L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    just the base texture is read in.\n");
+	wprintf(L"  -r - replace (from the 'blocks' directories) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions of Mineways.\n");
 	wprintf(L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
-	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
-	wprintf(L"  -bc suffix - specify the color map suffix for all input *suffix.png files.\n");
-	wprintf(L"  -bn suffix - build normal map terrainExt_n.png using all input *suffix.png files.\n");
-	wprintf(L"  -bm suffix - build metallic terrainExt_m.png using all input *suffix.png files.\n");
-	wprintf(L"  -be suffix - build emission map terrainExt_e.png using all input *suffix.png files.\n");
-	wprintf(L"  -br suffix - build roughness map terrainExt_r.png using all input *suffix.png files.\n");
+	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n"); // TODOTODO can we simply get rid of these?
+	//wprintf(L"  -bc suffix - specify the color map suffix for all input *suffix.png files.\n");
+	//wprintf(L"  -bn suffix - build normal map terrainExt_n.png using all input *suffix.png files.\n");
+	//wprintf(L"  -bm suffix - build metallic terrainExt_m.png using all input *suffix.png files.\n");
+	//wprintf(L"  -be suffix - build emission map terrainExt_e.png using all input *suffix.png files.\n");
+	//wprintf(L"  -br suffix - build roughness map terrainExt_r.png using all input *suffix.png files.\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-int readTilesInDirectory(const wchar_t* tilePath, bool usingBlockDirectory, bool hasJar, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles)
+void initializeChestGrid(ChestGrid* pcg)
 {
+	int i;
+	pcg->chestCount = 0;
+	pcg->totalCategories = TOTAL_CATEGORIES;
+	pcg->totalTiles = TOTAL_CHEST_TILES;
+	for (i = 0; i < TOTAL_CATEGORIES; i++) {
+		pcg->categories[i] = 0;
+	}
+	for (i = 0; i < TOTAL_CATEGORIES * TOTAL_CHEST_TILES; i++) {
+		pcg->fr[i].rootName = NULL;
+		pcg->fr[i].fullFilename = NULL;
+		pcg->fr[i].path = NULL;
+		pcg->fr[i].exists = false;
+	}
+}
 
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost)
+{
+	int filesProcessed = 0;
+	int filesSubProcessed = 0;
 	HANDLE hFind;
 	WIN32_FIND_DATA ffd;
 
-	wchar_t tileSearch[MAX_PATH];
-	wcscpy_s(tileSearch, MAX_PATH, tilePath);
-	wcscat_s(tileSearch, MAX_PATH, L"*.png");
+	wchar_t tilePathAppended[MAX_PATH_AND_FILE];
+	wcscpy_s(tilePathAppended, MAX_PATH_AND_FILE, tilePath);
+	addBackslashIfNeeded(tilePathAppended);
+
+	wchar_t tileSearch[MAX_PATH_AND_FILE];
+	wcscpy_s(tileSearch, MAX_PATH_AND_FILE, tilePathAppended);
+	wcscat_s(tileSearch, MAX_PATH_AND_FILE, L"*");
 	hFind = FindFirstFile(tileSearch, &ffd);
 
 	if (hFind == INVALID_HANDLE_VALUE)
 	{
-		// error types:
-		// This is the block directory, there's no jar directory: likely an error
-		// This is the block directory, there's a jar directory: error
-		// Jar directory: error
-
-		if (usingBlockDirectory) {
-			wsprintf(gErrorString, L"***** ERROR: cannot find files (Windows error code # %d).\n", GetLastError());
-			saveErrorForEnd();
-			gErrorCount++;
-			wsprintf(gErrorString, L"  No textures found in the directory '%s'.\n", tilePath);
-			saveErrorForEnd();
-			// exit program if no directory found and there's not a jar unzipped that's getting used
-			if (hasJar) {
-				wsprintf(gErrorString, L"  The unzipped texture pack jar directory will be searched.\n");
-				saveErrorForEnd();
-			}
-			wsprintf(gErrorString, L"  Use the '-nt' option to specify you do not want to use a blocks directory.\n");
-			saveErrorForEnd();
-		}
-		else {
-			// it's a jar directory that's missing
-			wsprintf(gErrorString, L"***** ERROR: cannot find files, error code # %d.\n", GetLastError());
-			saveErrorForEnd();
-			gErrorCount++;
-			wsprintf(gErrorString, L"  No textures found in the unzipped texture pack jar directory '%s'.\n", tilePath);
-			saveErrorForEnd();
-		}
-		return 0;
+		wsprintf(gErrorString, L"***** ERROR: cannot find files for the directory '%s' (Windows error code # %d). Ignoring directory.\n", tilePath, GetLastError());
+		saveErrorForEnd();
+		gErrorCount++;
 	}
-	else
-	{
-		// go through all the files in the blocks directory
+	else {
+		boolean chestFound = false;
 		do {
-			loadAndProcessTile(tilePath, ffd.cFileName, verbose, alternate, tilesTableIndexToInput, tilesFound, outputYTiles);
+			// is it a directory?
+			if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			{
+				// if it's just a relative "same" or "above" directory, ignore
+				if ((!lstrcmpW(ffd.cFileName, L".")) || (!lstrcmpW(ffd.cFileName, L".."))) {
+					continue;
+				}
+
+				wchar_t subdir[MAX_PATH_AND_FILE];
+				wcscpy_s(subdir, MAX_PATH_AND_FILE, tilePathAppended);
+				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
+				addBackslashIfNeeded(subdir);
+
+				filesSubProcessed += searchDirectoryForTiles(pfg, pcg, subdir, verbose, alternate, false);
+			}
+			else {
+				// not a directory; is it a PNG file?
+				int used = FILE_NOT_FOUND;
+				// check for blocks only if word "block" is in the path
+				if (topmost || wcsstr(tilePathAppended, L"block") != NULL) {
+					used = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, false) ? 1 : 0;
+				}
+				if (used == FILE_NOT_FOUND) {
+					if (topmost || wcsstr(tilePathAppended, L"chest") != NULL) {
+						used = testIfChestFile(pcg, tilePathAppended, ffd.cFileName, verbose);
+						chestFound = true;
+					}
+				}
+
+				if (used == FILE_FOUND) {
+					filesProcessed++;
+				}
+				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest directory?
+				// 
+				else if (filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
+					// we already found some good files in this directory, so note that this file was not used.
+					if (verbose) {
+						wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
+					}
+					else {
+						wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
+					}
+				}
+			}
 		} while (FindNextFile(hFind, &ffd) != 0);
 
 		FindClose(hFind);
 	}
-	return 0;
+	return filesProcessed + filesSubProcessed;
 }
 
-void loadAndProcessTile(const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles)
+// returns true if file exists and is usable (not a duplicate, alternate name of something already in use)
+int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose)
 {
-	wchar_t tileName[MAX_PATH];
-	int len;
-	int catIndex;
+	wchar_t tileName[MAX_PATH_AND_FILE];
 
-	if (verbose)
-		wprintf(L"The file '%s' has been found and will be processed.\n", origTileName);
+	wcscpy_s(tileName, MAX_PATH_AND_FILE, origTileName);
 
-	wcscpy_s(tileName, MAX_PATH, origTileName);
-	// check for .png suffix - note test is case insensitive
-	len = (int)wcslen(tileName);
-	if (_wcsicmp(&tileName[len - 4], L".png") == 0)
-	{
-		// remove .png suffix
-		tileName[len - 4] = 0x0;
-		int index = findFileTile(tileName, alternate, gCat, catIndex);
-		if (index < 0)
-		{
-			// see if tile is on unneeded list
-			if (findUnneededTile(origTileName) < 0) {
-				wprintf(L"WARNING: '%s' is an image name that TileMaker does not understand.\n  This means you are using a non-standard name for it.\n  See https://github.com/erich666/Mineways/blob/master/Win/tiles.h\n  for the image file names used.\n", origTileName);
-				gWarningCount++;
+	if (removePNGsuffix(tileName)) {
+		// has a PNG suffix, now removed, so test if it's a file name type we understand.
+		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+
+		// the four PNG files we care about
+		boolean found = false;
+		int index = 0;
+		for (int i = 0; i < TOTAL_CHEST_TILES && !found; i++) {
+			if (_wcsicmp(tileName, gChestNames[i]) == 0) {
+				index = i;
+				found = true;
 			}
 		}
 
-		while (index >= 0)
-		{
-			int fail_code = 0;
-			//wprintf(L"INDEX: %d\n", index);
-
-			// check if already set
-			if (tilesTableIndexToInput[catIndex][index] < 0)
-			{
-				// tile is one we care about.
-				fail_code = buildPathAndReadTile(tilePath, origTileName, gCatFormat[catIndex], &tile[tilesFound]);
-
-				if (!fail_code) {
-					fail_code = testFileForPowerOfTwo(tile[tilesFound].width, tile[tilesFound].height, origTileName, true);
-					if (fail_code) {
-						readpng_cleanup(1, &tile[tilesFound]);
-					}
+		if (found) {
+			int fullIndex = type * pcg->totalTiles + index;
+			if (pcg->fr[fullIndex].exists) {
+				// duplicate, so warn and exit
+				if (verbose) {
+					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->fr[fullIndex].fullFilename, pcg->fr[fullIndex].path);
 				}
-
-				// check for unsupported formats
-				//if ( 
-				//	//( tile[tilesFound].bit_depth == 8 || tile[tilesFound].bit_depth == 4 ) &&
-				//	 ( tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB_ALPHA || 
-				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_RGB || 
-				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_GRAY || 
-				//	   tile[tilesFound].color_type == PNG_COLOR_TYPE_PALETTE ))
-				if (fail_code == 0)
-				{
-					// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
-					if (catIndex == CATEGORY_RGBA && !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
-						// flag not set, so check for alpha == 0
-						if (checkForCutout(&tile[tilesFound])) {
-							wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", origTileName);
-							gWarningCount++;
-						}
-					}
-
-					if (tilesFound >= TOTAL_INPUT_TILES) {
-						wsprintf(gErrorString, L"INTERNAL ERROR: the number of (unused) tiles is extremely high - please delete PNGs not needed and run again.\n");
-						saveErrorForEnd();
-						gErrorCount++;
-					}
-					else {
-						// The way this works:
-						// tilesFound starts at 0 and is incremented every time an input tile is successfully read in.
-						// gTiles is the list of tiles read in, with tilesFound being the number of tiles in this list.
-						// So, tilesInputToTableIndex says, given an input file array location, what index value in tiles.h is it associated with?
-						// And tilesTableIndexToInput says, given a location in the tiles.h file, which tile, if any, is associated with it? -1 means no association.
-						tilesInputToTableIndex[tilesFound] = index;
-						tilesInputToTableCategory[tilesFound] = catIndex;
-
-						tilesTableIndexToInput[catIndex][index] = tilesFound;	// note tile is used if >= 0 - currently we don't use this back-access, but someday, perhaps. Right now it's just for noting if a tile in the table has a texture.
-						tilesFound++;
-						gCat[catIndex].tilesFound++;
-
-
-						// Find maximum Y resolution of output tile: expand bottom of output texture if found.
-						// This is an attempt to have some compatibility as we add new texture tiles to the bottom of terrainExt.png.
-						// This should never be true now (outputYTiles gets set to VERTICAL_TILES), but if VERTICAL_TILES isn't set right, this will push things up
-						if (outputYTiles - 1 < gTilesTable[index].txrY)
-						{
-							outputYTiles = gTilesTable[index].txrY + 1;
-							wprintf(L"INTERNAL WARNING: strangely, the number of images out paces the value of 16*VERTICAL_TILES.\n  This is an internal error: update VERTICAL_TILES.\n");
-							gWarningCount++;
-						}
-					}
+				else {
+					wprintf(L"WARNING: duplicate file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pcg->fr[fullIndex].fullFilename);
 				}
+				return FILE_NOT_FOUND;
 			}
 			else {
-				wprintf(L"WARNING: both file '%s.png' and alternate file '%s.png' were found.\n  File '%s.png' is ignored, because it is an alternate file name for the same tile.\n  To use it instead, remove file '%s.png' from the blocks directory.\n",
-					gTilesTable[index].filename, gTilesTable[index].altFilename, gTilesTable[index].altFilename, gTilesTable[index].filename);
-				gWarningCount++;
+				// it's new and unique
+				pcg->categories[type]++;
+				pcg->fr[fullIndex].rootName = _wcsdup(tileName);
+				pcg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
+				pcg->fr[fullIndex].path = _wcsdup(tilePath);
+				pcg->fr[fullIndex].exists = true;
+				return FILE_FOUND;
 			}
-			//else
-			//{
-			//	// unknown format
-			//	_tprintf (TEXT("WARNING: file '%s' not used because unsupported bit depth %d and color type %d\n"), origTileName, tile[tilesFound].bit_depth, tile[tilesFound].color_type );
-			//}
-			index = findNextTile(tileName, index, alternate);
+		}
+	}
+	return FILE_NOT_FOUND;
+}
+
+void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
+{
+	int index1 = findTileIndex(tile1, false);
+	int index2 = findTileIndex(tile2, false);
+
+	if (index1 < 0) {
+		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile1);
+		return;
+	}
+	if (index2 < 0) {
+		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile2);
+		return;
+	}
+
+	for (int category = 0; category < pfg->totalCategories; category++) {
+		int fullIndex1 = category * pfg->totalTiles + index1;
+		int fullIndex2 = category * pfg->totalTiles + index2;
+		if (pfg->fr[fullIndex1].exists) {
+			// first exists, does second?
+			if (!pfg->fr[fullIndex2].exists) {
+				// copy first to second
+				copyFileRecord(pfg, category, fullIndex2, &pfg->fr[fullIndex1]);
+			}
+		}
+		else {
+			// first does not exist, does second?
+			if (pfg->fr[fullIndex2].exists) {
+				// copy second to first
+				copyFileRecord(pfg, category, fullIndex1, &pfg->fr[fullIndex2]);
+			}
 		}
 	}
 }
 
+int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int fullIndex) {
+	// check that width and height make sense.
+	wchar_t inputFile[MAX_PATH_AND_FILE];
+	wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfr->path);
+	wcscat_s(inputFile, MAX_PATH_AND_FILE, pfr->fullFilename);
+
+	// read tile header
+	progimage_info tile;
+	int rc = readpngheader(&tile, inputFile);
+	if (rc != 0)
+	{
+		reportReadError(rc, inputFile);
+		return overlayTileSize;	// no change
+	}
+	if (testFileForPowerOfTwo(tile.width, tile.height, pfr->fullFilename, square)) {
+		// lazy: derive the category from the index, use global grid here
+		deleteFileFromGrid(&gFG, fullIndex / gFG.totalTiles, fullIndex);
+	}
+	else {
+		// usable width
+
+		// Check when this is a file grid.
+		// For water_flow and lava_flow, the image width is twice normal, so halve it for the width we actually use.
+		if (isFileGrid) {
+			tile.width = trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex);
+		}
+
+		if (overlayTileSize < tile.width)
+		{
+			overlayTileSize = tile.width;
+		}
+	}
+	return overlayTileSize;
+}
+
+int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex)
+{
+	return (index == lavaFlowIndex || index == waterFlowIndex) ? width / 2 : width;
+}
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square)
 {
@@ -1186,143 +1153,8 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 	return fail_code;
 }
 
-// given a file name (with .png removed) and what categories are in use, find the category and the location in the gTilesTable
-int findFileTile(const wchar_t* tileName, int alternate, Category* cat, int& catIndex)
-{
-	int i;
-
-	for (catIndex = 0; catIndex < ((cat == NULL) ? 1 : TOTAL_CATEGORIES); catIndex++) {
-		for (i = 0; i < TOTAL_TILES; i++)
-		{
-			wchar_t testName[MAX_PATH];
-			wcscpy_s(testName, MAX_PATH, gTilesTable[i].filename);
-			wcscat_s(testName, MAX_PATH, cat[catIndex].suffix);
-			if (wcscmp(tileName, testName) == 0)
-				return i;
-			wcscpy_s(testName, MAX_PATH, gTilesTable[i].altFilename);
-			wcscat_s(testName, MAX_PATH, cat[catIndex].suffix);
-			if (alternate && wcscmp(tileName, testName) == 0)
-				return i;
-
-			// if color and has suffix, try without suffix and warn
-			if (catIndex == 0 && wcslen(cat[catIndex].suffix) > 0) {
-				if (wcscmp(tileName, gTilesTable[i].filename) == 0) {
-					wsprintf(gErrorString, L"***** ERROR: file '%s.png'\n    was processed, but does not have the color suffix '%s'\n", gTilesTable[i].filename, cat[catIndex].suffix);
-					saveErrorForEnd();
-					gErrorCount++;
-					return i;
-				}
-				if (alternate && wcscmp(tileName, gTilesTable[i].altFilename) == 0) {
-					wsprintf(gErrorString, L"***** ERROR: file '%s.png'\n    was processed, but does not have the color suffix '%s'\n", gTilesTable[i].filename, cat[catIndex].suffix);
-					saveErrorForEnd();
-					gErrorCount++;
-					return i;
-				}
-			}
-		}
-	}
-	return -1;
-}
-
-// given the block tile name, return its index - no categories, just the name is input
-int findTile(const wchar_t* tileName, int alternate)
-{
-	int i;
-
-	for (i = 0; i < TOTAL_TILES; i++)
-	{
-		if (wcscmp(tileName, gTilesTable[i].filename) == 0)
-			return i;
-		if (alternate && wcscmp(tileName, gTilesTable[i].altFilename) == 0)
-			return i;
-	}
-	return -1;
-}
-
-int findNextTile(const wchar_t* tileName, int index, int alternate)
-{
-	int i;
-
-	for (i = index + 1; i < TOTAL_TILES; i++)
-	{
-		if (wcscmp(tileName, gTilesTable[i].filename) == 0)
-			return i;
-		if (alternate && wcscmp(tileName, gTilesTable[i].altFilename) == 0)
-			return i;
-	}
-	return -1;
-}
-
-int findUnneededTile(const wchar_t* tileName)
-{
-	int i = 0;
-	size_t inlen = wcslen(tileName);
-	TCHAR tileRoot[1000];
-	wcscpy_s(tileRoot, 999, tileName);
-	// trim off .png suffix
-	tileRoot[inlen - 4] = (TCHAR)0;
-	while (wcslen(gUnneeded[i]) > 0)
-	{
-		if (wcscmp(tileRoot, gUnneeded[i]) == 0)
-			return i;
-		i++;
-	}
-	return -1;
-}
-
-int trueWidth(int tileLoc)
-{
-	int width = tile[tileLoc].width;
-	if ((wcscmp(gTilesTable[tilesInputToTableIndex[tileLoc]].filename, L"water_flow") == 0) ||
-		(wcscmp(gTilesTable[tilesInputToTableIndex[tileLoc]].filename, L"lava_flow") == 0)) {
-		width /= 2;
-	}
-	return width;
-}
 
 //====================== statics ==========================
-
-static int tryReadingTile(const wchar_t* blockPath, const wchar_t* jarPath, const wchar_t* fileName, bool hasTiles, bool hasJar, LodePNGColorType colortype, progimage_info* pTile)
-{
-	bool fileFound = false;
-	// read image file - build path
-	wchar_t readFileName[MAX_PATH];
-	if (hasTiles) {
-		wcscpy_s(readFileName, MAX_PATH, blockPath);
-		wcscat_s(readFileName, MAX_PATH, fileName);
-		// read in tile for later
-		int rc = readpng(pTile, readFileName, colortype);
-		readpng_cleanup(0, pTile);
-		fileFound = (rc == 0);
-	}
-	if (!fileFound && hasJar) {
-		wcscpy_s(readFileName, MAX_PATH, jarPath);
-		wcscat_s(readFileName, MAX_PATH, fileName);
-		// read in tile for later
-		int rc = readpng(pTile, readFileName, colortype);
-		readpng_cleanup(0, pTile);
-		fileFound = (rc == 0);
-	}
-	return fileFound ? 0 : 1;
-}
-
-static int buildPathAndReadTile(const wchar_t* tilePath, const wchar_t* fileName, LodePNGColorType colortype, progimage_info* pTile)
-{
-	int fail_code = 0;
-	// read image file - build path
-	wchar_t readFileName[MAX_PATH];
-	wcscpy_s(readFileName, MAX_PATH, tilePath);
-	wcscat_s(readFileName, MAX_PATH, fileName);
-	// read in tile for later
-	int rc = readpng(pTile, readFileName, colortype);
-	if (rc != 0)
-	{
-		reportReadError(rc, readFileName);
-		fail_code = 1;
-	}
-	readpng_cleanup(0, pTile);
-	return fail_code;
-}
 
 static void reportReadError(int rc, const wchar_t* filename)
 {
@@ -1342,6 +1174,9 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 78:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
 		break;
+	case 79:
+		wsprintf(gErrorString, L"***** ERROR [%s] write failed - directory not found. Please create the directory.\n", filename);
+		break;
 	default:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);
 		break;
@@ -1349,7 +1184,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	saveErrorForEnd();
 	gErrorCount++;
 
-	if (rc != 78) {
+	if (rc != 78 && rc != 79) {
 		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
 	}
 	saveErrorForEnd();
@@ -1358,8 +1193,8 @@ static void reportReadError(int rc, const wchar_t* filename)
 static void saveErrorForEnd()
 {
 	wprintf(gErrorString);
-	wcscat_s(gConcatErrorString, L"  ");
-	wcscat_s(gConcatErrorString, gErrorString);
+	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, L"  ");
+	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, gErrorString);
 }
 
 //================================ Image Manipulation ====================================
@@ -1392,6 +1227,35 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info* src)
 		}
 	}
 }
+
+// meant only for one-channel grayscale
+static int setBlackToNearlyBlack(progimage_info* src)
+{
+	// look at all data: black?
+	int row, col;
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			if (*src_data++ != 0)
+			{
+				return 0;
+			}
+		}
+	}
+	// survived - it's all black, so set it all to nearly black
+	src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			*src_data++ = 1;
+		}
+	}
+	return 1;
+};
+
 
 // Give the destination image, the tile location on that destination (multiplied by destination width/16),
 // the source image, the upper left and lower right destination pixels, the upper left source location, any flags,

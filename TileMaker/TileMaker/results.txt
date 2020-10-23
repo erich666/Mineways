@@ -1,5 +1,0 @@
-
-C:\Users\erich\Documents\_Documents\minecraft\Mineways\git_code\TileMaker\TileMaker>..\x64\Release\TileMaker.exe -d blocks -o terrainExt.png -m 
-
-C:\Users\erich\Documents\_Documents\minecraft\Mineways\git_code\TileMaker\TileMaker>pause
-Press any key to continue . . . 
