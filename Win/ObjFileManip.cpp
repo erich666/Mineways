@@ -23062,6 +23062,17 @@ static int createMaterialsUSD(char *texturePath)
             strcpy_s(outputString, 256, "            )\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
+        else {
+            // default roughness should be 1.0, not the 0.5 favored by OmniPBR
+            strcpy_s(outputString, 256, "            float inputs:reflection_roughness_constant = 1 (\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "                displayName = \"Roughness Amount\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "            )\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
 
         strcpy_s(outputString, 256, "            token outputs:out\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
