@@ -696,6 +696,7 @@ static int createMeshesUSD();
 static boolean allocOutData(int nverts, int nfaces);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath);
+static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
 static int closeUSDFile();
@@ -22640,6 +22641,10 @@ static int createMaterialsUSD(char *texturePath)
         g = (unsigned char)(color >> 8);
         b = (unsigned char)(color);
 
+        float roughness = 1.0f;
+        float metallic = 0.0f;
+        setMetallicRoughnessByName(pFace->materialType, &metallic, &roughness);
+
         sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "    {\n");
@@ -22922,6 +22927,17 @@ static int createMaterialsUSD(char *texturePath)
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
+            else {
+                // the default is 0 metallic
+                sprintf_s(outputString, 256, "            float inputs:metallic_constant = %g (\n", metallic);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Metallic Amount\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
         }
 
         // normals?
@@ -23064,7 +23080,7 @@ static int createMaterialsUSD(char *texturePath)
         }
         else {
             // default roughness should be 1.0, not the 0.5 favored by OmniPBR
-            strcpy_s(outputString, 256, "            float inputs:reflection_roughness_constant = 1 (\n");
+            sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23091,6 +23107,88 @@ static int createMaterialsUSD(char *texturePath)
     return 0;
 }
 
+static void setMetallicRoughnessByName(int type, float *metallic, float *roughness)
+{
+    // check metals first
+    char blockName[100];
+    strcpy_s(blockName, 100, gBlockDefinitions[type].name);
+    _strlwr_s(blockName,100);
+    if (strstr(blockName, "iron") != NULL && strstr(blockName, " ore") == NULL) {
+        // iron
+        *metallic = 0.90f;   // rusty-ish?
+        *roughness = 0.15f;
+    }
+    else if (strstr(blockName, "gold") != NULL && strstr(blockName, " ore") == NULL) {
+        // iron
+        *metallic = 1.00f;
+        *roughness = 0.10f;
+    }
+    else if (strstr(blockName, "lantern") != NULL && strstr(blockName, "jack") == NULL) {
+        // lantern (not jack) - includes sea lantern, probably doesn't matter
+        *metallic = 0.80f;
+        *roughness = 0.15f;
+    }
+    else if (strstr(blockName, "anvil") != NULL) {
+        *metallic = 0.70f;
+        *roughness = 0.20f;
+    }
+    else if (strstr(blockName, "hopper") != NULL) {
+        *metallic = 0.85f;
+        *roughness = 0.185f;
+    }
+    else if (strstr(blockName, "cauldron") != NULL) {
+        *metallic = 0.40f;
+        *roughness = 0.25f;
+    }
+    // roughness only
+    else if (strstr(blockName, "diamond") != NULL && strstr(blockName, " ore") == NULL) {
+        *roughness = 0.05f;
+    }
+    else if (strstr(blockName, "emerald") != NULL && strstr(blockName, " ore") == NULL) {
+        *roughness = 0.10f;
+    }
+    else if (strstr(blockName, "lapis") != NULL && strstr(blockName, " ore") == NULL) {
+        *roughness = 0.10f;
+    }
+    else if (strstr(blockName, "ice") != NULL){
+        *roughness = 0.10f;
+    }
+    else if (strstr(blockName, "honey") != NULL) {
+        *roughness = 0.40f;
+    }
+    else if (strstr(blockName, "polished") != NULL) {
+        *roughness = 0.15f;
+    }
+    else if (strstr(blockName, "purpur") != NULL) {
+        *roughness = 0.25f;
+    }
+    else if (strstr(blockName, "quartz") != NULL && strstr(blockName, " ore") == NULL) {
+        *roughness = 0.18f;
+    }
+    else if (strstr(blockName, "terracotta") != NULL) {
+        if (strstr(blockName, "glazed") != NULL) {
+            *roughness = 0.20f;
+        }
+        else {
+            *roughness = 0.40f;
+        }
+    }
+    else if (strstr(blockName, "block of redstone") != NULL) {
+        *roughness = 0.50f;
+    }
+    else if (strstr(blockName, "lily pad") != NULL) {
+        *roughness = 0.20f;
+    }
+    else if (strstr(blockName, "clay") != NULL) {
+        *roughness = 0.45f;
+    }
+    else if (strstr(blockName, "plank") != NULL) {
+        *roughness = 0.50f;
+    }
+    else if (strstr(blockName, "stripped") != NULL) {
+        *roughness = 0.50f;
+    }
+}
 
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts)
 {
