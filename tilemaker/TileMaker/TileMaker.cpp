@@ -247,7 +247,7 @@ int wmain(int argc, wchar_t* argv[])
 	int onlyreplace = 0;
 	int verbose = 0;
 	int checkmissing = 0;
-	int alternate = 0;  // always include alternate names; needed for 1.13
+	int alternate = 2;  // always include alternate names; needed for 1.13
 	int solid = 0;
 	int solidcutout = 0;
 
@@ -528,7 +528,7 @@ int wmain(int argc, wchar_t* argv[])
 				gWarningCount++;
 			} else {
 				// move the _normal to _n
-				copyFileRecord(&gFG, CATEGORY_NORMALS_LONG, fullIndexN, &gFG.fr[fullIndexNormals]);
+				copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
 				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
 			}
 		}

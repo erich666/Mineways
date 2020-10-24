@@ -48,6 +48,8 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
 
 static int isNearlyGrayscale(progimage_info* src);
 static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
+static boolean channelIsAllBlack(progimage_info * src);
+static boolean channelIsAllWhite(progimage_info * src);
 static void invertChannel(progimage_info* dst);
 
 
@@ -263,41 +265,13 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 					// always export specular in inverted
 					progimage_info* destination_ptr = allocateImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
-					invertChannel(destination_ptr);
-
-					wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_ROUGHNESS]);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
-
-					rc = writepng(destination_ptr, 1, outputFile);
-					if (rc != 0)
-					{
-						reportReadError(rc, outputFile);
-						// quit - if we can't write one file, we're unlikely to write the rest.
-						return filesRead;
-					}
-					writepng_cleanup(destination_ptr);
-					if (verbose) {
-						wprintf(L"New texture '%s' created.\n", outputFile);
-					}
-				}
-				else {
-					isSME++;
-					// SME: output all three
-					for (int channel = 0; channel < 3; channel++) {
-						// output the channel if it's not all black - actually, we do want to output it;
-						// that's a valid value set, which we should deal with in TileMaker
-						//if (!isChannelAllBlack(&tile, channel)) {
-						progimage_info* destination_ptr = allocateImage(&tile);
-						copyOneChannel(destination_ptr, channel, &tile);
-						if (channel == CHANNEL_RED) {
-							invertChannel(destination_ptr);
-						}
+					// output the channel if it's not all black
+					if (!channelIsAllBlack(destination_ptr)) {
+						invertChannel(destination_ptr);
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
-						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_ROUGHNESS]);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
 
 						rc = writepng(destination_ptr, 1, outputFile);
@@ -307,10 +281,41 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
-						writepng_cleanup(destination_ptr);
 						if (verbose) {
 							wprintf(L"New texture '%s' created.\n", outputFile);
 						}
+					}
+					writepng_cleanup(destination_ptr);
+				}
+				else {
+					isSME++;
+					// SME: output all three
+					for (int channel = 0; channel < 3; channel++) {
+						// output the channel if it's not all black
+						progimage_info* destination_ptr = allocateImage(&tile);
+						copyOneChannel(destination_ptr, channel, &tile);
+						if (!channelIsAllBlack(destination_ptr)) {
+							if (channel == CHANNEL_RED) {
+								invertChannel(destination_ptr);
+							}
+
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+							rc = writepng(destination_ptr, 1, outputFile);
+							if (rc != 0)
+							{
+								reportReadError(rc, outputFile);
+								// quit - if we can't write one file, we're unlikely to write the rest.
+								return filesRead;
+							}
+							if (verbose) {
+								wprintf(L"New texture '%s' created.\n", outputFile);
+							}
+						}
+						writepng_cleanup(destination_ptr);
 					}
 				}
 				readpng_cleanup(1, &tile);
@@ -380,23 +385,26 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) 
 					//if (!isChannelAllBlack(&tile, channel)) {
 					progimage_info* destination_ptr = allocateImage(&tile);
 					copyOneChannel(destination_ptr, channel, &tile);
+					// output the channel if it's not all black (or white, for roughness
+					if ((channel == 2) ? !channelIsAllWhite(destination_ptr) : !channelIsAllBlack(destination_ptr)) {
 
-					wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
 
-					rc = writepng(destination_ptr, 1, outputFile);
-					if (rc != 0)
-					{
-						reportReadError(rc, outputFile);
-						// quit - if we can't write one file, we're unlikely to write the rest.
-						return filesRead;
+						rc = writepng(destination_ptr, 1, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit - if we can't write one file, we're unlikely to write the rest.
+							return filesRead;
+						}
+						if (verbose)
+							wprintf(L"New texture '%s' created.\n", outputFile);
+						//}
 					}
 					writepng_cleanup(destination_ptr);
-					if (verbose)
-						wprintf(L"New texture '%s' created.\n", outputFile);
-					//}
 				}
 
 				readpng_cleanup(1, &tile);
@@ -590,6 +598,42 @@ static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src
 			src_data += 3;
 		}
 	}
+}
+
+static boolean channelIsAllBlack(progimage_info* src)
+{
+	// look at all data: black?
+	int row, col;
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			if (*src_data++ != 0)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+static boolean channelIsAllWhite(progimage_info* src)
+{
+	// look at all data: black?
+	int row, col;
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			if (*src_data++ != 255)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 static void invertChannel(progimage_info* dst)
