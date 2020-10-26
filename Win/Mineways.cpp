@@ -7993,6 +7993,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     retCode = writepng(mapimage, 3, mapFileNameSafe);
 
     writepng_cleanup(mapimage);
+    delete mapimage;
 
     SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax);
     return (retCode == 0);

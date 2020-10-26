@@ -34,7 +34,7 @@ static wchar_t gErrorString[1000];
 
 static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 
-progimage_info* allocateImage(progimage_info* source_ptr);
+progimage_info* allocateGrayscaleImage(progimage_info* source_ptr);
 
 
 void printHelp();
@@ -47,7 +47,6 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
 
 static int isNearlyGrayscale(progimage_info* src);
-static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
 static void invertChannel(progimage_info* dst);
 
 
@@ -261,7 +260,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 					isGrayscale++;
 					// specular only: output just the roughness channel
 					// always export specular in inverted
-					progimage_info* destination_ptr = allocateImage(&tile);
+					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
 					// output the channel if it's not all black
 					if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
@@ -290,7 +289,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 					// SME: output all three
 					for (int channel = 0; channel < 3; channel++) {
 						// output the channel if it's not all black
-						progimage_info* destination_ptr = allocateImage(&tile);
+						progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 						copyOneChannel(destination_ptr, channel, &tile);
 						if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
 							if (channel == CHANNEL_RED) {
@@ -327,18 +326,6 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 		wprintf(gErrorString, L"Specular input files processed: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
 	}
 	return filesRead;
-}
-
-progimage_info* allocateImage(progimage_info* source_ptr)
-{
-	// allocate output image and fill it up
-	progimage_info* destination_ptr = new progimage_info();
-
-	destination_ptr->width = source_ptr->width;
-	destination_ptr->height = source_ptr->height;
-	destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 1 * sizeof(unsigned char), 0x0);
-
-	return destination_ptr;
 }
 
 int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
@@ -381,7 +368,7 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) 
 					// output the channel if it's not all black - actually, we do want to output it;
 					// that's a valid value set, which we should deal with in TileMaker
 					//if (!isChannelAllBlack(&tile, channel)) {
-					progimage_info* destination_ptr = allocateImage(&tile);
+					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, channel, &tile);
 					// output the channel if it's not all black (or white, for roughness
 					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255) : !channelEqualsValue(destination_ptr, 0, 1, 0)) {
@@ -458,6 +445,9 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 		}
 	}
 
+	delete grass_overlay;
+	delete grass_side;
+
 	typedef struct TypeTile {
 		const wchar_t* name;
 		unsigned int tint;
@@ -495,7 +485,8 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 	};	// TODO: handle redstone wires, ugh
 
 	for (i = 0; i < MULT_TABLE_SIZE; i++) {
-		progimage_info* tile = new progimage_info();
+		progimage_info tile_template;
+		progimage_info* tile = &tile_template;
 
 		wcscpy_s(tileSearch, MAX_PATH_AND_FILE, inputDirectory);
 		wcscat_s(tileSearch, MAX_PATH_AND_FILE, tintTable[i].name);
@@ -580,23 +571,6 @@ static int isNearlyGrayscale(progimage_info* src)
 	}
 	return 1;
 };
-
-static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src)
-{
-	int row, col;
-	dst->width = src->width;
-	dst->height = src->height;
-	unsigned char* dst_data = &dst->image_data[0];
-	unsigned char* src_data = &src->image_data[0] + channel;
-	for (row = 0; row < src->height; row++)
-	{
-		for (col = 0; col < src->width; col++)
-		{
-			*dst_data++ = *src_data;
-			src_data += 3;
-		}
-	}
-}
 
 static void invertChannel(progimage_info* dst)
 {

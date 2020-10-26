@@ -153,6 +153,36 @@ void writepng_cleanup(progimage_info *im)
     im->image_data.clear();
 }
 
+progimage_info* allocateGrayscaleImage(progimage_info* source_ptr)
+{
+    // allocate output image and fill it up
+    progimage_info* destination_ptr = new progimage_info();
+
+    destination_ptr->width = source_ptr->width;
+    destination_ptr->height = source_ptr->height;
+    destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 1 * sizeof(unsigned char), 0x0);
+
+    return destination_ptr;
+}
+
+void copyOneChannel(progimage_info* dst, int channel, progimage_info* src)
+{
+    int row, col;
+    dst->width = src->width;
+    dst->height = src->height;
+    unsigned char* dst_data = &dst->image_data[0];
+    unsigned char* src_data = &src->image_data[0] + channel;
+    for (row = 0; row < src->height; row++)
+    {
+        for (col = 0; col < src->width; col++)
+        {
+            *dst_data++ = *src_data;
+            src_data += 3;
+        }
+    }
+}
+
+
 // to avoid defining boolean, etc., make this one return 1 if true, 0 if false
 int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value)
 {

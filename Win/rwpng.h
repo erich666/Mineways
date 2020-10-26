@@ -42,4 +42,7 @@ int readpngheader(progimage_info* im, wchar_t* filename);
 int writepng(progimage_info *mainprog_ptr, int channels, wchar_t *filename);
 void writepng_cleanup(progimage_info *mainprog_ptr);
 
+progimage_info* allocateGrayscaleImage(progimage_info* source_ptr);
+void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
+
 int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value);

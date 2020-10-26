@@ -205,6 +205,7 @@ static void copyPNG(progimage_info* dst, progimage_info* src);
 static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
 
 static int checkForCutout(progimage_info* dst);
+static int convertHeightfieldToXYZ(progimage_info* src);
 
 
 int wmain(int argc, wchar_t* argv[])
@@ -577,7 +578,7 @@ int wmain(int argc, wchar_t* argv[])
 				wprintf(L"Populating '%s' for output.\n", terrainExtOutput);
 
 			// allocate output image and fill it up
-			destination_ptr = new progimage_info();
+			// already done above, so we don't have to dealloc destination_ptr = new progimage_info();
 
 			outputXResolution = xTiles * outputTileSize;
 			outputYResolution = outputYTiles * outputTileSize;
@@ -680,12 +681,19 @@ int wmain(int argc, wchar_t* argv[])
 						}
 						else if (catIndex == CATEGORY_NORMALS) {
 							// if normal map has all the same value for the blue channel, it's likely a heightfield instead, so ignore it
-							// Happens with Kelly's.
+							// Happens with Kellys and Vanilla RTX.
 							if (channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
-								wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n", 
-									gFG.fr[fullIndex].fullFilename);
-								deleteFileFromGrid(&gFG, catIndex, fullIndex);
-								continue;
+								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
+									//wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n",
+									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
+										gFG.fr[fullIndex].fullFilename);
+									deleteFileFromGrid(&gFG, catIndex, fullIndex);
+									continue;
+								}
+								else {
+									// convert from heightfield to normals. Should add a "what is the slope? command line argument TODO.
+									convertHeightfieldToXYZ(&tile);
+								}
 							}
 						}
 
@@ -1797,8 +1805,8 @@ static void makeSolidTile(progimage_info* dst, int chosenTile, int solid)
 // does any pixel have an alpha of 0?
 static int checkForCutout(progimage_info* dst)
 {
-	unsigned char* dst_data = &dst->image_data[0];
 	int row, col;
+	unsigned char* dst_data = &dst->image_data[0];
 
 	for (row = 0; row < dst->height; row++)
 	{
@@ -1813,5 +1821,36 @@ static int checkForCutout(progimage_info* dst)
 	}
 	return 0;
 };
+
+// assumes 3 channels
+// could return largest difference in heights. If 0, then the resulting normal map is flat
+static int convertHeightfieldToXYZ(progimage_info* src)
+{
+	int row, col;
+	progimage_info* phf = allocateGrayscaleImage(src);
+	copyOneChannel(phf, CHANNEL_RED, src);
+	unsigned char* phf_data = &phf->image_data[0];
+	unsigned char* src_data = &src->image_data[0];
+
+	for (row = 0; row < phf->height; row++)
+	{
+		int trow = (row + phf->height - 1) % phf->height;
+		int brow = (row + phf->height + 1) % phf->height;
+		for (col = 0; col < phf->width; col++)
+		{
+			int lcol = (col + phf->width - 1) % phf->width;
+			int rcol = (col + phf->width + 1) % phf->width;
+			// TODO - here's where a scale factor would be nice
+			float x = (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
+			float y = (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
+			float length = (float)sqrt(x * x + y * y + 1.0f);
+			// won't swear to this conversion TODO
+			*src_data++ = (unsigned char)((1.0f + x / length) * 127.5f);
+			*src_data++ = (unsigned char)((1.0f + y / length) * 127.5f);
+			*src_data++ = (unsigned char)((1.0f + 1.0 / length) * 127.5f);
+		}
+	}
+	return 1;
+}
 
 

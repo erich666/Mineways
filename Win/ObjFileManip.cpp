@@ -915,6 +915,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         }
         // try reading each category's file type
         for (catIndex = 0; catIndex < gTotalInputTextures; catIndex++) {
+            // TODO - this is a (small) memory leak. should clean up later
             gModel.pInputTerrainImage[catIndex] = new progimage_info();
 
             // note that any failure in readTerrainPNG will cause the "sub-error code" (in the shifted bits MW_NUM_CODES)
@@ -19243,6 +19244,7 @@ static void freeModel(Model* pModel)
 
     if (pModel->pPNGtexture)
     {
+        writepng_cleanup(pModel->pPNGtexture);
         delete pModel->pPNGtexture;
         pModel->pPNGtexture = NULL;
     }
@@ -20695,7 +20697,7 @@ static int createBaseMaterialTexture()
     mainprog->image_data.resize(gModel.textureResolution * gModel.textureResolution * 4 * sizeof(unsigned char), 0x0);
     // TODO: any way to check if we're out of memory?
 
-    gModel.pPNGtexture = mainprog;
+    gModel.pPNGtexture = mainprog;  // eventually freed in freeModel()
 
     useTextureImage = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES);
 
