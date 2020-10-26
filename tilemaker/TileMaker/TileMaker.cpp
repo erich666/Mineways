@@ -632,7 +632,8 @@ int wmain(int argc, wchar_t* argv[])
 							{
 								if (channels == 4 && !isPNGTileEmpty(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY))
 								{
-									wprintf(L"WARNING: Image '%s' was not used because there is already a image put there.\n", gFG.fr[fullIndex].fullFilename);
+									wprintf(L"WARNING: Image '%s' was not used because there is already a image put there.\n", 
+										gFG.fr[fullIndex].fullFilename);
 									continue;
 								}
 							}
@@ -668,7 +669,8 @@ int wmain(int argc, wchar_t* argv[])
 						}
 						else if (catIndex == CATEGORY_ROUGHNESS) {
 							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 255)) {
-								wprintf(L"WARNING: Image '%s' was not used because it is all white, 1.0, the default value for roughness.\n", gFG.fr[fullIndex].fullFilename);
+								wprintf(L"WARNING: Image '%s' was not used because it is all white, 1.0, the default value for roughness.\n", 
+									gFG.fr[fullIndex].fullFilename);
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
 								continue;
 							}
@@ -680,7 +682,8 @@ int wmain(int argc, wchar_t* argv[])
 							// if normal map has all the same value for the blue channel, it's likely a heightfield instead, so ignore it
 							// Happens with Kelly's.
 							if (channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
-								wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n", gFG.fr[fullIndex].fullFilename);
+								wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n", 
+									gFG.fr[fullIndex].fullFilename);
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
 								continue;
 							}
