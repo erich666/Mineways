@@ -153,4 +153,27 @@ void writepng_cleanup(progimage_info *im)
     im->image_data.clear();
 }
 
+// to avoid defining boolean, etc., make this one return 1 if true, 0 if false
+int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value)
+{
+    // look at all data in given channel - all equal to the given value?
+    assert(numChannels > 0);
+    assert(channel < numChannels);
+    int row, col;
+    unsigned char* src_data = &src->image_data[0] + channel;
+    for (row = 0; row < src->height; row++)
+    {
+        for (col = 0; col < src->width; col++)
+        {
+            if (*src_data != value)
+            {
+                return 0;
+            }
+            src_data += numChannels;
+        }
+    }
+    return 1;
+}
+
+
 

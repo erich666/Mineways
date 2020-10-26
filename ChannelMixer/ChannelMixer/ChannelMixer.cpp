@@ -48,8 +48,6 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
 
 static int isNearlyGrayscale(progimage_info* src);
 static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
-static boolean channelIsAllBlack(progimage_info * src);
-static boolean channelIsAllWhite(progimage_info * src);
 static void invertChannel(progimage_info* dst);
 
 
@@ -266,7 +264,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 					progimage_info* destination_ptr = allocateImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
 					// output the channel if it's not all black
-					if (!channelIsAllBlack(destination_ptr)) {
+					if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
 						invertChannel(destination_ptr);
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
@@ -294,7 +292,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 						// output the channel if it's not all black
 						progimage_info* destination_ptr = allocateImage(&tile);
 						copyOneChannel(destination_ptr, channel, &tile);
-						if (!channelIsAllBlack(destination_ptr)) {
+						if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
 							if (channel == CHANNEL_RED) {
 								invertChannel(destination_ptr);
 							}
@@ -386,7 +384,7 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) 
 					progimage_info* destination_ptr = allocateImage(&tile);
 					copyOneChannel(destination_ptr, channel, &tile);
 					// output the channel if it's not all black (or white, for roughness
-					if ((channel == 2) ? !channelIsAllWhite(destination_ptr) : !channelIsAllBlack(destination_ptr)) {
+					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255) : !channelEqualsValue(destination_ptr, 0, 1, 0)) {
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
@@ -598,42 +596,6 @@ static void copyOneChannel(progimage_info* dst, int channel, progimage_info* src
 			src_data += 3;
 		}
 	}
-}
-
-static boolean channelIsAllBlack(progimage_info* src)
-{
-	// look at all data: black?
-	int row, col;
-	unsigned char* src_data = &src->image_data[0];
-	for (row = 0; row < src->height; row++)
-	{
-		for (col = 0; col < src->width; col++)
-		{
-			if (*src_data++ != 0)
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-static boolean channelIsAllWhite(progimage_info* src)
-{
-	// look at all data: black?
-	int row, col;
-	unsigned char* src_data = &src->image_data[0];
-	for (row = 0; row < src->height; row++)
-	{
-		for (col = 0; col < src->width; col++)
-		{
-			if (*src_data++ != 255)
-			{
-				return false;
-			}
-		}
-	}
-	return true;
 }
 
 static void invertChannel(progimage_info* dst)

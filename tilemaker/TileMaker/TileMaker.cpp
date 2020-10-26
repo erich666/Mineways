@@ -155,8 +155,8 @@ typedef struct ChestGrid {
 static ChestGrid gCG;
 
 
-static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1, 3, 3, 3 };
-static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB };
+static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3 };
+static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB };
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
@@ -183,9 +183,6 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int fullIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
-
-int readTilesInDirectory(const wchar_t* tilePath, bool usingBlockDirectory, bool hasJar, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles);
-void loadAndProcessTile(const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, int** tilesTableIndexToInput, int& tilesFound, int outputYTiles);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
 
@@ -629,36 +626,66 @@ int wmain(int argc, wchar_t* argv[])
 					}
 					else {
 						// check if tile has an alpha == 0; if so, it must have SBIT_DECAL or SBIT_CUTOUT_GEOMETRY set
-						if (catIndex == CATEGORY_RGBA && !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
-							// flag not set, so check for alpha == 0
-							if (checkForCutout(&tile)) {
-								wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
-								gWarningCount++;
-							}
-						}
-
-						// -r option on?
-						if (onlyreplace)
-						{
-							if (channels == 4 && !isPNGTileEmpty(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY))
-							{
-								wprintf(L"WARNING: Image '%s.png' was not used because there is already a image put there.\n", gTilesTable[index].filename);
-								continue;
-							}
-						}
-						// If set, the incoming .png's black pixels should be treated as having an alpha of 0.
-						// Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
-						// Not needed for newer textures - they've cleaned up their act.
 						if (catIndex == CATEGORY_RGBA) {
+							// -r option on?
+							if (onlyreplace)
+							{
+								if (channels == 4 && !isPNGTileEmpty(destination_ptr, gTilesTable[index].txrX, gTilesTable[index].txrY))
+								{
+									wprintf(L"WARNING: Image '%s' was not used because there is already a image put there.\n", gFG.fr[fullIndex].fullFilename);
+									continue;
+								}
+							}
+
+							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
+								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
+								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") != NULL) {
+									wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+									gWarningCount++;
+								}
+							}
+							// If set, the incoming .png's black pixels should be treated as having an alpha of 0.
+							// Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
+							// Not needed for newer textures - they've cleaned up their act.
 							if (gTilesTable[index].flags & SBIT_BLACK_ALPHA) {
 								setBlackAlphaPNGTile(chosenTile, &tile);
 							}
 						}
-						else if (catIndex == CATEGORY_METALLIC || catIndex == CATEGORY_EMISSION || catIndex == CATEGORY_ROUGHNESS) {
+						// Note: defaults assumed:
+						// metallic = 0
+						// emissive = 0
+						// roughness = 1
+						// So textures found with all black (or all white, for roughness) will be ignored
+						else if (catIndex == CATEGORY_METALLIC || catIndex == CATEGORY_EMISSION) {
+							// if an image is entirely black, make it 01 black, so that Mineways will take it seriously.
+							// Mineways assumes an image that is all black is not actually set, so ignores it.
+							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
+								wprintf(L"WARNING: Image '%s' was not used because it is all black, 0.0, the default value for %s.\n",
+									gFG.fr[fullIndex].fullFilename, (catIndex == CATEGORY_METALLIC) ? L"metallic" : L"emissive");
+								deleteFileFromGrid(&gFG, catIndex, fullIndex);
+								continue;
+							}
+						}
+						else if (catIndex == CATEGORY_ROUGHNESS) {
+							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 255)) {
+								wprintf(L"WARNING: Image '%s' was not used because it is all white, 1.0, the default value for roughness.\n", gFG.fr[fullIndex].fullFilename);
+								deleteFileFromGrid(&gFG, catIndex, fullIndex);
+								continue;
+							}
 							// if an image is entirely black, make it 01 black, so that Mineways will take it seriously.
 							// Mineways assumes an image that is all black is not actually set, so ignores it.
 							setBlackToNearlyBlack(&tile);
 						}
+						else if (catIndex == CATEGORY_NORMALS) {
+							// if normal map has all the same value for the blue channel, it's likely a heightfield instead, so ignore it
+							// Happens with Kelly's.
+							if (channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
+								wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n", gFG.fr[fullIndex].fullFilename);
+								deleteFileFromGrid(&gFG, catIndex, fullIndex);
+								continue;
+							}
+						}
+
 						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16))) {
 							return 1;
 						}
@@ -799,6 +826,9 @@ int wmain(int argc, wchar_t* argv[])
 						{
 							// file not found
 							reportReadError(rc, chestFile);
+							// we don't bother deleting the whole record, but do note the count is down,
+							// as this determines whether anything was done for the category.
+							gCG.categories[catIndex]--;
 							// try next chest
 							continue;
 						}
@@ -806,6 +836,9 @@ int wmain(int argc, wchar_t* argv[])
 						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
 							allChests = false;
 							readpng_cleanup(1, &chestImage);
+							// we don't bother deleting the whole record, but do note the count is down,
+							// as this determines whether anything was done for the category.
+							gCG.categories[catIndex]--;
 							continue;
 						}
 
@@ -854,17 +887,22 @@ int wmain(int argc, wchar_t* argv[])
 			if (verbose)
 				wprintf(L"Opening '%s' for output.\n", terrainExtOutput);
 
-			// write out the result
-			rc = writepng(destination_ptr, channels, terrainExtOutput);
-			if (rc != 0)
-			{
-				reportReadError(rc, terrainExtOutput);
-				// quit
-				return 1;
+			// write out the result if anything was actually written
+			if (catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0) {
+				rc = writepng(destination_ptr, channels, terrainExtOutput);
+				if (rc != 0)
+				{
+					reportReadError(rc, terrainExtOutput);
+					// quit
+					return 1;
+				}
+				writepng_cleanup(destination_ptr);
+				if (verbose)
+					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
 			}
-			writepng_cleanup(destination_ptr);
-			if (verbose)
-				wprintf(L"New texture '%s' created.\n", terrainExtOutput);
+			else {
+				wprintf(L"WARNING: new texture '%s' not created, as all input textures were found to be unusable.\n", terrainExtOutput);
+			}
 		}
 	}
 
