@@ -639,7 +639,7 @@ int wmain(int argc, wchar_t* argv[])
 
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
-								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") != NULL) {
+								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
 									wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
 									gWarningCount++;
 								}
