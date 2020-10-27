@@ -271,7 +271,7 @@ static struct {
     {  2, 12,   6, 0, L"magenta_wool", L"wool_colored_magenta", SWATCH_REPEAT_ALL },
     {  3, 12,  28, 0, L"detector_rail", L"rail_detector", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     {  4, 12,   6, 0, L"jungle_leaves", L"leaves_jungle", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
-    {  5, 12,   6, 0, L"chiseled_red_sandstone", L"red_sandstone_carved", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
+    {  5, 12,   6, 0, L"chiseled_red_sandstone", L"red_sandstone_chiseled", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     {  6, 12, 134, 0, L"spruce_planks", L"planks_spruce", SWATCH_REPEAT_ALL },
     {  7, 12, 136, 0, L"jungle_planks", L"planks_jungle", SWATCH_REPEAT_ALL },
     {  8, 12,   6, 0, L"carrots_stage0", L"carrots_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// also potatoes_stage_0 in basic game, but can be different in texture packs
@@ -303,7 +303,7 @@ static struct {
     {  2, 14,   6, 0, L"nether_wart_stage0", L"nether_wart_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  3, 14,   6, 0, L"nether_wart_stage1", L"nether_wart_stage_1", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 14, 115, 0, L"nether_wart_stage2", L"nether_wart_stage_2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  5, 14,   6, 0, L"chiseled_sandstone", L"sandstone_carved", SWATCH_REPEAT_ALL },
+    {  5, 14,   6, 0, L"chiseled_sandstone", L"sandstone_chiseled", SWATCH_REPEAT_ALL },
     {  6, 14,   6, 0, L"cut_sandstone", L"sandstone_smooth", SWATCH_REPEAT_ALL },
     {  7, 14,   6, 0, L"anvil_top", L"anvil_top_damaged_0", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  8, 14,   6, 0, L"damaged_anvil_top", L"anvil_top_damaged_2", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -916,6 +916,8 @@ static const struct {
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
     { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
+    { L"red_sandstone_carved", L"chiseled_red_sandstone" },
+    { L"sandstone_carved", L"chiseled_sandstone" },
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
