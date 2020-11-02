@@ -165,6 +165,18 @@ progimage_info* allocateGrayscaleImage(progimage_info* source_ptr)
     return destination_ptr;
 }
 
+progimage_info* allocateRGBImage(progimage_info* source_ptr)
+{
+    // allocate output image and fill it up
+    progimage_info* destination_ptr = new progimage_info();
+
+    destination_ptr->width = source_ptr->width;
+    destination_ptr->height = source_ptr->height;
+    destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 3 * sizeof(unsigned char), 0x0);
+
+    return destination_ptr;
+}
+
 void copyOneChannel(progimage_info* dst, int channel, progimage_info* src)
 {
     int row, col;

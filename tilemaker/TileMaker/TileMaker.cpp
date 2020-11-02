@@ -682,6 +682,8 @@ int wmain(int argc, wchar_t* argv[])
 						else if (catIndex == CATEGORY_NORMALS) {
 							// if normal map has all the same value for the blue channel, it's likely a heightfield instead, so ignore it
 							// Happens with Kellys and Vanilla RTX.
+
+							// TODOTODO: this does not catch all tiles properly, such as oak leave cutouts. Also, need scaling factor!
 							if (channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
 								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
 									//wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n",

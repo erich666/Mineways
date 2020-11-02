@@ -2596,7 +2596,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             dataVal = door_facing | (face << 2) // grindstone
                                 | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
                                 | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
-                                | (lit ? 4 : 0) | (signal_fire ? 8 : 0)
+                                | (lit ? 4 : 0)
+                                //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
                                 | (honey_level << 2); // bee_nest, beehive
                             face = 0;
                             has_book = false;

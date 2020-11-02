@@ -42,20 +42,23 @@ void printHelp();
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
 
-int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
-int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
-int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose);
+int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose);
+int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose);
+int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose);
 
 static int isNearlyGrayscale(progimage_info* src);
 static void invertChannel(progimage_info* dst);
+static void StoMER(progimage_info * dst, progimage_info * src);
+static boolean SMEtoMER(progimage_info * dst, progimage_info * src);
 
 
 int wmain(int argc, wchar_t* argv[])
 {
 	int argLoc = 1;
 	wchar_t inputSuffix[MAX_PATH] = L"_mer";
-	wchar_t inputDirectory[MAX_PATH] = L"";
-	wchar_t outputDirectory[MAX_PATH] = L"";
+	wchar_t inputDirectory[MAX_PATH] = L".";
+	wchar_t outputDirectory[MAX_PATH] = L".";
+	boolean outputMerged = false;
 	boolean verbose = false;
 	//wchar_t synthOutSuffix[MAX_PATH] = L"_y";	// _y.png is synthesized (composited) textures
 	//boolean createLeaves = false;
@@ -78,6 +81,11 @@ int wmain(int argc, wchar_t* argv[])
 			// output directory
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(outputDirectory, MAX_PATH, argv[argLoc]);
+		}
+		else if (wcscmp(argv[argLoc], L"-m") == 0)
+		{
+			// also output MER file from SME
+			outputMerged = true;
 		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
@@ -134,7 +142,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if (gFG.categories[CATEGORY_SPECULAR] > 0) {
-		filesProcessed += processSpecularFiles(&gFG, outputDirectory, verbose);
+		filesProcessed += processSpecularFiles(&gFG, outputDirectory, outputMerged, verbose);
 	}
 
 	if (gFG.categories[CATEGORY_MER] > 0) {
@@ -158,18 +166,20 @@ int wmain(int argc, wchar_t* argv[])
 void printHelp()
 {
 	wprintf(L"ChannelMixer version 1.00\n");  // change version below, too
-	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory]\n"); // [-im _mer] [-oc _m _e _r] \n");
+	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-v]\n");
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
+	wprintf(L"  -m - output merged '_mer' format files in addition to separate files, as found.\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
 	int filesRead = 0;
 
 	int copyCategories[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
 	int numCats = sizeof(copyCategories) / sizeof(int);
 	for (int category = 0; category < numCats; category++) {
+		// does this category have any input files? If not, skip it - just a small speed-up.
 		if (pfg->categories[copyCategories[category]] > 0) {
 			// there are files to copy
 			for (int i = 0; i < pfg->totalTiles; i++) {
@@ -223,7 +233,7 @@ int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
 	return filesRead;
 }
 
-int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose) {
 	int rc;
 	int isGrayscale = 0;
 	int isSME = 0;
@@ -263,7 +273,9 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
 					// output the channel if it's not all black
+					boolean allBlack = true;
 					if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
+						allBlack = false;
 						invertChannel(destination_ptr);
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
@@ -283,6 +295,26 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 						}
 					}
 					writepng_cleanup(destination_ptr);
+					if (!allBlack && outputMerged) {
+						progimage_info* mer_ptr = allocateRGBImage(&tile);
+						StoMER(mer_ptr, &tile);
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+						rc = writepng(mer_ptr, 3, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit
+							return filesRead;
+						}
+						if (verbose) {
+							wprintf(L"New specular-only MER texture '%s' created.\n", outputFile);
+						}
+						writepng_cleanup(mer_ptr);
+					}
 				}
 				else {
 					isSME++;
@@ -314,6 +346,30 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 						}
 						writepng_cleanup(destination_ptr);
 					}
+					if (outputMerged) {
+						progimage_info* smer_ptr = allocateRGBImage(&tile);
+						if (SMEtoMER(smer_ptr, &tile)) {
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+							rc = writepng(smer_ptr, 3, outputFile);
+							if (rc != 0)
+							{
+								reportReadError(rc, outputFile);
+								// quit
+								return filesRead;
+							}
+							if (verbose) {
+								wprintf(L"New merged MER texture '%s' created.\n", outputFile);
+							}
+						}
+						else {
+							wprintf(L"WARNING: no merged MER texture '%s' generated, as SME conversion resulted in an all-black image.\n", outputFile);
+						}
+						writepng_cleanup(smer_ptr);
+					}
 				}
 				readpng_cleanup(1, &tile);
 			}
@@ -328,7 +384,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verb
 	return filesRead;
 }
 
-int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, int verbose) {
+int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
 	int rc;
 	int isMER = 0;
 	int filesRead = 0;
@@ -553,7 +609,7 @@ static void saveErrorForEnd()
 static int isNearlyGrayscale(progimage_info* src)
 {
 	// if R = G = B +- grayEpsilon for whole image, this is a grayscale image
-	int grayEpsilon = 2;
+	int grayEpsilon = 12;	// number found to work for Absolution
 
 	int row, col;
 	unsigned char* src_data = &src->image_data[0];
@@ -584,3 +640,53 @@ static void invertChannel(progimage_info* dst)
 		}
 	}
 }
+
+// true if there is a non-black pixel
+static void StoMER(progimage_info* dst, progimage_info* src)
+{
+	int row, col;
+	unsigned char* dst_data = &dst->image_data[0];
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < dst->height; row++)
+	{
+		for (col = 0; col < dst->width; col++)
+		{
+			// M
+			*dst_data++ = 0;
+			// E
+			*dst_data++ = 0;
+			// R - invert S
+			*dst_data++ = 255 - src_data[0];
+			src_data += 3;
+		}
+	}
+}
+
+// true if there is a non-black pixel
+static boolean SMEtoMER(progimage_info* dst, progimage_info* src)
+{
+	boolean allBlack = true;
+	int row, col;
+	unsigned char* dst_data = &dst->image_data[0];
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < dst->height; row++)
+	{
+		for (col = 0; col < dst->width; col++)
+		{
+			// if all channels are black, the default values, then don't output the MER texture,
+			// as this texture would be ignored by Mineways anyway.
+			if (allBlack && (src_data[0] != 0 || src_data[1] != 0 || src_data[2] != 0)) {
+				allBlack = false;
+			}
+			// M
+			*dst_data++ = src_data[1];
+			// E
+			*dst_data++ = src_data[2];
+			// R - invert S
+			*dst_data++ = 255 - src_data[0];
+			src_data += 3;
+		}
+	}
+	return !allBlack;
+}
+
