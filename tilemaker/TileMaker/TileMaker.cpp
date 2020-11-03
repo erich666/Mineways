@@ -205,7 +205,7 @@ static void copyPNG(progimage_info* dst, progimage_info* src);
 static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
 
 static int checkForCutout(progimage_info* dst);
-static int convertHeightfieldToXYZ(progimage_info* src);
+static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 
 int wmain(int argc, wchar_t* argv[])
@@ -248,6 +248,7 @@ int wmain(int argc, wchar_t* argv[])
 	int alternate = 2;  // always include alternate names; needed for 1.13
 	int solid = 0;
 	int solidcutout = 0;
+	float heightfieldScale = 0.5f;
 
 	bool allChests = true;
 	bool anyChests = false;
@@ -353,6 +354,12 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// solid cutout: as above, but preserve the cutout transparent areas
 			solidcutout = 1;
+		}
+		else if (wcscmp(argv[argLoc], L"-h") == 0)
+		{
+			// heightfield scale - 0.5 by default
+			INC_AND_TEST_ARG_INDEX(argLoc);
+			swscanf_s(argv[argLoc], L"%f", &heightfieldScale);
 		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
@@ -538,6 +545,8 @@ int wmain(int argc, wchar_t* argv[])
 	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
 	removePNGsuffix(terrainExtOutputRoot);
 
+	boolean heightfield = false;
+
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		if (gFG.categories[catIndex] > 0 &&
@@ -684,7 +693,7 @@ int wmain(int argc, wchar_t* argv[])
 							// Happens with Kellys and Vanilla RTX.
 
 							// TODOTODO: this does not catch all tiles properly, such as oak leave cutouts. Also, need scaling factor!
-							if (channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
+							if (heightfield || channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
 								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
 									//wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n",
 									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
@@ -694,7 +703,12 @@ int wmain(int argc, wchar_t* argv[])
 								}
 								else {
 									// convert from heightfield to normals. Should add a "what is the slope? command line argument TODO.
-									convertHeightfieldToXYZ(&tile);
+									if (!heightfield) {
+										wprintf(L"Image '%s' appears to be a heightfield, so all normals textures will be treated as heightfields.\n",
+											gFG.fr[fullIndex].fullFilename);
+										heightfield = true;
+									}
+									convertHeightfieldToXYZ(&tile, heightfieldScale);
 								}
 							}
 						}
@@ -1826,7 +1840,7 @@ static int checkForCutout(progimage_info* dst)
 
 // assumes 3 channels
 // could return largest difference in heights. If 0, then the resulting normal map is flat
-static int convertHeightfieldToXYZ(progimage_info* src)
+static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 {
 	int row, col;
 	progimage_info* phf = allocateGrayscaleImage(src);
@@ -1843,8 +1857,8 @@ static int convertHeightfieldToXYZ(progimage_info* src)
 			int lcol = (col + phf->width - 1) % phf->width;
 			int rcol = (col + phf->width + 1) % phf->width;
 			// TODO - here's where a scale factor would be nice
-			float x = (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
-			float y = (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
+			float x = heightfieldScale * (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
+			float y = heightfieldScale * (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
 			float length = (float)sqrt(x * x + y * y + 1.0f);
 			// won't swear to this conversion TODO
 			*src_data++ = (unsigned char)((1.0f + x / length) * 127.5f);
