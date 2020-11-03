@@ -128,7 +128,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// look through tiles in tiles directory, see which exist
 	if (checkTilesInDirectory(&gFG, inputDirectory, verbose, alternate) == 0) {
-		wprintf(L"\nERROR: Input directory '%s' does not have any Minecraft image textures of interest - nothing to do.\n", inputDirectory);
+		wprintf(L"\nERROR: Input directory '%s' does not have any Minecraft block image textures of interest - nothing to do!\n", inputDirectory);
 		return 1;
 	}
 

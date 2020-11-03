@@ -512,7 +512,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user of large tiles
 	if (outputTileSize > 256) {
-		wprintf(L"WARNING: with a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures. Consider running again, using the '-t tileSize'\n  option, choosing a power of two value less than this, such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
+		wprintf(L"WARNING: with a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures, unless you export from Mineways\n  by using the 'Export tiles for textures' option. Consider running again,\n  using the '-t tileSize' option, choosing a power of two value less than this,\n  such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
 		gWarningCount++;
 	}
 
