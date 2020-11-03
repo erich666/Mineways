@@ -1790,7 +1790,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
             int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
                 delay, locked, sticky, hatch, leaves, single, attachment, honey_level;
-            // to avoid Release build warning =but should always be set by code in practice
+            // to avoid Release build warning, but should always be set by code in practice
             int typeIndex = 0;
             half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
                 = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
@@ -2521,6 +2521,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                     break;
                                 }
                             }
+                            face = 0;
                             break;
                         case CHEST_PROP:
                             dataVal = 6 - dataVal;
@@ -2550,6 +2551,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             //else if (face == 1) {
                             // not needed, as dataVal should be set just right at this point for walls
                             dataVal |= powered ? 0x8 : 0;
+                            face = 0;
                             break;
                         case TRAPDOOR_PROP:
                             dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
@@ -2582,6 +2584,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
                             // also WALL_SIGN_PROP, OBSERVER_PROP
                             dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0);
+                            dropper_facing = 0;
                             triggered = false;
                             extended = false;
                             sticky = 0x0;
@@ -2599,7 +2602,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                 | (lit ? 4 : 0)
                                 //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
                                 | (honey_level << 2); // bee_nest, beehive
-                            face = 0;
+                            door_facing = face = 0;
                             has_book = false;
                             powered = false;
                             attachment = 0;

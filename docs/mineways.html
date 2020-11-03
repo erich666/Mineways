@@ -3165,7 +3165,7 @@ Changed "Monster Egg" to "Infested Stone". Brown and red "Mushroom (block)" to "
 <LI>Added 1.15-pre3 bee nest, beehive, honey block, and honeycomb block.
 <LI>Added 1.15 biome reader, so we don't crash. <B>NOTE:</B> I haven't figured out how the 1024 integer biome storage works yet.
 <LI>Made nether portal have true geometry instead of a whole block.
-<LI>Bug fix: redstone wires should not run down the sides of upside-down stair blocks that have redstone on top of them and connecting redstone a level below them. <I>(Thanks to Quinlan W for reporting this bug)</I>.
+<LI>Bug fix: redstone wires should not run down the sides of upside-down stair blocks that have redstone on top of them and connecting redstone a level below them <I>(Thanks to Quinlan W for reporting this bug)</I>.
 <LI>Bug fix: when using MCC ToolChest PE, the order of stair Properties is reversed, which revealed a subtle bug in Mineways when translating upside-down stairs' data values; now fixed.
 </UL>
 
@@ -3312,6 +3312,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <UL>
 <LI>Fix chest to use proper latch, not the Ender chest latch.
 <LI>When a campfire was put on a hay bale to make a signal fire, Mineways would export a soul campfire - fixed.
+<LI>Campfires were incorrectly lit, due to a flag not being cleared from button settings - fixed <i>(Thanks to Kyra007 for <a href="https://www.reddit.com/r/mineways/comments/jl60kt/extinguished_campfire_appears_as_lit/">reporting this bug</a>)</I>.
 <LI>If a terrain file other than the default "TerrainExt.png" is selected, show that name in the title bar at the top.
 <LI>Fix export progression system so that progress shown during export is more proportional to the time actually used.
 <LI>If TileMaker's normals terrain file is present, Export normal map textures within the OBJ export, for the "Export tiles" option.
