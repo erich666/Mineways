@@ -1892,7 +1892,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     else
     {
         // Really, we shouldn't ever hit this branch, as the terrain file name is now always set
-        // at the start. Left just in case...
+        // at the start. Left just in case... For example, the -t command line option might give a bad file path.
         assert(0);
         wchar_t defaultTerrainFileName[MAX_PATH_AND_FILE];
         concatFileName2(defaultTerrainFileName, curDir, L"\\terrainExt.png");
@@ -1909,6 +1909,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
             pITI->height = gTerrainExtHeight;
             pITI->image_data.insert(pITI->image_data.end(), &gTerrainExt[0], &gTerrainExt[gTerrainExtWidth * gTerrainExtHeight * 4]);
             gModel.terrainImageNotFound = true;
+            // TODO might be nice if we warn the user that the terrain they think they're using is not getting used
         }
         else {
             return MW_CANNOT_READ_SELECTED_TERRAIN_FILE;

@@ -772,7 +772,7 @@ You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">stor
 Syntax:
 <P>
 <div id="code">
-mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-l mineways_exec.log] [file1.mwscript|obj|wrl [file2.mwscript [...]]]
+mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExt*.png] [-l mineways_exec.log] [file1.mwscript|obj|wrl [file2.mwscript [...]]]
 </div>
 <P>
 The command-line options are:
@@ -788,6 +788,9 @@ Start up Mineways as a minimized window. This setting is useful if you are runni
 <P>
 -s <i>UserSaveDirectory</i><br>
 Specify the directory where all your Minecraft worlds are located, shown in the "File | Open World" list. This directory is "%appdata%\.minecraft\saves" by default, if not specified. The directory is not a single world's save folder, but rather a directory holding all world folders you want to choose from. If your directory path has spaces in it, you need to use double-quotes around the path, e.g., -s "C:\temp\My Minecraft Saves". Use "-s none" to load no world list at all.
+<P>
+-t <i>terrainExt*.png</i><br>
+Specify the terrain file to use initially. See <a href="mineways.html#texture_output">the documentation</a> for more details on terrain files.
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems; you'll normally never use this. This option saves a log of startup and commands executed. The file mineways_debug_log.bat runs Mineways in this way.
@@ -947,7 +950,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/20/2020</p>
+		<p id="lastUpdate">Last updated 11/3/2020</p>
 	</div>
 </div>
 

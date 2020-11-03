@@ -337,6 +337,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList, int argCount);
 static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd);
 static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, const LPWSTR* argList, int argCount);
+static int getTerrainFileFromCommandLine(wchar_t* TerrainFile, const LPWSTR* argList, int argCount);
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount);
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t* pathAndFile);
@@ -747,8 +748,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         validateItems(GetMenu(hWnd));
 
+        // set terrain file: -t terrainExt*.png
+        wchar_t terrainFileName[MAX_PATH_AND_FILE];
+        int val = getTerrainFileFromCommandLine(terrainFileName, gArgList, gArgCount);
+        if (val > 0) {
+            // file found on command line.
+            LOG_INFO(gExecutionLogfile, " getTerrainFileFromCommandLine successful\n");
+            rationalizeFilePath(terrainFileName);
+            // lame way to figure out if the path is relative - if no ":"
+            wchar_t colon[] = L":";
+            if (wcschr(terrainFileName,colon[0])==NULL) {
+                // relative path, so add absolute path to current directory to front.
+                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
+                wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, L"\\");
+                wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+            }
+            else {
+                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
+            }
+            splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+            wchar_t title[MAX_PATH_AND_FILE];
+            formTitle(&gWorldGuide, title);
+            SetWindowTextW(hWnd, title);
+        }
+
+
         // get new directory for where world saves are located, if any: -s dir
-        int val = getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount);
+        val = getWorldSaveDirectoryFromCommandLine(gWorldPathDefault, gArgList, gArgCount);
         if (val > 0) {
             // path found on command line, try it out.
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine successful\n");
@@ -782,6 +808,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
+
 
         LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
         populateColorSchemes(GetMenu(hWnd));
@@ -2397,6 +2424,46 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
     // we return 0 when we don't find a directory that was input on the command line
     return 0;
 }
+static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* argList, int argCount)
+{
+    // parse to get -s dir
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        // look for if the startup directory is specified on the command line
+        if (wcscmp(argList[argIndex], L"-t") == 0) {
+            // found window resize
+            argIndex++;
+            if (argIndex < argCount) {
+                wcscpy_s(terrainFile, MAX_PATH_AND_FILE, argList[argIndex]);
+                // next line not needed, since we always return
+                //argIndex++;
+                if (!PathFileExists(terrainFile)) {
+                    LOG_INFO(gExecutionLogfile, " getTerrainFileFromCommandLine path does not exist\n");
+                    wchar_t message[1024];
+                    wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
+                    MessageBox(NULL, message,
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                    return 0;
+                }
+                else {
+                    // found it - done
+                    return 1;
+                }
+            }
+            // if we got here, parsing didn't work
+            LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
+            MessageBox(NULL, _T("Command line startup error, file is missing. Your terrain file should be set by \"-t <filename>\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return 0;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    // we return 0 when we don't find a file that was input on the command line
+    return 0;
+}
 
 
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount)
@@ -2427,9 +2494,14 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
             LOG_INFO(gExecutionLogfile, " skip logging\n");
             argIndex += 2;
         }
+        else if (wcscmp(argList[argIndex], L"-t") == 0) {
+            // skip terrain file
+            LOG_INFO(gExecutionLogfile, " skip terrain file\n");
+            argIndex += 2;
+        }
         else if (*argList[argIndex] == '-') {
             // unknown argument, so list out arguments
-            MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-s UserSaveDirectory] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
+            MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExt*.png] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
             // abort
             return true;
         }
@@ -7562,7 +7634,7 @@ static bool splitToPathAndName(wchar_t* pathAndName, wchar_t* path, wchar_t* nam
             if (name != NULL)
                 wcscpy_s(name, MAX_PATH_AND_FILE, tempPathAndName);
             if (path != NULL)
-                path[0] = (wchar_t)0;
+                wcscpy_s(path, MAX_PATH_AND_FILE, L".");
             return false;
         }
     }
