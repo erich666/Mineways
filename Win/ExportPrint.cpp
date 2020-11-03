@@ -124,6 +124,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
         }
+        if (epd.fileType == FILE_TYPE_USD) {
+            // only allow separate tiles
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+        }
         SetDlgItemTextA(hDlg, IDC_TILE_DIR, epd.tileDirString);
 
         // if 3D printing, A and RGBA are not options
@@ -325,35 +333,67 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         break;
 
         case IDC_RADIO_EXPORT_NO_MATERIALS:
-            // set the combo box material to white (might already be that, which is fine)
-            SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
-            // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-            // - done because full blocks of the lesser objects usually looks dumb
-            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            if (epd.fileType == FILE_TYPE_USD) {
+                // don't allow tile output
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+            }
+            else {
+                // set the combo box material to white (might already be that, which is fine)
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
+                // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
+                // - done because full blocks of the lesser objects usually looks dumb
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MTL_COLORS_ONLY:
-            // set the combo box material to color (might already be that, which is fine)
-            SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-            // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            if (epd.fileType == FILE_TYPE_USD) {
+                // don't allow tile output
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+            }
+            else {
+                // set the combo box material to color (might already be that, which is fine)
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SOLID_TEXTURES:
-            // set the combo box material to color (might already be that, which is fine)
-            SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-            // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            if (epd.fileType == FILE_TYPE_USD) {
+                // don't allow tile output
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+            }
+            else {
+                // set the combo box material to color (might already be that, which is fine)
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TEXTURES:
-            // set the combo box material to color (might already be that, which is fine)
-            SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
-            CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+            if (epd.fileType == FILE_TYPE_USD) {
+                // don't allow tile output
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+            }
+            else {
+                // set the combo box material to color (might already be that, which is fine)
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
+                CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+            }
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TILES:
