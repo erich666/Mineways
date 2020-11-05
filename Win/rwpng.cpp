@@ -196,11 +196,12 @@ void copyOneChannel(progimage_info* dst, int channel, progimage_info* src)
 
 
 // to avoid defining boolean, etc., make this one return 1 if true, 0 if false
-int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value)
+int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value, int ignoreGrayscale)
 {
     // look at all data in given channel - all equal to the given value?
     assert(numChannels > 0);
     assert(channel < numChannels);
+    assert(ignoreGrayscale ? numChannels > 1 : 1);
     int row, col;
     unsigned char* src_data = &src->image_data[0] + channel;
     for (row = 0; row < src->height; row++)
@@ -209,6 +210,13 @@ int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsign
         {
             if (*src_data != value)
             {
+                // do grayscale test?
+                if (ignoreGrayscale) {
+                    if ((src_data[-channel] == src_data[1 - channel]) && (src_data[1 - channel] == src_data[2 - channel])) {
+                        // it's gray, so ignore it
+                        continue;
+                    }
+                }
                 return 0;
             }
             src_data += numChannels;

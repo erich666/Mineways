@@ -23063,7 +23063,7 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            asset inputs:reflectionroughness_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+            strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             if (outputCustomData) {
 

@@ -248,7 +248,9 @@ int wmain(int argc, wchar_t* argv[])
 	int alternate = 2;  // always include alternate names; needed for 1.13
 	int solid = 0;
 	int solidcutout = 0;
+	int heightfieldCount = 0;
 	float heightfieldScale = 0.5f;
+	int normalsCount = 0;
 
 	bool allChests = true;
 	bool anyChests = false;
@@ -545,8 +547,6 @@ int wmain(int argc, wchar_t* argv[])
 	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
 	removePNGsuffix(terrainExtOutputRoot);
 
-	boolean heightfield = false;
-
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		if (gFG.categories[catIndex] > 0 &&
@@ -670,7 +670,7 @@ int wmain(int argc, wchar_t* argv[])
 						else if (catIndex == CATEGORY_METALLIC || catIndex == CATEGORY_EMISSION) {
 							// if an image is entirely black, make it 01 black, so that Mineways will take it seriously.
 							// Mineways assumes an image that is all black is not actually set, so ignores it.
-							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
+							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 0)) {
 								wprintf(L"WARNING: Image '%s' was not used because it is all black, 0.0, the default value for %s.\n",
 									gFG.fr[fullIndex].fullFilename, (catIndex == CATEGORY_METALLIC) ? L"metallic" : L"emissive");
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
@@ -678,7 +678,7 @@ int wmain(int argc, wchar_t* argv[])
 							}
 						}
 						else if (catIndex == CATEGORY_ROUGHNESS) {
-							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 255)) {
+							if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 255, 0)) {
 								wprintf(L"WARNING: Image '%s' was not used because it is all white, 1.0, the default value for roughness.\n", 
 									gFG.fr[fullIndex].fullFilename);
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
@@ -693,8 +693,8 @@ int wmain(int argc, wchar_t* argv[])
 							// Happens with Kellys and Vanilla RTX.
 
 							// TODOTODO: this does not catch all tiles properly, such as oak leave cutouts. Also, need scaling factor!
-							if (heightfield || channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0)) {
-								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0)) {
+							if ((heightfieldCount > normalsCount) || channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0, 1)) {
+								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 1)) {
 									//wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n",
 									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
 										gFG.fr[fullIndex].fullFilename);
@@ -703,13 +703,21 @@ int wmain(int argc, wchar_t* argv[])
 								}
 								else {
 									// convert from heightfield to normals. Should add a "what is the slope? command line argument TODO.
-									if (!heightfield) {
-										wprintf(L"Image '%s' appears to be a heightfield, so all normals textures will be treated as heightfields.\n",
+									if (heightfieldCount <= 0) {
+										wprintf(L"Image '%s' appears to be a heightfield - TileMaker will convert this one and any others found.\n",
 											gFG.fr[fullIndex].fullFilename);
-										heightfield = true;
+									}
+									else if (verbose) {
+										wprintf(L"Image '%s' appears to be a heightfield - converting.\n",
+											gFG.fr[fullIndex].fullFilename);
 									}
 									convertHeightfieldToXYZ(&tile, heightfieldScale);
+									heightfieldCount++;
 								}
+							}
+							else {
+								// likely a normals map
+								normalsCount++;
 							}
 						}
 
@@ -931,6 +939,12 @@ int wmain(int argc, wchar_t* argv[])
 				wprintf(L"WARNING: new texture '%s' not created, as all input textures were found to be unusable.\n", terrainExtOutput);
 			}
 		}
+	}
+
+	// was there a mix of heightfields and normal maps?
+	if (heightfieldCount > 0 && normalsCount > 0) {
+		wprintf(L"WARNING: %d heightfields and %d normal maps detected.\n  TileMaker does its best to convert heightfields to normal maps, but you should double check.\n", heightfieldCount, normalsCount);
+		gWarningCount++;
 	}
 
 	// warn user that nothing was done

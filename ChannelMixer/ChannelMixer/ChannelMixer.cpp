@@ -274,7 +274,7 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean 
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
 					// output the channel if it's not all black
 					boolean allBlack = true;
-					if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
+					if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 						allBlack = false;
 						invertChannel(destination_ptr);
 
@@ -323,7 +323,8 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean 
 						// output the channel if it's not all black
 						progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 						copyOneChannel(destination_ptr, channel, &tile);
-						if (!channelEqualsValue(destination_ptr, 0, 1, 0)) {
+						// is the channel, copied over, non-zero?
+						if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 							if (channel == CHANNEL_RED) {
 								invertChannel(destination_ptr);
 							}
@@ -426,8 +427,8 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbo
 					//if (!isChannelAllBlack(&tile, channel)) {
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, channel, &tile);
-					// output the channel if it's not all black (or white, for roughness
-					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255) : !channelEqualsValue(destination_ptr, 0, 1, 0)) {
+					// output the channel if it's not all black (or white, for roughness)
+					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);

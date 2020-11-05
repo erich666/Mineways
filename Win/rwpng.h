@@ -46,4 +46,4 @@ progimage_info* allocateGrayscaleImage(progimage_info* source_ptr);
 progimage_info* allocateRGBImage(progimage_info* source_ptr);
 void copyOneChannel(progimage_info* dst, int channel, progimage_info* src);
 
-int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value);
+int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value, int ignoreGrayscale);
