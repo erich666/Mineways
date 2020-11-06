@@ -149,7 +149,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             // if neither of the two above are checked, this one's indeterminate
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkG3DMaterial);
+            CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial);
         }
         else
         {
@@ -159,7 +159,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
+            if (epd.fileType == FILE_TYPE_USD)
+                CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial);
+            else
+                CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
         }
 
         //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
@@ -669,7 +672,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             break;
 
         case IDC_G3D_MATERIAL:
-            if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+            if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ||
+                epd.fileType == FILE_TYPE_USD)
             {
                 if (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_INDETERMINATE)
                 {
@@ -936,7 +940,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 lepd.chkSeparateTypes = (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED);
                 lepd.chkMaterialPerFamily = (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY) == BST_CHECKED);
                 lepd.chkSplitByBlockType = (IsDlgButtonChecked(hDlg, IDC_SPLIT_BY_BLOCK_TYPE) == BST_CHECKED);
-                lepd.chkG3DMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
+                lepd.chkCustomMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
             }
             else
             {
@@ -945,7 +949,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
                 lepd.chkMaterialPerFamily = origEpd.chkMaterialPerFamily;
                 lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
-                lepd.chkG3DMaterial = origEpd.chkG3DMaterial;
+                if (epd.fileType == FILE_TYPE_USD)
+                    lepd.chkCustomMaterial = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
+                else
+                    lepd.chkCustomMaterial = origEpd.chkCustomMaterial;
             }
             // 3D printing should never use this option.
             lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);

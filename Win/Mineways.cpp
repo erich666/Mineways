@@ -3563,7 +3563,7 @@ static int setSketchfabExportSettings()
 
     gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES; // export groups
     gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK; // the norm, instead of single material
-    gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL; // Full material (output the extra values)
+    gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL; // Full material (output the extra values)
     gOptions.exportFlags |= EXPT_OUTPUT_TEXTURE_IMAGES; // Export block full texture
     gOptions.exportFlags |= EXPT_OUTPUT_OBJ_REL_COORDINATES; // OBj relative coordinates
     gOptions.exportFlags |= EXPT_BIOME; // Use biome for export. Currently only the biome at the center of the zone is supported
@@ -3930,10 +3930,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         {
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS;
         }
-        if (gpEFD->chkG3DMaterial)
+        if (gpEFD->chkCustomMaterial)
         {
             // if G3D is chosen, we output the full material
-            gOptions.exportFlags |= EXPT_OUTPUT_OBJ_FULL_MATERIAL;
+            gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL;
             //if (gOptions.exportFlags & (EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_TEXTURE_SWATCHES))
             //{
             //    // G3D - use this option only if textures are on.
@@ -3989,6 +3989,11 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             // we also need this one, to make sure different materials within a block get tracked
             //EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
             ;
+        }
+        if (gpEFD->chkCustomMaterial)
+        {
+            // if G3D is chosen, we output the full material
+            gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL;
         }
     }
     // STL files never need grouping by material, and certainly don't export textures
@@ -4376,7 +4381,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
-    printData.chkG3DMaterial = 0;
+    printData.chkCustomMaterial = 0;
 
     printData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
@@ -4461,7 +4466,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkIndividualBlocks = 0;
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 0;
-    viewData.chkG3DMaterial = 0;
+    viewData.chkCustomMaterial = 0;
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
@@ -5854,7 +5859,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkG3DMaterial = interpretBoolean(string1);
+            is.pEFD->chkCustomMaterial = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

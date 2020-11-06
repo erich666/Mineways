@@ -232,7 +232,7 @@ extern UnitType gUnitTypeTable[];
 // when exporting textures with OBJ, output a uniform material: Ka and Kd set to white (G3D likes this)
 // no longer used for anything #define EXPT_OUTPUT_OBJ_NEUTRAL_MATERIAL	0x200000
 // when exporting materials with OBJ, output the extra values (G3D likes this)
-#define EXPT_OUTPUT_OBJ_FULL_MATERIAL		0x00200000
+#define EXPT_OUTPUT_CUSTOM_MATERIAL		    0x00200000
 
 // relative or absolute coordinates for OBJ
 #define EXPT_OUTPUT_OBJ_REL_COORDINATES		0x00400000
@@ -382,7 +382,7 @@ typedef struct ExportFileData
     UINT chkIndividualBlocks;
     UINT chkMaterialPerFamily;	// "Material per family" of blocks
     UINT chkSplitByBlockType;	// "Split by block type"
-    UINT chkG3DMaterial;
+    UINT chkCustomMaterial;
 
     UINT flags;
 } ExportFileData;

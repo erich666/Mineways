@@ -151,7 +151,7 @@ static FileList* gOutputFileList = NULL;
 // normally we output only the RGB texture
 static int gTotalInputTextures = 1;
 
-static int g3d = 0;
+static int gCustomMaterial = 0;
 // whether we're outputting a print or render
 static int gPrint3D = 0;
 
@@ -848,7 +848,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gModel.exportTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
     gModel.exportTiles = (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;
-    g3d = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL) ? 1 : 0;
+    gCustomMaterial = (gModel.options->exportFlags & EXPT_OUTPUT_CUSTOM_MATERIAL) ? 1 : 0;
 
     gPrint3D = (gModel.options->exportFlags & EXPT_3DPRINT) ? 1 : 0;
 
@@ -20270,7 +20270,7 @@ static int writeOBJMtlFile()
 
             if (gModel.usesAlpha) {
                 sprintf_s(outputString, 2048,
-                    "%smap_d %s\n", (gModel.exportTiles || g3d) ? "#" : "", textureAlpha);
+                    "%smap_d %s\n", (gModel.exportTiles || gCustomMaterial) ? "#" : "", textureAlpha);
                 WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
             }
         }
@@ -20378,7 +20378,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     double fRed, fGreen, fBlue;
     double ka, kd, ks;
 
-    if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_FULL_MATERIAL)
+    if (gCustomMaterial)
     {
         // Use full material description, and include illumination model.
         // Works by uncommenting lines where "fullMtl" is used in the output.
@@ -20450,7 +20450,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             gModel.usesRGBA = 1;
             gModel.usesAlpha = 1;
             typeTextureFileName = textureRGBA;
-            sprintf_s(mapdString, 256, "%smap_d %s\n", (gModel.exportTiles || g3d) ? "#" : "", textureAlpha);
+            sprintf_s(mapdString, 256, "%smap_d %s\n", (gModel.exportTiles || gCustomMaterial) ? "#" : "", textureAlpha);
         }
     }
     else
@@ -22666,10 +22666,18 @@ static int createMaterialsUSD(char *texturePath)
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            uniform token info:implementationSource = \"sourceAsset\"\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Omni%s.mdl@\n", isSemitransparent? "Glass" : (isCutout ? "PBR_Opacity":"PBR"));
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Omni%s\"\n", isSemitransparent ? "Glass" : (isCutout ? "PBR_Opacity" : "PBR"));
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        if (gCustomMaterial) {
+            sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Minecraft.mdl@\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Minecraft\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+        else {
+            sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Omni%s.mdl@\n", isSemitransparent ? "Glass" : (isCutout ? "PBR_Opacity" : "PBR"));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Omni%s\"\n", isSemitransparent ? "Glass" : (isCutout ? "PBR_Opacity" : "PBR"));
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
 
         if (isSemitransparent) {
             // when meters, 0.001 is pretty good, the default
@@ -23290,8 +23298,9 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 static int createLightingUSD(char *texturePath)
 {
     char outputString[256];
+    boolean nightLight = (gModel.options->worldType & LIGHTING) ? true : false;
 
-    strcpy_s(outputString, 256, "\ndef DistantLight \"Sun\" (\n");
+    strcpy_s(outputString, 256, nightLight ? "\ndef DistantLight \"Moon\" (\n" : "\ndef DistantLight \"Sun\" (\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    prepend apiSchemas = [\"ShapingAPI\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23303,7 +23312,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 30\n");
+    strcpy_s(outputString, 256, nightLight ? "    float intensity = 2\n" : "    float intensity = 30\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23315,7 +23324,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateZYX = (290, 350, 0)\n");
+    strcpy_s(outputString, 256, "    float3 xformOp:rotateZYX = (290, 345, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23332,7 +23341,8 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float intensity = 6\n");
+    // making the dome light for night be a bit brighter is to the good, as the night sky texture is quite dim
+    strcpy_s(outputString, 256, nightLight ? "    float intensity = 20\n" : "    float intensity = 6\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23344,7 +23354,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "    asset texture:file = @%s/_domelight.png@\n", texturePath);
+    sprintf_s(outputString, 256, nightLight ? "    asset texture:file = @%s/_domelight_night.png@\n" : "    asset texture:file = @%s/_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    token texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23381,26 +23391,46 @@ static int writeUSDTextures()
 
     imageDst = &dst.image_data[0];
 
+    boolean nightLight = (gModel.options->worldType & LIGHTING) ? true : false;
+
     for (int row = 0; row < dst.height; row++)
     {
         for (int col = 0; col < dst.width; col++)
         {
             if (row < dst.height / 2) {
                 // sky
-                *imageDst++ = 136;
-                *imageDst++ = 172;
-                *imageDst++ = 255;
+                if (nightLight) {
+                    // night sky
+                    *imageDst++ = 4;
+                    *imageDst++ = 4;
+                    *imageDst++ = 7;
+                }
+                else {
+                    // daytime sky
+                    *imageDst++ = 136;
+                    *imageDst++ = 172;
+                    *imageDst++ = 255;
+                }
             }
             else {
-                *imageDst++ = 78;
-                *imageDst++ = 101;
-                *imageDst++ = 64;
+                // ground
+                if (nightLight) {
+                    // night ground
+                    *imageDst++ = 14;
+                    *imageDst++ = 19;
+                    *imageDst++ = 13;
+                }
+                else {
+                    *imageDst++ = 78;
+                    *imageDst++ = 101;
+                    *imageDst++ = 64;
+                }
             }
         }
     }
 
     wchar_t filename[MAX_PATH_AND_FILE];
-    concatFileName2(filename, gTextureDirectoryPath, L"_domelight.png");
+    concatFileName2(filename, gTextureDirectoryPath, nightLight ? L"_domelight_night.png" : L"_domelight.png");
     int rc = writepng(&dst, 3, filename);
     retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
     addOutputFilenameToList(filename);
@@ -24171,8 +24201,12 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         // was, pre-7.0, "Split materials into subtypes"
         sprintf_s(outputString, 256, "#   Split by block type: %s\n", gModel.options->pEFD->chkSplitByBlockType ? "YES" : "no");
         WRITE_STAT;
+    }
 
-        sprintf_s(outputString, 256, "# G3D full material: %s\n", gModel.options->pEFD->chkG3DMaterial ? "YES" : "no");
+    if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) ||
+        (gModel.options->pEFD->fileType == FILE_TYPE_USD) ) {
+
+        sprintf_s(outputString, 256, "# G3D full material: %s\n", gModel.options->pEFD->chkCustomMaterial ? "YES" : "no");
         WRITE_STAT;
     }
 
