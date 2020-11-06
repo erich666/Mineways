@@ -149,7 +149,7 @@ typedef struct ChestGrid {
 	int totalCategories;
 	int totalTiles;
 	int categories[TOTAL_CATEGORIES];
-	FileRecord fr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
+	FileRecord cr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
 } ChestGrid;
 
 static ChestGrid gCG;
@@ -181,13 +181,15 @@ void initializeChestGrid(ChestGrid* pcg);
 int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost);
 int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
-int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int fullIndex);
+int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
 
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
+
+static void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex);
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info* src);
 static int setBlackToNearlyBlack(progimage_info* src);
@@ -475,11 +477,18 @@ int wmain(int argc, wchar_t* argv[])
 	int lavaFlowIndex = findTileIndex(L"lava_flow", 0);
 	int waterFlowIndex = findTileIndex(L"water_flow", 0);
 	assert(lavaFlowIndex >= 0 && waterFlowIndex >= 0);
+	int size;
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		for (index = 0; index < gFG.totalTiles; index++) {
 			fullIndex = catIndex * gFG.totalTiles + index;
 			if (gFG.fr[fullIndex].exists) {
-				overlayTileSize = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, false, true, index, lavaFlowIndex, waterFlowIndex, fullIndex);
+				size = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, false, true, index, lavaFlowIndex, waterFlowIndex);
+				if (size == 0) {
+					deleteFileFromGrid(&gFG, fullIndex / gFG.totalTiles, fullIndex);
+				}
+				else {
+					overlayTileSize = size;
+				}
 			}
 		}
 	}
@@ -488,8 +497,14 @@ int wmain(int argc, wchar_t* argv[])
 	for (catIndex = 0; catIndex < gCG.totalCategories; catIndex++) {
 		for (index = 0; index < gCG.totalTiles; index++) {
 			fullIndex = catIndex * gCG.totalTiles + index;
-			if (gCG.fr[fullIndex].exists) {
-				overlayChestSize = checkFileWidth(&gFG.fr[fullIndex], overlayChestSize, true, false, -1, 0, 0, fullIndex);
+			if (gCG.cr[fullIndex].exists) {
+				size = checkFileWidth(&gCG.cr[fullIndex], overlayChestSize, false, false, -1, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gCG, fullIndex / gCG.totalTiles, fullIndex);
+				}
+				else {
+					overlayChestSize = size;
+				}
 			}
 		}
 	}
@@ -805,16 +820,18 @@ int wmain(int argc, wchar_t* argv[])
 
 			// Note: done for all categories
 			// Test if any chest exists for this category
-			if (gCG.fr[CHEST_NORMAL + catIndex * gCG.totalTiles].exists ||
-				gCG.fr[CHEST_NORMAL_DOUBLE + catIndex * gCG.totalTiles].exists ||
-				gCG.fr[CHEST_NORMAL_LEFT + catIndex * gCG.totalTiles].exists ||
-				gCG.fr[CHEST_NORMAL_RIGHT + catIndex * gCG.totalTiles].exists ||
-				gCG.fr[CHEST_ENDER + catIndex * gCG.totalTiles].exists) {
+			if ((gCG.chestCount > 0) && (
+				gCG.cr[CHEST_NORMAL + catIndex * gCG.totalTiles].exists ||
+				gCG.cr[CHEST_NORMAL_DOUBLE + catIndex * gCG.totalTiles].exists ||
+				gCG.cr[CHEST_NORMAL_LEFT + catIndex * gCG.totalTiles].exists ||
+				gCG.cr[CHEST_NORMAL_RIGHT + catIndex * gCG.totalTiles].exists ||
+				gCG.cr[CHEST_ENDER + catIndex * gCG.totalTiles].exists) 
+			) {
 
 				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
 				int numChests;
 				Chest* chest;
-				if ( gCG.fr[CHEST_NORMAL_LEFT + catIndex*gCG.totalTiles].exists) {
+				if ( gCG.cr[CHEST_NORMAL_LEFT + catIndex*gCG.totalTiles].exists) {
 					numChests = 4;
 					gChest115[0].data = gNormalChest115;
 					gChest115[1].data = gNormalLeftChest115;
@@ -845,14 +862,14 @@ int wmain(int argc, wchar_t* argv[])
 					}
 					assert(index >= 0);
 
-					if (gCG.fr[index + catIndex * gCG.totalTiles].exists) {
+					if (gCG.cr[index + catIndex * gCG.totalTiles].exists) {
 
 						// read chest and process
 
 						// chests are normally found in \assets\minecraft\textures\entity\chest
 						wchar_t chestFile[MAX_PATH_AND_FILE];
-						wcscpy_s(chestFile, MAX_PATH_AND_FILE, gCG.fr[index + catIndex * gCG.totalTiles].path);
-						wcscat_s(chestFile, MAX_PATH_AND_FILE, gCG.fr[index + catIndex * gCG.totalTiles].fullFilename);
+						wcscpy_s(chestFile, MAX_PATH_AND_FILE, gCG.cr[index + catIndex * gCG.totalTiles].path);
+						wcscat_s(chestFile, MAX_PATH_AND_FILE, gCG.cr[index + catIndex * gCG.totalTiles].fullFilename);
 
 						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
 						progimage_info chestImage;
@@ -861,9 +878,9 @@ int wmain(int argc, wchar_t* argv[])
 						{
 							// file not found
 							reportReadError(rc, chestFile);
-							// we don't bother deleting the whole record, but do note the count is down,
+							// It's important to note the count is down,
 							// as this determines whether anything was done for the category.
-							gCG.categories[catIndex]--;
+							deleteChestFromGrid( &gCG, catIndex, index + catIndex * gCG.totalTiles);
 							// try next chest
 							continue;
 						}
@@ -871,13 +888,11 @@ int wmain(int argc, wchar_t* argv[])
 						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
 							allChests = false;
 							readpng_cleanup(1, &chestImage);
-							// we don't bother deleting the whole record, but do note the count is down,
+							// It's important to note the count is down,
 							// as this determines whether anything was done for the category.
-							gCG.categories[catIndex]--;
+							deleteChestFromGrid(&gCG, catIndex, index + catIndex * gCG.totalTiles);
 							continue;
 						}
-
-						readpng_cleanup(1, &chestImage);
 
 						// if we got this far, at least one chest was found
 						anyChests = true;
@@ -906,6 +921,9 @@ int wmain(int argc, wchar_t* argv[])
 								pChest->data[copyIndex].flags,
 								(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
 						}
+
+						// clean up
+						readpng_cleanup(1, &chestImage);
 					}
 				}
 
@@ -1002,10 +1020,10 @@ void initializeChestGrid(ChestGrid* pcg)
 		pcg->categories[i] = 0;
 	}
 	for (i = 0; i < TOTAL_CATEGORIES * TOTAL_CHEST_TILES; i++) {
-		pcg->fr[i].rootName = NULL;
-		pcg->fr[i].fullFilename = NULL;
-		pcg->fr[i].path = NULL;
-		pcg->fr[i].exists = false;
+		pcg->cr[i].rootName = NULL;
+		pcg->cr[i].fullFilename = NULL;
+		pcg->cr[i].path = NULL;
+		pcg->cr[i].exists = false;
 	}
 }
 
@@ -1108,23 +1126,24 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 
 		if (found) {
 			int fullIndex = type * pcg->totalTiles + index;
-			if (pcg->fr[fullIndex].exists) {
+			if (pcg->cr[fullIndex].exists) {
 				// duplicate, so warn and exit
 				if (verbose) {
-					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->fr[fullIndex].fullFilename, pcg->fr[fullIndex].path);
+					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
 				}
 				else {
-					wprintf(L"WARNING: duplicate file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pcg->fr[fullIndex].fullFilename);
+					wprintf(L"WARNING: duplicate file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pcg->cr[fullIndex].fullFilename);
 				}
 				return FILE_NOT_FOUND;
 			}
 			else {
 				// it's new and unique
+				pcg->chestCount++;
 				pcg->categories[type]++;
-				pcg->fr[fullIndex].rootName = _wcsdup(tileName);
-				pcg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
-				pcg->fr[fullIndex].path = _wcsdup(tilePath);
-				pcg->fr[fullIndex].exists = true;
+				pcg->cr[fullIndex].rootName = _wcsdup(tileName);
+				pcg->cr[fullIndex].fullFilename = _wcsdup(origTileName);
+				pcg->cr[fullIndex].path = _wcsdup(tilePath);
+				pcg->cr[fullIndex].exists = true;
 				return FILE_FOUND;
 			}
 		}
@@ -1166,7 +1185,7 @@ void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 	}
 }
 
-int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int fullIndex) {
+int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
 	// check that width and height make sense.
 	wchar_t inputFile[MAX_PATH_AND_FILE];
 	wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfr->path);
@@ -1181,8 +1200,8 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean
 		return overlayTileSize;	// no change
 	}
 	if (testFileForPowerOfTwo(tile.width, tile.height, pfr->fullFilename, square)) {
-		// lazy: derive the category from the index, use global grid here
-		deleteFileFromGrid(&gFG, fullIndex / gFG.totalTiles, fullIndex);
+		// error - should delete this tile as it's unusable
+		return 0;
 	}
 	else {
 		// usable width
@@ -1276,6 +1295,18 @@ static void saveErrorForEnd()
 	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, gErrorString);
 }
 
+static void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex)
+{
+	// shouldn't be calling this otherwise, but let's be safe:
+	if (pcg->cr[fullIndex].exists) {
+		pcg->chestCount--;
+		pcg->categories[category]--;
+		pcg->cr[fullIndex].exists = false;
+	}
+	else {
+		assert(0);
+	}
+}
 //================================ Image Manipulation ====================================
 
 // if color is black, set alpha to 0 - meant for RGBA only
