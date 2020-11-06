@@ -918,6 +918,7 @@ static const struct {
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
     { L"red_sandstone_carved", L"chiseled_red_sandstone" },
     { L"sandstone_carved", L"chiseled_sandstone" },
+    { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
