@@ -5674,6 +5674,13 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
+    // lighting and atmosphere
+    int retCode = 0;
+    if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode))
+        return retCode;
+
     strPtr = findLineDataNoCase(line, "File type:");
     if (strPtr != NULL) {
         // found selection, parse it
@@ -6611,12 +6618,18 @@ JumpToSpawn:
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
 
-    if (findBitToggle(line, is, "Show all objects", SHOWALL, IDM_SHOWALLOBJECTS, &retCode)) return retCode;
-    if (findBitToggle(line, is, "Show biomes", BIOMES, IDM_VIEW_SHOWBIOMES, &retCode)) return retCode;
-    if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode)) return retCode;
-    if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode)) return retCode;
-    if (findBitToggle(line, is, "Cave mode", CAVEMODE, IDM_CAVEMODE, &retCode)) return retCode;
-    if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode)) return retCode;
+    if (findBitToggle(line, is, "Show all objects", SHOWALL, IDM_SHOWALLOBJECTS, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Show biomes", BIOMES, IDM_VIEW_SHOWBIOMES, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Elevation shading", DEPTHSHADING, IDM_DEPTH, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Cave mode", CAVEMODE, IDM_CAVEMODE, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode))
+        return retCode;
 
     strPtr = findLineDataNoCase(line, "Give more export memory:");
     if (strPtr != NULL) {

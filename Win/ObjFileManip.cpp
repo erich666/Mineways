@@ -696,6 +696,7 @@ static int createMeshesUSD();
 static boolean allocOutData(int nverts, int nfaces);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath);
+static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
@@ -1535,6 +1536,10 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         for (int j = 1; j < gTotalInputTextures; j++) {
                             if (gModel.tileList[j][i]) {
                                 concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[j], L".png");
+// Define in order to make separate emission grayscale textures for each light.
+// Really, USD looks better with RGB textures for emissive. Hmmm. TODOUSD.
+#define GENERATE_EMISSION_TILES
+#ifdef GENERATE_EMISSION_TILES
                                 if (j == CATEGORY_EMISSION && gModel.tileEmissionNeeded[i]) {
                                     int clampLevel = 0;
                                     switch (i) {    // TODOUSD need to add burning furnace, glowing redstone ore, jack o lantern, portal?, brewing stand, dragon egg, redstone lamp,
@@ -1586,7 +1591,9 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                                     }
                                     rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, true, clampLevel);
                                 }
-                                else {
+                                else
+#endif
+                                {
                                     rc = writeTileFromCategoryInput(materialTile, i, j);
                                 }
                                 assert(rc == 0);
@@ -22367,8 +22374,12 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:filmIso\" = 200\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // Reinhard gives a different look
+    //strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:op\" = 2\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // seems to no longer be an option as of 11/9/2020. TODOUSD
+//    strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
+//    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");
@@ -22638,6 +22649,7 @@ static int createMaterialsUSD(char *texturePath)
             }
         }
 
+        // get map color, for things such as emission color
         unsigned int color = gBlockDefinitions[pFace->materialType].read_color;
         unsigned char r, g, b;
         r = (unsigned char)(color >> 16);
@@ -22763,7 +22775,7 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             // emitter?
-            if ((gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER) || (gModel.tileList[CATEGORY_EMISSION][swatchLoc])) {
+            if (tileIsAnEmitter(pFace->materialType, swatchLoc)) {
                 float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
                 // if some block is being coerced into emitting, i.e., normally has no emissive component, give it a value
@@ -22773,30 +22785,32 @@ static int createMaterialsUSD(char *texturePath)
                 }
 
                 if (emission > 0.0f) {
+#ifdef GENERATE_EMISSION_TILES
                     // we flag emitters that don't have an emissive so need to have a texture synthesized for them
                     if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
                         gModel.tileEmissionNeeded[swatchLoc] = true;
                         gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
                     }
+#endif
 
-                    // special: torches should be pretty white; set to soft yellow
-                    if (pFace->materialType == BLOCK_TORCH) {
-                        r = g = 255;
-                        b = 150;
-                    }
+                    //// special: torches' color is pretty white; set to soft yellow
+                    //if (pFace->materialType == BLOCK_TORCH) {
+                    //    r = g = 255;
+                    //    b = 150;
+                    //}
 
                     // scale to max - we assume the "map visible" color is more about hue and saturation than luminance
                     float max = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
                     r = (unsigned char)(0.5f + ((float)r * 255.0f / max));
                     g = (unsigned char)(0.5f + ((float)g * 255.0f / max));
                     b = (unsigned char)(0.5f + ((float)b * 255.0f / max));
-                    // to avoid clamping with tone mapping, give every channel a minimum value of 0.1
-                    if (r < 25)
-                        r = 25;
-                    if (g < 25)
-                        g = 25;
-                    if (b < 25)
-                        b = 25;
+                    //// to avoid clamping with tone mapping, give every channel a minimum value of 0.1
+                    //if (r < 25)
+                    //    r = 25;
+                    //if (g < 25)
+                    //    g = 25;
+                    //if (b < 25)
+                    //    b = 25;
                     sprintf_s(outputString, 256, "            color3f inputs:emissive_color = (%g, %g, %g) (\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
@@ -22806,7 +22820,7 @@ static int createMaterialsUSD(char *texturePath)
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    dictionary range = {\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        strcpy_s(outputString, 256, "                        float3 max = (100000, 100000, 100000)\n");
+                        strcpy_s(outputString, 256, "                        float3 max = (10000, 10000, 10000)\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                        float3 min = (0, 0, 0)\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22821,7 +22835,29 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 10000.0 * emission);
+
+                    // same as the diffuse texture
+                    sprintf_s(outputString, 256, "            asset inputs:emissive_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    asset default = @@\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Emissive\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Emissive Color map\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                    sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 1000.0 * emission);
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
                         strcpy_s(outputString, 256, "                customData = {\n");
@@ -22830,9 +22866,9 @@ static int createMaterialsUSD(char *texturePath)
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    dictionary range = {\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        strcpy_s(outputString, 256, "                        float max = 100000\n");
+                        strcpy_s(outputString, 256, "                        float max = 10000\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        strcpy_s(outputString, 256, "                        float min = -100000\n");
+                        strcpy_s(outputString, 256, "                        float min = -10000\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    }\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22847,7 +22883,11 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
                     // if there's a specific emitter texture available, use it, adding the "_e" suffix.
+#ifdef GENERATE_EMISSION_TILES
                     sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
+#else
+                    sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
+#endif
                     // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
                     //sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName,
                     //    gModel.tileList[CATEGORY_EMISSION][swatchLoc] ? "_e" : 
@@ -23118,6 +23158,33 @@ static int createMaterialsUSD(char *texturePath)
     return 0;
 }
 
+static boolean tileIsAnEmitter(int type, int swatchLoc )
+{
+    if (gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+        return true;
+    }
+    if (gBlockDefinitions[type].flags & BLF_EMITTER) {
+        // part of an emitter - is it a face that emits?
+        switch (type) {
+        default:
+            // normally everything is an emitter
+            return true;
+
+        case BLOCK_BURNING_FURNACE:
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"furnace_front_on") == 0)
+                return true;
+
+        case BLOCK_CAMPFIRE:
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_fire") == 0)
+                return true;
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_log_lit") == 0)
+                return true;
+            break;
+        } // else false, if we don't find the emitter
+    }
+    return false;
+}
+
 static void setMetallicRoughnessByName(int type, float *metallic, float *roughness)
 {
     // check metals first
@@ -23341,8 +23408,8 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // making the dome light for night be a bit brighter is to the good, as the night sky texture is quite dim
-    strcpy_s(outputString, 256, nightLight ? "    float intensity = 20\n" : "    float intensity = 6\n");
+    // low for the nighttime sky, but making it higher makes the background surrounding map too bright. TODOUSD
+    strcpy_s(outputString, 256, nightLight ? "    float intensity = 2\n" : "    float intensity = 6\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24143,6 +24210,14 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     sprintf_s(outputString, 256, "# block dimensions: X=%g by Y=%g (height) by Z=%g blocks\n", gFilledBoxSize[X], gFilledBoxSize[Y], gFilledBoxSize[Z]);
     WRITE_STAT;
     Vec2Op(gModel.options->dimensions, =, (int)gFilledBoxSize);
+
+    // lighting and elevation settings written out (the other two are more for underground).
+    // These also (may) affect USD export.
+    sprintf_s(outputString, 256, "# Elevation shading: %s\n", (gModel.options->worldType& DEPTHSHADING) ? "YES" : "no");
+    WRITE_STAT;
+    sprintf_s(outputString, 256, "# Lighting: %s\n", (gModel.options->worldType & LIGHTING) ? "YES" : "no");
+    WRITE_STAT;
+
 
     // Summarize all the options used for output
     if (gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS)
