@@ -225,7 +225,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 149 */ "Redstone Comparator",    		0xC5BAAD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,14, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_DNE_FLUID | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE },   // 95/149 TODO from repeater off
     { /* 150 */ "Redstone Comparator (deprecated)",0xD1B5AA,1.0f, 0xff7711, 0xff7711, 0.12345f,  15,14, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_DNE_FLUID | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE },   // 96/150 TODO from repeater on
     { /* 151 */ "Daylight Sensor",        		0xBBA890, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6,15, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },   // 97/151 TODO from trapdoor
-    { /* 152 */ "Block of Redstone",      		0xA81E09, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,15, 0x00, BLF_WHOLE | BLF_EMITTER | BLF_FENCE_NEIGHBOR | BLF_CONNECTS_REDSTONE },	// 98/152
+    { /* 152 */ "Block of Redstone",      		0xA81E09, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,15, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_CONNECTS_REDSTONE },	// 98/152
     { /* 153 */ "Nether Quartz Ore",      		0x7A5B57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   8,17, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR }, // 99/153
     { /* 154 */ "Hopper",                 		0x363636, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,15, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },    // 9A/154 - note that 3d print version is simpler, no indentation, so it's thick enough
     { /* 155 */ "Block of Quartz",        		0xE0DDD7, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7,17, 0x05, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 9B/155

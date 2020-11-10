@@ -3310,11 +3310,13 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.00, x/xx/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI>If a terrain file other than the default "TerrainExt.png" is selected, show that name in the title bar at the top.
 <LI>Fix chest to use proper latch, not the Ender chest latch.
 <LI>When a campfire was put on a hay bale to make a signal fire, Mineways would export a soul campfire - fixed.
 <LI>Campfires were incorrectly lit, due to a flag not being cleared from button settings - fixed <i>(Thanks to Kyra007 for <a href="https://www.reddit.com/r/mineways/comments/jl60kt/extinguished_campfire_appears_as_lit/">reporting this bug</a>)</I>.
-<LI>If a terrain file other than the default "TerrainExt.png" is selected, show that name in the title bar at the top.
+<LI>Blocks of redstone were incorrectly acting as emitters - fixed.
 <LI>You can now specify the terrain file(s) to use on startup on <a href="scripting.html#clo">the command line</a>, "-t terrainExtYourfile.png".
+<LI>The elevation shading and lighting setting is now saved, and restored using "Import Settings." This is useful for USD export, where these two settings affect the output.
 <LI>Fix export progression system so that progress shown during export is a bit more proportional to the time actually used.
 <LI>If TileMaker's normals terrain file is present, Export normal map textures within the OBJ export, for the "Export tiles" option.
 <LI>Nether portals for pre-1.13 worlds were not getting exported properly if they ran north-south.
