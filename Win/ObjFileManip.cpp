@@ -673,6 +673,10 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v);
 
 static void freeModel(Model* pModel);
 
+static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount);
+static int addNormalToList(Vector normal, Vector* normalList, int* normalListCount, int normalListSize);
+static void resolveFaceNormals();
+
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
 static int mosaicUVtoSeparateUV();
@@ -1117,6 +1121,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     UPDATE_PROGRESS(gProgress.start.output);
 
+    // Ready the normals for direct output 0 - any undefined (-1 index) get set now
+    // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
+    resolveFaceNormals();
+
     switch (fileType)
     {
     case FILE_TYPE_WAVEFRONT_REL_OBJ:
@@ -1540,10 +1548,13 @@ static int modifyAndWriteTextures(int needDifferentTextures)
 // Really, USD looks better with RGB textures for emissive. Hmmm. TODOUSD.
 #define GENERATE_EMISSION_TILES
 #ifdef GENERATE_EMISSION_TILES
+                                // if we're doing emissions, and the emitter doesn't have an emissive texture so we need to have a texture synthesized for them
                                 if (j == CATEGORY_EMISSION && gModel.tileEmissionNeeded[i]) {
                                     int clampLevel = 0;
-                                    switch (i) {    // TODOUSD need to add burning furnace, glowing redstone ore, jack o lantern, portal?, brewing stand, dragon egg, redstone lamp,
-                                        // TODOUSD ender chest, beacon, block of redstone, sea lantern, end rod, end gateway, magma?, conduit, sea pickle, lantern, campfire? crying obsidian, respawn anchor
+                                    // For some textures we want a special emissive texture, not just a grayscale of the original RGB. We want to clamp:
+                                    // if a value is lower than the clamp value, it is set to black so that no light emits from its texel.
+                                    switch (i) {    // TODOUSD need to add burning furnace, glowing redstone ore, jack o lantern, portal, brewing stand, dragon egg, redstone lamp,
+                                        // TODOUSD beacon, sea lantern, end rod, end gateway, magma?, conduit, sea pickle, crying obsidian, respawn anchor
                                     case 80: // torch
                                     case 99: // redstone torch on
                                     case 240: // torch top
@@ -1552,6 +1563,9 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                                     case 751: // soul torch top - TODO USD: is this still needed? Can't we now just trim the polygon itself?
                                     case 3 * 16 + 13: // furnace front on - misses a few darker bits, but avoids lots of bright furnace surfaces
                                         clampLevel = 226;
+                                        break;
+                                    case 7 * 16 + 8: // jack o' lantern
+                                        clampLevel = 230;
                                         break;
                                     case 9 * 16 + 13: // brewing stand
                                         clampLevel = 167;
@@ -1583,7 +1597,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                                     case 730: // respawn anchor faces
                                         clampLevel = 147;
                                         break;
-                                    case 9 * 16 + 12: // brewing stand base - should emit no light. TODO: it'd be nicer to emit no texture at all.
+                                    case 9 * 16 + 12: // brewing stand base - should emit no light.
                                         clampLevel = 255;
                                         break;
                                     default:
@@ -5961,6 +5975,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // change height as needed
         saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 2 * (1 + (float)(dataVal & 0x7)), 0, 16);
+        break; // saveBillboardOrGeometry
+
+    case BLOCK_END_PORTAL:						// saveBillboardOrGeometry
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        // if you look from below, it has only a top and bottom, no sides
+        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, gPrint3D ? 0x0 : (DIR_LO_X_BIT|DIR_LO_Z_BIT|DIR_HI_X_BIT|DIR_HI_Z_BIT), 0, 16, gPrint3D ? 0.0f : 13.0f, 13, 0, 16);
         break; // saveBillboardOrGeometry
 
     case BLOCK_END_PORTAL_FRAME:						// saveBillboardOrGeometry
@@ -10597,7 +10617,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int faceCount = 0;
     int startVertexCount = 0;  // cppcheck-suppress 398
     int totalVertexCount;
-    int doubleSided = 1;  // cppcheck-suppress 398
+    static int doubleSided = 1; // TODO: expose some day?
     float height = 0.0f;
     int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
@@ -11728,8 +11748,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // add sheared "cross flames" inside, 8 in all
             int fireVertexCount = gModel.vertexCount;
             gUsingTransform = 1;
+            // draw one face, or two.
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0,
-                DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT,
+                (DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT) | (doubleSided ? 0x0 : DIR_HI_Z_BIT),
                 FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 16, 16);
             gUsingTransform = 0;
             fireVertexCount = gModel.vertexCount - fireVertexCount;
@@ -19322,11 +19343,11 @@ static int addNormalToList(Vector normal, Vector* normalList, int* normalListCou
     return (*normalListCount) - 1;
 }
 
+// go through all face normals and, if not set, find the proper face normal (or add it to the list)
 static void resolveFaceNormals()
 {
     for (int i = 0; i < gModel.faceCount; i++)
     {
-        // output the actual face
         FaceRecord* pFace = gModel.faceList[i];
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
@@ -19423,13 +19444,25 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
     // See https://minecraft.gamepedia.com/Light
     float emission = 15.0f;
+    // lower for some types
     switch (type) {
     case BLOCK_END_ROD:
     case BLOCK_TORCH:
         emission = 14.0f;
         break;
+    // note: includes blast furnace and smoker and loom
     case BLOCK_BURNING_FURNACE:
-        emission = 13.0f;
+        if (splitByBlockType) {
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+                emission = 13.0f;
+                break;
+            case BIT_16: // loom - just in case it somehow is categorized as burning
+                assert(0);
+                emission = 0.0f;
+                break;
+            }
+        }
         break;
     case BLOCK_NETHER_PORTAL:
         emission = 11.0f;
@@ -19664,8 +19697,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     }
 
 #ifdef OUTPUT_NORMALS
-    resolveFaceNormals();
-
     // write out normals, texture coordinates, vertices, and then faces grouped by material
     for (i = 0; i < gModel.normalListCount; i++)
     {
@@ -19918,6 +19949,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         }
 
 #ifdef OUTPUT_NORMALS
+        assert(pFace->normalIndex >= 0);
         if (absoluteIndices)
         {
             outputFaceDirection = pFace->normalIndex + 1;
@@ -19976,6 +20008,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 // if normal sums negative, rotate order by one so that dumb tessellators
                 // match up the faces better, which should make matching face removal work better. I hope.
                 int offset = 0;
+                assert(pFace->normalIndex >= 0);
                 int idx = pFace->normalIndex;
                 if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
                     offset = 1;
@@ -20074,6 +20107,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 // if normal sums negative, rotate order by one so that dumb tessellators
                 // match up the faces better, which should make matching face removal work better. I hope.
                 int offset = 0;
+                assert(pFace->normalIndex >= 0);
                 int idx = pFace->normalIndex;
                 if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
                     offset = 1;
@@ -21365,7 +21399,7 @@ static int createBaseMaterialTexture()
             stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 4), 1, 1, 14, 14);
             stretchSwatchToFill(mainprog, SWATCH_INDEX(7, 4), 1, 1, 14, 14);
 
-            // ender portal
+            // ender portal side to make a full block
             stretchSwatchToFill(mainprog, SWATCH_INDEX(15, 9), 0, 3, 15, 15);
 
             // ender chest
@@ -21530,6 +21564,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
         // if normal sums negative, rotate order by one so that we
         // match up the faces better, which should make matching face removal work better. I hope.
         int offset = 0;
+        assert(pFace->normalIndex >= 0);
         i = pFace->normalIndex;
         if ((faceTriCount > 1) && (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f))
             offset = 1;
@@ -21634,9 +21669,6 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
     // start to write file
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    // ready the normals for direct output, since we reuse them a zillion times
-    resolveFaceNormals();
-
     char facetNormalString[NORMAL_LIST_SIZE][256];
     for (i = 0; i < gModel.normalListCount; i++)
     {
@@ -21660,6 +21692,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
             vertex[i] = &gModel.vertices[pFace->vertexIndex[i]];
         }
 
+        assert(pFace->normalIndex >= 0);
         normalIndex = pFace->normalIndex;
 
         // typical output:
@@ -21676,6 +21709,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         // if normal sums negative, rotate order by one so that we
         // match up the faces better, which should make matching face removal work better. I hope.
         int offset = 0;
+        assert(pFace->normalIndex >= 0);
         i = pFace->normalIndex;
         if ((faceTriCount > 1) && (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f))
             offset = 1;
@@ -21921,6 +21955,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                 // if normal sums negative, rotate order by one so that dumb tessellators
                 // match up the faces better, which should make matching face removal work better. I hope.
                 int offset = 0;
+                assert(pFace->normalIndex >= 0);
                 int i = pFace->normalIndex;
                 if (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f)
                     offset = 1;
@@ -21963,6 +21998,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                     // if normal sums negative, rotate order by one so that dumb tessellators
                     // match up the faces better, which should make matching face removal work better. I hope.
                     int offset = 0;
+                    assert(pFace->normalIndex >= 0);
                     int i = pFace->normalIndex;
                     if (gModel.normals[i][X] + gModel.normals[i][Y] + gModel.normals[i][Z] < 0.0f)
                         offset = 1;
@@ -22448,6 +22484,7 @@ static int createMeshesUSD()
                 gOutData.indices[iv] = iv;
 
                 Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+                assert(pFace->normalIndex >= 0);
                 Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
 
                 // if output per tile, then we use the UV values to find the index to the new index in the grid
@@ -22739,7 +22776,7 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            asset inputs:glass_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+            strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                customData = {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22759,6 +22796,8 @@ static int createMaterialsUSD(char *texturePath)
             // add the "_y" if synthesized - material name differs from tile file name in this case
             sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             if (outputCustomData) {
                 strcpy_s(outputString, 256, "                customData = {\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22775,6 +22814,8 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             // emitter?
+            // TODOUSD: headache case is jack o lantern. Pumpkins are not emitters. Jack o' lanterns are. We would need a special,
+            // separate shader for jack o' lantern sides, bottom, top that is an emitter.
             if (tileIsAnEmitter(pFace->materialType, swatchLoc)) {
                 float emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
@@ -23173,12 +23214,23 @@ static boolean tileIsAnEmitter(int type, int swatchLoc )
         case BLOCK_BURNING_FURNACE:
             if (wcscmp(gTilesTable[swatchLoc].filename, L"furnace_front_on") == 0)
                 return true;
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"blast_furnace_front_on") == 0)
+                return true;
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"smoker_front_on") == 0)
+                return true;
 
         case BLOCK_CAMPFIRE:
             if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_fire") == 0)
                 return true;
             if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_log_lit") == 0)
                 return true;
+            // campfire_log is not an emitter
+            break;
+
+        case BLOCK_BREWING_STAND:
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"brewing_stand") == 0)
+                return true;
+            // brewing stand base is not an emitter
             break;
         } // else false, if we don't find the emitter
     }
