@@ -251,8 +251,12 @@ typedef struct Model {
     int mcVersion;	// 12 for 1.12.2 and earlier, 13 for 1.13 and later
 
     Options* options;
+    bool print3D;
     int exportTexture;
     int exportTiles;
+    bool customMaterial;
+    bool singleSided;
+    bool emitterSingleSided;
 } Model;
 
 extern Model gModel;
