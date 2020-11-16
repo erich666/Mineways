@@ -126,10 +126,24 @@ int wmain(int argc, wchar_t* argv[])
 
 	boolean sameDir = (_wcsicmp(inputDirectory, outputDirectory) == 0);
 
-	// look through tiles in tiles directory, see which exist
-	if (checkTilesInDirectory(&gFG, inputDirectory, verbose, alternate) == 0) {
-		wprintf(L"\nERROR: Input directory '%s' does not have any Minecraft block image textures of interest - nothing to do!\n", inputDirectory);
-		return 1;
+	// look through tiles in tiles directories, see which exist.
+	int filesFound = 0;
+	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, verbose, alternate, true);
+	if (fileCount < 0) {
+		wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
+		saveErrorForEnd();
+		gErrorCount++;
+	}
+	else {
+		filesFound += fileCount;
+	}
+
+	if (verbose) {
+		wprintf(L"%d files found to process.\n", filesFound);
+	}
+
+	if (filesFound <= 0) {
+		wprintf(L"ERROR, no files found to process - quitting.\n");
 	}
 
 	int filesProcessed = 0;
@@ -159,7 +173,7 @@ int wmain(int argc, wchar_t* argv[])
 	if (gErrorCount || gWarningCount)
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
-	wprintf(L"ChannelMixer summary: %d files read in and processed.\n", filesProcessed);
+	wprintf(L"ChannelMixer summary: %d files read in and %d processed.\n", filesFound, filesProcessed);
 	return 0;
 }
 

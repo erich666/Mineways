@@ -136,23 +136,6 @@ static Chest gChest115[] = {
 	{ L"normal_right", 5, 64, 64, NULL },
 	{ L"ender", 6, 64, 64, NULL }
 };
-#define	TOTAL_CHEST_TILES	5
-#define CHEST_NORMAL		0
-#define CHEST_NORMAL_DOUBLE	1
-#define CHEST_NORMAL_LEFT	2
-#define CHEST_NORMAL_RIGHT	3
-#define CHEST_ENDER			4
-const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender" };
-
-typedef struct ChestGrid {
-	int chestCount;
-	int totalCategories;
-	int totalTiles;
-	int categories[TOTAL_CATEGORIES];
-	FileRecord cr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
-} ChestGrid;
-
-static ChestGrid gCG;
 
 
 static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3 };
@@ -166,8 +149,6 @@ static wchar_t gErrorString[1000];
 #define CONCAT_ERROR_LENGTH	(1000*100)
 static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 
-#define MAX_PATH_AND_FILE (2*MAX_PATH)
-
 #define INC_AND_TEST_ARG_INDEX( loc )		argLoc++; \
 											if (argLoc == argc) { \
 												printHelp(); \
@@ -177,9 +158,6 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 //-------------------------------------------------------------------------
 void printHelp();
 
-void initializeChestGrid(ChestGrid* pcg);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost);
-int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
@@ -188,8 +166,6 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
-
-static void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex);
 
 static void setBlackAlphaPNGTile(int chosenTile, progimage_info* src);
 static int setBlackToNearlyBlack(progimage_info* src);
@@ -447,7 +423,15 @@ int wmain(int argc, wchar_t* argv[])
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		filesProcessed += searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, verbose, alternate, true);
+		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, verbose, alternate, true);
+		if (fileCount < 0) {
+			wsprintf(gErrorString, L"***** ERROR: cannot find files for the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
+			saveErrorForEnd();
+			gErrorCount++;
+		}
+		else {
+			filesProcessed += fileCount;
+		}
 		inputDirectoryPtr++;
 	}
 
@@ -1010,147 +994,6 @@ void printHelp()
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-void initializeChestGrid(ChestGrid* pcg)
-{
-	int i;
-	pcg->chestCount = 0;
-	pcg->totalCategories = TOTAL_CATEGORIES;
-	pcg->totalTiles = TOTAL_CHEST_TILES;
-	for (i = 0; i < TOTAL_CATEGORIES; i++) {
-		pcg->categories[i] = 0;
-	}
-	for (i = 0; i < TOTAL_CATEGORIES * TOTAL_CHEST_TILES; i++) {
-		pcg->cr[i].rootName = NULL;
-		pcg->cr[i].fullFilename = NULL;
-		pcg->cr[i].path = NULL;
-		pcg->cr[i].exists = false;
-	}
-}
-
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost)
-{
-	int filesProcessed = 0;
-	int filesSubProcessed = 0;
-	HANDLE hFind;
-	WIN32_FIND_DATA ffd;
-
-	wchar_t tilePathAppended[MAX_PATH_AND_FILE];
-	wcscpy_s(tilePathAppended, MAX_PATH_AND_FILE, tilePath);
-	addBackslashIfNeeded(tilePathAppended);
-
-	wchar_t tileSearch[MAX_PATH_AND_FILE];
-	wcscpy_s(tileSearch, MAX_PATH_AND_FILE, tilePathAppended);
-	wcscat_s(tileSearch, MAX_PATH_AND_FILE, L"*");
-	hFind = FindFirstFile(tileSearch, &ffd);
-
-	if (hFind == INVALID_HANDLE_VALUE)
-	{
-		wsprintf(gErrorString, L"***** ERROR: cannot find files for the directory '%s' (Windows error code # %d). Ignoring directory.\n", tilePath, GetLastError());
-		saveErrorForEnd();
-		gErrorCount++;
-	}
-	else {
-		boolean chestFound = false;
-		do {
-			// is it a directory?
-			if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-			{
-				// if it's just a relative "same" or "above" directory, ignore
-				if ((!lstrcmpW(ffd.cFileName, L".")) || (!lstrcmpW(ffd.cFileName, L".."))) {
-					continue;
-				}
-
-				wchar_t subdir[MAX_PATH_AND_FILE];
-				wcscpy_s(subdir, MAX_PATH_AND_FILE, tilePathAppended);
-				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
-				addBackslashIfNeeded(subdir);
-
-				filesSubProcessed += searchDirectoryForTiles(pfg, pcg, subdir, verbose, alternate, false);
-			}
-			else {
-				// not a directory; is it a PNG file?
-				int used = FILE_NOT_FOUND;
-				// check for blocks only if word "block" is in the path
-				if (topmost || wcsstr(tilePathAppended, L"block") != NULL) {
-					used = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, false) ? 1 : 0;
-				}
-				if (used == FILE_NOT_FOUND) {
-					if (topmost || wcsstr(tilePathAppended, L"chest") != NULL) {
-						used = testIfChestFile(pcg, tilePathAppended, ffd.cFileName, verbose);
-						chestFound = true;
-					}
-				}
-
-				if (used == FILE_FOUND) {
-					filesProcessed++;
-				}
-				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest directory?
-				// 
-				else if (filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
-					// we already found some good files in this directory, so note that this file was not used.
-					if (verbose) {
-						wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
-					}
-					else {
-						wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
-					}
-				}
-			}
-		} while (FindNextFile(hFind, &ffd) != 0);
-
-		FindClose(hFind);
-	}
-	return filesProcessed + filesSubProcessed;
-}
-
-// returns true if file exists and is usable (not a duplicate, alternate name of something already in use)
-int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose)
-{
-	wchar_t tileName[MAX_PATH_AND_FILE];
-
-	wcscpy_s(tileName, MAX_PATH_AND_FILE, origTileName);
-
-	if (removePNGsuffix(tileName)) {
-		// has a PNG suffix, now removed, so test if it's a file name type we understand.
-		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
-
-		// the four PNG files we care about
-		boolean found = false;
-		int index = 0;
-		for (int i = 0; i < TOTAL_CHEST_TILES && !found; i++) {
-			if (_wcsicmp(tileName, gChestNames[i]) == 0) {
-				index = i;
-				found = true;
-			}
-		}
-
-		if (found) {
-			int fullIndex = type * pcg->totalTiles + index;
-			if (pcg->cr[fullIndex].exists) {
-				// duplicate, so warn and exit
-				if (verbose) {
-					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
-				}
-				else {
-					wprintf(L"WARNING: duplicate file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pcg->cr[fullIndex].fullFilename);
-				}
-				return FILE_NOT_FOUND;
-			}
-			else {
-				// it's new and unique
-				pcg->chestCount++;
-				pcg->categories[type]++;
-				pcg->cr[fullIndex].rootName = _wcsdup(tileName);
-				pcg->cr[fullIndex].fullFilename = _wcsdup(origTileName);
-				pcg->cr[fullIndex].path = _wcsdup(tilePath);
-				pcg->cr[fullIndex].exists = true;
-				return FILE_FOUND;
-			}
-		}
-	}
-	return FILE_NOT_FOUND;
-}
-
 void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 {
 	int index1 = findTileIndex(tile1, false);
@@ -1295,18 +1138,6 @@ static void saveErrorForEnd()
 	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, gErrorString);
 }
 
-static void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex)
-{
-	// shouldn't be calling this otherwise, but let's be safe:
-	if (pcg->cr[fullIndex].exists) {
-		pcg->chestCount--;
-		pcg->categories[category]--;
-		pcg->cr[fullIndex].exists = false;
-	}
-	else {
-		assert(0);
-	}
-}
 //================================ Image Manipulation ====================================
 
 // if color is black, set alpha to 0 - meant for RGBA only

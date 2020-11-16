@@ -2,6 +2,9 @@
 
 #pragma once
 
+#define MAX_PATH_AND_FILE (2*MAX_PATH)
+
+
 #define	CHANNEL_RED		0
 #define	CHANNEL_GREEN	1
 #define	CHANNEL_BLUE	2
@@ -41,14 +44,37 @@ typedef struct FileGrid {
 
 static FileGrid gFG;
 
+
+#define	TOTAL_CHEST_TILES	5
+#define CHEST_NORMAL		0
+#define CHEST_NORMAL_DOUBLE	1
+#define CHEST_NORMAL_LEFT	2
+#define CHEST_NORMAL_RIGHT	3
+#define CHEST_ENDER			4
+static const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender" };
+
+typedef struct ChestGrid {
+	int chestCount;
+	int totalCategories;
+	int totalTiles;
+	int categories[TOTAL_CATEGORIES];
+	FileRecord cr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
+} ChestGrid;
+
+static ChestGrid gCG;
+
 void initializeFileGrid(FileGrid* pfg);
+void initializeChestGrid(ChestGrid* pcg);
 void addBackslashIfNeeded(wchar_t* dir);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost);
 bool dirExists(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
-int testIfTileExists(FileGrid* fg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnDNE);
+int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnDNE);
+int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 boolean removePNGsuffix(wchar_t* name);
 boolean isPNGfile(wchar_t* name);
 int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes);
 int findTileIndex(const wchar_t* tileName, int alternate);
 void copyFileRecord(FileGrid* pfg, int category, int fullIndex, FileRecord* srcFR);
 void deleteFileFromGrid(FileGrid* pfg, int category, int fullIndex);
+void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex);
