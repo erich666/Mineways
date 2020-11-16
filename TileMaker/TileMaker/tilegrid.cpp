@@ -146,6 +146,20 @@ bool dirExists(const wchar_t* path)
 	return false;    // this is not a directory!
 }
 
+bool createDir(const wchar_t* path)
+{
+	if (CreateDirectory(path, NULL)) {
+		return true;
+	}
+	else {
+		DWORD err = GetLastError();
+		if (err == ERROR_ALREADY_EXISTS) {
+			return true;
+		}
+	}
+	return false;
+}
+
 // returns number of useful tiles found
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate)
 {
@@ -191,13 +205,16 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 			int fullIndex = category * pfg->totalTiles + index;
 			if (pfg->fr[fullIndex].exists) {
 				// duplicate, so warn and exit
-				if (verbose) {
+				if (wcscmp(origTileName, pfg->fr[fullIndex].fullFilename) == 0) {
+					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+				}
+				else if (verbose) {
 					wprintf(L"WARNING: duplicate file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 				}
 				else {
 					wprintf(L"WARNING: duplicate file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
 				}
-				return FILE_NOT_FOUND;
+				return FILE_FOUND_AND_IGNORED;
 			}
 			else {
 				// it's new and unique

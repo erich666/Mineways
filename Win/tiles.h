@@ -763,7 +763,7 @@ static struct {
     { 14, 42, 339, 0, L"soul_campfire_fire", L"soul_campfire", SBIT_CLAMP_BOTTOM | SBIT_DECAL },    // alternate in Smoolistic
     { 15, 42, 339, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  0, 43,   6, 0, L"crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
-    {  1, 43,   6, 0, L"crimson_stem", L"", SWATCH_REPEAT_ALL },	// more like a log
+    {  1, 43,   6, 0, L"crimson_stem", L"crimson_stem_side", SWATCH_REPEAT_ALL },	// _side naming from Smoolistic
     {  2, 43,   6, 0, L"crimson_nylium", L"crimson_nylium_top", SWATCH_REPEAT_ALL },
     {  3, 43,   6, 0, L"crimson_nylium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  4, 43,   6, 0, L"crimson_fungus", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -774,12 +774,12 @@ static struct {
     {  9, 43,   6, 0, L"crimson_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 10, 43,   6, 0, L"crimson_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 11, 43,   6, 0, L"crimson_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    { 12, 43,   6, 0, L"stripped_crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like wood? TODO is used?
-    { 13, 43,   6, 0, L"stripped_crimson_stem", L"", SWATCH_REPEAT_ALL },	// more like wood
+    { 12, 43,   6, 0, L"stripped_crimson_stem_top", L"", SWATCH_REPEAT_ALL },
+    { 13, 43,   6, 0, L"stripped_crimson_stem", L"stripped_crimson_stem_side", SWATCH_REPEAT_ALL },	// more like wood
     { 14, 43,   6, 0, L"weeping_vines", L"weeping_vines_bottom", SBIT_CLAMP_TOP | SBIT_DECAL },	// bizarrely, upside down
     { 15, 43,   6, 0, L"weeping_vines_plant", L"weeping_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  0, 44,   6, 0, L"warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
-    {  1, 44,   6, 0, L"warped_stem", L"", SWATCH_REPEAT_ALL },	// more like a log				
+    {  1, 44,   6, 0, L"warped_stem", L"warped_stem_side", SWATCH_REPEAT_ALL },	// more like a log				
     {  2, 44,   6, 0, L"warped_nylium", L"warped_nylium_top", SWATCH_REPEAT_ALL },  // alternate from Homa
     {  3, 44,   6, 0, L"warped_nylium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  4, 44,   6, 0, L"warped_fungus", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -788,10 +788,10 @@ static struct {
     {  7, 44,   6, 0, L"warped_roots_pot", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 44,   6, 0, L"warped_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 44,   6, 0, L"warped_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 10, 44,   6, 0, L"warped_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    { 10, 44,   6, 0, L"warped_door_bottom", L"warped_door_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // Smoolistic _lower
     { 11, 44,   6, 0, L"warped_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 12, 44,   6, 0, L"stripped_warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like wood?
-    { 13, 44,   6, 0, L"stripped_warped_stem", L"", SWATCH_REPEAT_ALL },	// more like wood
+    { 13, 44,   6, 0, L"stripped_warped_stem", L"stripped_warped_stem_side", SWATCH_REPEAT_ALL },	// more like wood
     { 14, 44,   6, 0, L"twisting_vines", L"twisting_vines_bottom", SBIT_CLAMP_BOTTOM | SBIT_DECAL },  // alternate from Homa
     { 15, 44,   6, 0, L"twisting_vines_plant", L"twisting_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },  // alternate from Homa
     {  0, 45,   6, 0, L"ancient_debris_top", L"", SWATCH_REPEAT_ALL },
@@ -901,6 +901,8 @@ static const struct {
     { L"acacia_door_upper", L"acacia_door_top" },    // Absolution
     { L"birch_door_lower", L"birch_door_bottom" },    // Absolution
     { L"birch_door_upper", L"birch_door_top" },    // Absolution
+    { L"crimson_log_side", L"crimson_stem" },    // Smoolistic
+    { L"crimson_log_top", L"crimson_stem_top" },    // Smoolistic
     { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
     { L"daylight_detector", L"daylight_detector_top" },    // Meteor

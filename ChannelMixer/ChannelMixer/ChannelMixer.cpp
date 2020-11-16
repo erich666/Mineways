@@ -26,6 +26,8 @@
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 static boolean gFirstTime = true;
+static boolean gChestDirectoryExists = false;
+static boolean gChestDirectoryFailed = false;
 
 static wchar_t gErrorString[1000];
 // 1000 errors of 100 characters each - sounds sufficient
@@ -37,14 +39,15 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 progimage_info* allocateGrayscaleImage(progimage_info* source_ptr);
 
 
-void printHelp();
+static void printHelp();
 //static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose);
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
 
-int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose);
-int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose);
-int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose);
+static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose);
+static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose);
+static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose);
+static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory);
 
 static int isNearlyGrayscale(progimage_info* src);
 static void invertChannel(progimage_info* dst);
@@ -152,15 +155,15 @@ int wmain(int argc, wchar_t* argv[])
 	// Work we always do: look at _s files and _mer files and split out.
 	// _s files might be grayscale (roughness only) or SME.
 	if (!sameDir) {
-		filesProcessed += copyFiles(&gFG, outputDirectory, verbose);
+		filesProcessed += copyFiles(&gFG, &gCG, outputDirectory, verbose);
 	}
 
 	if (gFG.categories[CATEGORY_SPECULAR] > 0) {
-		filesProcessed += processSpecularFiles(&gFG, outputDirectory, outputMerged, verbose);
+		filesProcessed += processSpecularFiles(&gFG, &gCG, outputDirectory, outputMerged, verbose);
 	}
 
 	if (gFG.categories[CATEGORY_MER] > 0) {
-		filesProcessed += processMERFiles(&gFG, outputDirectory, verbose);
+		filesProcessed += processMERFiles(&gFG, &gCG, outputDirectory, verbose);
 	}
 
 	//if (createLeaves) {
@@ -177,7 +180,7 @@ int wmain(int argc, wchar_t* argv[])
 	return 0;
 }
 
-void printHelp()
+static void printHelp()
 {
 	wprintf(L"ChannelMixer version 1.00\n");  // change version below, too
 	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-v]\n");
@@ -187,11 +190,12 @@ void printHelp()
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
+static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
 	int filesRead = 0;
 
 	int copyCategories[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
 	int numCats = sizeof(copyCategories) / sizeof(int);
+	wchar_t outputChestDirectory[MAX_PATH];
 	for (int category = 0; category < numCats; category++) {
 		// does this category have any input files? If not, skip it - just a small speed-up.
 		if (pfg->categories[copyCategories[category]] > 0) {
@@ -237,7 +241,65 @@ int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
 					if (category == CATEGORY_NORMALS_LONG) {
 						int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
 						if (pfg->fr[otherIndex].exists) {
-							wprintf(gErrorString, L"WARNING: file '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+							wprintf(L"WARNING: file '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+						}
+					}
+				}
+			}
+		}
+
+		// Chests
+		// does this chest category have any input files? If not, skip it - just a small speed-up.
+		if (pcg->categories[copyCategories[category]] > 0) {
+			// there are files to copy
+			for (int i = 0; i < pcg->totalTiles; i++) {
+				int fullIndex = copyCategories[category] * pcg->totalTiles + i;
+				if (pcg->cr[fullIndex].exists) {
+					// file exists - copy it.
+					
+					// first create chest subdirectory if it doesn't exist
+					if (!setChestDirectory(outputDirectory, outputChestDirectory)) {
+						break;
+					}
+
+					wchar_t inputFile[MAX_PATH_AND_FILE];
+					wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
+					wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+					wchar_t outputFile[MAX_PATH_AND_FILE];
+					wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
+					wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+					// overwrite previous file
+					if (CopyFile(inputFile, outputFile, false) == 0) {
+						DWORD attr = GetFileAttributes(outputFile);
+						int isReadOnly = 0;
+						if (attr != INVALID_FILE_ATTRIBUTES) {
+							isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
+						}
+						if (isReadOnly) {
+							if (gFirstTime || verbose) {
+								gFirstTime = false;
+								wprintf(L"WARNING: file '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning.\n", pcg->cr[fullIndex].fullFilename);
+								if (!verbose)
+									wprintf(L"  To avoid generating excessive error messages, this warning is shown only once (use '-v' to see them all).\n");
+							}
+						}
+						else {
+							wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+							saveErrorForEnd();
+							gErrorCount++;
+						}
+					}
+					else if (verbose) {
+						wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+						filesRead++;
+					}
+
+					if (category == CATEGORY_NORMALS_LONG) {
+						int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
+						if (pcg->cr[otherIndex].exists) {
+							wprintf(L"WARNING: file '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
 						}
 					}
 				}
@@ -247,7 +309,7 @@ int copyFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
 	return filesRead;
 }
 
-int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose) {
+static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose) {
 	int rc;
 	int isGrayscale = 0;
 	int isSME = 0;
@@ -390,16 +452,159 @@ int processSpecularFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean 
 			}
 		}
 	}
+
+	// grotesque, lazy coding: copying all the code above, with chest grid changes
+	wchar_t outputChestDirectory[MAX_PATH];
+	for (int i = 0; i < pcg->totalTiles; i++) {
+		int fullIndex = CATEGORY_SPECULAR * pcg->totalTiles + i;
+		if (pcg->cr[fullIndex].exists) {
+			// file exists - process it.
+
+			// first create chest subdirectory if it doesn't exist
+			if (!setChestDirectory(outputDirectory, outputChestDirectory)) {
+				break;
+			}
+
+			// Read file's contents.
+			// Check if file's channels are all quite close to one another:
+			// If so, then this is just a roughness map.
+			// Else, this is an SME texture, so output each.
+			wchar_t inputFile[MAX_PATH_AND_FILE];
+			wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
+			wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+			// read in tile for later
+			progimage_info tile;
+			rc = readpng(&tile, inputFile, LCT_RGB);
+			if (rc != 0)
+			{
+				reportReadError(rc, inputFile);
+				continue;
+			}
+			else {
+				filesRead++;
+
+				wchar_t outputFile[MAX_PATH_AND_FILE];
+				if (isNearlyGrayscale(&tile)) {
+					isGrayscale++;
+					// specular only: output just the roughness channel
+					// always export specular in inverted
+					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
+					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
+					// output the channel if it's not all black
+					boolean allBlack = true;
+					if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+						allBlack = false;
+						invertChannel(destination_ptr);
+
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_ROUGHNESS]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+						rc = writepng(destination_ptr, 1, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit - if we can't write one file, we're unlikely to write the rest.
+							return filesRead;
+						}
+						if (verbose) {
+							wprintf(L"New texture '%s' created.\n", outputFile);
+						}
+					}
+					writepng_cleanup(destination_ptr);
+					if (!allBlack && outputMerged) {
+						progimage_info* mer_ptr = allocateRGBImage(&tile);
+						StoMER(mer_ptr, &tile);
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+						rc = writepng(mer_ptr, 3, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit
+							return filesRead;
+						}
+						if (verbose) {
+							wprintf(L"New specular-only MER texture '%s' created.\n", outputFile);
+						}
+						writepng_cleanup(mer_ptr);
+					}
+				}
+				else {
+					isSME++;
+					// SME: output all three
+					for (int channel = 0; channel < 3; channel++) {
+						// output the channel if it's not all black
+						progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
+						copyOneChannel(destination_ptr, channel, &tile);
+						// is the channel, copied over, non-zero?
+						if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+							if (channel == CHANNEL_RED) {
+								invertChannel(destination_ptr);
+							}
+
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+							rc = writepng(destination_ptr, 1, outputFile);
+							if (rc != 0)
+							{
+								reportReadError(rc, outputFile);
+								// quit - if we can't write one file, we're unlikely to write the rest.
+								return filesRead;
+							}
+							if (verbose) {
+								wprintf(L"New texture '%s' created.\n", outputFile);
+							}
+						}
+						writepng_cleanup(destination_ptr);
+					}
+					if (outputMerged) {
+						progimage_info* smer_ptr = allocateRGBImage(&tile);
+						if (SMEtoMER(smer_ptr, &tile)) {
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
+							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+							rc = writepng(smer_ptr, 3, outputFile);
+							if (rc != 0)
+							{
+								reportReadError(rc, outputFile);
+								// quit
+								return filesRead;
+							}
+							if (verbose) {
+								wprintf(L"New merged MER texture '%s' created.\n", outputFile);
+							}
+						}
+						else {
+							wprintf(L"WARNING: no merged MER texture '%s' generated, as SME conversion resulted in an all-black image.\n", outputFile);
+						}
+						writepng_cleanup(smer_ptr);
+					}
+				}
+				readpng_cleanup(1, &tile);
+			}
+		}
+	}
 	if (isGrayscale > 0 && isSME > 0) {
-		wprintf(gErrorString, L"WARNING: the '*_s.png' input files seem to be of two formats: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
+		wprintf(L"WARNING: the '*_s.png' input files seem to be of two formats: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
 	}
 	else if (verbose) {
-		wprintf(gErrorString, L"Specular input files processed: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
+		wprintf(L"Specular input files processed: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
 	}
 	return filesRead;
 }
 
-int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbose) {
+static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
 	int rc;
 	int isMER = 0;
 	int filesRead = 0;
@@ -467,12 +672,103 @@ int processMERFiles(FileGrid* pfg, const wchar_t* outputDirectory, boolean verbo
 			}
 		}
 	}
+
+	// lame code copying of code above for chests
+	wchar_t outputChestDirectory[MAX_PATH];
+	for (int i = 0; i < pcg->totalTiles; i++) {
+		int fullIndex = CATEGORY_MER * pcg->totalTiles + i;
+		if (pcg->cr[fullIndex].exists) {
+			// first create chest subdirectory if it doesn't exist
+			if (!setChestDirectory(outputDirectory, outputChestDirectory)) {
+				break;
+			}
+
+			isMER++;
+
+			// file exists - process it.
+			// Read file's contents.
+			// Check if file's channels are all quite close to one another:
+			// If so, then this is just a roughness map.
+			// Else, this is an SME texture, so output each.
+			wchar_t inputFile[MAX_PATH_AND_FILE];
+			wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
+			wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+			// read in tile
+			progimage_info tile;
+			rc = readpng(&tile, inputFile, LCT_RGB);
+			if (rc != 0)
+			{
+				reportReadError(rc, inputFile);
+			}
+			else {
+				filesRead++;
+
+				wchar_t outputFile[MAX_PATH_AND_FILE];
+
+				// MER: output all three
+				for (int channel = 0; channel < 3; channel++) {
+					// output the channel if it's not all black
+					// output the channel if it's not all black - actually, we do want to output it;
+					// that's a valid value set, which we should deal with in TileMaker
+					//if (!isChannelAllBlack(&tile, channel)) {
+					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
+					copyOneChannel(destination_ptr, channel, &tile);
+					// output the channel if it's not all black (or white, for roughness)
+					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+
+						rc = writepng(destination_ptr, 1, outputFile);
+						if (rc != 0)
+						{
+							reportReadError(rc, outputFile);
+							// quit - if we can't write one file, we're unlikely to write the rest.
+							return filesRead;
+						}
+						if (verbose)
+							wprintf(L"New texture '%s' created.\n", outputFile);
+						//}
+					}
+					writepng_cleanup(destination_ptr);
+				}
+
+				readpng_cleanup(1, &tile);
+			}
+		}
+	}
 	if (verbose) {
-		wprintf(gErrorString, L"%d MER input files processed.\n", isMER);
+		wprintf(L"%d MER input files processed.\n", isMER);
 	}
 
 	return filesRead;
 }
+
+// true for success, false for there was a serious error
+static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory)
+{
+	// copy directory over and add "\chest" - repetitive, and should really just test another way, but
+	// this operation is not done much.
+	wcscpy_s(outputChestDirectory, MAX_PATH, outputDirectory);
+	wcscat_s(outputChestDirectory, MAX_PATH, L"\\chest");
+	
+	// lazy global - check if we've done this operation before
+	if (!gChestDirectoryExists && !gChestDirectoryFailed) {
+		gChestDirectoryExists = true;
+		if (!createDir(outputChestDirectory)) {
+			// does not exist and could not create it
+			wsprintf(gErrorString, L"ERROR: Output chest directory %s cannot be accessed. No chest tiles will be saved.\n", outputChestDirectory);
+			saveErrorForEnd();
+			gErrorCount++;
+			gChestDirectoryFailed = true;
+		}
+	}
+	return !gChestDirectoryFailed;
+}
+
 
 /*
 static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose)
