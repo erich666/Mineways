@@ -25660,6 +25660,7 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
     dst.width = swatchSize - 2;
     dst.image_data.resize(dst.height * dst.width * numChannels);
 
+GenerateEmitter:
     imageDst = &dst.image_data[0];
 
     for (row = 0; row < dst.height; row++)
@@ -25693,6 +25694,25 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
         }
     }
 
+    // For some resource packs the map comes back entirely black, since they use different colors.
+    // If we get all black back, then redo and turn clamping off! TODOUSD - is there a better way?
+    if (clampToBlack > 0) {
+        assert(makeGrayscale);
+        imageDst = &dst.image_data[0];
+        for (row = 0; row < dst.height; row++)
+        {
+            for (col = 0; col < dst.width; col++)
+            {
+                if ( *imageDst++ > 0 ) {
+                    goto WriteEmitter;
+                }
+            }
+        }
+        clampToBlack = 0;
+        goto GenerateEmitter;
+    }
+
+WriteEmitter:
     rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
