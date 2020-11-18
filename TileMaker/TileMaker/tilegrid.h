@@ -20,9 +20,10 @@
 #define CATEGORY_MER			7
 #define CATEGORY_SYNTHETIC		8
 
-#define	FILE_NOT_FOUND			0
-#define FILE_FOUND				1
-#define FILE_FOUND_AND_IGNORED	2
+#define FILE_NOT_FOUND			 0
+#define FILE_FOUND				 1
+#define FILE_FOUND_AND_DUPLICATE 2
+#define FILE_FOUND_AND_IGNORED	 3
 
 static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y" };
 static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_normal", "_m", "_e", "_r", "_s", "_mer", "_y" };

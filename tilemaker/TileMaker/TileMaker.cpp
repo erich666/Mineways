@@ -158,7 +158,7 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 //-------------------------------------------------------------------------
 void printHelp();
 
-void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
+int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
 
@@ -392,13 +392,13 @@ int wmain(int argc, wchar_t* argv[])
 	// reality check: make sure no tile in the tiles.h array is used twice (hey, I've made this mistake it in the past)
 	for (int tileid = 0; tileid < TOTAL_TILES - 1; tileid++) {
 		if ((gTilesTable[tileid].txrX != tileid % 16) || (gTilesTable[tileid].txrY != (int)(tileid / 16))) {
-			wprintf(L"INTERNAL WARNING: tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
+			wprintf(L"INTERNAL WARNING: Tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
 			gWarningCount++;
 		}
 		if (wcslen(gTilesTable[tileid].filename) > 0) {
 			for (int testtile = tileid + 1; testtile < TOTAL_TILES; testtile++) {
 				if (_wcsicmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
-					wprintf(L"INTERNAL WARNING: tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
+					wprintf(L"INTERNAL WARNING: Tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
 					gWarningCount++;
 				}
 			}
@@ -414,6 +414,7 @@ int wmain(int argc, wchar_t* argv[])
 	inputDirectoryList[numInputDirectories] = NULL;
 
 	// look through tiles in tiles directories, see which exist.
+	int filesFound = 0;
 	int filesProcessed = 0;
 	wchar_t** inputDirectoryPtr = inputDirectoryList;
 	while (*inputDirectoryPtr != NULL) {
@@ -430,7 +431,7 @@ int wmain(int argc, wchar_t* argv[])
 			gErrorCount++;
 		}
 		else {
-			filesProcessed += fileCount;
+			filesFound += fileCount;
 		}
 		inputDirectoryPtr++;
 	}
@@ -513,13 +514,13 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user of large tiles
 	if (outputTileSize > 256) {
-		wprintf(L"WARNING: with a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures, unless you export from Mineways\n  by using the 'Export tiles for textures' option. Consider running again,\n  using the '-t tileSize' option, choosing a power of two value less than this,\n  such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
+		wprintf(L"WARNING: With a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures, unless you export from Mineways\n  by using the 'Export tiles for textures' option. Consider running again,\n  using the '-t tileSize' option, choosing a power of two value less than this,\n  such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
 		gWarningCount++;
 	}
 
-	// now add new textures as needed.
-	shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
-	shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
+	// now add new textures as needed. If sharing goes on, drop the output count.
+	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
+	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
 
 	// if there are _n and _normal textures for the same tile, favor the _n textures
 	for (index = 0; index < gFG.totalTiles; index++) {
@@ -530,7 +531,7 @@ int wmain(int argc, wchar_t* argv[])
 			// does _n version exist?
 			if (gFG.fr[fullIndexN].exists) {
 				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
-				wprintf(L"WARNING: file '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
+				wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
 				gWarningCount++;
 			} else {
 				// move the _normal to _n
@@ -650,7 +651,7 @@ int wmain(int argc, wchar_t* argv[])
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
 								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
-									wprintf(L"WARNING: file '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+									wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
 									gWarningCount++;
 								}
 							}
@@ -721,8 +722,12 @@ int wmain(int argc, wchar_t* argv[])
 						}
 
 						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16))) {
+							// failed to copy, somehow
+							assert(0);
 							return 1;
 						}
+//wprintf(L"%s\n", gFG.fr[fullIndex].fullFilename);
+						filesProcessed++;
 						if (verbose)
 							wprintf(L"File '%s' merged.\n", gFG.fr[fullIndex].fullFilename);
 					}
@@ -881,9 +886,6 @@ int wmain(int argc, wchar_t* argv[])
 						// if we got this far, at least one chest was found
 						anyChests = true;
 
-						if (verbose)
-							wprintf(L"The chest image file '%s' exists and will be used.\n", chestFile);
-
 						// from size figure out scaling factor from chest to terrainExt.png
 
 						// loop through bits to copy
@@ -905,6 +907,10 @@ int wmain(int argc, wchar_t* argv[])
 								pChest->data[copyIndex].flags,
 								(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
 						}
+						filesProcessed++;
+//wprintf(L"%s\n", gCG.cr[index + catIndex * gCG.totalTiles].fullFilename);
+						if (verbose)
+							wprintf(L"Chest file '%s' merged.\n", chestFile);
 
 						// clean up
 						readpng_cleanup(1, &chestImage);
@@ -938,7 +944,7 @@ int wmain(int argc, wchar_t* argv[])
 					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
 			}
 			else {
-				wprintf(L"WARNING: new texture '%s' not created, as all input textures were found to be unusable.\n", terrainExtOutput);
+				wprintf(L"WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
 			}
 		}
 	}
@@ -963,10 +969,14 @@ int wmain(int argc, wchar_t* argv[])
 	if (gErrorCount)
 		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
 
-	if (gErrorCount || gWarningCount)
-		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
+	if (gErrorCount)
+		wprintf(L"Error summary: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
 
-	wprintf(L"TileMaker summary: %d files read in and processed.\n", filesProcessed);
+	wprintf(L"TileMaker summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
+	if (filesFound > filesProcessed) {
+		wprintf(L"    This difference of %d files means that some files were found and not used.\n", filesFound - filesProcessed);
+		wprintf(L"    Look through the warnings and repair, rename, or delete those files you do not want to use.\n");
+	}
 	return 0;
 }
 
@@ -994,20 +1004,21 @@ void printHelp()
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
-void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
+int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 {
 	int index1 = findTileIndex(tile1, false);
 	int index2 = findTileIndex(tile2, false);
 
 	if (index1 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile1);
-		return;
+		return 0;
 	}
 	if (index2 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile2);
-		return;
+		return 0;
 	}
 
+	int shareCount = 0;
 	for (int category = 0; category < pfg->totalCategories; category++) {
 		int fullIndex1 = category * pfg->totalTiles + index1;
 		int fullIndex2 = category * pfg->totalTiles + index2;
@@ -1016,6 +1027,7 @@ void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 			if (!pfg->fr[fullIndex2].exists) {
 				// copy first to second
 				copyFileRecord(pfg, category, fullIndex2, &pfg->fr[fullIndex1]);
+				shareCount++;
 			}
 		}
 		else {
@@ -1023,9 +1035,11 @@ void shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 			if (pfg->fr[fullIndex2].exists) {
 				// copy second to first
 				copyFileRecord(pfg, category, fullIndex1, &pfg->fr[fullIndex2]);
+				shareCount++;
 			}
 		}
 	}
+	return shareCount;
 }
 
 int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
@@ -1109,6 +1123,9 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 4:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
 		break;
+	case 57:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid CRC. Try saving this PNG using some program, e.g., IrfanView.\n", filename);
+		break;
 	case 63:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
 		break;
@@ -1117,6 +1134,9 @@ static void reportReadError(int rc, const wchar_t* filename)
 		break;
 	case 79:
 		wsprintf(gErrorString, L"***** ERROR [%s] write failed - directory not found. Please create the directory.\n", filename);
+		break;
+	case 83:
+		wsprintf(gErrorString, L"***** ERROR [%s] allocation failed. Image file is too large for your system to handle?\n", filename);
 		break;
 	default:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);

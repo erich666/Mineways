@@ -938,7 +938,7 @@ static const struct {
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
 
     // just plain typos - might as well fix them as I find them
-    { L"conrflower", L"cornflower" },    // miejojo128 v1.16
+    //{ L"conrflower", L"cornflower" },    // miejojo128 v1.16 - typo, but not the image we want anyway
     { L"diamon_block", L"diamond_block" },    // Absolution
     { L"grey_stained_glass", L"gray_stained_glass" },    // Vanilla-Normals-Renewed-master
     { L"grey_stained_glass_pane_top", L"gray_stained_glass_pane_top" },    // Vanilla-Normals-Renewed-master

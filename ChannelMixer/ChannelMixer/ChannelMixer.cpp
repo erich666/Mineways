@@ -25,7 +25,7 @@
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
-static boolean gFirstTime = true;
+static int gWriteProtectCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
@@ -153,12 +153,12 @@ int wmain(int argc, wchar_t* argv[])
 		filesFound += fileCount;
 	}
 
-	if (verbose) {
-		wprintf(L"%d files found to process.\n", filesFound);
-	}
-
 	if (filesFound <= 0) {
 		wprintf(L"ERROR, no files found to process - quitting.\n");
+	}
+
+	if (verbose) {
+		wprintf(L"%d files found to process.\n", filesFound);
 	}
 
 	int filesProcessed = 0;
@@ -182,13 +182,26 @@ int wmain(int argc, wchar_t* argv[])
 	//	createCompositedLeaves(inputDirectory, outputDirectory, synthOutSuffix, verbose);
 	//}
 
+	if (gWriteProtectCount > 1) {
+		wprintf(L"WARNING: a total of %d files could not be written due to write protection.\n", gWriteProtectCount);
+	}
+
 	if (gErrorCount)
 		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
 
 	if (gErrorCount || gWarningCount)
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
-	wprintf(L"ChannelMixer summary: %d files read in and %d processed.\n", filesFound, filesProcessed);
+	if (gWriteProtectCount > 0) {
+		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered; %d of these were used and\n     %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
+	}
+	else {
+		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
+	}
+	if (filesFound > filesProcessed + gWriteProtectCount) {
+		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
+		wprintf(L"    Look through the warnings and rename or delete those files you do not want to use.\n");
+	}
 	return 0;
 }
 
@@ -226,34 +239,37 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 
 					// overwrite previous file
 					if (CopyFile(inputFile, outputFile, false) == 0) {
-							DWORD attr = GetFileAttributes(outputFile);
-							int isReadOnly = 0;
-							if (attr != INVALID_FILE_ATTRIBUTES) {
-								isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
+						DWORD attr = GetFileAttributes(outputFile);
+						int isReadOnly = 0;
+						if (attr != INVALID_FILE_ATTRIBUTES) {
+							isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
+						}
+						if (isReadOnly) {
+							if (!gWriteProtectCount || verbose) {
+								wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pfg->fr[fullIndex].fullFilename);
+								if (!verbose)
+									wprintf(L"  To avoid generating noise, this warning is shown only once (use '-v' to see them all).\n");
 							}
-							if (isReadOnly) {
-								if (gFirstTime || verbose) {
-									gFirstTime = false;
-									wprintf(L"WARNING: file '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning.\n", pfg->fr[fullIndex].fullFilename);
-									if (!verbose)
-										wprintf(L"  To avoid generating noise, this warning is shown only once (use '-v' to see them all).\n");
-								}
-							}
-							else {
-								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
-								saveErrorForEnd();
-								gErrorCount++;
-							}
+							gWriteProtectCount++;
+						}
+						else {
+							wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+							saveErrorForEnd();
+							gErrorCount++;
+						}
 					}
-					else if (verbose) {
-						wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+					else {
+						// file copied successfully
 						filesRead++;
+						if (verbose) {
+							wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+						}
 					}
 
 					if (category == CATEGORY_NORMALS_LONG) {
 						int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
 						if (pfg->fr[otherIndex].exists) {
-							wprintf(L"WARNING: file '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+							wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
 						}
 					}
 				}
@@ -290,12 +306,12 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
 						}
 						if (isReadOnly) {
-							if (gFirstTime || verbose) {
-								gFirstTime = false;
-								wprintf(L"WARNING: file '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning.\n", pcg->cr[fullIndex].fullFilename);
+							if (!gWriteProtectCount || verbose) {
+								wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pcg->cr[fullIndex].fullFilename);
 								if (!verbose)
 									wprintf(L"  To avoid generating excessive error messages, this warning is shown only once (use '-v' to see them all).\n");
 							}
+							gWriteProtectCount++;
 						}
 						else {
 							wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
@@ -303,15 +319,18 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							gErrorCount++;
 						}
 					}
-					else if (verbose) {
-						wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+					else {
+						// file copied successfully
 						filesRead++;
+						if (verbose) {
+							wprintf(L"Chest texture '%s' copied to '%s'.\n", inputFile, outputFile);
+						}
 					}
 
 					if (category == CATEGORY_NORMALS_LONG) {
 						int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
 						if (pcg->cr[otherIndex].exists) {
-							wprintf(L"WARNING: file '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
+							wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
 						}
 					}
 				}
@@ -455,7 +474,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 							}
 						}
 						else {
-							wprintf(L"WARNING: no merged MER texture '%s' generated, as SME conversion resulted in an all-black image.\n", outputFile);
+							wprintf(L"WARNING: No merged MER texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
 						writepng_cleanup(smer_ptr);
 					}
@@ -522,7 +541,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 							return filesRead;
 						}
 						if (verbose) {
-							wprintf(L"New texture '%s' created.\n", outputFile);
+							wprintf(L"New chest texture '%s' created.\n", outputFile);
 						}
 					}
 					writepng_cleanup(destination_ptr);
@@ -542,7 +561,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 							return filesRead;
 						}
 						if (verbose) {
-							wprintf(L"New specular-only MER texture '%s' created.\n", outputFile);
+							wprintf(L"New specular-only MER chest texture '%s' created.\n", outputFile);
 						}
 						writepng_cleanup(mer_ptr);
 					}
@@ -573,7 +592,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 								return filesRead;
 							}
 							if (verbose) {
-								wprintf(L"New texture '%s' created.\n", outputFile);
+								wprintf(L"New chest texture '%s' created.\n", outputFile);
 							}
 						}
 						writepng_cleanup(destination_ptr);
@@ -594,11 +613,11 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 								return filesRead;
 							}
 							if (verbose) {
-								wprintf(L"New merged MER texture '%s' created.\n", outputFile);
+								wprintf(L"New merged MER chest texture '%s' created.\n", outputFile);
 							}
 						}
 						else {
-							wprintf(L"WARNING: no merged MER texture '%s' generated, as SME conversion resulted in an all-black image.\n", outputFile);
+							wprintf(L"WARNING: No merged MER chest texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
 						writepng_cleanup(smer_ptr);
 					}
@@ -608,7 +627,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 		}
 	}
 	if (isGrayscale > 0 && isSME > 0) {
-		wprintf(L"WARNING: the '*_s.png' input files seem to be of two formats: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
+		wprintf(L"WARNING: The input files with a suffix of '*_s.png' seem to be of two formats:\n  %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
 	}
 	else if (verbose) {
 		wprintf(L"Specular input files processed: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
@@ -742,7 +761,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 							return filesRead;
 						}
 						if (verbose)
-							wprintf(L"New texture '%s' created.\n", outputFile);
+							wprintf(L"New chest texture '%s' created.\n", outputFile);
 						//}
 					}
 					writepng_cleanup(destination_ptr);
