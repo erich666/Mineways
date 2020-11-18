@@ -393,12 +393,14 @@ int wmain(int argc, wchar_t* argv[])
 	for (int tileid = 0; tileid < TOTAL_TILES - 1; tileid++) {
 		if ((gTilesTable[tileid].txrX != tileid % 16) || (gTilesTable[tileid].txrY != (int)(tileid / 16))) {
 			wprintf(L"INTERNAL WARNING: Tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
+			assert(0);
 			gWarningCount++;
 		}
 		if (wcslen(gTilesTable[tileid].filename) > 0) {
 			for (int testtile = tileid + 1; testtile < TOTAL_TILES; testtile++) {
 				if (_wcsicmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
 					wprintf(L"INTERNAL WARNING: Tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
+					assert(0);
 					gWarningCount++;
 				}
 			}
@@ -521,6 +523,13 @@ int wmain(int argc, wchar_t* argv[])
 	// now add new textures as needed. If sharing goes on, drop the output count.
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
+
+	// if there's a grass_block_overlay, then do this equivalency
+	index = findTileIndex(L"grass_block_side_overlay", false);
+	assert(index >= 0);
+	if (gFG.fr[index].exists) {
+		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
+	}
 
 	// if there are _n and _normal textures for the same tile, favor the _n textures
 	for (index = 0; index < gFG.totalTiles; index++) {
@@ -1011,10 +1020,12 @@ int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 
 	if (index1 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile1);
+		assert(0);
 		return 0;
 	}
 	if (index2 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile2);
+		assert(0);
 		return 0;
 	}
 
