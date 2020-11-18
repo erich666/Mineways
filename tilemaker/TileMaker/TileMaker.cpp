@@ -413,7 +413,7 @@ int wmain(int argc, wchar_t* argv[])
 	// put a NULL pointer on the end of the list
 	inputDirectoryList[numInputDirectories] = NULL;
 
-	// look through tiles in tiles directories, see which exist. Find maximum Y value when done.
+	// look through tiles in tiles directories, see which exist.
 	int filesProcessed = 0;
 	wchar_t** inputDirectoryPtr = inputDirectoryList;
 	while (*inputDirectoryPtr != NULL) {
@@ -423,9 +423,9 @@ int wmain(int argc, wchar_t* argv[])
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, verbose, alternate, true);
+		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true);
 		if (fileCount < 0) {
-			wsprintf(gErrorString, L"***** ERROR: cannot find files for the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
+			wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
 			saveErrorForEnd();
 			gErrorCount++;
 		}

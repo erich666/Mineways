@@ -66,7 +66,7 @@ static ChestGrid gCG;
 void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void addBackslashIfNeeded(wchar_t* dir);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, int verbose, int alternate, boolean topmost);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, boolean topmost);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);

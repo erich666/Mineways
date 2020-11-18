@@ -67,6 +67,7 @@ int wmain(int argc, wchar_t* argv[])
 	//boolean createLeaves = false;
 
 	initializeFileGrid(&gFG);
+	initializeChestGrid(&gCG);
 
 	// two means even try the alternate name list
 	int alternate = 2;
@@ -122,6 +123,17 @@ int wmain(int argc, wchar_t* argv[])
 	addBackslashIfNeeded(inputDirectory);
 	addBackslashIfNeeded(outputDirectory);
 
+#ifdef _DEBUG
+	// reality check - make sure data in gTilesAlternates is correct
+	int i = 0;
+	while (wcslen(gTilesAlternates[i].filename) > 0) {
+		if (!findTileIndex(gTilesAlternates[i].filename, 1) ) {
+			assert(0);
+		}
+		i++;
+	}
+#endif
+
 	// How it works:
 	// Look through all directories for files, warn of duplicates that get ignored. TODO: just have one directory now
 	// Copy files over if output directory is different than input directory.
@@ -131,7 +143,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
-	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, verbose, alternate, true);
+	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, wcslen(inputDirectory), verbose, alternate, true);
 	if (fileCount < 0) {
 		wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
@@ -497,7 +509,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 						allBlack = false;
 						invertChannel(destination_ptr);
 
-						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_ROUGHNESS]);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
@@ -517,7 +529,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					if (!allBlack && outputMerged) {
 						progimage_info* mer_ptr = allocateRGBImage(&tile);
 						StoMER(mer_ptr, &tile);
-						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
@@ -548,7 +560,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 								invertChannel(destination_ptr);
 							}
 
-							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
@@ -569,7 +581,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					if (outputMerged) {
 						progimage_info* smer_ptr = allocateRGBImage(&tile);
 						if (SMEtoMER(smer_ptr, &tile)) {
-							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[CATEGORY_MER]);
 							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
@@ -717,7 +729,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 					// output the channel if it's not all black (or white, for roughness)
 					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 
-						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
@@ -753,7 +765,8 @@ static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* output
 	// copy directory over and add "\chest" - repetitive, and should really just test another way, but
 	// this operation is not done much.
 	wcscpy_s(outputChestDirectory, MAX_PATH, outputDirectory);
-	wcscat_s(outputChestDirectory, MAX_PATH, L"\\chest");
+	// Note: the \\ is put at the end here, so we don't have to do it elsewhere
+	wcscat_s(outputChestDirectory, MAX_PATH, L"\\chest\\");
 	
 	// lazy global - check if we've done this operation before
 	if (!gChestDirectoryExists && !gChestDirectoryFailed) {

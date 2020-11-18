@@ -239,7 +239,7 @@ static struct {
     {  2, 10,   6, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
     {  3, 10,   6, 0, L"powered_rail", L"rail_golden", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south) - TODO, this is one of those one to many situations, where redstone_dust_line (in Muddle and Smoolistic) could be this and the next
-    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// horizontal, rotated
+    {  5, 10,   6, 0, L"redstone_dust_line1", L"redstone_dust_line", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// horizontal, rotated (alt: Smoolistic)
     {  6, 10, 116, 0, L"enchanting_table_top", L"", SWATCH_REPEAT_ALL },
     {  7, 10, 122, 0, L"dragon_egg", L"", SWATCH_REPEAT_ALL },
     {  8, 10, 127, 0, L"cocoa_stage2", L"cocoa_stage_2", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -292,7 +292,7 @@ static struct {
     {  7, 13, 145, 0, L"anvil", L"anvil_base", SWATCH_REPEAT_ALL },
     {  8, 13,   6, 0, L"chipped_anvil_top", L"anvil_top_damaged_1", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  9, 13, 130, 0, L"MWO_ender_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 10, 13, 130, 0, L"MWO_ender_chest_top", L"ender_chest_to", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 10, 13, 130, 0, L"MWO_ender_chest_top", L"ender_chest_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 13, 130, 0, L"MWO_ender_chest_side", L"ender_chest_side", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 13, 130, 0, L"MWO_ender_chest_front", L"ender_chest_front", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN
@@ -319,8 +319,8 @@ static struct {
     {  2, 15,  75, 0, L"MWO_flattened_redstone_torch_top_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, off; not used in rendering, but 3D printing uses for composites for torches from above
     {  3, 15,   6, 0, L"MWO_redstone_dust_angled", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for angled redstone wire
     {  4, 15,   6, 0, L"MWO_redstone_dust_three_way", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for three-way redstone wire
-    {  5, 15,   6, 0, L"daylight_detector_side", L"", SWATCH_REPEAT_ALL },	// destroy, etc. unused
-    {  6, 15, 151, 0, L"daylight_detector_top", L"", SWATCH_REPEAT_ALL },
+    {  5, 15,   6, 0, L"daylight_detector_side", L"", SWATCH_REPEAT_ALL },	// Note that daylight_detector is an alt for Hardtop; it's an alt for top, next line, for Meteor. Ugh.
+    {  6, 15, 151, 0, L"daylight_detector_top", L"daylight_detector", SWATCH_REPEAT_ALL },  // alt: Meteor
     {  7, 15,   6, 0, L"dropper_front", L"dropper_front_horizontal", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  8, 15,   6, 0, L"dropper_front_vertical", L"", SWATCH_REPEAT_ALL },
     {  9, 15,   6, 0, L"hay_block_side", L"", SWATCH_REPEAT_ALL },
@@ -496,7 +496,7 @@ static struct {
     {  3, 26,   6, 0, L"bone_block_side", L"", SWATCH_REPEAT_ALL },
     {  4, 26, 216, 0, L"bone_block_top", L"", SWATCH_REPEAT_ALL },
     {  5, 26,   6, 0, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
-    {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"redstone_dust_cross", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved
+    {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"redstone_dust_cross", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved (alt: Smoolistic)
     {  7, 26,   6, 0, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  8, 26,   8, 0, L"water_flow", L"water_flow_grey", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// special: double-wide. TODO: some packs make "water_flow" a colored version, using "water_flow_grey" for the right one
     {  9, 26,  10, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
@@ -673,7 +673,7 @@ static struct {
     {  4, 37,   6, 0, L"lily_of_the_valley", L"flower_lily_of_the_valley", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 37,   6, 0, L"wither_rose", L"flower_wither_rose", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  6, 37,   6, 0, L"bamboo_large_leaves", L"bamboo_leaf", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  7, 37,   6, 0, L"bamboo_singleleaf", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 37,   6, 0, L"bamboo_singleleaf", L"bamboo_single_leaf", SBIT_CLAMP_BOTTOM | SBIT_DECAL },    // alt: Hardtop
     {  8, 37,   6, 0, L"bamboo_small_leaves", L"bamboo_small_leaf", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  9, 37,   6, 0, L"bamboo_stage0", L"bamboo_sapling", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// X decal
     { 10, 37, 328, 0, L"bamboo_stalk", L"bamboo_stem", SWATCH_CLAMP_ALL },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
@@ -905,24 +905,32 @@ static const struct {
     { L"crimson_log_top", L"crimson_stem_top" },    // Smoolistic
     { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
-    { L"daylight_detector", L"daylight_detector_top" },    // Meteor
+    { L"dirt_podzol-side", L"podzol_side" },    // jg-rtx
+    { L"dirt_podzol-top", L"podzol_top" },    // jg-rtx
     { L"dried_kelp_side_a", L"dried_kelp_side" },    // Muddle
     { L"fletcher_table_side1", L"fletching_table_side" },    // Muddle
     { L"fletcher_table_top", L"fletching_table_top" },    // Muddle
+    //{ L"grass-side", L"grass_block_side" },    // jg-rtx
+    //{ L"grass-top", L"grass_block_top" },    // jg-rtx
+    { L"grass-tuft", L"grass" },    // jg-rtx
     { L"iron_door_lower", L"iron_door_bottom" },    // Absolution
     { L"iron_door_upper", L"iron_door_top" },    // Absolution
     { L"itemframe_background", L"item_frame" },    // Absolution
     { L"jungle_door_lower", L"jungle_door_bottom" },    // Absolution
     { L"jungle_door_upper", L"jungle_door_top" },    // Absolution
+    //{ L"jungle_wood", L"jungle_planks" },    // Ultimate Immersion - but already has jungle_planks
     { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
     { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
+    { L"quartz_chiseled", L"chiseled_quartz_block" },    // jg-rtx
+    { L"quartz_column", L"quartz_pillar" },    // jg-rtx
     { L"red_sandstone_carved", L"chiseled_red_sandstone" },
     { L"sandstone_carved", L"chiseled_sandstone" },
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
+    { L"spruce_needles", L"spruce_leaves" },    // Ultimate Immersion
     { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
     { L"stone_andesite_smooth", L"polished_andesite" },    // OV
     { L"stone_diorite_smooth", L"polished_diorite" },    // OV
