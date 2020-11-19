@@ -22438,7 +22438,6 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // TODO: centimeters is what OV Kit likes. This setting doesn't quite get used properly.
     sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gXformScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -22732,9 +22731,10 @@ static int createMaterialsUSD(char *texturePath)
         strcpy_s(outputString, 256, "            uniform token info:implementationSource = \"sourceAsset\"\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         if (gModel.customMaterial) {
-            sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Minecraft.mdl@\n");
+            // TODOUSD UberNN, or make a MinecraftGlass.mdl file as a wrapper?
+            sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%s.mdl@\n", isSemitransparent ? "OmniSurfaceUber" : "Minecraft" );
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Minecraft\"\n");
+            sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"%s\"\n", isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
         else {
@@ -22745,67 +22745,239 @@ static int createMaterialsUSD(char *texturePath)
         }
 
         if (isSemitransparent) {
-            // when meters, 0.001 is pretty good, the default
-            strcpy_s(outputString, 256, "            float inputs:depth = 0.001 (\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = {\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    float default = 0.001\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    dictionary range = {\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                        float max = 1000\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                        float min = 0\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    }\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                }\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayName = \"Volume Absorption Scale\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "            )\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            color3f inputs:glass_color = (%g, %g, %g) (\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = {\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    float3 default = (1, 1, 1)\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    dictionary range = {\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                        float3 max = (0, 0, 0)\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                        float3 min = (0, 0, 0)\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    }\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                }\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayName = \"Glass Color\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "            )\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            asset inputs:glass_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                customData = {\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                    asset default = @@\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                }\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "                displayName = \"Glass Color Texture\"\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "            )\n");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            if (gModel.customMaterial) {
+                // check if material is water (still, flow, overlay) - IOR 1.33, else IOR 1.52 for glass
+                bool isWater = (strstr(mtlName, "water_") != NULL);
+                bool isSlime = (strstr(mtlName, "slime") != NULL);
+                float ior = (isWater || isSlime) ? 1.33f : 1.52f;
+                float specRoughness = isSlime ? 0.34f : 0.0f;   // TODOUSD - could also add ice someday and make it cloudy like this
+                // set depth - higher number (faded) for water, 1.0 for glass and slime (higher than this and glass panes don't show much)
+                float depth = isWater ? 5.0f : 1.0f;
+
+                sprintf_s(outputString, 256, "            asset inputs:diffuse_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    asset default = @@\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Base\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Color Image\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                sprintf_s(outputString, 256, "            asset inputs:specular_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    asset default = @@\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Specular\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Color Image\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                sprintf_s(outputString, 256, "            float inputs:specular_reflection_ior = %g (\n", ior);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 1.5\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 2.0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 1\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Specular\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"IOR\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                sprintf_s(outputString, 256, "            float inputs:specular_reflection_roughness = %g (\n", specRoughness);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 0.2\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 1\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Specular\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Roughness\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                sprintf_s(outputString, 256, "            asset inputs:specular_transmission_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    asset default = @@\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Transmission\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Color Image\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            float inputs:specular_transmission_scattering_depth = %g (\n", depth);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 3.4028235e38\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Transmission\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Depth\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            float inputs:specular_transmission_weight = 1 (\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 1\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Transmission\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Weight\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+            else {
+                // when meters, 0.001 is pretty good, the default
+                strcpy_s(outputString, 256, "            float inputs:depth = 0.001 (\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 0.001\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 1000\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                }\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Volume Absorption Scale\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            color3f inputs:glass_color = (%g, %g, %g) (\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float3 default = (1, 1, 1)\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float3 max = (0, 0, 0)\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float3 min = (0, 0, 0)\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                }\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Glass Color\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            asset inputs:glass_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    asset default = @@\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Color\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Glass Color Texture\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
         }
         else {
             // Not water, etc.

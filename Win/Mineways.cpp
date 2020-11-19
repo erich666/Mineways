@@ -4398,8 +4398,8 @@ static void initializePrintExportData(ExportFileData& printData)
 
     // materials selected
     INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
-    // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
+    // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for USD, who knows; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
+    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
     printData.flags = EXPT_3DPRINT;
 }
@@ -4475,7 +4475,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     // mostly irrelevant for viewing, though centimeters can be useful
     INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
     INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
-    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_CENTIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER);
+    // For USD it was centimeters, but now meters are supported well.
+    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_METER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
     //gExportSchematicData.chkDeleteFloaters = 1;
