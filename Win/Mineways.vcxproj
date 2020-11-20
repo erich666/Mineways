@@ -187,6 +187,7 @@
     <ClInclude Include="ColorSchemes.h" />
     <ClInclude Include="ExportPrint.h" />
     <ClInclude Include="lodepng.h" />
+    <ClInclude Include="mdlFiles.h" />
     <ClInclude Include="Mineways.h" />
     <ClInclude Include="MinewaysMap.h" />
     <ClInclude Include="nbt.h" />

@@ -33,6 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "tiles.h"
 #include "rwpng.h"
 #include "vector.h"
+#include "mdlFiles.h"
 #include <assert.h>
 #include <string.h>
 #include <math.h>
@@ -700,6 +701,7 @@ static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
 static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
+static int writeMDLforUSD(wchar_t* filePath);
 static int closeUSDFile();
 static int writeUSDTextures();
 
@@ -22334,6 +22336,12 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         goto Exit;
     }
 
+    if (gModel.customMaterial) {
+        if (retCode |= writeMDLforUSD(gOutputFilePath)) {
+            goto Exit;
+        }
+    }
+
 Exit:
     if (retCode |= closeUSDFile()) {
         // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
@@ -23688,6 +23696,34 @@ static int createLightingUSD(char *texturePath)
 
     return MW_NO_ERROR;
 }
+
+// write out custom materials - always the same set, more or less
+static int writeMDLforUSD(wchar_t* filePath)
+{
+    int fcount = 0;
+    while (mdlFileContents[fcount] != NULL) {
+        wchar_t outputFile[MAX_PATH_AND_FILE];
+        concatFileName2(outputFile, filePath, mdlFileNames[fcount]);
+        PORTAFILE mdlFile = PortaCreate(outputFile);
+        addOutputFilenameToList(outputFile);
+        if (mdlFile == INVALID_HANDLE_VALUE)
+            return MW_CANNOT_CREATE_FILE;
+
+        const int fileLines = mdlFileLines[fcount];
+        // loop through lines in file and write
+        const char** fileContents = mdlFileContents[fcount];
+        for (int i = 0; i < fileLines; i++) {
+            WERROR_MODEL(PortaWrite(mdlFile, fileContents[i], strlen(fileContents[i])));
+        }
+
+        PortaClose(mdlFile);
+
+        fcount++;
+    }
+
+    return MW_NO_ERROR;
+}
+
 
 static int closeUSDFile()
 {
