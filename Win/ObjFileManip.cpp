@@ -1170,27 +1170,23 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     }
 
     if (retCode >= MW_BEGIN_ERRORS)
-    {
-        // problem found
         goto Exit;
-    }
 
     retCode |= finalModelChecks();
 
-    // done!
-Exit:
+    if (retCode >= MW_BEGIN_ERRORS)
+        goto Exit;
 
     // write out texture files, if any input data.
-    // if there were major errors, don't bother
-    if (retCode < MW_BEGIN_ERRORS)
-    {
-        retCode |= modifyAndWriteTextures(needDifferentTextures);
-    }
+    retCode |= modifyAndWriteTextures(needDifferentTextures);
 
-    if (fileType == FILE_TYPE_USD)
-    {
-        writeUSDTextures();
-    }
+    if (retCode >= MW_BEGIN_ERRORS)
+        goto Exit;
+
+    writeUSDTextures();
+
+    // done!
+Exit:
 
     UPDATE_PROGRESS(gProgress.start.zip);
 
@@ -1203,7 +1199,6 @@ Exit:
     if (gBiome)
         free(gBiome);
     gBiome = NULL;
-
 
     if (gBadBlocksInModel)
         // if ( UnknownBlockRead() && gBadBlocksInModel )
@@ -22347,12 +22342,14 @@ Exit:
         // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
     }
 
-    // note that textures get written out in SaveVolume(), which calls this function.
-    // But we need this value computed, for the progress bar
-    for (int i = 0; i < TOTAL_TILES; i++) {
-        // tile name is material name, period
-        if (gModel.tileList[CATEGORY_RGBA][i]) {
-            gModel.tileListCount++;
+    if (retCode < MW_BEGIN_ERRORS) {
+        // note that textures get written out in SaveVolume(), which calls this function.
+        // But we need this value computed, for the progress bar
+        for (int i = 0; i < TOTAL_TILES; i++) {
+            // tile name is material name, period
+            if (gModel.tileList[CATEGORY_RGBA][i]) {
+                gModel.tileListCount++;
+            }
         }
     }
 

@@ -4089,113 +4089,117 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
 
-        // note how many files were output
-        retCode = outputFileList.count;
+        if (errCode < MW_BEGIN_ERRORS) {
+            // note how many files were output - if an error occurred, we output and zip nothing
+            retCode = outputFileList.count;
 
-        // zip it up - test that there's something to zip, in case of errors. Note that the first
-        // file saved in ObjManip.c is the one used as the zip file's name.
-        if (gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0))
-        {
-            wchar_t wcZip[MAX_PATH_AND_FILE];
-            // we add .zip not (just) out of laziness, but this helps differentiate obj from wrl from stl.
-            swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
-
-            DeleteFile(wcZip);
-            HZIP hz = CreateZip(wcZip, 0, ZIP_FILENAME);
-
-            // if we are zipping tiles, it's a bit different
-            int trueCount = outputFileList.count;
-            bool useSubDir = false;
-            if (gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
-                // are we using a subdirectory?
-                if (strlen(gOptions.pEFD->tileDirString) > 0) {
-                    trueCount = 2;	// OBJ and MTL
-                    useSubDir = true;
-                }
-            }
-            int i;
-            for (i = 0; i < trueCount; i++)
+            // zip it up - test that there's something to zip, in case of errors. Note that the first
+            // file saved in ObjManip.c is the one used as the zip file's name.
+            if (gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0))
             {
-                const wchar_t* nameOnly = removePath(outputFileList.name[i]);
+                wchar_t wcZip[MAX_PATH_AND_FILE];
+                // we add .zip not (just) out of laziness, but this helps differentiate obj from wrl from stl.
+                swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
 
-                if (*updateProgress)
+                DeleteFile(wcZip);
+                HZIP hz = CreateZip(wcZip, 0, ZIP_FILENAME);
+
+                // if we are zipping tiles, it's a bit different
+                int trueCount = outputFileList.count;
+                bool useSubDir = false;
+                if (gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+                    // are we using a subdirectory?
+                    if (strlen(gOptions.pEFD->tileDirString) > 0) {
+                        trueCount = 2;	// OBJ and MTL
+                        useSubDir = true;
+                    }
+                }
+                int i;
+                for (i = 0; i < trueCount; i++)
                 {
-                    (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
-                }
+                    const wchar_t* nameOnly = removePath(outputFileList.name[i]);
 
-                if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
-                    retCode |= MW_CANNOT_WRITE_TO_FILE;
-                    break;
-                }
-
-                // delete model files if not needed
-                if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-                {
-                    DeleteFile(outputFileList.name[i]);
-                }
-            }
-            if (useSubDir && (outputFileList.count >= 3)) {
-                // disassemble the directory of the first tile
-                wchar_t path[MAX_PATH_AND_FILE];
-                wchar_t subdir[MAX_PATH_AND_FILE];
-                wchar_t filepiece[MAX_PATH_AND_FILE];
-                wchar_t relativeFile[MAX_PATH_AND_FILE];
-                // strips off file name (puts in piece, but we ignore it)
-                StripLastString(outputFileList.name[2], path, filepiece);
-                // strips off subdirectory name and puts in piece
-                StripLastString(path, path, subdir);
-                wcscat_s(subdir, MAX_PATH_AND_FILE, L"\\");
-                for (i = 2; i < outputFileList.count; i++) {
-                    wcscpy_s(relativeFile, MAX_PATH_AND_FILE, subdir);
-                    StripLastString(outputFileList.name[i], path, filepiece);
-                    wcscat_s(relativeFile, MAX_PATH_AND_FILE, filepiece);
-                    // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
-                    // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
-                    // TODO - really should just export tiles needed, but this functionality is a bit tricky.
-                    if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
+                    if (*updateProgress)
                     {
+                        (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
+                    }
+
+                    if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
                         break;
                     }
+
+                    // delete model files if not needed
+                    if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
+                    {
+                        DeleteFile(outputFileList.name[i]);
+                    }
+                }
+                if (useSubDir && (outputFileList.count >= 3)) {
+                    // disassemble the directory of the first tile
+                    wchar_t path[MAX_PATH_AND_FILE];
+                    wchar_t subdir[MAX_PATH_AND_FILE];
+                    wchar_t filepiece[MAX_PATH_AND_FILE];
+                    wchar_t relativeFile[MAX_PATH_AND_FILE];
+                    // strips off file name (puts in piece, but we ignore it)
+                    StripLastString(outputFileList.name[2], path, filepiece);
+                    // strips off subdirectory name and puts in piece
+                    StripLastString(path, path, subdir);
+                    wcscat_s(subdir, MAX_PATH_AND_FILE, L"\\");
+                    for (i = 2; i < outputFileList.count; i++) {
+                        wcscpy_s(relativeFile, MAX_PATH_AND_FILE, subdir);
+                        StripLastString(outputFileList.name[i], path, filepiece);
+                        wcscat_s(relativeFile, MAX_PATH_AND_FILE, filepiece);
+                        // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
+                        // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
+                        // TODO - really should just export tiles needed, but this functionality is a bit tricky.
+                        if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
+                        {
+                            retCode |= MW_CANNOT_WRITE_TO_FILE;
+                            break;
+                        }
+                    }
+
+                    // was AddFolderContent(hz, path, piece );
                 }
 
-                // was AddFolderContent(hz, path, piece );
+                CloseZip(hz);
             }
-
-            CloseZip(hz);
         }
         if (*updateProgress)
         {
             (*updateProgress)(1.0f);
         }
 
+        if (errCode < MW_BEGIN_ERRORS) {
 
-        // output stats, if printing and there *are* stats
-        if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
-            // is not schematic?
-            (gOptions.pEFD->fileType != FILE_TYPE_SCHEMATIC))
-        {
-            wchar_t* currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
-            if (gCustomCurrency != NULL &&
-                gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+            // output stats, if printing and there *are* stats
+            if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
+                // is not schematic?
+                (gOptions.pEFD->fileType != FILE_TYPE_SCHEMATIC))
             {
-                currency = gCustomCurrency;
-            }
-            int retval;
-            wchar_t msgString[2000];
-            swprintf_s(msgString, 2000, L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                currency,
-                gOptions.cost,
-                gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
-                gOptions.block_mm, gOptions.block_inch,
-                gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1],
-                gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
-                gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
-            retval = MessageBox(NULL, msgString,
-                _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
-            if (retval != IDYES)
-            {
-                gShowPrintStats = false;
+                wchar_t* currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
+                if (gCustomCurrency != NULL &&
+                    gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+                {
+                    currency = gCustomCurrency;
+                }
+                int retval;
+                wchar_t msgString[2000];
+                swprintf_s(msgString, 2000, L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                    currency,
+                    gOptions.cost,
+                    gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
+                    gOptions.block_mm, gOptions.block_inch,
+                    gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1],
+                    gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
+                    gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
+                retval = MessageBox(NULL, msgString,
+                    _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                if (retval != IDYES)
+                {
+                    gShowPrintStats = false;
+                }
             }
         }
 
@@ -5116,6 +5120,7 @@ static char* prepareLineData(char* line, bool model)
         *strPtr = (char)0;
     }
 
+    // ignore pound comment, space, and tab characters
     boolean cont = true;
     while ((*lineLoc != (char)0) && cont) {
         if ((*lineLoc == '#' && model) || (*lineLoc == ' ') || (*lineLoc == '\t')) {
@@ -5126,6 +5131,20 @@ static char* prepareLineData(char* line, bool model)
             cont = false;
         }
     }
+    
+    // double apostrophe characters around file names are not needed - remove here
+    char* parseLoc = lineLoc;
+    while (*parseLoc != (char)0) {
+        if (*parseLoc == '"') {
+            // delete the current character, i.e., " 
+            char* delLoc = parseLoc;
+            while (*delLoc != (char)0) {
+                *delLoc++ = delLoc[1];
+            }
+        }
+        parseLoc++;
+    }
+
     return lineLoc;
 }
 
