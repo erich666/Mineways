@@ -3307,7 +3307,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Checked 1.16.2 terrain files. Happily, these are unchanged from 1.16.1.
 </UL>
 
-<LI>Version 8.00, x/xx/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.00, xx/xx/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>If a terrain file other than the default "TerrainExt.png" is selected, show that name in the title bar at the top.
@@ -3316,7 +3316,8 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Fix end portal so that it is the proper height and just a two-sided layer, not a full block.
 <LI>Campfires were incorrectly lit, due to a flag not being cleared from button settings - fixed <i>(Thanks to Kyra007 for <a href="https://www.reddit.com/r/mineways/comments/jl60kt/extinguished_campfire_appears_as_lit/">reporting this bug</a>)</I>.
 <LI>Blocks of redstone were incorrectly acting as emitters - fixed.
-<LI>You can now specify the terrain file(s) to use on startup on <a href="scripting.html#clo">the command line</a>, "-t terrainExtYourfile.png".
+<LI>Snow was getting converted to stone cutters when MCPE converted from Bedrock to Java and then Mineways read this faulty conversion in. Guard code has been added to avoid this error, but MCPE itself needs to be fixed in order for all snow thicknesses to be correct <I>(Thanks to Tate B. Hickman for reporting this bug)</I>. 
+<LI>You can now specify the terrain file(s) to use on startup on <a href="scripting.html#clo">the command line</a>; use "-t terrainExtYourfile.png".
 <LI>The elevation shading and lighting setting is now saved, and restored using "Import Settings." This is useful for USD export, where these two settings affect the output.
 <LI>Fix export progression system so that progress shown during export is a bit more proportional to the time actually used.
 <LI>If TileMaker's normals terrain file is present, Export normal map textures within the OBJ export, for the "Export tiles" option.
@@ -3418,7 +3419,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 8/27/2020</p>
+		<p id="lastUpdate">Last updated 11/22/2020</p>
 	</div>
 </div>
 

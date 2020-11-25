@@ -3930,7 +3930,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         {
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS;
         }
-        if (gpEFD->chkCustomMaterial)
+        if (gpEFD->chkCustomMaterial[gpEFD->fileType])
         {
             // if G3D is chosen, we output the full material
             gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL;
@@ -3990,7 +3990,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             //EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE;
             ;
         }
-        if (gpEFD->chkCustomMaterial)
+        if (gpEFD->chkCustomMaterial[gpEFD->fileType])
         {
             // if G3D is chosen, we output the full material
             gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL;
@@ -4385,7 +4385,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
-    printData.chkCustomMaterial = 0;
+    INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 1, 0, 0, 0, 0, 0);
 
     printData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
@@ -4470,7 +4470,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkIndividualBlocks = 0;
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 0;
-    viewData.chkCustomMaterial = 0;
+    INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 0, 0, 1, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
@@ -5886,7 +5886,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkCustomMaterial = interpretBoolean(string1);
+            is.pEFD->chkCustomMaterial[is.pEFD->fileType] = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

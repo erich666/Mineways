@@ -2033,6 +2033,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         else if (strcmp(token, "layers") == 0) {
                                             // 1-8, which turns into 0-7
                                             dataVal = atoi(value) - 1;
+                                            // test and bound, just in case. Tate Hickman reported snow turning into stonecutters.
+                                            if (dataVal > 7 || dataVal < 0)
+                                                dataVal = 1;
                                         }
                                         // frosted ice, crops, cocoa (which needs age separate)
                                         else if (strcmp(token, "age") == 0) {

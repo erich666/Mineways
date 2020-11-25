@@ -382,7 +382,7 @@ typedef struct ExportFileData
     UINT chkIndividualBlocks;
     UINT chkMaterialPerFamily;	// "Material per family" of blocks
     UINT chkSplitByBlockType;	// "Split by block type"
-    UINT chkCustomMaterial;
+    UINT chkCustomMaterial[FILE_TYPE_TOTAL];
 
     UINT flags;
 } ExportFileData;
