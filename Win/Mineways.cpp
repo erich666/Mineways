@@ -4414,8 +4414,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     // copy view data from print, and change what's needed
     initializePrintExportData(viewData);
 
-// TODOUSD - defining this makes USDA be the normal export file format. Good for testing but should be turned off for release
-#define FAVOR_USD
+// TODOUSD - defining this makes USDA be the normal export file format. Good for testing but should be turned off for a normal release
+//#define FAVOR_USD
 #ifdef FAVOR_USD
     // Now that I've figured out that Blender can show materials OK, change to "true spec"
     viewData.fileType = FILE_TYPE_USD;
