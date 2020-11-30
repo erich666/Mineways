@@ -22799,7 +22799,7 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "            float inputs:coat_weight = 1 (\n");
+                    strcpy_s(outputString, 256, "            float inputs:coat_weight = 0.5 (\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                customData = {\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22886,7 +22886,8 @@ static int createMaterialsUSD(char *texturePath)
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-                sprintf_s(outputString, 256, "            float inputs:specular_reflection_roughness = %g (\n", specRoughness);
+                // if there is a specular roughness map, set roughness to 1 as it acts as a influence for the roughness map
+                sprintf_s(outputString, 256, "            float inputs:specular_reflection_roughness = %g (\n", gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc] ? 1.0f : specRoughness);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
                     strcpy_s(outputString, 256, "                customData = {\n");
@@ -22910,6 +22911,52 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
+                    sprintf_s(outputString, 256, "            asset inputs:specular_reflection_roughness_image = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    asset default = @@\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Specular\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Roughness Image\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                    strcpy_s(outputString, 256, "            int inputs:specular_reflection_roughness_image_alpha_mode = 1 (\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    int default = 0\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayGroup = \"Specular\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Roughness Image Alpha Mode\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                renderType = \"OmniImage::alpha_mode\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                sdrMetadata = {\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    string __SDR__enum_value = \"alpha_default\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    string options = \"alpha_default:0|alpha_red:1|alpha_green:2|alpha_blue:3|alpha_white:4|alpha_black:5|alpha_luminanace:6|alpha_average:7\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
 
                 sprintf_s(outputString, 256, "            asset inputs:specular_transmission_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23381,7 +23428,7 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
 
-        // roughness - don't bother for glass OmniSurfaceUber, as this doesn't seem to work TODOUSD
+        // roughness - already done earlier for glass
         if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc] && !customGlass) {
             strcpy_s(outputString, 256, "            float inputs:reflection_roughness_texture_influence = 1 (\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
