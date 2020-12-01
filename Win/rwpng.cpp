@@ -71,13 +71,13 @@ void readpng_cleanup(int mode, progimage_info *im)
     }
 }
 
-int readpngheader(progimage_info* im, wchar_t* filename)
+int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype)
 {
     unsigned int width, height;
     std::vector<unsigned char> buffer;
     lodepng::load_file(buffer, filename);
 
-    LodePNGColorType colortype = LCT_RGBA;
+    colortype = LCT_RGBA;
     unsigned bitdepth = 8;
 
     LodePNGState state;
@@ -87,6 +87,7 @@ int readpngheader(progimage_info* im, wchar_t* filename)
     // reads header and resets other parameters in state->info_png
     state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
     unsigned int error = state.error;
+    colortype = state.info_png.color.colortype;
 
     lodepng_state_cleanup(&state);
 
@@ -177,19 +178,20 @@ progimage_info* allocateRGBImage(progimage_info* source_ptr)
     return destination_ptr;
 }
 
-void copyOneChannel(progimage_info* dst, int channel, progimage_info* src)
+void copyOneChannel(progimage_info* dst, int channel, progimage_info* src, LodePNGColorType colortype)
 {
     int row, col;
     dst->width = src->width;
     dst->height = src->height;
     unsigned char* dst_data = &dst->image_data[0];
     unsigned char* src_data = &src->image_data[0] + channel;
+    int channelIncrement = (colortype == LCT_RGB) ? 3 : 4;
     for (row = 0; row < src->height; row++)
     {
         for (col = 0; col < src->width; col++)
         {
             *dst_data++ = *src_data;
-            src_data += 3;
+            src_data += channelIncrement;
         }
     }
 }

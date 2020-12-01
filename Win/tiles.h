@@ -355,8 +355,8 @@ static struct {
     {  6, 17,   6, 0, L"quartz_block_side", L"", SWATCH_REPEAT_ALL }, // appears to be identical with the next tile; we'll use it as-is
     {  7, 17, 155, 0, L"quartz_block_top", L"", SWATCH_REPEAT_ALL },   // also used for bottom
     {  8, 17, 153, 0, L"nether_quartz_ore", L"quartz_ore", SWATCH_REPEAT_ALL },
-    {  9, 17,   6, 0, L"activator_rail", L"rail_activator_powered", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    { 10, 17, 157, 0, L"activator_rail_on", L"rail_activator", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  9, 17,   6, 0, L"activator_rail", L"rail_activator", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 10, 17, 157, 0, L"activator_rail_on", L"rail_activator_powered", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     { 11, 17,   6, 0, L"detector_rail_on", L"rail_detector_powered", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     { 12, 17, 174, 0, L"packed_ice", L"ice_packed", SWATCH_REPEAT_ALL },	// 1.7
     { 13, 17,   6, 0, L"red_sand", L"", SWATCH_REPEAT_ALL },

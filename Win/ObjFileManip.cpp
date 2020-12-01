@@ -1183,7 +1183,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     if (retCode >= MW_BEGIN_ERRORS)
         goto Exit;
 
-    writeUSDTextures();
+    if (fileType == FILE_TYPE_USD) {
+        writeUSDTextures();
+    }
 
     // done!
 Exit:
