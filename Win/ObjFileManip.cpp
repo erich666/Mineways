@@ -23894,64 +23894,69 @@ static int closeUSDFile()
 
 static int writeUSDTextures()
 {
-    // just the background dome light texture
-    // Create the dome light texture and write it out.
-    // 128x128 for no particular reason. Could be 1x128 but this is easier for the user to see.
     int retCode = MW_NO_ERROR;
 
-    int numChannels = 3;
-    unsigned char* imageDst;
-    progimage_info dst;
-    dst.height = dst.width = 128;
-    dst.image_data.resize(dst.height * dst.width * numChannels);
+    // just the background dome light texture
+    // Output only if texture output is not suppressed.
+    // if any checkbox for texture output is on, then domelight is output
+    if (gModel.options->pEFD->chkTextureRGB) {
 
-    imageDst = &dst.image_data[0];
+        // Create the dome light texture and write it out.
+        // 128x128 for no particular reason. Could be 1x128 but this is easier for the user to see.
+        int numChannels = 3;
+        unsigned char* imageDst;
+        progimage_info dst;
+        dst.height = dst.width = 128;
+        dst.image_data.resize(dst.height * dst.width * numChannels);
 
-    boolean nightLight = (gModel.options->worldType & LIGHTING) ? true : false;
+        imageDst = &dst.image_data[0];
 
-    for (int row = 0; row < dst.height; row++)
-    {
-        for (int col = 0; col < dst.width; col++)
+        boolean nightLight = (gModel.options->worldType & LIGHTING) ? true : false;
+
+        for (int row = 0; row < dst.height; row++)
         {
-            if (row < dst.height / 2) {
-                // sky
-                if (nightLight) {
-                    // night sky
-                    *imageDst++ = 4;
-                    *imageDst++ = 4;
-                    *imageDst++ = 7;
+            for (int col = 0; col < dst.width; col++)
+            {
+                if (row < dst.height / 2) {
+                    // sky
+                    if (nightLight) {
+                        // night sky
+                        *imageDst++ = 4;
+                        *imageDst++ = 4;
+                        *imageDst++ = 7;
+                    }
+                    else {
+                        // daytime sky
+                        *imageDst++ = 136;
+                        *imageDst++ = 172;
+                        *imageDst++ = 255;
+                    }
                 }
                 else {
-                    // daytime sky
-                    *imageDst++ = 136;
-                    *imageDst++ = 172;
-                    *imageDst++ = 255;
-                }
-            }
-            else {
-                // ground
-                if (nightLight) {
-                    // night ground
-                    *imageDst++ = 14;
-                    *imageDst++ = 19;
-                    *imageDst++ = 13;
-                }
-                else {
-                    *imageDst++ = 78;
-                    *imageDst++ = 101;
-                    *imageDst++ = 64;
+                    // ground
+                    if (nightLight) {
+                        // night ground
+                        *imageDst++ = 14;
+                        *imageDst++ = 19;
+                        *imageDst++ = 13;
+                    }
+                    else {
+                        *imageDst++ = 78;
+                        *imageDst++ = 101;
+                        *imageDst++ = 64;
+                    }
                 }
             }
         }
+
+        wchar_t filename[MAX_PATH_AND_FILE];
+        concatFileName2(filename, gTextureDirectoryPath, nightLight ? L"_domelight_night.png" : L"_domelight.png");
+        int rc = writepng(&dst, 3, filename);
+        retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+        addOutputFilenameToList(filename);
+
+        writepng_cleanup(&dst);
     }
-
-    wchar_t filename[MAX_PATH_AND_FILE];
-    concatFileName2(filename, gTextureDirectoryPath, nightLight ? L"_domelight_night.png" : L"_domelight.png");
-    int rc = writepng(&dst, 3, filename);
-    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
-    addOutputFilenameToList(filename);
-
-    writepng_cleanup(&dst);
 
     return retCode;
 }
