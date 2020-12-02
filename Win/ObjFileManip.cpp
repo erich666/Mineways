@@ -22406,6 +22406,57 @@ static int finishCommentsUSD()
     // render settings - could make a separate function
     strcpy_s(outputString, 256, "    customLayerData = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODOTODO
+    // Currently no 3D view within Mineways itself, of course
+    static boolean exportCamera = false;
+    if (exportCamera) {
+        strcpy_s(outputString, 256, "        dictionary cameraSettings = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            dictionary Front = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 position = (0, 0, 50000)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double radius = 500\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 target = (0, 0, 0)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            dictionary Perspective = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 position = (16.869979985301292, 8.763290146920987, 6.9280154923903865)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double radius = 108.04251105358288\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 target = (-45.395644604597315, -28.73855096263778, -73.00813466876512)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            dictionary Right = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 position = (-50000, 0, -1.1102230246251565e-11)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double radius = 500\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 target = (0, 0, 0)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            dictionary Top = {\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 position = (-6.494670421766199e-12, 50000, 1.1102230246251565e-11)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double radius = 500\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "                double3 target = (0, 0, 0)\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            string boundCamera = \"/OmniverseKit_Persp\"\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "        }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    }
     strcpy_s(outputString, 256, "        dictionary renderSettings = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:ambientOcclusion:rayLength\" = 1\n");
