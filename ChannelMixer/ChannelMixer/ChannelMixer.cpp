@@ -29,6 +29,15 @@ static int gWriteProtectCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
+static boolean killMetallic = false;
+static boolean killEmissive = false;
+static boolean killRoughness = false;
+static boolean killNormal = false;
+
+//                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y"
+static boolean gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true };
+
+
 static wchar_t gErrorString[1000];
 // 1000 errors of 100 characters each - sounds sufficient
 #define CONCAT_ERROR_LENGTH	(1000*100)
@@ -90,6 +99,28 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// also output MER file from SME
 			outputMerged = true;
+		}
+		else if (wcscmp(argv[argLoc], L"-k") == 0)
+		{
+			// kill channel output
+			INC_AND_TEST_ARG_INDEX(argLoc);
+			if (wcschr(argv[argLoc], L'm') != NULL)
+			{
+				gUseCategory[CATEGORY_METALLIC] = false;
+			}
+			if (wcschr(argv[argLoc], L'e') != NULL)
+			{
+				gUseCategory[CATEGORY_EMISSION] = false;
+			}
+			if (wcschr(argv[argLoc], L'r') != NULL)
+			{
+				gUseCategory[CATEGORY_ROUGHNESS] = false;
+			}
+			if (wcschr(argv[argLoc], L'e') != NULL)
+			{
+				gUseCategory[CATEGORY_NORMALS] = false;
+				gUseCategory[CATEGORY_NORMALS_LONG] = false;
+			}
 		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
@@ -212,6 +243,7 @@ static void printHelp()
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
 	wprintf(L"  -m - output merged '_mer' format files in addition to separate files, as found.\n");
+	wprintf(L"  -k {m|e|r|n} - kill creation of the metallic, emissive, roughness, and/or normals textures.\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
@@ -223,7 +255,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 	wchar_t outputChestDirectory[MAX_PATH];
 	for (int category = 0; category < numCats; category++) {
 		// does this category have any input files? If not, skip it - just a small speed-up.
-		if (pfg->categories[copyCategories[category]] > 0) {
+		if (pfg->categories[copyCategories[category]] > 0 && gUseCategory[category]) {
 			// there are files to copy
 			for (int i = 0; i < pfg->totalTiles; i++) {
 				int fullIndex = copyCategories[category] * pfg->totalTiles + i;
@@ -278,7 +310,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 
 		// Chests
 		// does this chest category have any input files? If not, skip it - just a small speed-up.
-		if (pcg->categories[copyCategories[category]] > 0) {
+		if (pcg->categories[copyCategories[category]] > 0 && gUseCategory[category]) {
 			// there are files to copy
 			for (int i = 0; i < pcg->totalTiles; i++) {
 				int fullIndex = copyCategories[category] * pcg->totalTiles + i;
@@ -378,10 +410,10 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					// specular only: output just the roughness channel
 					// always export specular in inverted
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
+					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, LCT_RGB);
 					// output the channel if it's not all black
 					boolean allBlack = true;
-					if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+					if (gUseCategory[CATEGORY_ROUGHNESS] && !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 						allBlack = false;
 						invertChannel(destination_ptr);
 
@@ -426,34 +458,36 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 				else {
 					isSME++;
 					// SME: output all three
-					for (int channel = 0; channel < 3; channel++) {
-						// output the channel if it's not all black
-						progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-						copyOneChannel(destination_ptr, channel, &tile);
-						// is the channel, copied over, non-zero?
-						if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
-							if (channel == CHANNEL_RED) {
-								invertChannel(destination_ptr);
-							}
+                    for (int channel = 0; channel < 3; channel++) {
+                        if (gUseCategory[category[channel]]) {
+                            // output the channel if it's not all black
+                            progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
+                            copyOneChannel(destination_ptr, channel, &tile, LCT_RGB);
+                            // is the channel, copied over, non-zero?
+                            if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+                                if (channel == CHANNEL_RED) {
+                                    invertChannel(destination_ptr);
+                                }
 
-							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+                                wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+                                wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
+                                wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+                                wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
 
-							rc = writepng(destination_ptr, 1, outputFile);
-							if (rc != 0)
-							{
-								reportReadError(rc, outputFile);
-								// quit - if we can't write one file, we're unlikely to write the rest.
-								return filesRead;
-							}
-							if (verbose) {
-								wprintf(L"New texture '%s' created.\n", outputFile);
-							}
-						}
-						writepng_cleanup(destination_ptr);
-					}
+                                rc = writepng(destination_ptr, 1, outputFile);
+                                if (rc != 0)
+                                {
+                                    reportReadError(rc, outputFile);
+                                    // quit - if we can't write one file, we're unlikely to write the rest.
+                                    return filesRead;
+                                }
+                                if (verbose) {
+                                    wprintf(L"New texture '%s' created.\n", outputFile);
+                                }
+                            }
+                            writepng_cleanup(destination_ptr);
+                        }
+                    }
 					if (outputMerged) {
 						progimage_info* smer_ptr = allocateRGBImage(&tile);
 						if (SMEtoMER(smer_ptr, &tile)) {
@@ -521,10 +555,10 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					// specular only: output just the roughness channel
 					// always export specular in inverted
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-					copyOneChannel(destination_ptr, CHANNEL_RED, &tile);
+					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, LCT_RGB);
 					// output the channel if it's not all black
 					boolean allBlack = true;
-					if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+					if (gUseCategory[CATEGORY_ROUGHNESS] && !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 						allBlack = false;
 						invertChannel(destination_ptr);
 
@@ -570,32 +604,34 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					isSME++;
 					// SME: output all three
 					for (int channel = 0; channel < 3; channel++) {
-						// output the channel if it's not all black
-						progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-						copyOneChannel(destination_ptr, channel, &tile);
-						// is the channel, copied over, non-zero?
-						if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
-							if (channel == CHANNEL_RED) {
-								invertChannel(destination_ptr);
-							}
+						if (gUseCategory[category[channel]]) {
+							// output the channel if it's not all black
+							progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
+							copyOneChannel(destination_ptr, channel, &tile, LCT_RGB);
+							// is the channel, copied over, non-zero?
+							if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+								if (channel == CHANNEL_RED) {
+									invertChannel(destination_ptr);
+								}
 
-							wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
-							wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
+								wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
+								wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
+								wcscat_s(outputFile, MAX_PATH_AND_FILE, gCatSuffixes[category[channel]]);
+								wcscat_s(outputFile, MAX_PATH_AND_FILE, L".png");
 
-							rc = writepng(destination_ptr, 1, outputFile);
-							if (rc != 0)
-							{
-								reportReadError(rc, outputFile);
-								// quit - if we can't write one file, we're unlikely to write the rest.
-								return filesRead;
+								rc = writepng(destination_ptr, 1, outputFile);
+								if (rc != 0)
+								{
+									reportReadError(rc, outputFile);
+									// quit - if we can't write one file, we're unlikely to write the rest.
+									return filesRead;
+								}
+								if (verbose) {
+									wprintf(L"New chest texture '%s' created.\n", outputFile);
+								}
 							}
-							if (verbose) {
-								wprintf(L"New chest texture '%s' created.\n", outputFile);
-							}
+							writepng_cleanup(destination_ptr);
 						}
-						writepng_cleanup(destination_ptr);
 					}
 					if (outputMerged) {
 						progimage_info* smer_ptr = allocateRGBImage(&tile);
@@ -676,9 +712,10 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 					// that's a valid value set, which we should deal with in TileMaker
 					//if (!isChannelAllBlack(&tile, channel)) {
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-					copyOneChannel(destination_ptr, channel, &tile);
+					copyOneChannel(destination_ptr, channel, &tile, LCT_RGB);
 					// output the channel if it's not all black (or white, for roughness)
-					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+					if (gUseCategory[category[channel]] && 
+						((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0))) {
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].rootName);
@@ -744,9 +781,10 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 					// that's a valid value set, which we should deal with in TileMaker
 					//if (!isChannelAllBlack(&tile, channel)) {
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-					copyOneChannel(destination_ptr, channel, &tile);
+					copyOneChannel(destination_ptr, channel, &tile, LCT_RGB);
 					// output the channel if it's not all black (or white, for roughness)
-					if ((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
+					if (gUseCategory[category[channel]] && 
+						((channel == 2) ? !channelEqualsValue(destination_ptr, 0, 1, 255, 0) : !channelEqualsValue(destination_ptr, 0, 1, 0, 0))) {
 
 						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
 						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].rootName);
