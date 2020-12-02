@@ -53,6 +53,8 @@ static FileGrid gFG;
 #define CHEST_NORMAL_RIGHT	3
 #define CHEST_ENDER			4
 static const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender" };
+// OfTemplesAndTotems and RazzleCore use this alternate name, sigh
+static const wchar_t* gChestNamesAlt[] = { L"", L"double_normal", L"", L"", L"" };
 
 typedef struct ChestGrid {
 	int chestCount;

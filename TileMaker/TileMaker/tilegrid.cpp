@@ -290,6 +290,10 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 				index = i;
 				found = true;
 			}
+			else if (_wcsicmp(tileName, gChestNamesAlt[i]) == 0) {
+				index = i;
+				found = true;
+			}
 		}
 
 		if (found) {
@@ -362,13 +366,14 @@ int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes
 				//	L"rail_normal",
 				//	L"sandstone_normal",
 				//	L"red_sandstone_normal",
+				//  L"double_normal", - chest, normally called "normal_double"
 				// We test if the "non-stripped" name with the suffix actually
 				// already matches a given name. If so, don't strip the suffix.
 				bool stripSuffix = true;
 				if (wcscmp(suffixes[i], gCatSuffixes[CATEGORY_NORMALS_LONG]) == 0) {
 					// check if name "as-is" is in the table of tile names; if so, don't strip it.
 					// done for chests, too, but those should not be found, so it's OK.
-					if (findTileIndex(tileName, 1)>=0) {
+					if (findTileIndex(tileName, 1)>=0 || wcscmp(tileName,L"double_normal") == 0) {
 						stripSuffix = false;
 					}
 				}

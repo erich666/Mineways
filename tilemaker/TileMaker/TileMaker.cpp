@@ -558,7 +558,8 @@ int wmain(int argc, wchar_t* argv[])
 
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
-		if (gFG.categories[catIndex] > 0 &&
+		// always export RGBA image, and others if there's content
+		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0) &&
 			((catIndex == CATEGORY_RGBA) ||
 				(catIndex == CATEGORY_NORMALS) ||	// note that, above, all _normals (LONG) versions have been moved over
 				(catIndex == CATEGORY_METALLIC) ||
@@ -1061,7 +1062,8 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean
 
 	// read tile header
 	progimage_info tile;
-	int rc = readpngheader(&tile, inputFile);
+	LodePNGColorType colortype;
+	int rc = readpngheader(&tile, inputFile, colortype);
 	if (rc != 0)
 	{
 		reportReadError(rc, inputFile);
@@ -1751,7 +1753,7 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 {
 	int row, col;
 	progimage_info* phf = allocateGrayscaleImage(src);
-	copyOneChannel(phf, CHANNEL_RED, src);
+	copyOneChannel(phf, CHANNEL_RED, src, LCT_RGB);
 	unsigned char* phf_data = &phf->image_data[0];
 	unsigned char* src_data = &src->image_data[0];
 

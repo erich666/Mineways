@@ -22781,7 +22781,7 @@ static int createMaterialsUSD(char *texturePath)
                 float ior = (isWater || isSlime) ? 1.33f : 1.52f;
                 float specRoughness = isSlime ? 0.34f : 0.0f;   // TODOUSD - could also add ice someday and make it cloudy like this
                 // set depth - higher number (faded) for water, 1.0 for glass and slime (higher than this and glass panes don't show much)
-                float depth = isWater ? 5.0f : 1.0f;
+                float depth = isWater ? 10.0f : 1.0f;
 
                 // normal map?
                 if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
