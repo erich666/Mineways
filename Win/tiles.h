@@ -149,7 +149,7 @@ static struct {
     {  8,  4,  82, 0, L"clay", L"", SWATCH_REPEAT_ALL },
     {  9,  4,  83, 0, L"sugar_cane", L"reeds", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 10,  4,   6, 0, L"jukebox_side", L"", SWATCH_REPEAT_ALL },	// was noteblock, which is now below
-    { 11,  4,  84, 0, L"jukebox_top", L"", SWATCH_REPEAT_ALL },
+    { 11,  4,  84, 0, L"jukebox_top", L"juketop", SWATCH_REPEAT_ALL },  // alt is from LunaHD
     { 12,  4, 111, 0, L"lily_pad", L"waterlily", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
     { 13,  4,   6, 0, L"mycelium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 14,  4, 110, 0, L"mycelium_top", L"", SWATCH_REPEAT_ALL },
@@ -901,6 +901,7 @@ static const struct {
     { L"acacia_door_upper", L"acacia_door_top" },    // Absolution
     { L"birch_door_lower", L"birch_door_bottom" },    // Absolution
     { L"birch_door_upper", L"birch_door_top" },    // Absolution
+    { L"blues_stained_glass", L"blue_stained_glass" },    // LunaHD
     { L"crimson_log_side", L"crimson_stem" },    // Smoolistic
     { L"crimson_log_top", L"crimson_stem_top" },    // Smoolistic
     { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
@@ -919,6 +920,8 @@ static const struct {
     { L"jungle_door_lower", L"jungle_door_bottom" },    // Absolution
     { L"jungle_door_upper", L"jungle_door_top" },    // Absolution
     //{ L"jungle_wood", L"jungle_planks" },    // Ultimate Immersion - but already has jungle_planks
+    { L"luna_birch_leaves", L"birch_leaves" },    // LunaHD
+    { L"luna_jungle_leaves", L"jungle_leaves" },    // LunaHD
     { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
     { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
@@ -928,6 +931,7 @@ static const struct {
     { L"red_sandstone_carved", L"chiseled_red_sandstone" },
     { L"sandstone_carved", L"chiseled_sandstone" },
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
+    { L"spruce", L"spruce_planks" },    // LunaHD
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"spruce_needles", L"spruce_leaves" },    // Ultimate Immersion

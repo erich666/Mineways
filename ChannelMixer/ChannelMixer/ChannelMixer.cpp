@@ -231,7 +231,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 	if (filesFound > filesProcessed + gWriteProtectCount) {
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
-		wprintf(L"    Look through the warnings and rename or delete those files you do not want to use.\n");
+		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
 	}
 	return 0;
 }
