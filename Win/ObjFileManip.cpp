@@ -8946,6 +8946,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
             rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+            // now rotate it if going along X or Z axis
+            if (dataVal > 0) {
+                rotateMtx(mtx, (dataVal == 4) ? 0.0f : 90.0f, 0.0f, (dataVal == 4) ? 90.0f : 0.0f);
+            }
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(littleTotalVertexCount, mtx);
 
@@ -8957,6 +8961,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
             rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+            // now rotate it if going along X or Z axis
+            if (dataVal > 0) {
+                rotateMtx(mtx, (dataVal==4) ? 0.0f : 90.0f, 0.0f, (dataVal == 4) ? 90.0f : 0.0f);
+            }
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(littleTotalVertexCount, mtx);
 

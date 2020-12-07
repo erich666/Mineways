@@ -1092,7 +1092,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
     { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
     { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
-    { 0, 108,       HIGH_BIT, "chain", NO_PROP },
+    { 0, 108,       HIGH_BIT, "chain", AXIS_PROP },
 };
 
 #define HASH_SIZE 1024
