@@ -387,11 +387,12 @@ typedef struct ExportFileData
     UINT flags;
 } ExportFileData;
 
-#define MAX_OUTPUT_FILES (2+TOTAL_TILES)
+// USDA + 5 MDL files + color/normal/MER files
+#define MAX_OUTPUT_FILES (6+5*TOTAL_TILES)
 
 typedef struct FileList {
     int count;
-    wchar_t name[MAX_OUTPUT_FILES][520];  // output file list, MAX_PATH == 260 // TODO - kinda pricey now, with tile output: 349,440 bytes. Would be better to allocate as needed, release at end
+    wchar_t* name[MAX_OUTPUT_FILES];  // output file list
 } FileList;
 
 

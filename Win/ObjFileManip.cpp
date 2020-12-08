@@ -25145,8 +25145,13 @@ static float computeMaterialCost(int printMaterialType, float blockEdgeSize, int
 
 static void addOutputFilenameToList(wchar_t* filename)
 {
+    assert(gOutputFileList);
     assert(gOutputFileList->count < MAX_OUTPUT_FILES);
+    // if this asserts, somehow the location is already allocated
+    assert(gOutputFileList->name[gOutputFileList->count] == NULL);
 
+    //if (gOutputFileList->name[gOutputFileList->count] == NULL)
+    gOutputFileList->name[gOutputFileList->count] = (wchar_t*)malloc(MAX_PATH_AND_FILE*sizeof(wchar_t));
     wcsncpy_s(gOutputFileList->name[gOutputFileList->count], MAX_PATH_AND_FILE, filename, MAX_PATH_AND_FILE);
     gOutputFileList->count++;
 }

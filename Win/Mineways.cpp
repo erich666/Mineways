@@ -3608,10 +3608,35 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
     return filepath;
 }
 
+void initializeOutputFileList(FileList& outputFileList)
+{
+    outputFileList.count = 0;
+    for (int i = 0; i < MAX_OUTPUT_FILES; i++)
+    {
+        outputFileList.name[i] = NULL;
+    }
+    // we don't really need to alloc here, but this is a bit of future proofing, in case
+    // the output file list gets used by some method other than addOutputFilenameToList.
+    // If uncommented, outputFileList should then add an "allocated count" vs. a count of real file names on the list.
+    //for (int i = 0; i < 10; i++)
+    //{
+    //    outputFileList.name[i] = (wchar_t*)malloc(MAX_PATH_AND_FILE * sizeof(wchar_t));
+    //}
+}
+
+void freeOutputFileList(FileList& outputFileList)
+{
+    for (int i = 0; i < outputFileList.count; i++)
+    {
+        free(outputFileList.name[i]);
+    }
+    outputFileList.count = 0;
+}
+
 static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected)
 {
     FileList outputFileList;
-    outputFileList.count = 0;
+    initializeOutputFileList(outputFileList);
 
     gpEFD->radioScaleToHeight = 1;
     gpEFD->radioScaleByCost = 0;
@@ -3620,34 +3645,40 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
         updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+
     deleteCommandBlockSet(gChangeBlockCommands);
     gChangeBlockCommands = NULL;
 
     wchar_t wcZip[MAX_PATH_AND_FILE];
 
-    swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
-    DeleteFile(wcZip);
+    if (errCode < MW_BEGIN_ERRORS) {
+        assert(outputFileList.count > 0);
 
-    HZIP hz = CreateZip(wcZip, 0, ZIP_FILENAME);
+        // first name is always the output file name
+        swprintf_s(wcZip, MAX_PATH_AND_FILE, L"%s.zip", outputFileList.name[0]);
+        DeleteFile(wcZip);
 
-    for (int i = 0; i < outputFileList.count; i++)
-    {
-        const wchar_t* nameOnly = removePath(outputFileList.name[i]);
+        HZIP hz = CreateZip(wcZip, 0, ZIP_FILENAME);
 
-        if (*updateProgress)
+        for (int i = 0; i < outputFileList.count; i++)
         {
-            (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
-        }
+            const wchar_t* nameOnly = removePath(outputFileList.name[i]);
 
-        ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
+            if (*updateProgress)
+            {
+                (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
+            }
 
-        // delete model files if not needed
-        if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-        {
-            DeleteFile(outputFileList.name[i]);
+            ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
+
+            // delete model files if not needed
+            if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
+            {
+                DeleteFile(outputFileList.name[i]);
+            }
         }
+        CloseZip(hz);
     }
-    CloseZip(hz);
 
     if (*updateProgress)
         (*updateProgress)(1.0f);
@@ -3658,9 +3689,13 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     }
 
     // Set filepath to skfb data
-    char filepath[MAX_PATH_AND_FILE];
-    sprintf_s(filepath, "%ls", wcZip);
-    skfbPData->skfbFilePath = filepath;
+    if (errCode < MW_BEGIN_ERRORS) {
+        char filepath[MAX_PATH_AND_FILE];
+        sprintf_s(filepath, "%ls", wcZip);
+        skfbPData->skfbFilePath = filepath;
+    }
+
+    freeOutputFileList(outputFileList);
 
     return 0;
 }
@@ -4078,7 +4113,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
     // OK, all set, let's go!
     FileList outputFileList;
-    outputFileList.count = 0;
+    initializeOutputFileList(outputFileList);
     if (on) {
         // redraw, in case the bounds were changed
         drawInvalidateUpdate(hWnd);
@@ -4211,6 +4246,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         if (*updateProgress)
             (*updateProgress)(0.0f);
     }
+    freeOutputFileList(outputFileList);
 
     return retCode;
 }
