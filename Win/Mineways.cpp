@@ -1599,6 +1599,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
+            else {
+                // select visible area, more or less
+                gTargetDepth = 0;
+                gCurDepth = 255;
+
+                // get screen coordinates, roughly
+                {
+                    // gCurX/gCurZ is the center, so find the corners from that
+                    minx = (int)(gCurX - (double)bitWidth / (2 * gCurScale));
+                    minz = (int)(gCurZ - (double)bitHeight / (2 * gCurScale));
+                    maxx = (int)(gCurX + (double)bitWidth / (2 * gCurScale));
+                    maxz = (int)(gCurZ + (double)bitHeight / (2 * gCurScale));
+                }
+
+                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+                // update target depth
+                gHighlightOn = TRUE;
+                SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+                drawInvalidateUpdate(hWnd);
+            }
             break;
         case IDM_COLOR:
         {
