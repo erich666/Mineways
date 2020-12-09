@@ -22422,8 +22422,6 @@ static int finishCommentsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            dictionary Front = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double3 position = (0, 0, 50000)\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "                double radius = 500\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "                double3 target = (0, 0, 0)\n");
@@ -22432,17 +22430,13 @@ static int finishCommentsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            dictionary Perspective = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double3 position = (16.869979985301292, 8.763290146920987, 6.9280154923903865)\n");
+        strcpy_s(outputString, 256, "                double3 position = (19.25962398714678, 10.480966189898108, 9.787648999923533)\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double radius = 108.04251105358288\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double3 target = (-45.395644604597315, -28.73855096263778, -73.00813466876512)\n");
+        strcpy_s(outputString, 256, "                double3 target = (-56.94001899313085, -7.46752783263852, -39.305209134519174)\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            }\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            dictionary Right = {\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double3 position = (-50000, 0, -1.1102230246251565e-11)\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "                double radius = 500\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22451,8 +22445,6 @@ static int finishCommentsUSD()
         strcpy_s(outputString, 256, "            }\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            dictionary Top = {\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "                double3 position = (-6.494670421766199e-12, 50000, 1.1102230246251565e-11)\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "                double radius = 500\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22490,7 +22482,7 @@ static int finishCommentsUSD()
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 500\n");
+    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 100\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22508,15 +22500,14 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:filmIso\" = 200\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // slows performance down massively in real-time rendering mode (like 3X), but looks right
-    strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // Reinhard gives a different look
+    // slows performance down massively in real-time rendering mode (like 3X), but slightly more precise for tree leaves
+    //strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // Reinhard gives a different look to HDR, sometimes better
     //strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:op\" = 2\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // seems to no longer be an option as of 11/9/2020. TODOUSD
-//    strcpy_s(outputString, 256, "            bool \"rtx:raytracing:cached:enabled\" = 1\n");
-//    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");

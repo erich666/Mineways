@@ -7824,6 +7824,7 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
 {
     FILE* fh;
     errno_t err;
+    wchar_t title[MAX_PATH_AND_FILE];
     wchar_t terrainFileName[MAX_PATH_AND_FILE], tempPath[MAX_PATH_AND_FILE], tempName[MAX_PATH_AND_FILE];
 
     size_t dummySize = 0;
@@ -7842,18 +7843,21 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
             }
             else {
                 // something odd happened - filename is empty
-                swprintf_s(error, 1024, L"terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
+                swprintf_s(error, 1024, L"Terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
+                formTitle(&gWorldGuide, title);
+                SetWindowTextW(is.ws.hWnd, title);
                 return false;
             }
             err = _wfopen_s(&fh, terrainFileName, L"rt");
             if (err != 0) {
                 // can't find it at all, so generate error.
-                swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+                swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+                formTitle(&gWorldGuide, title);
+                SetWindowTextW(is.ws.hWnd, title);
                 return false;
             }
             // success, copy file and path (directory is fine)
             wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
-            wchar_t title[MAX_PATH_AND_FILE];
             formTitle(&gWorldGuide, title);
             SetWindowTextW(is.ws.hWnd, title);
             fclose(fh);
@@ -7864,13 +7868,14 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
         err = _wfopen_s(&fh, terrainFileName, L"rt");
         if (err != 0) {
             // can't find it at all, so generate error.
-            swprintf_s(error, 1024, L"terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+            swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+            formTitle(&gWorldGuide, title);
+            SetWindowTextW(is.ws.hWnd, title);
             return false;
         }
         // success, copy file name&path, and directory
         wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
         wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, tempPath);
-        wchar_t title[MAX_PATH_AND_FILE];
         formTitle(&gWorldGuide, title);
         SetWindowTextW(is.ws.hWnd, title);
         fclose(fh);
