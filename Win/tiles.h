@@ -238,8 +238,8 @@ static struct {
     {  1, 10,   6, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,   6, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
     {  3, 10,   6, 0, L"powered_rail", L"rail_golden", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 10,  55, 0, L"redstone_dust_line0", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south) - TODO, this is one of those one to many situations, where redstone_dust_line (in Muddle and Smoolistic) could be this and the next
-    {  5, 10,   6, 0, L"redstone_dust_line1", L"redstone_dust_line", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// horizontal, rotated (alt: Smoolistic)
+    {  4, 10,  55, 0, L"redstone_dust_line0", L"redstone_dust_line", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south), alt is smoolistic
+    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// NOT USED FROM INPUT, but rather is synthesized - horizontal, rotated
     {  6, 10, 116, 0, L"enchanting_table_top", L"", SWATCH_REPEAT_ALL },
     {  7, 10, 122, 0, L"dragon_egg", L"", SWATCH_REPEAT_ALL },
     {  8, 10, 127, 0, L"cocoa_stage2", L"cocoa_stage_2", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -751,7 +751,7 @@ static struct {
     {  2, 42,   6, 0, L"honey_block_side", L"honey_side", SWATCH_REPEAT_ALL },
     {  3, 42, 342, 0, L"honey_block_top", L"honey_top", SWATCH_REPEAT_ALL },
     {  4, 42, 343, 0, L"honeycomb_block", L"honeycomb", SWATCH_REPEAT_ALL },
-    {  5, 42,   6, 0, L"quartz_bricks", L"", SWATCH_REPEAT_ALL },  // 1.16
+    {  5, 42,   6, 0, L"quartz_bricks", L"quartz_brick_side", SWATCH_REPEAT_ALL },  // 1.16, jg-rtx alt.
     {  6, 42,   6, 0, L"soul_soil", L"", SWATCH_REPEAT_ALL },
     {  7, 42,   6, 0, L"basalt_top", L"", SWATCH_REPEAT_ALL },
     {  8, 42,   6, 0, L"basalt_side", L"", SWATCH_REPEAT_ALL },
@@ -925,9 +925,9 @@ static const struct {
     { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
     { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
+    { L"packed_ce", L"packed_ice" },    // jg-rtx typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
-    { L"quartz_chiseled", L"chiseled_quartz_block" },    // jg-rtx
-    { L"quartz_column", L"quartz_pillar" },    // jg-rtx
+    { L"quartz_block_lines", L"quartz_pillar" },    // jg-rtx, sort of a guess, but better than quartz_column
     { L"red_sandstone_carved", L"chiseled_red_sandstone" },
     { L"sandstone_carved", L"chiseled_sandstone" },
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
