@@ -239,7 +239,7 @@ int wmain(int argc, wchar_t* argv[])
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
 
-	// usage: [-i terrainBase.png] [-d tiles_directory] [-z assets zip directory] [-o terrainExt.png] [-t forceTileSize]
+	// usage: [-i terrainBase.png] [-d tiles_directory] [-o terrainExt.png] [-t forceTileSize]
 	// single argument is alternate subdirectory other than "tiles"
 	while (argLoc < argc)
 	{
@@ -253,10 +253,11 @@ int wmain(int argc, wchar_t* argv[])
 				return 1;
 			}
 		}
+		// -z is supported for backwards compatibility, but -d should suffice now
 		else if (wcscmp(argv[argLoc], L"-d") == 0 || wcscmp(argv[argLoc], L"-z") == 0)
 		{
 			if (wcscmp(argv[argLoc], L"-z") == 0 ) {
-				wprintf(L"Note: the '-z directory' command-line argument is deprecated;\n  use '-d directory' (multiple times, if you like).\n");
+				wprintf(L"Note: the '-z directory' command-line argument is deprecated;\n  use '-d directory' (multiple times, as you like).\n");
 			}
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			inputDirectoryList[numInputDirectories++] = _wcsdup(argv[argLoc]);
@@ -265,12 +266,6 @@ int wmain(int argc, wchar_t* argv[])
 				return 1;
 			}
 		}
-		//else if (wcscmp(argv[argLoc], L"-z") == 0)
-		//{
-		//	INC_AND_TEST_ARG_INDEX(argLoc);
-		//	wcscpy_s(jarPath, MAX_PATH_AND_FILE, argv[argLoc]);
-		//	useJar = true;
-		//}
 		else if (wcscmp(argv[argLoc], L"-o") == 0)
 		{
 			INC_AND_TEST_ARG_INDEX(argLoc);
@@ -355,7 +350,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if (verbose)
-		wprintf(L"TileMaker version %s\n", VERSION_STRING);  // change version below, too
+		wprintf(L"TileMaker version %s\n", VERSION_STRING);
 
 	xTiles = 16;	// this should always be the same for all things
 	if (!nobase)
@@ -440,7 +435,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
 	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0)) {
-		wprintf(L"ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
+		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
 
@@ -985,7 +980,7 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
 
 	if (gErrorCount)
-		wprintf(L"Error summary: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
+		wprintf(L"Error count: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
 
 	wprintf(L"TileMaker summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	if (filesFound > filesProcessed) {
@@ -997,10 +992,11 @@ int wmain(int argc, wchar_t* argv[])
 
 void printHelp()
 {
-	wprintf(L"TileMaker version %s\n", VERSION_STRING); // TODOTODO redo next line.
-	wprintf(L"usage: TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-b[m|e|r|n] suffix] [-v]\n");
+	wprintf(L"TileMaker version %s\n", VERSION_STRING);
+	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-h #]\n");
+	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
 	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
-	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be called multiple times.\n");
+	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be set multiple times to include\n    multiple directories.\n");
 	//wprintf(L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
 	wprintf(L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 	wprintf(L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
@@ -1010,13 +1006,9 @@ void printHelp()
 	wprintf(L"  -r - replace (from the 'blocks' directories) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions of Mineways.\n");
 	wprintf(L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
-	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n"); // TODOTODO can we simply get rid of these?
-	//wprintf(L"  -bc suffix - specify the color map suffix for all input *suffix.png files.\n");
-	//wprintf(L"  -bn suffix - build normal map terrainExt_n.png using all input *suffix.png files.\n");
-	//wprintf(L"  -bm suffix - build metallic terrainExt_m.png using all input *suffix.png files.\n");
-	//wprintf(L"  -be suffix - build emission map terrainExt_e.png using all input *suffix.png files.\n");
-	//wprintf(L"  -br suffix - build roughness map terrainExt_r.png using all input *suffix.png files.\n");
-	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
+	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
+	wprintf(L"  -h # - scale any normalmap heightfields by this value. Default is 0.5.\n");
+	wprintf(L"  -k e|m|r - kill export of emission, metallic, and/or roughness textures.\n");
 }
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)

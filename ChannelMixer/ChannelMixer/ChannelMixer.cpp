@@ -8,6 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
+#define	VERSION_STRING	L"1.00"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -78,6 +79,8 @@ int wmain(int argc, wchar_t* argv[])
 	initializeFileGrid(&gFG);
 	initializeChestGrid(&gCG);
 
+	bool inputCalled = false;
+
 	// two means even try the alternate name list
 	int alternate = 2;
 
@@ -87,7 +90,12 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// input directory
 			INC_AND_TEST_ARG_INDEX(argLoc);
-			wcscpy_s(inputDirectory, MAX_PATH, argv[argLoc]);
+			if (!inputCalled) {
+				wcscpy_s(inputDirectory, MAX_PATH, argv[argLoc]);
+				inputCalled = true;
+			} else {
+				wprintf(L"WARNING: only one input directory can be specified. Only directory %s will be used.\n", inputDirectory);
+			}
 		}
 		else if (wcscmp(argv[argLoc], L"-o") == 0)
 		{
@@ -136,17 +144,17 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if (verbose)
-		wprintf(L"ChannelMixer version 1.00\n");  // change version above, too
+		wprintf(L"ChannelMixer version %s\n", VERSION_STRING);
 
 	if (!dirExists(inputDirectory)) {
-		wprintf(L"\nERROR: Input directory '%s' does not exist.\n", inputDirectory);
+		wprintf(L"***** ERROR: Input directory '%s' does not exist.\n", inputDirectory);
 		return 1;
 	}
 
 	// from https://stackoverflow.com/questions/9235679/create-a-directory-if-it-doesnt-exist
 	if (!(CreateDirectoryW(outputDirectory, NULL) ||
 		ERROR_ALREADY_EXISTS == GetLastError())) {
-		wprintf(L"\nERROR: Output directory '%s' could not be created.\n", outputDirectory);
+		wprintf(L"***** ERROR: Output directory '%s' could not be created.\n", outputDirectory);
 		return 1;
 	}
 
@@ -185,7 +193,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	if (filesFound <= 0) {
-		wprintf(L"ERROR, no files found to process - quitting.\n");
+		wprintf(L"***** ERROR, no files found to process - quitting.\n");
 	}
 
 	if (verbose) {
@@ -238,13 +246,13 @@ int wmain(int argc, wchar_t* argv[])
 
 static void printHelp()
 {
-	wprintf(L"ChannelMixer version 1.00\n");  // change version below, too
-	wprintf(L"usage: ChannelMixer [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-v]\n");
+	wprintf(L"ChannelMixer version %s\n", VERSION_STRING);
+	wprintf(L"usage: ChannelMixer [-v] [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-k {m|e|r|n}]\n");
+	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
 	wprintf(L"  -m - output merged '_mer' format files in addition to separate files, as found.\n");
 	wprintf(L"  -k {m|e|r|n} - kill creation of the metallic, emissive, roughness, and/or normals textures.\n");
-	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings.\n");
 }
 
 static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
@@ -830,7 +838,7 @@ static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* output
 		gChestDirectoryExists = true;
 		if (!createDir(outputChestDirectory)) {
 			// does not exist and could not create it
-			wsprintf(gErrorString, L"ERROR: Output chest directory %s cannot be accessed. No chest tiles will be saved.\n", outputChestDirectory);
+			wsprintf(gErrorString, L"***** ERROR: Output chest directory %s cannot be accessed. No chest tiles will be saved.\n", outputChestDirectory);
 			saveErrorForEnd();
 			gErrorCount++;
 			gChestDirectoryFailed = true;
