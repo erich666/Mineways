@@ -22463,8 +22463,9 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:indirectDiffuse:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:cached:enabled\" = 1\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // no longer used
+    //strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:cached:enabled\" = 1\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:fireflyFilter:maxIntensityPerSample\" = 50000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:lightcache:cached:enabled\" = 0\n");
@@ -22482,10 +22483,11 @@ static int finishCommentsUSD()
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:totalSpp\" = 100\n");
+    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 100\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // no longer used
+    //strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:dlss:execMode\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:post:lensFlares:cutoffFuzziness\" = 0.506608\n");
