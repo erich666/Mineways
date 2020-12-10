@@ -524,6 +524,11 @@ int wmain(int argc, wchar_t* argv[])
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
 
+	// should check if the redstone_dust_line* record is horizontal - need to make it vertical TODOTODO
+
+	// if there is a redstone_dust_line0 but not a line1, or vice versa, copy one to the other
+	filesProcessed -= shareFileRecords(&gFG, L"redstone_dust_line0", L"redstone_dust_line1");
+
 	// if there's a grass_block_overlay, then do this equivalency
 	index = findTileIndex(L"grass_block_side_overlay", false);
 	assert(index >= 0);
