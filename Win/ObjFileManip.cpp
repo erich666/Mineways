@@ -21454,6 +21454,9 @@ static int createBaseMaterialTexture()
     if (gModel.options->pEFD->chkExportAll)
     {
         int flagTest = gModel.print3D ? SBIT_CUTOUT_GEOMETRY : (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY);
+        // TODO we shouldn't do this for all tiles, but only those actually output when exporting to tiles.
+        // And why do this before grabbing the mesh? This particular bleed process could all be done at the very end.
+        // TODOUSD - may also need to bleed the PBR textures?
         for (i = 0; i < TOTAL_TILES; i++)
         {
             // If leaves are to be made solid and so should have alphas all equal to 1.0.
@@ -21462,9 +21465,13 @@ static int createBaseMaterialTexture()
                 // set all alphas in tile to 1.0.
                 setAlphaPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), gModel.swatchSize, gModel.swatchesPerRow, 255);
             }
+            // bleed (flood fill, sort of) the colors of the edges of decals and cutouts to the edges, to avoid fringing.
+            // See part 2 of https://asawicki.info/articles/alpha_test.php5 for why we do this
             else if (gTilesTable[i].flags & flagTest)
             {
                 // could bleed to very edges, which is better, but slower.
+                // Currently we bleed (dilate) only once, then fill the rest of the alphas in with an average color. Not great for large textures!
+                // But very slow if we use option #2. TODO, someday use option 2 in TileMaker for (almost) all tiles and then do only those needed here.
                 static int bleedToEdge = 1;
                 switch (bleedToEdge) {
                 default:
@@ -21481,6 +21488,8 @@ static int createBaseMaterialTexture()
                     // bleed multiple times, until the returned value (currently ignored) was zero, i.e., bleed to the edges, so that mipmapping works well.
                     // NOTE: this can work, mostly, but only if the "seed" of existing pixels is 3x3 in size to begin with. If smaller, no spread will happen.
                     // If no spread, then the neighbors to spread value should be set to 2, then to 1 - this code is not there.
+                    // TODOTODO: this could and probably should move to TileMaker, so it's done only once, though we need to think through the grayscale textures
+                    // and how they are formed, etc. So (sadly), maybe not...
                     int modCount = 0;
                     index = SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY);
                     do {
@@ -22415,8 +22424,8 @@ static int finishCommentsUSD()
     strcpy_s(outputString, 256, "    customLayerData = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODOTODO
-    // Currently no 3D view within Mineways itself, of course
-    static boolean exportCamera = false;
+    // Currently no 3D view within Mineways itself, of course. This view works well with QMAGNET's texture world
+    static boolean exportCamera = true;
     if (exportCamera) {
         strcpy_s(outputString, 256, "        dictionary cameraSettings = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));

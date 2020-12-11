@@ -30,11 +30,6 @@ static int gWriteProtectCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
-static boolean killMetallic = false;
-static boolean killEmissive = false;
-static boolean killRoughness = false;
-static boolean killNormal = false;
-
 //                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y"
 static boolean gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true };
 
@@ -124,7 +119,7 @@ int wmain(int argc, wchar_t* argv[])
 			{
 				gUseCategory[CATEGORY_ROUGHNESS] = false;
 			}
-			if (wcschr(argv[argLoc], L'e') != NULL)
+			if (wcschr(argv[argLoc], L'n') != NULL)
 			{
 				gUseCategory[CATEGORY_NORMALS] = false;
 				gUseCategory[CATEGORY_NORMALS_LONG] = false;

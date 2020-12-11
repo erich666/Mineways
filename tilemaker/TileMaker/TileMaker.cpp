@@ -1762,11 +1762,11 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 		{
 			int lcol = (col + phf->width - 1) % phf->width;
 			int rcol = (col + phf->width + 1) % phf->width;
-			// TODO - here's where a scale factor would be nice
+			// Won't swear to this conversion being quite right. From Real-Time Rendering referencing an article.
 			float x = heightfieldScale * (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
 			float y = heightfieldScale * (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
 			float length = (float)sqrt(x * x + y * y + 1.0f);
-			// won't swear to this conversion TODO
+			// Basically, map from XYZ [-1,1] to RGB.
 			*src_data++ = (unsigned char)((1.0f + x / length) * 127.5f);
 			*src_data++ = (unsigned char)((1.0f + y / length) * 127.5f);
 			*src_data++ = (unsigned char)((1.0f + 1.0 / length) * 127.5f);
