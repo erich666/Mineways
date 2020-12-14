@@ -22735,6 +22735,7 @@ static void freeOutData()
 static int createMaterialsUSD(char *texturePath)
 {
     char outputString[256];
+    char textureString[256];
     strcpy_s(outputString, 256, "\ndef Scope \"Looks\" (\n    kind = \"model\"\n)\n{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -23042,7 +23043,7 @@ static int createMaterialsUSD(char *texturePath)
 
                 sprintf_s(outputString, 256, "            asset inputs:specular_transmission_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");  should not be auto, probably
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
                     strcpy_s(outputString, 256, "                customData = {\n");
@@ -23508,50 +23509,55 @@ static int createMaterialsUSD(char *texturePath)
             }
         }
 
-        // normals? Note that semitransparent custom material OmniSurfaceUber already output "coat_normal_image" above, so don't do it here
-        if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
-            if (isSemitransparent) {
-                // slightly different naming - good times!
-                sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                if (outputCustomData) {
-                    strcpy_s(outputString, 256, "                customData = {\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    asset default = @@\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                }\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                }
-                strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                displayName = \"Normal Map Texture\"\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            )\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            }
-            else {
-                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n"); // must be raw. "auto" gives the bad result of patterning, see Absolution grass blocks for example.
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                if (outputCustomData) {
-                    strcpy_s(outputString, 256, "                customData = {\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    asset default = @@\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                }\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                }
-                strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                displayName = \"Normal Map\"\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            )\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            }
-        }
+		// normals? Note that semitransparent custom material OmniSurfaceUber already output "coat_normal_image" above, so don't do it here
+		if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+			sprintf_s(textureString, 256, "%s/%s%s.png", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
+		}
+		else {
+			strcpy_s(textureString, 256, "");
+		}
+		// we always output the normals, so that the "raw" texture space is properly chosen instead of auto (workaround for a bug in Create)
+		if (isSemitransparent) {
+			// slightly different naming - good times!
+			sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @%s@ (\n", textureString);
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			if (outputCustomData) {
+				strcpy_s(outputString, 256, "                customData = {\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+				strcpy_s(outputString, 256, "                    asset default = @@\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+				strcpy_s(outputString, 256, "                }\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			}
+			strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "                displayName = \"Normal Map Texture\"\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "            )\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+		}
+		else {
+			sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s@ (\n", textureString);
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n"); // must be raw. "auto" gives the bad result of patterning, see Absolution grass blocks for example.
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			if (outputCustomData) {
+				strcpy_s(outputString, 256, "                customData = {\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+				strcpy_s(outputString, 256, "                    asset default = @@\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+				strcpy_s(outputString, 256, "                }\n");
+				WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			}
+			strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "                displayName = \"Normal Map\"\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+			strcpy_s(outputString, 256, "            )\n");
+			WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+		}
 
         // cutout? Part 2
         if (isCutout) {
@@ -23609,7 +23615,7 @@ static int createMaterialsUSD(char *texturePath)
                 // slightly different naming - good times!
                 sprintf_s(outputString, 256, "            asset inputs:roughness_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
                     strcpy_s(outputString, 256, "                customData = {\n");
