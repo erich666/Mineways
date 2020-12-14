@@ -607,7 +607,7 @@ int wmain(int argc, wchar_t* argv[])
 
 			// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
 			if (destination_ptr->width > 16384) {
-				wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n    (and likely larger than anything you would ever want to use).\n    Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
+				wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n  (and likely larger than anything you would ever want to use).\n  Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
 					destination_ptr->width / 16, destination_ptr->width / 16);
 				// quit!
 				return 1;
@@ -661,7 +661,13 @@ int wmain(int argc, wchar_t* argv[])
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
 								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
-									wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+									// if it's a grass_block_side.png file, then this should probably be also converted to a grass_block_side_overlay.png 
+									if ((wcsstr(gTilesTable[index].filename, L"grass") != NULL) && (wcsstr(gTilesTable[index].filename, L"_side") != NULL)) {
+										wprintf(L"WARNING: File '%s' has texels that are fully transparent, but grass block side\n  images should be in a pair: a fully opaque grass_block_side.png image, and\n  a grayscale grass with alpha cutout image grass_block_side_overlay.png\n", gFG.fr[fullIndex].fullFilename);
+									}
+									else {
+										wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+									}
 									gWarningCount++;
 								}
 							}
@@ -1096,7 +1102,7 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 {
 	int fail_code = 0;
 	if (fmod(log2((float)(width)), 1.0f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a width of %d that is not a power of two.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, width);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a width of %d that is not a power of two.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
@@ -1104,13 +1110,13 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 	// check if height is not a power of two AND is not a multiple of the width.
 	// if not square (i.e., a chest), the height may be half that of the width.
 	else if (fmod((float)(height) / (float)width, square ? 1.0f : 0.5f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a height of %d that is not a multiple of its width of %d.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, height, width);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is not a multiple of its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
 	}
 	if (square && width > height) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n    has a height of %d that is less than its width of %d.\n    This will cause copying errors, so TileMaker ignores it.\n    We recommend you remove or resize this file.\n", cFileName, height, width);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is less than its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;

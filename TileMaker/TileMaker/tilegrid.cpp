@@ -123,21 +123,46 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				if (used == 0) {
 					if (topmost || wcsstr(tilePathAppended + origTPLen, L"chest") != NULL) {
 						used = testIfChestFile(pcg, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
-						if ( used )
+						if (used) {
 							filesProcessed++;
-						chestFound = true;
+							chestFound = true;
+						}
 					}
 				}
 
 				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest directory?
 				// 
-				if (!used && filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
-					// we already found some good files in this directory, so note that this file was not used.
-					if (verbose) {
-						wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
+				if (!used) {
+					if (filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
+						// we already found some good files in this directory, so note that this file was not used.
+						if (verbose) {
+							wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
+						}
+						else {
+							wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
+						}
 					}
-					else {
-						wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
+					// if TGA, note it if corresponding PNG not found
+					else if (isTGAfile(ffd.cFileName)) {
+						wchar_t tileName[MAX_PATH];
+						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
+						if (removeTGAsuffix(tileName)) {
+							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+							assert(category >= 0);
+							int index = findTileIndex(tileName, alternate);
+							if (index >= 0) {
+								int fullIndex = category * pfg->totalTiles + index;
+								if (!pfg->fr[fullIndex].exists) {
+									// not a duplicate, so warn - may be a false warning, as the PNG file could be further down the list of files returned. TODO
+									if (verbose) {
+										wprintf(L"TGA WARNING: The file '%s' in directory '%s' is a TGA file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker does not process TGA files.\n", ffd.cFileName, tilePath);
+									}
+									else {
+										wprintf(L"TGA WARNING: The file '%s' is a TGA file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker does not process TGA files.\n", ffd.cFileName);
+									}
+								}
+							}
+						}
 					}
 				}
 			}
@@ -345,6 +370,30 @@ boolean isPNGfile(wchar_t* name)
 	// check for .png suffix - note test is case insensitive
 	int len = (int)wcslen(name);
 	if (len > 4 && _wcsicmp(&name[len - 4], L".png") == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+boolean removeTGAsuffix(wchar_t* name)
+{
+	// check for .tga suffix - note test is case insensitive
+	int len = (int)wcslen(name);
+	if (len > 4 && _wcsicmp(&name[len - 4], L".tga") == 0)
+	{
+		// remove .png suffix
+		name[len - 4] = 0x0;
+		return true;
+	}
+	return false;
+}
+
+boolean isTGAfile(wchar_t* name)
+{
+	// check for .png suffix - note test is case insensitive
+	int len = (int)wcslen(name);
+	if (len > 4 && _wcsicmp(&name[len - 4], L".tga") == 0)
 	{
 		return true;
 	}

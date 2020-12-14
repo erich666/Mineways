@@ -749,6 +749,7 @@ static void drawPNGTileLetterR(progimage_info* dst, int x, int y, int tileSize);
 static void setColorPNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned int value);
 static void addNoisePNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a, float noise);
 static void multiplyPNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+static boolean isPNGTileNearlyGrayscale(progimage_info* dst, int x, int y, int tileSize, int tolerance);
 static void multiplyClampPNGTile(progimage_info* dst, int x, int y, int tileSize, int r, int g, int b, unsigned char a);
 static void bluePNGTile(progimage_info* dst, int x, int y, int tileSize, unsigned char r, unsigned char g, unsigned char b);
 static void rotatePNGTile(progimage_info* dst, int dcol, int drow, int scol, int srow, int angle, int swatchSize);
@@ -20815,7 +20816,7 @@ static int createBaseMaterialTexture()
                     }
                 }
 
-                // Order in PNG file is ABGR
+                // Order in PNG file is ABGR high to low bytes
                 color = (a << 24) | (b << 16) | (g << 8) | r;
 
                 setColorPNGTile(mainprog, col, row, gModel.swatchSize, color);
@@ -21100,6 +21101,9 @@ static int createBaseMaterialTexture()
 
         for (i = 0; i < MULT_TABLE_SIZE; i++)
         {
+            idx = SWATCH_INDEX(multTable[i].col, multTable[i].row);
+            SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
+
             adj = multTable[i].type;
 
             if (useBiome)
@@ -21159,17 +21163,21 @@ static int createBaseMaterialTexture()
                 ib = (int)(ib * 1.34);
             }
 
-            idx = SWATCH_INDEX(multTable[i].col, multTable[i].row);
-            SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
-
             // save a little work: if color is 0xffffff, no multiplication needed
             if (ir != 255 || ig != 255 || ib != 255)
             {
-                if (ir > 255 || ig > 255 || ib > 255) {
-                    multiplyClampPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, ir, ig, ib, a);
-                }
-                else {
-                    multiplyPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, (unsigned char)ir, (unsigned char)ig, (unsigned char)ib, a);
+                // multiplication color does something.
+                // Do this multiplication ONLY if the target tile is grayscale. If it's some modded thing that
+                // is not grayscale, don't modify the color.
+                // tolerance for grayscale is pretty high, 
+                if (((multTable[i].col == 4) && (multTable[i].row == 12))  // if it's jungle, it's not grayscale in default Minecraft - fun
+                        || isPNGTileNearlyGrayscale(mainprog, dstCol, dstRow, gModel.swatchSize, 20)) {
+                    if (ir > 255 || ig > 255 || ib > 255) {
+                        multiplyClampPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, ir, ig, ib, a);
+                    }
+                    else {
+                        multiplyPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, (unsigned char)ir, (unsigned char)ig, (unsigned char)ib, a);
+                    }
                 }
             }
         }
@@ -21290,6 +21298,7 @@ static int createBaseMaterialTexture()
         r = (unsigned char)((color >> 16)* dim);
         g = (unsigned char)(((color >> 8) & 0xff)* dim);
         b = (unsigned char)((color & 0xff) * dim);
+        a = 255;
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_VERT_OFF, col, row);
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_VERT, scol, srow);
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
@@ -22425,7 +22434,7 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODOTODO
     // Currently no 3D view within Mineways itself, of course. This view works well with QMAGNET's texture world
-    static boolean exportCamera = true;
+    static boolean exportCamera = false;
     if (exportCamera) {
         strcpy_s(outputString, 256, "        dictionary cameraSettings = {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -25402,6 +25411,33 @@ static void multiplyPNGTile(progimage_info* dst, int x, int y, int tileSize, uns
             di++;
         }
     }
+}
+
+static boolean isPNGTileNearlyGrayscale(progimage_info* dst, int x, int y, int tileSize, int tolerance)
+{
+    int row, col;
+
+    assert(x * tileSize + tileSize - 1 < (int)dst->width);
+
+    for (row = 0; row < tileSize; row++)
+    {
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
+        for (col = 0; col < tileSize; col++)
+        {
+            unsigned int value = *di;
+            unsigned char dr, dg, db, da;
+            GET_PNG_TEXEL(dr, dg, db, da, value);
+            int diff1 = abs((int)dr - (int)dg);
+            int diff2 = abs((int)dg - (int)db);
+            if (diff1 > tolerance || diff2 > tolerance) {
+                // not grayscale
+                return false;
+            }
+            di++;
+        }
+    }
+    // grayscale
+    return true;
 }
 
 // more a rescale than a clamp, but that's fine

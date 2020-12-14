@@ -215,7 +215,8 @@ int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsign
                 // do grayscale test?
                 if (ignoreGrayscale) {
                     if ((src_data[-channel] == src_data[1 - channel]) && (src_data[1 - channel] == src_data[2 - channel])) {
-                        // it's gray, so ignore it
+                        // it's gray, so ignore it (could be a cutout background pixel)
+                        src_data += numChannels;
                         continue;
                     }
                 }
@@ -226,6 +227,8 @@ int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsign
     }
     return 1;
 }
+
+
 
 
 

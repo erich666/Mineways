@@ -227,7 +227,7 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
 	if (gWriteProtectCount > 0) {
-		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered; %d of these were used and\n     %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
+		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered; %d of these were used and\n  %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
 	}
 	else {
 		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
