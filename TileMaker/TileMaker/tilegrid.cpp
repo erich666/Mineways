@@ -51,7 +51,7 @@ void addBackslashIfNeeded(wchar_t* dir)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, boolean topmost)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, boolean topmost, boolean warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -97,7 +97,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, subdir, origTPLen, verbose, alternate, false);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, subdir, origTPLen, verbose, alternate, false, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -114,7 +114,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				// c:\temp\my_block_processing\Vanilla\ where Vanilla is where you put the resource pack, as ALL subdirectories will be
 				// considered to be "block" directories.
 				if (topmost || wcsstr(tilePathAppended + origTPLen, L"block") != NULL) {
-					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, false);
+					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, false, warnDups);
 					if (status == FILE_FOUND || status == FILE_FOUND_AND_DUPLICATE) {
 						used = 1;
 						filesProcessed++;
@@ -216,7 +216,7 @@ int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, i
 	{
 		// go through all the files in the blocks directory
 		do {
-			filesFound += (testIfTileExists( pfg, tilePath, ffd.cFileName, verbose, alternate, true) == FILE_FOUND) ? 1 : 0;
+			filesFound += (testIfTileExists( pfg, tilePath, ffd.cFileName, verbose, alternate, true, true) == FILE_FOUND) ? 1 : 0;
 		} while (FindNextFile(hFind, &ffd) != 0);
 
 		FindClose(hFind);
@@ -225,7 +225,7 @@ int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, i
 }
 
 // returns 1 if file exists and is usable (not a duplicate, alternate name of something already in use), 2 if found and known to be ignorable
-int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnUnused)
+int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnUnused, boolean warnDups)
 {
 	wchar_t tileName[MAX_PATH];
 
@@ -254,13 +254,13 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 					return FILE_FOUND;
 				}
 				else {
-					if (wcscmp(origTileName, pfg->fr[fullIndex].fullFilename) == 0) {
+					if ((warnDups || verbose) && wcscmp(origTileName, pfg->fr[fullIndex].fullFilename) == 0) {
 						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
 					else if (verbose) {
 						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
-					else {
+					else if (warnDups) {
 						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
 					}
 					return FILE_FOUND_AND_DUPLICATE;

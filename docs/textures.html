@@ -238,7 +238,7 @@ This option says to force all textures to be 256x256 in size. This is an importa
 With TileMaker you can also do time-saving tricks such as setting "-t 64" or "-t 32", making a much smaller terrain PNG texture that will look fine for previews. Using a smaller terrain file makes for much faster Mineways exports.
 
 <P>
-One last trick: you can use TileMaker to read multiple directories (block-and-chest or original resource pack, if you're daring) and soak up all the textures it finds for terrain file creation. So, for example, you might like the Fancy pack, but if Fancy is missing something, then you might be happy with VanillaPBR instead. This looks something like "TileMaker.exe -d FancyDir -d VanillaPBRDir -o terrainExt_MySuperPack.png". By importing both directories in the order of preference, TileMaker will pull in whatever it finds for Fancy, then fill in (and warn you of duplicates) with VanillaPBR.
+One last trick: you can use TileMaker to read multiple directories (block-and-chest or original resource pack, if you're daring) and soak up all the textures it finds for terrain file creation. So, for example, you might like the Fancy pack, but if Fancy is missing something, then you might be happy with VanillaPBR instead. This looks something like "TileMaker.exe -d FancyDir -d VanillaPBRDir -o terrainExt_MySuperPack.png". By importing both directories in the order of preference, TileMaker will pull in whatever it finds for Fancy, then fill in (and will not warn you of duplicates) with VanillaPBR.
 
 <P>
 There are other options for ChannelMixer and TileMaker, but these are the major ones. See the <a href="#ref">reference section</a> at the end for all command-line options for each.

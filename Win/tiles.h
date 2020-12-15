@@ -906,14 +906,15 @@ static const struct {
     { L"crimson_log_top", L"crimson_stem_top" },    // Smoolistic
     { L"dark_oak_door_lower", L"dark_oak_door_bottom" },    // Absolution
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
-    { L"dirt_podzol-side", L"podzol_side" },    // jg-rtx
-    { L"dirt_podzol-top", L"podzol_top" },    // jg-rtx
+    { L"dirt_podzol-side", L"podzol_side" },    // JG-RTX
+    { L"dirt_podzol-top", L"podzol_top" },    // JG-RTX
     { L"dried_kelp_side_a", L"dried_kelp_side" },    // Muddle
     { L"fletcher_table_side1", L"fletching_table_side" },    // Muddle
     { L"fletcher_table_top", L"fletching_table_top" },    // Muddle
-    //{ L"grass-side", L"grass_block_side" },    // jg-rtx
-    //{ L"grass-top", L"grass_block_top" },    // jg-rtx
-    { L"grass-tuft", L"grass" },    // jg-rtx
+    //{ L"grass-side", L"grass_block_side" },    // JG-RTX
+    //{ L"grass-top", L"grass_block_top" },    // JG-RTX
+    { L"grass_block_side_snowed", L"grass_block_snow" },    // Flows
+    { L"grass-tuft", L"grass" },    // JG-RTX
     { L"iron_door_lower", L"iron_door_bottom" },    // Absolution
     { L"iron_door_upper", L"iron_door_top" },    // Absolution
     { L"itemframe_background", L"item_frame" },    // Absolution
@@ -922,12 +923,13 @@ static const struct {
     //{ L"jungle_wood", L"jungle_planks" },    // Ultimate Immersion - but already has jungle_planks
     { L"luna_birch_leaves", L"birch_leaves" },    // LunaHD
     { L"luna_jungle_leaves", L"jungle_leaves" },    // LunaHD
+    { L"mossy_stonebrick", L"mossy_stone_bricks" },    // Flows
+    { L"mossy_stone_brick", L"mossy_stone_bricks" },    // JG-RTX
     { L"oak_door_lower", L"oak_door_bottom" },    // Absolution
     { L"oak_door_upper", L"oak_door_top" },    // Absolution
     { L"oak_leave", L"oak_leaves" },    // miejojo128 v1.16
-    { L"packed_ce", L"packed_ice" },    // jg-rtx typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
     { L"quartz_block", L"quartz_block_top" },    // Meteor - probably really want quartz_block_side to be copied over, too. Multiply copying? TODO
-    { L"quartz_block_lines", L"quartz_pillar" },    // jg-rtx, sort of a guess, but better than quartz_column
+    { L"quartz_block_lines", L"quartz_pillar" },    // JG-RTX, sort of a guess, but better than quartz_column
     { L"red_sandstone_carved", L"chiseled_red_sandstone" },
     { L"sandstone_carved", L"chiseled_sandstone" },
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
@@ -935,9 +937,9 @@ static const struct {
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"spruce_needles", L"spruce_leaves" },    // Ultimate Immersion
-    { L"stonebrick_mossy", L"mossy_stone_bricks" },    // OV
-    { L"stone_andesite_smooth", L"polished_andesite" },    // OV
-    { L"stone_diorite_smooth", L"polished_diorite" },    // OV
+    { L"stonebrick_mossy", L"mossy_stone_bricks" },    // JG-RTX
+    { L"stone_andesite_smooth", L"polished_andesite" },    // JG-RTX
+    { L"stone_diorite_smooth", L"polished_diorite" },    // JG-RTX
     { L"stonebrick_cracked", L"cracked_stone_bricks" },    // Muddle
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
 
@@ -948,6 +950,8 @@ static const struct {
     { L"grey_stained_glass_pane_top", L"gray_stained_glass_pane_top" },    // Vanilla-Normals-Renewed-master
     { L"light_blue_conctrete", L"light_blue_concrete" },    // Absolution
     { L"megenta_concrete", L"magenta_concrete" },    // Absolution
+    { L"netherack", L"netherrack" },    // JG-RTX typo
+    { L"packed_ce", L"packed_ice" },    // JG-RTX typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
 
 
     // tag that denotes end of list for while loop

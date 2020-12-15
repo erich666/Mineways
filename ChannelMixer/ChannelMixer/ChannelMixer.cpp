@@ -177,7 +177,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
-	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, wcslen(inputDirectory), verbose, alternate, true);
+	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, true);
 	if (fileCount < 0) {
 		wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
