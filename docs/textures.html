@@ -71,10 +71,10 @@
 	<div id="content" class="clearfix">
 <h1>Using Textures in Mineways</h1>
 
-You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. In fact, Mineways comes with a few, ready for you to use - <a href="mineways.html#texture_output">here's more information</a>.
+You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. In fact, Mineways comes with a few, ready for you to use - <a href="mineways.html#texture_output">here's more information</a>. As a first step, Mineways supports export to the Pixar USD format that can be directly read into the free <a href="mineways.html#ovcreate">Omniverse Create</a> program.
 
 <P>
-You can go farther, though, and add your own favorite resource pack to models you export. You can even add special "physically based" resources, such as surface normal textures for bumpiness, as well as roughness, metallic, and emissive (light) textures. These can then be used by any program that supports them. As a first step, Mineways supports export to the Pixar USD format that can be directly read into the free <a href="mineways.html#ovcreate">Omniverse Create</a> program.
+You can go farther, though, and add your own favorite resource pack to models you export. You can even add special "physically based" resources, such as surface normal textures for bumpiness, as well as roughness, metallic, and emissive (light) textures. These can then be used by any program that supports them. The JG RTX resource pack comes with Mineways. There are <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">plenty of others</a> I've used for testing.
 
 <P>
 In a perfect world, you would just point Mineways at a resource pack (also once known as a texture pack). Mineways would then apply the textures in that pack to the models you export. If it didn't find a new texture in the resource pack, it would get the basic Minecraft texture instead and use that.
@@ -263,9 +263,9 @@ Each suffix stands for a different type of additional texture:
 These are the suffixes of files that TileMaker produces and that Mineways uses. When you select a terrain file in Mineways, if there is a corresponding "_n.png" terrain file (i.e., normals maps), then this terrain file will also be used when exporting models to the Wavefront OBJ and USDA formats. Sadly, this isn't terribly useful for Wavefront OBJ. Only a very few applications support having normal maps applied in an OBJ material file, as it's a non-standard extension of the ancient OBJ format. However, normal maps <I>are</I> useful for USDA export, as explained in the next section. In addition to normals, the emissive, metallic, and roughness terrain files are also used when exporting using USDA.
 
 <P>
-Applying these textures can give marvelous results. Here's JG RTX in action:
+Applying these textures can give marvelous results. Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action:
 <P>
-<div>
+<div id="candy">
    <a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
 </div>
 <P>
@@ -313,6 +313,8 @@ Some places I've looked:
 <LI><a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">PBR Texturing Guide</a> is worth another mention, a guide to making PBR material textures.
 <LI><a href="https://github.com/TheDuckCow/MCprep/issues/78">MCPrep thread</a> discusses how this related utility is working to incorporate physically based materials in its translator. Good overview of the chaotic realistic resource pack format scene. If you want to directly use Mineways exports with Blender, <a href="https://theduckcow.com/dev/blender/mcprep/">explore MCPrep</a> as an option. I hope to work on supporting PBR in both Blender and MCPrep in the future.
 </UL>
+
+Here are <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a>, which are not that fascinating from a distance (it's the details that are cool), but give you an idea of what's possible.
 
 <H1 id="ref">Reference Section</H1>
 
