@@ -247,7 +247,7 @@ static void printHelp()
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
 	wprintf(L"  -m - output merged '_mer' format files in addition to separate files, as found.\n");
-	wprintf(L"  -k {m|e|r|n} - kill creation of the metallic, emissive, roughness, and/or normals textures.\n");
+	wprintf(L"  -k {e|m|r} - kill export of emission, metallic, and/or roughness textures.\n");
 }
 
 static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {

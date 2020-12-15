@@ -1006,6 +1006,7 @@ void printHelp()
 	//wprintf(L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
 	wprintf(L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 	wprintf(L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
+	wprintf(L"  -h # - scale any normalmap heightfields by this value. Default is 0.5.\n");
 	wprintf(L"  -c chosenTile - for tiles with multiple versions in a vertical strip,\n     (e.g. water, lava, portal), choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
 	wprintf(L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
 	wprintf(L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    just the base texture is read in.\n");
@@ -1013,8 +1014,6 @@ void printHelp()
 	wprintf(L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
-	wprintf(L"  -h # - scale any normalmap heightfields by this value. Default is 0.5.\n");
-	wprintf(L"  -k e|m|r - kill export of emission, metallic, and/or roughness textures.\n");
 }
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
