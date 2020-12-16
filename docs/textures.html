@@ -71,10 +71,85 @@
 	<div id="content" class="clearfix">
 <h1>Using Textures in Mineways</h1>
 
-You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. In fact, Mineways comes with a few, ready for you to use - <a href="mineways.html#texture_output">here's more information</a>.
+You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Select Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>.
+
+<H2>Pre-Built Terrain Files</H2>
+
+The larger <a href="http://mineways.com">Mineways download</a> comes with the following five terrain files, plus one physically based terrain file set.
+
+<div class="inliner">
+  <p>Here are some of the terrain file sets downloadable (with permission from their creators) for use with Mineways, displayed with 
+  <a href="#g3d">G3D</a>. Note that some tiles in these resource packs may be missing or distorted in the terrainExt*.png files that come with Mineways, due to differing naming conventions and texture layouts.</p>
+  <p>Click on an image for the larger version.</p>
+</div>
+<div id="texturePacks">
+  <div class="textureBox">
+    <a href="images/zen_default.jpg">
+    <img src="images/thumb_zen_default.jpg" alt="default textures"></a>
+    <span> Default Minecraft textures</span><span>&nbsp;</span>
+	<b><a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_coterie_craft.jpg">
+    <img src="images/thumb_zen_coterie_craft.jpg" alt="Coterie Craft"></a>
+    <a href="http://coteriecraft.net/">Coterie Craft</a><span>by Cpt. Corn</span>
+	<b><a href="https://sketchfab.com/models/fa71f250ca53407ea443ae03fbef8ba3">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_dokucraft_high.jpg">
+    <img src="images/thumb_zen_dokucraft_high.jpg" alt="Dokucraft High"></a>
+    <a href="https://dokucraft.co.uk/">DokuCraft High</a><span>by Hickerydickery</span>
+	<b><a href="https://skfb.ly/QsDZ">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_dokucraft_light.jpg">
+    <img src="images/thumb_zen_dokucraft_light.jpg" alt="Dokucraft Light"></a>
+    <a href="https://dokucraft.co.uk/">DokuCraft Light</a><span>by Hickerydickery</span>
+	<b><a href="https://skfb.ly/QsEH">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_modern_hd.jpg">
+    <img src="images/thumb_zen_modern_hd.jpg" alt="Modern HD"></a>
+    <a href="http://resourcepack.net/modern-hd-resource-pack/">Modern HD</a>
+    <span>by Mikeyto1o</span>
+	<b><a href="https://skfb.ly/QsEL">View on Sketchfab</a></b>
+  </div>
+  <div class="textureBox">
+    <a href="images/zen_sphax_pure_bd_craft.jpg">
+    <img src="images/thumb_zen_sphax_pure_bd_craft.jpg" alt="Sphax pure BD Craft"></a>
+    <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a>
+    <span>by Sphax84</span>
+	<b><a href="https://skfb.ly/Q8rU">View on Sketchfab</a></b>
+  </div>
+</div>
+<P>
+The physically based terrain file set included is <b><a href="https://github.com/jasonjgardner/jg-rtx/releases">JG RTX</a></b>, at two resolutions. Here's an example, rendered using the free <a href="mineways.html#ovcreate">Omniverse Create</a> program:
+<P>
+<div>
+   <a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
+</div>
+
+<h2 id="dl">Additional Terrain File Downloads</h2>
+
+So as to not bloat the Mineways distribution too much, we've put more pre-made terrain files for download here. These include special purpose default terrain files, and other <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> converted to Mineways terrain files.
 
 <P>
-You can go farther, though, and add your own favorite resource pack to models you export. You can even add special "physically based" resources, such as surface normal textures for bumpiness, as well as roughness, metallic, and emissive (light) textures. These can then be used by any program that supports them. As a first step, Mineways supports export to the Pixar USD format that can be directly read into the free <a href="mineways.html#ovcreate">Omniverse Create</a> program.
+<b>Specialized files (you will need to right click and select "Save link as..."):</b> The <b><a href="http://mineways.com/downloads/terrainExt1024.png">terrainExt1024.png</a></b> and <b><a href="http://mineways.com/downloads/terrainExt8192.png">terrainExt8192.png</a></b> files can be used to make the default Minecraft textures look sharp and pixel-like, in renderer that do not support "nearest neighbor" filtering. See <a href="mineways.html#blurry">here</a> for more information. If you don't know what I'm talking about, you likely don't need these.
+
+<P>
+<b><a href="http://lunahd.com">LunaHD</a>:</b> A physically based material set. <b><a href="http://mineways.com/downloads/terrainExt_LunaHD.zip">Download LunaHD terrain file set</a></b>. The LunaHD developer provides this free 32x32 version his work. With his permission, we made this terrain file set. When used with USDA export, I recommend turning off the "Custom Material" setting (having this setting on gives the default blocky Minecraft look). See the <a href="http://lunahd.com">LunaHD</a> site for details on getting higher resolution versions of these textures, which can then be used within Mineways by substituting them into the USDA output textures directory.
+<P>
+Here is a sample of some of the textures in <b><a href="http://lunahd.com">LunaHD</a></b>, alongside some unmodified classic Minecraft textures:
+<P>
+<div>
+   <a id="lunahd"><img src="images/lunahd_pbr.jpg" alt="LunaHD"></a>
+</div>
+
+
+<H2 id="own_terrain">Creating Your Own Terrain Files</H2>
+
+<P>
+You can go farther, though, and use your own favorite resource pack to models you export. You can even add special "physically based" resources, such as surface normal textures for bumpiness, as well as roughness, metallic, and emissive (light) textures. These can then be used by any program that supports them. As a first step, Mineways supports export to the Pixar USD format that can be directly read into the <a href="mineways.html#ovcreate">Omniverse Create</a> program.
 
 <P>
 In a perfect world, you would just point Mineways at a resource pack (also once known as a texture pack). Mineways would then apply the textures in that pack to the models you export. If it didn't find a new texture in the resource pack, it would get the basic Minecraft texture instead and use that.
@@ -123,7 +198,7 @@ What TileMaker does by default is simple: it reads in the terrainBase.png file M
 Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.planetminecraft.com/texture-packs/">this</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this</a>, and <a href="https://resourcepack.net/">this</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks.
 
 
-<h3>ChannelMixer</h3>
+<h3 id="channelmixer">ChannelMixer</h3>
 
 After downloading and unzipping whatever resource pack or MCPack you like, you then want to run ChannelMixer. As an example, I'll use the free (and quite nice) <a href="https://github.com/jasonjgardner/jg-rtx/releases">JG RTX</a> resource pack as an example. Go to <a href="https://github.com/jasonjgardner/jg-rtx/releases">the release page</a> and look at the latest release listed. It will say "Assets" underneath. Click that to open the list, then download the zip:
 
@@ -191,8 +266,10 @@ says the input directory is "jg-rtx-0.7.0-alpha", and
 
 says the output directory is "jg-rtx-channelmixer".
 
+<H3 id="tilemaker">TileMaker</H3>
+
 <P>
-The next step is to run TileMaker:
+Once you have a directory full of the textures you want to turn into a terrain file, the next step is to run TileMaker:
 
 <PRE>
 TileMaker.exe -d "jg-rtx-channelmixer" -o terrainExt_JG-RTX.png -t 256
@@ -263,13 +340,9 @@ Each suffix stands for a different type of additional texture:
 These are the suffixes of files that TileMaker produces and that Mineways uses. When you select a terrain file in Mineways, if there is a corresponding "_n.png" terrain file (i.e., normals maps), then this terrain file will also be used when exporting models to the Wavefront OBJ and USDA formats. Sadly, this isn't terribly useful for Wavefront OBJ. Only a very few applications support having normal maps applied in an OBJ material file, as it's a non-standard extension of the ancient OBJ format. However, normal maps <I>are</I> useful for USDA export, as explained in the next section. In addition to normals, the emissive, metallic, and roughness terrain files are also used when exporting using USDA.
 
 <P>
-Applying these textures can give marvelous results. Here's JG RTX in action:
-<P>
-<div>
-   <a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
-</div>
-<P>
+Applying these textures can give marvelous results, <a href="#jgrtx">as shown earlier</a>.
 
+<P>
 Mineways comes with this set of <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> textures at 64x64 and 256x256, massaged and cleaned up. Jason J. Gardner's JG RTX uses a non-commercial <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/">Creative Commons license</a>. If you like it and use it, consider contributing to the charity he lists on his webpage, <a href="https://donate.doctorswithoutborders.org/monthly.cfm">Doctors Without Borders</a> (his idea inspired me to ask the same: if you like Mineways, consider giving a donation to <a href="https://www.givewell.org/">GiveWell</a> or whichever charity you prefer).
 
 <P>

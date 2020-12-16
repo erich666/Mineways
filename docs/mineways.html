@@ -69,7 +69,7 @@
 	</div>
 	
 	<div id="content" class="clearfix">
-<h1>Documentation</h1>
+<h1>Mineways Main Documentation</h1>
 
 To quickly get started, see this <a href="downloads.html#instructions">quick step by step</a> or <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
 <P>
@@ -109,7 +109,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
    <LI><a href="#leaves_solid">Tree Leaves Solid</a>
  </UL>
  <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
- <LI><a href="#tilemaker">TileMaker</a> - how to make your own custom texture terrainExt.png files.
+ <LI><a href="#tilemaker">ChannelMixer and TileMaker</a> - how to make your own custom texture terrainExt.png files.
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
  <LI><a href="#blender">Blender</a>
@@ -282,7 +282,7 @@ Color schemes allows you to change the color for any block, and - extremely usef
 <P>
 How do use a color scheme: From the menu, Add a new color scheme, then Edit it. Change the name "Color Scheme" at the top of the dialog that pops up to something useful, then select any block type to edit it. Color is given in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal color format</a>. You can use <a href="http://www.mirekw.com/winfreeware/mwsnap.html">MWSnap</a> (old but free), <a href="http://www.faststone.org/FSCapturerDownload.htm">FastStone Capture</a> (new but costs $20), or other programs to find the hexadecimal (e.g., #787878) color value of any pixel on your screen. 'Alpha' says how opaque a block will appear on the screen, with 255 meaning fully opaque and 0 meaning fully transparent (invisible). <I>Blocks with an alpha of 0 will be deleted when exporting.</I> You can turn off export of <i>all</i> blocks by using the "Hide All Blocks" button. This feature allows you to create separate parts, e.g., a glass roof could be created by then turning on just glass export. The "Hide Tree Blocks" hides all log and leaf blocks, making printing of 3D terrain simpler (trees are sometimes hard to print well).
 <P>
-Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself. See <a href="#tilemaker">TileMaker</a>.
+Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself. See <a href="textures.html#own_terrain">Creating Your Own Terrain Files</a>.
 
 <H3 id="too_big">
 "My Model's Too Expensive!"
@@ -364,62 +364,15 @@ The other major option for texture export is "Export tiles for textures", just b
 <P>
 
 <a id="custom_terrain"><H4>Custom Terrain</H4></a>
-The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. At the very top of the Mineways program you'll see what terrain file is active, right after the name of the world you've opened. Mineways comes with a number of premade terrainExt.png files for you to try - see the images below.
-
-<div class="inliner">
-  <p>Here are some of the texture pack terrainExt.png files distributed (with permission) with Mineways, displayed with 
-  <a href="#g3d">G3D</a>. Note that some tiles in these resource packs may be missing or distorted in the terrainExt*.png files that come with Mineways, due to differing naming conventions and texture layouts.</p>
-  <p>Click on an image for the larger version.</p>
-</div>
-<div id="texturePacks">
-  <div class="textureBox">
-    <a href="images/zen_default.jpg">
-    <img src="images/thumb_zen_default.jpg" alt="default textures"></a>
-    <span> Default Minecraft textures</span><span>&nbsp;</span>
-	<b><a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_coterie_craft.jpg">
-    <img src="images/thumb_zen_coterie_craft.jpg" alt="Coterie Craft"></a>
-    <a href="http://coteriecraft.net/">Coterie Craft</a><span>by Cpt. Corn</span>
-	<b><a href="https://sketchfab.com/models/fa71f250ca53407ea443ae03fbef8ba3">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_dokucraft_high.jpg">
-    <img src="images/thumb_zen_dokucraft_high.jpg" alt="Dokucraft High"></a>
-    <a href="https://dokucraft.co.uk/">DokuCraft High</a><span>by Hickerydickery</span>
-	<b><a href="https://skfb.ly/QsDZ">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_dokucraft_light.jpg">
-    <img src="images/thumb_zen_dokucraft_light.jpg" alt="Dokucraft Light"></a>
-    <a href="https://dokucraft.co.uk/">DokuCraft Light</a><span>by Hickerydickery</span>
-	<b><a href="https://skfb.ly/QsEH">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_modern_hd.jpg">
-    <img src="images/thumb_zen_modern_hd.jpg" alt="Modern HD"></a>
-    <a href="http://resourcepack.net/modern-hd-resource-pack/">Modern HD</a>
-    <span>by Mikeyto1o</span>
-	<b><a href="https://skfb.ly/QsEL">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_sphax_pure_bd_craft.jpg">
-    <img src="images/thumb_zen_sphax_pure_bd_craft.jpg" alt="Sphax pure BD Craft"></a>
-    <a href="http://bdcraft.net/purebdcraft-minecraft">Sphax PureBDCraft</a>
-    <span>by Sphax84</span>
-	<b><a href="https://skfb.ly/Q8rU">View on Sketchfab</a></b>
-  </div>
-</div>
-<P>
-One other resource pack that is included with Mineways is <a href="https://github.com/jasonjgardner/jg-rtx/releases">JG RTX</a>. You can see a sample using these materials <b><a href="textures.html#jgrtx">here</a></b>.
+The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. At the very top of the Mineways program you'll see what terrain file is active, right after the name of the world you've opened. Mineways supports a number of premade terrainExt.png files for you to try.
+Visit the <a href="textures.html">Textures page</a> for previews and download links.
 
 <P>
 <a id="default_terrain">If you have a terrain png file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there. For example, if you always want to use terrainExt_ModernHD.png, delete (or, better, rename) terrainExt.png, then copy terrainExt_ModernHD.png to terrainExt.png. If you know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, you can also use a <a href="scripting.html#clo">command line option</a> to specify the terrain file to use on startup, e.g., "mineways.exe -t terrainExt_ModernHD.png". Better still, you could make a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> called, say, "my_mineways.bat" that contains the single line "mineways.exe -t terrainExt_ModernHD.png" and double-click that to start up using your preferred terrain file. Yet another way is to use <a href="scripting.html#modelExportTable">a Mineways script</a> to change the terrain file. This is handy for exporting the same model multiple times, each time with a different terrain file applied.
 
 <P>
 For a more thorough explanation of textures and how they're used in Mineways, read the <a href="textures.html">Textures page</a>.
-To make terrainExt.png files yourself, use <a href="#tilemaker">TileMaker</a>. 
+To make terrainExt.png files yourself, see <a href="textures.html#own_terrain">Creating Your Own Terrain Files</a>. 
 
 <P>
 <B>3D Printing:</B> The effective 3D print resolution of textures appears to be around maybe 10x10 for the default output block size of 2 mm/block. Fine details are unlikely to be visible, though sometimes I'm surprised to see them.
@@ -460,7 +413,7 @@ On the left, the basic 256 x 544 terrainExt.png file is used; on the right, the 
 <P>
 You can also interactively compare these sampling methods <a href="https://skfb.ly/Ksu7">here</a> vs. <a href="https://skfb.ly/KsUZ">here</a>.
 <P>
-These textures are for the default Minecraft appearance. To avoid blur for your own terrainExt.png file, resize it to be say 4x larger in both directions. You can use the <a href="#tilemaker">TileMaker</a> program included with Mineways (use the "-t tileSize" option), or any other image manipulation program (I'd use "nearest neighbor", if possible - <a href="http://www.irfanview.com/">IrfanView</a> has this option when resizing a texture by doing "Size method: Resize"). Note: from experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
+These textures are for the default Minecraft appearance. To avoid blur for your own terrainExt.png file, resize it to be say 4x larger in both directions. You can use the <a href="textures.html#tilemaker">TileMaker program</a> included with Mineways (use the "-t tileSize" option), or any other image manipulation program (I'd use "nearest neighbor", if possible - <a href="http://www.irfanview.com/">IrfanView</a> has this option when resizing a texture by doing "Size method: Resize"). Note: from experimentation, this higher resolution <i>does not</i> improve the clarity of 3D texture printing.
 <P>
 There is a case where you'll want your textures to be blurry: when they're far in the distance. Usually mipmapping is done by a renderer to make this happen.
 The Minecraft block textures are normally put in one large texture and each is given a border 1 pixel wide. This border avoids bilinear interpolation artifacts. However, mipmapping for extremely far blocks will not work well, since tiles are next to each other in this big texture. The solution is to either export full tiles (where each block face is exported to a separate texture), or disable mipmapping for rendering and live with the artifacts (other sampling techniques should work fine).
@@ -2687,8 +2640,8 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <LI>Version 2.23, 9/3/2013 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac223.zip">Mac</a> - Enable stairs to join under the 1.4 rules. Added "copy" for color schemes, and "OK" buttons. Added blocks up through 1.6.2, but mostly for mapping - the textures and some behaviors of the new blocks are not supported yet. Soon! Fixed "affects water level" property for some blocks. Fixed up direction stats format.
 
 <P>
-<LI><B>Version 3.0</B>, 10/11/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use Mineways 2.22; for Minecraft 1.1 or earlier, use Mineways 1.15 (I don't even have a copy of either any more.... <B>Changes:</B> began <a href="#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme's air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you'll never notice.
-<LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft's style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
+<LI><B>Version 3.0</B>, 10/11/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV300.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - <B>1.6 support:</B> at last, I tackled the new way Minecraft stores textures. This release no longer uses terrain.png files. Due to rules and format changes, an older version may serve you better: for 1.2 to 1.3 Minecraft worlds, use Mineways 2.22; for Minecraft 1.1 or earlier, use Mineways 1.15 (I don't even have a copy of either any more.... <B>Changes:</B> began <a href="textures.html#tilemaker">TileMaker</a> project to make custom terrain textures from texture packs. // Added mapping (only) for 1.7 - geometry to follow soon. // Setting a color scheme's air color sets empty spaces on the map to this color (even if the air is still transparent). This can be handy for making a nice background color for railroad maps, for example. // When a new world is loaded, the view is switched to the Overworld level, to avoid confusion. // Torches now have tops when exported for rendering. // New Shapeways materials added and cleaned up. // Fattened wood fences for 3D printing are now exported as stone wall shapes, for stronger support. // Mossy fences are now mossy for "non-detailed" 3D printing. // Fixed chest lock placement, and creation on test world. // Nether brick and quartz slabs/double slabs added. // Detector and activator rails now have active states. // Lots of other fixes you'll never notice.
+<LI>Version 3.01, 10/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Serious color scheme crash bug fixed, due to array overrun. // The <B><a href="textures.html#tilemaker">TileMaker</a></B> is now available to help you make your own textures - see documentation. // Fire has been improved with more billboards, similar to Minecraft's style. // Torches are now sheared in Minecraft style instead of rotated. // The beacon's true geometry has been added for rendering.
 <LI>Version 3.02, 10/25/2013 - <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysMac302.zip">Mac</a> - Move to <B>1.7.2</B>, adding all its blocks (exceptions: flower pots with acacia and dark oak saplings not supported). No looking back, roses are replaced by poppies and April Fool's locked chests are replaced by stained glass blocks. // True geometry added for glass panes, iron bars, levers, and brewing stands. // Redstone wires potentially running up block sides now are properly cut or not cut by various block types placed above them. // Many little texture fixes and rationalization of the code. For example, some billboarded objects (e.g., brewing stands, iron bars) now have a tiny epsilon between their front and back faces, to avoid z-fighting in G3D - I'm not sure this helps others.
 <LI>Version 3.03, 11/17/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV303.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Avoid crash when old-style terrain.png is used; warnings system improved. // Updated new Shapeways ceramics costs, and improved estimation by including partial block export. // Updated terrainExt*.png files Coterie, Doku, and BD Craft.
 <LI>Version 3.04, 12/10/2013 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV304.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a> - Allow export of partial blocks when saving without textures. // Set Ke and map_Ke for emitters' materials for OBJ, giving a better look when using the <a href="#g3d">G3D viewer</a>. // Properly output color swatches and other neglected modes. // Fix world name output for OBJ.
@@ -3261,6 +3214,14 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Other small cleanups and better use of memory.
 </UL>
 
+<LI>Version 8.01, 12/16/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>A small flaw in one custom material file was causing Omniverse Create's renderer to spend about 50% more time ray tracing than needed. Fixed.
+<LI>Added a <a href="http://mineways.com/downloads">terrain file download page</a> and reorganized the terrain file documentation.
+</UL>
+
+
 
 </UL>
 
@@ -3355,7 +3316,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/15/2020</p>
+		<p id="lastUpdate">Last updated 12/16/2020</p>
 	</div>
 </div>
 

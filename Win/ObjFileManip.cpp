@@ -23429,7 +23429,9 @@ static int createMaterialsUSD(char *texturePath)
 
             // cutout?
             if (isCutout) {
-                // transparent
+                // cutout or transparent
+                strcpy_s(outputString, 256, "            bool inputs:enable_opacity = 1 (\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {

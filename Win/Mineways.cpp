@@ -1587,6 +1587,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_HELP_URL:
             ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
             break;
+        case ID_FILE_DOWNLOADTERRAINFILES:
+            ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
+            break;
         case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
                 gTargetDepth = 0;
