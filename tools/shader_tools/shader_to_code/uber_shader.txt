@@ -1,0 +1,14 @@
+            bool inputs:enable_opacity = 1 (
+                customData = {
+                    bool default = 1
+                }
+                displayGroup = "Opacity"
+                displayName = "Enable Opacity"
+            )
+            bool inputs:enable_opacity_texture = 1 (
+                customData = {
+                    bool default = 0
+                }
+                displayGroup = "Opacity"
+                displayName = "Enable Opacity Texture"
+            )

@@ -23432,13 +23432,11 @@ static int createMaterialsUSD(char *texturePath)
                 // cutout or transparent
                 strcpy_s(outputString, 256, "            bool inputs:enable_opacity = 1 (\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 if (outputCustomData) {
 
                     strcpy_s(outputString, 256, "                customData = {\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    bool default = 0\n");
+                    strcpy_s(outputString, 256, "                    bool default = 1\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                }\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23449,6 +23447,27 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                // not actually needed by custom material Minecraft.mdl, for some reason
+                if (!gModel.customMaterial) {
+                    strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    bool default = 0\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Enable Opacity Texture\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
             }
 
             // metallic?

@@ -1,0 +1,542 @@
+/***************************************************************************************************
+ * Copyright 2020 NVIDIA Corporation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ **************************************************************************************************/
+
+// Omni's shared utilities
+
+mdl 1.6;
+
+import ::anno::*;
+import ::math::*;
+import ::state::*;
+
+export struct metal_complex_ior
+{
+    color n; //refractive index
+    color k; //extinction coefficient
+};
+
+//[Gulbrandsen2014] Ole Gulbrandsen, 2014. Artist friendly metallic fresnel.
+export metal_complex_ior compute_artistic_to_conductor_fresnel(
+    color reflectivity,
+    color edge_tint)
+{
+    color r = math::clamp(reflectivity, color(0.0f), color(0.99f));
+    color g = edge_tint;
+
+    color r_sqrt = math::sqrt(r);
+    color n_min = (1.0f - r) / (1.0f + r);
+    color n_max = (1.0f + r_sqrt) / (1.0f - r_sqrt);
+
+    color n = math::lerp(n_max, n_min, g);
+
+    color k2 = ((n + 1.0f) * (n + 1.0f) * r - (n - 1.0f) * (n - 1.0f)) / (1.0f - r);
+    k2 = math::max(k2, 0.0f);
+    color k = math::sqrt(k2);
+
+    return metal_complex_ior(n, k);
+}
+
+export float2 compute_anisotropy(float roughness, float anisotropy)
+{
+    float r = math::sqrt(1.0f - math::clamp(anisotropy, 0.0f, 0.98f));
+    return float2(math::min(roughness / r, 1.0f), roughness * r);
+}
+
+export float compute_reflection_from_ior(float ior)
+{
+    return ((1.0f - ior) * (1.0f - ior)) / ((1.0f + ior) * (1.0f + ior));
+}
+
+export struct fresnel_reflectivity
+{
+    float nr; //normal reflectivity
+    float gr; //grazing reflectivity
+};
+
+export fresnel_reflectivity approximate_fresnel(float ior, float roughness)
+{
+    float r = (ior - 1.0f) / (ior + 1.0f);
+    float nr = r * r;
+    float gr = math::max((1.0 - roughness), 0.0);
+
+    return fresnel_reflectivity(nr, gr);
+}
+
+export float3 rotate_tangent(float3 tangent, float rotation)
+{
+    float rot_angle = -2.0f * math::PI * rotation;
+    float3 bitangent = math::normalize(math::cross(state::normal(), tangent));
+    float cos_rot_angle = math::cos(rot_angle);
+    float sin_rot_angle = math::sin(rot_angle);
+    return cos_rot_angle * tangent - sin_rot_angle * bitangent;
+}
+
+//https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
+//Phase function eccentricity 'g' has been omitted here since we pass that directly 
+//to anisotropic_vdf(directional_bias: g).
+export color compute_transmission_albedo(color transmission_color)
+{
+    return color(4.09712) +
+           (4.20863f * transmission_color) -
+           math::sqrt(
+               9.59217f +
+               41.6808f * transmission_color +
+               17.7126f * transmission_color * transmission_color);
+}
+
+export struct volume_coefficients
+{
+    color scattering;
+    color absorption;
+};
+
+export volume_coefficients compute_subsurface_volume_coefficients(
+    color transmission_color,
+    color scattering_color,
+    float g,
+    float scale)
+{
+    color s = compute_transmission_albedo(transmission_color);
+    color alpha = (color(1.0) - s * s) / (color(1.0) - g * (s * s));
+    color scattering_coefficient = alpha / (scale * scattering_color);
+    color absorption_coefficient =
+        (color(1.0) / (scale * scattering_color)) - scattering_coefficient;
+
+    return volume_coefficients(scattering_coefficient, absorption_coefficient);
+}
+
+export volume_coefficients compute_transmission_volume_coefficients(
+    color transmission_color,
+    color scattering_color,
+    float scattering_depth)
+{
+    float offset = 1.0f + math::max_value(scattering_color);
+    color scattering_coefficient =
+        math::log(transmission_color / offset) / (-1.0f * scattering_depth);
+    color s = compute_transmission_albedo(scattering_color);
+
+    color s2 = s * s;
+    color absorption_coefficient = scattering_coefficient * s2;
+    return volume_coefficients(
+        scattering_coefficient - absorption_coefficient,
+        absorption_coefficient);
+}
+
+export enum subsurface_scattering_type
+[[
+    anno::description("Subsurface scattering type")]]
+{
+    random_walk = 0 [[ 
+        anno::display_name("Randomwalk") 
+    ]],
+
+    random_walk_v2 = 1 [[ 
+        anno::display_name("Randomwalk v2") 
+    ]],
+
+    fast_sss = 2 [[ 
+        anno::display_name("Use Fast SSS") 
+    ]],
+
+    procedural_vol = 4 [[ 
+        anno::display_name("Procedural Volume") 
+    ]]
+};
+
+export struct scattering_colors
+{
+    color scattering_transmission_color;
+    color scattering_scattering_color; //radius, not a typo here.
+};
+
+export enum scattering_colors_presets
+[[ 
+    anno::description("Scattering transmission color and radius presets")
+]]
+{
+    scattering_colors_apple = 0 [[ 
+        anno::display_name("Apple") 
+    ]],
+
+    scattering_colors_chicken = 1 [[ 
+        anno::display_name("Chicken") 
+    ]],
+
+    scattering_colors_cream = 2 [[ 
+        anno::display_name("Cream") 
+    ]],
+
+    scattering_colors_ketchup = 3 [[ 
+        anno::display_name("Ketchup") 
+    ]],
+
+    scattering_colors_marble = 4 [[ 
+        anno::display_name("Marble") 
+    ]],
+
+    scattering_colors_potato = 5 [[ 
+        anno::display_name("Potato") 
+    ]],
+
+    scattering_colors_skim_milk = 6 [[ 
+        anno::display_name("Skim Milk") 
+    ]],
+
+    scattering_colors_whole_milk = 7 [[ 
+        anno::display_name("Whole Milk") 
+    ]],
+
+    scattering_colors_skin_1 = 8 [[ 
+        anno::display_name("Skin 1") 
+    ]],
+
+    scattering_colors_skin_2 = 9 [[ 
+        anno::display_name("Skin 2") 
+    ]],
+
+    scattering_colors_skin_3 = 10 [[ 
+        anno::display_name("Skin 3") 
+    ]],
+
+    scattering_colors_skin_4 = 11 [[ 
+        anno::display_name("Skin 4") 
+    ]],
+
+    scattering_colors_custom = 12 [[ 
+        anno::display_name("Custom") 
+    ]]
+};
+
+// Values are from Henrik Wann Jensen, Stephen R. Marschner, Marc Levoy, and 
+// Pat Hanrahan. A Practical Model for Subsurface Light Transport. Proceedings 
+// of SIGGRAPH 2001, pages 511-518.
+export scattering_colors scattering_colors_preset_to_value(
+    scattering_colors_presets preset, 
+    color scattering_transmission_color = color(1.0),
+    color scattering_scattering_color = color(1.0))
+[[
+    anno::description("Return scattering colors based on preset.")
+]]
+{
+    if (preset == scattering_colors_apple)
+        return scattering_colors(
+            color(0.430, 0.210, 0.170), 
+            color(11.610, 3.880, 1.750));
+
+    if (preset == scattering_colors_chicken)
+        return scattering_colors(
+            color(0.440, 0.220, 0.140), 
+            color(9.440, 3.350, 1.790));
+
+     if (preset == scattering_colors_cream)
+         return scattering_colors(
+             color(0.990, 0.940, 0.830), 
+             color(15.030, 4.660, 2.540));
+
+    if (preset == scattering_colors_ketchup)
+        return scattering_colors(
+            color(0.220, 0.010, 0.001), 
+            color(4.760, 0.570, 0.390));
+
+    if (preset == scattering_colors_marble)
+        return scattering_colors(
+            color(0.930, 0.910, 0.880), 
+            color(8.510, 5.570, 3.950));
+
+    if (preset == scattering_colors_potato)
+        return scattering_colors(
+            color(0.860, 0.740, 0.290), 
+            color(14.270, 7.230, 2.040));
+
+    if (preset == scattering_colors_skim_milk)
+        return scattering_colors(
+            color(0.890, 0.890, 0.800), 
+            color(18.420, 10.440, 3.500));
+
+    if (preset == scattering_colors_whole_milk)
+        return scattering_colors(
+            color(0.950, 0.930, 0.850), 
+            color(10.900, 6.580, 2.510));
+
+    if (preset == scattering_colors_skin_1)
+        return scattering_colors(
+            color(0.570, 0.310, 0.170), 
+            color(3.670, 1.370, 0.680));
+
+    if (preset == scattering_colors_skin_2)
+        return scattering_colors(
+            color(0.750, 0.570, 0.470), 
+            color(4.820, 1.690, 1.090));
+
+    if (preset == scattering_colors_skin_3)
+        return scattering_colors(
+            color(0.999, 0.615, 0.521), 
+            color(1.000, 0.300, 0.100));
+
+    if (preset == scattering_colors_skin_4)
+        return scattering_colors(
+            color(0.078, 0.043, 0.025), 
+            color(0.723, 0.264, 0.127));
+
+    return scattering_colors(
+        scattering_transmission_color,
+        scattering_scattering_color);
+}
+
+export enum ior_presets
+[[ 
+    anno::description("Index of refraction preset")
+]]
+{
+    ior_cornea = 0 [[ 
+        anno::display_name("Cornea") 
+    ]],
+
+    ior_diamond = 1 [[ 
+        anno::display_name("Diamond") 
+    ]],
+
+    ior_ethanol = 2 [[ 
+        anno::display_name("Ethanol") 
+    ]],
+
+    ior_flint_glass = 3 [[ 
+        anno::display_name("Flint Glass") 
+    ]],
+
+    ior_glass = 4 [[ 
+        anno::display_name("Glass") 
+    ]],
+
+    ior_ice = 5 [[ 
+        anno::display_name("Ice") 
+    ]],
+
+    ior_olive_oil = 6 [[ 
+        anno::display_name("Olive Oil") 
+    ]],
+
+    ior_plastic = 7 [[ 
+        anno::display_name("Plastic") 
+    ]],
+
+    ior_sapphire = 8 [[ 
+        anno::display_name("Sapphire") 
+    ]],
+
+    ior_skin = 9 [[ 
+        anno::display_name("Skin") 
+    ]],
+
+    ior_water = 10 [[ 
+        anno::display_name("Water") 
+    ]],
+
+    ior_custom = 11 [[ 
+        anno::display_name("Custom") 
+    ]]
+};
+
+export float ior_preset_to_value(
+    ior_presets preset, 
+    uniform float custom = 1.0f) uniform
+[[
+    anno::description("Return ior value based on preset.")
+]]
+{
+    if (preset == ior_cornea)
+        return 1.37f;
+
+    if (preset == ior_diamond)
+        return 2.42f;
+
+    if (preset == ior_ethanol)
+        return 1.36f;
+
+    if (preset == ior_flint_glass)
+        return 1.6f;
+
+    if (preset == ior_glass)
+        return 1.5f;
+
+    if (preset == ior_ice)
+        return 1.31f;
+
+    if (preset == ior_olive_oil)
+        return 1.47f;
+
+    if (preset == ior_plastic)
+        return 1.55f;
+
+    if (preset == ior_sapphire)
+        return 1.77f;
+
+    if (preset == ior_skin)
+        return 1.4f;
+
+    if (preset == ior_water)
+        return 1.33f;
+
+    return custom;
+}
+
+float3 transform_internal_to_tangent(float3 n)
+{
+    return
+        n.x * float3(
+            state::texture_tangent_u(0).x,
+            state::texture_tangent_v(0).x, 
+            state::normal().x) +
+
+        n.y * float3(
+            state::texture_tangent_u(0).y, 
+            state::texture_tangent_v(0).y,
+            state::normal().y) +
+
+        n.z * float3(
+            state::texture_tangent_u(0).z,
+            state::texture_tangent_v(0).z,
+            state::normal().z);
+}
+
+float3 transform_tangent_to_internal(float3 n)
+{
+    return
+        state::texture_tangent_u(0) * n.x +
+        state::texture_tangent_v(0) * n.y +
+        state::normal() * n.z ;
+}
+
+export float3 add_detail_normal(
+    float3 nd = state::normal(), 
+    float3 n = state::normal())
+{
+    float3 n_t = transform_internal_to_tangent(n);
+    float3 nd_t = transform_internal_to_tangent(nd);
+
+    n_t = n_t + float3(0.0, 0.0, 1.0);
+    nd_t = nd_t *  float3(-1.0, -1.0, 1.0);
+
+    n = n_t * math::dot(n_t, nd_t) / n_t.z - nd_t;
+    return math::normalize(transform_tangent_to_internal(n));
+}
+
+
+export enum normal_mode
+[[ 
+    anno::description("Normal Mode")
+]]
+{
+    normal_tangent_space = 0 [[ 
+        anno::display_name("Tangent Space") 
+    ]],
+
+    normal_object_space = 1 [[ 
+        anno::display_name("Object Space") 
+    ]]
+};
+
+
+export enum displacement_mode
+[[ 
+    anno::description("Displacement Mode")
+]]
+{
+    displacement_height = 0 [[ 
+        anno::display_name("Height") 
+    ]],
+
+    displacement_vector_tangent_space = 1 [[ 
+        anno::display_name("Vector, Tangent Space") 
+    ]],
+
+    displacement_vector_object_space = 2 [[ 
+        anno::display_name("Vector, Object Space") 
+    ]],
+
+    displacement_vector_world_space = 3 [[ 
+        anno::display_name("Vector, World Space") 
+    ]]
+};
+
+
+export float3 displacement_adjustment(
+    float3 displacement = float3(0.0),
+    uniform displacement_mode mode = displacement_height,
+    float scale = 1.0f) 
+{
+    float3 result;
+    switch (mode) 
+    {
+        case displacement_height:
+            result = state::normal() * displacement * scale;
+            break;
+
+        case displacement_vector_tangent_space:
+            result = 
+                state::texture_tangent_u(0) * displacement[0] * scale +
+                state::texture_tangent_v(0) * displacement[2] * scale +
+                state::normal() * displacement[1] * scale;
+            break;
+
+        case displacement_vector_object_space:
+            result = state::transform_point(
+                state::coordinate_internal,
+                state::coordinate_object,
+                displacement * scale);
+            break;
+
+        case displacement_vector_world_space:
+            result = state::transform_point(
+                state::coordinate_internal,
+                state::coordinate_world,
+                displacement * scale);
+            break;
+
+        default:
+            result = state::position();
+            break;
+    }
+
+    return result;
+}
+
+
+export enum emission_mode
+[[ 
+    anno::description("Emission Mode")
+]]
+{
+    emission_lx = 0 [[ 
+        anno::display_name("Lux - lx (lm/m2)") 
+    ]],
+
+    emission_nt = 1 [[ 
+        anno::display_name("Nit - nt (cd/m2)") 
+    ]]
+};

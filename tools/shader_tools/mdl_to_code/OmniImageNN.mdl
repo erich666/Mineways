@@ -1,0 +1,557 @@
+/***************************************************************************************************
+ * Copyright 2020 NVIDIA Corporation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ **************************************************************************************************/
+
+// Omni's image lookup functionalities
+
+mdl 1.6;
+
+import ::df::*;
+import ::base::*;
+import ::math::*;
+import ::state::*;
+import ::tex::*;
+import ::limits::*;
+import ::anno::*;
+
+export enum wrap_mode 
+[[ 
+    anno::description("Wrap mode")
+]]
+{
+    wrap_periodic = 0 [[ 
+        anno::display_name("Periodic") 
+    ]],
+
+    wrap_clamp = 2 [[ 
+        anno::display_name("Clamp") 
+    ]],
+
+    wrap_mirror = 3 [[ 
+        anno::display_name("Mirror") 
+    ]],
+
+    wrap_missing = 5 [[ 
+        anno::display_name("Missing") 
+    ]]
+};
+
+export enum alpha_mode 
+[[ 
+    anno::description("Alpha mode")
+]]
+{
+    alpha_default = 0 [[ 
+        anno::display_name("Default") 
+    ]],
+
+    alpha_red = 1 [[ 
+        anno::display_name("Red") 
+    ]],
+
+    alpha_green = 2 [[ 
+        anno::display_name("Green") 
+    ]],
+
+    alpha_blue = 3 [[ 
+        anno::display_name("Blue") 
+    ]],
+
+    alpha_white = 4 [[ 
+        anno::display_name("White") 
+    ]],
+
+    alpha_black = 5 [[ 
+        anno::display_name("Black") 
+    ]],
+
+    alpha_luminance = 6 [[ 
+        anno::display_name("Luminance") 
+    ]],
+
+    alpha_average = 7  [[ 
+        anno::display_name("Average") 
+    ]]
+};
+
+export uniform alpha_mode alpha_from_mono_mode( uniform ::base::mono_mode mode) 
+{
+  switch ( mode){
+  case ::base::mono_alpha:     return alpha_default;
+  case ::base::mono_average:   return alpha_average;
+  case ::base::mono_luminance: return alpha_luminance;
+  default: break;
+  }
+  return alpha_luminance;
+}
+
+export struct texture_lookup_data
+{
+    color tint = color(0.0);
+    float mono = 0.0f;
+    float3 normal = float3(0.0f);
+};
+
+
+export base::texture_coordinate_info compute_texture_coordinate(
+    uniform base::texture_coordinate_system texture_coordinate_system = base::texture_coordinate_world,
+    uniform int uv_set = 0,
+    uniform float s_offset = 0.0f,
+    uniform float t_offset = 0.0f,
+    uniform float s_scale = 1.0f,
+    uniform float t_scale = 1.0f,
+    uniform bool s_flip = false,
+    uniform bool t_flip = false,
+    uniform bool swap_st = false,
+    uniform base::projection_mode projection_mode = base::projection_cubic,
+    uniform float3 projection_translate = float3(0.0),
+    uniform float3 projection_rotate = float3(0.0),
+    uniform float3 projection_scale = float3(1.0)
+) varying 
+{
+    base::texture_coordinate_info texture_coordinate_info = 
+        (texture_coordinate_system == base::texture_coordinate_uvw) ?
+            base::coordinate_source(base::texture_coordinate_uvw, uv_set) :
+            base::coordinate_projection(
+                texture_coordinate_system,
+                uv_set, 
+                projection_mode,
+                base::rotation_translation_scale(
+                    projection_translate,
+                    projection_rotate,
+                    projection_scale));
+
+    //transform
+    float4x4 scale(
+        s_scale, 0.0, 0.0, 0.0,
+        0.0, t_scale, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0);
+
+    float4 position = 
+        scale * float4(
+            swap_st ? 
+                texture_coordinate_info.position.y + s_offset : 
+                texture_coordinate_info.position.x + s_offset,
+
+            swap_st ? 
+                texture_coordinate_info.position.x + t_offset : 
+                texture_coordinate_info.position.y + t_offset,
+
+            texture_coordinate_info.position.z, 
+            1.0
+        );
+
+    texture_coordinate_info.position = float3(
+        s_flip ? -position.x : position.x, 
+        t_flip ? -position.y : position.y, 
+        position.z);
+
+    return texture_coordinate_info;
+}
+
+// Adding nearest neighbour lookup computation
+float3 texture_lookup_nn( int2 tex_size, float3 coords)
+{
+    float2 smooth = float2( coords.x, coords.y);
+    float2 quant = (math::floor(smooth * tex_size) + float2( 0.5, 0.5)) / tex_size;
+    return float3( quant.x, quant.y, coords.z);
+}
+
+struct wrap_result
+{
+    float coord;
+    bool  flipped; 
+};
+
+// Implement wrap mode by hand
+wrap_result texture_lookup_wrap( uniform wrap_mode wrap, float coord)
+{
+    bool flipped = false;
+    switch (wrap)
+    {
+        case wrap_periodic:
+            coord = math::frac( coord);
+            break;
+        case wrap_clamp:
+            coord = math::clamp( coord, 0.0, 0.999999);
+            break;
+        case wrap_mirror:
+            coord = math::frac( coord / 2.0) * 2.0;
+            if ( coord >= 1.0) {
+                coord = math::clamp( 2.0 - coord, 0.0, 0.999999);
+                flipped = true;
+            }
+            break;
+        case wrap_missing:
+            break;
+    }
+    return wrap_result( coord, flipped);
+}
+
+export texture_lookup_data texture_lookup_2_smooth(
+    uniform texture_2d texture = texture_2d(),
+    color missing_color = color(0.0),
+    uniform wrap_mode s_wrap = wrap_periodic,
+    uniform wrap_mode t_wrap = wrap_periodic,
+    base::texture_coordinate_info texture_coordinate_info = base::texture_coordinate_info()
+)
+{
+    tex::wrap_mode s_wrap_native = tex::wrap_clip;
+    switch (s_wrap)
+    {
+        case wrap_periodic:
+            s_wrap_native = tex::wrap_repeat;
+            break;
+        case wrap_clamp:
+            s_wrap_native = tex::wrap_clamp;
+            break;
+        case wrap_mirror:
+            s_wrap_native = tex::wrap_mirrored_repeat;
+            break;
+        case wrap_missing:
+            if (texture_coordinate_info.position.x < 0.0f || 
+                texture_coordinate_info.position.x > 1.0f)
+            {
+                return texture_lookup_data(missing_color, 0.0f, float3(0.0));
+            }
+    }
+
+    tex::wrap_mode t_wrap_native = tex::wrap_clip;
+    switch (t_wrap)
+    {
+        case wrap_periodic:
+            t_wrap_native = tex::wrap_repeat;
+            break;
+        case wrap_clamp:
+            t_wrap_native = tex::wrap_clamp;
+            break;
+        case wrap_mirror:
+            t_wrap_native = tex::wrap_mirrored_repeat;
+            break;
+        case wrap_missing:
+            if (texture_coordinate_info.position.y < 0.0f || 
+                texture_coordinate_info.position.y > 1.0f)
+            {
+                return texture_lookup_data(missing_color, 0.0f, float3(0.0));
+            }
+    }
+
+    float4 result = tex::lookup_float4(
+        texture, 
+        float2(texture_coordinate_info.position.x, texture_coordinate_info.position.y), 
+        s_wrap_native,
+        t_wrap_native,
+        float2(0.0, 1.0),
+        float2(0.0, 1.0));
+
+    return texture_lookup_data(
+        color(result.x, result.y, result.z), 
+        result.w, 
+        float3(0.0));
+}
+
+
+export texture_lookup_data texture_lookup_2(
+    uniform texture_2d texture = texture_2d(),
+    uniform bool ignore_missing_texture = false,
+    color missing_color = color(0.0),
+    uniform bool use_uv_coords = false,
+    float2 uv_coords = float2(0.0),
+    uniform wrap_mode s_wrap = wrap_periodic,
+    uniform wrap_mode t_wrap = wrap_periodic,
+    uniform bool filtered_textures = false,
+    base::texture_coordinate_info texture_coordinate_info = base::texture_coordinate_info()
+)
+{
+    if (ignore_missing_texture && tex::texture_isvalid(texture) == false)
+    {
+        return texture_lookup_data(missing_color, 0.0f, float3(0.0));
+    }
+    int2 tex_size( tex::width(texture), tex::height(texture));
+
+    if ((tex_size.x == 0) || (tex_size.y == 0))
+    {
+        return texture_lookup_data(missing_color, 0.0f, float3(0.0));
+    }
+
+    if (use_uv_coords)
+    {
+        texture_coordinate_info.position.x = uv_coords[0];
+        texture_coordinate_info.position.y = uv_coords[1];
+    }
+
+    if ( filtered_textures)
+        return texture_lookup_2_smooth(
+            texture,
+	    missing_color,
+	    s_wrap, t_wrap, texture_coordinate_info);
+				       
+    texture_coordinate_info.position.x = 
+        texture_lookup_wrap( s_wrap, texture_coordinate_info.position.x).coord;
+
+    if (texture_coordinate_info.position.x < 0.0f || 
+        texture_coordinate_info.position.x >= 1.0f)
+    {
+        return texture_lookup_data( missing_color, 0.0f, float3(0.0));
+    }
+
+    texture_coordinate_info.position.y = 
+        texture_lookup_wrap( t_wrap, texture_coordinate_info.position.y).coord;
+
+    if (texture_coordinate_info.position.y < 0.0f || 
+        texture_coordinate_info.position.y >= 1.0f)
+    {
+        return texture_lookup_data( missing_color, 0.0f, float3(0.0));
+    }
+
+    texture_coordinate_info.position = 
+        texture_lookup_nn( tex_size, texture_coordinate_info.position);
+
+    int2 int_coord = int2( int( texture_coordinate_info.position.x * tex_size.x),
+                           int( texture_coordinate_info.position.y * tex_size.y));
+    float4 result = tex::texel_float4( tex: texture, coord: int_coord);
+
+    return texture_lookup_data(
+        color(result.x, result.y, result.z), 
+        result.w, 
+        float3(0.0));
+}
+
+
+export texture_lookup_data normal_lookup_2(
+    uniform texture_2d texture = texture_2d(),
+    uniform bool ignore_missing_texture = false,
+    color missing_color = color(0.0),
+    uniform bool use_uv_coords = false,
+    float2 uv_coords = float2(0.0),
+    uniform wrap_mode s_wrap = wrap_periodic,
+    uniform wrap_mode t_wrap = wrap_periodic,
+    uniform bool s_flip = false,
+    uniform bool t_flip = false,
+    uniform float tangent_space_factor = 1.0f,
+    uniform bool tangent_space_flip_r_channel = false,
+    uniform bool tangent_space_flip_g_channel = false,
+    uniform bool tangent_space_flip_b_channel = false,
+    uniform bool filtered_textures = false [[ anno::unused() ]], // not yet implemented
+    base::texture_coordinate_info texture_coordinate_info = base::texture_coordinate_info()
+)
+{
+    if ((ignore_missing_texture && tex::texture_isvalid(texture) == false) ||
+        (tex::width(texture) == 0) || (tex::height(texture) == 0))
+    {
+        return texture_lookup_data(
+            missing_color,
+            0.0f,
+            math::normalize(
+                texture_coordinate_info.tangent_u +
+                texture_coordinate_info.tangent_v +
+                state::normal()));
+    }
+
+    if (use_uv_coords)
+    {
+        texture_coordinate_info.position.x = uv_coords[0];
+        texture_coordinate_info.position.y = uv_coords[1];
+    }
+
+    wrap_result s_wrap_result = 
+        texture_lookup_wrap( s_wrap, texture_coordinate_info.position.x);
+    texture_coordinate_info.position.x = s_wrap_result.coord;
+
+    if (texture_coordinate_info.position.x < 0.0f || 
+        texture_coordinate_info.position.x >= 1.0f)
+    {
+        return texture_lookup_data(
+            missing_color,
+            0.0f,
+            math::normalize(
+                texture_coordinate_info.tangent_u +
+                texture_coordinate_info.tangent_v +
+                state::normal()));
+    }
+
+    wrap_result t_wrap_result = 
+        texture_lookup_wrap( t_wrap, texture_coordinate_info.position.y);
+    texture_coordinate_info.position.y = t_wrap_result.coord; 
+
+    if (texture_coordinate_info.position.y < 0.0f || 
+        texture_coordinate_info.position.y >= 1.0f)
+    {
+        return texture_lookup_data(
+            missing_color,
+            0.0f,
+            math::normalize(
+                texture_coordinate_info.tangent_u +
+                texture_coordinate_info.tangent_v +
+                state::normal()));
+    }
+
+    int2 tex_size( tex::width(texture), tex::height(texture));
+    texture_coordinate_info.position = 
+        texture_lookup_nn( tex_size, texture_coordinate_info.position);
+
+    //If mirror repeat was selected for tangent space texture, tangent space 
+    //needs to be flipped for every other tile. Please note this is not matching 
+    //with Arnold's aiImage but it would make sense to have like this.
+    bool local_s_flip = (s_flip != s_wrap_result.flipped);
+    bool local_t_flip = (t_flip != t_wrap_result.flipped);
+
+    float3 transformed_tangent_u = texture_coordinate_info.tangent_u;
+    float3 transformed_tangent_v = texture_coordinate_info.tangent_v;
+
+    if (local_s_flip)
+        transformed_tangent_u = -transformed_tangent_u;
+    
+    if (local_t_flip)
+        transformed_tangent_v = -transformed_tangent_v;
+
+    int2 int_coord = int2( int( texture_coordinate_info.position.x * tex_size.x),
+                           int( texture_coordinate_info.position.y * tex_size.y));
+    float3 result = tex::texel_float3( tex: texture, coord: int_coord);
+
+    if (tangent_space_flip_r_channel)
+        result.x = 1.0f - result.x;
+
+    if (!tangent_space_flip_g_channel)
+        result.y = 1.0f - result.y;
+
+    if (tangent_space_flip_b_channel)
+        result.z = 1.0f - result.z;
+
+    result = (result - float3(0.5)) * (2.0f * tangent_space_factor);
+
+    return texture_lookup_data(
+        color(0.0),
+        0.0f,
+        math::normalize(
+                transformed_tangent_u * result.x +
+                transformed_tangent_v * result.y +
+                state::normal() * (result.z + (1.0f - tangent_space_factor)))
+        );
+}
+
+
+export enum tangent_bitangent_mapping
+[[ 
+    anno::description("Tangent and bitangent mapping mode")
+]]
+{
+    red_green = 1 [[ 
+        anno::display_name("Red Green") 
+    ]],
+
+    blue_green = 9 [[ 
+        anno::display_name("Red Blue") 
+    ]]
+};
+
+
+export float3 normal_mapping(
+    varying float3 normal = float3(0.0, 0.0, 1.0),
+    uniform tangent_bitangent_mapping tangent_bitangent_mapping = red_green,
+    varying float3 normal_camera = state::normal()
+
+) varying {
+
+    if (math::length(normal) > 0.0f)
+    {
+        int ti = tangent_bitangent_mapping/4;
+        int bi = tangent_bitangent_mapping&3;
+        return float3(normal[ti], normal[bi], normal[3-ti-bi]);
+    }
+
+    return normal_camera;
+}
+
+export texture_lookup_data texture_adjustment(
+    texture_lookup_data texture_data,
+    float exposure = 0.0f,
+    color default_color = color(0.5),
+    color color_gain = color(1.0),
+    color color_offset = color(0.0),
+    float alpha_gain = 1.0f,
+    float alpha_offset = 0.0f,
+    uniform alpha_mode alpha_source = alpha_default,
+    uniform bool invert = false,
+    float blend_factor = 0.0f
+
+) {
+    color tint = texture_data.tint;
+    float3 tint3f = float3(tint);
+    float mono;
+    switch (alpha_source) 
+    {
+        case alpha_default:
+            mono = texture_data.mono;
+            break;
+
+        case alpha_red:
+            mono = tint3f.x;
+            break;
+
+        case alpha_green:
+            mono = tint3f.y;
+            break;
+
+        case alpha_blue:
+            mono = tint3f.z;
+            break;
+
+        case alpha_white:
+            mono = 1.0f;
+            break;
+
+        case alpha_black:
+            mono = 0.0f;
+            break;
+
+        case alpha_luminance:
+            mono = math::luminance(tint);
+            break;
+
+        case alpha_average:
+            mono = math::average(tint);
+            break;
+    }
+
+    tint = math::pow(2.0, exposure) * tint;
+
+    if (invert)
+    {
+        tint = color(1.0) - tint;
+        mono = 1.0f - mono;
+    }
+
+    tint = tint * color_gain + color_offset;
+    mono = mono * alpha_gain + alpha_offset;
+    
+    tint = math::lerp(tint, default_color, blend_factor);
+    mono = mono * (1.0f - blend_factor);
+
+    return texture_lookup_data(tint, mono, texture_data.normal);
+}

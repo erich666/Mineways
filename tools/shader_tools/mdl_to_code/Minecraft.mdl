@@ -1,0 +1,112 @@
+/***************************************************************************************************
+ * Copyright 2020 NVIDIA Corporation. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *  * Neither the name of NVIDIA CORPORATION nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ **************************************************************************************************/
+
+// A wrapper for Minecraft for Omni's surface lite using nearest neighbour texture lookups
+
+mdl 1.6;
+
+
+import ::base::*;
+import ::anno::*;
+import ::tex::*;
+import OmniSurfaceLiteNN::*;
+import OmniImageNN::*;
+import OmniShared::*;
+
+export material Minecraft(
+    uniform texture_2d diffuse_texture = texture_2d()
+        [[ anno::display_name("Diffuse Texture") ]],
+
+    uniform float metallic_constant = 0.0,
+    uniform texture_2d metallic_texture = texture_2d(),
+    uniform float metallic_texture_influence = 0.0,
+
+    uniform texture_2d normalmap_texture = texture_2d(),
+    
+    uniform float reflection_roughness_constant = 0.5,
+    uniform texture_2d reflectionroughness_texture = texture_2d(),
+    uniform float reflection_roughness_texture_influence = 0.2,
+
+    uniform bool enable_emission = false,
+    uniform texture_2d  emissive_mask_texture = texture_2d(),
+    uniform float emissive_intensity = 0.0,
+    uniform color emissive_color = color(0.0),
+    uniform texture_2d emissive_color_texture = texture_2d(),
+
+    uniform bool enable_opacity = false,
+    uniform texture_2d opacity_texture = texture_2d(),
+    // uniform ::base::mono_mode opacity_mode = ::base::mono_alpha,
+
+    uniform bool thin_walled = false,
+
+    uniform bool filtered_textures = false
+    
+) = OmniSurfaceLiteNN::OmniSurfaceLiteNN(
+    diffuse_reflection_color_image: diffuse_texture,
+    
+    metalness: // only limited support for ..._constant
+        (metallic_texture_influence == 0.0
+	 || ! tex::texture_isvalid(metallic_texture))
+            ? metallic_constant : metallic_texture_influence,
+    metalness_image: metallic_texture,
+
+    geometry_normal_image: normalmap_texture,
+
+    specular_reflection_roughness: // only limited support for ..._constant
+        (reflection_roughness_texture_influence == 0.0
+        || ! tex::texture_isvalid(reflectionroughness_texture))
+            ? reflection_roughness_constant
+            : reflection_roughness_texture_influence,
+    specular_reflection_roughness_image: reflectionroughness_texture,
+    emission_weight: ( enable_emission ? 1.0: 0.0), 
+    emission_weight_image: emissive_mask_texture,
+    emission_intensity: emissive_intensity,
+    emission_color: emissive_color,
+    emission_color_image: emissive_color_texture,
+    
+    enable_opacity: enable_opacity,
+    geometry_opacity: 1.0,
+    geometry_opacity_image: opacity_texture,
+
+// Bug: this fails, hard coded for now
+//    geometry_opacity_image_alpha_mode:
+//        OmniImageNN::alpha_from_mono_mode( opacity_mode),
+    geometry_opacity_image_alpha_mode: OmniImageNN::alpha_default,
+
+    // reasonable defaults for emitters in particular
+    diffuse_reflection_weight: 1.0,
+    specular_reflection_weight: 1.0,
+    specular_reflection_roughness_image_alpha_mode: OmniImageNN::alpha_red,
+    metalness_image_alpha_mode: OmniImageNN::alpha_green,
+    emission_weight_image_alpha_mode: OmniImageNN::alpha_red,
+    emission_intensity_image_alpha_mode: OmniImageNN::alpha_blue,
+    emission_mode: OmniShared::emission_nt,
+    thin_walled: thin_walled,
+    filtered_textures: filtered_textures
+);
+
