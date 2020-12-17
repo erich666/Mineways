@@ -97,6 +97,9 @@ TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
 #define MAX_WORLDS	50
 TCHAR* gWorlds[MAX_WORLDS];							// number of worlds in initial world list
 int gNumWorlds = 0;
+#define MAX_TERRAIN_FILES	45
+TCHAR* gTerrainFiles[MAX_TERRAIN_FILES];							// number of terrain files in initial list
+int gNumTerrainFiles = 0;
 
 static Options gOptions = { 0,   // which world is visible
     BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL,   // what's exportable (really, set on output)
@@ -348,6 +351,7 @@ static int setWorldPath(TCHAR* path);
 static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBottomLabel, */ HWND hwndInfoBottomLabel);
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
+static int loadTerrainList(HMENU menu);
 static void drawTheMap();
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel);
 static void updateCursor(LPARAM lParam, BOOL hdragging);
@@ -487,7 +491,8 @@ int APIENTRY _tWinMain(
     // assume terrainExt.png is in .exe's directory to start
     wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, gCurrentDirectory);
     wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
-    wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), L"\\terrainExt.png");
+    wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), gPreferredSeparatorString);
+    wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), L"terrainExt.png");
 
     // setting this to empty means the last path used (from last session, hopefully) will be used again
     wcscpy_s(gImportFile, MAX_PATH_AND_FILE, L"");
@@ -760,7 +765,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (wcschr(terrainFileName,colon[0])==NULL) {
                 // relative path, so add absolute path to current directory to front.
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
-                wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, L"\\");
+                wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gPreferredSeparatorString);
                 wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
             }
             else {
@@ -809,6 +814,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
 
+        LOG_INFO(gExecutionLogfile, " loadTerrainList\n");
+        loadTerrainList(GetMenu(hWnd));
 
         LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
         populateColorSchemes(GetMenu(hWnd));
@@ -1579,6 +1586,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
         }
+        else if (wmId >= IDM_DEFAULT_TERRAIN && wmId < IDM_DEFAULT_TERRAIN + MAX_TERRAIN_FILES - 1)
+        {
+            // Load terrain file from list that's real (not the default, which is IDM_DEFAULT_TERRAIN, below)
+            wchar_t terrainLoc[MAX_PATH_AND_FILE];
+            wcscpy_s(terrainLoc, MAX_PATH_AND_FILE, gCurrentDirectory);
+            wcscat_s(terrainLoc, MAX_PATH_AND_FILE - wcslen(terrainLoc), gPreferredSeparatorString);
+            if (gTerrainFiles[wmId - IDM_DEFAULT_TERRAIN] == NULL) {
+                wcscat_s(terrainLoc, MAX_PATH_AND_FILE - wcslen(terrainLoc), L"terrainExt.png");
+            }
+            else {
+                wcscat_s(terrainLoc, MAX_PATH_AND_FILE - wcslen(terrainLoc), gTerrainFiles[wmId - IDM_DEFAULT_TERRAIN]);
+            }
+            // copy file name, since it definitely appears to exist.
+            rationalizeFilePath(terrainLoc);
+            wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainLoc);
+            splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+            wchar_t title[MAX_PATH_AND_FILE];
+            formTitle(&gWorldGuide, title);
+            SetWindowTextW(hWnd, title);
+        }
+
+        // switch on chosen menu item
         switch (wmId)
         {
         case IDM_ABOUT:
@@ -3296,9 +3325,9 @@ static int loadWorldList(HMENU menu)
     char charMsgString[1024];
     if (gNumWorlds >= MAX_WORLDS)
     {
-        sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to list.\n", MAX_WORLDS);
+        sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
-        swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to list.", MAX_WORLDS, saveFilesPath);
+        swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to the Open World list.", MAX_WORLDS, saveFilesPath);
         MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
         gNumWorlds = MAX_WORLDS - 1;
     }
@@ -3310,6 +3339,101 @@ static int loadWorldList(HMENU menu)
     }
 
     return oldVersionDetected;
+}
+
+static int loadTerrainList(HMENU menu)
+{
+    MENUITEMINFO info;
+    info.cbSize = sizeof(MENUITEMINFO);
+    info.fMask = MIIM_FTYPE | MIIM_ID | MIIM_STRING | MIIM_DATA;
+    info.fType = MFT_STRING;
+    HANDLE hFind;
+    WIN32_FIND_DATA ffd;
+
+    LOG_INFO(gExecutionLogfile, "   entered loadTerrainList\n");
+    // first terrain file is the default terrainExt.png (built in, if missing)
+    gNumTerrainFiles = 1;
+    memset(gTerrainFiles, 0x0, MAX_TERRAIN_FILES * sizeof(TCHAR*));
+
+    // uncomment next line to pop up dialogs about progress - useful on Mac to see what directories it's searching through, etc.
+    //gDebug = true;
+
+    wchar_t terrainSearch[MAX_PATH_AND_FILE];
+    wchar_t msgString[1024];
+    char outputString[1024];
+    char pConverted[1024];
+    int length;
+    wcscpy_s(terrainSearch, MAX_PATH_AND_FILE, gCurrentDirectory);
+    wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), gPreferredSeparatorString);
+    wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), L"terrainExt*.png");
+    hFind = FindFirstFile(terrainSearch, &ffd);
+
+    // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
+    int count = 0;
+	do {
+		// Yes, we could really count the number of actual terrain files found, but just in case this is a crazy-large directory
+		// cut searching short at MAX_TERRAIN_FILES files of any sort.
+		count++;
+        // unlikely, but ignore anything that looks like a directory
+		if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+		{
+			length = (int)wcslen(ffd.cFileName) + 1;
+			WcharToChar(ffd.cFileName, pConverted, length);
+			sprintf_s(outputString, 1024, "    found potential terrain file %s\n", pConverted);
+			LOG_INFO(gExecutionLogfile, outputString);
+
+			if (gDebug)
+			{
+				swprintf_s(msgString, 1024, L"Found potential terrain file %s", ffd.cFileName);
+				MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+			}
+
+            size_t len = wcslen(ffd.cFileName);
+            // long enough to have a suffix and .png?
+			if (len >= 6)
+			{
+				info.wID = IDM_DEFAULT_TERRAIN + gNumTerrainFiles;
+                // back up 6 characters, e.g., _s.png
+                wchar_t* tileSuffix = ffd.cFileName + len - 6;
+
+				// display the terrain file name
+				// For now, show the whole PNG. Could make it fancier, but this is clear.
+                // Remove suffixed names from display
+                if ((_wcsicmp(tileSuffix, L"_n.png") != 0) &&
+                    (_wcsicmp(tileSuffix, L"_r.png") != 0) &&
+                    (_wcsicmp(tileSuffix, L"_m.png") != 0) &&
+                    (_wcsicmp(tileSuffix, L"_e.png") != 0)) {
+
+                    info.cch = (UINT)wcslen(ffd.cFileName);
+                    info.dwTypeData = ffd.cFileName;
+                    info.dwItemData = gNumTerrainFiles;
+                    //info.fMask |= MIIM_STATE;
+                    info.fState = 0x0; // MFS_CHECKED;
+
+                    InsertMenuItem(menu, IDM_DEFAULT_TERRAIN, FALSE, &info);
+                    gTerrainFiles[gNumTerrainFiles] = (TCHAR*)malloc(sizeof(TCHAR) * MAX_PATH_AND_FILE);
+                    wcscpy_s(gTerrainFiles[gNumTerrainFiles], MAX_PATH_AND_FILE, ffd.cFileName);
+                    gNumTerrainFiles++;
+                    sprintf_s(outputString, 1024, "    gNumTerrainFiles is now %d\n", gNumTerrainFiles);
+                    LOG_INFO(gExecutionLogfile, outputString);
+                }
+			}
+		}
+	} while ((FindNextFile(hFind, &ffd) != 0) && (gNumTerrainFiles < MAX_TERRAIN_FILES));
+	FindClose(hFind);
+
+    // did the search stop due to running out of room for terrain files?
+    char charMsgString[1024];
+    if (gNumTerrainFiles >= MAX_TERRAIN_FILES)
+    {
+        sprintf_s(charMsgString, 1024, "Warning: more that %d terrain files detected. Not all terrain files have been added to the list.\n", MAX_TERRAIN_FILES);
+        LOG_INFO(gExecutionLogfile, charMsgString);
+        swprintf_s(msgString, 1024, L"Warning: more that %d terrain files detected. Not all terrain files have been added to the list.", MAX_TERRAIN_FILES);
+        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        gNumTerrainFiles = MAX_TERRAIN_FILES - 1;
+    }
+
+    return 0;
 }
 
 static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBottomLabel, */ HWND hwndInfoBottomLabel)
@@ -4210,7 +4334,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     StripLastString(outputFileList.name[2], path, filepiece);
                     // strips off subdirectory name and puts in piece
                     StripLastString(path, path, subdir);
-                    wcscat_s(subdir, MAX_PATH_AND_FILE, L"\\");
+                    wcscat_s(subdir, MAX_PATH_AND_FILE, gPreferredSeparatorString);
                     for (i = 2; i < outputFileList.count; i++) {
                         wcscpy_s(relativeFile, MAX_PATH_AND_FILE, subdir);
                         StripLastString(outputFileList.name[i], path, filepiece);
@@ -7847,7 +7971,7 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
             if (wcslen(tempName) > 0)
             {
                 wcscpy_s(terrainFileName, MAX_PATH_AND_FILE, gSelectTerrainDir);
-                wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), L"\\");
+                wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), gPreferredSeparatorString);
                 wcscat_s(terrainFileName, MAX_PATH_AND_FILE - wcslen(terrainFileName), tempName);
             }
             else {

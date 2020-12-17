@@ -113,10 +113,10 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
  <LI><a href="#blender">Blender</a>
+ <LI><a href="#ovcreate">Omniverse Create</a>
+ <LI><a href="#c4d">Cinema 4D</a>
  <LI><a href="#3dsmax">3DS MAX</a>
  <LI><a href="#maya">Maya</a>  
- <LI><a href="#c4d">Cinema 4D</a>
- <LI><a href="#ovcreate">Omniverse Create</a>
 </UL>
 </UL>
 <LI><a href="#sketchfab">Publish to Sketchfab</a> - how to make your creations immediately available to all.
@@ -147,7 +147,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <H2 id="install">
 Installation
 </H2>
-Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
+Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and want to clean these out, search for "Mineways" in your registry editor and you'll find them.
 <P>
@@ -364,8 +364,8 @@ The other major option for texture export is "Export tiles for textures", just b
 <P>
 
 <a id="custom_terrain"><H4>Custom Terrain</H4></a>
-The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Set Terrain File (terrainExt.png)" under the File menu. At the very top of the Mineways program you'll see what terrain file is active, right after the name of the world you've opened. Mineways supports a number of premade terrainExt.png files for you to try.
-Visit the <a href="textures.html">Textures page</a> for previews and download links.
+The one file you may want to change is the terrainExt.png file that comes with Mineways. To select a different terrainExt.png file, use the "Choose Terrain File (terrainExt.png)" under the File menu. At the very top of the Mineways program you'll see what terrain file is active, right after the name of the world you've opened. Mineways supports a number of premade terrainExt.png files for you to try.
+Visit the <a href="textures.html">Textures page</a> for previews and download links for terrain files not included in the Mineways distribution.
 
 <P>
 <a id="default_terrain">If you have a terrain png file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there. For example, if you always want to use terrainExt_ModernHD.png, delete (or, better, rename) terrainExt.png, then copy terrainExt_ModernHD.png to terrainExt.png. If you know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, you can also use a <a href="scripting.html#clo">command line option</a> to specify the terrain file to use on startup, e.g., "mineways.exe -t terrainExt_ModernHD.png". Better still, you could make a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> called, say, "my_mineways.bat" that contains the single line "mineways.exe -t terrainExt_ModernHD.png" and double-click that to start up using your preferred terrain file. Yet another way is to use <a href="scripting.html#modelExportTable">a Mineways script</a> to change the terrain file. This is handy for exporting the same model multiple times, each time with a different terrain file applied.
@@ -405,7 +405,7 @@ Blurry Textures
 
 If your rendering software doesn't show the distinctive blocky style of Minecraft, you can fix this in two ways. The first is to set texture sampling in your renderer to be "closest" or "nearest neighbor." This is the best solution. See the instructions for the <a href="#rendering">various renderers</a> for more information. The other option is to use higher-resolution textures, which will simulate turning bilinear interpolation off.
 <p>
-On the left, the basic 256 x 544 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to 1024 texels wide. You can download high-resolution versions of terrainExt.png: <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt1024.png">1024 wide</a> and <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt8192.png">8192 wide</a>. In Mineways do "File | Set Terrain File" and select either; the higher-resolution version gives sharper results, at the cost of memory.</p>
+On the left, the basic 256 x 544 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to 1024 texels wide. You can download high-resolution versions of terrainExt.png: <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt1024.png">1024 wide</a> and <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/terrainExt8192.png">8192 wide</a>. In Mineways do "File | Choose Terrain File" and select either; the higher-resolution version gives sharper results, at the cost of memory.</p>
 <div id="terrainExtImgs">
   <img src="images/spawn_lores.jpg" alt="low resolution">
   <img src="images/spawn_hires.jpg" alt="high resolution">
@@ -927,10 +927,10 @@ Rendering Tips
   But, for truly stunning stills and animations you'll want a standalone package.
   This section covers the basics on importing Mineways files into various renderers:
   <a href="#blender">Blender</a>,
-  <a href="#3dsmax">3DS MAX</a>,
-  <a href="#maya">Maya</a>,
   <a href="#c4d">Cinema 4D</a>,
-  and <a href="#ovcreate">Omniverse Create</a>.
+  <a href="#ovcreate">Omniverse Create</a>,
+  <a href="#3dsmax">3DS MAX</a>,
+  and <a href="#maya">Maya</a>.
   If you want better geometry for some blocks, you might also consider using <a href="#packages">jmc2obj</a> (though personally I have problems getting it to work properly).
   <P>
   While I have your ear (eye?), you should also check out <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a> and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. (which Mineways does not - sorry - though you should be able to jigger TileMaker to make such sets of textures for you). Some nice texture packs: <a href="https://umsoea.com/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>.
@@ -1138,57 +1138,72 @@ Here's a typical result, made in a few minutes:
 
 </P>
 
-<P><H4 id="3dsmax">3DS MAX</H4><p>
-<a href="https://www.autodesk.com/products/3ds-max/overview"><img id="productLogo" src="images/3dsmax_icon.png" alt="3DS MAX icon"></a>
+<P><H4 id="ovcreate">Omniverse Create</H4><p>
+<a href="https://www.nvidia.com/en-us/design-visualization/omniverse/"><img id="productLogo" src="images/ov_create_icon.png" alt="Omniverse Create icon"></a>
 <P>
-Note: <a href="https://www.autodesk.com/education/free-software/3ds-max">3DS MAX is free for students and teachers</a>.
+Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Launcher (Beta)</a>, install and run it, then from the launcher install and launch Omniverse Create.
 <P>
-These instructions are for 3DS MAX 2012. You might also try <a href="http://www.jmc2obj.net/">jmc2obj</a> instead, as it does a better job producing some geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
-</P>
-<P>
-For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
-</P>
+See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. What follows are the steps in the video.
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
 <P>
-<b>Step 2:</b> Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
+<b>Step 1a:</b> I highly recommend doing "File -> Choose Terrain File" and selecting the terrainExt_JG-RTX64.png file that comes with Mineways. This will give you more interesting and physically realistic materials for some blocks.
 </P>
 <P>
-<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
+<b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. As far as other export options go, I recommend not touching them. USDA export is a brand new feature, so support for individual block export and other modes is unlike to work, nay, likely to crash Mineways.
 </P>
 <P>
-<b>Step 4:</b> Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select Faceted to get Minecraft's blocky look. Alternately, if you want to smooth water surfaces a bit, select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
+<b>Step 3:</b> Load the model into Omniverse Create. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
+<p class="center">
+<img src="images/ov_content_bar.jpg">
+</p>
+Hit "Enter" and below this line you should see the USDA file, some MDL (material) files, and a texture directory. Double-click the USDA file to load it. The scene may take awhile to resolve and look good, as two things are happening: textures are loading, and material shaders are being compiled. This compilation can take awhile, but after the first time you do it for a directory it should be faster.
 <P>
-<b>Step 5:</b> Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
+Pro tip: if you click on the bookmark icon, highlighted in green (and already clicked), you will add a bookmark to the list of files at the lower left. Clicking that bookmark entry takes you to this directory.
+<P>
+Note: one glitch in the beta is that the directory shown in Create does not refresh when new files are added to it, or deleted. If you save and don't see your file, right-click in the window to the lower right and select "Refresh" (highlighted in orange).
+<P>
+<b>Step 4:</b> Move your camera around. Easiest is to right-click-and-hold in the viewport. Mouse rotates the view, WASD moves you, QE move up and down, and holding Shift during any of these key presses doubles your speed (and Control halves it). If you get lost, the F key will frame your model, i.e., pull you all the way back so you can see the whole thing. One gotcha is camera speed: you can adjust this by clicking on the gear icon in the upper left of the viewport and adjusting the first slider, Camera Speed. To go faster than 10, you can Control-Click on the slider and type a number.
 </P>
 <P>
-<b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials". Click on the "+" to show the scene's materials. Double-click on whatever material looks bad, e.g., Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, or other cutout object. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
-</P>
+<b>Step 5:</b> Adjust the lighting. Look in the upper right. Select the Stage tab, if not selected. You'll see the sun and a dome light. You can toggle these on and off by clicking the eye icon to the right of each. You can move the position of the sun by selecting it, then clicking and dragging in the box highlighted to rotate its angle. You can also adjust the sun and dome light's intensity in the Light dialog area below. Also, note that if you toggle the "lighting" view in Mineways (the "L" key), so that the map is shown in a nighttime mode, nighttime lighting will be exported to USDA instead.
+<p class="center">
+<img src="images/ov_sun.jpg">
+</p>
+<P>
+<b>Step 6:</b> Take a screenshot. First, you'll need to adjust one property. On the menu choose Edit | Preferences. At the bottom left see the Preferences dialog. Click on Capture Screenshot, and then on the right check "Capture only the 3D viewport":
+<p class="center">
+<img src="images/ov_preferences.jpg">
+</p>
+Take note of the "Path to save screenshots", just above - I copy and paste this and go to it in my file explorer. Now, each time you press F10, a screenshot is generated and put in this directory.
+<p class="center">
+<img src="images/ov_post.jpg">
+</p>
+I have noticed this feature can sometimes be a bit flakey, with F10 not consistently working after adjusting this. Restarting Create seems to help.
+<P>
+<b>Step 7:</b> Adjust the camera exposure. By default, the camera exposure is set for a daylit, outdoor scene. If you go inside, it'll likely be dark. In the menu, choose Rendering | Render Settings, if not already checked. In the upper right should appear "RTX Settings". By default, Mineways uses the Path tracer, so select "Path-Traced" for the Renderer, then "Post Processing", below that to the right. Open the Tone Mapping menu. You can then fiddle with the Film ISO, Camera Shutter, and f-Number/f-Stop to adjust the exposure. If you're feeling bold, you can also try the Auto Exposure feature in the menu below Tone Mapping.
+<P>
+<b>Step 8:</b> Edit a material. Click on an object in the scene, or in the content hierarchy in the Stage list in the upper right (pro tip: you can type. Below a picture of a sphere should appear. Click the sphere and you will see below a long list of material settings. Have at it! Note that you can also simply replace textures in the "textures" directory created by Mineways and then read the scene in again.
+<P>
+Bonus feature: I've included a water_normal.png normals map (from the open source <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material set</a>) in the Mineways distribution. Resource pack authors basically never include a normal map for water, because the renderer usually generates this. You can include this in your "block-and-chest" directory when <a href="textures.html">making a terrain file set</a> using TileMaker or assign it manually in Create or other applications.
+<p class="center">
+<img src="images/ov_material.jpg">
+</p>
+<P>
+<b>Step 9:</b> Save your work. You can simple choose "File | Save", but for faster loading in the future, you could do "File | Save As...", check that "USD" (no "A") is selected in the lower right of the save dialog, and click "Save". The binary USD format is about 30% more compact and faster to load.
+<P>
+For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
+<P>
+This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
+<P>
+Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked for USDA files. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
 
-<P><H4 id="maya">Maya</H4><p>
-<a href="https://www.autodesk.com/products/maya/overview"><img id="productLogo" src="images/maya_icon.png" alt="Maya icon"></a>
 <P>
-Note: <a href="https://www.autodesk.com/education/free-software/maya">Maya is free for students and teachers</a>.
+Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (and <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a> - these are not included in Mineways):
 <P>
-First, there is now a <a href="https://github.com/Blocker226/MinewaysToRenderman/releases">material converter for RenderMan</a>. Notes from the author: "I've created a simple Python script for Maya to convert all the imported materials from the standard 'Phong' shader to Renderman's 'PxrSurface' shaders. It'll also re-use the same file reference node and clean up the duplicates and the old shaders. Bonus is that it will also turn off filtering on all the textures."
-<P>
-If you want to rendering within Maya, I will not give a comprehensive tutorial here; it's up to you to know the basics. The main tasks facing you when importing from Mineways is adjusting the Transparency material attribute, which Maya does not set up at all on import. The steps:
-<OL>
-<LI>Import an OBJ from Mineways.
-<LI>Select each transparent or cutout object in turn, right-click and drag to choose the "Material Attributes" menu.
-<LI>On the right, under Common Material Attributes, click the small checkered box to the far right of the Transparency attribute. This will let you assign a texture to the alpha channel.
-<LI>In the "Create Render Node" dialog that appears, choose "Maya | 2D Textures" on the left, then click "File" on the right. You will now see a "File Attributes" parameter dialog.
-<LI>Click on the file folder icon to the far right of "Image Name" and select the grayscale image for the alpha channel, e.g., MyModel-Alpha.png. While you're here, you can change the "Filter Type" above from Quadratic to Off; this makes the alpha channel have the blocky Minecraft look.
-<LI>The cutout object will typically disappear; you need to reverse the sense of the channel. There's probably some easier way, but scrolling down to the "Color Balance" section and setting Alpha Gain to -1 and Alpha Offset to 1 works.
-<LI>To make the colored pixels blocky, again right-click on the model and select "Material Attributes...", then click the small box with an arrow to the far right of the "Color" attribute, the first thing listed under "Common Material Attributes." Change the "Filter Type" from Quadratic to Off.
-</OL>
-There may (and probably is) a more efficient way to make these adjustments - let me know.
-<P>
-For instructions for older versions of Maya, check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import (that said, I don't know if this script still works).
-<P>
-A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per family" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per block family (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
-</P>
+<a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
+
 
 <P><H4 id="c4d">Cinema 4D</H4><p>
 <a href="https://www.maxon.net/en-us/products/cinema-4d/overview/"><img id="productLogo" src="images/cinema4d_icon.png" alt="Cinema 4D icon"></a>
@@ -1264,72 +1279,59 @@ You're now done. Note that there's a trade-off with Cinema 4D: you can't both ha
 <b>Step 8:</b> If you want to make textures look blocky, like they do in Minecraft, in the Alpha settings under Texture type from Sampling "MIP" to Sampling "none". Click on the "Color" button and change the Texture Sampling from "MIP" to "none" here, too. Note that in the interactive mode the textures will not look quite right, but when rendered are fine. For a quick render to see the effect, click Ctrl-R.
 </P>
 
-<P><H4 id="ovcreate">Omniverse Create</H4><p>
-<a href="https://www.nvidia.com/en-us/design-visualization/omniverse/"><img id="productLogo" src="images/ov_create_icon.png" alt="Omniverse Create icon"></a>
+
+
+<P><H4 id="3dsmax">3DS MAX</H4><p>
+<a href="https://www.autodesk.com/products/3ds-max/overview"><img id="productLogo" src="images/3dsmax_icon.png" alt="3DS MAX icon"></a>
 <P>
-Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Launcher (Beta)</a>, install and run it, then from the launcher install and launch Omniverse Create.
+Note: <a href="https://www.autodesk.com/education/free-software/3ds-max">3DS MAX is free for students and teachers</a>.
 <P>
-See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. What follows are the steps in the video.
+These instructions are for 3DS MAX 2012. You might also try <a href="http://www.jmc2obj.net/">jmc2obj</a> instead, as it does a better job producing some geometry. The steps here should also work for cleaning up jmc2obj OBJ models.
+</P>
+<P>
+For newbies (like me): in a Viewport, middle-mouse button changes the view: mouse-wheel to zoom, button to pan, Alt key down to rotate, Control key down to fast-pan. Shift+Q to render. Steps are as follows:
+</P>
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
 <P>
-<b>Step 1a:</b> I highly recommend doing "File -> Set Terrain File" and selecting the terrainExt_JG-RTX64.png file that comes with Mineways. This will give you more interesting and physically realistic materials for some blocks.
+<b>Step 2:</b> Save as the file type 'OBJ'. You may wish to try the <a href="#full_material">"G3D full material" option</a>, as this gives a slightly different water color by changing the diffuse color to white.
 </P>
 <P>
-<b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. As far as other export options go, I recommend not touching them. USDA export is a brand new feature, so support for individual block export and other modes is unlike to work, nay, likely to crash Mineways.
+<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter, MAX's unit size.
 </P>
 <P>
-<b>Step 3:</b> Load the model into Omniverse Create. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
-<p class="center">
-<img src="images/ov_content_bar.jpg">
-</p>
-Hit "Enter" and below this line you should see the USDA file, some MDL (material) files, and a texture directory. Double-click the USDA file to load it. The scene may take awhile to resolve and look good, as two things are happening: textures are loading, and material shaders are being compiled. This compilation can take awhile, but after the first time you do it for a directory it should be faster.
+<b>Step 4:</b> Use the upper left MAX symbol menu and select Import. Find the .obj file and select it. In the OBJ Import Options, under Normals select Faceted to get Minecraft's blocky look. Alternately, if you want to smooth water surfaces a bit, select "Auto" and leave the setting at 30 degrees. Click "Import" at the bottom.
 <P>
-Pro tip: if you click on the bookmark icon, highlighted in green (and already clicked), you will add a bookmark to the list of files at the lower left. Clicking that bookmark entry takes you to this directory.
-<P>
-Note: one glitch in the beta is that the directory shown in Create does not refresh when new files are added to it, or deleted. If you save and don't see your file, right-click in the window to the lower right and select "Refresh" (highlighted in orange).
-<P>
-<b>Step 4:</b> Move your camera around. Easiest is to right-click-and-hold in the viewport. Mouse rotates the view, WASD moves you, QE move up and down, and holding Shift during any of these key presses doubles your speed (and Control halves it). If you get lost, the F key will frame your model, i.e., pull you all the way back so you can see the whole thing. One gotcha is camera speed: you can adjust this by clicking on the gear icon in the upper left of the viewport and adjusting the first slider, Camera Speed. To go faster than 10, you can Control-Click on the slider and type a number.
+<b>Step 5:</b> Go to Render Setup in the Rendering menu (or just hit "F10"). Select the Renderer tab and uncheck the "Filter Maps" checkbox under Antialiasing. This makes cutout objects look correct, as well as making the Minecraft textures have their distinctive blocky appearance.
 </P>
 <P>
-<b>Step 5:</b> Adjust the lighting. Look in the upper right. Select the Stage tab, if not selected. You'll see the sun and a dome light. You can toggle these on and off by clicking the eye icon to the right of each. You can move the position of the sun by selecting it, then clicking and dragging in the box highlighted to rotate its angle. You can also adjust the sun and dome light's intensity in the Light dialog area below. Also, note that if you toggle the "lighting" view in Mineways (the "L" key), so that the map is shown in a nighttime mode, nighttime lighting will be exported to USDA instead.
-<p class="center">
-<img src="images/ov_sun.jpg">
-</p>
-<P>
-<b>Step 6:</b> Take a screenshot. First, you'll need to adjust one property. On the menu choose Edit | Preferences. At the bottom left see the Preferences dialog. Click on Capture Screenshot, and then on the right check "Capture only the 3D viewport":
-<p class="center">
-<img src="images/ov_preferences.jpg">
-</p>
-Take note of the "Path to save screenshots", just above - I copy and paste this and go to it in my file explorer. Now, each time you press F10, a screenshot is generated and put in this directory.
-<p class="center">
-<img src="images/ov_post.jpg">
-</p>
-I have noticed this feature can sometimes be a bit flakey, with F10 not consistently working after adjusting this. Restarting Create seems to help.
-<P>
-<b>Step 7:</b> Adjust the camera exposure. By default, the camera exposure is set for a daylit, outdoor scene. If you go inside, it'll likely be dark. In the menu, choose Rendering | Render Settings, if not already checked. In the upper right should appear "RTX Settings". By default, Mineways uses the Path tracer, so select "Path-Traced" for the Renderer, then "Post Processing", below that to the right. Open the Tone Mapping menu. You can then fiddle with the Film ISO, Camera Shutter, and f-Number/f-Stop to adjust the exposure. If you're feeling bold, you can also try the Auto Exposure feature in the menu below Tone Mapping.
-<P>
-<b>Step 8:</b> Edit a material. Click on an object in the scene, or in the content hierarchy in the Stage list in the upper right (pro tip: you can type. Below a picture of a sphere should appear. Click the sphere and you will see below a long list of material settings. Have at it! Note that you can also simply replace textures in the "textures" directory created by Mineways and then read the scene in again.
-<P>
-Bonus feature: I've included a water_normal.png normals map (from the open source <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material set</a>) in the Mineways distribution. Resource pack authors basically never include a normal map for water, because the renderer usually generates this. You can include this in your "block-and-chest" directory when <a href="textures.html">making a terrain file set</a> using TileMaker or assign it manually in Create or other applications.
-<p class="center">
-<img src="images/ov_material.jpg">
-</p>
-<P>
-<b>Step 9:</b> Save your work. You can simple choose "File | Save", but for faster loading in the future, you could do "File | Save As...", check that "USD" (no "A") is selected in the lower right of the save dialog, and click "Save". The binary USD format is about 30% more compact and faster to load.
-<P>
-For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
-<P>
-This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
-<P>
-Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked for USDA files. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
+<b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials". Click on the "+" to show the scene's materials. Double-click on whatever material looks bad, e.g., Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, or other cutout object. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
+</P>
 
+<P><H4 id="maya">Maya</H4><p>
+<a href="https://www.autodesk.com/products/maya/overview"><img id="productLogo" src="images/maya_icon.png" alt="Maya icon"></a>
 <P>
-Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (and <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a> - these are not included in Mineways):
+Note: <a href="https://www.autodesk.com/education/free-software/maya">Maya is free for students and teachers</a>.
 <P>
-<a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
-
+First, there is now a <a href="https://github.com/Blocker226/MinewaysToRenderman/releases">material converter for RenderMan</a>. Notes from the author: "I've created a simple Python script for Maya to convert all the imported materials from the standard 'Phong' shader to Renderman's 'PxrSurface' shaders. It'll also re-use the same file reference node and clean up the duplicates and the old shaders. Bonus is that it will also turn off filtering on all the textures."
+<P>
+If you want to rendering within Maya, I will not give a comprehensive tutorial here; it's up to you to know the basics. The main tasks facing you when importing from Mineways is adjusting the Transparency material attribute, which Maya does not set up at all on import. The steps:
+<OL>
+<LI>Import an OBJ from Mineways.
+<LI>Select each transparent or cutout object in turn, right-click and drag to choose the "Material Attributes" menu.
+<LI>On the right, under Common Material Attributes, click the small checkered box to the far right of the Transparency attribute. This will let you assign a texture to the alpha channel.
+<LI>In the "Create Render Node" dialog that appears, choose "Maya | 2D Textures" on the left, then click "File" on the right. You will now see a "File Attributes" parameter dialog.
+<LI>Click on the file folder icon to the far right of "Image Name" and select the grayscale image for the alpha channel, e.g., MyModel-Alpha.png. While you're here, you can change the "Filter Type" above from Quadratic to Off; this makes the alpha channel have the blocky Minecraft look.
+<LI>The cutout object will typically disappear; you need to reverse the sense of the channel. There's probably some easier way, but scrolling down to the "Color Balance" section and setting Alpha Gain to -1 and Alpha Offset to 1 works.
+<LI>To make the colored pixels blocky, again right-click on the model and select "Material Attributes...", then click the small box with an arrow to the far right of the "Color" attribute, the first thing listed under "Common Material Attributes." Change the "Filter Type" from Quadratic to Off.
+</OL>
+There may (and probably is) a more efficient way to make these adjustments - let me know.
+<P>
+For instructions for older versions of Maya, check out <a href="http://www.youtube.com/watch?v=MWdtaeRcNUs">this video</a> from <a href="http://www.youtube.com/playlist?list=PL19DDBAB5C26254AD">this playlist</a>, it shows how to set transparency and texture sampling. That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, which even comes with a MEL script to perform cleanup during import (that said, I don't know if this script still works).
+<P>
+A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per family" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per block family (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
+</P>
 
 <P><H2 id="sketchfab">Publish to Sketchfab</H2>
 <p>
@@ -3209,7 +3211,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Note: there is now <a href="https://github.com/TheWeirdSquid/Minecraft-Player-Head-Tools">an add-on for Blender</a> that fixes the <a href="https://github.com/erich666/Mineways/issues/13">"generic head" problem</a>.
 </UL>
 
-<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI><B>Support for USD into Omniverse Create</B>. <a href="https://graphics.pixar.com/usd/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Create</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
@@ -3222,11 +3224,14 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Other small cleanups and better use of memory.
 </UL>
 
-<LI>Version 8.01, 12/16/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.01, 12/17/2020 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>A small flaw in one custom material file was causing Omniverse Create's renderer to spend about 50% more time ray tracing than needed. Fixed.
-<LI>Added a <a href="http://mineways.com/downloads">terrain file download page</a> and reorganized the terrain file documentation.
+<LI>Added "Choose Terrain File" selector to File menu. All color "terrainExt*.png" files found in the same directory as mineways.exe at startup are listed.
+<LI>Added a low-res version of <a href="http://lunahd.com">LunaHD</a> as an optional terrain file set for rendering.
+<LI>Added more menu items for specific help, and for <a href="textures.html#dl">the terrain file download area</a>.
+<LI>Reorganized the terrain file documentation and generally cleaned up and updated it.
 </UL>
 
 
@@ -3273,7 +3278,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Set terrainExt.png for export"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3324,7 +3329,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/16/2020</p>
+		<p id="lastUpdate">Last updated 12/17/2020</p>
 	</div>
 </div>
 

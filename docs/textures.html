@@ -71,7 +71,7 @@
 	<div id="content" class="clearfix">
 <h1>Using Textures in Mineways</h1>
 
-You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Select Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>.
+You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Choose Terrain File" or "Open Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>.
 
 <H2>Pre-Built Terrain Files</H2>
 
@@ -186,7 +186,7 @@ The general flow is:
 
 
 <P>
-That's it! You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Set Terrain File" in Mineways. You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
+That's it! Put your file wherever mineways.exe is located and start Mineways up. You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Choose Terrain File". You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
 
 <P>
 Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
@@ -362,7 +362,7 @@ It also converts _mer and _s files into the _m/_e/_r files used as input by Tile
 However, ChannelMixer is not perfect, so you can give ChannelMixer commands for what types of textures to ignore. For example, if you find your flowers are all glowing, bogus emissive textures may be at fault. You could delete these by hand from the block-and-chest directory where ChannelMixer puts it files. Or, if all emissive textures are useless, setting "-k e" on the command line of ChannelMixer says to ignore the _e emissive textures. This is often useful for labPBR textures (and ChannelMixer currently does not pay attention to the alpha channel as emissive, as labPBR specifies, as I have not yet found a resource pack that uses the emissive channel in this way). Setting "-k me" kills output of the metallic and emissive terrain files. To kill everything except the main, color terrain file, use "-k mern". In testing, I have found "-k e" useful for the FaithfulPBR, Flows Photorealism, Hodilton, Miejojo, and Ultimate Immersion resource packs, and "-k me" useful for the LunaHD, Meteor, UMSOEA, R3DCraft, and Tesellax resource packs.
 
 <P>
-Pro tip: if you want to see what blocks have what roughness, normals, or other textures directly, choose that texture when you use "File -> Set Terrain File" in Mineways. With our JG RTX example, you could see the roughness textures by picking terrainExt_JG-RTX_r.png, the roughness texture. Most objects will be black, which means no texture applied. For example, here's <a href="https://www.curseforge.com/minecraft/texture-packs/vanilla-pbr">Vanilla PBR's</a> roughness textures applied to <a href="https://www.planetminecraft.com/project/qmagnets-texture-pack-test-map-13w03a/">QMAGNET's test world</a>.
+Pro tip: if you want to see what blocks have what roughness, normals, or other textures directly, choose that texture when you use "File -> Choose Terrain File" in Mineways. With our JG RTX example, you could see the roughness textures by picking terrainExt_JG-RTX_r.png, the roughness texture. Most objects will be black, which means no texture applied. For example, here's <a href="https://www.curseforge.com/minecraft/texture-packs/vanilla-pbr">Vanilla PBR's</a> roughness textures applied to <a href="https://www.planetminecraft.com/project/qmagnets-texture-pack-test-map-13w03a/">QMAGNET's test world</a>.
 
 <P>
 And, one last trick: I picked and chose a little with the JG RTX resource pack, as there were a few variant brick patterns and I didn't like the default (everyone's a critic...). If you use the JG RTX terrain set, but wish a few block faces were different, there are two ways to make that happen. You can always edit the resulting USDA file in Omniverse Create, by hand or by using a Python script (and I have no idea how to do that). If you want to make a more permanent change to a terrain file, you can do so pretty easily. You put the new block textures in some directory, say it's "new_blocks". You then do:
@@ -472,7 +472,7 @@ on the command line.
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/15/2020</p>
+		<p id="lastUpdate">Last updated 12/17/2020</p>
 	</div>
 </div>
 
