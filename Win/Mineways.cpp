@@ -3362,11 +3362,14 @@ static int loadTerrainList(HMENU menu)
     wchar_t msgString[1024];
     char outputString[1024];
     char pConverted[1024];
-    int length;
     wcscpy_s(terrainSearch, MAX_PATH_AND_FILE, gCurrentDirectory);
     wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), gPreferredSeparatorString);
     wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), L"terrainExt*.png");
     hFind = FindFirstFile(terrainSearch, &ffd);
+    size_t length = (int)wcslen(ffd.cFileName) + 1;
+    WcharToChar(terrainSearch, pConverted, (int)length);
+    sprintf_s(outputString, 1024, "    looking in %s\n", pConverted);
+    LOG_INFO(gExecutionLogfile, outputString);
 
     // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
     int count = 0;
@@ -3378,7 +3381,7 @@ static int loadTerrainList(HMENU menu)
 		if (!(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
 		{
 			length = (int)wcslen(ffd.cFileName) + 1;
-			WcharToChar(ffd.cFileName, pConverted, length);
+			WcharToChar(ffd.cFileName, pConverted, (int)length);
 			sprintf_s(outputString, 1024, "    found potential terrain file %s\n", pConverted);
 			LOG_INFO(gExecutionLogfile, outputString);
 
@@ -3388,13 +3391,13 @@ static int loadTerrainList(HMENU menu)
 				MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
 			}
 
-            size_t len = wcslen(ffd.cFileName);
+            length = wcslen(ffd.cFileName);
             // long enough to have a suffix and .png?
-			if (len >= 6)
+			if (length >= 6)
 			{
 				info.wID = IDM_DEFAULT_TERRAIN + gNumTerrainFiles;
                 // back up 6 characters, e.g., _s.png
-                wchar_t* tileSuffix = ffd.cFileName + len - 6;
+                wchar_t* tileSuffix = ffd.cFileName + length - 6;
 
 				// display the terrain file name
 				// For now, show the whole PNG. Could make it fancier, but this is clear.
