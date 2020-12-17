@@ -71,7 +71,7 @@
 	<div id="content" class="clearfix">
 <h1>Mineways Main Documentation</h1>
 
-To quickly get started, see this <a href="downloads.html#instructions">quick step by step</a> or <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a>. For problems, see the <a href="downloads.html#troubleshooting">troubleshooting section</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
+To get started, read this <a href="downloads.html#instructions">quick step by step</a> or watch <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a>. For problems, see the <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#windows">Windows troubleshooting guide</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
 <P>
 Normally you can just hit "OK" on the export dialog and things will work fine. Read on if you want to understand how to make your models less expensive, use different texture packs, and otherwise tailor you want to see printed out. What follows is extensive documentation about each part of the export and print process. If you don't want to wade through it all, at least search this page for the phrase <b>"Key tip"</b>, as these bits are particularly useful.
 <P>
@@ -1317,11 +1317,13 @@ Bonus feature: I've included a water_normal.png normals map (from the open sourc
 <img src="images/ov_material.jpg">
 </p>
 <P>
-<b>Step 9:</b> Save your work. You can simple choose "File | Save", but for faster loading in the future, you could do "File | Save As...", check that "USD" (no "A") is selected in the lower right of the save dialog, and click "Save". The USD format is about 30% more compact and faster to load.
+<b>Step 9:</b> Save your work. You can simple choose "File | Save", but for faster loading in the future, you could do "File | Save As...", check that "USD" (no "A") is selected in the lower right of the save dialog, and click "Save". The binary USD format is about 30% more compact and faster to load.
 <P>
 For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
 <P>
-This is as far as I'm going, as explaining materials, animation, and many other features is definitely beyond the scope. Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked for USDA files. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
+This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
+<P>
+Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked for USDA files. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
 
 <P>
 Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (and <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a> - these are not included in Mineways):

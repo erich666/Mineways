@@ -139,7 +139,7 @@ So as to not bloat the Mineways distribution too much, we've put more pre-made t
 <P>
 <b><a href="http://lunahd.com">LunaHD</a>:</b> A physically based material set. <b><a href="http://mineways.com/downloads/terrainExt_LunaHD.zip">Download LunaHD terrain file set</a></b>. The LunaHD developer provides this free 32x32 version his work. With his permission, we made this terrain file set. When used with USDA export, I recommend turning off the "Custom Material" setting (having this setting on gives the default blocky Minecraft look). See the <a href="http://lunahd.com">LunaHD</a> site for details on getting higher resolution versions of these textures, which can then be used within Mineways by substituting them into the USDA output textures directory.
 <P>
-Here is a sample of some of the textures in <b><a href="http://lunahd.com">LunaHD</a></b>, alongside some unmodified classic Minecraft textures:
+Here is a sample of some of the textures in <a href="http://lunahd.com">LunaHD</a>, alongside some unmodified classic Minecraft textures:
 <P>
 <div>
    <a id="lunahd"><img src="images/lunahd_pbr.jpg" alt="LunaHD"></a>
@@ -297,7 +297,7 @@ The command line options mean the following:
 -d "jg-rtx-channelmixer"
 </PRE>
 
-This is the input directory of textures created by ChannelMixer.
+This is the input directory of textures created by ChannelMixer. The double apostrophes are needed if there are spaces in the directory's name, so are not critical here (but don't hurt).
 
 <PRE>
 -o terrainExt_JG-RTX.png
@@ -365,6 +365,15 @@ However, ChannelMixer is not perfect, so you can give ChannelMixer commands for 
 Pro tip: if you want to see what blocks have what roughness, normals, or other textures directly, choose that texture when you use "File -> Set Terrain File" in Mineways. With our JG RTX example, you could see the roughness textures by picking terrainExt_JG-RTX_r.png, the roughness texture. Most objects will be black, which means no texture applied. For example, here's <a href="https://www.curseforge.com/minecraft/texture-packs/vanilla-pbr">Vanilla PBR's</a> roughness textures applied to <a href="https://www.planetminecraft.com/project/qmagnets-texture-pack-test-map-13w03a/">QMAGNET's test world</a>.
 
 <P>
+And, one last trick: I picked and chose a little with the JG RTX resource pack, as there were a few variant brick patterns and I didn't like the default (everyone's a critic...). If you use the JG RTX terrain set, but wish a few block faces were different, there are two ways to make that happen. You can always edit the resulting USDA file in Omniverse Create, by hand or by using a Python script (and I have no idea how to do that). If you want to make a more permanent change to a terrain file, you can do so pretty easily. You put the new block textures in some directory, say it's "new_blocks". You then do:
+
+<PRE>
+TileMaker.exe -i terrainExt_JG-RTX.png -d new_blocks -o terrainExt_JG-RTX_improved.png
+</PRE>
+
+The "-i terrainExt_JG-RTX.png" command says to use terrainExt_JG-RTX.png as your input texture, "new_blocks" as your new input block textures, and the result should go into your new output file terrainExt_JG-RTX_improved.png/
+
+<P>
 <div>
   <img src="images/vanilla_pbr_roughness.jpg" alt="Vanilla PBR roughness textures">
 </div>
@@ -387,7 +396,7 @@ Some places I've looked:
 <LI><a href="https://github.com/TheDuckCow/MCprep/issues/78">MCPrep thread</a> discusses how this related utility is working to incorporate physically based materials in its translator. Good overview of the chaotic realistic resource pack format scene. If you want to directly use Mineways exports with Blender, <a href="https://theduckcow.com/dev/blender/mcprep/">explore MCPrep</a> as an option. I hope to work on supporting PBR in both Blender and MCPrep in the future.
 </UL>
 
-Here are <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a>, which are not that fascinating from a distance (it's the details that are cool), but give you an idea of what's possible.
+Here are <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a>, which are not that fascinating from a distance (it's the details that are cool), but give you some idea of what these packs look like.
 
 <H1 id="ref">Reference Section</H1>
 

@@ -23448,8 +23448,9 @@ static int createMaterialsUSD(char *texturePath)
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-                // not actually needed by custom material Minecraft.mdl, for some reason
-                if (!gModel.customMaterial) {
+                // not actually needed by custom material Minecraft.mdl, for some reason.
+                // But, doesn't hurt to set it, so it's set.
+                //if (!gModel.customMaterial) {
                     strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
@@ -23467,7 +23468,7 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                }
+                //}
             }
 
             // metallic?

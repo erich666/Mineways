@@ -1587,6 +1587,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case IDM_HELP_URL:
             ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
             break;
+        case ID_HELP_TROUBLESHOOTING:
+            ShellExecute(NULL, L"open", L"http://mineways.com/downloads.html#windowsPlatformHelp", NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case ID_HELP_DOCUMENTATION:
+            ShellExecute(NULL, L"open", L"http://mineways.com/mineways.html", NULL, NULL, SW_SHOWNORMAL);
+            break;
         case ID_FILE_DOWNLOADTERRAINFILES:
             ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
             break;
