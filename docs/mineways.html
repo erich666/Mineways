@@ -1466,7 +1466,6 @@ Here are some related (free) tools that are handy, collected in one spot:
 <UL>
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3D printing.
 <LI>The <a href="#g3d">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow, and it doesn't work when <a href="#fcst">exporting separate texture tiles</a>. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
-<LI>The <a href="http://www.open3mod.com/">Open 3D Model Viewer</a> is good overall for OBJs and many other file formats. The main drawbacks are that semitransparent objects (e.g., water) are not properly blended atop the rest, and that the camera cannot be locked to have +Y be the "up" direction. But, it handles <a href="#fcst">separate texture tiles</a> properly.
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> helps you convert, simplify, and smooth meshes, among a huge number of other operations. It's not the best for displaying textures.
 <LI><a href="http://www.mcedit-unified.net/">MCEdit Unified</a> lets you make large-scale changes on your world; <a href="http://www.mcedit.net/">documentation here</a>. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files you've downloaded. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. 
 <LI><a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from MCEdit in that it is a plug-in to Minecraft, while MCEdit is standalone.
@@ -1478,7 +1477,6 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://craftmastersoftware.com/">CraftMaster</a> has developed a program for voxelization specifically aimed at Minecraft, and that exports directly to Sketchfab.
 <LI><a href="https://www.tinkercad.com/">TinkerCAD</a> is an online CAD program. You can now <a href="https://blog.tinkercad.com/2013/08/15/tinkercraft">export <i>to</i> Minecraft from it</a> - try the "Download for Minecraft" feature, <a href="https://blog.tinkercad.com/2016/03/10/5707">now with materials</a>. You can also search for <a href="https://www.tinkercad.com/search/?q=minecraft">Minecraft-related objects</a>. See <a href="https://www.youtube.com/watch?v=ehtstka7vSs">this video</a> for how to use it and export.
 <LI><a href="http://mblaine.github.io/BiomePainter/">Biome Painter</a> lets you modify the biomes of your world. If you get it, make sure to use the "Help" menu "Check for updates" feature.
-<LI><a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> is a fantastic 3D viewer for your world. You can zoom through, see a huge distance, and get coordinates for wherever you are. It's slightly outdated and buggy right now, but a new version is in the works.
 <LI>More Minecraft tools <a href="http://minecraft.gamepedia.com/Editors">here</a>.
 </UL>
 
@@ -1506,8 +1504,6 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 <li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=238087985">SourceCraft</a> creates maps for <a href="https://en.wikipedia.org/wiki/Source_(game_engine)">Valve's Source engine</a>, for games such as Team Fortress 2 and Garry's Mod, via Minecraft.
 
-</li><li><a href="http://3dprintingindustry.com/2014/04/21/3d-printing-cubeteam-browser/">CubeTeam</a> is a free multiplayer online 3D modeling program that works in the browser. It's Minecraft meets CAD, with some worthwhile options such as smoothing your model or importing and voxelizing an existing 3D mesh.
-
 </li><li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can't quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in various ways.
 
 </li><li><a href="https://github.com/webbukkit/dynmap/wiki/Exporting-World-Data-in-Wavefront-OBJ-Format">dynmap</a> has an option to export blocks, even custom blocks, to the OBJ format. I haven't tried it; let me know how you find it.
@@ -1530,15 +1526,11 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is snappy. A cool thing is that it works in multiplayer, and you don't need access to the world files! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>, perhaps fixed by now. But, this software can all but improve over time - if it gets people trying out 3D printing, great! <a href="http://www.wired.com/2012/11/3-d-printed-minecraft/">Photos and more here</a>.
 
-</li><li><a href="https://mygrab.it/">GrabIt</a> is a platform for game developers to sell physical models direct to their users. It uses <a href="http://www.renderfab.com/">RenderFab</a> 3D asset processing technology to fully automate the process of creating 3D print-ready models from any 3D data.
-
 </li><li><a href="http://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
 
 </li><li><a href="http://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
 
 </li><li><a href="https://itunes.apple.com/us/app/voxel/id333186489?mt=8">Voxel</a> is an iPad app that lets you design in voxels and send your model directly to Sculpteo for printing.
-
-</li><li><a href="http://www.3dtin.com/">3DTin</a> - it's not Minecraft, but lets you build with cubes and has a connection to 3D printing. Build your model out of blocks inside this web app and upload to a 3D print service.
 
 </li><li><a href="https://github.com/FalconNL/mc2obj/downloads">mc2obj</a> (documentation and source <a href="https://github.com/FalconNL/mc2obj">here</a>) - mentioned mostly for historical purposes, it has been superseded by jmc2obj. This utility pulls in the specified Minecraft world data and makes an OBJ file. It <a href="http://www.reddit.com/r/mcobj/comments/k4se7/alpha_testers_wanted_for_mc2obj_an_exporter_that/">includes true geometry</a> vs. Mineways' whole block orientation.
 
@@ -3281,7 +3273,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Add a "Go to location" dialog, where you give a location and the view is centered on it.
 <LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways' texture storage space.
 <LI>Almost out of space for composites. Go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
-<LI>TileMaker should handle non-power-of-two tiles, such as found in the <a href="https://www.mediafire.com/file/bjmdte5insbh6na/BPN--FLOWS+1.13.2.zip">BPN--FLOWS</a> texture pack.
+<LI>TileMaker should handle non-power-of-two tiles. Warn the user, as before, but it should give it a go.
 <LI>Go to location. Pop up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
 <LI>Zoom out: Some people use Mineways for mapping. Being able to zoom out further has been requested. The downside: more map chunks to read so it might be slow, I'd have to mess with code I don't know well, selection could be funky. My advice is to use <a href="https://seancode.com/minutor/">Minutor</a>, which has parallelized map chunk reading and is optimized for mapping.
@@ -3331,7 +3323,6 @@ Some links I commonly use.
 <LI>It's also possible to host models on <a href="https://sketchfab.com/erich">Sketchfab</a>, as I have done here.
 <LI>If you're using 3D printing and Minecraft in the classroom, one place to look for support is the <a href="https://groups.google.com/forum/#!forum/minecraft-teachers">Minecraft teachers Google Group</a>.
 <LI>You can download <a href="http://realtimerendering.com/erich/minecraft/public/mineways/presentations">some slidesets</a> I've used in talks and workshops on 3D printing and Minecraft. Feel free to reuse them in reasonable, Fair Use ways.
-<LI>There's also a directory with <a href="http://realtimerendering.com/erich/minecraft/public/mineways/videos">introductory videos</a> for download. Again, go ahead and reuse these for educational Fair Use.
 <LI>Things made at the Cambridge Science Festival and by <a href="http://partsandcrafts.org/">Parts &amp; Crafts</a> workshop participants are <a href="http://www.shapeways.com/shops/csf">here</a> on the Shapeways site.
 <LI><a href="http://vokselia.com">Our world's homepage</a>
 </UL>
