@@ -130,7 +130,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#scripting">Scripting</a> - how to automate and simplify many Minecraft processes.
 <LI><a href="#stuff">Related Resources</a> - model viewers, world editors, and worlds to try out
 <UL>
- <LI><a href="#models">Stuff to Print</a> - where to get models and worlds.
+ <LI><a href="#models">Stuff to Print and Render</a> - where to get models and worlds.
  <LI><a href="#packages">Other Packages</a> - other model exporters and related software.
 </UL>
 <LI><a href="#mcpe">Minecraft Bedrock Support</a> - how to convert Bedrock worlds for use in Mineways.
@@ -316,6 +316,7 @@ By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</
 <B>VRML97:</B> Also known as VRML2 or VRML 2.0. While this format has been superseded by <a href="http://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways uses for colored models. The *.wrl and *.png file created are put into a zip file and uploaded to Shapeways for printing - see more about this process <a href="#shapeways">below</a>. The VRML file produced is tailored toward making a single texture for printing. Note: Shapeways will properly preview all VRML output modes other than "solid material colors", where it has a limit of 16 different colors. These colored models will print fine, however.
 <B>VRML97:</B> Also known as VRML2 or VRML 2.0. While this format has been superseded by <a href="http://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways uses for colored models. The *.wrl and *.png file created are put into a zip file and uploaded to Shapeways for printing - see more about this process <a href="#shapeways">below</a>. The VRML file produced is tailored toward making a single texture for printing. Note: Shapeways will properly preview all VRML output modes other than "solid material colors", where it has a limit of 16 different colors. These colored models will print fine, however.
 
+<HR>
 <H3 id="options">
 Export options
 </H3>
@@ -732,6 +733,7 @@ This option is only available for rendering, to reduce polygon count. Tree leave
 The rest of the options mostly have to do with 3D printing, which follows.
 
 
+<HR>
 <H3 id="print">
 Exporting to 3D print
 </H3>
@@ -913,11 +915,13 @@ There are also two debug print options available, both shown in examples above. 
 <P>
 The "show weld blocks" option shows what blocks are added by the various "connect parts" options. If you don't like where the welds are put, you can go into your Minecraft world and edit the model yourself. <b>Key tip:</b> you can run Mineways and play Minecraft at the same time. So, you can edit your world in Minecraft, then reload the world into Mineways by pressing the "r" key. The selected area won't be cleared when you do so, so you can edit, reload, export, and view the model (in a separate viewer); lather, rinse, repeat. This is an efficient way to improve and view any model you're working on.
 
+<HR>
 <H3 id="tilemaker">
 ChannelMixer and TileMaker
 </H3>
 You can make your own sets of textures to use when exporting models with Mineways. This process is fairly straightforward, but is a more advanced topic. See the <a href="textures.html">Textures page</a> for how textures work in Mineways and how to use these tools.
 
+<HR>
 <H3 id="rendering">
 Rendering Tips
 </H3>
@@ -937,14 +941,16 @@ Rendering Tips
   <P>
   Also worth a shout-out, the <a href="https://www.nvidia.com/en-us/geforce/news/minecraft-with-rtx-beta-out-now-download-play/">Minecraft RTX beta</a>. If you have an RTX card, this system accelerates ray tracing effects on the Bedrock Edition (sorry, no Java Edition version). However, conversion of a Java Edition world is fairly straightforward; they give <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">a long guide</a>, but really, just follow the <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/#textcomponentenhance_16365283995c6722f5_46dd_4cdd_ba02_77ef3ae0242d">MCC Tool Chest Conversion</a> steps - it's all I needed. If you're really feeling frisky, you can <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/#resource-pack-setup">design a texture pack</a> (though be warned, <a href="https://help.minecraft.net/hc/en-us/articles/360042255511">the format will change</a>).
   <P>
-  <h3 id="previewing">Previewing:</h3>
+  <h4 id="previewing">Previewing:</h4>
   <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer. <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a good previewer models in any format Mineways produces.</p>
   <P>
   For rendering preview I recommend the <a href="#g3d">G3D</a> when using full color textures. It does not have cross-sectioning and supports only OBJ files, but has much better transparency support and shadows, and has screenshot and video capture built in.
   <P>
   What follows are steps for using various popular rendering software packages. There are always more; for example, <a href="https://blog.yiningkarlli.com/2016/07/minecraft-in-renderman-ris.html">this article</a> talks in depth about using RenderMan for rendering.
 </div>
-<P><H4 id="blender">Blender</H4><p>
+
+<HR>
+<H4 id="blender">Blender</H4><p>
 <a href="https://www.blender.org"><img id="productLogo" src="images/blender_icon.jpg" alt="Blender icon"></a>
 <P>
 The first two steps are the same for all versions of Blender, since they involve only Mineways:
@@ -1138,7 +1144,8 @@ Here's a typical result, made in a few minutes:
 
 </P>
 
-<P><H4 id="ovcreate">Omniverse Create</H4><p>
+<HR>
+<H4 id="ovcreate">Omniverse Create</H4><p>
 <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse Create icon"></a>
 <P>
 Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Launcher (Beta)</a>, install and run it, then from the launcher install and launch Omniverse Create.
@@ -1205,7 +1212,8 @@ Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (a
 <a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
 
 
-<P><H4 id="c4d">Cinema 4D</H4><p>
+<HR>
+<H4 id="c4d">Cinema 4D</H4><p>
 <a href="https://www.maxon.net/en-us/products/cinema-4d/overview/"><img id="productLogo" src="images/cinema4d_icon.jpg" alt="Cinema 4D icon"></a>
 <P>
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>. The instructions have been updated for Cinema 4D R18; older versions may need additional steps, as shown.
@@ -1281,7 +1289,8 @@ You're now done. Note that there's a trade-off with Cinema 4D: you can't both ha
 
 
 
-<P><H4 id="3dsmax">3DS MAX</H4><p>
+<HR>
+<H4 id="3dsmax">3DS MAX</H4><p>
 <a href="https://www.autodesk.com/products/3ds-max/overview"><img id="productLogo" src="images/3dsmax_icon.jpg" alt="3DS MAX icon"></a>
 <P>
 Note: <a href="https://www.autodesk.com/education/free-software/3ds-max">3DS MAX is free for students and teachers</a>.
@@ -1309,7 +1318,8 @@ For newbies (like me): in a Viewport, middle-mouse button changes the view: mous
 <b>Step 6 (optional):</b> At this point rendering should work fine. In interactive preview mode you will see some transparency problems in the Viewport. To fix these, bring up the material editor by pressing "M" and expand the view. Scroll down in the Material/Map Browser on the left and find "+ Scene Materials". Click on the "+" to show the scene's materials. Double-click on whatever material looks bad, e.g., Stationary_Water, Glass, Leaves, Torch, Tall_Grass, Sugar_Cane, Rose, Dandelion, or other cutout object. Now click on the "checkerboard-with-light" icon along the top, which does "Show Shaded Material in Viewport". This material should now look better. Do this for each material that looks bad. Press "M" again when finished, to dismiss the material browser. If someone knows a faster way to change all materials, let me know. Note that these fixes do not affect the final render itself.
 </P>
 
-<P><H4 id="maya">Maya</H4><p>
+<HR>
+<H4 id="maya">Maya</H4><p>
 <a href="https://www.autodesk.com/products/maya/overview"><img id="productLogo" src="images/maya_icon.jpg" alt="Maya icon"></a>
 <P>
 Note: <a href="https://www.autodesk.com/education/free-software/maya">Maya is free for students and teachers</a>.
@@ -1333,7 +1343,8 @@ For instructions for older versions of Maya, check out <a href="http://www.youtu
 A problem with jmc2obj is that each material must be adjusted by hand. One option in Mineways that can speed import conversion is to uncheck the "Material per family" checkbox in the OBJ file export options. Doing so means you have to fix up only one material, though at the expense of not having a separate material per block family (that said, you can always add new materials later). That said, this option tends to mess up Maya's display, as every object will be considered semitransparent and all will be sorted from back to front by depth in the interactive viewport, causing objects to flicker in front of each other. The scene will render just fine, however.
 </P>
 
-<P><H2 id="sketchfab">Publish to Sketchfab</H2>
+<HR>
+<H2 id="sketchfab">Publish to Sketchfab</H2>
 <p>
 <a href="https://sketchfab.com"><img id="productLogo" src="images/sketchfab_icon.jpg" alt="Sketchfab icon"></a>
 <P>
@@ -1398,7 +1409,8 @@ Here's an example of Sketchfab in action, a model I uploaded. Click on the windo
     on <a href="https://sketchfab.com?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Sketchfab</a>
 </div>
 
-<P><H2 id="print_services">
+<HR>
+<H2 id="print_services">
 3D Print Services
 </H2>
 If you want to make a 3D print of a model, the easiest way is to use a 3D print service such as <a href="http://shapeways.com">Shapeways</a> or <a href="http://sculpteo.com">Sculpteo</a>. The main differences are cost, quality, and speed of delivery. Shapeways is almost always less expensive, Sculpteo offers faster delivery and better supports the <a href="#lesser">"Export lesser blocks"</a> option, which lets you print out slabs, steps, fences, and other smaller bits in your model. <a href="https://www.3dhubs.com/">3D Hubs</a> also has some users with full-color printers, so may be both competitive and fast. There are other 3D print services for consumers, such as <a href="http://i.materialise.com/">i.materialise</a> and <a href="http://ponoko.com">Ponoko</a>, but currently these two do not offer fully-textured 3D printing, just solid color blocks. There are many services offering single-color (i.e., single material, such as plastic) prints, such as any of the above or <a href="https://all3dp.com/1/best-online-3d-printing-service-3d-print-services/">those on this list</a>. Finally, here's <a href="https://all3dp.com/2/minecraft-3d-printing-guide/">a little collection of articles</a> on 3D printing Minecraft.
@@ -1440,12 +1452,14 @@ Note the links above these options. "Settings" lets you add photos, change your 
   <img src="images/smoothing_adobe.jpg">
 </div>
 
-<P><H2 id="scripting">
+<HR>
+<H2 id="scripting">
 Scripting
 </H2>
 By using "Import Settings" you can make Mineways do all sorts of things quickly. You can also temporarily modify blocks when exporting. It's easier to use than you might think, <a href="scripting.html">read about it here</a>.
 
-<P><H2 id="stuff">
+<HR>
+<H2 id="stuff">
 Related Resources
 </H2>
 Here are some related (free) tools that are handy, collected in one spot:
@@ -1468,11 +1482,12 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI>More Minecraft tools <a href="http://minecraft.gamepedia.com/Editors">here</a>.
 </UL>
 
-<h3 id="models">Stuff to Print</h3>
+<h3 id="models">Stuff to Print and Render</h3>
 Want something to try Mineways on? There are a number of sites with cool downloadable models and worlds, including:
 <UL>
 <LI><a href="http://www.planetminecraft.com/resources/projects/any/?order=order_popularity">Planet Minecraft projects</a> - all sorts of great stuff to print, sorted by popularity.
 <LI><a href="http://www.minecraftworldmap.com/">Minecraft World Map</a> has a large number of worlds and includes a nice Google Maps preview feature.
+<LI><a href="https://wiki.openstreetmap.org/wiki/Minecraft">Open Street Map</a> has a Minecraft-related page of resources. Many people have made all sorts of maps, including one of <a href="https://earth.motfe.net/">the entire earth</a>.
 </UL>
 You could get a copy of our world, <a href="http://vokselia.com/">Vokselia</a>. I've also got a <a href="http://www.shapeways.com/shops/mineways">Shapeways shop</a>, where you can view photos of different 3D prints and download the model files themselves. You could also buy any of these (though you should just make your own!).
 <P>
@@ -1536,6 +1551,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li>
 </ul>
 
+<HR>
 <h2 id="mcpe">Minecraft Bedrock Support</h2>
 
 Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_Edition">Java (aka Classic) Edition</a> worlds. Minecraft for Windows 10, also known as the <a href="https://minecraft.gamepedia.com/Bedrock_Edition">Bedrock Edition</a>, uses an entirely different database format for its worlds, called <a href="https://github.com/Mojang/leveldb-mcpe">LevelDB</a>. If your level.dat files are located in a directory with the path ..."\AppData\Local\Packages\Microsoft.Minecraft"... in it, or have weird directory names like "ZAD1Xfl9AAA=", that's a Bedrock Edition save. This section describes how to convert a Minecraft Bedrock world to a Minecraft Java Edition one so that Mineways can read it.
@@ -1567,10 +1583,12 @@ There are other, lesser converters out there. <a href="http://www.mcedit-unified
 <h3 id="structure_block">Structure Block Export</h3>
 You can also export 3D data from (only) the Bedrock Edition directly to a 3D model file format, the glTF binary format. Give yourself a structure block in Minecraft by typing the command "/give @s structure_block". Place this block near the area you want to export, then right-click it. <a href="https://minecraft.gamepedia.com/Structure_Block#3D_Export">A dialog comes up</a> in which you can specify the size of the export (never larger than 32x32x32, even if you set it higher), the offset, and the file name to export to, along with some other options. This file can then be viewed by the built-in Paint 3D program and be converted and loaded by many other programs in the <a href="https://www.khronos.org/gltf/">glTF ecosystem</a>.
 
+<HR>
 <h2 id="shortcuts">Keyboard Shortcut Keys</h2>
 The quick reference of handy shortcuts is <a href="reference.html#mak">here</a>, with the full list <a href="reference.html#shortcuts">here</a>.
 Most operations in Mineways can be done with the mouse: left button drag and mouse wheel for viewing, middle mouse click for setting the depth to whatever is at that location, right mouse selects a region to export. If you don't have a right mouse button, hold Control down and use the left mouse button. Instead of using the height sliders at the top, using the mousewheel with the Control key down changes the depth, with Shift down changes the max. height (this second mode can be slow, since the map is regenerated). More on mouse controls in the <a href="#select">Selection section</a>.
 
+<HR>
 <h2 id="blocks">Block Types Supported</h2>
 There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can be printed as is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
 <P>
@@ -2599,6 +2617,7 @@ Respawn Anchor
 
 </TABLE>
 
+<HR>
 <h2 id="versions">Version History</h2>
 <UL>
 <LI>Version 1.0, 12/24/2011 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV100.zip">exe</a>, <a href="http://realtimerendering.com/erich/minecraft/public/mineways/MinewaysSourceV100.rar">source</a>. Here's the <a href="https://www.reddit.com/r/Minecraft/comments/nphd1/i_finished_mineways_a_free_program_to_3d_print_or/">announcement on Reddit</a>.
@@ -3211,6 +3230,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Note: there is now <a href="https://github.com/TheWeirdSquid/Minecraft-Player-Head-Tools">an add-on for Blender</a> that fixes the <a href="https://github.com/erich666/Mineways/issues/13">"generic head" problem</a>.
 </UL>
 
+<P>
 <LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
@@ -3232,12 +3252,15 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Added a low-res version of <a href="http://lunahd.com">LunaHD</a> as an optional terrain file set for rendering.
 <LI>Added more menu items for specific help, and for <a href="textures.html#dl">the terrain file download area</a>.
 <LI>Reorganized the terrain file documentation and generally cleaned up and updated it.
+<LI>JG-RTX updated, and brick replaced with a less obvious repeat pattern.
+<LI>8.01a release: to avoid release fatigue, I've taken the unusual step of making an "01a" release. Changes: terrain file directory detection fix, small updates to docs, use PNG image crush on JG RTX to reduce download size.
 </UL>
 
 
 
 </UL>
 
+<HR>
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
@@ -3329,7 +3352,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/17/2020</p>
+		<p id="lastUpdate">Last updated 12/18/2020</p>
 	</div>
 </div>
 

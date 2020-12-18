@@ -452,6 +452,11 @@ int APIENTRY _tWinMain(
     GetModuleFileNameW(NULL, gExePath, MAX_PATH_AND_FILE);
     // strip out Mineways.exe from this path.
     splitToPathAndName(gExePath, gExeDirectory, gExe);
+#ifdef _DEBUG
+    // go to where TileMaker stores its terrainExt files.
+    wcscat_s(gExeDirectory, MAX_PATH_AND_FILE, L"\\..\\..\\TileMaker\\TileMaker");
+
+#endif
     // old, doesn't work right: GetCurrentDirectory(MAX_PATH_AND_FILE, gCurrentDirectory);
     // which sort of separator? If "\" found, use that one, else "/" assumed.
     if (wcschr(gExeDirectory, (wchar_t)'\\') != NULL) {
