@@ -153,7 +153,9 @@ static ExportFileData* gpEFD = NULL;
 
 static int gOverworldHideStatus = 0x0;
 
-static wchar_t gCurrentDirectory[MAX_PATH_AND_FILE];
+static wchar_t gExePath[MAX_PATH_AND_FILE];
+static wchar_t gExe[MAX_PATH_AND_FILE];
+static wchar_t gExeDirectory[MAX_PATH_AND_FILE];
 static wchar_t gWorldPathDefault[MAX_PATH_AND_FILE];
 static wchar_t gWorldPathCurrent[MAX_PATH_AND_FILE];
 
@@ -445,9 +447,14 @@ int APIENTRY _tWinMain(
     gMajorVersion = MINEWAYS_MAJOR_VERSION;
     gMinorVersion = MINEWAYS_MINOR_VERSION;
 
-    GetCurrentDirectory(MAX_PATH_AND_FILE, gCurrentDirectory);
+    // get location of executable,
+    // see https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew
+    GetModuleFileNameW(NULL, gExePath, MAX_PATH_AND_FILE);
+    // strip out Mineways.exe from this path.
+    splitToPathAndName(gExePath, gExeDirectory, gExe);
+    // old, doesn't work right: GetCurrentDirectory(MAX_PATH_AND_FILE, gCurrentDirectory);
     // which sort of separator? If "\" found, use that one, else "/" assumed.
-    if (wcschr(gCurrentDirectory, (wchar_t)'\\') != NULL) {
+    if (wcschr(gExeDirectory, (wchar_t)'\\') != NULL) {
         gPreferredSeparator = (wchar_t)'\\';
         gLesserSeparator = (wchar_t)'/';
     }
@@ -489,8 +496,8 @@ int APIENTRY _tWinMain(
     }
 
     // assume terrainExt.png is in .exe's directory to start
-    wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, gCurrentDirectory);
-    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
+    wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, gExeDirectory);
+    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gExeDirectory);
     wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), gPreferredSeparatorString);
     wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE - wcslen(gSelectTerrainPathAndName), L"terrainExt.png");
 
@@ -764,7 +771,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wchar_t colon[] = L":";
             if (wcschr(terrainFileName,colon[0])==NULL) {
                 // relative path, so add absolute path to current directory to front.
-                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gCurrentDirectory);
+                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gExeDirectory);
                 wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gPreferredSeparatorString);
                 wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
             }
@@ -1590,7 +1597,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             // Load terrain file from list that's real (not the default, which is IDM_DEFAULT_TERRAIN, below)
             wchar_t terrainLoc[MAX_PATH_AND_FILE];
-            wcscpy_s(terrainLoc, MAX_PATH_AND_FILE, gCurrentDirectory);
+            wcscpy_s(terrainLoc, MAX_PATH_AND_FILE, gExeDirectory);
             wcscat_s(terrainLoc, MAX_PATH_AND_FILE - wcslen(terrainLoc), gPreferredSeparatorString);
             if (gTerrainFiles[wmId - IDM_DEFAULT_TERRAIN] == NULL) {
                 wcscat_s(terrainLoc, MAX_PATH_AND_FILE - wcslen(terrainLoc), L"terrainExt.png");
@@ -3180,7 +3187,8 @@ static int loadWorldList(HMENU menu)
     wcscpy_s(saveFilesPath, MAX_PATH_AND_FILE, gWorldPathDefault);
 
     wchar_t msgString[1024];
-    wcscat_s(saveFilesPath, MAX_PATH_AND_FILE, L"/*");
+    wcscat_s(saveFilesPath, MAX_PATH_AND_FILE, gPreferredSeparatorString);
+    wcscat_s(saveFilesPath, MAX_PATH_AND_FILE, L"*");
     char outputString[1024];
     char pConverted[1024];
     int length = (int)wcslen(saveFilesPath) + 1;
@@ -3362,13 +3370,17 @@ static int loadTerrainList(HMENU menu)
     wchar_t msgString[1024];
     char outputString[1024];
     char pConverted[1024];
-    wcscpy_s(terrainSearch, MAX_PATH_AND_FILE, gCurrentDirectory);
+    wcscpy_s(terrainSearch, MAX_PATH_AND_FILE, gExeDirectory);
     wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), gPreferredSeparatorString);
     wcscat_s(terrainSearch, MAX_PATH_AND_FILE - wcslen(terrainSearch), L"terrainExt*.png");
     hFind = FindFirstFile(terrainSearch, &ffd);
-    size_t length = (int)wcslen(ffd.cFileName) + 1;
+    if (hFind == INVALID_HANDLE_VALUE) {
+        // done - no files found
+        return 0;
+    }
+    size_t length = (int)wcslen(terrainSearch) + 1;
     WcharToChar(terrainSearch, pConverted, (int)length);
-    sprintf_s(outputString, 1024, "    looking in %s\n", pConverted);
+    sprintf_s(outputString, 1024, "    looking for files %s\n", pConverted);
     LOG_INFO(gExecutionLogfile, outputString);
 
     // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
@@ -3799,7 +3811,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     gpEFD->radioScaleByCost = 0;
     gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
 
-    int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
+    int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
         updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
 
@@ -4275,7 +4287,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // redraw, in case the bounds were changed
         drawInvalidateUpdate(hWnd);
 
-        int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gCurrentDirectory,
+        int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
             updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
         deleteCommandBlockSet(gChangeBlockCommands);
