@@ -529,8 +529,24 @@ int wmain(int argc, wchar_t* argv[])
 	// if there's a grass_block_overlay, then do this equivalency
 	index = findTileIndex(L"grass_block_side_overlay", false);
 	assert(index >= 0);
+	int prevProcessed;
 	if (gFG.fr[index].exists) {
+		prevProcessed = filesProcessed;
 		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
+		if (prevProcessed != filesProcessed) {
+			wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so one was shared with the other.\n");
+			gWarningCount++;
+		}
+	}
+	else {
+		// grass_block_side_overlay does not exist, so test if grass_block_side does: if so, then replace grass_block_side into grass_block_side_overlay.
+		// Mineways itself should handle this substitution properly.
+		prevProcessed = filesProcessed;
+		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"grass_block_side_overlay");
+		if (prevProcessed != filesProcessed) {
+			wprintf(L"WARNING: the grass_block_side_overlay does not exist, so the grass_block_side texture replaces it.\n");
+			gWarningCount++;
+		}
 	}
 
 	// if there are _n and _normal textures for the same tile, favor the _n textures
@@ -557,6 +573,42 @@ int wmain(int argc, wchar_t* argv[])
 	// get "root" of output file, i.e., without '.png', for ease of writing the PBR output files
 	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
 	removePNGsuffix(terrainExtOutputRoot);
+
+	// Warn of tiles where the color tile is missing but another was found for the tile type
+	for (index = 0; index < gFG.totalTiles; index++) {
+		// does color tile exist?
+		if (!gFG.fr[index].exists) {
+			// does not exist, so see if other non-color tiles do exist
+			boolean foundMismatch = false;
+			for (int testType = 0; testType < 4; testType++) {
+				int compareIndex;
+				switch (testType) {
+				default:
+				case 0:
+					compareIndex = CATEGORY_NORMALS * gFG.totalTiles + index;
+					break;
+				case 1:
+					compareIndex = CATEGORY_METALLIC * gFG.totalTiles + index;
+					break;
+				case 2:
+					compareIndex = CATEGORY_EMISSION * gFG.totalTiles + index;
+					break;
+				case 3:
+					compareIndex = CATEGORY_ROUGHNESS * gFG.totalTiles + index;
+					break;
+				}
+				if (gFG.fr[compareIndex].exists) {
+					wprintf(L"%sRGB MISSING WARNING: File '%s' exists but there is no corresponding color file.\n",
+						(foundMismatch ? L"  and ":L""), gFG.fr[compareIndex].fullFilename);
+					gWarningCount++;
+					if (!foundMismatch) {
+						foundMismatch = true;
+						wprintf(L"    Perhaps the color file is in a TGA file? You'll need to convert it to a PNG file.\n");
+					}
+				}
+			}
+		}
+	}
 
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
@@ -1018,6 +1070,8 @@ void printHelp()
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
 }
 
+// Shares textures found, as possible. If both or neither exist, nothing to do.
+// If only one exists, copy it to the other.
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 {
 	int index1 = findTileIndex(tile1, false);
