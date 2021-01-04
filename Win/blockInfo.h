@@ -427,8 +427,8 @@ typedef struct Options {
 // for ColorSchemes, needed to have ColorScheme code not break for now. TODO: fix this code
 #define NUM_BLOCKS_CS	256
 
-// absolute max the 2x2 * 16x16 space of swatches could have (without borders)
-#define NUM_MAX_SWATCHES (4*16*16)
+// absolute max the 4x4 * 16x16 space that tiles could have (without borders)
+#define NUM_MAX_SWATCHES (4*4*16*16)
 
 
 

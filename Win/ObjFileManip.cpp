@@ -17584,6 +17584,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0xf) {
                     default:
                         assert(0);
+                    case 1:
+                        // unused, but it's in some worlds, so this case ignores it instead of asserting.
                     case 2: // north
                         yrot = 0.0f;
                         break;
@@ -19150,6 +19152,7 @@ static void saveRectangleTextureUVs(int swatchLoc, int type, float minu, float m
 static int saveTextureUV(int swatchLoc, int type, float u, float v)
 {
     int i;
+    assert(swatchLoc < NUM_MAX_SWATCHES);
     int count = gModel.uvSwatches[swatchLoc].count;
     UVRecord* uvr = gModel.uvSwatches[swatchLoc].records;
 
@@ -19221,7 +19224,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
     // Multiple types can be associated with the same swatchLoc, we just save the last one (often the most
-    // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output. 
+    // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output.
     gModel.uvSwatchToType[swatchLoc] = type;
 
     return uvr->index;
