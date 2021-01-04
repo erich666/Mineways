@@ -2136,14 +2136,14 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     // have to reinitialize to get right globals for gSolidWorldBox.
     initializeWorldData(worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z]);
 
-    gBoxData = (BoxCell*)malloc(gBoxSizeXYZ * sizeof(BoxCell));
+    gBoxData = (BoxCell*)calloc(gBoxSizeXYZ, sizeof(BoxCell));
     if (gBoxData == NULL)
     {
         return MW_WORLD_EXPORT_TOO_LARGE;
     }
 
     // set all values to "air", 0, etc.
-    memset(gBoxData, 0x0, gBoxSizeXYZ * sizeof(BoxCell));
+    //memset(gBoxData, 0x0, gBoxSizeXYZ * sizeof(BoxCell));
 
     if (gModel.options->exportFlags & EXPT_BIOME)
     {

@@ -7701,10 +7701,10 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
         is.errorMessagesStringSize *= 2;
         // just to be really really sure, add some more
         is.errorMessagesStringSize += addlength;
-        wchar_t* oldStr = is.errorMessages;
-        is.errorMessages = (wchar_t*)malloc(is.errorMessagesStringSize * sizeof(wchar_t));
-        memcpy(is.errorMessages, oldStr, (oldlength + 1) * sizeof(wchar_t));
-        free(oldStr);
+        //wchar_t* oldStr = is.errorMessages;
+        is.errorMessages = (wchar_t*)realloc(is.errorMessages, is.errorMessagesStringSize * sizeof(wchar_t));
+        //memcpy(is.errorMessages, oldStr, (oldlength + 1) * sizeof(wchar_t));
+        //free(oldStr);
     }
     // append error message
     // If error does not start with "Error" or "Warning" then add this, and line number.
