@@ -428,6 +428,7 @@ typedef struct Options {
 #define NUM_BLOCKS_CS	256
 
 // absolute max the 4x4 * 16x16 space that tiles could have (without borders)
+// TODO: memory-wise, might be better to alloc and realloc as needed, as this is now 4096 in size
 #define NUM_MAX_SWATCHES (4*4*16*16)
 
 

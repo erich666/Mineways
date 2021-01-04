@@ -7355,8 +7355,8 @@ static void cleanStringForLocations(char* cleanString, char* strPtr)
 // by default, assume nothing is set
 static void createCB(ImportedSet& is)
 {
-    ChangeBlockCommand* pCBC = (ChangeBlockCommand*)malloc(sizeof(ChangeBlockCommand));
-    memset(pCBC, 0, sizeof(ChangeBlockCommand));
+    ChangeBlockCommand* pCBC = (ChangeBlockCommand*)calloc(1, sizeof(ChangeBlockCommand));
+    //memset(pCBC, 0, sizeof(ChangeBlockCommand));
 
     if (is.pCBChead == NULL) {
         // this is the first CBC, so save the first command there
@@ -7445,8 +7445,8 @@ static void saveCBinto(ChangeBlockCommand* pCBC, unsigned char intoType, unsigne
 
 static void addDataBitsArray(ChangeBlockCommand* pCBC)
 {
-    pCBC->fromDataBitsArray = (unsigned short*)malloc(256 * sizeof(unsigned short));
-    memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
+    pCBC->fromDataBitsArray = (unsigned short*)calloc(256, sizeof(unsigned short));
+    //memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6])

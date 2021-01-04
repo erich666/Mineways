@@ -89,8 +89,8 @@ void Cache_Add(int bx, int bz, void* data)
     block_entry* to_del = NULL;
 
     if (gBlockCache == NULL) {
-        gBlockCache = (block_entry**)malloc(sizeof(block_entry*) * HASH_SIZE);
-        memset(gBlockCache, 0, sizeof(block_entry*) * HASH_SIZE);
+        gBlockCache = (block_entry**)calloc(HASH_SIZE, sizeof(block_entry*));
+        //memset(gBlockCache, 0, sizeof(block_entry*) * HASH_SIZE);
         gCacheHistory = (IPoint2*)malloc(sizeof(IPoint2) * gHashMaxEntries);
         gCacheN = 0;
     }
