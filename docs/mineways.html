@@ -1420,9 +1420,9 @@ If you want to make a 3D print of a model, the easiest way is to use a 3D print 
 <H3 id="shapeways">Shapeways</H3><p>
 <a href="https://www.shapeways.com"><img id="productLogo" src="images/shapeways_icon.jpg" alt="Shapeways icon"></a>
 <P>
-After <a href="http://www.shapeways.com/register">creating an account</a> (and <a href="http://www.shapeways.com/myshop">creating a shop</a>), go to the <a href="http://www.shapeways.com/upload/">upload page</a>. Choose a file for upload - <B>you must pick the .ZIP file for your model</B> that you created with Mineways, using 3D print export, e.g., "mymodel.wrl.zip". You also don't need to change the Unit of Measure: "millimeters" is the default and is what Mineways always outputs. Push the upload button.
+After <a href="http://www.shapeways.com/register">creating an account</a> (and <a href="http://www.shapeways.com/myshop">creating a shop</a>), go to the <a href="http://www.shapeways.com/upload/">upload page</a>. Or, if you go through the Shapeways site in other ways, choose "Get a quote." Choose a file for upload - <B>you must pick the .ZIP file for your model</B> that you created with Mineways, using 3D print export, e.g., "mymodel.wrl.zip". You also don't need to change the Unit of Measure: "millimeters" is the default and is what Mineways always outputs. Push the upload button.
 <P>
-Once you've uploaded, you will be taken to the model's page. Here you can preview the model in the window to make sure it looks correct. You can also order from this page by choosing the material. For a full color print you want to find "Natural (or Glossy, or Matte) Full Color Sandstone." If the material is not selectable, there may be a problem with your model. Select "Tools" near the top, just under "Bring your product to life" and choose "Open in 3D tools." You can now select the material you want and the page will show you exactly what test is failing, such as wall thickness or bounding box (model size).
+Once you've uploaded, you can preview the model in the window to make sure it looks correct. You can also order from this page by choosing the material. For a full color print you want to pick "Sandstone", the last material on the list. For options, choose "Full Color" and then, your choice, "Glossy" or "Natural." If the material is not selectable, there may be a problem with your model. Select "Tools" near the top, next to the name of your file. You can now select the material you want and the page will show you exactly what test is failing, such as wall thickness or bounding box (model size).
 <P>
 Note there's a fixed cost per order. Be careful, however: you normally cannot cancel your order once placed. After you've made an order, the waiting begins, sometimes 2-3 weeks.
 <P>
@@ -3251,6 +3251,14 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 </UL>
 
 
+<LI>Version 8.02, 1/7/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Make array for swatch UVs larger, to avoid crash when exporting large 3D prints.
+<LI>Internal: change mallocs to callocs for slightly better and more readable code.
+</UL>
+
+
 
 </UL>
 
@@ -3345,7 +3353,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/28/2020</p>
+		<p id="lastUpdate">Last updated 1/3/2021</p>
 	</div>
 </div>
 

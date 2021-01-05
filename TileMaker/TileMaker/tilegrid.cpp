@@ -142,11 +142,11 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 							wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
 						}
 					}
-					// if TGA, note it if corresponding PNG not found
-					else if (isTGAfile(ffd.cFileName)) {
+					// if TGA or JPG, note it if corresponding PNG not found
+					else if (isTGAorJPGfile(ffd.cFileName)) {
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
-						if (removeTGAsuffix(tileName)) {
+						if (removeTGAorJPGsuffix(tileName)) {
 							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 							assert(category >= 0);
 							int index = findTileIndex(tileName, alternate);
@@ -155,10 +155,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 								if (!pfg->fr[fullIndex].exists) {
 									// not a duplicate, so warn - may be a false warning, as the PNG file could be further down the list of files returned. TODO
 									if (verbose) {
-										wprintf(L"TGA WARNING: The file '%s' in directory '%s' is a TGA file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker does not process TGA files.\n", ffd.cFileName, tilePath);
+										wprintf(L"IMAGE WARNING: The file '%s' in directory '%s' is not a PNG file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", ffd.cFileName, tilePath);
 									}
 									else {
-										wprintf(L"TGA WARNING: The file '%s' is a TGA file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker does not process TGA files.\n", ffd.cFileName);
+										wprintf(L"IMAGE WARNING: The file '%s' is not a PNG file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", ffd.cFileName);
 									}
 								}
 							}
@@ -376,24 +376,24 @@ boolean isPNGfile(wchar_t* name)
 	return false;
 }
 
-boolean removeTGAsuffix(wchar_t* name)
+boolean removeTGAorJPGsuffix(wchar_t* name)
 {
 	// check for .tga suffix - note test is case insensitive
 	int len = (int)wcslen(name);
-	if (len > 4 && _wcsicmp(&name[len - 4], L".tga") == 0)
+	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0)))
 	{
-		// remove .png suffix
+		// remove .tga or .jpg suffix
 		name[len - 4] = 0x0;
 		return true;
 	}
 	return false;
 }
 
-boolean isTGAfile(wchar_t* name)
+boolean isTGAorJPGfile(wchar_t* name)
 {
 	// check for .png suffix - note test is case insensitive
 	int len = (int)wcslen(name);
-	if (len > 4 && _wcsicmp(&name[len - 4], L".tga") == 0)
+	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0)))
 	{
 		return true;
 	}

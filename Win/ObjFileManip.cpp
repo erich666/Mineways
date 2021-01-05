@@ -2136,25 +2136,25 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     // have to reinitialize to get right globals for gSolidWorldBox.
     initializeWorldData(worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z]);
 
-    gBoxData = (BoxCell*)malloc(gBoxSizeXYZ * sizeof(BoxCell));
+    gBoxData = (BoxCell*)calloc(gBoxSizeXYZ, sizeof(BoxCell));
     if (gBoxData == NULL)
     {
         return MW_WORLD_EXPORT_TOO_LARGE;
     }
 
     // set all values to "air", 0, etc.
-    memset(gBoxData, 0x0, gBoxSizeXYZ * sizeof(BoxCell));
+    //memset(gBoxData, 0x0, gBoxSizeXYZ * sizeof(BoxCell));
 
     if (gModel.options->exportFlags & EXPT_BIOME)
     {
-        gBiome = (unsigned char*)malloc(gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
+        gBiome = (unsigned char*)calloc(gBoxSize[X] * gBoxSize[Z], sizeof(unsigned char));
         if (gBiome == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
 
         // set all biome values to "plains"
-        memset(gBiome, 0x1, gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
+        //memset(gBiome, 0x1, gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
     }
 
     // Now actually copy the relevant data over to the newly-allocated box data grid.
@@ -2907,13 +2907,13 @@ static int filterBox(ChangeBlockCommand* pCBC)
 
             int foundTouching = 0;
             gGroupListSize = 200;
-            gGroupList = (BoxGroup*)malloc(gGroupListSize * sizeof(BoxGroup));
+            gGroupList = (BoxGroup*)calloc(gGroupListSize, sizeof(BoxGroup));
             if (gGroupList == NULL)
             {
                 return retCode | MW_WORLD_EXPORT_TOO_LARGE;
             }
 
-            memset(gGroupList, 0, gGroupListSize * sizeof(BoxGroup));
+            //memset(gGroupList, 0, gGroupListSize * sizeof(BoxGroup));
             gGroupCount = 0;
 
             static bool showCoat = false;
@@ -12845,8 +12845,8 @@ static int fixTouchingEdges()
     //int maxVal;
 
     // big allocation, not much to be done about it.
-    gTouchGrid = (TouchCell*)malloc(gBoxSizeXYZ * sizeof(TouchCell));
-    memset((void*)gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
+    gTouchGrid = (TouchCell*)calloc(gBoxSizeXYZ, sizeof(TouchCell));
+    //memset((void*)gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
 
     gTouchSize = 0;
 
@@ -13068,8 +13068,8 @@ static int fixTouchingEdges()
             if (faceGroupIDCount > 1)
             {
                 IBox bounds;
-                int* neighborGroups = (int*)malloc((gGroupCount + 1) * sizeof(int));
-                memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
+                int* neighborGroups = (int*)calloc((gGroupCount + 1), sizeof(int));
+                //memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
 
                 gStats.solidGroupsMerged += (faceGroupIDCount - 1);
                 gSolidGroups -= (faceGroupIDCount - 1);
@@ -13596,8 +13596,8 @@ static void deleteFloatingGroups()
             if (deleteGroup)
             {
                 assert(i == pGroup->groupID);
-                neighborGroups = (int*)malloc((gGroupCount + 1) * sizeof(int));
-                memset((void*)neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
+                neighborGroups = (int*)calloc((gGroupCount + 1), sizeof(int));
+                //memset((void*)neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
                 neighborGroups[i] = 1;
                 gStats.blocksFloaterDeleted += pGroup->population;
                 fillGroups(&(pGroup->bounds), SURROUND_AIR_GROUP, false, BLOCK_AIR, neighborGroups);
@@ -13815,8 +13815,8 @@ static void hollowBottomOfModel()
     int* listToChange = (int*)malloc((gSolidBox.max[X] - gSolidBox.min[X] + 1) * (gSolidBox.max[Z] - gSolidBox.min[Z] + 1) * sizeof(int));
 
     int hollowListSize = gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char);
-    unsigned char* hollowDone = (unsigned char*)malloc(hollowListSize);
-    memset(hollowDone, 0, hollowListSize);
+    unsigned char* hollowDone = (unsigned char*)calloc(hollowListSize, sizeof(unsigned char));
+    //memset(hollowDone, 0, hollowListSize);
 
     assert(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] > 0.0f);
     gHollowBlockThickness = (int)(ceil(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] * MM_TO_METERS / gModel.scale));
@@ -17584,6 +17584,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0xf) {
                     default:
                         assert(0);
+                    case 1:
+                        // unused, but it's in some worlds, so this case ignores it instead of asserting.
                     case 2: // north
                         yrot = 0.0f;
                         break;
@@ -19150,6 +19152,7 @@ static void saveRectangleTextureUVs(int swatchLoc, int type, float minu, float m
 static int saveTextureUV(int swatchLoc, int type, float u, float v)
 {
     int i;
+    assert(swatchLoc < NUM_MAX_SWATCHES);
     int count = gModel.uvSwatches[swatchLoc].count;
     UVRecord* uvr = gModel.uvSwatches[swatchLoc].records;
 
@@ -19221,7 +19224,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
     // Multiple types can be associated with the same swatchLoc, we just save the last one (often the most
-    // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output. 
+    // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output.
     gModel.uvSwatchToType[swatchLoc] = type;
 
     return uvr->index;

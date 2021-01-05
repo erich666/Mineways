@@ -7355,8 +7355,8 @@ static void cleanStringForLocations(char* cleanString, char* strPtr)
 // by default, assume nothing is set
 static void createCB(ImportedSet& is)
 {
-    ChangeBlockCommand* pCBC = (ChangeBlockCommand*)malloc(sizeof(ChangeBlockCommand));
-    memset(pCBC, 0, sizeof(ChangeBlockCommand));
+    ChangeBlockCommand* pCBC = (ChangeBlockCommand*)calloc(1, sizeof(ChangeBlockCommand));
+    //memset(pCBC, 0, sizeof(ChangeBlockCommand));
 
     if (is.pCBChead == NULL) {
         // this is the first CBC, so save the first command there
@@ -7445,8 +7445,8 @@ static void saveCBinto(ChangeBlockCommand* pCBC, unsigned char intoType, unsigne
 
 static void addDataBitsArray(ChangeBlockCommand* pCBC)
 {
-    pCBC->fromDataBitsArray = (unsigned short*)malloc(256 * sizeof(unsigned short));
-    memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
+    pCBC->fromDataBitsArray = (unsigned short*)calloc(256, sizeof(unsigned short));
+    //memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6])
@@ -7701,10 +7701,10 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
         is.errorMessagesStringSize *= 2;
         // just to be really really sure, add some more
         is.errorMessagesStringSize += addlength;
-        wchar_t* oldStr = is.errorMessages;
-        is.errorMessages = (wchar_t*)malloc(is.errorMessagesStringSize * sizeof(wchar_t));
-        memcpy(is.errorMessages, oldStr, (oldlength + 1) * sizeof(wchar_t));
-        free(oldStr);
+        //wchar_t* oldStr = is.errorMessages;
+        is.errorMessages = (wchar_t*)realloc(is.errorMessages, is.errorMessagesStringSize * sizeof(wchar_t));
+        //memcpy(is.errorMessages, oldStr, (oldlength + 1) * sizeof(wchar_t));
+        //free(oldStr);
     }
     // append error message
     // If error does not start with "Error" or "Warning" then add this, and line number.
