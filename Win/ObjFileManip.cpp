@@ -527,13 +527,18 @@ typedef struct TouchRecord {
 // for USD
 typedef struct OutDataArrays
 {
-    int     nverts;
+    int vertsize; // size of arrays that follow, x3 or x2 as needed
     Point* points;
     Point* normals;
     Point2* uvs;
+    int vertCount;  // actual number of vertices currently stored
     int* indices;
-    int     nfaces;
+    int facesize; // size of array
     int* faceVertexCounts;
+    int faceCount;  // actual number of faces currently stored
+    int splitsize; // size of array
+    int* splitMeshFaces;
+    int splitCount; // actual number of spans in array above
 } OutDataArrays;
 
 OutDataArrays   gOutData;
@@ -694,7 +699,7 @@ static int openUSDFile(wchar_t* destination);
 static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD();
 static int createMeshesUSD();
-static boolean allocOutData(int nverts, int nfaces);
+static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
@@ -22545,6 +22550,46 @@ static int finishCommentsUSD()
     return 0;
 }
 
+static void allocSplitSize(int splitsize)
+{
+    if (gOutData.splitsize < splitsize) {
+        if (gOutData.splitsize > 0) {
+            free(gOutData.splitMeshFaces);
+            gOutData.splitMeshFaces = NULL;
+        }
+        gOutData.splitsize = 2 * splitsize;
+        gOutData.splitMeshFaces = (int*)malloc(gOutData.splitsize * sizeof(int));
+    }
+}
+
+// return number of splits
+static int strategizeMeshSplits(int strategy, int adjuster)
+{
+    gOutData.splitCount = 0;
+    if (strategy == 0) {
+        return 0;
+    }
+    if (strategy == 1) {
+        // constant number of faces split - split after N faces
+        gOutData.splitCount = 1 + ((gOutData.faceCount-1) / adjuster);
+        if (gOutData.splitCount <= 1) {
+            // don't split - not enough faces
+            gOutData.splitCount = 0;
+            return 0;
+        }
+        // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+        allocSplitSize(gOutData.splitCount);
+        int numLeft = gOutData.faceCount;
+        for (int i = 0; i < gOutData.splitCount; i++) {
+            gOutData.splitMeshFaces[i] = adjuster < numLeft ? adjuster : numLeft;
+            numLeft -= adjuster;
+        }
+        return gOutData.splitCount;
+    }
+    assert(0);  // bad strategy number
+    return 0;
+}
+
 // Multiplatform array size
 #define HW_ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
 
@@ -22561,7 +22606,7 @@ static int createMeshesUSD()
 
     float resScale = 16.0f / gModel.tileSize;
 
-    gOutData.nverts = gOutData.nfaces = 0;
+    gOutData.vertsize = gOutData.facesize = 0;
 
     // update progress bar every 4%
     int progressIncrement = 1 + (int)((float)gModel.faceCount / 25.0f);
@@ -22618,54 +22663,132 @@ static int createMeshesUSD()
             }
         }
 
-        // output mesh's arrays
-        sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startRun?"\n":"", mtlName);
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        int strategy = 0;
 
-        strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        for (i = 0; i < numFaces; i++) {
-            sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+        // this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
+        (void)strategizeMeshSplits(strategy, 6);
+
+        if (gOutData.splitCount <= 1) {
+
+            // output mesh's arrays
+            sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startRun ? "\n" : "", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
 
-        strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
+            strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
+            for (i = 0; i < numFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
 
-        sprintf_s(outputString, 256, "        rel material:binding = </Looks/%s>\n", mtlName);
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-        strcpy_s(outputString, 256, "        normal3f[] normals = [");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
+            for (i = 0; i < numVerts; i++) {
+                sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
 
-        // if we're writing out a huge array, take a moment and update the progress
-        if (nextStart - startRun > 10000)
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)nextStart / (float)gModel.faceCount));
-
-        strcpy_s(outputString, 256, "        point3f[] points = [");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            sprintf_s(outputString, 256, "        rel material:binding = </Looks/%s>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
 
-        strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+            strcpy_s(outputString, 256, "        normal3f[] normals = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
+            for (i = 0; i < numVerts; i++) {
+                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
 
-        strcpy_s(outputString, 256, "    }\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            // if we're writing out a huge array, take a moment and update the progress
+            if (nextStart - startRun > 10000)
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)nextStart / (float)gModel.faceCount));
+
+            strcpy_s(outputString, 256, "        point3f[] points = [");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            for (i = 0; i < numVerts; i++) {
+                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+
+            strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            for (i = 0; i < numVerts; i++) {
+                sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+
+            strcpy_s(outputString, 256, "    }\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        }
+        else {
+            int startFace = 0;
+            int startVertex = 0;
+
+            for (int m = 0; m < gOutData.splitCount; m++) {
+
+                // get the number of faces and vertices that we'll output for this split
+                int numSegFaces = gOutData.splitMeshFaces[m];
+                int numSegVertices = 0;
+
+                // output mesh's arrays
+                sprintf_s(outputString, 256, "%s    def Mesh \"%s__%d\"\n    {\n", startRun ? "\n" : "", mtlName, m);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                for (i = 0; i < numSegFaces; i++) {
+                    sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i+startFace], (i == numSegFaces - 1) ? "]\n" : ", ");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                    // we also use this loop to count up how many vertices we'll output
+                    numSegVertices += gOutData.faceVertexCounts[i];
+                }
+
+                strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                for (i = 0; i < numSegVertices; i++) {
+                    // we could really just substitute "i" for the whole gOutData.indices list, since this is always 0,1,2,3...
+                    // but, do this way, just in case
+                    sprintf_s(outputString, 256, "%d%s", gOutData.indices[i+startVertex]-startVertex, (i == numSegVertices - 1) ? "]\n" : ", ");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+
+                sprintf_s(outputString, 256, "        rel material:binding = </Looks/%s>\n", mtlName);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                strcpy_s(outputString, 256, "        normal3f[] normals = [");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                for (i = 0; i < numSegVertices; i++) {
+                    sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i + startVertex][X], gOutData.normals[i + startVertex][Y], gOutData.normals[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+
+                // if we're writing out a huge array, take a moment and update the progress
+                if (nextStart - startRun > 10000)
+                    UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)nextStart / (float)gModel.faceCount));
+
+                strcpy_s(outputString, 256, "        point3f[] points = [");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                for (i = 0; i < numSegVertices; i++) {
+                    sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+
+                strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                for (i = 0; i < numSegVertices; i++) {
+                    sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i + startVertex][X], gOutData.uvs[i + startVertex][Y], (i == numSegVertices - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+
+                strcpy_s(outputString, 256, "    }\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                // compute next starting locations
+                startVertex += numSegVertices;
+                startFace += numSegFaces;
+            }
+        }
 
         // go to next group
         startRun = nextStart;
@@ -22677,10 +22800,10 @@ static int createMeshesUSD()
 }
 
 // TODO: we return false when out of memory, but don't do anything about it (really, a problem throughout the code...)
-static boolean allocOutData(int nverts, int nfaces)
+static boolean allocOutData(int numVerts, int numFaces)
 {
-    if (gOutData.nverts < nverts) {
-        if (gOutData.nverts > 0) {
+    if (gOutData.vertsize < numVerts) {
+        if (gOutData.vertsize > 0) {
             free(gOutData.points);
             free(gOutData.normals);
             free(gOutData.uvs);
@@ -22690,20 +22813,23 @@ static boolean allocOutData(int nverts, int nfaces)
             gOutData.uvs = NULL;
             gOutData.indices = NULL;
         }
-        gOutData.nverts = 2 * nverts + 100;
-        gOutData.points = (Point*)malloc(gOutData.nverts * sizeof(Point));
-        gOutData.normals = (Point*)malloc(gOutData.nverts * sizeof(Point));
-        gOutData.uvs = (Point2*)malloc(gOutData.nverts * sizeof(Point2));
-        gOutData.indices = (int*)malloc(gOutData.nverts * sizeof(int));
+        gOutData.vertsize = 2 * numVerts + 100;
+        gOutData.points = (Point*)malloc(gOutData.vertsize * sizeof(Point));
+        gOutData.normals = (Point*)malloc(gOutData.vertsize * sizeof(Point));
+        gOutData.uvs = (Point2*)malloc(gOutData.vertsize * sizeof(Point2));
+        gOutData.indices = (int*)malloc(gOutData.vertsize * sizeof(int));
     }
-    if (gOutData.nfaces < nfaces) {
-        if (gOutData.nfaces > 0) {
+    if (gOutData.facesize < numFaces) {
+        if (gOutData.facesize > 0) {
             free(gOutData.faceVertexCounts);
             gOutData.faceVertexCounts = NULL;
         }
-        gOutData.nfaces = 2 * nfaces + 100;
-        gOutData.faceVertexCounts = (int*)malloc(gOutData.nfaces * sizeof(int));
+        gOutData.facesize = 2 * numFaces + 100;
+        gOutData.faceVertexCounts = (int*)malloc(gOutData.facesize * sizeof(int));
     }
+    // store the number of verts and faces now - we'll fill them in right after
+    gOutData.vertCount = numVerts;
+    gOutData.faceCount = numFaces;
     return ((gOutData.points != NULL) &&
         (gOutData.normals != NULL) &&
         (gOutData.uvs != NULL) &&
@@ -22713,7 +22839,7 @@ static boolean allocOutData(int nverts, int nfaces)
 
 static void freeOutData()
 {
-    if (gOutData.nverts > 0) {
+    if (gOutData.vertsize > 0) {
         free(gOutData.points);
         free(gOutData.normals);
         free(gOutData.uvs);
@@ -22723,12 +22849,19 @@ static void freeOutData()
         gOutData.uvs = NULL;
         gOutData.indices = NULL;
     }
-    gOutData.nverts = 0;
-    if (gOutData.nfaces > 0) {
+    gOutData.vertsize = 0;
+    if (gOutData.facesize > 0) {
         free(gOutData.faceVertexCounts);
         gOutData.faceVertexCounts = NULL;
     }
-    gOutData.nfaces = 0;
+    gOutData.facesize = 0;
+    if (gOutData.splitsize > 0) {
+        free(gOutData.splitMeshFaces);
+        gOutData.splitMeshFaces = NULL;
+    }
+    gOutData.splitsize = 0;
+    // and just for safety's sake
+    gOutData.vertCount = gOutData.faceCount = gOutData.splitCount = 0;
 }
 
 //static int createCameraUSD()
