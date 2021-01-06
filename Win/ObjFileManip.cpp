@@ -22550,41 +22550,139 @@ static int finishCommentsUSD()
     return 0;
 }
 
-static void allocSplitSize(int splitsize)
+static void reallocSplitSize(int splitsize)
 {
     if (gOutData.splitsize < splitsize) {
+
         if (gOutData.splitsize > 0) {
+            // realloc
+            gOutData.splitsize = splitsize * 2;
+            int *splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
+            memcpy(splitMeshFaces, gOutData.splitMeshFaces, gOutData.splitCount * sizeof(int));
             free(gOutData.splitMeshFaces);
-            gOutData.splitMeshFaces = NULL;
+            gOutData.splitMeshFaces = splitMeshFaces;
         }
-        gOutData.splitsize = 2 * splitsize;
-        gOutData.splitMeshFaces = (int*)malloc(gOutData.splitsize * sizeof(int));
+        else {
+            // alloc
+            gOutData.splitsize = 100;
+            gOutData.splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
+        }
     }
+}
+
+static void initializeBox(Box& b)
+{
+    Vec3Scalar(b.min, =, 1e20f, 1e20f, 1e20f);
+    Vec3Scalar(b.max, =, -1e20f, -1e20f, -1e20f);
+}
+
+static void increaseBoxByBox(Box& b, Box& binc)
+{
+    Vec3Scalar(b.min, =, (b.min[X] < binc.min[X]) ? b.min[X] : binc.min[X], (b.min[Y] < binc.min[Y]) ? b.min[Y] : binc.min[Y], (b.min[Z] < binc.min[Z]) ? b.min[Z] : binc.min[Z]);
+    Vec3Scalar(b.max, =, (b.max[X] > binc.max[X]) ? b.max[X] : binc.max[X], (b.max[Y] > binc.max[Y]) ? b.max[Y] : binc.max[Y], (b.max[Z] > binc.max[Z]) ? b.max[Z] : binc.max[Z]);
+}
+
+static void increaseBoxByVertex(Box& b, Point& p)
+{
+    Vec3Scalar(b.min, =, (b.min[X] < p[X]) ? b.min[X] : p[X], (b.min[Y] < p[Y]) ? b.min[Y] : p[Y], (b.min[Z] < p[Z]) ? b.min[Z] : p[Z]);
+    Vec3Scalar(b.max, =, (b.max[X] > p[X]) ? b.max[X] : p[X], (b.max[Y] > p[Y]) ? b.max[Y] : p[Y], (b.max[Z] > p[Z]) ? b.max[Z] : p[Z]);
+}
+
+static boolean boxesOverlapWithMargin(Box& b, Box& binc, float margin)
+{
+    // is either box empty? Auto overlap
+    if (b.min[X] > b.max[X] || binc.min[X] > binc.max[X]) {
+        return true;
+    }
+    if ((b.min[X] - margin <= binc.max[X]) &&
+        (b.min[Y] - margin <= binc.max[Y]) &&
+        (b.min[Z] - margin <= binc.max[Z]) &&
+        (b.max[X] + margin >= binc.min[X]) &&
+        (b.max[Y] + margin >= binc.min[Y]) &&
+        (b.max[Z] + margin >= binc.min[Z])) {
+        return true;
+    }
+    return false;
 }
 
 // return number of splits
 static int strategizeMeshSplits(int strategy, int adjuster)
 {
     gOutData.splitCount = 0;
-    if (strategy == 0) {
+    switch (strategy) {
+    case 0:
+        // do nothing
         return 0;
-    }
-    if (strategy == 1) {
-        // constant number of faces split - split after N faces
-        gOutData.splitCount = 1 + ((gOutData.faceCount-1) / adjuster);
-        if (gOutData.splitCount <= 1) {
-            // don't split - not enough faces
+        break;
+    case 1:
+        {
+            // constant number of faces split - split after N faces
+            gOutData.splitCount = 1 + ((gOutData.faceCount - 1) / adjuster);
+            if (gOutData.splitCount <= 1) {
+                // don't split - not enough faces
+                gOutData.splitCount = 0;
+                return 0;
+            }
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numLeft = gOutData.faceCount;
+            for (int i = 0; i < gOutData.splitCount; i++) {
+                gOutData.splitMeshFaces[i] = adjuster < numLeft ? adjuster : numLeft;
+                numLeft -= adjuster;
+            }
+            return gOutData.splitCount;
+        }
+        break;
+    case 2:
+        {
+            // if the next face is outside the bounding volume by more than the adjuster value, split there
+            Box sumbvh, curbvh;
+            initializeBox(sumbvh);
+            // algorithm:
+            // form a BVH from the first and from successive faces.
+            // Does this BVH overlap the previous (possibly null) BVH? Include the "adjuster" tolerance.
+            // If so, add face to list. If not, split and restart BVHs.
+
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numFaces = 0;
+            int splitCount = 0;
+            int currentFaceIndex = 0;
             gOutData.splitCount = 0;
-            return 0;
+            for (int i = 0; i < gOutData.faceCount; i++) {
+                initializeBox(curbvh);
+                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
+                    // add each vertex to the current box
+                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f+currentFaceIndex]]);
+                }
+                // does box for face overlap "summed" box (which could be emptry)?
+                if (boxesOverlapWithMargin(sumbvh, curbvh, (float)adjuster)) {
+                    // add face to list
+                    numFaces++;
+                    increaseBoxByBox(sumbvh, curbvh);
+                }
+                else {
+                    assert(numFaces > 0);
+                    reallocSplitSize(splitCount+1);
+                    gOutData.splitMeshFaces[splitCount] = numFaces;
+                    splitCount++;
+                    gOutData.splitCount = splitCount;
+                    numFaces = 1;
+                    sumbvh = curbvh;
+                }
+                currentFaceIndex += gOutData.faceVertexCounts[i];
+            }
+            // final one, if there should be any
+            if (splitCount>0) {
+                reallocSplitSize(splitCount + 1);
+                gOutData.splitMeshFaces[splitCount] = numFaces;
+                splitCount++;
+                gOutData.splitCount = splitCount;
+            }
+            gOutData.splitCount = splitCount;
+            return gOutData.splitCount;
         }
-        // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
-        allocSplitSize(gOutData.splitCount);
-        int numLeft = gOutData.faceCount;
-        for (int i = 0; i < gOutData.splitCount; i++) {
-            gOutData.splitMeshFaces[i] = adjuster < numLeft ? adjuster : numLeft;
-            numLeft -= adjuster;
-        }
-        return gOutData.splitCount;
+        break;
     }
     assert(0);  // bad strategy number
     return 0;
@@ -22664,9 +22762,10 @@ static int createMeshesUSD()
         }
 
         int strategy = 0;
+        int adjuster = 1;
 
         // this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
-        (void)strategizeMeshSplits(strategy, 6);
+        (void)strategizeMeshSplits(strategy, adjuster);
 
         if (gOutData.splitCount <= 1) {
 
