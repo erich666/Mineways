@@ -22509,7 +22509,8 @@ static int finishCommentsUSD()
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
-    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 100\n");
+    // 0 means run forever - why not?
+    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 0\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // no longer used
     //strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
@@ -22683,6 +22684,57 @@ static int strategizeMeshSplits(int strategy, int adjuster)
             return gOutData.splitCount;
         }
         break;
+    case 3:
+        {
+            // if the next face is outside the bounding volume by more than the adjuster value, split there,
+            // but only if the count is >= 100
+            Box sumbvh, curbvh;
+            initializeBox(sumbvh);
+            // algorithm:
+            // form a BVH from the first and from successive faces.
+            // Is the number of faces < 100 or does this BVH overlap the previous (possibly null) BVH? Include the tolerance.
+            // If so, add face to list. If not, split and restart BVHs.
+
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numFaces = 0;
+            int splitCount = 0;
+            int currentFaceIndex = 0;
+            gOutData.splitCount = 0;
+            for (int i = 0; i < gOutData.faceCount; i++) {
+                initializeBox(curbvh);
+                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
+                    // add each vertex to the current box
+                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f + currentFaceIndex]]);
+                }
+                // does box for face overlap "summed" box (which could be emptry)?
+                if (numFaces < adjuster || boxesOverlapWithMargin(sumbvh, curbvh, 1.0f)) {
+                    // add face to list
+                    numFaces++;
+                    increaseBoxByBox(sumbvh, curbvh);
+                }
+                else {
+                    assert(numFaces > 0);
+                    reallocSplitSize(splitCount + 1);
+                    gOutData.splitMeshFaces[splitCount] = numFaces;
+                    splitCount++;
+                    gOutData.splitCount = splitCount;
+                    numFaces = 1;
+                    sumbvh = curbvh;
+                }
+                currentFaceIndex += gOutData.faceVertexCounts[i];
+            }
+            // final one, if there should be any
+            if (splitCount > 0) {
+                reallocSplitSize(splitCount + 1);
+                gOutData.splitMeshFaces[splitCount] = numFaces;
+                splitCount++;
+                gOutData.splitCount = splitCount;
+            }
+            gOutData.splitCount = splitCount;
+            return gOutData.splitCount;
+        }
+        break;
     }
     assert(0);  // bad strategy number
     return 0;
@@ -22761,8 +22813,8 @@ static int createMeshesUSD()
             }
         }
 
-        int strategy = 0;
-        int adjuster = 1;
+        int strategy = 3;
+        int adjuster = 1000;
 
         // this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
         (void)strategizeMeshSplits(strategy, adjuster);
