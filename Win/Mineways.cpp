@@ -164,6 +164,7 @@ static int gHitsFound[4];
 static int gFullLow = 1;
 static int gAdjustingSelection = 0;
 static bool gShowPrintStats = true;
+static bool gShowRenderStats = true;
 static int gAutocorrectDepth = 1;
 
 static int gBottomControlEnabled = FALSE;
@@ -3964,6 +3965,41 @@ static void addChangeBlockCommandsToGlobalList(ImportedSet& is)
     }
 }
 
+static wchar_t gCommaString1[100];
+static wchar_t gCommaString2[100];
+static wchar_t gCommaString3[100];
+static wchar_t gCommaString4[100];
+static wchar_t gCommaString5[100];
+static wchar_t* formatWithCommas(int value, wchar_t *str)
+{
+    if (value < 1000) {
+        swprintf_s(str, 100, L"%d", value);
+    }
+    else {
+        int v1 = value / 1000;
+        int v0 = value % 1000;
+        if (v1 < 1000) {
+            swprintf_s(str, 100, L"%d,%0d", v1, v0);
+        }
+        else {
+            int v2 = v1 / 1000;
+            v1 = v1 % 1000;
+            if (v2 < 1000) {
+                swprintf_s(str, 100, L"%d,%0d,%0d", v2, v1, v0);
+            }
+            else {
+                // high as we go
+                int v3 = v2 / 1000;
+                v2 = v2 % 1000;
+                //if (v3 < 1000) {
+                    swprintf_s(str, 100, L"%d,%0d,%0d,%0d", v3, v2, v1, v0);
+                //}
+            }
+        }
+    }
+    return str;
+}
+
 // returns number of files written on successful export, 0 files otherwise.
 // showDialog says whether to show the export options dialog or not.
 static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* schemeSelected, bool showDialog, bool showStatistics)
@@ -4382,32 +4418,50 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         if (errCode < MW_BEGIN_ERRORS) {
 
-            // output stats, if printing and there *are* stats
-            if (showStatistics && (printModel == 1) && gOptions.cost > 0.0f && outputFileList.count > 0 &&
-                // is not schematic?
-                (gOptions.pEFD->fileType != FILE_TYPE_SCHEMATIC))
-            {
-                wchar_t* currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
-                if (gCustomCurrency != NULL &&
-                    gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL)
-                {
-                    currency = gCustomCurrency;
+            // output stats, if printing or rendering and there *are* stats (showStatistics is 0 if there's nothing in the volume)
+            if (showStatistics) {
+                if (printModel == PRINTING_EXPORT && gShowPrintStats) {
+                    if (gOptions.cost > 0.0f && outputFileList.count > 0) {
+                        wchar_t* currency = gMtlCostTable[gOptions.pEFD->fileType].currency;
+                        if (gCustomCurrency != NULL &&
+                            gOptions.pEFD->comboPhysicalMaterial[gOptions.pEFD->fileType] == PRINT_MATERIAL_CUSTOM_MATERIAL)
+                        {
+                            currency = gCustomCurrency;
+                        }
+                        int retval;
+                        wchar_t msgString[2000];
+                        swprintf_s(msgString, 2000, L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            currency,
+                            gOptions.cost,
+                            gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
+                            gOptions.block_mm, gOptions.block_inch,
+                            gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1],
+                            gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
+                            gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
+                        retval = MessageBox(NULL, msgString,
+                            _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                        if (retval != IDYES)
+                        {
+                            gShowPrintStats = false;
+                        }
+                    }
                 }
-                int retval;
-                wchar_t msgString[2000];
-                swprintf_s(msgString, 2000, L"3D Print Statistics:\n\nApproximate cost is %s %0.2f\nBase is %d x %d blocks, %d blocks high\nEach block is %0.1f mm high (%0.2f inches high)\nInches: base is %0.1f x %0.1f inches, %0.1f inches high\nCentimeters: Base is %0.1f x %0.1f cm, %0.1f cm high\nTotal number of blocks: %d\nTotal cubic centimeters: %0.1f\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                    currency,
-                    gOptions.cost,
-                    gOptions.dimensions[0], gOptions.dimensions[2], gOptions.dimensions[1],
-                    gOptions.block_mm, gOptions.block_inch,
-                    gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1],
-                    gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
-                    gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
-                retval = MessageBox(NULL, msgString,
-                    _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
-                if (retval != IDYES)
-                {
-                    gShowPrintStats = false;
+                else if (printModel == RENDERING_EXPORT && gShowRenderStats) {
+                    int retval;
+                    wchar_t msgString[2000];
+                    swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                        formatWithCommas(gModel.blockCount, gCommaString1),
+                        formatWithCommas(gModel.billboardCount, gCommaString2),
+                        formatWithCommas(gModel.faceCount, gCommaString3),
+                        formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                        formatWithCommas(gModel.vertexCount, gCommaString5)
+                        );
+                    retval = MessageBox(NULL, msgString,
+                        _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                    if (retval != IDYES)
+                    {
+                        gShowRenderStats = false;
+                    }
                 }
             }
         }

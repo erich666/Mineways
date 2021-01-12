@@ -288,8 +288,6 @@ static int gWallBlockThickness = UNINITIALIZED_INT;
 // how many is the user specifying for hollow walls
 static int gHollowBlockThickness = UNINITIALIZED_INT;
 
-static int gBlockCount = UNINITIALIZED_INT;
-
 static int gMinorBlockCount = UNINITIALIZED_INT;
 
 static int gDebugTransparentType = UNINITIALIZED_INT;
@@ -13619,8 +13617,8 @@ static int determineScaleAndHollowAndMelt()
 {
     // get these for statistics and for autoscaling.
     // If returns 0, nothing in box. Abort output.
-    gBlockCount = getDimensionsAndCount(gFilledBoxSize);
-    if (gBlockCount + gModel.billboardCount == 0)
+    gModel.blockCount = getDimensionsAndCount(gFilledBoxSize);
+    if (gModel.blockCount + gModel.billboardCount == 0)
     {
         // there really should be something in the box
         assert(0);
@@ -13628,7 +13626,7 @@ static int determineScaleAndHollowAndMelt()
     }
 
     // fill in statistics - the density is actually used for cost scaling
-    gStats.numBlocks = gBlockCount;
+    gStats.numBlocks = gModel.blockCount;
     gStats.density = (float)gStats.numBlocks / (float)(gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z]);
     gStats.numGroups = gAirGroups + gSolidGroups;
     gStats.numAirGroups = gAirGroups;
@@ -13789,7 +13787,7 @@ static void scaleByCost()
 
     // how much money we can spend on each block?
     // Think of it this way: what the cost 
-    budgetPerBlock = materialBudget / (((float)gBlockCount * gMtlCostTable[gPhysMtl].costPerCubicCentimeter) + volumeBlockCount * gMtlCostTable[gPhysMtl].costPerMachineCC);
+    budgetPerBlock = materialBudget / (((float)gModel.blockCount * gMtlCostTable[gPhysMtl].costPerCubicCentimeter) + volumeBlockCount * gMtlCostTable[gPhysMtl].costPerMachineCC);
 
     // so a cubic centimeter costs say 75 cents
     // budgetPerBlock / COST_COLOR_CCM - how much we can spend for each block.
@@ -13799,10 +13797,10 @@ static void scaleByCost()
 
     // fill in statistics:
     // if density > 10%, and the cubic centimeters of material over 20, then discount applies.
-    //if ( (gStats.density > mtlCostTable[gPhysMtl].costDiscountDensityLevel) && (pow((double)(gModel.scale*METERS_TO_CM),3.0)*gBlockCount > mtlCostTable[gPhysMtl].costDiscountCCMLevel ) )
+    //if ( (gStats.density > mtlCostTable[gPhysMtl].costDiscountDensityLevel) && (pow((double)(gModel.scale*METERS_TO_CM),3.0)*gModel.blockCount > mtlCostTable[gPhysMtl].costDiscountCCMLevel ) )
     //{
     //        // We wimp out here by simply incrementing the scale by 0.1 mm (which is smaller than the minimum detail) until the cost is reached
-    //    while ( gModel.options->pEFD->costVal > computeMaterialCost( gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount ))
+    //    while ( gModel.options->pEFD->costVal > computeMaterialCost( gPhysMtl, gModel.scale, gModel.blockCount, gMinorBlockCount ))
     //    {
     //        gModel.scale += 0.1f*MM_TO_METERS;
     //    }
@@ -13942,7 +13940,7 @@ static void hollowBottomOfModel()
                 // for any groups that lost anything (and gained anything), etc.
                 gBoxData[listToChange[listCount]].type = BLOCK_AIR;
                 // must track block count now, as it's been computed
-                gBlockCount--;
+                gModel.blockCount--;
                 // special use of group 0 - for hollow
                 gBoxData[listToChange[listCount]].group = HOLLOW_AIR_GROUP;
                 gStats.blocksHollowed++;
@@ -14101,7 +14099,7 @@ static void hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, i
             gBoxData[boxIndex].group = HOLLOW_AIR_GROUP;
             gStats.blocksSuperHollowed++;
             // must track block count now, as it's been computed
-            gBlockCount--;
+            gModel.blockCount--;
 
             for (dir = 0; dir < 6; dir++)
             {
@@ -22762,8 +22760,15 @@ static int createMeshesUSD()
     int progressIncrement = 1 + (int)((float)gModel.faceCount / 25.0f);
     int progressTick = progressIncrement;
 
+    //SM code makes every mesh have the first material - for efficiency testing experiments
+    //SM boolean firstName = true;
+    //SM char useMtlName[MAX_PATH_AND_FILE];
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         // Go through data and make arrays
+        //SM if (firstName) {
+        //SM     firstName = false;
+        //SM     strcpy_s(mtlName, MAX_PATH_AND_FILE, useMtlName);
+        //SM }
 
         // Create the geometry inside of "Root" (actually, whatever the user-defined name is)
 
@@ -22792,6 +22797,10 @@ static int createMeshesUSD()
             {
                 gOutData.indices[iv] = iv;
 
+                // TODO this could be more compressed, in which we find which vertices are duplicates and index appropriately, reusing the vertices. Export a cube,
+                // for example, to see this reuse. Note that only vertex coordinates are actually indexed by gOutData.indices - normals and uv's are all listed out
+                // without any actual indexing. Not sure if consolidating vertex coordinates helps run speed (I would guess these meshes are expanded out so that each
+                // vertex has a coordinate, normal, and uv), and consolidating may result in slower export speeds, though would certainly give somewhat smaller files.
                 Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
                 assert(pFace->normalIndex >= 0);
                 Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
@@ -22813,7 +22822,7 @@ static int createMeshesUSD()
             }
         }
 
-        int strategy = 3;
+        int strategy = 0;
         int adjuster = 1000;
 
         // this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
@@ -22822,6 +22831,7 @@ static int createMeshesUSD()
         if (gOutData.splitCount <= 1) {
 
             // output mesh's arrays
+            //SM sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startRun ? "\n" : "", useMtlName);
             sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startRun ? "\n" : "", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -23037,7 +23047,7 @@ static int createMaterialsUSD(char *texturePath)
     float emission = 0.0f;
 
     // Assume we always want this on, but premptively added to allow export toggle
-    bool usePreviewSurface = true;
+    bool usePreviewSurface = false;
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         FaceRecord* pFace = gModel.faceList[startRun];
@@ -24026,7 +24036,7 @@ static int createMaterialsUSD(char *texturePath)
         strcpy_s(outputString, 256, "        }\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-        if(usePreviewSurface) {
+        if (usePreviewSurface) {
 
             // UsdPreview Surface
 
@@ -24410,7 +24420,6 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 
     // TODOUSD: we could really get rid of all of this and just pay attention to swatchLoc;
     // but, someday, most/all output options should be available (well, 3 texture output and individual blocks, at least)
-    // TODOUSD: also, I need to gray out all options except "no textures" and "tiled textures", I think.
 
     // Output each mesh, grouped by material
     int exportMaterials = gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS;
@@ -24483,6 +24492,7 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
                 if (newMaterialPossible)
                 {
                     nextStart = i;
+                    // to output everything as one material, comment out this next line
                     return true;
                 }
             }
@@ -25276,14 +25286,14 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
             sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE].minWall) ? " *** WARNING, thin wall ***" : "");
             sprintf_s(outputString, 256, "#   if made using the white, strong & flexible material: $ %0.2f%s\n",
-                computeMaterialCost(PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gBlockCount, gMinorBlockCount),
+                computeMaterialCost(PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, gModel.scale, gModel.blockCount, gMinorBlockCount),
                 warningString);
             WRITE_STAT;
         }
 
         sprintf_s(warningString, 256, "%s", (gModel.scale < gMtlCostTable[isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall) ? " *** WARNING, thin wall ***" : "");
         sprintf_s(outputString, 256, "#   if made using the full color sandstone material:     $ %0.2f%s\n",
-            computeMaterialCost(isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gBlockCount, gMinorBlockCount),
+            computeMaterialCost(isSculpteo ? PRINT_MATERIAL_FCS_SCULPTEO : PRINT_MATERIAL_FULL_COLOR_SANDSTONE, gModel.scale, gModel.blockCount, gMinorBlockCount),
             warningString);
         WRITE_STAT;
 
@@ -25294,11 +25304,11 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
             sprintf_s(outputString, 256,
                 "#   if made using the %s material:     %0.2f%s\n",	// TODO: could add custom material currency symbol
                 gMtlCostTable[gPhysMtl].name,
-                computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount),
+                computeMaterialCost(gPhysMtl, gModel.scale, gModel.blockCount, gMinorBlockCount),
                 warningString);
             WRITE_STAT;
         }
-        gModel.options->cost = computeMaterialCost(gPhysMtl, gModel.scale, gBlockCount, gMinorBlockCount);
+        gModel.options->cost = computeMaterialCost(gPhysMtl, gModel.scale, gModel.blockCount, gMinorBlockCount);
 
         sprintf_s(outputString, 256, "# For %s printer, minimum wall is %g mm, maximum size is %g x %g x %g cm\n", gMtlCostTable[gPhysMtl].name, gMtlCostTable[gPhysMtl].minWall * METERS_TO_MM,
             gMtlCostTable[gPhysMtl].maxSize[0], gMtlCostTable[gPhysMtl].maxSize[1], gMtlCostTable[gPhysMtl].maxSize[2]);
@@ -25347,7 +25357,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         sprintf_s(outputString, 256, "# sum of dimensions: %g mm\n", sumOfDimensions);
         WRITE_STAT;
 
-        volume = inCM3 * gBlockCount;
+        volume = inCM3 * gModel.blockCount;
         sprintf_s(outputString, 256, "# volume is %g cm^3\n", volume);
         WRITE_STAT;
 
@@ -25363,15 +25373,15 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     // write out a summary, useful for various reasons
     if (gExportBillboards)
     {
-        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount, gModel.billboardCount);
+        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.billboardCount);
         WRITE_STAT;
     }
     else
     {
-        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gBlockCount);
+        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount);
         WRITE_STAT;
     }
-    gModel.options->totalBlocks = gBlockCount;
+    gModel.options->totalBlocks = gModel.blockCount;
 
     sprintf_s(outputString, 256, "# block dimensions: X=%g by Y=%g (height) by Z=%g blocks\n", gFilledBoxSize[X], gFilledBoxSize[Y], gFilledBoxSize[Z]);
     WRITE_STAT;

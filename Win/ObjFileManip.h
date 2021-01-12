@@ -257,6 +257,7 @@ typedef struct Model {
     bool customMaterial;
     bool singleSided;
     bool emitterSingleSided;
+    int blockCount;
 } Model;
 
 extern Model gModel;
