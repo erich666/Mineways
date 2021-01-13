@@ -24170,7 +24170,7 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            uniform token info:id = \"UsdUVTexture\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
+                sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
