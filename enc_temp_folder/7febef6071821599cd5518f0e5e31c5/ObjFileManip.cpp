@@ -23047,7 +23047,7 @@ static int createMaterialsUSD(char *texturePath)
     float emission = 0.0f;
 
     // Assume we always want this on, but pre-emptively added to allow export toggle
-    bool usePreviewSurface = false;
+    bool usePreviewSurface = true;
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         FaceRecord* pFace = gModel.faceList[startRun];
