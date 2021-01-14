@@ -3138,10 +3138,10 @@ static bool applyChangeBlockCommand(ChangeBlockCommand* pCBC)
                         (pCBC->simpleFromTypeEnd >= fromType)) {
                         modify = true;
                     }
-                    if (modify) {
-                        gBoxData[boxIndex].type = gBoxData[boxIndex].origType = toType;
-                        gBoxData[boxIndex].data = toData;
-                    }
+                }
+                if (modify) {
+                    gBoxData[boxIndex].type = gBoxData[boxIndex].origType = toType;
+                    gBoxData[boxIndex].data = toData;
                 }
             }
         }
@@ -3155,7 +3155,7 @@ static bool isWorldVolumeEmpty()
     int boxIndex;
     int x, y, z;
     // go from high to low
-    for (y = gSolidBox.max[Y]; y >= gSolidBox.min[Y]; y++)
+    for (y = gSolidBox.max[Y]; y >= gSolidBox.min[Y]; y--)
     {
         for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++) {
             boxIndex = BOX_INDEX(x, y, gSolidBox.min[Z]);
@@ -15408,6 +15408,8 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
                 offset[Y] +
                 offset[Z] * gBoxSize[Y];
 
+            // should already be set by saveSpecialVertices or saveVertices
+            assert(gModel.vertexIndices[vertexIndex] >= 0);
             face->vertexIndex[i] = gModel.vertexIndices[vertexIndex];
         }
     }

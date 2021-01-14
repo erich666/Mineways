@@ -5396,17 +5396,20 @@ static char* prepareLineData(char* line, bool model)
         }
     }
     
-    // double apostrophe characters around file names are not needed - remove here
-    char* parseLoc = lineLoc;
-    while (*parseLoc != (char)0) {
-        if (*parseLoc == '"') {
-            // delete the current character, i.e., " 
-            char* delLoc = parseLoc;
-            while (*delLoc != (char)0) {
-                *delLoc++ = delLoc[1];
+    // double apostrophe characters around file names are not needed and cause problems, remove if reading a file.
+    // Must keep otherwise, see https://github.com/erich666/Mineways/issues/69
+    if (strstr(line, " path: ") || strstr(line, " name: ")) {
+        char* parseLoc = lineLoc;
+        while (*parseLoc != (char)0) {
+            if (*parseLoc == '"') {
+                // delete the current character, i.e., " 
+                char* delLoc = parseLoc;
+                while (*delLoc != (char)0) {
+                    *delLoc++ = delLoc[1];
+                }
             }
+            parseLoc++;
         }
-        parseLoc++;
     }
 
     return lineLoc;
