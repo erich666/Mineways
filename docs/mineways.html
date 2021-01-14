@@ -1152,7 +1152,7 @@ Here's a typical result, made in a few minutes:
 <P>
 Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Launcher (Beta)</a>, install and run it, then from the launcher install and launch Omniverse Create.
 <P>
-See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. What follows are the steps in the video.
+See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the video.
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
@@ -1161,6 +1161,8 @@ See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs throu
 </P>
 <P>
 <b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. As far as other export options go, I recommend not touching them. USDA export is a brand new feature, so support for individual block export and other modes is unlike to work, nay, likely to crash Mineways.
+<P>
+I should note that Pixar USD files can be read in by other applications, for example the free <a href="https://www.sidefx.com/products/houdini-apprentice/">Houdini Apprentice</a>. I hope to add a tutorial for Houdini soon.
 </P>
 <P>
 <b>Step 3:</b> Load the model into Omniverse Create. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
@@ -3251,13 +3253,13 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 </UL>
 
 
-<LI>Version 8.02, 1/12/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.02, 1/14/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Output some statistics when exporting for rendering. This has the bonus of making a "ding" sound when an export completes.
+<LI>Added a beta of USDPreview materials, which means that programs that read USD files (such as the free <a href="https://www.sidefx.com/products/houdini-apprentice/">Houdini Apprentice</a>) can use Mineways USD export files. (<i>Thanks, Ben Skinner!</i>)
 <LI>Make the array for swatch UVs larger, to avoid crashing when exporting large 3D prints.
-<LI>ChannelMixer now detects JPEG images that have not been converted to PNG.
-<LI>Added UsdPreview material pull request, but turned off (it can't be read into Omniverse properly yet).
+<LI>ChannelMixer now also detects JPEG images that have not been converted to PNG and warns about them.
 <LI>Internal: change mallocs to callocs for slightly better and more readable code.
 </UL>
 

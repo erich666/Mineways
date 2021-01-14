@@ -23047,7 +23047,7 @@ static int createMaterialsUSD(char *texturePath)
     float emission = 0.0f;
 
     // Assume we always want this on, but pre-emptively added to allow export toggle
-    bool usePreviewSurface = false;
+    bool usePreviewSurface = true;
 
     while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
         FaceRecord* pFace = gModel.faceList[startRun];
@@ -24151,6 +24151,10 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            float2 inputs:st.connect = </Looks/%s/uv_reader.outputs:result>\n", mtlName);
@@ -24171,6 +24175,10 @@ static int createMaterialsUSD(char *texturePath)
                 strcpy_s(outputString, 256, "            uniform token info:id = \"UsdUVTexture\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24193,6 +24201,10 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            float2 inputs:st.connect = </Looks/%s/uv_reader.outputs:result>\n", mtlName);
@@ -24212,6 +24224,10 @@ static int createMaterialsUSD(char *texturePath)
             strcpy_s(outputString, 256, "            uniform token info:id = \"UsdUVTexture\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24263,6 +24279,10 @@ static int createMaterialsUSD(char *texturePath)
     #else
                     sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
     #endif
+                    strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
