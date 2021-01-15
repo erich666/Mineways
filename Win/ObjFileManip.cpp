@@ -3082,7 +3082,7 @@ static bool applyChangeBlockCommand(ChangeBlockCommand* pCBC)
 {
     int boxIndex;
     int x, y, z;
-    unsigned char toType = pCBC->intoType;
+    unsigned short toType = pCBC->intoType;
     unsigned char toData = pCBC->intoData;
 
     IBox boxBounds = gSolidBox;

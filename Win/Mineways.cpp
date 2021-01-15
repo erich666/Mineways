@@ -408,7 +408,7 @@ static void createCB(ImportedSet& is);
 static void addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
 static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
 static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int fromEndType, unsigned short fromDataBits);
-static void saveCBinto(ChangeBlockCommand* pCBC, unsigned char intoType, unsigned char intoData);
+static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData);
 static void addDataBitsArray(ChangeBlockCommand* pCBC);
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6]);
 static void deleteCommandBlockSet(ChangeBlockCommand* pCBC);
@@ -7318,7 +7318,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
             }
             // we're done
             if (is.processData)
-                saveCBinto(is.pCBClast, (unsigned char)toType, (unsigned char)toData);
+                saveCBinto(is.pCBClast, toType, toData);
         } // else, no "to" given, so air is assumed, which is the default 0:0
 
         // finally, look for location(s)
@@ -7493,10 +7493,15 @@ static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int 
     }
 }
 
-static void saveCBinto(ChangeBlockCommand* pCBC, unsigned char intoType, unsigned char intoData)
+static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 {
-    pCBC->intoType = intoType;
-    pCBC->intoData = intoData;
+    // if someone cleverly tries to pick a block using the nbt.cpp values, convert here so that the type is properly a number > 255, as needed
+    if ((intoData & HIGH_BIT) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
+        intoData &= 0x7F;
+        intoType |= 0x100;
+    }
+    pCBC->intoType = (unsigned short)intoType;
+    pCBC->intoData = (unsigned char)intoData;
     pCBC->hasInto = true;
 }
 

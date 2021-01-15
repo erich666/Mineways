@@ -673,6 +673,16 @@ Instead of displaying script errors, warnings, and completion messages to the sc
 <h3 id="cbce">Change blocks command examples</h3>
 
 The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant.
+
+<P>
+Block names in the examples below are the standard English names seen in the game itself, not the internal "namespaced ID". <a href="https://minecraft.gamepedia.com/Block_of_Diamond#Data_values">For example</a>, it's "block of diamond", not "diamond_block". See the names in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. Capitalization is unimportant.
+
+<P>
+<B>IMPORTANT NOTE:</B> This feature uses <a href="https://minecraft.gamepedia.com/Java_Edition_data_value/Pre-flattening#Block_IDs">the old "pre-flattening" type/dataVal format</a> for specifying blocks, which went away in Minecraft 1.13. You can look up the type values <a href="https://minecraft.gamepedia.com/Java_Edition_data_value/Pre-flattening#Block_IDs">here</a> - click the "[show]" link to the right of the "Block IDs" title. Wiser is to use the block names explicitly, as found in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. That said, I have shoved many newer 1.13+ blocks in various places, e.g., a warped_slab, blackstone_slab, and other new slabs have the same block ID, 361 (= 256+105), as crimson_slab, with a dataVal of 1, 2, etc. - see that encoded <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1078">here</a>. As an example, "crimson slab":2 means <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1079">a blackstone slab</a> (ignore "HIGH_BIT" in the code). I hope this helps.
+
+<P>
+Basically, if you're reading this and are extremely bitter that I don't clearly support some particular block you want and can't figure out how to set it, <a href="contact.html">write me</a> and plead your case. I could probably rework the nbt.cpp code to also use the namespaced ID names.
+
 <P>
 <div id="code">
 Change blocks: from 8-9
@@ -951,7 +961,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/18/2020</p>
+		<p id="lastUpdate">Last updated 1/14/2021</p>
 	</div>
 </div>
 

@@ -3258,6 +3258,8 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <UL>
 <LI>Output some statistics when exporting for rendering. This has the bonus of making a "ding" sound when an export completes.
 <LI>Added a beta of USDPreview materials, which means that programs that read USD files (such as the free <a href="https://www.sidefx.com/products/houdini-apprentice/">Houdini Apprentice</a>) can use Mineways USD export files. (<i>Thanks, Ben Skinner!</i>)
+<LI>Fixed "Change blocks" scripting command (<a href="https://github.com/erich666/Mineways/issues/69">issue #69</a>). Thanks to ChlorideCull for reporting it and pointing to the code change that caused it.
+<LI>Extended the "Change blocks" scripting command to partially support 1.13+ block names, and updated the <a href="scripting.html#cbce">scripting documentation</a>.
 <LI>Make the array for swatch UVs larger, to avoid crashing when exporting large 3D prints.
 <LI>ChannelMixer now also detects JPEG images that have not been converted to PNG and warns about them.
 <LI>Internal: change mallocs to callocs for slightly better and more readable code.

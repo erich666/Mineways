@@ -89,7 +89,7 @@ typedef struct ChangeBlockCommand {
 
     // to location - there is always only one
     bool hasInto;
-    unsigned char intoType;
+    unsigned short intoType;
     unsigned char intoData;
 
     // location range
