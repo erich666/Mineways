@@ -19,6 +19,7 @@ void initializeFileGrid(FileGrid* pfg)
 		pfg->fr[i].fullFilename = NULL;
 		pfg->fr[i].path = NULL;
 		pfg->fr[i].exists = false;
+		pfg->fr[i].alternateExtensionFound = 0;
 	}
 }
 
@@ -36,6 +37,7 @@ void initializeChestGrid(ChestGrid* pcg)
 		pcg->cr[i].fullFilename = NULL;
 		pcg->cr[i].path = NULL;
 		pcg->cr[i].exists = false;
+		pcg->cr[i].alternateExtensionFound = 0;
 	}
 }
 
@@ -133,6 +135,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest directory?
 				// 
 				if (!used) {
+					int flag = 0x0;
 					if (filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
 						// we already found some good files in this directory, so note that this file was not used.
 						if (verbose) {
@@ -143,7 +146,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						}
 					}
 					// if TGA or JPG, note it if corresponding PNG not found
-					else if (isTGAorJPGfile(ffd.cFileName)) {
+					else if (isTGAorJPGfile(ffd.cFileName,flag)) {
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
 						if (removeTGAorJPGsuffix(tileName)) {
@@ -153,13 +156,11 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 							if (index >= 0) {
 								int fullIndex = category * pfg->totalTiles + index;
 								if (!pfg->fr[fullIndex].exists) {
-									// not a duplicate, so warn - may be a false warning, as the PNG file could be further down the list of files returned. TODO
-									if (verbose) {
-										wprintf(L"IMAGE WARNING: The file '%s' in directory '%s' is not a PNG file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", ffd.cFileName, tilePath);
-									}
-									else {
-										wprintf(L"IMAGE WARNING: The file '%s' is not a PNG file (and there may be no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", ffd.cFileName);
-									}
+									pfg->fr[fullIndex].alternateExtensionFound |= flag;
+
+									// TODO PNG might be found later, which could lead to a memory leak when it overwrites these files names
+									pfg->fr[fullIndex].fullFilename = _wcsdup(ffd.cFileName);
+									pfg->fr[fullIndex].path = _wcsdup(tilePath);
 								}
 							}
 						}
@@ -170,6 +171,20 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 
 		FindClose(hFind);
 	}
+
+	// done. Now look for any entries where a TGA or JPEG was found and not a PNG
+	for ( int i = 0; i < TOTAL_CATEGORIES * TOTAL_TILES; i++) {
+		if (!pfg->fr[i].exists && pfg->fr[i].alternateExtensionFound) {
+			// not a duplicate, so warn
+			if (verbose) {
+				wprintf(L"IMAGE WARNING: The file '%s' in directory '%s' is not a PNG file (and there is no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename, pfg->fr[i].path);
+			}
+			else {
+				wprintf(L"IMAGE WARNING: The file '%s' is not a PNG file (and there is no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename);
+			}
+		}
+	}
+
 	return filesProcessed + filesSubProcessed;
 }
 
@@ -246,7 +261,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 					// replace other tile - we want the grey one
 					//pfg->fileCount++;
 					//pfg->categories[category]++;
-					// yes, these next three lines are memory leaks. Minor stuff.
+					clearFileRecordStorage(&pfg->fr[fullIndex]);
 					pfg->fr[fullIndex].rootName = _wcsdup(tileName);
 					pfg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
 					pfg->fr[fullIndex].path = _wcsdup(tilePath);
@@ -270,6 +285,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 				// it's new and unique
 				pfg->fileCount++;
 				pfg->categories[category]++;
+				clearFileRecordStorage(&pfg->fr[fullIndex]);
 				pfg->fr[fullIndex].rootName = _wcsdup(tileName);
 				pfg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
 				pfg->fr[fullIndex].path = _wcsdup(tilePath);
@@ -389,13 +405,21 @@ boolean removeTGAorJPGsuffix(wchar_t* name)
 	return false;
 }
 
-boolean isTGAorJPGfile(wchar_t* name)
+int isTGAorJPGfile(wchar_t* name, int &flag)
 {
 	// check for .png suffix - note test is case insensitive
 	int len = (int)wcslen(name);
-	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0)))
-	{
-		return true;
+	if (len > 4) {
+		if (_wcsicmp(&name[len - 4], L".tga") == 0)
+		{
+			flag = TGA_EXTENSION_FOUND;
+			return TGA_EXTENSION_FOUND;
+		}
+		else if (_wcsicmp(&name[len - 4], L".jpg") == 0)
+		{
+			flag = JPG_EXTENSION_FOUND;
+			return JPG_EXTENSION_FOUND;
+		}
 	}
 	return false;
 }
@@ -467,10 +491,27 @@ int findTileIndex(const wchar_t* tileName, int alternate)
 	return index;
 }
 
+void clearFileRecordStorage(FileRecord* pfr)
+{
+	if (pfr->rootName) {
+		free(pfr->rootName);
+		pfr->rootName = NULL;
+	}
+	if (pfr->fullFilename) {
+		free(pfr->fullFilename);
+		pfr->fullFilename = NULL;
+	}
+	if (pfr->path) {
+		free(pfr->path);
+		pfr->path = NULL;
+	}
+}
+
 void copyFileRecord(FileGrid *pfg, int category, int fullIndex, FileRecord* srcFR)
 {
 	pfg->fileCount++;
 	pfg->categories[category]++;
+	clearFileRecordStorage(&pfg->fr[fullIndex]);
 	pfg->fr[fullIndex].rootName = _wcsdup(srcFR->rootName);
 	pfg->fr[fullIndex].fullFilename = _wcsdup(srcFR->fullFilename);
 	pfg->fr[fullIndex].path = _wcsdup(srcFR->path);
