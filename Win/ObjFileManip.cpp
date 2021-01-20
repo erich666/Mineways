@@ -420,7 +420,8 @@ if (*gpCallback) { (*gpCallback)((float)(p)); }                 \
 // when should output be part of the progress bar? That is, 0.80 means 80% done when we start outputting the file
 // number is how far along we are when that part begins, approx.
 typedef struct ProgressCategories {
-    float startup;
+    float readTextures;
+    float readBlocks;
     float makeFaces;
     float output;
     float texture;
@@ -923,6 +924,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gOutputFileList = outputFileList;
 
+    bool startProgress = true;
+
     // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
     {
@@ -1012,13 +1015,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                 delete gModel.pInputTerrainImage[catIndex];
                 gModel.pInputTerrainImage[catIndex] = NULL;
             }
+
+            if (catIndex == 0) {
+                // compute progress increments, now that we know the input texture size
+                determineProgressValues(fileType, xmax - xmin, zmax - zmin);
+                startProgress = false;
+            }
+            UPDATE_PROGRESS(gProgress.start.readTextures + (float)(catIndex+1) * (float)gProgress.absolute.readTextures / (float)gTotalInputTextures);
         }
     }
+    if (startProgress) {
+        // compute progress increments
+        determineProgressValues(fileType, xmax - xmin, zmax - zmin);
+    }
 
-    // compute progress increments, now that we know the input texture size
-    determineProgressValues(fileType, xmax-xmin, zmax-zmin);
-
-    UPDATE_PROGRESS(gProgress.start.startup + 0.10f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.readBlocks);
 
     initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
     tightenedWorldBox = worldBox;
@@ -1088,14 +1099,14 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= MW_TEXTURE_RESOLUTION_HIGH;
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.45f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.readBlocks + 0.45f * gProgress.absolute.readBlocks);
     retCode |= initializeModelData();
     if (retCode >= MW_BEGIN_ERRORS)
     {
         goto Exit;
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.65f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.readBlocks + 0.65f * gProgress.absolute.readBlocks);
 
     // process all billboards and "minor geometry"
     retCode |= filterBox(pCBC);
@@ -1114,7 +1125,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         goto Exit;
     }
 
-    UPDATE_PROGRESS(gProgress.start.startup + 0.90f * gProgress.absolute.startup);
+    UPDATE_PROGRESS(gProgress.start.readBlocks + 0.90f * gProgress.absolute.readBlocks);
 
     retCode |= determineScaleAndHollowAndMelt();
     if (retCode >= MW_BEGIN_ERRORS)
@@ -1228,7 +1239,8 @@ Exit:
 static void determineProgressValues(int fileType, int xdim, int zdim)
 {
     // defaults for a 200x200 export and a 16x16 tile size
-    gProgress.relative.startup = 200;
+    gProgress.relative.readTextures = 100;
+    gProgress.relative.readBlocks = 200;
     gProgress.relative.makeFaces = 650;
     gProgress.relative.output = 11400;
     gProgress.relative.texture = 740;
@@ -1253,7 +1265,8 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
         break;
     case FILE_TYPE_SCHEMATIC:
         // very fast
-        gProgress.relative.startup = 100;
+        gProgress.relative.readTextures = 0;
+        gProgress.relative.readBlocks = 100;
         gProgress.relative.makeFaces = 84;
         gProgress.relative.output = 54;
         gProgress.relative.texture = 0;
@@ -1269,6 +1282,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     // scale by size of exported area (ignore height, just because).
     // fabs just in case xdim or zdim are negative
     float scale = (float)((fabs((double)xdim) + 1) * (fabs((double)zdim) + 1)) / (float)(200 * 200);
+    gProgress.relative.readBlocks *= scale;
     gProgress.relative.makeFaces *= scale;
     gProgress.relative.output *= scale;
     // a wild guess - the textures should affect this, too, but less so, I suspect.
@@ -1290,7 +1304,12 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
 
         if (gModel.exportTiles) {
             // usually takes a lot less time: a few small textures vs. 2-3 big ones
-            gProgress.relative.texture /= 8;
+            gProgress.relative.readTextures *= (float)sqrt((double)gTotalInputTextures);
+            gProgress.relative.texture /= 16;
+            // usually less textures are exported when the area is smaller
+            if (scale < 1.0f) {
+                gProgress.relative.texture *= (scale < 0.05f) ? 0.05f : scale;
+            }
         }
     }
     else {
@@ -1299,21 +1318,23 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     }
 
     // normalize to 1.00
-    float total = gProgress.relative.startup + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.texture + gProgress.relative.zip;
+    float total = gProgress.relative.readTextures + gProgress.relative.readBlocks + gProgress.relative.makeFaces + gProgress.relative.output + gProgress.relative.texture + gProgress.relative.zip;
 
     // ensure progress at start: multiply total by 1.05 to force a block to show some progress on the progress bar, for long exports.
     total *= 1.05f;
 
     // absolute values are in the range 0.0 to 1.0 of the time predicted to be spent on an activity
-    gProgress.absolute.startup = gProgress.relative.startup / total;
+    gProgress.absolute.readTextures = gProgress.relative.readTextures / total;
+    gProgress.absolute.readBlocks = gProgress.relative.readBlocks / total;
     gProgress.absolute.makeFaces = gProgress.relative.makeFaces / total;
     gProgress.absolute.output = gProgress.relative.output / total;
     gProgress.absolute.texture = gProgress.relative.texture / total;
     gProgress.absolute.zip = gProgress.relative.zip / total;
 
-    // starting points for progress, i.e., makefaces starts after the startup time is spent.
-    gProgress.start.startup = 1.0f - (gProgress.absolute.startup + gProgress.absolute.makeFaces + gProgress.absolute.output + gProgress.absolute.texture + gProgress.absolute.zip);
-    gProgress.start.makeFaces = gProgress.start.startup + gProgress.absolute.startup;
+    // starting points for progress, i.e., makefaces starts after the readTextures time is spent.
+    gProgress.start.readTextures = 1.0f - (gProgress.absolute.readTextures + gProgress.absolute.readBlocks + gProgress.absolute.makeFaces + gProgress.absolute.output + gProgress.absolute.texture + gProgress.absolute.zip);
+    gProgress.start.readBlocks = gProgress.start.readTextures + gProgress.absolute.readTextures;
+    gProgress.start.makeFaces = gProgress.start.readBlocks + gProgress.absolute.readBlocks;
     gProgress.start.output = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
     gProgress.start.texture = gProgress.start.output + gProgress.absolute.output;
     gProgress.start.zip = gProgress.start.texture + gProgress.absolute.texture;
@@ -2858,7 +2879,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
         }
 
         // 1%
-        UPDATE_PROGRESS(gProgress.start.startup + gProgress.absolute.startup * 0.89f);
+        UPDATE_PROGRESS(gProgress.start.readBlocks + gProgress.absolute.readBlocks * 0.89f);
         // were any useful (non-flat) blocks found? Don't do this test if we're not flattening nor exporting billboards.
         if (foundBlock == 0 && (flatten || gExportBillboards))
             return retCode | MW_NO_BLOCKS_FOUND;
