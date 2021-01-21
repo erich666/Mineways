@@ -961,20 +961,20 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  74,	HIGH_BIT | 3, "polished_diorite_slab", SLAB_PROP },
     { 0,  74,	HIGH_BIT | 4, "end_stone_brick_slab", SLAB_PROP },
     { 0,  74,	HIGH_BIT | 5, "stone_slab", SLAB_PROP },	// the 1.14 stone_slab is entirely "normal" stone, no chiseling - it's a new slab type; 1.13 used this to mean what is now "smooth_stone_slab", and so we rename that in the nbt.cpp code.
-    { 0,  67,	      BIT_16, "stone_stairs", STAIRS_PROP },	// add to cobblestone_stairs
-    { 0,  67,	      BIT_32, "granite_stairs", STAIRS_PROP },
-    { 0,  67,  BIT_32 | BIT_16, "polished_granite_stairs", STAIRS_PROP },
-    { 0, 108,	      BIT_16, "smooth_quartz_stairs", STAIRS_PROP },	// add to brick_stairs
-    { 0, 108,	      BIT_32, "diorite_stairs", STAIRS_PROP },
-    { 0, 108,  BIT_32 | BIT_16, "polished_diorite_stairs", STAIRS_PROP },
-    { 0, 109,	      BIT_16, "end_stone_brick_stairs", STAIRS_PROP },	// add to stone_brick_stairs
-    { 0, 109,	      BIT_32, "andesite_stairs", STAIRS_PROP },
-    { 0, 109,  BIT_32 | BIT_16, "polished_andesite_stairs", STAIRS_PROP },
-    { 0, 114,	      BIT_16, "red_nether_brick_stairs", STAIRS_PROP },	// add to Nether brick stairs
-    { 0, 114,	      BIT_32, "mossy_stone_brick_stairs", STAIRS_PROP },
-    { 0, 114,  BIT_32 | BIT_16, "mossy_cobblestone_stairs", STAIRS_PROP },
-    { 0, 128,	      BIT_16, "smooth_sandstone_stairs", STAIRS_PROP },	// add to sandstone stairs
-    { 0, 128,	      BIT_32, "smooth_red_sandstone_stairs", STAIRS_PROP },
+    { 0, 109,	    HIGH_BIT, "stone_stairs", STAIRS_PROP },
+    { 0, 110,	    HIGH_BIT, "granite_stairs", STAIRS_PROP },
+    { 0, 111,       HIGH_BIT, "polished_granite_stairs", STAIRS_PROP },
+    { 0, 112,	    HIGH_BIT, "smooth_quartz_stairs", STAIRS_PROP },
+    { 0, 113,	    HIGH_BIT, "diorite_stairs", STAIRS_PROP },
+    { 0, 114,       HIGH_BIT, "polished_diorite_stairs", STAIRS_PROP },
+    { 0, 115,	    HIGH_BIT, "end_stone_brick_stairs", STAIRS_PROP },
+    { 0, 116,	    HIGH_BIT, "andesite_stairs", STAIRS_PROP },
+    { 0, 117,       HIGH_BIT, "polished_andesite_stairs", STAIRS_PROP },
+    { 0, 118,	    HIGH_BIT, "red_nether_brick_stairs", STAIRS_PROP },
+    { 0, 119,	    HIGH_BIT, "mossy_stone_brick_stairs", STAIRS_PROP },
+    { 0, 120,       HIGH_BIT, "mossy_cobblestone_stairs", STAIRS_PROP },
+    { 0, 121,	    HIGH_BIT, "smooth_sandstone_stairs", STAIRS_PROP },
+    { 0, 122,	    HIGH_BIT, "smooth_red_sandstone_stairs", STAIRS_PROP },
     { 0, 139,              2, "brick_wall", NO_PROP },
     { 0, 139,              3, "granite_wall", NO_PROP },
     { 0, 139,              4, "diorite_wall", NO_PROP },
@@ -1055,11 +1055,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 139,             14, "blackstone_wall", NO_PROP },
     { 0, 139,             15, "polished_blackstone_wall", NO_PROP },
     { 0, 139,             16, "polished_blackstone_brick_wall", NO_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
-    { 0,   1, HIGH_BIT | BIT_16, "crimson_stairs", STAIRS_PROP },
-    { 0,   1, HIGH_BIT | BIT_32, "warped_stairs", STAIRS_PROP },
-    { 0, 2, HIGH_BIT | BIT_16, "blackstone_stairs", STAIRS_PROP },
-    { 0,   2, HIGH_BIT | BIT_32, "polished_blackstone_stairs", STAIRS_PROP },
-    { 0,   2, HIGH_BIT | BIT_32 | BIT_16, "polished_blackstone_brick_stairs", STAIRS_PROP },
+    { 0, 123,       HIGH_BIT, "crimson_stairs", STAIRS_PROP },
+    { 0, 124,       HIGH_BIT, "warped_stairs", STAIRS_PROP },
+    { 0, 125,       HIGH_BIT, "blackstone_stairs", STAIRS_PROP },
+    { 0, 126,       HIGH_BIT, "polished_blackstone_stairs", STAIRS_PROP },
+    { 0, 127,       HIGH_BIT, "polished_blackstone_brick_stairs", STAIRS_PROP },
     { 0,  90,       HIGH_BIT, "crimson_trapdoor", TRAPDOOR_PROP },
     { 0,  91,       HIGH_BIT, "warped_trapdoor", TRAPDOOR_PROP },
     { 0,  92,       HIGH_BIT, "crimson_button", BUTTON_PROP },
@@ -1789,13 +1789,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
                 conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
             int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
-                delay, locked, sticky, hatch, leaves, single, attachment, honey_level;
+                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs;
             // to avoid Release build warning, but should always be set by code in practice
             int typeIndex = 0;
             half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
                 = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
             axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
-                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = 0;
+                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = 0;
 
             int bigbufflen = 0;
             int entry_index = 0;
@@ -2045,8 +2045,24 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         }
                                         // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
                                         else if (strcmp(token, "shape") == 0) {
-                                            // only matters for rails
-                                            if (strcmp(value, "north_south") == 0) {
+                                            // stairs
+                                            if (strcmp(value, "straight") == 0) {
+                                                stairs = 0x0;
+                                            }
+                                            else if (strcmp(value, "inner_left") == 0) {
+                                                stairs = BIT_8 | BIT_32;
+                                            }
+                                            else if (strcmp(value, "inner_right") == 0) {
+                                                stairs = BIT_8;
+                                            }
+                                            else if (strcmp(value, "outer_left") == 0) {
+                                                stairs = BIT_16 | BIT_32;
+                                            }
+                                            else if (strcmp(value, "outer_right") == 0) {
+                                                stairs = BIT_16;
+                                            }
+                                            // rails
+                                            else if (strcmp(value, "north_south") == 0) {
                                                 rails = 0;
                                             }
                                             else if (strcmp(value, "east_west") == 0) {
@@ -2428,8 +2444,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                 paletteBlockEntry[entry_index] = 75;
                             }
                             break;
-                        case STAIRS_PROP:	// (wastefully) uses all 4 lower bits
-                            dataVal = (dataVal - 1) | (half ? 4 : 0);
+                        case STAIRS_PROP:
+                            dataVal = (dataVal - 1) | (half ? 4 : 0) | stairs;
                             break;
                         case RAIL_PROP:
                             dataVal = rails;

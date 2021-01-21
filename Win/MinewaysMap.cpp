@@ -1336,93 +1336,6 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         }
         return gConcatString;
 
-    case BLOCK_COBBLESTONE_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:	// stone stairs
-            return "Stone Stairs";
-        case BIT_32:	// granite
-            return "Granite Stairs";
-        case BIT_32 | BIT_16:	// polished granite
-            return "Polished Granite Stairs";
-        }
-        break;
-    case BLOCK_BRICK_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:	// smooth quartz stairs
-            return "Smooth Quartz Stairs";
-        case BIT_32:	// diorite
-            return "Diorite Stairs";
-        case BIT_32 | BIT_16:	// polished diorite
-            return "Polished Diorite Stairs";
-        }
-        break;
-    case BLOCK_STONE_BRICK_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:	// end stone stairs
-            return "End Stone Brick Stairs";
-        case BIT_32:	// andesite
-            return "Andesite Stairs";
-        case BIT_32 | BIT_16:	// polished andesite
-            return "Polished Andesite Stairs";
-        }
-        break;
-    case BLOCK_NETHER_BRICK_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:	// red nether brick stairs
-            return "Red Nether Brick Stairs";
-        case BIT_32:	// mossy stone
-            return "Mossy Stone Brick Stairs";
-        case BIT_32 | BIT_16:	// mossy cobblestone
-            return "Mossy Cobblestone Stairs";
-        }
-        break;
-    case BLOCK_SANDSTONE_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:	// smooth sandstone stairs
-            return "Smooth Sandstone Stairs";
-        case BIT_32:	// smooth red sandstone
-            return "Smooth Red Sandstone Stairs";
-        }
-        break;
-    case BLOCK_PRISMARINE_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:
-            return "Crimson Stairs";
-        case BIT_32:
-            return "Warped Stairs";
-        }
-        break;
-
     case BLOCK_WEEPING_VINES:
         // note we ignore BIT_32, which is top and bottom
         switch (dataVal & 0xf) {
@@ -1436,21 +1349,6 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         }
         break;
 
-    case BLOCK_PRISMARINE_BRICK_STAIRS:
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:
-            return "Blackstone Stairs";
-        case BIT_32:
-            return "Polished Blackstone Stairs";
-        case BIT_32 | BIT_16:
-            return "Polished Blackstone Brick Stairs";
-        }
-        break;
     case BLOCK_COBBLESTONE_WALL:
         switch (dataVal & 0xf) {
         default:
@@ -3046,134 +2944,6 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
-    case BLOCK_COBBLESTONE_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-        case 0x0:
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
-            break;
-        case BIT_16:	// stone stairs
-            color = gBlockDefinitions[BLOCK_STONE].pcolor;
-            break;
-        case BIT_32:	// granite
-            color = 0xA77562;
-            break;
-        case BIT_32 | BIT_16:	// polished granite
-            color = 0x946251;
-            break;
-        }
-        break;
-    case BLOCK_BRICK_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-        case 0x0:
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
-            break;
-        case BIT_16:	// smooth quartz stairs
-            color = gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
-            break;
-        case BIT_32:	// diorite
-            color = 0x9B9B9E;
-            break;
-        case BIT_32 | BIT_16:	// polished diorite
-            color = 0xC9C9CD;
-            break;
-        }
-        break;
-    case BLOCK_STONE_BRICK_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-        case 0x0:
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
-            break;
-        case BIT_16:	// end stone brick stairs
-            color = 0xDBE2A4;
-            break;
-        case BIT_32:	// andesite
-            color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
-            break;
-        case BIT_32 | BIT_16:	// polished andesite
-            color = 0x7F7F84;
-            break;
-        }
-        break;
-
-    case BLOCK_NETHER_BRICK_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-        case 0x0:
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
-            break;
-        case BIT_16:	// red nether brick stairs
-            color = gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
-            break;
-        case BIT_32:	// mossy stone
-            color = 0x767B6E;
-            break;
-        case BIT_32 | BIT_16:	// mossy cobblestone
-            color = gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
-            break;
-        }
-        break;
-    case BLOCK_SANDSTONE_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-        case 0x0:
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
-            break;
-        case BIT_16:	// smooth sandstone stairs
-            color = gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
-            break;
-        case BIT_32:	// smooth red sandstone
-            color = gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
-            break;
-        }
-        break;
-    case BLOCK_PRISMARINE_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:
-            color = 0x693249;
-            break;
-        case BIT_32:
-            color = 0x2D6D68;
-            break;
-        }
-        break;
-    case BLOCK_PRISMARINE_BRICK_STAIRS:
-        dataVal = block->data[voxel];
-        switch (dataVal & (BIT_32 | BIT_16)) {
-        default:
-            assert(0);
-            break;
-        case 0:
-            break;
-        case BIT_16:
-            color = 0x2D282F;
-            break;
-        case BIT_32:
-            color = 0x37333D;
-            break;
-        case BIT_32 | BIT_16:
-            color = 0x322E36;
-            break;
-        }
-        break;
     case BLOCK_COBBLESTONE_WALL:
         dataVal = block->data[voxel];
         switch (dataVal & 0xf) {
@@ -4114,24 +3884,34 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DARK_PRISMARINE_STAIRS:
     case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
     case BLOCK_PURPUR_DOUBLE_SLAB:
-        // uses 0-7 - we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
-        if (dataVal < 8)
-        {
-            addBlock = 1;
-        }
-        break;
     case BLOCK_COBBLESTONE_STAIRS:
     case BLOCK_BRICK_STAIRS:
     case BLOCK_STONE_BRICK_STAIRS:
     case BLOCK_NETHER_BRICK_STAIRS:
     case BLOCK_SANDSTONE_STAIRS:
-        // uses 0-7, and uses 9-11 for the other three stair types (8 is the original type again)
-        if ((dataVal < 11) || ((dataVal < 12) && (origType != BLOCK_SANDSTONE_STAIRS)))
+    case BLOCK_STONE_STAIRS:
+    case GRANITE_STAIRS:
+    case POLISHED_GRANITE_STAIRS:
+    case SMOOTH_QUARTZ_STAIRS:
+    case DIORITE_STAIRS:
+    case POLISHED_DIORITE_STAIRS:
+    case END_STONE_BRICK_STAIRS:
+    case ANDESITE_STAIRS:
+    case POLISHED_ANDESITE_STAIRS:
+    case RED_NETHER_BRICK_STAIRS:
+    case MOSSY_STONE_BRICK_STAIRS:
+    case MOSSY_COBBLESTONE_STAIRS:
+    case SMOOTH_SANDSTONE_STAIRS:
+    case SMOOTH_RED_SANDSTONE_STAIRS:
+    case CRIMSON_STAIRS:
+    case WARPED_STAIRS:
+    case BLACKSTONE_STAIRS:
+    case POLISHED_BLACKSTONE_STAIRS:
+    case POLISHED_BLACKSTONE_BRICK_STAIRS:
+        // uses 0-7 - we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
+        if (dataVal < 8)
         {
             addBlock = 1;
-            if (dataVal > 7) {
-                finalDataVal = (dataVal & 0x7) << 4;
-            }
         }
         break;
     case BLOCK_CROPS:

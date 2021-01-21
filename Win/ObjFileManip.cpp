@@ -4810,22 +4810,37 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_PRISMARINE_STAIRS:
     case BLOCK_PRISMARINE_BRICK_STAIRS:
     case BLOCK_DARK_PRISMARINE_STAIRS:
+    case BLOCK_STONE_STAIRS:
+    case GRANITE_STAIRS:
+    case POLISHED_GRANITE_STAIRS:
+    case SMOOTH_QUARTZ_STAIRS:
+    case DIORITE_STAIRS:
+    case POLISHED_DIORITE_STAIRS:
+    case END_STONE_BRICK_STAIRS:
+    case ANDESITE_STAIRS:
+    case POLISHED_ANDESITE_STAIRS:
+    case RED_NETHER_BRICK_STAIRS:
+    case MOSSY_STONE_BRICK_STAIRS:
+    case MOSSY_COBBLESTONE_STAIRS:
+    case SMOOTH_SANDSTONE_STAIRS:
+    case SMOOTH_RED_SANDSTONE_STAIRS:
+    case CRIMSON_STAIRS:
+    case WARPED_STAIRS:
+    case BLACKSTONE_STAIRS:
+    case POLISHED_BLACKSTONE_STAIRS:
+    case POLISHED_BLACKSTONE_BRICK_STAIRS:
 
-        // set up textures
+        // set texture
         switch (type)
         {
         default:
-            assert(0);
-        case BLOCK_OAK_WOOD_STAIRS:
-        case BLOCK_SPRUCE_WOOD_STAIRS:
-        case BLOCK_BIRCH_WOOD_STAIRS:
-        case BLOCK_JUNGLE_WOOD_STAIRS:
-        case BLOCK_ACACIA_WOOD_STAIRS:
-        case BLOCK_DARK_OAK_WOOD_STAIRS:
-        case BLOCK_QUARTZ_STAIRS:
-        case BLOCK_PURPUR_STAIRS:
-        case BLOCK_DARK_PRISMARINE_STAIRS:
             topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            break;
+        case BLOCK_SANDSTONE_STAIRS:
+            // for these stairs, top, sides, and bottom differ
+            topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
+            sideSwatchLoc = SWATCH_INDEX(0, 12);
+            bottomSwatchLoc = SWATCH_INDEX(0, 13);
             break;
         case BLOCK_RED_SANDSTONE_STAIRS:
             // for these stairs, top, sides, and bottom differ
@@ -4833,125 +4848,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             sideSwatchLoc = SWATCH_INDEX(14, 13);
             bottomSwatchLoc = SWATCH_INDEX(5, 8);
             break;
-        case BLOCK_COBBLESTONE_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:	// stone stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 0);
-                break;
-            case BIT_32:	// granite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 22);
-                break;
-            case BIT_32 | BIT_16:	// polished granite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 22);
-                break;
-            }
-            break;
-        case BLOCK_BRICK_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:	// smooth quartz stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 17);
-                break;
-            case BIT_32:	// diorite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 22);
-                break;
-            case BIT_32 | BIT_16:	// polished diorite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 22);
-                break;
-            }
-            break;
-        case BLOCK_STONE_BRICK_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:	// end stone stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 24);
-                break;
-            case BIT_32:	// andesite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 22);
-                break;
-            case BIT_32 | BIT_16:	// polished andesite
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 22);
-                break;
-            }
-            break;
-        case BLOCK_NETHER_BRICK_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:	// red nether brick stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(2, 26);
-                break;
-            case BIT_32:	// mossy stone
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 6);
-                break;
-            case BIT_32 | BIT_16:	// mossy cobblestone
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 2);
-                break;
-            }
-            break;
-        case BLOCK_SANDSTONE_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                // for these stairs, top, sides, and bottom differ
-                topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SANDSTONE].txrX, gBlockDefinitions[BLOCK_SANDSTONE].txrY);
-                sideSwatchLoc = SWATCH_INDEX(0, 12);
-                bottomSwatchLoc = SWATCH_INDEX(0, 13);
-                break;
-            case BIT_16:	// smooth sandstone stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(0, 11);
-                break;
-            case BIT_32:	// smooth red sandstone
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(12, 19);
-                break;
-            }
-            break;
-        case BLOCK_PRISMARINE_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:	// crimson stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);
-                break;
-            case BIT_32:	// warped stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);
-                break;
-            }
-            break;
-        case BLOCK_PRISMARINE_BRICK_STAIRS:
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0x0:
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                break;
-            case BIT_16:    // blackstone_stairs
-                topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(0, 46);
-                sideSwatchLoc = SWATCH_INDEX(1, 46);
-                break;
-            case BIT_32:    // polished_blackstone_stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(4, 46);
-                break;
-            case BIT_32 | BIT_16:	// polished_blackstone_brick_stairs
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 46);
-                break;
-            }
-            break;
         }
-        // now figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
+
+        // figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
         {
             unsigned int stepMask, origStepMask;
             stepMask = origStepMask = getStairMask(boxIndex, dataVal);
@@ -9443,6 +9342,27 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
     return retCode;
 }
 
+static void rotateMask(int& mask)
+{
+    // 0 -> 1, 1 -> 3, 3 -> 2, 2 -> 0
+    switch (mask) {
+    case 0:
+        mask = 1;
+        break;
+    case 1:
+        mask = 3;
+        break;
+    case 2:
+        mask = 0;
+        break;
+    case 3:
+        mask = 2;
+        break;
+    default:
+        assert(0);
+    }
+}
+
 static unsigned int getStairMask(int boxIndex, int dataVal)
 {
     // The stairs block has a full level (a full slab) on one level. Our task is to find which of
@@ -9460,12 +9380,17 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
     // This is mostly table-driven.
     // The mask bits are as follows
     //
-    //        lo hi
-    //    lo   0  1
-    //    hi   2  3
+    //    Bit set:         Bit value set:
+    //        lo hi            lo  hi
+    //    lo   0  1        lo 0x1 0x2
+    //    hi   2  3        hi 0x4 0x8
     //
     // The value sets the 1<<bit in the mask. So, bits 2 and 3 would give 4 + 8 = 12.
     // Table is oriented along world lines, and recall that North is -Z, East is +X.
+    // So, for example, stairs[stepDir] is how you access the stair data. stepDir is  
+    // 0 = east, 1 = west, 2 = south, 3 = north. So, stairs[1] - west - has a mask of 5,
+    // which corresponds to 0x0101, which are bits 0 and 2, the western bits shown in the
+    // table above.
     typedef struct StairsTable {
         unsigned int mask;  // which of the four blocks is set
         int backDir;
@@ -9484,71 +9409,80 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
     int stepDir = (dataVal & 0x3);
     int stepLevel = (dataVal & 0x4);
     unsigned int stepMask = stairs[stepDir].mask;
-    bool sideNeighbor;
-    unsigned int newMask;
-    int neighborDataVal;
 
-    int neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].backDir];
-    int neighborType = gBoxData[neighborIndex].origType;
-    // is there a stairs behind us that subtracted a block?
-    bool subtractedBlock = false;
-    if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
-    {
-        // get the data value and check it
-        neighborDataVal = gBoxData[neighborIndex].data;
+    static bool useNewer = true;
 
-        // first, are slabs on same level?
-        if ((neighborDataVal & 0x4) == stepLevel)
-        {
-            // On the same level. Is neighbor value one of the values that can affect this block?
-            newMask = stairs[stepDir].behind[(neighborDataVal & 0x3)];
-            if (newMask != 0x0)
-            {
-                // The behind value indeed affects the step. Now we need to check if the corresponding
-                // neighbor to the side is a stairs, at the same level, and has the same orientation.
-                // If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
-                // the step's upper step "in place" without subtraction.
-                sideNeighbor = false;
-                neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
-                assert(neighborIndex != boxIndex);
-                neighborType = gBoxData[neighborIndex].origType;
-                // is there a stairs to the key side of us?
-                if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
-                {
-                    // get the data value and check it
-                    neighborDataVal = gBoxData[neighborIndex].data;
-
-                    // first, are slabs on same level?
-                    if ((neighborDataVal & 0x4) == stepLevel)
-                    {
-                        // On the same level. Is neighbor value the same as the block's value, i.e. are the
-                        // stairs facing the same direction?
-                        if ((neighborDataVal & 0x3) == stepDir)
-                        {
-                            // so, this stairs hold the stair step in place, no subtraction.
-                            sideNeighbor = true;
-                        }
-                    }
+    // now figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
+    if (useNewer && gIs13orNewer) {
+        // is this one not straight? If straight, we're done!
+        if (dataVal & (BIT_8 | BIT_16)) {
+            // not straight:
+            // BIT_8 is inner - on is INNER
+            // BIT_16 is outer - on is OUTER
+            // BIT_32 is left/right - on is RIGHT
+            // Set the bits as if we have an "east" block - we'll rotate to position
+            int addMask = (dataVal & BIT_8) ? ((dataVal & BIT_32) ? 0x0 : 0x2) : 0x0;
+            bool useAddMask = (dataVal & BIT_8) > 0;
+            int subtractMask = (dataVal & BIT_16) ? ((dataVal & BIT_32) ? 0x3 : 0x1) : 0x0;
+            assert( useAddMask != (subtractMask > 0));
+            // OK, now we know bits to mask: shift, depending on direction, so that the stepMask is modified properly
+            switch (stepDir) {
+            default:
+            case 0: // east
+                // don't need to do anything
+                break;
+            case 1: // west
+                // rotate bits clockwise two positions
+                if (useAddMask) {
+                    rotateMask(addMask);
+                    rotateMask(addMask);
                 }
-
-                if (!sideNeighbor)
-                {
-                    // No side neighbor holding the step in place, so set this as the new mask, and we're done;
-                    // subtraction takes precedence over addition.
-                    stepMask = newMask;
-                    subtractedBlock = true;
+                else {
+                    rotateMask(subtractMask);
+                    rotateMask(subtractMask);
                 }
+                break;
+            case 2: // south
+                // rotate bits one position
+                if (useAddMask) {
+                    rotateMask(addMask);
+                }
+                else {
+                    rotateMask(subtractMask);
+                }
+                break;
+            case 3: // south
+                // rotate bits three positions
+                if (useAddMask) {
+                    rotateMask(addMask);
+                    rotateMask(addMask);
+                    rotateMask(addMask);
+                }
+                else {
+                    rotateMask(subtractMask);
+                    rotateMask(subtractMask);
+                    rotateMask(subtractMask);
+                }
+                break;
+            }
+            if (useAddMask) {
+                stepMask |= (1<<addMask);
+            }
+            else {
+                stepMask &= ~(1<<subtractMask);
             }
         }
     }
+    else {
+        // if 1.12 or earlier, do this involved process
+        bool sideNeighbor;
+        unsigned int newMask;
+        int neighborDataVal;
 
-    // if a subtraction didn't happen, then we can test for an addition
-    if (!subtractedBlock)
-    {
-        // now check the neighbor in front, in a similar manner.
-        neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].backDir + 3) % 6];
-        neighborType = gBoxData[neighborIndex].origType;
-        // is there a stairs in front of us?
+        int neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].backDir];
+        int neighborType = gBoxData[neighborIndex].origType;
+        // is there a stairs behind us that subtracted a block?
+        bool subtractedBlock = false;
         if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
         {
             // get the data value and check it
@@ -9558,15 +9492,15 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
             if ((neighborDataVal & 0x4) == stepLevel)
             {
                 // On the same level. Is neighbor value one of the values that can affect this block?
-                newMask = stairs[stepDir].front[(neighborDataVal & 0x3)];
+                newMask = stairs[stepDir].behind[(neighborDataVal & 0x3)];
                 if (newMask != 0x0)
                 {
-                    // The front value indeed affects the step. Now we need to check if the corresponding
+                    // The behind value indeed affects the step. Now we need to check if the corresponding
                     // neighbor to the side is a stairs, at the same level, and has the same orientation.
-                    // If so, we ignore addition, else allow it. Basically, steps next to steps keep
-                    // the step's upper step "in place" without addition.
+                    // If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
+                    // the step's upper step "in place" without subtraction.
                     sideNeighbor = false;
-                    neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6];
+                    neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
                     assert(neighborIndex != boxIndex);
                     neighborType = gBoxData[neighborIndex].origType;
                     // is there a stairs to the key side of us?
@@ -9593,6 +9527,64 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
                         // No side neighbor holding the step in place, so set this as the new mask, and we're done;
                         // subtraction takes precedence over addition.
                         stepMask = newMask;
+                        subtractedBlock = true;
+                    }
+                }
+            }
+        }
+
+        // if a subtraction didn't happen, then we can test for an addition
+        if (!subtractedBlock)
+        {
+            // now check the neighbor in front, in a similar manner.
+            neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].backDir + 3) % 6];
+            neighborType = gBoxData[neighborIndex].origType;
+            // is there a stairs in front of us?
+            if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+            {
+                // get the data value and check it
+                neighborDataVal = gBoxData[neighborIndex].data;
+
+                // first, are slabs on same level?
+                if ((neighborDataVal & 0x4) == stepLevel)
+                {
+                    // On the same level. Is neighbor value one of the values that can affect this block?
+                    newMask = stairs[stepDir].front[(neighborDataVal & 0x3)];
+                    if (newMask != 0x0)
+                    {
+                        // The front value indeed affects the step. Now we need to check if the corresponding
+                        // neighbor to the side is a stairs, at the same level, and has the same orientation.
+                        // If so, we ignore addition, else allow it. Basically, steps next to steps keep
+                        // the step's upper step "in place" without addition.
+                        sideNeighbor = false;
+                        neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6];
+                        assert(neighborIndex != boxIndex);
+                        neighborType = gBoxData[neighborIndex].origType;
+                        // is there a stairs to the key side of us?
+                        if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
+                        {
+                            // get the data value and check it
+                            neighborDataVal = gBoxData[neighborIndex].data;
+
+                            // first, are slabs on same level?
+                            if ((neighborDataVal & 0x4) == stepLevel)
+                            {
+                                // On the same level. Is neighbor value the same as the block's value, i.e. are the
+                                // stairs facing the same direction?
+                                if ((neighborDataVal & 0x3) == stepDir)
+                                {
+                                    // so, this stairs hold the stair step in place, no subtraction.
+                                    sideNeighbor = true;
+                                }
+                            }
+                        }
+
+                        if (!sideNeighbor)
+                        {
+                            // No side neighbor holding the step in place, so set this as the new mask, and we're done;
+                            // subtraction takes precedence over addition.
+                            stepMask = newMask;
+                        }
                     }
                 }
             }
@@ -10447,6 +10439,25 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_PRISMARINE_STAIRS:
             case BLOCK_PRISMARINE_BRICK_STAIRS:
             case BLOCK_DARK_PRISMARINE_STAIRS:
+            case BLOCK_STONE_STAIRS:
+            case GRANITE_STAIRS:
+            case POLISHED_GRANITE_STAIRS:
+            case SMOOTH_QUARTZ_STAIRS:
+            case DIORITE_STAIRS:
+            case POLISHED_DIORITE_STAIRS:
+            case END_STONE_BRICK_STAIRS:
+            case ANDESITE_STAIRS:
+            case POLISHED_ANDESITE_STAIRS:
+            case RED_NETHER_BRICK_STAIRS:
+            case MOSSY_STONE_BRICK_STAIRS:
+            case MOSSY_COBBLESTONE_STAIRS:
+            case SMOOTH_SANDSTONE_STAIRS:
+            case SMOOTH_RED_SANDSTONE_STAIRS:
+            case CRIMSON_STAIRS:
+            case WARPED_STAIRS:
+            case BLACKSTONE_STAIRS:
+            case POLISHED_BLACKSTONE_STAIRS:
+            case POLISHED_BLACKSTONE_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -14818,6 +14829,25 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_PRISMARINE_STAIRS:
         case BLOCK_PRISMARINE_BRICK_STAIRS:
         case BLOCK_DARK_PRISMARINE_STAIRS:
+        case BLOCK_STONE_STAIRS:
+        case GRANITE_STAIRS:
+        case POLISHED_GRANITE_STAIRS:
+        case SMOOTH_QUARTZ_STAIRS:
+        case DIORITE_STAIRS:
+        case POLISHED_DIORITE_STAIRS:
+        case END_STONE_BRICK_STAIRS:
+        case ANDESITE_STAIRS:
+        case POLISHED_ANDESITE_STAIRS:
+        case RED_NETHER_BRICK_STAIRS:
+        case MOSSY_STONE_BRICK_STAIRS:
+        case MOSSY_COBBLESTONE_STAIRS:
+        case SMOOTH_SANDSTONE_STAIRS:
+        case SMOOTH_RED_SANDSTONE_STAIRS:
+        case CRIMSON_STAIRS:
+        case WARPED_STAIRS:
+        case BLACKSTONE_STAIRS:
+        case POLISHED_BLACKSTONE_STAIRS:
+        case POLISHED_BLACKSTONE_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy

@@ -414,7 +414,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 365
+#define NUM_BLOCKS_DEFINED 384
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -882,4 +882,25 @@ enum block_types {
     BLOCK_SOUL_TORCH = 362,
     BLOCK_WEEPING_VINES = 363,
     BLOCK_CHAIN = 364,
+
+    // no more lumping the stairs together
+    BLOCK_STONE_STAIRS = 365,
+    GRANITE_STAIRS = 366,
+    POLISHED_GRANITE_STAIRS = 367,
+    SMOOTH_QUARTZ_STAIRS = 368,
+    DIORITE_STAIRS = 369,
+    POLISHED_DIORITE_STAIRS = 370,
+    END_STONE_BRICK_STAIRS = 371,
+    ANDESITE_STAIRS = 372,
+    POLISHED_ANDESITE_STAIRS = 373,
+    RED_NETHER_BRICK_STAIRS = 374,
+    MOSSY_STONE_BRICK_STAIRS = 375,
+    MOSSY_COBBLESTONE_STAIRS = 376,
+    SMOOTH_SANDSTONE_STAIRS = 377,
+    SMOOTH_RED_SANDSTONE_STAIRS = 378,
+    CRIMSON_STAIRS = 379,
+    WARPED_STAIRS = 380,
+    BLACKSTONE_STAIRS = 381,
+    POLISHED_BLACKSTONE_STAIRS = 382,
+    POLISHED_BLACKSTONE_BRICK_STAIRS = 383
 };
