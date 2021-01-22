@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.00"
+#define	VERSION_STRING	L"3.01"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -184,6 +184,10 @@ static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned l
 
 static int checkForCutout(progimage_info* dst);
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
+
+static bool rotateTileIfHorizontal(progimage_info& tile);
+static void rotateTile(progimage_info& tile, int channels);
+
 
 
 int wmain(int argc, wchar_t* argv[])
@@ -524,18 +528,28 @@ int wmain(int argc, wchar_t* argv[])
 	// should check if the redstone_dust_line* record is horizontal - need to make it vertical TODOTODO
 
 	// if there is a redstone_dust_line0 but not a line1, or vice versa, copy one to the other
+	bool lineDuplicated = false;
+	int prevProcessed = filesProcessed;
 	filesProcessed -= shareFileRecords(&gFG, L"redstone_dust_line0", L"redstone_dust_line1");
+	if (prevProcessed != filesProcessed) {
+		wprintf(L"NOTE: only one of the tiles for redstone_dust_line0 and redstone_dust_line1 exists, so it is also used for the other.\n");
+		lineDuplicated = true;
+		gWarningCount++;
+	}
 
 	// if there's a grass_block_overlay, then do this equivalency
 	index = findTileIndex(L"grass_block_side_overlay", false);
 	assert(index >= 0);
-	int prevProcessed;
 	if (gFG.fr[index].exists) {
-		prevProcessed = filesProcessed;
-		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
-		if (prevProcessed != filesProcessed) {
-			wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so one was shared with the other.\n");
-			gWarningCount++;
+		// grass_block_side_overlay exists
+		// check if grass_block_side does not exist
+		if (!gFG.fr[findTileIndex(L"grass_block_side", 0)].exists) {
+			prevProcessed = filesProcessed;
+			filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
+			if (prevProcessed != filesProcessed) {
+				wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so dirt is used for grass_block_side.\n");
+				gWarningCount++;
+			}
 		}
 	}
 	else {
@@ -610,6 +624,10 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
+	int redstoneDustLine0Index = findTileIndex(L"redstone_dust_line0", 0);
+	int redstoneDustLine1Index = findTileIndex(L"redstone_dust_line1", 0);
+	bool line0Rotated = false;
+	bool line1Rotated = false;
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		// always export RGBA image, and others if there's content
@@ -708,6 +726,7 @@ int wmain(int argc, wchar_t* argv[])
 								{
 									wprintf(L"WARNING: Image '%s' was not used because there is already a image put there.\n", 
 										gFG.fr[fullIndex].fullFilename);
+									gWarningCount++;
 									continue;
 								}
 							}
@@ -744,6 +763,7 @@ int wmain(int argc, wchar_t* argv[])
 								wprintf(L"WARNING: Image '%s' was not used because it is all black, 0.0, the default value for %s.\n",
 									gFG.fr[fullIndex].fullFilename, (catIndex == CATEGORY_METALLIC) ? L"metallic" : L"emissive");
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
+								gWarningCount++;
 								continue;
 							}
 						}
@@ -752,6 +772,7 @@ int wmain(int argc, wchar_t* argv[])
 								wprintf(L"WARNING: Image '%s' was not used because it is all white, 1.0, the default value for roughness.\n", 
 									gFG.fr[fullIndex].fullFilename);
 								deleteFileFromGrid(&gFG, catIndex, fullIndex);
+								gWarningCount++;
 								continue;
 							}
 							// if an image is entirely black, make it 01 black, so that Mineways will take it seriously.
@@ -765,10 +786,10 @@ int wmain(int argc, wchar_t* argv[])
 							// TODOTODO: this does not catch all tiles properly, such as oak leave cutouts. Also, need scaling factor!
 							if ((heightfieldCount > normalsCount) || channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0, 1)) {
 								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 1)) {
-									//wprintf(L"WARNING: Image '%s' was not used because it seems to be in heightfield, rather than XYZ normals->RGB, format.\n",
 									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
 										gFG.fr[fullIndex].fullFilename);
 									deleteFileFromGrid(&gFG, catIndex, fullIndex);
+									gWarningCount++;
 									continue;
 								}
 								else {
@@ -788,6 +809,34 @@ int wmain(int argc, wchar_t* argv[])
 							else {
 								// likely a normals map
 								normalsCount++;
+							}
+						}
+
+						// Check some special tiles here for possible errors
+						if (catIndex == CATEGORY_RGBA) {
+							// for some reason, a lot of resource packs make the redstone_dust_line*.png images horizontal, when they are vertical in
+							// vanilla Minecraft. Rotate them if found to be that way. We check if there are more alpha>0 (visible) pixels horizontally
+							// across the middle of the image than there are vertically down the middle of the image. If so, rotate in place.
+							if (index == redstoneDustLine0Index) {
+								line0Rotated = rotateTileIfHorizontal(tile);
+								if (line0Rotated) {
+									wprintf(L"NOTE: Image '%s' was rotated 90 degrees to be in the proper orientation for Mineways.\n",
+										gFG.fr[fullIndex].fullFilename);
+								}
+							} else if (index == redstoneDustLine1Index) {
+								line1Rotated = rotateTileIfHorizontal(tile);
+								if (line1Rotated && !lineDuplicated) {
+									wprintf(L"NOTE: Image '%s' was rotated 90 degrees to be in the proper orientation for Mineways.\n",
+										gFG.fr[fullIndex].fullFilename);
+								}
+							}
+						}
+						else {
+							// these flags are now set
+							if (index == redstoneDustLine0Index && line0Rotated) {
+								rotateTile(tile, channels);
+							} else if (index == redstoneDustLine1Index && line1Rotated) {
+								rotateTile(tile, channels);
 							}
 						}
 
@@ -1015,6 +1064,7 @@ int wmain(int argc, wchar_t* argv[])
 			}
 			else {
 				wprintf(L"WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
+				gWarningCount++;
 			}
 		}
 	}
@@ -1080,11 +1130,13 @@ int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 	if (index1 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile1);
 		assert(0);
+		gWarningCount++;
 		return 0;
 	}
 	if (index2 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile2);
 		assert(0);
+		gWarningCount++;
 		return 0;
 	}
 
@@ -1837,5 +1889,73 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 	}
 	return 1;
 }
+
+// 4 channels assumed
+static bool rotateTileIfHorizontal(progimage_info &tile)
+{
+	assert(tile.width == tile.height);
+	bool rotated = false;
+	// check if tile is vertical or horizontal
+	int row, col;
+	int vertCount = 0;
+	int horizCount = 0;
+	// start at middle column of image, at alpha, and scan it for alpha > 0
+	unsigned char* data = &tile.image_data[0] + tile.height * 2 + 3;
+	for (row = 0; row < tile.height; row++)
+	{
+		if (*data != 0)
+		{
+			vertCount++;
+		}
+		data += 4 * tile.width;
+	}
+	// start at middle row of image, at alpha, and scan it for alpha > 0
+	data = &tile.image_data[0] + tile.width * tile.height * 2 + 3;
+	for (col = 0; col < tile.width; col++)
+	{
+		if (*data != 0)
+		{
+			horizCount++;
+		}
+		data += 4;
+	}
+
+	if (vertCount < horizCount) {
+		rotated = true;
+		rotateTile(tile, 4);
+	}
+	return rotated;
+}
+
+static void rotateTile(progimage_info &tile, int channels)
+{
+	// loop through a quad of the image and round-robin rotate with its 3 other locations
+	int row, col, ch;
+	// start at middle column of image, at alpha, and scan it for alpha > 0
+	for (row = 0; row < tile.height/2; row++)
+	{
+		unsigned char* data0 = &tile.image_data[row*tile.width*channels]; // upper left corner, going down
+		unsigned char* data1 = &tile.image_data[(tile.width - 1 - row) * channels]; // upper right corner, going left
+		unsigned char* data2 = &tile.image_data[((tile.height - row) * tile.width - 1) * channels];	// lower right corner, going up
+		unsigned char* data3 = &tile.image_data[((tile.height - 1) * tile.width + row) * channels]; // lower left corner, going right
+		for (col = 0; col < tile.width/2; col++)
+		{
+			for (ch = 0; ch < channels; ch++) {
+				// copy 0 to tmp, 1 to 0, etc.
+				unsigned char tmp = *data0;
+				*data0++ = *data1;
+				*data1++ = *data2;
+				*data2++ = *data3;
+				*data3++ = tmp;
+			}
+			// and move one column/row/column/row inwards, remembering that we've just moved to the next pixel from the above
+			//data0 += channels; - <-- that's what we would do if we hadn't incremented the pointer above in the loop
+			data1 += (tile.width-1) * channels;
+			data2 -= 2*channels;
+			data3 -= (tile.width+1) * channels;
+		}
+	}
+}
+
 
 

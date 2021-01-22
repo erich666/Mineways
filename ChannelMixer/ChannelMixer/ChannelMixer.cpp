@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.00"
+#define	VERSION_STRING	L"1.01"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
