@@ -9410,10 +9410,10 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
     int stepLevel = (dataVal & 0x4);
     unsigned int stepMask = stairs[stepDir].mask;
 
-    static bool useNewer = true;
+    //static bool useNewer = true;
 
     // now figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
-    if (useNewer && gIs13orNewer) {
+    if (gIs13orNewer) {
         // is this one not straight? If straight, we're done!
         if (dataVal & (BIT_8 | BIT_16)) {
             // not straight:

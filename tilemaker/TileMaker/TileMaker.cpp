@@ -466,7 +466,7 @@ int wmain(int argc, wchar_t* argv[])
 		for (index = 0; index < gFG.totalTiles; index++) {
 			fullIndex = catIndex * gFG.totalTiles + index;
 			if (gFG.fr[fullIndex].exists) {
-				size = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, false, true, index, lavaFlowIndex, waterFlowIndex);
+				size = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, true, true, index, lavaFlowIndex, waterFlowIndex);
 				if (size == 0) {
 					deleteFileFromGrid(&gFG, fullIndex / gFG.totalTiles, fullIndex);
 				}
@@ -544,7 +544,7 @@ int wmain(int argc, wchar_t* argv[])
 		prevProcessed = filesProcessed;
 		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"grass_block_side_overlay");
 		if (prevProcessed != filesProcessed) {
-			wprintf(L"WARNING: the grass_block_side_overlay does not exist, so the grass_block_side texture replaces it.\n");
+			wprintf(L"WARNING: the grass_block_side_overlay texture does not exist, so the grass_block_side texture replaces it.\n");
 			gWarningCount++;
 		}
 	}
@@ -1127,6 +1127,7 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean
 		reportReadError(rc, inputFile);
 		return overlayTileSize;	// no change
 	}
+
 	if (testFileForPowerOfTwo(tile.width, tile.height, pfr->fullFilename, square)) {
 		// error - should delete this tile as it's unusable
 		return 0;
@@ -1165,12 +1166,13 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 	// check if height is not a power of two AND is not a multiple of the width.
 	// if not square (i.e., a chest), the height may be half that of the width.
 	else if (fmod((float)(height) / (float)width, square ? 1.0f : 0.5f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is not a multiple of its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
+		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is not %s its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, square ? L"equal to" : L"a multiple of", width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
 	}
-	if (square && width > height) {
+	// not sure I actually need this test - the one above should cover it, I think - but left in, just in case
+	if (square && width > height && fail_code == 0) {
 		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is less than its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
