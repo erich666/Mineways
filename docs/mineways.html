@@ -147,7 +147,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <H2 id="install">
 Installation
 </H2>
-Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
+Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and want to clean these out, search for "Mineways" in your registry editor and you'll find them.
 <P>
@@ -3227,7 +3227,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 </UL>
 
 <P>
-<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI><B>Support for USD into Omniverse Create</B>. <a href="https://graphics.pixar.com/usd/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Create</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
@@ -3256,16 +3256,16 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.02, 1/29/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Output some statistics when exporting for rendering. This has the bonus of making a "ding" sound when an export completes.
+<LI>Display some statistics when done exporting for rendering. This has the bonus of making a "ding" sound when an export completes.
 <LI>Added a beta of USDPreview materials, which means that programs that read USD files (such as the free <a href="https://www.sidefx.com/products/houdini-apprentice/">Houdini Apprentice</a>) can use Mineways USD export files. (<i>Thanks, Ben Skinner!</i>)
-<LI>Somewhat better progress bar display when reading in large PBR terrain file sets.
+<LI>Somewhat better progress bar update when reading in large PBR terrain file sets.
 <LI>Fixed stair orientation for stairs in version 1.13 on (<a href="https://github.com/erich666/Mineways/issues/68">issue #68</a>). (<i>Thanks to ChlorideCull for reporting it.</i>)
-<LI>Fixed "Change blocks" scripting command (<a href="https://github.com/erich666/Mineways/issues/69">issue #69</a>). (<i>Thanks to ChlorideCull for reporting it and pointing to the code change that caused it.</i>)
+<LI>Fixed "Change blocks" scripting command bug (<a href="https://github.com/erich666/Mineways/issues/69">issue #69</a>). (<i>Thanks to ChlorideCull for reporting it and pointing to the code change that caused it.</i>)
 <LI>Extended the "Change blocks" scripting command to partially support 1.13+ block names, and updated the <a href="scripting.html#cbce">scripting documentation</a>.
 <LI>Make the array for swatch UVs larger, to avoid crashing when exporting large 3D prints.
-<LI>ChannelMixer now tests if files are in the newer <a href="https://github.com/rre36/lab-pbr/wiki/Specular-Texture-Details">LabPBR format</a> where the specular alpha channel holds emission data. ChannelMixer also now detects JPEG images that have not been converted to PNG and warns about them. Incremented to version 1.01.
+<LI>ChannelMixer now attempts to test if texture files are in the newer <a href="https://github.com/rre36/lab-pbr/wiki/Specular-Texture-Details">LabPBR format</a> where the specular alpha channel holds emission data. ChannelMixer also now detects JPEG images that have not been converted to PNG and warns about them. Incremented to version 1.01.
 <LI>TileMaker now checks if a block's tile is not properly square. Incremented to version 3.01.
-<LI>The lodepng PNG reading package is updated to a new version (which has better memory handling and bug fixes) and regrooved it for wide characters.
+<LI>The lodepng PNG reading package was updated to a new version (which has better memory handling and bug fixes) and regrooved for wide character filenames.
 <LI>Internal: change mallocs to callocs for slightly better and more readable code.
 </UL>
 
@@ -3314,7 +3314,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV801.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3364,7 +3364,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 1/3/2021</p>
+		<p id="lastUpdate">Last updated 1/29/2021</p>
 	</div>
 </div>
 
