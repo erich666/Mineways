@@ -617,7 +617,7 @@ int wmain(int argc, wchar_t* argv[])
 					gWarningCount++;
 					if (!foundMismatch) {
 						foundMismatch = true;
-						wprintf(L"    Perhaps the color file is in a TGA file? You'll need to convert it to a PNG file.\n");
+						//wprintf(L"    Perhaps the color file is in a TGA file? You'll need to convert it to a PNG file.\n");
 					}
 				}
 			}
@@ -631,7 +631,7 @@ int wmain(int argc, wchar_t* argv[])
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		// always export RGBA image, and others if there's content
-		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0) &&
+		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0) &&
 			((catIndex == CATEGORY_RGBA) ||
 				(catIndex == CATEGORY_NORMALS) ||	// note that, above, all _normals (LONG) versions have been moved over
 				(catIndex == CATEGORY_METALLIC) ||

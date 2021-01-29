@@ -257,7 +257,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 			if (pfg->fr[fullIndex].exists) {
 				// duplicate, so warn and exit, except for special case of this being a gray water tile
 				if ((wcscmp(tileName, L"water_flow_grey") == 0) || (wcscmp(tileName, L"water_still_grey") == 0)) {
-					wprintf(L"DUP WARNING: Duplicate colored water file ignored, as we usually want the grayscale version.\n  File '%s' in directory '%s' is favored over texture '%s' in '%s'.\n", tilePath, origTileName, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+					wprintf(L"DUP WARNING: Duplicate colored water file ignored, as we usually want the grayscale version;\n  file '%s' in directory '%s' is favored over\n  texture '%s' in '%s'.\n", tilePath, origTileName, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					// replace other tile - we want the grey one
 					//pfg->fileCount++;
 					//pfg->categories[category]++;
@@ -270,13 +270,13 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 				}
 				else {
 					if ((warnDups || verbose) && wcscmp(origTileName, pfg->fr[fullIndex].fullFilename) == 0) {
-						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
 					else if (verbose) {
-						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
 					else if (warnDups) {
-						wprintf(L"DUP WARNING: Duplicate file ignored.\n  File '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
+						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
 					}
 					return FILE_FOUND_AND_DUPLICATE;
 				}

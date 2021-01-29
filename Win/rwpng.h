@@ -47,3 +47,4 @@ progimage_info* allocateRGBImage(progimage_info* source_ptr);
 void copyOneChannel(progimage_info* dst, int channel, progimage_info* src, LodePNGColorType colortype);
 
 int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsigned char value, int ignoreGrayscale);
+void changeValueToValue(progimage_info* src, int channel, int numChannels, unsigned char value, unsigned char newValue);

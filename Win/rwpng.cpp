@@ -228,7 +228,25 @@ int channelEqualsValue(progimage_info* src, int channel, int numChannels, unsign
     return 1;
 }
 
-
+void changeValueToValue(progimage_info* src, int channel, int numChannels, unsigned char value, unsigned char newValue)
+{
+    // if value in channel is equal to input value, change it to the new value
+    assert(numChannels > 0);
+    assert(channel < numChannels);
+    int row, col;
+    unsigned char* src_data = &src->image_data[0] + channel;
+    for (row = 0; row < src->height; row++)
+    {
+        for (col = 0; col < src->width; col++)
+        {
+            if (*src_data == value)
+            {
+                *src_data = newValue;
+            }
+            src_data += numChannels;
+        }
+    }
+}
 
 
 

@@ -304,7 +304,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13 blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt.png with 47 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6 VERTICAL_TILES
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 47 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
 
@@ -312,19 +312,19 @@ static struct {
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<8
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<9
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<10
-    {_T("Error: the incoming terrainExt.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
-    {_T("Error: the incoming terrainExt.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
+    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
+    {_T("Error: the incoming terrainExt*.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
     {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13 MW_DIMENSION_TOO_LARGE
     {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<14
     {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<15
-    {_T("Error: out of memory - terrainExt.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<16
+    {_T("Error: out of memory - terrainExt*.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<16
     {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<17
     {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export full color separate tiles' option."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
     {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
 
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
-    // {_T("Error: cannot read your custom terrainExt.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK | MB_ICONERROR},	// << 19
+    // {_T("Error: cannot read your custom terrainExt*.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
+    {_T("Error: cannot read terrainExt*.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt*.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK | MB_ICONERROR},	// << 19
     {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<21
 };
 
@@ -1756,7 +1756,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ofn.lpstrFile = pathAndFile;
             //path[0]=0;
             ofn.nMaxFile = MAX_PATH_AND_FILE;
-            ofn.lpstrFilter = L"Terrain File (terrainExt.png)\0*.png\0";
+            ofn.lpstrFilter = L"Terrain File (terrainExt*.png)\0*.png\0";
             ofn.nFilterIndex = 1;
             ofn.lpstrFileTitle = NULL;
             ofn.nMaxFileTitle = 0;

@@ -54,7 +54,8 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose);
 static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory);
 
-static int isNearlyGrayscale(progimage_info* src);
+static int isNearlyGrayscale(progimage_info* src, int channels);
+static bool isAlphaSemitransparent(progimage_info * src);
 static void invertChannel(progimage_info* dst);
 static void StoMER(progimage_info * dst, progimage_info * src);
 static boolean SMEtoMER(progimage_info * dst, progimage_info * src);
@@ -204,11 +205,11 @@ int wmain(int argc, wchar_t* argv[])
 		filesProcessed += copyFiles(&gFG, &gCG, outputDirectory, verbose);
 	}
 
-	if (gFG.categories[CATEGORY_SPECULAR] > 0) {
+	if (gFG.categories[CATEGORY_SPECULAR] > 0 || gCG.categories[CATEGORY_SPECULAR] > 0) {
 		filesProcessed += processSpecularFiles(&gFG, &gCG, outputDirectory, outputMerged, verbose);
 	}
 
-	if (gFG.categories[CATEGORY_MER] > 0) {
+	if (gFG.categories[CATEGORY_MER] > 0 || gCG.categories[CATEGORY_MER] > 0) {
 		filesProcessed += processMERFiles(&gFG, &gCG, outputDirectory, verbose);
 	}
 
@@ -383,6 +384,49 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 
 	// SME order, inverting the red channel:
 	int category[] = { CATEGORY_ROUGHNESS, CATEGORY_METALLIC, CATEGORY_EMISSION };
+	wchar_t inputFile[MAX_PATH_AND_FILE];
+	LodePNGColorType readColorType = LCT_RGB;
+	int numChannels = 3;
+
+	// go through all files as a preprocess. If any have an alpha channel, then assume these are labPBR new format and
+	// read the alpha as the emission channel.
+	for (int i = 0; i < pfg->totalTiles; i++) {
+		int fullIndex = CATEGORY_SPECULAR * pfg->totalTiles + i;
+		if (pfg->fr[fullIndex].exists) {
+			wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].path);
+			wcscat_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
+			// read tile header
+			progimage_info tile;
+			LodePNGColorType colortype;
+			rc = readpngheader(&tile, inputFile, colortype);
+			if (rc != 0)
+			{
+				// skip file - we'll report the read error below
+				continue;
+			}
+			if (colortype == LCT_RGBA) { // and in theory: || colortype == LCT_GREY_ALPHA ) { - but this will never happen
+				readColorType = LCT_RGBA;
+				numChannels = 4;
+				break;
+			}
+			else if (colortype == LCT_PALETTE ) {
+				// ugh, need to read image and see if any alphas are < 255 (and > 0, just to be safe)
+				rc = readpng(&tile, inputFile, LCT_RGBA);
+				if (rc != 0)
+				{
+					continue;
+				}
+				if (isAlphaSemitransparent(&tile)) {
+					readColorType = LCT_RGBA;
+					numChannels = 4;
+					readpng_cleanup(1, &tile);
+					wprintf(L"LabPBR emission data detected; using the alpha channel for the emission map.\n");
+					break;
+				}
+				readpng_cleanup(1, &tile);
+			}
+		}
+	}
 
 	for (int i = 0; i < pfg->totalTiles; i++) {
 		int fullIndex = CATEGORY_SPECULAR * pfg->totalTiles + i;
@@ -392,13 +436,12 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 			// Check if file's channels are all quite close to one another:
 			// If so, then this is just a roughness map.
 			// Else, this is an SME texture, so output each.
-			wchar_t inputFile[MAX_PATH_AND_FILE];
 			wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].path);
 			wcscat_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
 
 			// read in tile for later
 			progimage_info tile;
-			rc = readpng(&tile, inputFile, LCT_RGB);
+			rc = readpng(&tile, inputFile, readColorType);
 			if (rc != 0)
 			{
 				reportReadError(rc, inputFile);
@@ -408,12 +451,12 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 				filesRead++;
 
 				wchar_t outputFile[MAX_PATH_AND_FILE];
-				if (isNearlyGrayscale(&tile)) {
+				if (isNearlyGrayscale(&tile, numChannels)) {
 					isGrayscale++;
 					// specular only: output just the roughness channel
 					// always export specular in inverted
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, LCT_RGB);
+					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, readColorType);
 					// output the channel if it's not all black
 					boolean allBlack = true;
 					if (gUseCategory[CATEGORY_ROUGHNESS] && !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
@@ -465,7 +508,19 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
                         if (gUseCategory[category[channel]]) {
                             // output the channel if it's not all black
                             progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
-                            copyOneChannel(destination_ptr, channel, &tile, LCT_RGB);
+							if (channel == CHANNEL_BLUE && numChannels == 4) {
+								// special treatment for labPBR
+								copyOneChannel(destination_ptr, 3, &tile, readColorType);
+								// if all 255, then emission is not being used
+								if (channelEqualsValue(destination_ptr, 0, 1, 255, 0)) {
+									continue;
+								}
+								// change all 255's to 0 for emission
+								changeValueToValue(destination_ptr, 0, 1, 255, 0);
+							}
+							else {
+								copyOneChannel(destination_ptr, channel, &tile, readColorType);
+							}
                             // is the channel, copied over, non-zero?
                             if (!channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
                                 if (channel == CHANNEL_RED) {
@@ -521,7 +576,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 		}
 	}
 
-	// grotesque, lazy coding: copying all the code above, with chest grid changes
+	// grotesque, lazy coding: copying all the code above, without RGBA testing, and with chest grid changes
 	wchar_t outputChestDirectory[MAX_PATH];
 	for (int i = 0; i < pcg->totalTiles; i++) {
 		int fullIndex = CATEGORY_SPECULAR * pcg->totalTiles + i;
@@ -537,7 +592,6 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 			// Check if file's channels are all quite close to one another:
 			// If so, then this is just a roughness map.
 			// Else, this is an SME texture, so output each.
-			wchar_t inputFile[MAX_PATH_AND_FILE];
 			wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
 			wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
 
@@ -553,7 +607,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 				filesRead++;
 
 				wchar_t outputFile[MAX_PATH_AND_FILE];
-				if (isNearlyGrayscale(&tile)) {
+				if (isNearlyGrayscale(&tile,3)) {
 					isGrayscale++;
 					// specular only: output just the roughness channel
 					// always export specular in inverted
@@ -990,10 +1044,10 @@ static void saveErrorForEnd()
 
 //================================ Image Manipulation ====================================
 
-static int isNearlyGrayscale(progimage_info* src)
+static int isNearlyGrayscale(progimage_info* src, int channels)
 {
 	// if R = G = B +- grayEpsilon for whole image, this is a grayscale image
-	int grayEpsilon = 12;	// number found to work for Absolution
+	int grayEpsilon = 14;	// number found to work for Absolution, which is 13 max
 
 	int row, col;
 	unsigned char* src_data = &src->image_data[0];
@@ -1002,15 +1056,35 @@ static int isNearlyGrayscale(progimage_info* src)
 		for (col = 0; col < src->width; col++)
 		{
 			if (abs(src_data[0] - src_data[1]) > grayEpsilon ||
-				abs(src_data[1] - src_data[2]) > grayEpsilon )
+				// if we're reading four channels, ignore emission channel for comparison
+				((channels != 4) && (abs(src_data[1] - src_data[2]) > grayEpsilon)))
 			{
 				return 0;
 			}
-			src_data += 3;
+			src_data += channels;
 		}
 	}
 	return 1;
-};
+}
+
+// for RGBA files
+static bool isAlphaSemitransparent(progimage_info* src)
+{
+	int row, col;
+	unsigned char* src_data = &src->image_data[0];
+	for (row = 0; row < src->height; row++)
+	{
+		for (col = 0; col < src->width; col++)
+		{
+			if (src_data[3] < 255 && src_data[3] > 0 )
+			{
+				return true;
+			}
+			src_data += 4;
+		}
+	}
+	return false;
+}
 
 static void invertChannel(progimage_info* dst)
 {
