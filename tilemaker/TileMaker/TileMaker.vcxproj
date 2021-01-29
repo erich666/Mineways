@@ -162,7 +162,12 @@
     <ClInclude Include="tilegrid.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Win\lodepng.cpp" />
+    <ClCompile Include="..\..\Win\lodepng.cpp">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Level4</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Level4</WarningLevel>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
+    </ClCompile>
     <ClCompile Include="..\..\Win\rwpng.cpp" />
     <ClCompile Include="tilegrid.cpp" />
     <ClCompile Include="TileMaker.cpp" />
