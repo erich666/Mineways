@@ -3979,20 +3979,20 @@ static wchar_t* formatWithCommas(int value, wchar_t *str)
         int v1 = value / 1000;
         int v0 = value % 1000;
         if (v1 < 1000) {
-            swprintf_s(str, 100, L"%d,%0d", v1, v0);
+            swprintf_s(str, 100, L"%d,%03d", v1, v0);
         }
         else {
             int v2 = v1 / 1000;
             v1 = v1 % 1000;
             if (v2 < 1000) {
-                swprintf_s(str, 100, L"%d,%0d,%0d", v2, v1, v0);
+                swprintf_s(str, 100, L"%d,%03d,%03d", v2, v1, v0);
             }
             else {
                 // high as we go
                 int v3 = v2 / 1000;
                 v2 = v2 % 1000;
                 //if (v3 < 1000) {
-                    swprintf_s(str, 100, L"%d,%0d,%0d,%0d", v3, v2, v1, v0);
+                    swprintf_s(str, 100, L"%d,%03d,%03d,%03d", v3, v2, v1, v0);
                 //}
             }
         }
@@ -4455,7 +4455,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         formatWithCommas(gModel.faceCount, gCommaString3),
                         formatWithCommas(2 * gModel.faceCount, gCommaString4),
                         formatWithCommas(gModel.vertexCount, gCommaString5)
-                        );
+                    );
                     retval = MessageBox(NULL, msgString,
                         _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                     if (retval != IDYES)
