@@ -942,16 +942,19 @@ static const struct {
     { L"stone_diorite_smooth", L"polished_diorite" },    // JG-RTX
     { L"stonebrick_cracked", L"cracked_stone_bricks" },    // Muddle
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
+    { L"wool", L"white_wool" },    // PhotoCraft
 
     // just plain typos - might as well fix them as I find them
     //{ L"conrflower", L"cornflower" },    // miejojo128 v1.16 - typo, but not the image we want anyway
     { L"diamon_block", L"diamond_block" },    // Absolution
+    { L"green_concrete_powde", L"green_concrete_powder" }, // PhotoCraft
     { L"grey_stained_glass", L"gray_stained_glass" },    // Vanilla-Normals-Renewed-master
     { L"grey_stained_glass_pane_top", L"gray_stained_glass_pane_top" },    // Vanilla-Normals-Renewed-master
     { L"light_blue_conctrete", L"light_blue_concrete" },    // Absolution
     { L"megenta_concrete", L"magenta_concrete" },    // Absolution
     { L"netherack", L"netherrack" },    // JG-RTX typo
     { L"packed_ce", L"packed_ice" },    // JG-RTX typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
+    { L"prismrine_brick", L"prismarine_bricks" }, // PhotoCraft
 
 
     // tag that denotes end of list for while loop
