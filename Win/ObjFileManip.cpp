@@ -24246,7 +24246,7 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            float2 inputs:st.connect = </Looks/%s/uv_reader.outputs:result>\n", mtlName);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            float3f outputs:rgb\n");
+                strcpy_s(outputString, 256,  "            float3 outputs:rgb\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "        }\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
