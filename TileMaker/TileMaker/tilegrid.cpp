@@ -145,11 +145,11 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 							wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
 						}
 					}
-					// if TGA or JPG, note it if corresponding PNG not found
-					else if (isTGAorJPGfile(ffd.cFileName,flag)) {
+					// if TGA or JPG or BMP, note it if corresponding PNG not found
+					else if (isTGAorJPGorBMPfile(ffd.cFileName,flag)) {
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
-						if (removeTGAorJPGsuffix(tileName)) {
+						if (removeTGAorJPGorBMPsuffix(tileName)) {
 							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 							assert(category >= 0);
 							int index = findTileIndex(tileName, alternate);
@@ -392,20 +392,20 @@ boolean isPNGfile(wchar_t* name)
 	return false;
 }
 
-boolean removeTGAorJPGsuffix(wchar_t* name)
+boolean removeTGAorJPGorBMPsuffix(wchar_t* name)
 {
 	// check for .tga suffix - note test is case insensitive
 	int len = (int)wcslen(name);
-	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0)))
+	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0) || (_wcsicmp(&name[len - 4], L".bmp") == 0)))
 	{
-		// remove .tga or .jpg suffix
+		// remove .tga or .jpg or .bmp suffix
 		name[len - 4] = 0x0;
 		return true;
 	}
 	return false;
 }
 
-int isTGAorJPGfile(wchar_t* name, int &flag)
+int isTGAorJPGorBMPfile(wchar_t* name, int &flag)
 {
 	// check for .png suffix - note test is case insensitive
 	int len = (int)wcslen(name);
@@ -419,6 +419,11 @@ int isTGAorJPGfile(wchar_t* name, int &flag)
 		{
 			flag = JPG_EXTENSION_FOUND;
 			return JPG_EXTENSION_FOUND;
+		}
+		else if (_wcsicmp(&name[len - 4], L".bmp") == 0)
+		{
+			flag = BMP_EXTENSION_FOUND;
+			return BMP_EXTENSION_FOUND;
 		}
 	}
 	return false;
