@@ -49,6 +49,7 @@ const char* file_Minecraft[] = {
 	"    uniform texture_2d metallic_texture = texture_2d(),\n",
 	"    uniform float metallic_texture_influence = 0.0,\n",
 	"\n",
+	"    uniform float geometry_normal_strength = 1.0,\n",
 	"    uniform texture_2d normalmap_texture = texture_2d(),\n",
 	"    \n",
 	"    uniform float reflection_roughness_constant = 0.5,\n",
@@ -78,6 +79,7 @@ const char* file_Minecraft[] = {
 	"            ? metallic_constant : metallic_texture_influence,\n",
 	"    metalness_image: metallic_texture,\n",
 	"\n",
+	"    geometry_normal_strength: geometry_normal_strength,\n",
 	"    geometry_normal_image: normalmap_texture,\n",
 	"\n",
 	"    specular_reflection_roughness: // only limited support for ..._constant\n",
@@ -112,7 +114,6 @@ const char* file_Minecraft[] = {
 	"    thin_walled: thin_walled,\n",
 	"    filtered_textures: filtered_textures\n",
 	");\n",
-	"\n",
 };
 
 const char* file_OmniImageNN[] = {
@@ -3030,7 +3031,7 @@ const char* file_OmniSurfaceLiteNN[] = {
 };
 
 const int mdlFileLines[] = {
-	112,
+	113,
 	557,
 	542,
 	473,

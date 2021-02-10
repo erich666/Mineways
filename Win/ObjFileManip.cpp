@@ -23631,6 +23631,34 @@ static int createMaterialsUSD(char *texturePath)
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+                // normals? If custom material, output the normal strength UI
+                if (gModel.customMaterial && gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+                    strcpy_s(outputString, 256, "            float inputs:geometry_normal_strength = 1 (\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    float default = 1\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                        float max = 10\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                        float min = -10\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Normal\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Normal Map Strength\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                
                 // emitter?
                 // TODOUSD: headache case is jack o lantern. Pumpkins are not emitters. Jack o' lanterns are. We would need a special,
                 // separate shader for jack o' lantern sides, bottom, top that is an emitter.
@@ -23701,7 +23729,6 @@ static int createMaterialsUSD(char *texturePath)
                         strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                         if (outputCustomData) {
-
                             strcpy_s(outputString, 256, "                customData = {\n");
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             strcpy_s(outputString, 256, "                    asset default = @@\n");
