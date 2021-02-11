@@ -238,6 +238,18 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
 		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
 	}
+	wprintf(L"    Relevant block files found:");
+	bool foundFirst = false;
+	for (int category = 0; category < TOTAL_CATEGORIES; category++) {
+		// does this category have any input files? If not, skip it - just a small speed-up.
+		if (gFG.categories[category] > 0) {
+			wprintf(L"%s %d %s%s.png", foundFirst ? L"," : L"", gFG.categories[category],
+				(category != CATEGORY_RGBA) ? L"*" : L"(RGBA)",
+				(category != CATEGORY_RGBA) ? gCatSuffixes[category] : L"*");
+			foundFirst = true;
+		}
+	}
+	wprintf(L".\n");
 	return 0;
 }
 
