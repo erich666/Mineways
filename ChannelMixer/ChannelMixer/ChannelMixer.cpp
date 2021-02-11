@@ -28,6 +28,7 @@ static int gErrorCount = 0;
 static int gWarningCount = 0;
 static int gWriteProtectCount = 0;
 static int gIgnoredCount = 0;
+//static int gChestCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
@@ -238,18 +239,21 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
 		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
 	}
-	wprintf(L"    Relevant block files found:");
-	bool foundFirst = false;
-	for (int category = 0; category < TOTAL_CATEGORIES; category++) {
-		// does this category have any input files? If not, skip it - just a small speed-up.
-		if (gFG.categories[category] > 0) {
-			wprintf(L"%s %d %s%s.png", foundFirst ? L"," : L"", gFG.categories[category],
-				(category != CATEGORY_RGBA) ? L"*" : L"(RGBA)",
-				(category != CATEGORY_RGBA) ? gCatSuffixes[category] : L"*");
-			foundFirst = true;
+	// note various types of files, if there are types
+	if (filesFound > gFG.categories[CATEGORY_RGBA] + gCG.categories[CATEGORY_RGBA] + gWriteProtectCount + gIgnoredCount ) {
+		wprintf(L"    Relevant block and chest files found:");
+		bool foundFirst = false;
+		for (int category = 0; category < TOTAL_CATEGORIES; category++) {
+			// does this category have any input files? If not, skip it - just a small speed-up.
+			if (gFG.categories[category] + gCG.categories[category] > 0) {
+				wprintf(L"%s %d %s%s.png", foundFirst ? L"," : L"", gFG.categories[category] + gCG.categories[category],
+					(category != CATEGORY_RGBA) ? L"*" : L"(RGBA)",
+					(category != CATEGORY_RGBA) ? gCatSuffixes[category] : L"*");
+				foundFirst = true;
+			}
 		}
+		wprintf(L".\n");
 	}
-	wprintf(L".\n");
 	return 0;
 }
 
@@ -339,63 +343,77 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 
 		// Chests
 		// does this chest category have any input files? If not, skip it - just a small speed-up.
-		if (pcg->categories[copyCategories[category]] > 0 && gUseCategory[category]) {
-			// there are files to copy
-			for (int i = 0; i < pcg->totalTiles; i++) {
-				int fullIndex = copyCategories[category] * pcg->totalTiles + i;
-				if (pcg->cr[fullIndex].exists) {
-					// file exists - copy it.
-					
-					// first create chest subdirectory if it doesn't exist
-					if (!setChestDirectory(outputDirectory, outputChestDirectory)) {
-						break;
-					}
+		if (pcg->categories[copyCategories[category]] > 0 ) {
+			if (gUseCategory[category]) {
+				//gChestCount += pcg->categories[copyCategories[category]];
+				// there are files to copy
+				for (int i = 0; i < pcg->totalTiles; i++) {
+					int fullIndex = copyCategories[category] * pcg->totalTiles + i;
+					if (pcg->cr[fullIndex].exists) {
+						// file exists - copy it.
 
-					wchar_t inputFile[MAX_PATH_AND_FILE];
-					wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
-					wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
-
-					wchar_t outputFile[MAX_PATH_AND_FILE];
-					wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
-
-					// overwrite previous file
-					if (CopyFile(inputFile, outputFile, false) == 0) {
-						DWORD attr = GetFileAttributes(outputFile);
-						int isReadOnly = 0;
-						if (attr != INVALID_FILE_ATTRIBUTES) {
-							isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
+						// first create chest subdirectory if it doesn't exist
+						if (!setChestDirectory(outputDirectory, outputChestDirectory)) {
+							break;
 						}
-						if (isReadOnly) {
-							if (!gWriteProtectCount || verbose) {
-								wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pcg->cr[fullIndex].fullFilename);
-								if (!verbose)
-									wprintf(L"  To avoid generating excessive error messages, this warning is shown only once (use '-v' to see them all).\n");
+
+						wchar_t inputFile[MAX_PATH_AND_FILE];
+						wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].path);
+						wcscat_s(inputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+						wchar_t outputFile[MAX_PATH_AND_FILE];
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputChestDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pcg->cr[fullIndex].fullFilename);
+
+						// overwrite previous file
+						if (CopyFile(inputFile, outputFile, false) == 0) {
+							DWORD attr = GetFileAttributes(outputFile);
+							int isReadOnly = 0;
+							if (attr != INVALID_FILE_ATTRIBUTES) {
+								isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
 							}
-							gWriteProtectCount++;
+							if (isReadOnly) {
+								if (!gWriteProtectCount || verbose) {
+									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pcg->cr[fullIndex].fullFilename);
+									if (!verbose)
+										wprintf(L"  To avoid generating excessive error messages, this warning is shown only once (use '-v' to see them all).\n");
+								}
+								gWriteProtectCount++;
+							}
+							else {
+								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								saveErrorForEnd();
+								gErrorCount++;
+							}
 						}
 						else {
-							wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
-							saveErrorForEnd();
-							gErrorCount++;
+							// file copied successfully
+							filesRead++;
+							if (verbose) {
+								wprintf(L"Chest texture '%s' copied to '%s'.\n", inputFile, outputFile);
+							}
 						}
-					}
-					else {
-						// file copied successfully
-						filesRead++;
-						if (verbose) {
-							wprintf(L"Chest texture '%s' copied to '%s'.\n", inputFile, outputFile);
-						}
-					}
 
-					if (category == CATEGORY_NORMALS_LONG) {
-						int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
-						if (pcg->cr[otherIndex].exists) {
-							wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
+						if (category == CATEGORY_NORMALS_LONG) {
+							int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
+							if (pcg->cr[otherIndex].exists) {
+								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
+							}
 						}
 					}
 				}
 			}
+			else {
+				// don't use these files found, so decrease the count
+				if (verbose) {
+					wprintf(L"WARNING: %d chest file%s in the %s category read in but ignored\n",
+						pcg->categories[copyCategories[category]],
+						pcg->categories[copyCategories[category]] > 0 ? L"s" : L"",
+						gCatSuffixes[category]);
+				}
+				gIgnoredCount += pcg->categories[copyCategories[category]];
+			}
+
 		}
 	}
 	return filesRead;
