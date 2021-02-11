@@ -27,6 +27,7 @@
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 static int gWriteProtectCount = 0;
+static int gIgnoredCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
@@ -233,7 +234,7 @@ int wmain(int argc, wchar_t* argv[])
 	else {
 		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	}
-	if (filesFound > filesProcessed + gWriteProtectCount) {
+	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount ) {
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
 		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
 	}
@@ -259,56 +260,68 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 	wchar_t outputChestDirectory[MAX_PATH];
 	for (int category = 0; category < numCats; category++) {
 		// does this category have any input files? If not, skip it - just a small speed-up.
-		if (pfg->categories[copyCategories[category]] > 0 && gUseCategory[category]) {
-			// there are files to copy
-			for (int i = 0; i < pfg->totalTiles; i++) {
-				int fullIndex = copyCategories[category] * pfg->totalTiles + i;
-				if (pfg->fr[fullIndex].exists) {
-					// file exists - copy it.
-					wchar_t inputFile[MAX_PATH_AND_FILE];
-					wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].path);
-					wcscat_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
+		if (pfg->categories[copyCategories[category]] > 0 ) {
+			if (gUseCategory[category]) {
+				// there are files to copy
+				for (int i = 0; i < pfg->totalTiles; i++) {
+					int fullIndex = copyCategories[category] * pfg->totalTiles + i;
+					if (pfg->fr[fullIndex].exists) {
+						// file exists - copy it.
+						wchar_t inputFile[MAX_PATH_AND_FILE];
+						wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].path);
+						wcscat_s(inputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
 
-					wchar_t outputFile[MAX_PATH_AND_FILE];
-					wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
-					wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
+						wchar_t outputFile[MAX_PATH_AND_FILE];
+						wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputDirectory);
+						wcscat_s(outputFile, MAX_PATH_AND_FILE, pfg->fr[fullIndex].fullFilename);
 
-					// overwrite previous file
-					if (CopyFile(inputFile, outputFile, false) == 0) {
-						DWORD attr = GetFileAttributes(outputFile);
-						int isReadOnly = 0;
-						if (attr != INVALID_FILE_ATTRIBUTES) {
-							isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
-						}
-						if (isReadOnly) {
-							if (!gWriteProtectCount || verbose) {
-								wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pfg->fr[fullIndex].fullFilename);
-								if (!verbose)
-									wprintf(L"  To avoid generating noise, this warning is shown only once (use '-v' to see them all).\n");
+						// overwrite previous file
+						if (CopyFile(inputFile, outputFile, false) == 0) {
+							DWORD attr = GetFileAttributes(outputFile);
+							int isReadOnly = 0;
+							if (attr != INVALID_FILE_ATTRIBUTES) {
+								isReadOnly = attr & FILE_ATTRIBUTE_READONLY;
 							}
-							gWriteProtectCount++;
+							if (isReadOnly) {
+								if (!gWriteProtectCount || verbose) {
+									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pfg->fr[fullIndex].fullFilename);
+									if (!verbose)
+										wprintf(L"  To avoid generating noise, this warning is shown only once (use '-v' to see them all).\n");
+								}
+								gWriteProtectCount++;
+							}
+							else {
+								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								saveErrorForEnd();
+								gErrorCount++;
+							}
 						}
 						else {
-							wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
-							saveErrorForEnd();
-							gErrorCount++;
+							// file copied successfully
+							filesRead++;
+							if (verbose) {
+								wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
+							}
 						}
-					}
-					else {
-						// file copied successfully
-						filesRead++;
-						if (verbose) {
-							wprintf(L"Texture '%s' copied to '%s'.\n", inputFile, outputFile);
-						}
-					}
 
-					if (category == CATEGORY_NORMALS_LONG) {
-						int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
-						if (pfg->fr[otherIndex].exists) {
-							wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+						if (category == CATEGORY_NORMALS_LONG) {
+							int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
+							if (pfg->fr[otherIndex].exists) {
+								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+							}
 						}
 					}
 				}
+			}
+			else {
+				// don't use these files found, so decrease the count
+				if (verbose) {
+					wprintf(L"WARNING: %d file%s in the %s category read in but ignored\n",
+						pfg->categories[copyCategories[category]],
+						pfg->categories[copyCategories[category]] > 0 ? L"s" : L"",
+						gCatSuffixes[category]);
+				}
+				gIgnoredCount += pfg->categories[copyCategories[category]];
 			}
 		}
 
