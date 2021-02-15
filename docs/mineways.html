@@ -147,7 +147,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <H2 id="install">
 Installation
 </H2>
-Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
+Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV803.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and want to clean these out, search for "Mineways" in your registry editor and you'll find them.
 <P>
@@ -3232,7 +3232,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 </UL>
 
 <P>
-<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 8.00, 12/15/2020</B> - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI><B>Support for USD into Omniverse Create</B>. <a href="https://graphics.pixar.com/usd/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Create</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
@@ -3275,13 +3275,16 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Internal: change mallocs to callocs for slightly better and more readable code.
 </UL>
 
-<LI>Version 8.03, X/XX/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV803.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.03, 2/15/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV803.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI><B>Temporary patch</B> for 1.17 beta crash, <a href="https://github.com/erich666/Mineways/issues/75">issue #75</a>. For <a href="https://minecraft.gamepedia.com/Java_Edition_20w49a">snapshot 20w49a</a> and newer, 64 is added to the world's height, so that the now-deeper underworld is handled. This means Mineways Y coordinates for these worlds is displayed incorrectly, until I come up with a full patch. As important, "only" 256 levels, Y=-64 to Y=192, for beta worlds will be displayed. Anything higher is ignored.
+<LI>Added "Transparent water" toggle to the View menu, hotkey "t". This removes water from the map view, only. Water blocks will still be exported normally. If you truly want to remove water from export, use a <a href="#schemes">color scheme</a> and set the alphas of water and stationary water, #8 and #9, to 0.
 <LI>Properly set the stonecutter block with a flag noting it has cutout content, the saw.
 <LI>Fixed output of normal map textures for the UsdPreview material, properly scaling and biasing them.
 <LI>Added the ability to change the normal map strength for custom USDA materials. Lower resolution normal maps are often <a href="https://www.tandfonline.com/doi/abs/10.1080/2151237X.2005.10129203">formed poorly</a> by their creators, resulting in the bumps getting blended away. Increasing the strength, essentially the slope, of normal maps can help improve these a bit. This is also useful for heightfield textures, where a scale factor is not specified.
 <LI>ChannelMixer now also detects BMP files and warns of them. ChannelMixer now warns of valid files found but ignored due to the "-k" flag being set, and gives a summary of the types of files found.
+<LI>Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.12.0-alpha">0.12.0-alpha</a>, the rustic release.
 </UL>
 
 </UL>
@@ -3327,7 +3330,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV802.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV803.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3377,7 +3380,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/10/2021</p>
+		<p id="lastUpdate">Last updated 2/15/2021</p>
 	</div>
 </div>
 

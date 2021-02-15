@@ -47,6 +47,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //#define SLIME			0x0040
 #define SHOWALL         0x0080
 #define BIOMES          0x0100
+#define TRANSPARENT_WATER	0x0200
 
 typedef void (*ProgressCallback)(float progress);
 

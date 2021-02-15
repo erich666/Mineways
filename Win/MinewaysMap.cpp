@@ -3208,7 +3208,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     unsigned char r, g, b, seenempty;
     double alpha, blend;
 
-    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, showAll;
+    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, transparentWater, showAll;
     unsigned char* bits;
 
     retCode = 0;
@@ -3220,6 +3220,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     cavemode = !!(pOpts->worldType & CAVEMODE);
     showobscured = !(pOpts->worldType & HIDEOBSCURED);
     useElevation = !!(pOpts->worldType & DEPTHSHADING);
+    transparentWater = !!(pOpts->worldType & TRANSPARENT_WATER);
     showAll = !!(pOpts->worldType & SHOWALL);
     // use depthshading only if biome shading is off
     //depthshading= !useBiome && useElevation;
@@ -3374,9 +3375,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             for (i = maxHeight; i >= 0; i--, voxel -= 16 * 16)
             {
                 type = retrieveType(block, voxel);
-                // if block is air or something very small, note it's empty and continue to next voxel
+                // if block is air or something very small, or water when transparent water is flagged, note it's empty and continue to next voxel
                 if ((type == BLOCK_AIR) ||
-                    !(gBlockDefinitions[type].flags & viewFilterFlags))
+                    !(gBlockDefinitions[type].flags & viewFilterFlags) ||
+                    (transparentWater && (type == BLOCK_STATIONARY_WATER || type == BLOCK_WATER)))
                 {
                     seenempty = 1;
                     continue;

@@ -139,10 +139,11 @@ Shortcut keys are shown in parentheses next to each command.
 <LI>View The End (F6) - switch to The End level, if any.
 <LI>Show all objects (F7) - by default, small objects such as signs and ladders are not shown on the map.
 <LI>Show biomes (F8) - show the biome coloring for the world.
-<LI>Elevation shading (F) - higher elevations are brighter. Affects the USDA export's renderer settings (work in progress).
+<LI>Elevation shading (F) - higher elevations are brighter. Affects the USDA export's renderer settings, adding gloomy fog (needs work).
 <LI>Lighting (L) - an evening view of the world. Affects the USDA export's lighting.
 <LI>Cave mode (C) - shows the presence of underground caves.
 <LI>Hide obscured (H) - mostly useful for The Nether, it shows what's under the topmost level at Max height.
+<LI>Transparent water (T) - removes water from the map view, only. Water blocks will still be exported normally. If you truly want to remove water from export, use a <a href="mineways.html#schemes">color scheme</a> and set the alphas of water and stationary water, #8 and #9, to 0.
 </UL>
 
 
@@ -287,6 +288,7 @@ All shortcut keys for Mineways.
 </li><li><b>C</b> shows underground caves below the given altitude.
 </li><li><b>H</b> hides obscured blocks. When you set a maximum altitude underground, this option discards all blocks at this altitude and lower, until an air pocket is hit. Try it with the slider set to 60 or lower, to see tunnels. On by default in the Nether.
 </li><li><b>R</b> reloads the world's map. This is useful for when you edit your world while Mineways is running, see <a href="http://www.youtube.com/watch?v=8I5K-nB86z4&t=5m3s">this tutorial</a>.
+</li><li><b>T</b> makes water fully transparent on the map. This setting does not affect export.
 </li><li><b>Escape</b> clears the selected area.
 </li><li><b>Ctrl-A</b> for worlds, selects the area visible on the screen; for schematics, selects the entire model.
 </li><li><b>Ctrl-Q</b> closes the program.
@@ -296,7 +298,7 @@ All shortcut keys for Mineways.
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 12/18/2020</p>
+		<p id="lastUpdate">Last updated 2/15/2021</p>
 	</div>
 </div>
 

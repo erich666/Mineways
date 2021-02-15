@@ -2026,6 +2026,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
             REDRAW_ALL;
             break;
+        case IDM_TRANSPARENT_WATER:
+            gOptions.worldType ^= TRANSPARENT_WATER;
+            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & TRANSPARENT_WATER) ? MF_CHECKED : MF_UNCHECKED);
+            REDRAW_ALL;
+            break;
         case IDM_RELOAD_WORLD:
             // reload world, if loaded
             if (gLoaded)
@@ -5967,6 +5972,8 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return retCode;
     if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode))
         return retCode;
+    if (findBitToggle(line, is, "Transparent Water", TRANSPARENT_WATER, IDM_TRANSPARENT_WATER, &retCode))
+        return retCode;
 
     strPtr = findLineDataNoCase(line, "File type:");
     if (strPtr != NULL) {
@@ -6916,6 +6923,8 @@ JumpToSpawn:
     if (findBitToggle(line, is, "Cave mode", CAVEMODE, IDM_CAVEMODE, &retCode))
         return retCode;
     if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Transparent water", TRANSPARENT_WATER, IDM_TRANSPARENT_WATER, &retCode))
         return retCode;
 
     strPtr = findLineDataNoCase(line, "Give more export memory:");
@@ -8329,7 +8338,7 @@ static void checkMapDrawErrorCode(int retCode)
     else if (gOneTimeDrawWarning & retCode) {
         // NBT_WARNING_NAME_NOT_FOUND is the only one now
         // currently the only warning - we will someday look at bits, I guess, in retCode
-        wsprintf(fullbuf, _T("Warning: unknown block type encountered and ignored. If you are not running a mod or beta, make sure you have downloaded the latest version of Mineways from mineways.com."));
+        wsprintf(fullbuf, _T("Warning: unknown block type encountered and ignored. If you are not running a Minecraft mod or beta, make sure you have downloaded the latest version of Mineways from mineways.com."));
         MessageBox(NULL, fullbuf,
             _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;

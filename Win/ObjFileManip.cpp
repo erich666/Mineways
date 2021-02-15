@@ -25499,9 +25499,11 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
     // lighting and elevation settings written out (the other two are more for underground).
     // These also (may) affect USD export.
-    sprintf_s(outputString, 256, "# Elevation shading: %s\n", (gModel.options->worldType& DEPTHSHADING) ? "YES" : "no");
+    sprintf_s(outputString, 256, "# Elevation shading: %s\n", (gModel.options->worldType & DEPTHSHADING) ? "YES" : "no");
     WRITE_STAT;
     sprintf_s(outputString, 256, "# Lighting: %s\n", (gModel.options->worldType & LIGHTING) ? "YES" : "no");
+    WRITE_STAT;
+    sprintf_s(outputString, 256, "# Transparent Water: %s\n", (gModel.options->worldType & TRANSPARENT_WATER) ? "YES" : "no");
     WRITE_STAT;
 
 
