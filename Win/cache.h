@@ -51,6 +51,7 @@ typedef struct WorldBlock {
     int numEntities;	// number in the list, maximum of 16x16x256
     // a waste to do per block, but so be it.
     int mcVersion;		// type of block opened: 12 for 1.12 and earlier, 13 for 1.13 and on
+    int versionID;      // exact version ID, https://minecraft.gamepedia.com/Data_version
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render

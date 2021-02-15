@@ -163,7 +163,7 @@ static int gMajorVersion = 0;
 static int gMinorVersion = 0;
 // used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
 // 0 means version 1.8 and earlier
-// Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion. See https://minecraft.gamepedia.com/Data_version
+// Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion and in level.dat > Data > Version. See https://minecraft.gamepedia.com/Data_version
 static int gMinecraftWorldVersion = 0;
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14 - IMPORTANT: 1.15 and 1.16 are still called 14, go figure
 static int gMcVersion = 0;
@@ -559,8 +559,8 @@ static int initializeModelData();
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category);
 
 static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* box);
-static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* worldBox, int mcVersion);
-static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* box, int mcVersion);
+static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* worldBox, int mcVersion, int versionID);
+static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* box, int mcVersion, int versionID);
 static bool willChangeBlockCommandModifyAir(ChangeBlockCommand* pCBC);
 static void modifySides(int editMode);
 static void modifySlab(int by, int editMode);
@@ -784,7 +784,7 @@ static void wcharCleanse(wchar_t* wstring);
 static void myseedrand(long seed);
 static double myrand();
 
-static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion);
+static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion, int versionID);
 
 static wchar_t gSeparator[3];
 
@@ -2136,7 +2136,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         for (blockZ = startzblock; blockZ <= endzblock; blockZ++)
         {
             // this method sets gSolidWorldBox
-            findChunkBounds(pWorldGuide, blockX, blockZ, worldBox, gMcVersion);
+            findChunkBounds(pWorldGuide, blockX, blockZ, worldBox, gMcVersion, gMinecraftWorldVersion);
         }
     }
 
@@ -2240,7 +2240,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         // z increases south, decreases north
         for (blockZ = edgestartzblock; blockZ <= edgeendzblock; blockZ++)
         {
-            extractChunk(pWorldGuide, blockX, blockZ, &edgeWorldBox, gMcVersion);
+            extractChunk(pWorldGuide, blockX, blockZ, &edgeWorldBox, gMcVersion, gMinecraftWorldVersion);
 
             // done with reading chunk for export, so free memory
             if (gModel.options->moreExportMemory)
@@ -2278,7 +2278,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
 }
 
 // test relevant part of a given chunk to find its size
-static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* worldBox, int mcVersion)
+static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* worldBox, int mcVersion, int versionID)
 {
     int chunkX, chunkZ;
 
@@ -2308,7 +2308,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
@@ -2372,7 +2372,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
 }
 
 // copy relevant part of a given chunk to the box data grid
-static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorldBox, int mcVersion)
+static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorldBox, int mcVersion, int versionID)
 {
     int chunkX, chunkZ;
 
@@ -2403,7 +2403,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
 
@@ -27250,7 +27250,7 @@ int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int mi
                 pOptions = gModel.options;
             }
 
-            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent, gMcVersion);
+            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent, gMcVersion, gMinecraftWorldVersion);
             if (heightFound < minHeightFound)
             {
                 minHeightFound = heightFound;
@@ -27262,7 +27262,7 @@ int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int mi
 }
 
 // find first (optional: non-transparent) block visible from above
-static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion)
+static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion, int versionID)
 {
     int minHeight = 256;
 
@@ -27291,7 +27291,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
         }
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, gBlockRetCode);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return minHeight;
 

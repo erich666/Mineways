@@ -37,7 +37,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <string.h>
 
 static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, Options* pOpts,
-    ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int& retCode);
+    ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py,
     double zoom, int w, int h);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
@@ -182,7 +182,7 @@ void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int*
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion)
+int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
 {
     /* We're converting between coordinate systems:
     *
@@ -242,7 +242,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
             if (retCode < 0) {
                 // preserve the error code, which will (mysteriously) be displayed
                 sumRetCode = retCode;
@@ -285,7 +285,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
 //zoom = zoom amount (1.0 = 100%, 1 texel per pixel)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion)
+int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
 {
     unsigned char* blockbits;
     int z, x, px, pz;
@@ -352,7 +352,7 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x < hBlocks; x++, px += chunkSize)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
             sumRetCode |= retCode;
 
             // world space of block:
@@ -3196,7 +3196,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeight, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int& retCode)
+static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeight, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
 {
     WorldBlock* block, * prevblock;
     int ofs = 0, prevy, prevSely, blockSolid, saveHeight;
@@ -3243,7 +3243,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
-        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, retCode);
+        block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
         if ((block == NULL) || (block->blockType == 2)) //blank tile
         {
             // highlighting off, or fully outside real area? Use blank tile.
@@ -5335,7 +5335,7 @@ void testNumeral(WorldBlock* block, int type, int y, int digitPlace, int outType
 }
 
 // return NULL if no block loaded.
-WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int& retCode)
+WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode)
 {
     // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
     retCode = 0;
@@ -5359,6 +5359,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     // always set
     block->rendery = -1; // force redraw
     block->mcVersion = mcVersion;
+    block->versionID = versionID;
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
@@ -5475,7 +5476,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             BlockEntity blockEntities[16 * 16 * 256];
 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings
             if (retCode >= 0) {

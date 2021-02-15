@@ -263,8 +263,13 @@ typedef struct Model {
 extern Model gModel;
 
 
-// translate the world version from https://minecraft.gamepedia.com/Data_version to a version number: 12, 13, 14
-#define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) <= 1343 ? 12 : ((worldVersion) <= 1631) ? 13 : 14)
+// translate the world version from https://minecraft.gamepedia.com/Data_version to a version number: 12, 13, 14, 15, 16, 17
+#define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) <= 1343 ? 12 : \
+                                                     ((worldVersion) <= 1631) ? 13 : \
+                                                     ((worldVersion) <= 1976) ? 14 : \
+                                                     ((worldVersion) <= 2230) ? 15 : \
+                                                     ((worldVersion) <= 2586) ? 16 : \
+                                                     17)
 
 
 void SetSeparatorObj(const wchar_t* separator);

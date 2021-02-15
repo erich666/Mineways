@@ -110,7 +110,7 @@ static Options gOptions = { 0,   // which world is visible
 
 static WorldGuide gWorldGuide;
 // find versions here: https://minecraft.gamepedia.com/Data_version
-static int gVersionId = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
+static int gVersionID = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
 static int gMinecraftVersion = 0;
 static BOOL gSameWorld = FALSE;
@@ -2862,7 +2862,7 @@ static void drawTheMap()
 {
     if (gLoaded)
         checkMapDrawErrorCode(
-            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion)
+            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
         );
     else {
         // avoid clearing nothing at all.
@@ -2918,8 +2918,8 @@ static int loadSchematic(wchar_t* pathAndFile)
 
     // All data's read in! Now we let the mapping system take over and load on demand.
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    gVersionId = 1343;	// latest 1.12.2 https://minecraft.gamepedia.com/Data_version
-    gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
+    gVersionID = 1343;	// latest 1.12.2 https://minecraft.gamepedia.com/Data_version
+    gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
 
     return 0;
 }
@@ -2945,8 +2945,8 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionId = 99999;	// always assumed to be the latest one.
-        gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
+        gVersionID = 99999;	// always assumed to be the latest one.
+        gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         break;
 
     case WORLD_LEVEL_TYPE:
@@ -2983,8 +2983,8 @@ static int loadWorld(HWND hWnd)
             gPlayerZ = gSpawnZ;
         }
         // This may or may not work, so we ignore errors.
-        GetFileVersionId(gWorldGuide.world, &gVersionId);
-        gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionId);
+        GetFileVersionId(gWorldGuide.world, &gVersionID);
+        gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         break;
 
     case WORLD_SCHEMATIC_TYPE:
@@ -3819,7 +3819,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
 
     deleteCommandBlockSet(gChangeBlockCommands);
     gChangeBlockCommands = NULL;
@@ -4330,7 +4330,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
-            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionId, gChangeBlockCommands);
+            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
 
@@ -8369,7 +8369,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax);
 
     checkMapDrawErrorCode(
-        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion)
+        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
 
     // check if map file has ".png" at the end - if not, add it.
