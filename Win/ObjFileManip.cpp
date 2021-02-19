@@ -24363,15 +24363,15 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            uniform token info:id = \"UsdUVTexture\"\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    #ifdef GENERATE_EMISSION_TILES
+#ifdef GENERATE_EMISSION_TILES
                     sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
-    #else
+#else
                     sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
-    #endif
+#endif
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
