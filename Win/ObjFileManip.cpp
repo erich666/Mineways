@@ -2184,14 +2184,14 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     // Now actually copy the relevant data over to the newly-allocated box data grid.
     // x increases east, decreases west.
 
-    // If we are not generating borders (where everything outside is "air"), expand out by 1
+    // Expand out by 1
     // for what we read from the data files. Later on we will set these border blocks so that
     // only the original type is set, with the regular type being air.
     IBox edgeWorldBox = *worldBox;
-    if (!gModel.options->pEFD->chkBlockFacesAtBorders)
+    //if (!gModel.options->pEFD->chkBlockFacesAtBorders)
+    //if (!gModel.print3D)
     {
         // These are useful for knowing which faces to output for "no sides and bottom" mode.
-        assert(!gModel.print3D);
 
         // The test: we've shrunk the worldBox (copied to edgeWorldBox) to the solid stuff in the scene.
         // If the solid stuff border is at the original world box bounds, then there may be stuff 1 block
@@ -2266,10 +2266,10 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     Vec2Op(gAirBox.max, =, 1 + gSolidBox.max);
     assert((gAirBox.min[Y] >= 0) && (gAirBox.max[Y] < gBoxSize[Y]));
 
-    if (gModel.print3D)
+    if (gModel.print3D || gModel.options->pEFD->chkBlockFacesAtBorders)
     {
-        // Clear slabs' type data, so that snow covering will not export if there is air below it.
         // Original types are left set so that minor objects can export properly.
+        modifySides(EDIT_MODE_CLEAR_TYPE);
         modifySlab(gAirBox.min[Y], EDIT_MODE_CLEAR_TYPE);
         modifySlab(gAirBox.max[Y], EDIT_MODE_CLEAR_TYPE);
     }
@@ -2560,7 +2560,8 @@ static void modifySides(int editMode)
     {
         for (int z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z++)
         {
-            for (int y = gAirBox.min[Y]; y <= gAirBox.max[Y]; y++)
+            // note that Y slabs at top and bottom will be cleared by modifySlab
+            for (int y = gAirBox.min[Y]+1; y < gAirBox.max[Y]; y++)
             {
                 editBlock(x, y, z, editMode);
             }
@@ -2571,7 +2572,8 @@ static void modifySides(int editMode)
     {
         for (int z = gAirBox.min[Z]; z <= gAirBox.max[Z]; z += gAirBox.max[Z] - gAirBox.min[Z])
         {
-            for (int y = gAirBox.min[Y]; y <= gAirBox.max[Y]; y++)
+            // note that Y slabs at top and bottom will be cleared by modifySlab
+            for (int y = gAirBox.min[Y]+1; y < gAirBox.max[Y]; y++)
             {
                 editBlock(x, y, z, editMode);
             }
@@ -2906,13 +2908,15 @@ static int filterBox(ChangeBlockCommand* pCBC)
 
         gSolidGroups = gAirGroups = 0;
 
-        if (gModel.options->pEFD->chkBlockFacesAtBorders)
-        {
-            // Clear slabs (sides are not set, so we don't need to clear them). We don't need the slab data for here on in
-            // if borders are being output.
-            modifySlab(gAirBox.min[Y], EDIT_MODE_CLEAR_ALL);
-            modifySlab(gAirBox.max[Y], EDIT_MODE_CLEAR_ALL);
-        }
+        // normal mode: clear slabs above and below
+        // already done earlier now; code left just in case
+        //if (gModel.options->pEFD->chkBlockFacesAtBorders)
+        //{
+        //    // Clear upper and lower slabs. We don't need the slab data for here on in,
+        //    // if borders are being output.
+        //    modifySlab(gAirBox.min[Y], EDIT_MODE_CLEAR_ALL);
+        //    modifySlab(gAirBox.max[Y], EDIT_MODE_CLEAR_ALL);
+        //}
 
         // do we need groups and neighbors?
         if (gModel.options->exportFlags & (EXPT_FILL_BUBBLES | EXPT_CONNECT_PARTS | EXPT_DELETE_FLOATING_OBJECTS | EXPT_DEBUG_SHOW_GROUPS))
@@ -4080,7 +4084,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     int dataVal, faceMask, tbFaceMask, dir;
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
-    int topDataVal, bottomDataVal, shiftVal, neighborType;
+    int topDataVal, bottomDataVal, shiftVal, neighborType, neighborIndex;
     // lots of these could be moved into individual cases, but let's not bother
     int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;  // cppcheck-suppress 398
     float xrot, yrot, zrot;
@@ -4154,17 +4158,17 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if (gBoxData[boxIndex - gBoxSizeYZ].type == matchType) {
+            if (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) {
                 // to west
                 angle = 0;
             }
-            else if (gBoxData[boxIndex + gBoxSizeYZ].type == matchType) {
+            else if (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) {
                 angle = 180;
             }
-            else if (gBoxData[boxIndex - gBoxSize[Y]].type == matchType) {
+            else if (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) {
                 angle = 90;
             }
-            else if (gBoxData[boxIndex + gBoxSize[Y]].type == matchType) {
+            else if (gBoxData[boxIndex + gBoxSize[Y]].origType == matchType) {
                 angle = 270;
             }
             else
@@ -6694,6 +6698,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // If it's a right-side chest or a single, make the latch (left-side chests don't get the latch, so that the right side makes just one latch).
         chestType = 0;	// single is 0, left is 1, right is 2
         angle = 0;
+        neighborIndex = gBoxSizeYZ;
         // 1.13 on have a nice "single" property, which we use here to override things.
         if (((dataVal & 0x18) >> 3) > 0x0) {
             // has "single" property
@@ -6703,20 +6708,26 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             {
             case 2: // facing north
                 angle = 180;
+                neighborIndex = -gBoxSizeYZ;
                 break;
             case 3: // facing south
                 angle = 0;
+                neighborIndex = gBoxSizeYZ;
                 break;
             case 4: // facing west
                 angle = 90;
+                neighborIndex = -gBoxSize[Y];
                 break;
             case 5: // facing east
                 angle = 270;
+                neighborIndex = gBoxSize[Y];
                 break;
             default:
                 assert(0);
                 break;
             }
+            if (chestType == 2)
+                neighborIndex = -neighborIndex;
         }
         else {
             // 1.12 or earlier - time for detective work
@@ -6731,10 +6742,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
                 {
                     chestType = 1;
+                    neighborIndex = -gBoxSizeYZ;
                 }
                 else if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
                 {
                     chestType = 2;
+                    neighborIndex = gBoxSizeYZ;
                 }
                 angle = 180;
                 break;
@@ -6743,11 +6756,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 if (gBoxData[boxIndex + gBoxSizeYZ].origType == type)
                 {
                     chestType = 1;
+                    neighborIndex = gBoxSizeYZ;
                 }
                 // else, is neighbor to west also a chest?
                 else if (gBoxData[boxIndex - gBoxSizeYZ].origType == type)
                 {
                     chestType = 2;
+                    neighborIndex = -gBoxSizeYZ;
                 }
                 angle = 0;
                 break;
@@ -6755,10 +6770,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
                 {
                     chestType = 2;
+                    neighborIndex = -gBoxSize[Y];
                 }
                 else if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
                 {
                     chestType = 1;
+                    neighborIndex = gBoxSize[Y];
                 }
                 angle = 90;
                 break;
@@ -6766,10 +6783,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 if (gBoxData[boxIndex + gBoxSize[Y]].origType == type)
                 {
                     chestType = 2;
+                    neighborIndex = gBoxSize[Y];
                 }
                 else if (gBoxData[boxIndex - gBoxSize[Y]].origType == type)
                 {
                     chestType = 1;
+                    neighborIndex = -gBoxSize[Y];
                 }
                 angle = 270;
                 break;
@@ -6784,6 +6803,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // create latch, move to place, then create chest, rotate all to place
         totalVertexCount = gModel.vertexCount;
         // create latch only if a right or a single
+        // TODO: if a chest is chopped, its latch will appear only on the left-hand side.
+        // A bug, but so obscure that I'm not going to spend an hour to fix it right now.
         if (chestType != 1) {
             swatchLoc = SWATCH_INDEX(7, 26);
             // note all six sides are used, but with different texture coordinates
@@ -6827,7 +6848,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(10, 3);
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(9, 2);	// front
-            faceMask = DIR_HI_X_BIT;
+            // Check if neighboring half of chest is actually there, and we're showing border faces.
+            // If half of check is outside of the export area (type != origType, basically type == AIR), then faceMask here should be 0x0
+            if (gModel.options->pEFD->chkBlockFacesAtBorders && (gBoxData[boxIndex + neighborIndex].type == 0)) {
+                faceMask = 0x0;
+            }
+            else {
+                faceMask = DIR_HI_X_BIT;
+            }
             break;
         case 2:	// right
             swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(10, 14);
@@ -6835,7 +6863,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(9, 3);
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 2);	// front
-            faceMask = DIR_LO_X_BIT;
+            // Check if neighboring half of chest is actually there, and we're showing border faces.
+            // If half of check is outside of the export area (type != origType, basically type == AIR), then faceMask here should be 0x0
+            if (gModel.options->pEFD->chkBlockFacesAtBorders && (gBoxData[boxIndex + neighborIndex].type == 0)) {
+                faceMask = 0x0;
+            }
+            else {
+                faceMask = DIR_LO_X_BIT;
+            }
             break;
         default:
             assert(0);
@@ -10229,6 +10264,7 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
 
     // If we are maintaining borders, we need to ignore neighbors above and below that are in air space.
     neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
+    // in this case we use the actual type (not origType), since we're checking coverage
     neighborType = gBoxData[neighborBoxIndex].type;
     // super-quick out: is neighbor air? Common enough case, let's test for it.
     if (neighborType == BLOCK_AIR)
@@ -10861,10 +10897,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if ((gBoxData[boxIndex - gBoxSizeYZ].type == matchType) ||
-                (gBoxData[boxIndex + gBoxSizeYZ].type == matchType) ||
-                (gBoxData[boxIndex - gBoxSize[Y]].type == matchType) ||
-                (gBoxData[boxIndex + gBoxSize[Y]].type == matchType)) {
+            if ((gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) ||
+                (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) ||
+                (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) ||
+                (gBoxData[boxIndex + gBoxSize[Y]].origType == matchType)) {
                 height = -9.0 / 16.0f;
             }
         }
@@ -10946,6 +10982,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         }
         else {
             // full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
+            // Note that the solid block must actually exist, vs. "origType"
             if ((dataVal == 0) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
                 vineUnderBlock = true;
             }
@@ -14803,14 +14840,14 @@ static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, i
 // check if lesser block neighboring this face fully covers (0-16) this face's contents
 static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, int view3D)
 {
-    // we have partial blocks possible. Check if neighbor's original type exists at all
-    int origType = gBoxData[neighborBoxIndex].origType;
+    // we have partial blocks possible. Check if neighbor's type exists at all
+    int type = gBoxData[neighborBoxIndex].type;
     // not air?
-    if (origType > BLOCK_AIR)
+    if (type > BLOCK_AIR)
     {
         int neighborDataVal = gBoxData[neighborBoxIndex].data;
         // a minor block exists, so check its coverage given the face direction
-        switch (origType)
+        switch (type)
         {
         case BLOCK_OAK_WOOD_STAIRS:						// lesserBlockCoversWholeFace
         case BLOCK_COBBLESTONE_STAIRS:
@@ -14995,7 +15032,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
                 int modDataVal = neighborDataVal;
                 // for printing, angled pieces get triangle blocks.
                 // first check dataVal to see if it's a triangle, and remove top bit if so.
-                switch (origType)
+                switch (type)
                 {
                 case BLOCK_POWERED_RAIL:
                 case BLOCK_DETECTOR_RAIL:
@@ -15128,7 +15165,7 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
         int newz = clamp(loc[Z] + offz, gAirBox.min[Z], gAirBox.max[Z]);
         neighbor[i] = BOX_INDEX(newx, loc[Y], newz);
         // walk through neighbor above this corner
-        if (sameFluid(type, gBoxData[neighbor[i] + 1].type))
+        if (sameFluid(type, gBoxData[neighbor[i] + 1].origType))
             return 1.0f;
     }
 
@@ -15136,7 +15173,7 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
     for (i = 0; i < 4; i++)
     {
         // is neighbor same fluid?
-        int neighborType = gBoxData[neighbor[i]].type;
+        int neighborType = gBoxData[neighbor[i]].origType;
         if (sameFluid(type, neighborType))
         {
             // matches, so get neighbor's stored height
@@ -17350,11 +17387,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
                 {
                     swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
@@ -17363,11 +17400,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
@@ -17375,11 +17412,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
                 {
                     // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 14);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 14);
                     }
@@ -17392,12 +17429,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     // front of chest, on possibly long face
                     swatchLoc = SWATCH_INDEX(11, 1);	// front
                     // is neighbor to east also a chest?
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
                     // else, is neighbor to west also a chest?
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
@@ -17405,11 +17442,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) // north
                 {
                     // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
@@ -17417,11 +17454,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
                 {
                     // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 14);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 14);
                     }
@@ -17431,11 +17468,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) // west
                 {
                     swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
@@ -17444,11 +17481,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
@@ -17456,11 +17493,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
                 {
                     // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 14);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 14);
                     }
@@ -17471,11 +17508,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                 {
                     swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
@@ -17484,11 +17521,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
@@ -17496,11 +17533,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
                 {
                     // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 14);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 14);
                     }
@@ -17514,11 +17551,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // We leave this code here for older worlds encountered.
                 if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
                 {
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
@@ -17527,22 +17564,22 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].type == type)
+                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].type == type)
+                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
                 }
                 else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                 {
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 2);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 2);
                     }
@@ -17551,11 +17588,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     // back of chest, on possibly long face
                     // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].type == type)
+                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(9, 3);
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].type == type)
+                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
                     {
                         swatchLoc = SWATCH_INDEX(10, 3);
                     }
