@@ -23215,7 +23215,7 @@ static int createMaterialsUSD(char *texturePath)
         }
         // we normally output MDL descriptions, etc. Allow turning this off, so that UsdPreview (only) materials are used.
         // TODO expose on user interface, ugh.
-        static bool outputMDL = false;
+        static bool outputMDL = true;
         if (outputMDL) {
             sprintf_s(outputString, 256, "        token outputs:mdl:displacement.connect = </Looks/%s/Shader.outputs:out>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
