@@ -23155,6 +23155,8 @@ static int createMaterialsUSD(char *texturePath)
                 switch (pFace->materialType) {
                 case BLOCK_WATER:
                 case BLOCK_STATIONARY_WATER:
+                    // note: currently BLOCK_GLASS is not included, as the OmniGlass material has a limitation
+                    // that the fully opaque frame parts are not shown.
                 case BLOCK_STAINED_GLASS:
                 case BLOCK_STAINED_GLASS_PANE:
                 case BLOCK_SLIME:
@@ -23213,7 +23215,7 @@ static int createMaterialsUSD(char *texturePath)
         }
         // we normally output MDL descriptions, etc. Allow turning this off, so that UsdPreview (only) materials are used.
         // TODO expose on user interface, ugh.
-        static bool outputMDL = true;
+        static bool outputMDL = false;
         if (outputMDL) {
             sprintf_s(outputString, 256, "        token outputs:mdl:displacement.connect = </Looks/%s/Shader.outputs:out>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24191,10 +24193,10 @@ static int createMaterialsUSD(char *texturePath)
             sprintf_s(outputString, 256, "            color3f inputs:diffuseColor.connect = </Looks/%s/diffuse_texture.outputs:rgb>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-            // - opacity input 
+            // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
             sprintf_s(outputString, 256, "            float inputs:opacity.connect = </Looks/%s/diffuse_texture.outputs:a>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0.5\n");
+            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0.0\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             // - roughness input

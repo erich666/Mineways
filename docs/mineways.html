@@ -3296,8 +3296,8 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.04, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>*For USD export, allow expor of individual blocks, created as instances. 
-<LI>*Export the UsdPreview emitters a bit better. The emission texture was not exported due to a misplaced line of code.
+<LI>*For USD export, allow export of individual blocks, created as instances. 
+<LI>*Export the UsdPreview emitters a bit better. The emission texture was not exported due to a misplaced line of code. That said, programs using UsdPreview are only starting to support emission.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
 <LI>*Better fix for Minecraft 1.17 beta export - now shows height properly.
 <LI>When water is exported, look at the "missing" neighbors next to it along the borders and use them to determine its height. This makes tiling exports work correctly for oceans and lakes. This fix also affects chests: double-chests that are chopped in half now are "capped" vs. being incomplete, when "Create block faces at the borders" is on (latches are still exported for only the left side of a double chest). Note: this fix may affect other objects - let me know of any bugs.
