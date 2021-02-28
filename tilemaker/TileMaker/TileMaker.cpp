@@ -23,6 +23,16 @@
 #define TILE_PATH	L"blocks"
 #define OUTPUT_FILENAME L"terrainExt.png"
 
+static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3, 3 };
+static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB, LCT_RGB };
+
+#define TILE_BUMP_TYPE			0x3
+#define TILE_IS_NORMAL_MAP		1
+#define TILE_IS_HEIGHT_MAP		2
+#define TILE_IS_NOT_BUMP_MAP	3
+#define TILE_BUMP_REAL			0x4
+
+
 typedef struct ChestData {
 	int fromX;
 	int fromY;
@@ -137,10 +147,6 @@ static Chest gChest115[] = {
 	{ L"ender", 6, 64, 64, NULL }
 };
 
-
-static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3, 3 };
-static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB, LCT_RGB };
-
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
@@ -187,6 +193,7 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 static bool rotateTileIfHorizontal(progimage_info& tile);
 static void rotateTile(progimage_info& tile, int channels);
+static int classifyImageBumpMap(progimage_info& tile);
 
 
 
@@ -809,14 +816,30 @@ int wmain(int argc, wchar_t* argv[])
 							// OK, now it gets tricky:
 							// If the blue channel has all the same values or is a grayscale RGB, it's likely a heightfield.
 							// If the red channel is all black, it's a useless heightfield. TODO: could test to see if all values are the same as the first.
-							// 
-							if ((heightfieldCount > normalsCount) ||
-									// annoyingly, you need to convert to lowercase, then test, to be case insensitive. Not done here.
-									// could someday add test code from second answer here: 
-									// https://stackoverflow.com/questions/27303062/strstr-function-like-that-ignores-upper-or-lower-case
-									(wcsstr(gFG.fr[fullIndex].fullFilename, L"_heightmap.png") != NULL) ||
-									channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0, 1)) {
-								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 0)) {
+							int bumpMapType = classifyImageBumpMap(tile);
+							assert((bumpMapType& TILE_BUMP_TYPE) != 0);
+							switch (bumpMapType & TILE_BUMP_TYPE) {
+							case TILE_IS_NORMAL_MAP:
+								if (!(bumpMapType & TILE_BUMP_REAL)) {
+									wprintf(L"WARNING: Image '%s' was not used because it seems to have all the same normals, no changes detected.\n",
+										gFG.fr[fullIndex].fullFilename);
+									deleteFileFromGrid(&gFG, catIndex, fullIndex);
+									gWarningCount++;
+									continue;
+								}
+								else {
+									normalsCount++;
+								}
+								break;
+							case TILE_IS_NOT_BUMP_MAP:
+								// not a bump map at all, but does it have differing values?
+								if (bumpMapType & TILE_BUMP_REAL) {
+									wprintf(L"WARNING: Image '%s' is not in a typical heightmap format (such as being grayscale or only the red channel used),\n  but will be used as a heightmap, since we don't know what it is.\n",
+										gFG.fr[fullIndex].fullFilename);
+								}
+								// note we flow through and treat "not a bump map" as being a heightfield, for lack of any other ideas what to do with it.
+							case TILE_IS_HEIGHT_MAP:
+								if ( !(bumpMapType & TILE_BUMP_REAL)) {
 									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
 										gFG.fr[fullIndex].fullFilename);
 									deleteFileFromGrid(&gFG, catIndex, fullIndex);
@@ -824,6 +847,7 @@ int wmain(int argc, wchar_t* argv[])
 									continue;
 								}
 								else {
+									// valid height map
 									// convert from heightfield to normals. Should add a "what is the slope? command line argument TODO.
 									if (heightfieldCount <= 0) {
 										wprintf(L"Image '%s' appears to be a heightfield - TileMaker will convert this one and any others found.\n",
@@ -836,10 +860,7 @@ int wmain(int argc, wchar_t* argv[])
 									convertHeightfieldToXYZ(&tile, heightfieldScale);
 									heightfieldCount++;
 								}
-							}
-							else {
-								// likely a normals map
-								normalsCount++;
+								break;
 							}
 						}
 
@@ -1104,6 +1125,9 @@ int wmain(int argc, wchar_t* argv[])
 	if (heightfieldCount > 0 && normalsCount > 0) {
 		wprintf(L"WARNING: %d heightfields and %d normal maps detected.\n  TileMaker does its best to convert heightfields to normal maps, but you should double check.\n", heightfieldCount, normalsCount);
 		gWarningCount++;
+	}
+	if (heightfieldCount > 0) {
+		wprintf(L"NOTE: %d heightfields were converted to normal maps for output.\n  If you do not like how these maps were scaled, use the '-h #' option to change the slope.\n  The default setting is '-h 0.5'.\n", heightfieldCount);
 	}
 
 	// warn user that nothing was done
@@ -1988,5 +2012,106 @@ static void rotateTile(progimage_info &tile, int channels)
 	}
 }
 
+// Check if RGB image is a normal map, or height map that is red channel only, or grayscale height map
+// Also note if map actually contains any useful data (valid values differ).
+static int classifyImageBumpMap(progimage_info& tile)
+{
+	bool couldBeRedHM = true;	// could be a red-channel-only height map
+	bool couldBeGrayHM = true;
+	bool couldBeNM = true;	// could be a normal map
 
+	bool differingValues = false;
+
+	unsigned char heightValue;
+	unsigned char *normalValue = NULL;	// points to the actual value; set once a non-grayscale value is found
+
+	int row, col;
+	unsigned char* src_data = &tile.image_data[0];
+	// first value is always the first heightValue (not true for normalValue, where the texel might be a cutout)
+	heightValue = src_data[0];
+	for (row = 0; row < tile.height; row++)
+	{
+		for (col = 0; col < tile.width; col++)
+		{
+			// grayscale?
+			bool grayscale = ((src_data[0] == src_data[1]) && (src_data[1] == src_data[2]));
+
+			if (grayscale) {
+				couldBeRedHM = false;
+				// can't rule out normal map, as it could be a cutout area that was not set
+			}
+			else {
+				couldBeGrayHM = false;
+				// if blue value is < 127, no way can it be a normal map
+				if (src_data[2] < 127) {
+					couldBeNM = false;
+				}
+				// if it's colored, if the green and blue channels differ, it's not a red-only height map
+				if (src_data[1] != src_data[2]) {
+					couldBeRedHM = false;
+				}
+			}
+
+			// heightfields still in the running? If so, save first value or compare to first value found
+			if (couldBeRedHM || couldBeGrayHM) {
+				if (!differingValues) {
+					// compare to previous value and see if it's different
+					if (src_data[0] != heightValue) {
+						differingValues = true;
+					}
+				}
+			}
+
+			// normal maps still in the running?
+			if (couldBeNM) {
+				// store first normal value location, if not already found
+				// Ignore grayscale, since some people put gray or black or white for alpha == 0 cutout areas
+				if (!grayscale) {
+					if (normalValue == NULL) {
+						normalValue = src_data;
+					}
+					// normal value found, does this latest value differ from it?
+					else if (!differingValues) {
+						// compare to previous value and see if it's different
+						if (src_data[0] != normalValue[0] || src_data[1] != normalValue[1] || src_data[2] != normalValue[2]) {
+							differingValues = true;
+						}
+					}
+				}
+			}
+
+			// can we call it quits? Do so if we have found differing values
+			if (differingValues) {
+				// values found to differ, so check if only one is valid
+				if (!(couldBeRedHM || couldBeGrayHM) && couldBeNM) {
+					// can only be a normal map, so return
+					return TILE_IS_NORMAL_MAP | TILE_BUMP_REAL;
+				}
+				if ((couldBeRedHM || couldBeGrayHM) && !couldBeNM) {
+					// can only be a heightmap, so return
+					return TILE_IS_HEIGHT_MAP | TILE_BUMP_REAL;
+				}
+				// if none are valid, note this and return
+				if (!couldBeRedHM && !couldBeGrayHM && !couldBeNM) {
+					// can only be a heightmap, so return
+					return TILE_IS_NOT_BUMP_MAP | TILE_BUMP_REAL;
+				}
+				// annoyingly, if a map is all the same color, we have to run through it all.
+			}
+
+			src_data += 3;
+		}
+	}
+	// if we got this far, significant values in the map were all the same
+	if (!(couldBeRedHM || couldBeGrayHM) && couldBeNM) {
+		// can only be a normal map, so return
+		return TILE_IS_NORMAL_MAP;
+	}
+	if ((couldBeRedHM || couldBeGrayHM) && !couldBeNM) {
+		// can only be a heightmap, so return
+		return TILE_IS_HEIGHT_MAP;
+	}
+	// if none are valid, note this and return
+	return TILE_IS_NOT_BUMP_MAP;
+}
 

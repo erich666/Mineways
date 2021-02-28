@@ -3297,12 +3297,13 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <BR>
 <UL>
 <LI>*For USD export, allow export of individual blocks, created as instances. 
-<LI>*Export the UsdPreview emitters a bit better. The emission texture was not exported due to a misplaced line of code. That said, programs using UsdPreview are only starting to support emission.
+<LI>*Export the UsdPreview emitters a bit better. Glass and water look better now, due to turning the opacityThreshold to 0. The emission texture was previously not exported due to a misplaced line of code.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
 <LI>*Better fix for Minecraft 1.17 beta export - now shows height properly.
 <LI>When water is exported, look at the "missing" neighbors next to it along the borders and use them to determine its height. This makes tiling exports work correctly for oceans and lakes. This fix also affects chests: double-chests that are chopped in half now are "capped" vs. being incomplete, when "Create block faces at the borders" is on (latches are still exported for only the left side of a double chest). Note: this fix may affect other objects - let me know of any bugs.
 <LI>*For OBJ, if PBR textures are present in the terrain texture pack, export these and note them in the MTL file as somewhat-made-up texture map types.
-<LI>*ChannelMixer: look for grass_side_carried.png, as used in the Bedrock Edition. If found, use grass_side.png as grass_side_overlay.png and grass_side_carried.png as grass_side.png.
+<LI>*ChannelMixer/TileMaker: support TGA input. Detect heightfields better, and support "_heightmap.png" extension directly.
+<LI>*TileMaker: Warn if grass_side.png or grass_side_snow.png is transparent, as it is sometimes made as an overlay. If found to be such, copy dirt into the location and then composite this atop.
 <LI>*Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.12.0-alpha">0.13.0-alpha</a> and add water normals back in.
 </UL>
 
