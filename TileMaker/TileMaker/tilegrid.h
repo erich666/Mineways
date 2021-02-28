@@ -9,7 +9,7 @@
 #define	CHANNEL_GREEN	1
 #define	CHANNEL_BLUE	2
 
-#define TOTAL_CATEGORIES		9
+#define TOTAL_CATEGORIES		10
 #define	CATEGORY_RGBA			0
 #define	CATEGORY_NORMALS		1
 #define	CATEGORY_NORMALS_LONG	2
@@ -19,14 +19,15 @@
 #define CATEGORY_SPECULAR		6
 #define CATEGORY_MER			7
 #define CATEGORY_SYNTHETIC		8
+#define	CATEGORY_HEIGHTMAP		9
 
 #define FILE_NOT_FOUND			 0
 #define FILE_FOUND				 1
 #define FILE_FOUND_AND_DUPLICATE 2
 #define FILE_FOUND_AND_IGNORED	 3
 
-static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y" };
-static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_normal", "_m", "_e", "_r", "_s", "_mer", "_y" };
+static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap" };
+static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_normal", "_m", "_e", "_r", "_s", "_mer", "_y", "_heightmap" };
 
 #define	TGA_EXTENSION_FOUND	1
 #define JPG_EXTENSION_FOUND 2

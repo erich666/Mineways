@@ -1505,15 +1505,19 @@ For something amazing, <a href="https://www.youtube.com/watch?v=ldiISyKkGl8">che
 <p>
 Mineways is not the first to offer a Minecraft model exporter, nor necessarily the best for export for rendering. Minepedia has a <a href="http://minecraft.gamepedia.com/Programs_and_editors/3D_Exporters">page about exporters</a>. Here's more information on the ones I know about and related services.
 </p><ul>
-<li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports.
+<li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can no longer quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in some ways.
+
+</li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports.
 
 </li><li>OptiFine, Sonic Ether's Unbelievable Shaders, and related resource packs are definitely worth checking out. <a href="#renderTips">Find information here</a>.
+
+</li><li><a href="https://www.mineimator.com/">Mine-imator</a> lets you directly import from Minecraft and animate. It's pretty impressive! However, it doesn't export to 3D model files, so I guess I need to keep working on Mineways.
 
 </li><li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home and school 3D printers for the most part, since the STL comes without any colors.
 
 <li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=238087985">SourceCraft</a> creates maps for <a href="https://en.wikipedia.org/wiki/Source_(game_engine)">Valve's Source engine</a>, for games such as Team Fortress 2 and Garry's Mod, via Minecraft.
 
-</li><li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can't quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in various ways.
+</li><li>The <a href="https://minecraftanimation.fandom.com/wiki/Minecraft_Animation_Wiki:Home">Minecraft Animation Wiki</a> is mostly about animations made by others, but has a few pages of direct interest to creators, such as <a href="https://minecraftanimation.fandom.com/wiki/List_of_commonly_used_Minecraft_animation_programs_and_their_foremost_users">who uses what programs</a> for Minecraft animation.
 
 </li><li><a href="https://github.com/webbukkit/dynmap/wiki/Exporting-World-Data-in-Wavefront-OBJ-Format">dynmap</a> has an option to export blocks, even custom blocks, to the OBJ format. I haven't tried it; let me know how you find it.
 
@@ -1532,6 +1536,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </li><li><a href="https://ephtracy.github.io/">MagicaVoxel</a> read Minecraft schematics and gives a nice rendering of them. It's best for large models, as it converts everything to colored blocks, no details. There is also <a href="https://github.com/Zarbuz/FileToVox">code to convert to its .vox format</a>.
 
 </li><li>Give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look for older worlds, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. <a href="http://ephtracy.github.io/index.html?page=mv_renderer">MagicaVoxel Viewer</a> reads in schematic files and does a nice job displaying the blocks (always as full blocks, though, no detail). Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained path-traced renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
+
+
 
 </li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is snappy. A cool thing is that it works in multiplayer, and you don't need access to the world files! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>, perhaps fixed by now. But, this software can all but improve over time - if it gets people trying out 3D printing, great! <a href="http://www.wired.com/2012/11/3-d-printed-minecraft/">Photos and more here</a>.
 
@@ -3290,12 +3296,14 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.04, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Export the UsdPreview emitters properly - the emission texture was not exported due to a misplaced line of code.
-<LI>For 1.13 and newer content, properly handle connectivity for redstone, fences, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
-<LI>Better fix for Minecraft 1.17 beta export - now shows height properly.
-<LI>When water is exported, look at the "missing" neighbors next to it and use them to determine its height. This makes tiling exports work correctly for oceans and lakes.
-<LI>For OBJ, if PBR textures are present in the terrain texture pack, export these and note them in the MTL file as somewhat-made-up texture map types.
-<LI>Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.12.0-alpha">0.13.0-alpha</a> and add water normals back in.
+<LI>*For USD export, allow export of individual blocks, created as instances. 
+<LI>*Export the UsdPreview emitters a bit better. The emission texture was not exported due to a misplaced line of code. That said, programs using UsdPreview are only starting to support emission.
+<LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
+<LI>*Better fix for Minecraft 1.17 beta export - now shows height properly.
+<LI>When water is exported, look at the "missing" neighbors next to it along the borders and use them to determine its height. This makes tiling exports work correctly for oceans and lakes. This fix also affects chests: double-chests that are chopped in half now are "capped" vs. being incomplete, when "Create block faces at the borders" is on (latches are still exported for only the left side of a double chest). Note: this fix may affect other objects - let me know of any bugs.
+<LI>*For OBJ, if PBR textures are present in the terrain texture pack, export these and note them in the MTL file as somewhat-made-up texture map types.
+<LI>*ChannelMixer: look for grass_side_carried.png, as used in the Bedrock Edition. If found, use grass_side.png as grass_side_overlay.png and grass_side_carried.png as grass_side.png.
+<LI>*Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.12.0-alpha">0.13.0-alpha</a> and add water normals back in.
 </UL>
 
 </UL>
@@ -3391,7 +3399,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/15/2021</p>
+		<p id="lastUpdate">Last updated 2/24/2021</p>
 	</div>
 </div>
 

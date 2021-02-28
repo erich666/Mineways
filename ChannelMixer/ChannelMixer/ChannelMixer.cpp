@@ -32,8 +32,8 @@ static int gIgnoredCount = 0;
 static boolean gChestDirectoryExists = false;
 static boolean gChestDirectoryFailed = false;
 
-//                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y"
-static boolean gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true };
+//                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap"
+static boolean gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true, true };
 
 
 static wchar_t gErrorString[1000];
@@ -126,6 +126,7 @@ int wmain(int argc, wchar_t* argv[])
 			{
 				gUseCategory[CATEGORY_NORMALS] = false;
 				gUseCategory[CATEGORY_NORMALS_LONG] = false;
+				gUseCategory[CATEGORY_HEIGHTMAP] = false;
 			}
 		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
@@ -271,7 +272,7 @@ static void printHelp()
 static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
 	int filesRead = 0;
 
-	int copyCategories[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
+	int copyCategories[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS, CATEGORY_HEIGHTMAP };
 	int numCats = sizeof(copyCategories) / sizeof(int);
 	wchar_t outputChestDirectory[MAX_PATH];
 	for (int category = 0; category < numCats; category++) {
@@ -320,7 +321,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							}
 						}
 
-						if (category == CATEGORY_NORMALS_LONG) {
+						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
 							if (pfg->fr[otherIndex].exists) {
 								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
@@ -394,7 +395,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							}
 						}
 
-						if (category == CATEGORY_NORMALS_LONG) {
+						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
 							if (pcg->cr[otherIndex].exists) {
 								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);

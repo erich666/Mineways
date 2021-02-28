@@ -138,8 +138,8 @@ static Chest gChest115[] = {
 };
 
 
-static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3 };
-static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB };
+static const int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 3, 1, 1, 1, 3, 3, 3, 3 };
+static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_RGB, LCT_RGB, LCT_RGB, LCT_RGB };
 
 static int gErrorCount = 0;
 static int gWarningCount = 0;
@@ -563,26 +563,49 @@ int wmain(int argc, wchar_t* argv[])
 		}
 	}
 
-	// if there are _n and _normal textures for the same tile, favor the _n textures
+	// if there are _n and _normal and _heightmap textures for the same tile, favor the _n textures
 	for (index = 0; index < gFG.totalTiles; index++) {
 		int fullIndexN = CATEGORY_NORMALS * gFG.totalTiles + index;
 		int fullIndexNormals = CATEGORY_NORMALS_LONG * gFG.totalTiles + index;
-		// does _normal version exist? Deal with it
-		if (gFG.fr[fullIndexNormals].exists) {
+		int fullIndexHeightmaps = CATEGORY_HEIGHTMAP * gFG.totalTiles + index;
+		if (gFG.fr[fullIndexNormals].exists || gFG.fr[fullIndexHeightmaps].exists) {
 			// does _n version exist?
 			if (gFG.fr[fullIndexN].exists) {
-				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
-				wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
-				gWarningCount++;
+				if (gFG.fr[fullIndexNormals].exists) {
+					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+					wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
+					gWarningCount++;
+				}
+				if (gFG.fr[fullIndexHeightmaps].exists) {
+					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexHeightmaps);
+					wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexHeightmaps].fullFilename);
+					gWarningCount++;
+				}
 			} else {
-				// move the _normal to _n
-				copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
-				deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+				// move the _normal or _heightmap to _n - favor _normal by using it second
+				if (gFG.fr[fullIndexNormals].exists) {
+					if (verbose) {
+						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexNormals].fullFilename);
+					}
+					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
+					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+					if (gFG.fr[fullIndexNormals].exists) {
+						deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
+					}
+				}
+				else if (gFG.fr[fullIndexHeightmaps].exists) {
+					if (verbose) {
+						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexHeightmaps].fullFilename);
+					}
+					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexHeightmaps]);
+					deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
+				}
 			}
 		}
 	}
 	// these should all now be cleared out
 	assert(gFG.categories[CATEGORY_NORMALS_LONG] == 0);
+	assert(gFG.categories[CATEGORY_HEIGHTMAP] == 0);
 
 	// get "root" of output file, i.e., without '.png', for ease of writing the PBR output files
 	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
@@ -783,9 +806,17 @@ int wmain(int argc, wchar_t* argv[])
 							// if normal map has all the same value for the blue channel, it's likely a heightfield instead, so ignore it
 							// Happens with Kellys and Vanilla RTX.
 
-							// TODOTODO: this does not catch all tiles properly, such as oak leave cutouts. Also, need scaling factor!
-							if ((heightfieldCount > normalsCount) || channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0, 1)) {
-								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 1)) {
+							// OK, now it gets tricky:
+							// If the blue channel has all the same values or is a grayscale RGB, it's likely a heightfield.
+							// If the red channel is all black, it's a useless heightfield. TODO: could test to see if all values are the same as the first.
+							// 
+							if ((heightfieldCount > normalsCount) ||
+									// annoyingly, you need to convert to lowercase, then test, to be case insensitive. Not done here.
+									// could someday add test code from second answer here: 
+									// https://stackoverflow.com/questions/27303062/strstr-function-like-that-ignores-upper-or-lower-case
+									(wcsstr(gFG.fr[fullIndex].fullFilename, L"_heightmap.png") != NULL) ||
+									channelEqualsValue(&tile, 2, gCatChannels[catIndex], 0, 1)) {
+								if (channelEqualsValue(&tile, 0, gCatChannels[catIndex], 0, 0)) {
 									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
 										gFG.fr[fullIndex].fullFilename);
 									deleteFileFromGrid(&gFG, catIndex, fullIndex);
