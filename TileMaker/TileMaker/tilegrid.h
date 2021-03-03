@@ -88,6 +88,6 @@ int isTGAorJPGorBMPfile(wchar_t* name, int &flag);
 int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes);
 int findTileIndex(const wchar_t* tileName, int alternate);
 void clearFileRecordStorage(FileRecord* pfr);
-void copyFileRecord(FileGrid* pfg, int category, int fullIndex, FileRecord* srcFR);
+void copyFileRecord(FileGrid* pfg, int category, int destFullIndex, FileRecord* srcFR);
 void deleteFileFromGrid(FileGrid* pfg, int category, int fullIndex);
 void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex);

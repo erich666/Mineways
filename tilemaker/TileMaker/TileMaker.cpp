@@ -165,6 +165,7 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 void printHelp();
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
+void swapFileRecords(FileGrid* pfg, int index1, int index2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
 
@@ -194,6 +195,7 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 static bool rotateTileIfHorizontal(progimage_info& tile);
 static void rotateTile(progimage_info& tile, int channels);
 static int classifyImageBumpMap(progimage_info& tile);
+bool doesTileHaveCutouts(int index);
 
 
 
@@ -205,7 +207,7 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info* destination_ptr = &destination;
 
 	int i, j, catIndex;
-	int index, fullIndex;
+	int index, fullIndex, sideIndex;
 
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
 	int outputTileSize, outputYTiles;
@@ -528,6 +530,66 @@ int wmain(int argc, wchar_t* argv[])
 		gWarningCount++;
 	}
 
+	// if there's a grass_block_overlay, then do this equivalency
+	index = findTileIndex(L"grass_block_side_overlay", 0);
+	sideIndex = findTileIndex(L"grass_block_side", 0);
+	int prevProcessed;
+	assert(index >= 0);
+	if (gFG.fr[index].exists) {
+		// grass_block_side_overlay exists
+		// check if grass_block_side does not exist
+		if (!gFG.fr[sideIndex].exists) {
+			prevProcessed = filesProcessed;
+			filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
+			if (prevProcessed != filesProcessed) {
+				wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so dirt is used for grass_block_side.\n");
+				gWarningCount++;
+			}
+		}
+		else {
+			// both exist, so check if the "overlay" is actually called "carried". If so, we need to swap these two records, as it's an MCPACK,
+			// which has different naming conventions, namely grass_block_side_overlay is called grass_side, and grass_block_side is called grass_side_carried
+			if (wcsstr(gFG.fr[index].rootName, L"carried")) {
+				// carried found (and there should be a separate warning earlier that the overlay was also found, if there), so swap.
+				swapFileRecords(&gFG, index, sideIndex);
+				if (doesTileHaveCutouts(index)) {
+					wprintf(L"NOTE: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[index].fullFilename, gFG.fr[sideIndex].fullFilename);
+				}
+				else {
+					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have cutout (fully transparent) texels.\n", gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName);
+				}
+			}
+		}
+	}
+	else {
+		// grass_block_side_overlay (in any form) does not exist, so use grass_block_side instead, if it exists
+		if (gFG.fr[sideIndex].exists) {
+			prevProcessed = filesProcessed;
+			filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"grass_block_side_overlay");
+			if (prevProcessed != filesProcessed) {
+				// if so, then test: if grass_block_side has transparent cutouts, replace it into grass_block_side_overlay.
+				if (doesTileHaveCutouts(sideIndex)) {
+					// if grass_block_side is a cutout, just note the change
+					// if it's a grass_block_side.png file, then this should probably be also converted to a grass_block_side_overlay.png 
+					int dirtIndex = findTileIndex(L"dirt", 0);
+					if (dirtIndex >= 0 && gFG.fr[dirtIndex].exists) {
+						wprintf(L"NOTE: the grass_block_side_overlay texture does not exist, so %s replaces it,\n  and %s texture will get used as the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[dirtIndex].fullFilename);
+						// do after warning, otherwise original name is wiped out
+						copyFileRecord(&gFG, CATEGORY_RGBA, sideIndex, &gFG.fr[dirtIndex]);
+					}
+					else {
+						wprintf(L"SERIOUS WARNING: the grass_block_side_overlay texture does not exist, so %s replaces it.\n  But, this texture has cutout (transparent) texels, so will give incorrect results!", gFG.fr[sideIndex].fullFilename);
+					}
+				}
+				else {
+					// else warn of the change
+					wprintf(L"WARNING: the grass_block_side_overlay texture does not exist, so the grass_block_side texture replaces it.\n  However, this replacement texture does not have cutout (fully transparent) texels. Not vital, but beware.\n");
+					gWarningCount++;
+				}
+			}
+		}
+	}
+
 	// now add new textures as needed. If sharing goes on, drop the output count.
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone", L"stone_slab_top");
 	filesProcessed -= shareFileRecords(&gFG, L"smooth_stone_slab_side", L"stone_slab_side");
@@ -536,38 +598,12 @@ int wmain(int argc, wchar_t* argv[])
 
 	// if there is a redstone_dust_line0 but not a line1, or vice versa, copy one to the other
 	bool lineDuplicated = false;
-	int prevProcessed = filesProcessed;
+	prevProcessed = filesProcessed;
 	filesProcessed -= shareFileRecords(&gFG, L"redstone_dust_line0", L"redstone_dust_line1");
 	if (prevProcessed != filesProcessed) {
 		wprintf(L"NOTE: only one of the tiles for redstone_dust_line0 and redstone_dust_line1 exists, so it is also used for the other.\n");
 		lineDuplicated = true;
 		gWarningCount++;
-	}
-
-	// if there's a grass_block_overlay, then do this equivalency
-	index = findTileIndex(L"grass_block_side_overlay", false);
-	assert(index >= 0);
-	if (gFG.fr[index].exists) {
-		// grass_block_side_overlay exists
-		// check if grass_block_side does not exist
-		if (!gFG.fr[findTileIndex(L"grass_block_side", 0)].exists) {
-			prevProcessed = filesProcessed;
-			filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
-			if (prevProcessed != filesProcessed) {
-				wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so dirt is used for grass_block_side.\n");
-				gWarningCount++;
-			}
-		}
-	}
-	else {
-		// grass_block_side_overlay does not exist, so test if grass_block_side does: if so, then replace grass_block_side into grass_block_side_overlay.
-		// Mineways itself should handle this substitution properly.
-		prevProcessed = filesProcessed;
-		filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"grass_block_side_overlay");
-		if (prevProcessed != filesProcessed) {
-			wprintf(L"WARNING: the grass_block_side_overlay texture does not exist, so the grass_block_side texture replaces it.\n");
-			gWarningCount++;
-		}
 	}
 
 	// if there are _n and _normal and _heightmap textures for the same tile, favor the _n textures
@@ -764,13 +800,7 @@ int wmain(int argc, wchar_t* argv[])
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
 								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
-									// if it's a grass_block_side.png file, then this should probably be also converted to a grass_block_side_overlay.png 
-									if ((wcsstr(gTilesTable[index].filename, L"grass") != NULL) && (wcsstr(gTilesTable[index].filename, L"_side") != NULL)) {
-										wprintf(L"WARNING: File '%s' has texels that are fully transparent, but grass block side\n  images should be in a pair: a fully opaque grass_block_side.png image, and\n  a grayscale grass with alpha cutout image grass_block_side_overlay.png\n", gFG.fr[fullIndex].fullFilename);
-									}
-									else {
-										wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
-									}
+									wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
 									gWarningCount++;
 								}
 							}
@@ -840,7 +870,7 @@ int wmain(int argc, wchar_t* argv[])
 								// note we flow through and treat "not a bump map" as being a heightfield, for lack of any other ideas what to do with it.
 							case TILE_IS_HEIGHT_MAP:
 								if ( !(bumpMapType & TILE_BUMP_REAL)) {
-									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield, no changes detected.\n",
+									wprintf(L"WARNING: Image '%s' was not used because it seems to be a flat heightfield.\n",
 										gFG.fr[fullIndex].fullFilename);
 									deleteFileFromGrid(&gFG, catIndex, fullIndex);
 									gWarningCount++;
@@ -1179,8 +1209,8 @@ void printHelp()
 // If only one exists, copy it to the other.
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 {
-	int index1 = findTileIndex(tile1, false);
-	int index2 = findTileIndex(tile2, false);
+	int index1 = findTileIndex(tile1, 0);
+	int index2 = findTileIndex(tile2, 0);
 
 	if (index1 < 0) {
 		wprintf(L"INTERNAL WARNING: shareFileRecords cannot find tile name '%s'.\n", tile1);
@@ -1218,6 +1248,18 @@ int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 	}
 	return shareCount;
 }
+
+// Swap records, which must exist.
+void swapFileRecords(FileGrid* pfg, int index1, int index2)
+{
+	assert(pfg->fr[index1].exists);
+	assert(pfg->fr[index2].exists);
+	FileRecord temp;
+	temp = pfg->fr[index1];
+	pfg->fr[index1] = pfg->fr[index2];
+	pfg->fr[index2] = temp;
+}
+
 
 int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
 	// check that width and height make sense.
@@ -1932,7 +1974,9 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 		{
 			int lcol = (col + phf->width - 1) % phf->width;
 			int rcol = (col + phf->width + 1) % phf->width;
-			// Won't swear to this conversion being quite right. From Real-Time Rendering referencing an article.
+			// Won't swear to this conversion being quite right. From Real-Time Rendering, p. 214 referencing an article:
+			// Eberly, David, "Reconstructing a Height Field from a Normal Map," Geometric Tools blog, May 3, 2006.
+			// https://www.geometrictools.com/Documentation/ReconstructHeightFromNormals.pdf
 			float x = heightfieldScale * (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
 			float y = heightfieldScale * (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
 			float length = (float)sqrt(x * x + y * y + 1.0f);
@@ -2037,13 +2081,15 @@ static int classifyImageBumpMap(progimage_info& tile)
 			bool grayscale = ((src_data[0] == src_data[1]) && (src_data[1] == src_data[2]));
 
 			if (grayscale) {
-				couldBeRedHM = false;
+				// could be gray because green and blue happened to match red
+				if ( src_data[0] != 0 && src_data[0] != 255 )
+					couldBeRedHM = false;
 				// can't rule out normal map, as it could be a cutout area that was not set
 			}
 			else {
 				couldBeGrayHM = false;
-				// if blue value is < 127, no way can it be a normal map
-				if (src_data[2] < 127) {
+				// if blue value is < 10, unlikely it be a normal map
+				if (src_data[2] < 10) {
 					couldBeNM = false;
 				}
 				// if it's colored, if the green and blue channels differ, it's not a red-only height map
@@ -2115,3 +2161,28 @@ static int classifyImageBumpMap(progimage_info& tile)
 	return TILE_IS_NOT_BUMP_MAP;
 }
 
+bool doesTileHaveCutouts(int index)
+{
+	if (gFG.fr[index].exists) {
+		// load tile, check for cutouts, close tile - kind of a waste, we could keep the tile as-is, but this is rarely done (i.e., just once) currently
+		progimage_info tile;
+		wchar_t inputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[index].path);
+		wcscat_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[index].fullFilename);
+
+		int rc = readpng(&tile, inputFile, gCatFormat[CATEGORY_RGBA]);
+		if (rc != 0)
+		{
+			reportReadError(rc, gFG.fr[index].fullFilename);
+			return false;
+		}
+		bool retCode = checkForCutout(&tile);
+		readpng_cleanup(1, &tile);
+		return retCode;
+	}
+	else {
+		// should go in knowing this exists
+		assert(0);
+	}
+	return false;
+}

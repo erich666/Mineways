@@ -835,6 +835,10 @@ static const struct {
     const wchar_t* altFilename; // the "yet another alternative" name to search on
     const wchar_t* filename;    // the real name we use, which we search for in the table above
 } gTilesAlternates[] = {
+    // special sleazy case: mcpacks have grass_side_carried meaning grass_block_side, in which case their grass_side is actually the overlay.
+    // When detected, we copy both over and swap the two.
+    { L"grass_side_carried", L"grass_block_side_overlay" },
+
     { L"Acacia_Door", L"acacia_door_bottom" },
     { L"Birch_Door", L"birch_door_bottom" },
     { L"Cactus", L"cactus_side" },

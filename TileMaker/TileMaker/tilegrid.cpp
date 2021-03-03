@@ -512,15 +512,15 @@ void clearFileRecordStorage(FileRecord* pfr)
 	}
 }
 
-void copyFileRecord(FileGrid *pfg, int category, int fullIndex, FileRecord* srcFR)
+void copyFileRecord(FileGrid *pfg, int category, int destFullIndex, FileRecord* srcFR)
 {
 	pfg->fileCount++;
 	pfg->categories[category]++;
-	clearFileRecordStorage(&pfg->fr[fullIndex]);
-	pfg->fr[fullIndex].rootName = _wcsdup(srcFR->rootName);
-	pfg->fr[fullIndex].fullFilename = _wcsdup(srcFR->fullFilename);
-	pfg->fr[fullIndex].path = _wcsdup(srcFR->path);
-	pfg->fr[fullIndex].exists = true;
+	clearFileRecordStorage(&pfg->fr[destFullIndex]);
+	pfg->fr[destFullIndex].rootName = _wcsdup(srcFR->rootName);
+	pfg->fr[destFullIndex].fullFilename = _wcsdup(srcFR->fullFilename);
+	pfg->fr[destFullIndex].path = _wcsdup(srcFR->path);
+	pfg->fr[destFullIndex].exists = true;
 }
 
 void deleteFileFromGrid(FileGrid* pfg, int category, int fullIndex)
