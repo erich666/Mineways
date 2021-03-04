@@ -92,7 +92,7 @@ int wmain(int argc, wchar_t* argv[])
 				wcscpy_s(inputDirectory, MAX_PATH, argv[argLoc]);
 				inputCalled = true;
 			} else {
-				wprintf(L"WARNING: only one input directory can be specified. Only directory %s will be used.\n", inputDirectory);
+				wprintf(L"SERIOUS WARNING: only one input directory can be specified. Only directory %s will be used.\n", inputDirectory);
 			}
 		}
 		else if (wcscmp(argv[argLoc], L"-o") == 0)

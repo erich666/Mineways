@@ -3296,6 +3296,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.04, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI>Improve export of grayscale textures from Mineways. Now there are better rules to decide if a tile is grayscale (and should be tinted by the color assigned to the block or by using the biome) or if it is already fully colored, as done by some resource pack creators.
 <LI>*For USD export, allow export of individual blocks, created as instances. 
 <LI>*Export the UsdPreview emitters a bit better. Glass and water look better now, due to turning the opacityThreshold to 0. The emission texture was previously not exported due to a misplaced line of code.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.

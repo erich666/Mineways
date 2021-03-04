@@ -165,7 +165,7 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 void printHelp();
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
-void swapFileRecords(FileGrid* pfg, int index1, int index2);
+bool swapFileRecords(FileGrid* pfg, int index1, int index2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
 
@@ -207,7 +207,7 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info* destination_ptr = &destination;
 
 	int i, j, catIndex;
-	int index, fullIndex, sideIndex;
+	int index, sideIndex, dirtIndex, fullIndex, fullSideIndex, fullDirtIndex;
 
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
 	int outputTileSize, outputYTiles;
@@ -526,7 +526,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user of large tiles
 	if (outputTileSize > 256) {
-		wprintf(L"WARNING: With a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures, unless you export from Mineways\n  by using the 'Export tiles for textures' option. Consider running again,\n  using the '-t tileSize' option, choosing a power of two value less than this,\n  such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
+		wprintf(L"SERIOUS WARNING: With a texture image size of %d X %d, animation programs such as Blender\n  may have problems with such large textures, unless you export from Mineways\n  by using the 'Export tiles for textures' option. Consider running again,\n  using the '-t tileSize' option, choosing a power of two value less than this,\n  such as '-t 256' or '-t 128'.\n", outputTileSize, outputTileSize);
 		gWarningCount++;
 	}
 
@@ -542,7 +542,7 @@ int wmain(int argc, wchar_t* argv[])
 			prevProcessed = filesProcessed;
 			filesProcessed -= shareFileRecords(&gFG, L"grass_block_side", L"dirt");
 			if (prevProcessed != filesProcessed) {
-				wprintf(L"WARNING: the grass_block_side and dirt textures do not both exist, so dirt is used for grass_block_side.\n");
+				wprintf(L"WARNING: the grass_block_side texture is missing (though grass_block_side_overlay exists), so dirt is used for\n  grass_block_side, since the grass_side_overlay will later be composited atop this image.\n");
 				gWarningCount++;
 			}
 		}
@@ -551,12 +551,23 @@ int wmain(int argc, wchar_t* argv[])
 			// which has different naming conventions, namely grass_block_side_overlay is called grass_side, and grass_block_side is called grass_side_carried
 			if (wcsstr(gFG.fr[index].rootName, L"carried")) {
 				// carried found (and there should be a separate warning earlier that the overlay was also found, if there), so swap.
-				swapFileRecords(&gFG, index, sideIndex);
+				// Do for all categories
 				if (doesTileHaveCutouts(index)) {
 					wprintf(L"NOTE: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[index].fullFilename, gFG.fr[sideIndex].fullFilename);
 				}
 				else {
 					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have cutout (fully transparent) texels.\n", gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName);
+				}
+				// swap all records in all categories, as found.
+				for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
+					fullIndex = catIndex * gFG.totalTiles + index;
+					fullSideIndex = catIndex * gFG.totalTiles + sideIndex;
+					if (!swapFileRecords(&gFG, index, sideIndex)) {
+						// check whether just one is missing
+						if (gFG.fr[fullIndex].exists || gFG.fr[fullSideIndex].exists) {
+							wprintf(L"  FURTHER WARNING: note that not all block images were swapped, as only %s exists.\n", gFG.fr[fullIndex].exists ? gFG.fr[fullIndex].fullFilename : gFG.fr[fullSideIndex].fullFilename);
+						}
+					}
 				}
 			}
 		}
@@ -571,11 +582,17 @@ int wmain(int argc, wchar_t* argv[])
 				if (doesTileHaveCutouts(sideIndex)) {
 					// if grass_block_side is a cutout, just note the change
 					// if it's a grass_block_side.png file, then this should probably be also converted to a grass_block_side_overlay.png 
-					int dirtIndex = findTileIndex(L"dirt", 0);
+					dirtIndex = findTileIndex(L"dirt", 0);
 					if (dirtIndex >= 0 && gFG.fr[dirtIndex].exists) {
-						wprintf(L"NOTE: the grass_block_side_overlay texture does not exist, so %s replaces it,\n  and %s texture will get used as the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[dirtIndex].fullFilename);
+						wprintf(L"NOTE: the grass_block_side_overlay texture does not exist, so %s replaces it since it has cutouts,\n  and %s texture will get used as the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[dirtIndex].fullFilename);
 						// do after warning, otherwise original name is wiped out
-						copyFileRecord(&gFG, CATEGORY_RGBA, sideIndex, &gFG.fr[dirtIndex]);
+						for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
+							fullSideIndex = catIndex * gFG.totalTiles + sideIndex;
+							fullDirtIndex = catIndex * gFG.totalTiles + dirtIndex;
+							if (gFG.fr[fullDirtIndex].exists) {
+								copyFileRecord(&gFG, catIndex, fullSideIndex, &gFG.fr[fullDirtIndex]);
+							}
+						}
 					}
 					else {
 						wprintf(L"SERIOUS WARNING: the grass_block_side_overlay texture does not exist, so %s replaces it.\n  But, this texture has cutout (transparent) texels, so will give incorrect results!", gFG.fr[sideIndex].fullFilename);
@@ -583,7 +600,7 @@ int wmain(int argc, wchar_t* argv[])
 				}
 				else {
 					// else warn of the change
-					wprintf(L"WARNING: the grass_block_side_overlay texture does not exist, so the grass_block_side texture replaces it.\n  However, this replacement texture does not have cutout (fully transparent) texels. Not vital, but beware.\n");
+					wprintf(L"WARNING: the grass_block_side_overlay texture does not exist, so the grass_block_side texture replaces it.\n  However, this replacement texture does not have cutout (fully transparent) texels. Not critical, but beware.\n");
 					gWarningCount++;
 				}
 			}
@@ -800,7 +817,7 @@ int wmain(int argc, wchar_t* argv[])
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
 								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
-									wprintf(L"WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
+									wprintf(L"SERIOUS WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
 									gWarningCount++;
 								}
 							}
@@ -1145,7 +1162,7 @@ int wmain(int argc, wchar_t* argv[])
 					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
 			}
 			else {
-				wprintf(L"WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
+				wprintf(L"SERIOUS WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
 				gWarningCount++;
 			}
 		}
@@ -1153,7 +1170,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// was there a mix of heightfields and normal maps?
 	if (heightfieldCount > 0 && normalsCount > 0) {
-		wprintf(L"WARNING: %d heightfields and %d normal maps detected.\n  TileMaker does its best to convert heightfields to normal maps, but you should double check.\n", heightfieldCount, normalsCount);
+		wprintf(L"WARNING: %d heightfields and %d normal maps both detected.\n  TileMaker does its best to convert heightfields to normal maps, but you should double check.\n", heightfieldCount, normalsCount);
 		gWarningCount++;
 	}
 	if (heightfieldCount > 0) {
@@ -1163,7 +1180,7 @@ int wmain(int argc, wchar_t* argv[])
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that come with TileMaker
 	if (gFG.fileCount <= 3 && !anyChests) {
-		wprintf(L"WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
+		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
 	else if (!allChests) {
@@ -1249,15 +1266,19 @@ int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2)
 	return shareCount;
 }
 
-// Swap records, which must exist.
-void swapFileRecords(FileGrid* pfg, int index1, int index2)
+// Swap records, if they both exist.
+bool swapFileRecords(FileGrid* pfg, int index1, int index2)
 {
-	assert(pfg->fr[index1].exists);
-	assert(pfg->fr[index2].exists);
-	FileRecord temp;
-	temp = pfg->fr[index1];
-	pfg->fr[index1] = pfg->fr[index2];
-	pfg->fr[index2] = temp;
+	if (pfg->fr[index1].exists && pfg->fr[index2].exists) {
+		FileRecord temp;
+		temp = pfg->fr[index1];
+		pfg->fr[index1] = pfg->fr[index2];
+		pfg->fr[index2] = temp;
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 
