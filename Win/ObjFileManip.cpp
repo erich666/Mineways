@@ -2603,6 +2603,11 @@ static void editBlock(int x, int y, int z, int editMode)
     case EDIT_MODE_CLEAR_TYPE:
         gBoxData[boxIndex].type = BLOCK_AIR;
         // don't clear data field, since origType is still intact
+        // if type is waterlogged, we need to clear origType to be water, as water
+        // is what is tested for water levels
+        if (IS_WATERLOGGED(gBoxData[boxIndex].origType, boxIndex)) {
+            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
+        }
         break;
     case EDIT_MODE_CLEAR_ALL:
         gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
@@ -2613,6 +2618,11 @@ static void editBlock(int x, int y, int z, int editMode)
         if (gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE)
         {
             gBoxData[boxIndex].origType = BLOCK_AIR;
+        }
+        // if type is waterlogged, we need to clear origType to be water, as water
+        // is what is tested for water levels
+        if (IS_WATERLOGGED(gBoxData[boxIndex].origType, boxIndex)) {
+            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
         }
         gBoxData[boxIndex].type = BLOCK_AIR;
         // don't clear data field, since origType may still be intact
@@ -2769,8 +2779,13 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                 {
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
-                                        // clears to water if waterlogged, e.g., seagrass
-                                        gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
+                                        // clears to water if waterlogged, e.g., seagrass.
+                                        // We even clear out the origType, as this type gets used
+                                        // later on to determine the level of the water.
+                                        // Yet another hack, but much faster doing it here than
+                                        // trying to test when checking water levels in computeUpperCornerHeight()
+                                        gBoxData[boxIndex].type = 
+                                            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
                                         gBoxData[boxIndex].data = 8;
                                     }
                                     else {
@@ -2801,7 +2816,12 @@ static int filterBox(ChangeBlockCommand* pCBC)
                             {
                                 if (IS_WATERLOGGED(type, boxIndex)) {
                                     // clears to water if waterlogged, e.g., seagrass
-                                    gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
+                                    // We even clear out the origType, as this type gets used
+                                    // later on to determine the level of the water.
+                                    // Yet another hack, but much faster doing it here than
+                                    // trying to test when checking water levels in computeUpperCornerHeight()
+                                    gBoxData[boxIndex].type =
+                                        gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
                                     gBoxData[boxIndex].data = 8; // level of water set to full
                                 }
                                 else {
@@ -2858,7 +2878,12 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass
-                                        gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
+                                        // We even clear out the origType, as this type gets used
+                                        // later on to determine the level of the water.
+                                        // Yet another hack, but much faster doing it here than
+                                        // trying to test when checking water levels in computeUpperCornerHeight()
+                                        gBoxData[boxIndex].type =
+                                            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
                                         gBoxData[boxIndex].data = 8;
                                     }
                                     else {
@@ -15172,9 +15197,10 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
     // look at neighbors and blend them in.
     for (i = 0; i < 4; i++)
     {
-        // is neighbor same fluid?
-        int neighborType = gBoxData[neighbor[i]].origType;
-        if (sameFluid(type, neighborType))
+        // is neighbor same fluid? We are a bit hacky here:
+        // the type will be water if the block was waterlogged - waterlogged blocks
+        // get "turned into" water once whatever is in them gets output.
+        if (sameFluid(type, gBoxData[neighbor[i]].origType))
         {
             // matches, so get neighbor's stored height
             int neighborDataVal = gBoxData[neighbor[i]].data;
@@ -15205,7 +15231,8 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
 
     if (weight == 0)
     {
-        // in theory should never reach here... it can, under synthetic worlds such as texture-pack-test-world-1566312844
+        // should NEVER reach here - if we do, it means the type of this block being tested (at boxIndex in the calling routine) is somehow
+        // not water or lava. In other words, of the four neighbors, one must always be the water or lava itself.
         assert(weight);
         return 1.0f;
     }
