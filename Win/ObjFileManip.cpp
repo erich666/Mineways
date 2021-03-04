@@ -15205,7 +15205,7 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
 
     if (weight == 0)
     {
-        // in theory should never reach here...
+        // in theory should never reach here... it can, under synthetic worlds such as texture-pack-test-world-1566312844
         assert(weight);
         return 1.0f;
     }
@@ -20764,7 +20764,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
 
     // affected by foliage biome
-    { BLOCK_LEAVES /* leaves, fancy */, 4, 3, {0,0,0} },
+    { BLOCK_LEAVES /* leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },
     { BLOCK_LEAVES /* jungle leaves, fancy */, 4,12, {0,0,0} },
     { BLOCK_AD_LEAVES /* acacia leaves, fancy */,  9,19, {0,0,0} },
     { BLOCK_AD_LEAVES /* dark oak leaves, fancy */, 11,19, {0,0,0} },
@@ -20772,7 +20772,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     // water - possibly affected by swampland
     { BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
     { BLOCK_WATER /* water */, 15, 25, { 0, 0, 0 } },
-    { BLOCK_WATER /* water */, 8, 26, { 0, 0, 0 } },
+    { BLOCK_WATER /* water_flow */, 8, 26, { 0, 0, 0 } },
 
     /////////////////////////////
     // not affected by biomes
@@ -21265,9 +21265,8 @@ static int createBaseMaterialTexture()
                 // multiplication color does something.
                 // Do this multiplication ONLY if the target tile is grayscale. If it's some modded thing that
                 // is not grayscale, don't modify the color.
-                // tolerance for grayscale is pretty high, 
-                if (((multTable[i].col == 4) && (multTable[i].row == 12))  // if it's jungle, it's not grayscale in default Minecraft - fun
-                        || isPNGTileNearlyGrayscale(mainprog, dstCol, dstRow, gModel.swatchSize, 20)) {
+                // tolerance for grayscale is pretty high, due to some variation by authors.
+                if (isPNGTileNearlyGrayscale(mainprog, dstCol, dstRow, gModel.swatchSize, 20)) {
                     if (ir > 255 || ig > 255 || ib > 255) {
                         multiplyClampPNGTile(mainprog, dstCol, dstRow, gModel.swatchSize, ir, ig, ib, a);
                     }
@@ -26143,28 +26142,40 @@ static void multiplyPNGTile(progimage_info* dst, int x, int y, int tileSize, uns
 static boolean isPNGTileNearlyGrayscale(progimage_info* dst, int x, int y, int tileSize, int tolerance)
 {
     int row, col;
+    int graycount = 0;
+    int colorcount = 0;
 
     assert(x * tileSize + tileSize - 1 < (int)dst->width);
 
-    for (row = 0; row < tileSize; row++)
+    // We can ignore row 0 and column 0 as well as row or col == tileSize-1 as these are the "bled" edges of the tile.
+    // A small savings, but why not?
+    for (row = 1; row < tileSize-1; row++)
     {
-        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize);
-        for (col = 0; col < tileSize; col++)
+        // plus 1 at end is because we start in column 1
+        unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + row) * dst->width + x * tileSize + 1);
+        for (col = 1; col < tileSize-1; col++)
         {
             unsigned int value = *di;
             unsigned char dr, dg, db, da;
             GET_PNG_TEXEL(dr, dg, db, da, value);
-            int diff1 = abs((int)dr - (int)dg);
-            int diff2 = abs((int)dg - (int)db);
-            if (diff1 > tolerance || diff2 > tolerance) {
-                // not grayscale
-                return false;
+            // if alpha is 0, ignore pixel - JG-RTX, for example, puts colors in there.
+            if (da > 0) {
+                int diff1 = abs((int)dr - (int)dg);
+                int diff2 = abs((int)dg - (int)db);
+                // And JG-RTX (how I suffer for you) also has fringes that are colored
+                // for their grass side overlay, so we have to find a preponderance of texels that are gray.
+                if (diff1 > tolerance || diff2 > tolerance) {
+                    // not grayscale
+                    colorcount++;
+                } else {
+                    graycount++;
+                }
             }
             di++;
         }
     }
-    // grayscale
-    return true;
+    // grayscale if 2/3rds or more of pixels are gray
+    return graycount > 2 * colorcount;
 }
 
 // more a rescale than a clamp, but that's fine
