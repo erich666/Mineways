@@ -549,7 +549,7 @@ static int gAssertFacesNotReusedMask = 0x0;
 
 static void determineProgressValues(int fileType, int xdim, int zdim);
 
-static int modifyAndWriteTextures(int needDifferentTextures);
+static int modifyAndWriteTextures(int needDifferentTextures, int fileType);
 
 static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation);
 
@@ -557,6 +557,7 @@ static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, in
 static int initializeModelData();
 
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category);
+static void invertImage(progimage_info* dst);
 
 static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* box);
 static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* worldBox, int mcVersion, int versionID);
@@ -724,7 +725,7 @@ static int schematicWriteIntValue(gzFile gz, int intValue);
 static int schematicWriteStringValue(gzFile gz, char* stringValue);
 
 static int writeTileFromCategoryInput(wchar_t* filename, int index, int category);
-static boolean isTileBlack(int category, int tileLoc, boolean checkAllPixels);
+static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value);
 static void formCategoryFileName(char* catFile, int category, char* textureRGB);
 
 static int writeLines(HANDLE file, char** textLines, int lines);
@@ -934,7 +935,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
             // For individual tile export, try to read all possible terrainExt file names and process each. RGBA/normals/M/E/R
             if ((fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ)) {
-                gTotalInputTextures = 2; // RGBA and normals, the first two
+                gTotalInputTextures = 5; // was RGBA and normals, the first two; now export all, as available
             }
             else if (fileType == FILE_TYPE_USD) {
                 gTotalInputTextures = 5;
@@ -1016,7 +1017,13 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                 gModel.pInputTerrainImage[catIndex] = NULL;
             }
 
-            if (catIndex == 0) {
+            // if OBJ, then roughness map should be inverted to be a specular map
+            if ((catIndex == CATEGORY_ROUGHNESS) && ((fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ))) {
+                // invert texture - we just shove it into the roughness slot anyway, checking for this on output
+                invertImage(gModel.pInputTerrainImage[catIndex]);
+            }
+
+            if (catIndex == CATEGORY_RGBA) {
                 // compute progress increments, now that we know the input texture size
                 determineProgressValues(fileType, xmax - xmin, zmax - zmin);
                 startProgress = false;
@@ -1193,7 +1200,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         goto Exit;
 
     // write out texture files, if any input data.
-    retCode |= modifyAndWriteTextures(needDifferentTextures);
+    retCode |= modifyAndWriteTextures(needDifferentTextures, fileType);
 
     if (retCode >= MW_BEGIN_ERRORS)
         goto Exit;
@@ -1340,7 +1347,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     gProgress.start.zip = gProgress.start.texture + gProgress.absolute.texture;
 }
 
-static int modifyAndWriteTextures(int needDifferentTextures)
+static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
 {
     UPDATE_PROGRESS(gProgress.start.texture);
 
@@ -1557,6 +1564,7 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                 }
 
                 assert(gModel.tileListCount);   // should be computed before calling this function
+                bool isOBJ = (fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ);
                 int outputCount = 0;
                 int frequency = (int)(1 + (gModel.tileListCount / 16));
                 for (int i = 0; i < TOTAL_TILES; i++) {
@@ -1580,7 +1588,9 @@ static int modifyAndWriteTextures(int needDifferentTextures)
                         // Check if there is a normal map etc. to output, copying directly from the input texture, and note that it's output.
                         for (int j = 1; j < gTotalInputTextures; j++) {
                             if (gModel.tileList[j][i]) {
-                                concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[j], L".png");
+                                // special, stupid case: output roughness with _s for OBJ files, as specular is output
+                                int category = (isOBJ && j == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : j;
+                                concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[category], L".png");
 // Define in order to make separate emission grayscale textures for each light.
 // Really, USD looks better with RGB textures for emissive. Hmmm. TODOUSD.
 #define GENERATE_EMISSION_TILES
@@ -2109,6 +2119,21 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
 
     return MW_NO_ERROR;
 }
+
+// assumes a single channel image
+static void invertImage(progimage_info* dst)
+{
+    int row, col;
+    unsigned char* dst_data = &dst->image_data[0];
+    for (row = 0; row < dst->height; row++)
+    {
+        for (col = 0; col < dst->width; col++)
+        {
+            *dst_data++ = 255 - *dst_data;
+        }
+    }
+}
+
 
 static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* worldBox)
 {
@@ -20564,12 +20589,15 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     double fRed, fGreen, fBlue;
     double ka, kd, ks;
 
+    char customMaterialString[256];
+    customMaterialString[0] = (wchar_t)0;
     if (gModel.customMaterial)
     {
         // Use full material description, and include illumination model.
         // Works by uncommenting lines where "fullMtl" is used in the output.
         // Really currently tailored for G3D, and things like Tr are commented out always.
         strcpy_s(fullMtl, 256, "");
+        strcpy_s(customMaterialString, 256, "# for G3D, to make textures look blocky:\ninterpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n");
     }
     else
     {
@@ -20663,9 +20691,51 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         mapdString[0] = '\0';
     }
 
+    char pbrFile[MAX_PATH];
+    char pbrString[MAX_PATH*5 + 50];
+    pbrString[0] = (wchar_t)0;
+    bool foundMapKe = false;
+    // If exporting tiles, check if normals texture is available
+    if (gModel.exportTiles && gModel.customMaterial && (textureRoot != NULL)) {
+        for (int i = 1; i < gTotalInputTextures; i++) {
+            // if texture exists and swatch is not black, is needed, then use it and note it.
+            // In theory we could check just the first pixel for a normal map, but there might be cutouts,
+            // and who knows how those are handled in the normal map.
+            //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
+            if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
+                gModel.tileList[i][swatchLoc] = true;
+                formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
+                switch (i) {
+                default:
+                    assert(0);
+                case CATEGORY_NORMALS:
+                    // seen somewhere as valid. Omniverse uses it, for example.
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Kn ");
+                    break;
+                case CATEGORY_METALLIC:
+                    // just made up
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_metallic ");
+                    break;
+                case CATEGORY_EMISSION:
+                    // just made up
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ke ");
+                    foundMapKe = true;
+                    break;
+                case CATEGORY_ROUGHNESS:
+                    // could be real... specular power - we invert the roughness earlier
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ns ");
+                    break;
+                }
+                strcat_s(pbrString, MAX_PATH * 5 + 50, pbrFile);
+                strcat_s(pbrString, MAX_PATH * 5 + 50, "\n");
+                gModel.tileList[i][swatchLoc] = true;
+            }
+        }
+    }
+
     keString[0] = '\0';
     mapKeString[0] = '\0';
-    if (!gModel.print3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
+    if (!foundMapKe && !gModel.print3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
     {
         bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
@@ -20679,6 +20749,17 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         }
     }
 
+    float specularHighlightPower = 0.0f;
+    float roughness = 1.0f;
+    float metallic = 0.0f;
+    if (gModel.customMaterial) {
+        setMetallicRoughnessByName(type, &metallic, &roughness);
+        specularHighlightPower = (1.0f - roughness) * 255.0f;
+    }
+
+    // good? or should it be 0.0 when roughness is 1.0, else 1.0? Or always 1.0?s
+    ks = (1.0f - roughness);
+
     // Any last-minute adjustments due to material?
     // I like to give the water a slight reflectivity, it's justifiable. Same with glass.
     // Simplify this to all transparent surfaces, which are likely to be shiny, except for
@@ -20688,31 +20769,17 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         ks = 0.03;
     }
 
-    char normalsFile[MAX_PATH];
-    char normalsString[MAX_PATH + 10];
-    normalsString[0] = (wchar_t)0;
-    // If exporting tiles, check if normals texture is available
-    if (gModel.exportTiles) {
-        // if normals exists and swatch is not black, is needed, then use it and note it.
-        if (gModel.pInputTerrainImage[CATEGORY_NORMALS] && (textureRoot != NULL) && !isTileBlack(CATEGORY_NORMALS, swatchLoc, false)) {
-            formCategoryFileName(normalsFile, CATEGORY_NORMALS, textureRoot);
-            sprintf_s(normalsString, MAX_PATH + 10, "map_Kn %s\n", normalsFile);
-            gModel.tileList[CATEGORY_NORMALS][swatchLoc] = true;
-        }
-    }
-
     if (gModel.exportTexture)
     {
         sprintf_s(outputString, 2048,
             "\nnewmtl %s\n"
-            "%sNs 0\n"	// specular highlight power
+            "%sNs %g\n"	// specular highlight power
             "%sKa %g %g %g\n"
             "Kd %g %g %g\n"
             "Ks %g %g %g\n"
             "%s" // emissive
             "%smap_Ka %s\n"
-            "# for G3D, to make textures look blocky:\n"
-            "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION\n"
+            "%s"    // custom material settings
             "map_Kd %s\n"
             "%s" // map_d, if there's a cutout
             "%s"	// map_Ke
@@ -20721,16 +20788,17 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             "# d %g\n"	// some use Tr here - Blender likes "d"
             "# Tr %g\n"	// we put both, in hopes of helping both types of importer; comment out one, as 3DS MAX doesn't like it; Tr 1 means fully visible in some systems, fully transparent in others, including G3D, so left out
             "%s"	//Tf, if needed
-            "%s"    // normal map, if needed
+            "%s"    // normal and other pbr maps, if needed
             ,
             // colors are premultiplied by alpha, Wavefront OBJ doesn't want that
             mtlName,
-            fullMtl,
-            fullMtl, (float)(fRed * ka), (float)(fGreen * ka), (float)(fBlue * ka),
+            fullMtl, specularHighlightPower, // specular highlight power
+            fullMtl, (float)(fRed * ka), (float)(fGreen * ka), (float)(fBlue * ka), // Ka
             (float)(fRed * kd), (float)(fGreen * kd), (float)(fBlue * kd),
             (float)(fRed * ks), (float)(fGreen * ks), (float)(fBlue * ks),
             keString,
             fullMtl, typeTextureFileName,
+            customMaterialString,
             typeTextureFileName,
             mapdString,
             mapKeString,
@@ -20738,7 +20806,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             (float)(alpha),
             (float)(1.0f - alpha),
             tfString,
-            normalsString);
+            pbrString
+            );
     }
     else
     {
@@ -23212,7 +23281,7 @@ static int createMaterialsUSD(char *texturePath)
                 // In theory we could check just the first pixel for a normal map, but there might be cutouts,
                 // and who knows how those are handled in the normal map.
                 //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
-                if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, true)) {
+                if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, 0)) {
                     gModel.tileList[i][swatchLoc] = true;
                 }
             }
@@ -25226,7 +25295,7 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
     return rc;
 }
 
-static boolean isTileBlack(int category, int swatchLoc, boolean checkAllPixels)
+static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value)
 {
     if (gModel.pInputTerrainImage[category] != NULL) {
         // check tile, either first pixel or all pixels, to see if it's black.
@@ -25241,7 +25310,7 @@ static boolean isTileBlack(int category, int swatchLoc, boolean checkAllPixels)
             unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart + row * perRow]);
             for (int col = 0; col < size* numChannels; col++)
             {
-                if (*image_data++ != 0) {
+                if (*image_data++ != value) {
                     // found a pixel where a channel is not black
                     return false;
                 }

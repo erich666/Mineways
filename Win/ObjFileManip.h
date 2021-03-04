@@ -104,18 +104,19 @@ typedef struct ChangeBlockCommand {
 } ChangeBlockCommand;
 
 
-#define TOTAL_CATEGORIES	5
+#define TOTAL_CATEGORIES	6
 #define	CATEGORY_RGBA		0
 #define	CATEGORY_NORMALS	1
 #define	CATEGORY_METALLIC	2
 #define	CATEGORY_EMISSION	3
 #define	CATEGORY_ROUGHNESS	4
+#define CATEGORY_SPECULAR   5
 
-static int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1 };
-static LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY };
-static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_m", L"_e", L"_r" };
+static int gCatChannels[TOTAL_CATEGORIES] = { 4, 3, 1, 1, 1, 1 };
+static LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB, LCT_GREY, LCT_GREY, LCT_GREY, LCT_GREY };
+static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_m", L"_e", L"_r", L"_s" };
 // OBJ output is assumed to be in non-wide characters - TODO I wonder if that's required by other programs?
-static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "_r" };
+static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "_r", "_s" };
 
 // We store a set of normals that get reused: 
 // 26 predefined, plus 30 known to be needed for 196 blocks, plus another 400 for water and lava and just in case.
