@@ -15282,6 +15282,8 @@ static float getFluidHeightPercent(int dataVal)
 static int sameFluid(int fluidType, int type)
 {
     if (IS_WATER(fluidType)) {
+        // note this works because waterlogged blocks are "cleared" of their contents
+        // by this point, so that the block is stationary water.
         return IS_WATER(type);
     }
     else
@@ -23714,6 +23716,43 @@ static int createMaterialsUSD(char *texturePath)
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                    // adding the color texture as an opacity map weakens the glass effect a bit, but shows the borders better
+                    // and makes glass such as JG-RTX easier to see through. For water we don't use it, 
+                    strcpy_s(outputString, 256, "            bool inputs:enable_opacity = 1 (\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    bool default = 0\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Enable Opacity\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    sprintf_s(outputString, 256, "            asset inputs:cutout_opacity_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (outputCustomData) {
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    asset default = @@\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Opacity Map\"\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 }
 
                 sprintf_s(outputString, 256, "            float inputs:glass_ior = %g (\n", ior);
@@ -24291,7 +24330,7 @@ static int createMaterialsUSD(char *texturePath)
             // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
             sprintf_s(outputString, 256, "            float inputs:opacity.connect = </Looks/%s/diffuse_texture.outputs:a>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0.0\n");
+            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             // - roughness input
