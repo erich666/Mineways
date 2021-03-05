@@ -4812,7 +4812,9 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         if (strlen(is.world) > 0)
         {
             if (!commandLoadWorld(is, msgString)) {
-                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+                MessageBox(NULL, msgString, _T("Import error"), MB_OK | MB_ICONWARNING);
+                // quit; since we can't load new world, anything else is pointless.
+                return;
             }
         }
 
