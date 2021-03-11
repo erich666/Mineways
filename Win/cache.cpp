@@ -214,6 +214,7 @@ WorldBlock* block_alloc()
             return NULL;
         ret->entities = NULL;
         ret->numEntities = 0;
+        ret->maxHeight = 256;    // for 1.17+ it is 384 - change by checking versionID
         return ret;
     }
 }

@@ -36,7 +36,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <string.h>
 
-static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, Options* pOpts,
+static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, int mapMaxY, Options* pOpts,
     ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py,
     double zoom, int w, int h);
@@ -85,7 +85,7 @@ void SetSeparatorMap(const wchar_t* separator)
     wcscpy_s(gSeparator, 3, separator);
 }
 
-void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz)
+void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight)
 {
     // we don't really require one to be min or max, we take the range
     if (minx > maxx) swapint(minx, maxx);
@@ -93,8 +93,13 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
     if (minz > maxz) swapint(minz, maxz);
 
     // clean up by clamping
-    miny = clamp(miny, 0, MAP_MAX_HEIGHT);
-    maxy = clamp(maxy, 0, MAP_MAX_HEIGHT);
+    miny = clamp(miny, mapMinHeight, mapMaxHeight);
+    maxy = clamp(maxy, mapMinHeight, mapMaxHeight);
+
+    // now convert into map Y space. The map Y values are all from 0 on up, -64 is not used. But Mineways.cpp and ObjFileManip.cpp do use these
+    // values in world space. We adjust at this point to go from -64 to 319 space, to 0 to 383 space
+    miny -= mapMinHeight;
+    maxy -= mapMinHeight;
 
     // has highlight state changed?
     if (gBoxHighlightUsed != on ||
@@ -162,14 +167,15 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
 //    return javaRandomNextInt(10)==0;
 //}
 
-void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz)
+void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight)
 {
+    // inside MinewaysMap, we go from 0 to 383, not -64 to 319. Conversion is done here.
     *on = gBoxHighlightUsed;
     *minx = gBoxMinX;
-    *miny = gBoxMinY;
+    *miny = gBoxMinY + mapMinHeight;
     *minz = gBoxMinZ;
     *maxx = gBoxMaxX;
-    *maxy = gBoxMaxY;
+    *maxy = gBoxMaxY + mapMinHeight;
     *maxz = gBoxMaxZ;
 }
 
@@ -182,7 +188,7 @@ void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int*
 //zoom = zoom amount (1.0 = 100%)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
+int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
 {
     /* We're converting between coordinate systems:
     *
@@ -242,7 +248,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
             if (retCode < 0) {
                 // preserve the error code, which will (mysteriously) be displayed
                 sumRetCode = retCode;
@@ -285,7 +291,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int w, int 
 //zoom = zoom amount (1.0 = 100%, 1 texel per pixel)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
+int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
 {
     unsigned char* blockbits;
     int z, x, px, pz;
@@ -352,7 +358,7 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x < hBlocks; x++, px += chunkSize)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
             sumRetCode |= retCode;
 
             // world space of block:
@@ -432,7 +438,7 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
 //oz = world z at mouse
 //type is block type
 //biome is biome found
-const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic)
+const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOffset, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic)
 {
     //WARNING: keep this code in sync with draw()
     WorldBlock* block;
@@ -494,20 +500,20 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
 
     if (block == NULL)
     {
-        *oy = -1;
+        *oy = EMPTY_HEIGHT;
         *type = BLOCK_UNKNOWN;
         return "Unknown";
     }
 
     y = block->heightmap[xoff + zoff * 16];
-    *oy = y;
+    *oy = y + yOffset;
     *biome = block->biome[xoff + zoff * 16];
 
     // Note that when "hide obscured" is on, blocks can be empty because
     // they were solid from the current level on down.
-    if (y == (unsigned char)-1)
+    if (y == EMPTY_HEIGHT)
     {
-        *oy = -1;
+        *oy = EMPTY_HEIGHT;
         if (schematic) {
             // act like the pixel is not there, vs. a block that has an empty location
             *biome = -1;
@@ -524,7 +530,8 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, double z
     // For now, assert when I see it, and return empty - better than crashing.
     // TODO - can this still happen?
     //assert( y+(zoff+xoff*16)*128 >= 0 );
-    if (y * 256 + zoff * 16 + xoff < 0 || y * 256 + zoff * 16 + xoff >= 65536) {
+    // 65536 = 256 * 16 * 16
+    if (y * 256 + zoff * 16 + xoff < 0 || y * 256 + zoff * 16 + xoff >= 256 * block->maxHeight) {
         *type = BLOCK_AIR;
         *biome = -1;
         return "(off map)";
@@ -3196,7 +3203,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeight, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
+static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeight, int mapMaxY, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
 {
     WorldBlock* block, * prevblock;
     int ofs = 0, prevy, prevSely, blockSolid, saveHeight;
@@ -3369,7 +3376,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
             // the next solid block is then shown. If it's solid all the way down, the block will be
             // drawn as "empty"
-            seenempty = (maxHeight == MAP_MAX_HEIGHT ? 1 : 0);
+            seenempty = (maxHeight == mapMaxY ? 1 : 0);
             alpha = 0.0;
             // go from top down through all voxels, looking for the first one visible.
             for (i = maxHeight; i >= 0; i--, voxel -= 16 * 16)
@@ -3405,7 +3412,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                     int light = 12;
                     if (lighting)
                     {
-                        if (i < MAP_MAX_HEIGHT)
+                        if (i < mapMaxY)
                         {
                             light = block->light[voxel / 2];
                             if (voxel & 1) light >>= 4;
@@ -3492,10 +3499,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             //    // before 0.9 Pre 5 it was 16, see http://www.minecraftwiki.net/wiki/Slime
             //    //if(maxHeight<=16){
             //    if(maxHeight<=40){
-            //        g=clamp(g+20,0,MAP_MAX_HEIGHT);
+            //        g=clamp(g+20,mapMinHeight,mapMaxHeight);
             //    }else{
             //        if(x%15==0 || z%15==0){
-            //            g=clamp(g+20,0,MAP_MAX_HEIGHT);
+            //            g=clamp(g+20,mapMinHeight,mapMaxHeight);
             //        }
             //    }
             //}
@@ -3632,7 +3639,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 
             // heightmap determines what value is displayed on status and for shadowing. If "show all" is on,
             // save any semi-visible thing, else save the first solid thing (or possibly nothing == -1).
-            block->heightmap[x + z * 16] = (unsigned char)prevy;
+            block->heightmap[x + z * 16] = (prevy < 0) ? EMPTY_HEIGHT : (short)prevy;
         }
     }
     return bits;
@@ -5362,9 +5369,12 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     block->rendery = -1; // force redraw
     block->mcVersion = mcVersion;
     block->versionID = versionID;
+    // this version of 1.17 beta went to a height of 384;
+    block->maxHeight = (versionID >= 2685) ? 384 : 256;
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
+        // sythetic world we populate - no need to go nuts here
         int type = cx * 2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
@@ -5373,10 +5383,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         int grassHeight = 62;
         int blockHeight = 63;
 
-        memset(block->grid, 0, 16 * 16 * 256);
-        memset(block->data, 0, 16 * 16 * 256);
+        memset(block->grid, 0, 16 * 16 * block->maxHeight);
+        memset(block->data, 0, 16 * 16 * block->maxHeight);
         memset(block->biome, 1, 16 * 16);
-        memset(block->light, 0xff, 16 * 16 * 128);
+        memset(block->light, 0xff, 16 * 16 * block->maxHeight/2);
         block->renderhilitID = 0;
 
         if (type >= 0 && type < NUM_BLOCKS_DEFINED && cz >= 0 && cz < 8)
@@ -5476,9 +5486,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     else {
         // it's a real world or schematic or no world is loaded
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
-            BlockEntity blockEntities[16 * 16 * 256];
+            // absolute insanely high maximum, just in case
+            BlockEntity blockEntities[16 * 16 * 384];
 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings
             if (retCode >= 0) {
@@ -5513,7 +5524,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             if (block->blockType == 1) {
                 int i;
                 unsigned char* pBlockID = block->grid;
-                for (i = 0; i < 16 * 16 * 256; i++, pBlockID++)
+                for (i = 0; i < 16 * 16 * block->maxHeight; i++, pBlockID++)
                 {
                     if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
                     {
@@ -5553,11 +5564,11 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
     // no biome, so that's easy
     memset(block->biome, 0, 16 * 16);
     // no light, so that's also easy
-    memset(block->light, 0, 16 * 16 * 128);
+    memset(block->light, 0, 16 * 16 * block->maxHeight/2);
 
     // clear the rest, so we fill these in as found
-    memset(block->grid, 0, 16 * 16 * 256);
-    memset(block->data, 0, 16 * 16 * 256);
+    memset(block->grid, 0, 16 * 16 * block->maxHeight);
+    memset(block->data, 0, 16 * 16 * block->maxHeight);
 
     // not sure why I made this a static int, but let's leave it be, shall we?
     static int border = 1;      // cppcheck-suppress 398

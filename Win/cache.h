@@ -38,14 +38,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 typedef struct WorldBlock {
-    unsigned char grid[16 * 16 * 256];  // blockid array [y+(z+x*16)*256]
+    int maxHeight;
+    unsigned char grid[16 * 16 * 384];  // blockid array [y+(z+x*16)*256]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char data[16 * 16 * 256];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
-    unsigned char light[16 * 16 * 128]; // half-byte lighting data
+    unsigned char data[16 * 16 * 384];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
+    unsigned char light[16 * 16 * 384/2]; // half-byte lighting data
 
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render
-    unsigned char heightmap[16 * 16]; // height of rendered block [x+z*16]
+    short heightmap[16 * 16]; // height of rendered block [x+z*16]
     unsigned char biome[16 * 16];
     BlockEntity* entities;	// block entities, http://minecraft.gamepedia.com/Chunk_format#Block_entity_format
     int numEntities;	// number in the list, maximum of 16x16x256

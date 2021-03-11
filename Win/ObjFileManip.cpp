@@ -169,6 +169,9 @@ static int gMinecraftWorldVersion = 0;
 static int gMcVersion = 0;
 static bool gIs13orNewer; // if gMcVersion >= 13 - computed once
 
+static int gMaxHeight = 255;
+static int gMinHeight = 0;
+
 
 static int gBadBlocksInModel = 0;
 
@@ -390,7 +393,7 @@ static int gFaceDirectionVector[6][3] =
 //#define CHUNK_INDEX(bx,bz,x,y,z) (  (y)+ \
 //											(((z)-(bz)*16)+ \
 //											((x)-(bx)*16)*16)*128)
-#define CHUNK_INDEX(bx,bz,x,y,z) (  ((y)*256)+ \
+#define CHUNK_INDEX(bx,bz,x,y,z) (  ((y-gMinHeight)*256)+ \
     (((z)-(bz)*16)*16) + \
     ((x)-(bx)*16)  )
 
@@ -785,7 +788,7 @@ static void wcharCleanse(wchar_t* wstring);
 static void myseedrand(long seed);
 static double myrand();
 
-static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion, int versionID);
+static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID);
 
 static wchar_t gSeparator[3];
 
@@ -813,7 +816,7 @@ void ClearCache()
 
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
-int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax,
+int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, int mapMinHeight, int mapMaxHeight,
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC)
 {
     // * Read the texture for the materials.
@@ -847,6 +850,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gMinecraftWorldVersion = worldVersion;
     gMcVersion = DATA_VERSION_TO_RELEASE_NUMBER(worldVersion);
     gIs13orNewer = (gMcVersion >= 13);
+
+    gMinHeight = mapMinHeight;
+    gMaxHeight = mapMaxHeight;
 
     memset(&gStats, 0, sizeof(ExportStatistics));  // cppcheck-suppress 758
     // clear all of gModel to zeroes
@@ -1830,8 +1836,8 @@ static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName
 static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
 {
     // clean up a bit: make sure max>=min, and limit Y
-    ymin = clamp(ymin, 0, MAP_MAX_HEIGHT);
-    ymax = clamp(ymax, 0, MAP_MAX_HEIGHT);
+    ymin = clamp(ymin, gMinHeight, gMaxHeight);
+    ymax = clamp(ymax, gMinHeight, gMaxHeight);
 
     // we don't really require one to be min or max, we take the range
     if (xmin > xmax) swapint(xmin, xmax);
@@ -2248,7 +2254,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         edgeWorldBox.min[Y]--;
     }
     // if we not at the upper limit, get the stuff above
-    if (edgeWorldBox.max[Y] < 255 && (originalWorldBox.max[Y] == gSolidWorldBox.max[Y]))
+    if (edgeWorldBox.max[Y] < gMaxHeight && (originalWorldBox.max[Y] == gSolidWorldBox.max[Y]))
     {
         edgeWorldBox.max[Y]++;
     }
@@ -13836,7 +13842,7 @@ static float computeMachineVolume()
     {
         for (z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; z++)
         {
-            // set uninitialized Y values, where the valid range is 0-255
+            // set uninitialized Y values, where the valid range is 0-255 for before 1.17
             int minSolid = 999;
             int maxSolid = -999;
             // check the 3x3 in the column for its max and min heights
@@ -20759,8 +20765,9 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         specularHighlightPower = (1.0f - roughness) * 255.0f;
     }
 
-    // good? or should it be 0.0 when roughness is 1.0, else 1.0? Or always 1.0?s
-    ks = (1.0f - roughness);
+    // If we go full reflective, it's way too much for g3d. And this might be too little for other apps.
+    // Well, that's how it goes.
+    ks = (1.0f - roughness) * 0.2f;
 
     // Any last-minute adjustments due to material?
     // I like to give the water a slight reflectivity, it's justifiable. Same with glass.
@@ -27410,9 +27417,10 @@ static double myrand()
 //=============================================
 
 // return 0 if nothing found in volume
-int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int minx, int minz, int maxx, int maxz, bool expandByOne, bool ignoreTransparent, int maxy)
+int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int minx, int minz, int maxx, int maxz, int mapMinHeight, int mapMaxHeight, bool expandByOne, bool ignoreTransparent, int maxy)
 {
-    int minHeightFound = 256;
+    // this method stays in -64 to 319 space
+    int minHeightFound = mapMaxHeight+1;
 
     if (expandByOne) {
         // We expand the bounds checked by one, so that if the selection is right on a cliff face and the bottom of
@@ -27437,7 +27445,7 @@ int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int mi
                 pOptions = gModel.options;
             }
 
-            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, 0, minz, maxx, maxy, maxz, ignoreTransparent, gMcVersion, gMinecraftWorldVersion);
+            int heightFound = analyzeChunk(pWorldGuide, pOptions, blockX, blockZ, minx, mapMinHeight, minz, maxx, maxy, maxz, mapMinHeight, mapMaxHeight, ignoreTransparent, gMcVersion, gMinecraftWorldVersion);
             if (heightFound < minHeightFound)
             {
                 minHeightFound = heightFound;
@@ -27445,13 +27453,20 @@ int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int mi
         }
     }
 
-    return (minHeightFound == 256) ? 0 : minHeightFound;
+    return (minHeightFound == mapMaxHeight + 1) ? 0 : minHeightFound;
 }
 
 // find first (optional: non-transparent) block visible from above
-static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, bool ignoreTransparent, int mcVersion, int versionID)
+static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID)
 {
-    int minHeight = 256;
+    // super-icky coding - this method gets called before SaveVolume, and CHUNK_INDEX quietly uses gMinHeight in it,
+    // so we have to set this global here.
+    gMinHeight = mapMinHeight;
+    gMaxHeight = mapMaxHeight;
+    int minHeight = mapMaxHeight + 1;
+    // we do not need to convert into grid block space 0 to 383 - CHUNK_INDEX does this for us
+    //miny -= mapMinHeight;
+    //maxy -= mapMinHeight;
 
     int chunkX, chunkZ;
 
@@ -27480,7 +27495,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
-            return minHeight;
+            return minHeight + mapMinHeight;
 
         Cache_Add(bx, bz, block);
     }
@@ -27497,7 +27512,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
 
     // Have we seen an empty voxel yet? Initialize to true if the volume scanned is at the maximum height, else
     // we might be in a cave and in nether hide-obscured mode and so ignore solid voxels until we hit air.
-    int seenempty = (maxy == MAP_MAX_HEIGHT) ? 1 : 0;
+    int seenempty = (maxy == gMaxHeight) ? 1 : 0;
 
     // don't need to turn on showobscured if we've seen an empty location already. NOTE: this is not in the map
     // draw() method, though probably needs to be. That's touchy code, though, so I won't mess with it now.
@@ -27523,6 +27538,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
                 int type = block->grid[chunkIndex];
 
                 // always ignore air; if we ignore transparent, then anything with alpha < 1.0 is ignored, else alpha == 0.0 only is ignored
+                // TODO: we might also want to ignore tree leaves or other things with cutouts.
                 if ((type != BLOCK_AIR) &&
                     (ignoreTransparent ? (gBlockDefinitions[type].alpha == 1.0) : (gBlockDefinitions[type].alpha > 0.0))) {
 

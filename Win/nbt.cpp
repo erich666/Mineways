@@ -1565,7 +1565,7 @@ unsigned char mod16(int val)
 }
 
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion, int versionID)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion, int versionID, int maxHeight)
 {
     int len, nsections;
     int biome_save;
@@ -1607,6 +1607,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     // note if Y value needs to be adjusted by +4
     signed char y_offset = (versionID >= 2685) ? 4 : 0;
+    // 1.17 has a height of 384
+    //int max_height = (versionID >= 2685) ? 384 : 256;
+    //int maxSlice = (maxHeight / 16) - 1;
 
     len = readDword(pbf); //array length
     if (!newFormat) {
@@ -1618,8 +1621,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         // new format 1.13+
         if (len == 256) {
             // 1.13 and 1.14
-            // convert to bytes, tough luck if too high (for now)
-            unsigned char biomeint[4 * 256];
+            // convert to bytes
+            unsigned char biomeint[4 * 256];    // 16 x 16 grid of biomes
             memset(biomeint, 0, 4 * len);
             if (bfread(pbf, biomeint, 4 * len) < 0)
                 return -6;
@@ -1688,9 +1691,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         // was:    return -9;
     }
 
-    memset(buff, 0, 16 * 16 * 256);
-    memset(data, 0, 16 * 16 * 256);
-    memset(blockLight, 0, 16 * 16 * 128);
+    memset(buff, 0, 16 * 16 * maxHeight);
+    memset(data, 0, 16 * 16 * maxHeight);
+    memset(blockLight, 0, 16 * 16 * maxHeight/2);
 
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
@@ -1709,7 +1712,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     // The minimum length of a block/data ID is 4 bits. A long integer is 64 bits, so can contain
     // 16 4-bit numbers.
     // With compression down to a minimum of 4 bits per block/data ID, this gives 256 longs,
-    // or 8 * 256 bytes.
+    // or 8 * 256 bytes. (Note that this is per slice - 1.17+ does not affect this.)
     // However, it's possible that we could have 256 or more blocks per slice, really, 16*16*16
     // different, unique blocks (remember that "data" matters, too, AFAIK). In such a case, the number
     // of entries in the palette could be 4096 entries, which need 12 bits per entry.
@@ -1736,8 +1739,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         y += y_offset;
 
         // TODOTODO for now, if world y is greater than 15, we're done - we ignore these higher levels. Need to revise when 1.17 comes out
-        if (y > 15)
-            return returnCode;
+        //if (y > maxSlice) {
+        //    assert(0);
+        //    return returnCode;
+        //}
 
         if (!newFormat) {
             // read all the arrays in this section

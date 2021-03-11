@@ -34,8 +34,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 typedef unsigned int    UINT;
 
 
-#define MAP_MAX_HEIGHT 255
-#define MAP_MAX_HEIGHT_STRING L"255"
+#define INIT_MAP_MAX_HEIGHT 255
+#define ABSOLUTE_MAX_MAP_HEIGHT 319
+#define ABSOLUTE_MIN_MAP_HEIGHT -64
 
 // sea level (it was 63 before 1.0 release)
 #define SEA_LEVEL 62

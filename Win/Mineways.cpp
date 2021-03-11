@@ -73,7 +73,7 @@ static bool gAlwaysFail = false;
 // should probably be a subroutine, but too many variables...
 #define REDRAW_ALL  drawTheMap();\
                     gBlockLabel=IDBlock(LOWORD(gHoldlParam),HIWORD(gHoldlParam)-MAIN_WINDOW_TOP,gCurX,gCurZ,\
-                        bitWidth,bitHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome,gWorldGuide.type==WORLD_LEVEL_TYPE);\
+                        bitWidth,bitHeight,gMinHeight,gCurScale,&mx,&my,&mz,&type,&dataVal,&biome,gWorldGuide.type==WORLD_LEVEL_TYPE);\
                     updateStatus(mx,mz,my,gBlockLabel,type,dataVal,biome,hwndStatus);\
                     InvalidateRect(hWnd,NULL,FALSE);\
                     UpdateWindow(hWnd);
@@ -113,6 +113,8 @@ static WorldGuide gWorldGuide;
 static int gVersionID = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
 static int gMinecraftVersion = 0;
+static int gMaxHeight = INIT_MAP_MAX_HEIGHT;
+static int gMinHeight = 0;
 static BOOL gSameWorld = FALSE;
 static BOOL gHoldSameWorld = FALSE;
 static wchar_t gSelectTerrainPathAndName[MAX_PATH_AND_FILE];				//path and file name to selected terrainExt.png file, if any
@@ -125,7 +127,7 @@ static double gCurX, gCurZ;								//current X and Z
 static int gLockMouseX = 0;                               // if true, don't allow this coordinate to change with mouse, 
 static int gLockMouseZ = 0;
 static double gCurScale = MINZOOM;					    //current scale
-static int gCurDepth = MAP_MAX_HEIGHT;					//current depth
+static int gCurDepth = INIT_MAP_MAX_HEIGHT;					//current depth
 static int gStartHiX, gStartHiZ;						    //starting highlight X and Z
 
 static BOOL gHighlightOn = FALSE;
@@ -347,6 +349,7 @@ static int getTerrainFileFromCommandLine(wchar_t* TerrainFile, const LPWSTR* arg
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount);
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t* pathAndFile);
+static void setHeightsFromVersionID();
 static int loadWorld(HWND hWnd);
 static void strcpyLimited(char* dst, int len, const char* src);
 static int setWorldPath(TCHAR* path);
@@ -669,8 +672,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     hInst = hInstance; // Store instance handle in our global variable
 
-    int x = 480;
-    int y = 582;
+    // initial size
+    int x = 514;
+    int y = 616;
     // 0 means failed, 1 means x and y changed, 2 means also minimize the window
     int windowStatus = modifyWindowSizeFromCommandLine(&x, &y, gArgList, gArgCount);
     if (windowStatus == 0) {
@@ -843,9 +847,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         hwndSlider = CreateWindowEx(
             0, TRACKBAR_CLASS, L"Trackbar Control",
             WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-            SLIDER_LEFT, 0, rect.right - rect.left - 40 - SLIDER_LEFT, 30,
+            SLIDER_LEFT, 0, 
+            rect.right - rect.left - 40 - SLIDER_LEFT, 30,  // initial width and height of trackbar - make it 383 wide, for the min slider
             hWnd, (HMENU)ID_LAYERSLIDER, NULL, NULL);
-        SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, MAP_MAX_HEIGHT));
+        SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
         SendMessage(hwndSlider, TBM_SETPAGESIZE, 0, 10);
         EnableWindow(hwndSlider, FALSE);
 
@@ -854,7 +859,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | ES_RIGHT,
             rect.right - 40, 5, 30, 20,
             hWnd, (HMENU)ID_LAYERLABEL, NULL, NULL);
-        SetWindowText(hwndLabel, MAP_MAX_HEIGHT_STRING);
+        _itow_s(gMaxHeight, text, 10);
+        SetWindowText(hwndLabel, text);
         EnableWindow(hwndLabel, FALSE);
 
         hwndBottomSlider = CreateWindowEx(
@@ -862,7 +868,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
             SLIDER_LEFT, 30, rect.right - rect.left - 40 - SLIDER_LEFT, 30,
             hWnd, (HMENU)ID_LAYERBOTTOMSLIDER, NULL, NULL);
-        SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, MAP_MAX_HEIGHT));
+        SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
         SendMessage(hwndBottomSlider, TBM_SETPAGESIZE, 0, 10);
         EnableWindow(hwndBottomSlider, FALSE);
 
@@ -874,7 +880,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowText(hwndBottomLabel, SEA_LEVEL_STRING);
         EnableWindow(hwndBottomLabel, FALSE);
 
-        setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+        setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth + gMinHeight, true);
 
         // label to left
         hwndInfoLabel = CreateWindowEx(
@@ -971,7 +977,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             // get mouse position in world space
             (void)IDBlock(LOWORD(lParam), HIWORD(lParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-                bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam = lParam;
 
             gStartHiX = mx;
@@ -982,10 +988,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // low, medium, high ("medium" means in selected range), and minimum low-height found
             gHitsFound[0] = gHitsFound[1] = gHitsFound[2] = 0;
             // no longer used - now we use a direct call for this very purpose
-            gHitsFound[3] = MAP_MAX_HEIGHT + 1;
+            gHitsFound[3] = INIT_MAP_MAX_HEIGHT + 1;
 
             // now to check the corners: is this location near any of them?
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
 
             // if we weren't dragging before (making a selection), and there is
             // an active selection, see if we select on the selection border
@@ -1077,7 +1083,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             deleteFile();
             gSkfbPData.skfbFilePath = "";
 #endif
-            SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz);
+            SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz, gMinHeight, gMaxHeight);
             enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
             validateItems(GetMenu(hWnd));
             drawInvalidateUpdate(hWnd);
@@ -1092,10 +1098,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             bool useControl = (GetKeyState(VK_CONTROL) < 0);
             if (useControl) {
                 gTargetDepth += (int)((double)zDelta / WHEEL_DELTA);
-                gTargetDepth = clamp(gTargetDepth, 0, MAP_MAX_HEIGHT);
+                gTargetDepth = clamp(gTargetDepth, gMinHeight, gMaxHeight);
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                 enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
             }
@@ -1103,7 +1109,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 bool useShift = (GetKeyState(VK_SHIFT) < 0);
                 if (useShift) {
                     gCurDepth += (int)((double)zDelta / WHEEL_DELTA);
-                    gCurDepth = clamp(gCurDepth, 0, MAP_MAX_HEIGHT);
+                    gCurDepth = clamp(gCurDepth, gMinHeight, gMaxHeight);
                     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                     REDRAW_ALL;
                 }
@@ -1136,9 +1142,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         dragging = FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
         gBlockLabel = IDBlock(LOWORD(lParam), HIWORD(lParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         gHoldlParam = lParam;
-        if (my >= 0 && my <= MAP_MAX_HEIGHT)
+        if (my >= gMinHeight && my <= gMaxHeight)
         {
             // special test: if type is a flattop, then select the location one lower for export
             if ((gBlockDefinitions[type].flags & BLF_FLATTEN) && (my > 0))
@@ -1146,11 +1152,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 my--;
             }
             gTargetDepth = my;
-            gTargetDepth = clamp(gTargetDepth, 0, MAP_MAX_HEIGHT);   // should never happen that a flattop is at 0, but just in case
+            gTargetDepth = clamp(gTargetDepth, gMinHeight, gMaxHeight);   // should never happen that a flattop is at 0, but just in case
             // also set highlight state to new depths
             setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
             enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
             updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
@@ -1165,7 +1171,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         gLockMouseX = gLockMouseZ = 0;
         ReleaseCapture();
 
-        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
 
         hdragging = FALSE;
         // Area selected.
@@ -1175,7 +1181,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
             assert(on);
-            int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, true, maxy);	// note we favor rendering here - for 3D printing the next to last option should be "false"
+            int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, gMinHeight, gMaxHeight, true, true, maxy);	// note we favor rendering here - for 3D printing the next to last option should be "false"
             if (gHitsFound[0] && !gHitsFound[1])
             {
                 // make sure there's some depth to use to replace current target depth
@@ -1200,7 +1206,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                     // update target depth
-                    SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                    SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                     enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                     drawInvalidateUpdate(hWnd);
                 }
@@ -1257,9 +1263,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     gTargetDepth = minHeightFound;
                     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                     // update target depth
-                    SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                    SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                     enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                     drawInvalidateUpdate(hWnd);
                 }
@@ -1298,12 +1304,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             lParam &= 0x7fff7fff;
 
             gBlockLabel = IDBlock(LOWORD(lParam), HIWORD(lParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-                bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
             gHoldlParam = lParam;
             // is right mouse button down and we're dragging out a selection box?
             if (hdragging && gLoaded)
             {
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                 // change map center, in world coordinates, by mouse move
                 if (gLockMouseZ)
                 {
@@ -1321,7 +1327,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //                swprintf( bufa, 100, L"selection box: x %d, y %d to x %d, y %d\n", gStartHiX, gStartHiZ, mx, mz );
 //                OutputDebugStringW( bufa );
 //#endif
-                SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz);
+                SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz, gMinHeight, gMaxHeight);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
@@ -1381,27 +1387,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // increment target depth by one
             case VK_OEM_4:    // [
                 gTargetDepth++;
-                gTargetDepth = clamp(gTargetDepth, 0, MAP_MAX_HEIGHT);
+                gTargetDepth = clamp(gTargetDepth, gMinHeight, gMaxHeight);
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                 enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
                 break;
                 // decrement target depth by one
             case VK_OEM_6:    // ]
                 gTargetDepth--;
-                gTargetDepth = clamp(gTargetDepth, 0, MAP_MAX_HEIGHT);
+                gTargetDepth = clamp(gTargetDepth, gMinHeight, gMaxHeight);
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+                SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                 enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 REDRAW_ALL;
                 break;
             case VK_OEM_PERIOD:
             case '.':
             case '>':
-                if (gCurDepth > 0)
+                if (gCurDepth > gMinHeight)
                 {
                     gCurDepth--;
                     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
@@ -1411,7 +1417,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case VK_OEM_COMMA:
             case ',':
             case '<':
-                if (gCurDepth < MAP_MAX_HEIGHT)
+                if (gCurDepth < gMaxHeight)
                 {
                     gCurDepth++;
                     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
@@ -1419,7 +1425,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 REDRAW_ALL;
                 break;
             case '0':
-                gCurDepth = 0;
+                gCurDepth = gMinHeight;
                 setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                 REDRAW_ALL;
                 break;
@@ -1464,7 +1470,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 REDRAW_ALL;
                 break;
             case '9':
-                gCurDepth = MAP_MAX_HEIGHT;
+                gCurDepth = gMaxHeight;
                 setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                 REDRAW_ALL;
                 break;
@@ -1479,14 +1485,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case VK_ESCAPE:
                 // deselect - remove selection
                 gHighlightOn = FALSE;
-                SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0);
+                SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0, gMinHeight, gMaxHeight);
                 changed = TRUE;
                 break;
             case VK_SPACE:
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                 if (on) {
                     bool useOnlyOpaque = !(GetKeyState(VK_SHIFT) < 0);
-                    gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, useOnlyOpaque, maxy);
+                    gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, gMinHeight, gMaxHeight, true, useOnlyOpaque, maxy);
                     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                     REDRAW_ALL;
                 }
@@ -1538,22 +1544,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_HSCROLL:
         pos = (DWORD)SendMessage(hwndSlider, TBM_GETPOS, 0, 0);
-        _itow_s(MAP_MAX_HEIGHT - pos, text, 10);
+        gCurDepth = gMaxHeight - pos;
+        _itow_s(gCurDepth, text, 10);
         SetWindowText(hwndLabel, text);
-        gCurDepth = MAP_MAX_HEIGHT - pos;
 
         pos = (DWORD)SendMessage(hwndBottomSlider, TBM_GETPOS, 0, 0);
-        _itow_s(MAP_MAX_HEIGHT - pos, text, 10);
+        gTargetDepth = gMaxHeight - pos;
+        _itow_s(gTargetDepth, text, 10);
         SetWindowText(hwndBottomLabel, text);
-        gTargetDepth = MAP_MAX_HEIGHT - pos;
 
         syncCurrentHighlightDepth();
 
-        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-        SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+        SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
         enableBottomControl(on, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
         gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
         SetFocus(hWnd);
         drawInvalidateUpdate(hWnd);
@@ -1640,20 +1646,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
-                gTargetDepth = 0;
+                gTargetDepth = gMinHeight;
                 gCurDepth = gWorldGuide.sch.height - 1;
 
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 // update target depth
                 gHighlightOn = TRUE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1);
+                SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1, gMinHeight, gMaxHeight);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
             else {
                 // select visible area, more or less
-                gTargetDepth = 0;
-                gCurDepth = 255;
+                gTargetDepth = gMinHeight;
+                gCurDepth = gMaxHeight;
 
                 // get screen coordinates, roughly
                 {
@@ -1667,7 +1673,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 // update target depth
                 gHighlightOn = TRUE;
-                SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+                SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);
             }
@@ -1910,13 +1916,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case IDM_FILE_REPEATPREVIOUSEXPORT:
                 if (gPrintModel == MAP_EXPORT) {
                     // export 2D map image
-                    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+                    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
                     gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gExportPath);
                 }
                 else {
                     gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
                 }
-                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
                 enableBottomControl(1, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 // put target depth to new depth set, if any
                 if (gTargetDepth != gpEFD->maxyVal)
@@ -1924,7 +1930,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     gTargetDepth = gpEFD->minyVal;
                 }
                 gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-                    bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                    bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
                 updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
                 setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
@@ -1979,7 +1985,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 break;
             }
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
             if (on)
             {
                 gCurX = (minx + maxx) / 2;
@@ -2066,7 +2072,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     gCurX /= 8.0;
                     gCurZ /= 8.0;
                     // it's useless to view Nether from MAP_MAX_HEIGHT
-                    if (gCurDepth == MAP_MAX_HEIGHT)
+                    if (gCurDepth == gMaxHeight)
                     {
                         gCurDepth = 126;
                         setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
@@ -2087,7 +2093,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CloseAll();
                 // clear selection when you switch from somewhere else to The Nether, or vice versa
                 gHighlightOn = FALSE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
                 REDRAW_ALL;
@@ -2109,7 +2115,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         // and undo other hell stuff
                         if (gCurDepth == 126)
                         {
-                            gCurDepth = MAP_MAX_HEIGHT;
+                            gCurDepth = gMaxHeight;
                             setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                         }
                         // turn off obscured, then restore overworld's obscured status
@@ -2129,7 +2135,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CloseAll();
                 // clear selection when you switch from somewhere else to The End, or vice versa
                 gHighlightOn = FALSE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
                 REDRAW_ALL;
@@ -2605,8 +2611,16 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
         EnableWindow(hwndBottomSlider, TRUE);
         EnableWindow(hwndBottomLabel, TRUE);
     }
+    // we want to set to 383 for new worlds, 255 for old
+    SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+    wchar_t text[4];
+    _itow_s(gCurDepth, text, 10);
+    SetWindowText(hwndLabel, text);
+
+    SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+
     validateItems(GetMenu(hWnd));
     drawInvalidateUpdate(hWnd);
 }
@@ -2625,10 +2639,10 @@ static void updateCursor(LPARAM lParam, BOOL hdragging)
 
         // get mouse position in world space
         (void)IDBlock(LOWORD(lParam), HIWORD(lParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
 
         // now to check the corners: is this location near any of them?
-        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
 
         // see if we select on the selection border
         // highlighting is on, check the corners: inside bounds of current selection?
@@ -2721,7 +2735,7 @@ static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
         // and undo other hell stuff
         if (gCurDepth == 126)
         {
-            gCurDepth = MAP_MAX_HEIGHT;
+            gCurDepth = gMaxHeight;
             setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
         }
         // turn off obscured, then restore overworld's obscured status
@@ -2763,7 +2777,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
 
 
     // if my is out of bounds, print dashes
-    if (my < -1 || my >= MAP_MAX_HEIGHT + 1)
+    if (my < -1 + gMinHeight || my >= gMaxHeight + 1)
     {
         //wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
         wsprintf(buf, L"%S", blockLabel);	// char to wchar
@@ -2867,7 +2881,7 @@ static void drawTheMap()
 {
     if (gLoaded)
         checkMapDrawErrorCode(
-            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
         );
     else {
         // avoid clearing nothing at all.
@@ -2925,8 +2939,22 @@ static int loadSchematic(wchar_t* pathAndFile)
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
     gVersionID = 1343;	// latest 1.12.2 https://minecraft.gamepedia.com/Data_version
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
+    setHeightsFromVersionID();
 
     return 0;
+}
+
+static void setHeightsFromVersionID()
+{
+    if (gVersionID >= 2685) {
+        // this version of 1.17 beta went to a height of 384;
+        gMaxHeight = 255 + 64;
+        gMinHeight = -64;
+    }
+    else {
+        gMaxHeight = 255;
+        gMinHeight = 0;
+    }
 }
 
 // return 1 or 2 or higher if world could not be loaded
@@ -2952,13 +2980,14 @@ static int loadWorld(HWND hWnd)
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
         gVersionID = 99999;	// always assumed to be the latest one.
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
+        setHeightsFromVersionID();
         break;
 
     case WORLD_LEVEL_TYPE:
         // Don't necessarily clear selection! It's a feature: you can export, then go modify your Minecraft
         // world, then reload and carry on.
         //gHighlightOn=FALSE;
-        //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0);
+        //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0, gMinHeight, gMaxHeight);
         // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
         gSubError = GetFileVersion(gWorldGuide.world, &gWorldGuide.nbtVersion, gFileOpened, MAX_PATH_AND_FILE);
         if (gSubError != 0) {
@@ -2990,6 +3019,7 @@ static int loadWorld(HWND hWnd)
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionID);
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
+        setHeightsFromVersionID();
         break;
 
     case WORLD_SCHEMATIC_TYPE:
@@ -3022,11 +3052,11 @@ static int loadWorld(HWND hWnd)
         // zoom out when loading a new world, since location's reset.
         gCurScale = MINZOOM;
 
-        gCurDepth = MAP_MAX_HEIGHT;
+        gCurDepth = gMaxHeight;
         // set lower level height to sea level, or to 0 if it's a schematic
         gTargetDepth = (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) ? 0x0 : MIN_OVERWORLD_DEPTH;
         gHighlightOn = FALSE;
-        SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0);
+        SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0, gMinHeight, gMaxHeight);
         // turn on error checking for this new world, to warn of unknown blocks
         CheckUnknownBlock(true);
         // just to be safe, make sure flag is cleared for read check.
@@ -3526,7 +3556,7 @@ static void setSlider(HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, boo
     syncCurrentHighlightDepth();
 
     wchar_t text[4];
-    SendMessage(hwndSlider, TBM_SETPOS, 1, MAP_MAX_HEIGHT - depth);
+    SendMessage(hwndSlider, TBM_SETPOS, 1, gMaxHeight - depth);
     _itow_s(depth, text, 10);
     SetWindowText(hwndLabel, text);
     if (update)
@@ -3547,16 +3577,16 @@ static void syncCurrentHighlightDepth()
 {
     // changing the depth 
     int on, minx, miny, minz, maxx, maxy, maxz;
-    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
     // wherever the target depth is, put it back in that place and replace the other
     if (maxy == gTargetDepth)
     {
         // the rare case, where target depth is larger than current depth
-        SetHighlightState(on, minx, gCurDepth, minz, maxx, gTargetDepth, maxz);
+        SetHighlightState(on, minx, gCurDepth, minz, maxx, gTargetDepth, maxz, gMinHeight, gMaxHeight);
     }
     else
     {
-        SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+        SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
     }
 }
 
@@ -3712,7 +3742,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error)
     // back to normal
     sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
-    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
     enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
     // put target depth to new depth set, if any
     if (gTargetDepth != gpEFD->maxyVal)
@@ -3720,7 +3750,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error)
         gTargetDepth = gpEFD->minyVal;
     }
     //gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-    //	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+    //	bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
     //updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
     setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
     setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);
@@ -3823,7 +3853,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
-        gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
+        gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
         updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
 
     deleteCommandBlockSet(gChangeBlockCommands);
@@ -3894,7 +3924,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
     gOptions.pEFD = gpEFD;
 
     // get selected zone bounds
-    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
 
     int miny = gpEFD->minyVal;
     int maxy = gpEFD->maxyVal;
@@ -3927,7 +3957,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
     }
 
     // get zone bounds
-    SetHighlightState(on, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+    SetHighlightState(on, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
     setSketchfabExportSettings();
 
     // Generate files
@@ -4046,10 +4076,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
     // to use a preset set of values above, set this true, or break here and jump to line after "if"
     static int gDebugSetBlock = 0;
     if (gDebugSetBlock)
-        SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+        SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
 
     // normal output
-    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
 
     int miny = gpEFD->minyVal;
     int maxy = gpEFD->maxyVal;
@@ -4081,7 +4111,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             gCurDepth = gpEFD->minyVal;
         }
     }
-    SetHighlightState(on, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+    SetHighlightState(on, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
 
     // export all
     if (gpEFD->chkExportAll)
@@ -4334,7 +4364,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         drawInvalidateUpdate(hWnd);
 
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
-            gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal,
+            gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
             updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
@@ -4865,7 +4895,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         sendStatusMessage(ws.hwndStatus, L"");	// done
 
         gHighlightOn = true;
-        SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+        SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
         enableBottomControl(1, /* ws.hwndBottomSlider, ws.hwndBottomLabel, */ ws.hwndInfoBottomLabel);
         // put target (bottom) depth to new depth set, if any
         gTargetDepth = gpEFD->minyVal;
@@ -4877,7 +4907,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         gCurDepth = gpEFD->maxyVal;
         //}
         *pBlockLabel = IDBlock(LOWORD(holdlParam), HIWORD(holdlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-            bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+            bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
         updateStatus(mx, mz, my, *pBlockLabel, type, dataVal, biome, ws.hwndStatus);
         setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
         setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
@@ -5332,7 +5362,7 @@ static void initializeImportedSet(ImportedSet& is, ExportFileData* pEFD, wchar_t
     is.exportTypeFound = ISE_NO_DATA_TYPE_FOUND;
     // set bounds to current values, if any
     int on = true;	// dummy
-    GetHighlightState(&on, &is.minxVal, &is.minyVal, &is.minzVal, &is.maxxVal, &is.maxyVal, &is.maxzVal);
+    GetHighlightState(&on, &is.minxVal, &is.minyVal, &is.minzVal, &is.maxxVal, &is.maxyVal, &is.maxzVal, gMinHeight);
     is.pEFD = pEFD;
     // set by what was last exported, if anything
     if (gpEFD == &gExportViewData)
@@ -5507,7 +5537,7 @@ static int switchToNether(ImportedSet& is)
     gCurX /= 8.0;
     gCurZ /= 8.0;
     // it's useless to view Nether from MAP_MAX_HEIGHT
-    if (gCurDepth == MAP_MAX_HEIGHT)
+    if (gCurDepth == gMaxHeight)
     {
         gCurDepth = 126;
         setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
@@ -5525,7 +5555,7 @@ static int switchToNether(ImportedSet& is)
     CloseAll();
     // clear selection when you switch from somewhere else to The Nether, or vice versa
     gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
     enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
 
     return 0;
@@ -5550,7 +5580,7 @@ static int switchToTheEnd(ImportedSet& is)
         // and undo other hell stuff
         if (gCurDepth == 126)
         {
-            gCurDepth = MAP_MAX_HEIGHT;
+            gCurDepth = gMaxHeight;
             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
         }
         // turn off obscured, then restore overworld's obscured status
@@ -5565,7 +5595,7 @@ static int switchToTheEnd(ImportedSet& is)
     CloseAll();
     // clear selection when you switch from somewhere else to The End, or vice versa
     gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
     enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
 
     return 0;
@@ -5768,7 +5798,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     CloseAll();
                     // clear selection when you switch from somewhere else to The Nether, or vice versa
                     gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0);
+                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
                     enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
                 }
                 else {
@@ -5866,9 +5896,9 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     // TODO: could make it apply to just schematics, but this is actually kind of handy
                     // for Creative superflat worlds where you just want to export a model.
                     v[0] = v[2] = -5000;
-                    v[1] = 0;
+                    v[1] = gMinHeight;
                     v[3] = v[5] = 5000;
-                    v[4] = 255;
+                    v[4] = gMaxHeight;
                 }
                 else {
                     // bad parse - warn and quit
@@ -5884,12 +5914,13 @@ static int interpretImportLine(char* line, ImportedSet& is)
         }
         if (!noSelection) {
             // check Y bounds
-            if (v[1] < 0 || v[1] > 255) {
-                saveErrorMessage(is, L"selection out of bounds; minimum y value outside of range 0 to 255.", strPtr);
+            // unfortunately, the world is read in AFTER the selection range is set, so we have to trust it's not wonky
+            if (v[1] < ABSOLUTE_MIN_MAP_HEIGHT || v[1] > ABSOLUTE_MAX_MAP_HEIGHT) {
+                saveErrorMessage(is, L"selection out of bounds; minimum y value outside of valid range.", strPtr);
                 return INTERPRETER_FOUND_ERROR;
             }
-            if (v[4] < 0 || v[4] > 255) {
-                saveErrorMessage(is, L"selection out of bounds; maximum y value outside of range 0 to 255.", strPtr);
+            if (v[4] < ABSOLUTE_MIN_MAP_HEIGHT || v[4] > ABSOLUTE_MAX_MAP_HEIGHT) {
+                saveErrorMessage(is, L"selection out of bounds; maximum y value outside of valid range.", strPtr);
                 return INTERPRETER_FOUND_ERROR;
             }
         }
@@ -5900,7 +5931,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 if (noSelection) {
                     // for scripting we could test that there's no world loaded, but it's fine to call this then anyway.
                     gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0);
+                    SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0, gMinHeight, gMaxHeight);
                 }
                 else {
                     // yes, a selection
@@ -5917,7 +5948,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                             gCurZ = (is.minzVal + is.maxzVal) / 2;
 
                             gHighlightOn = true;
-                            SetHighlightState(1, is.minxVal, is.minyVal, is.minzVal, is.maxxVal, is.maxyVal, is.maxzVal);
+                            SetHighlightState(1, is.minxVal, is.minyVal, is.minzVal, is.maxxVal, is.maxyVal, is.maxzVal, gMinHeight, gMaxHeight);
                             enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
                             // put target (bottom) depth to new depth set, if any
                             gTargetDepth = is.minyVal;
@@ -5925,7 +5956,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
                             // don't bother updating status in commands, do that after all is done
                             //gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(1) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-                            //	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                            //	bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
                             //updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, is.ws.hwndStatus);
                             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
                             setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
@@ -6810,7 +6841,7 @@ JumpToSpawn:
                     saveErrorMessage(is, L"Jump to Model command failed, as nothing has been selected.");
                     return INTERPRETER_FOUND_ERROR;
                 }
-                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                 // should always be on, but just in case...
                 if (on)
                 {
@@ -6971,9 +7002,9 @@ JumpToSpawn:
                 if ((string1[0] == (char)'+') || (string1[0] == (char)'-')) {
                     if (is.processData) {
                         // it's a relative offset
-                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                         minHeight += miny;
-                        clamp(minHeight, 0, 255);
+                        clamp(minHeight, gMinHeight, gMaxHeight);
                     }
                     else {
                         //ignore value for now, not processing yet, so reset it
@@ -6987,9 +7018,9 @@ JumpToSpawn:
                     // compare to value after, if any
                     if (is.processData) {
                         // "V" means ignore transparent blocks, such as ocean
-                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
+                        GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                         if (on) {
-                            int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, true, (string1[0] == (char)'V'), maxy);
+                            int heightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, gMinHeight, gMaxHeight, true, (string1[0] == (char)'V'), maxy);
                             if (1 == sscanf_s(&string1[1], "%d", &minHeight)) {
                                 minHeight = heightFound > minHeight ? heightFound : minHeight;
                             }
@@ -7012,15 +7043,16 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find integer value or V, V#, or V# for Select minimum height command."); return INTERPRETER_FOUND_ERROR;
         }
 
-        if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
-            saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select minimum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        if (minHeight < gMinHeight || minHeight > gMaxHeight) {
+            wsprintf(error, L"value must be between %d and %d, inclusive, for Select minimum height command.", gMinHeight, gMaxHeight);
+            saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
         if (is.processData) {
             gTargetDepth = minHeight;
             setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
             enableBottomControl(on, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
@@ -7028,20 +7060,21 @@ JumpToSpawn:
 
     strPtr = findLineDataNoCase(line, "Select maximum height:");
     if (strPtr != NULL) {
-        int minHeight;
-        if (1 != sscanf_s(strPtr, "%d", &minHeight))
+        int maxHeight;
+        if (1 != sscanf_s(strPtr, "%d", &maxHeight))
         {
             saveErrorMessage(is, L"could not find boolean value for Select maximum height command."); return INTERPRETER_FOUND_ERROR;
         }
-        if (minHeight < 0 || minHeight > MAP_MAX_HEIGHT) {
-            saveErrorMessage(is, L"value must be between 0 and 255, inclusive, for Select maximum height command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        if (maxHeight < gMinHeight || maxHeight > gMaxHeight) {
+            wsprintf(error, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
+            saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
         if (is.processData) {
-            gCurDepth = minHeight;
+            gCurDepth = maxHeight;
             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz);
-            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz);
+            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
@@ -7386,6 +7419,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
         // range should be everything, including air.
         if (is.processData) {
             if (!is.pCBClast->hasFrom && is.pCBClast->hasInto && is.pCBClast->hasLocation) {
+                // yes, this should be 255 - we don't allow setting or using block numbers > 255; use the names instead.
                 setDefaultFromRangeToCB(is.pCBClast, 0, 255, 0xffff);
             }
         }
@@ -8175,7 +8209,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     if (gPrintModel == MAP_EXPORT) {
         // export 2D map image
         int on;
-        GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal);
+        GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
         gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, wcharFileName);
         if (gExported == 0) {
             sendStatusMessage(is.ws.hwndStatus, L"Script export map operation failed");
@@ -8196,7 +8230,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     // back to normal
     sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
 
-    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal);
+    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
     enableBottomControl(1, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
     // put target depth to new depth set, if any
     if (gTargetDepth != gpEFD->maxyVal)
@@ -8204,7 +8238,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
         gTargetDepth = gpEFD->minyVal;
     }
     //gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-    //	bitWidth, bitHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+    //	bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
     //updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
     setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
     setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, true);
@@ -8377,10 +8411,10 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     mapimage->image_data.resize(w * h * 3 * zoom * zoom * sizeof(unsigned char), 0x0);
     unsigned char* imageDst = &mapimage->image_data[0];
 
-    SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax);
+    SetHighlightState(false, xmin, gTargetDepth, zmin, xmax, ymax, zmax, gMinHeight, gMaxHeight);
 
     checkMapDrawErrorCode(
-        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
 
     // check if map file has ".png" at the end - if not, add it.
@@ -8393,6 +8427,6 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     writepng_cleanup(mapimage);
     delete mapimage;
 
-    SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax);
+    SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax, gMinHeight, gMaxHeight);
     return (retCode == 0);
 }
