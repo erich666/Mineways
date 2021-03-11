@@ -3310,9 +3310,8 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 8.04, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>For OBJ export, a specular highlight (Ns) and relative Ks is now exported, if "Custom material" is chosen (which is now the default). This works nicely with G3D, which applies a reflectance map. If "Custom Material" is not selected, a minimal MTL is exported. See <a href="#full_material">Custom Material</a> for more information.
-</UL>
-<LI>*For USD export, allow export of individual blocks, created as instances. 
+<LI>Better fix for Minecraft 1.17 beta export - now shows height properly.
+<LI>For OBJ export, a mild specular highlight (Ns) and relative Ks is now exported, if "Custom material" is chosen (which is now the default). This works nicely with G3D, which applies a reflectance map. If "Custom Material" is not selected, a minimal MTL is exported. See <a href="#full_material">Custom Material</a> for more information.
 <LI>USDA Glass and water look better now, due to turning on the opacity texture for MDL and turning the opacityThreshold to 0 for UsdPreview. Also, the emission texture is now exported; previously, it was not, due to a misplaced line of code.
 <LI>Improve export of grayscale textures from Mineways. Now there are better rules to decide if a tile is grayscale (and should be tinted by the color assigned to the block or by using the biome) or if it is already fully colored, as done by some resource pack creators.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
@@ -3320,12 +3319,21 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Fix water height calculations to be affected by "invisible" neighbors.
 <LI>Double-chests that are chopped in half now are "capped" vs. being incomplete, when "Create block faces at the borders" is on (latches are still exported for only the left side of a double chest). Note: this fix may affect other objects - let me know of any bugs.
 <LI>TileMaker: Crazy involved code to examine the grass_side_overlay/grass_side/grass_side_carried textures and try to use the right ones.
-<LI>*Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.14.2-alpha">0.14.2-alpha</a>.
-<LI>*Better fix for Minecraft 1.17 beta export - now shows height properly.
+<LI>Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.14.2-alpha">0.14.2-alpha</a>.
+</UL>
+
+
+<LI>Version 8.05, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>*For USD export, allow export of individual blocks, created as instances. 
 <LI>*ChannelMixer/TileMaker: support TGA input. Detect heightfields better, and support "_heightmap.png" extension directly.
 </UL>
 
+
+
 </UL>
+
 
 <HR>
 <h2 id="wishlist">Wish List</h2>
