@@ -688,7 +688,7 @@ If you want to use the custom material description for OBJ export but do not wan
 <P>
 Special note: in terrain files, the one ending in "_r.png" is a roughness texture. When exported for OBJ, this texture is inverted and the exported files are named "_s.png", for "specular". This is all a bit confusing, I know, but my advice is to export using terrainExt_JGRTX64.png, for example, and see what gets created for you, with "Custom material" set or not.
 <P>
-For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>.
+For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. This is almost always a good idea, even with high resolution textures. If you turn this option off, you can get texture wrapping problems, where the bottom of a fire cutout, for example, will get interpolated along the top edge of the fire, giving a narrow line of fire at the top of the cutout.
 
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
