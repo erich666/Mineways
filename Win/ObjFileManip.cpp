@@ -24317,6 +24317,9 @@ static int createMaterialsUSD(char *texturePath)
             // in which case opacityThreshold is respected. For others (Most path tracers) transparency is properly 
             // respected and the opacityThreshold is ignored.
 
+            bool sRepeat = (gTilesTable[swatchLoc].flags & SBIT_REPEAT_SIDES) ? true : false;
+            bool tRepeat = (gTilesTable[swatchLoc].flags & SBIT_REPEAT_TOP_BOTTOM) ? true : false;
+
             strcpy_s(outputString, 256, "\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "        def Shader \"PreviewSurface\"\n");
@@ -24337,7 +24340,9 @@ static int createMaterialsUSD(char *texturePath)
             // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
             sprintf_s(outputString, 256, "            float inputs:opacity.connect = </Looks/%s/diffuse_texture.outputs:a>\n", mtlName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0\n");
+            // opacity threshold is not well-defined. Does 0 mean "if 0, it's transparent" or "if less than 0, it's transparent?"
+            // In Omniverse, it's the former. In Houdini, the latter.
+            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0.001\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             // - roughness input
@@ -24416,9 +24421,9 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                sprintf_s(outputString, 256,  "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                sprintf_s(outputString, 256,  "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24441,9 +24446,9 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            float4 inputs:scale = (2.0, 2.0, 2.0, 2.0)\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24470,9 +24475,9 @@ static int createMaterialsUSD(char *texturePath)
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24492,11 +24497,11 @@ static int createMaterialsUSD(char *texturePath)
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "            uniform token info:id = \"UsdUVTexture\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags& SBIT_SYTHESIZED) ? "_y" : "");
+            sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+            sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+            sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24549,9 +24554,9 @@ static int createMaterialsUSD(char *texturePath)
                     sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
 #endif
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256,  "            asset inputs:wrapS = \"repeat\"\n");
+                    sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256,  "            asset inputs:wrapT = \"repeat\"\n");
+                    sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
