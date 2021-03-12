@@ -552,17 +552,17 @@ int wmain(int argc, wchar_t* argv[])
 			if (wcsstr(gFG.fr[index].rootName, L"carried")) {
 				// carried found (and there should be a separate warning earlier that the overlay was also found, if there), so swap.
 				// Do for all categories
-				if (doesTileHaveCutouts(index)) {
-					wprintf(L"NOTE: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n", gFG.fr[sideIndex].fullFilename, gFG.fr[index].fullFilename, gFG.fr[sideIndex].fullFilename);
+				if (doesTileHaveCutouts(sideIndex)) {
+					wprintf(L"NOTE: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n", gFG.fr[index].fullFilename, gFG.fr[sideIndex].fullFilename, gFG.fr[index].fullFilename);
 				}
 				else {
-					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have cutout (fully transparent) texels.\n", gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName);
+					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have cutout (fully transparent) texels.\n", gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName);
 				}
 				// swap all records in all categories, as found.
 				for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 					fullIndex = catIndex * gFG.totalTiles + index;
 					fullSideIndex = catIndex * gFG.totalTiles + sideIndex;
-					if (!swapFileRecords(&gFG, index, sideIndex)) {
+					if (!swapFileRecords(&gFG, fullIndex, fullSideIndex)) {
 						// check whether just one is missing
 						if (gFG.fr[fullIndex].exists || gFG.fr[fullSideIndex].exists) {
 							wprintf(L"  FURTHER WARNING: note that not all block images were swapped, as only %s exists.\n", gFG.fr[fullIndex].exists ? gFG.fr[fullIndex].fullFilename : gFG.fr[fullSideIndex].fullFilename);

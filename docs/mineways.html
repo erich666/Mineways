@@ -983,7 +983,7 @@ At this point the paths diverge, depending on which version of Blender you have.
 <LI><a href="#new_blender">Blender 2.80 (aka Blender 2.8) and newer</a> - recommended, as it's easier to use
 <LI><a href="#nold_blender">Blender 2.79 and older</a>
 </UL>
-You'll also want to consider using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> in conjunction with Mineways to improve your materials, geometry, etc. Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter (which I can't figure out any more), and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import.
+You'll also want to consider using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> in conjunction with Mineways to improve your materials, geometry, etc. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> with people that are quick to respond to Minecraft + Blender questions. Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter (which I can't figure out any more), and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import.
 <P>
 <font size="+1"><b id="new_blender">Blender 2.80 and newer</b></font>
 <P>
@@ -1051,6 +1051,8 @@ Technical note: if you use the material option "Export tiles for textures" when 
 <b>11) Optional: Split into Objects:</b> Blender 2.8+ imports a Mineways OBJ file as a single object. If you did not use the <a href="#make_group_objects">"Make groups objects" option</a> but want to split the object in Blender, do the following. First, <a href="https://www.katsbits.com/codex/edit-mode-basics/#edit-mode">switch to Edit Mode</a>. Then hit the "p" key and with your mouse select the option "By Material." The objects will now be separated in this way. Note that this may not be what you want - likely you'll need to use the <a href="#individual">"Export individual blocks" option</a> in Mineways to get "solid" blocks you can animate.
 <P>
 <b>12) Upload</b> pictures of your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but I hope you do - I like seeing what people make.)
+<P>
+I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your materials. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
 
 <P>
 <font size="+1"><b id="old_blender">Blender 2.79 and older</b></font>
@@ -3307,7 +3309,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Updated JG-RTX to <a href="https://github.com/jasonjgardner/jg-rtx/releases/tag/0.12.0-alpha">0.12.0-alpha</a>, the rustic release.
 </UL>
 
-<LI>Version 8.04, 3/11/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.04, 3/12/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Better fix for Minecraft 1.17 beta export - now shows height properly. Note: due to the height increase, this version and future versions of Mineways will use about 50% more memory for all maps. If you find you get an out-of-memory error during export, selecting the "Give more export memory!" item in the Help menu before export will free up all cached offscreen chunks, at the expense of map update performance.
@@ -3427,7 +3429,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 2/24/2021</p>
+		<p id="lastUpdate">Last updated 3/12/2021</p>
 	</div>
 </div>
 
