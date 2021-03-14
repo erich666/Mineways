@@ -3347,6 +3347,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
+<LI>With Minecraft 1.17 now having a height range of -64 to 319, it would be nice to trim memory usage for map chunks. Find the highest block in a chunk and trim the memory usage for the chunk down to this when done reading it. This maximum height number should help other search functions, too.
 <LI>Individual block export does not currently work with tiled textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
 <LI>Due to all the new tiles added, Mineways has little room for composite swatches for colored 3D prints. Need to make the output PNG 2x2 larger and test at Shapeways and Sculpteo. Alternately, need to reuse unused swatch locations, but that's a bit fussy.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
