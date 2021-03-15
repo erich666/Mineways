@@ -1,0 +1,43 @@
+// hunk_output.mwscript - A sample "hunk" output script, for exporting four adjacent pieces
+// ("hunks") of a Minecraft world next to each other on the map
+//
+// version 1.01
+//
+// Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
+// Read more about each command at http://mineways.com/scripting.html
+//
+// This is a simple script that makes four exports for your world:
+//
+// +----+----+
+// |hunk|hunk|
+// | 00 | 10 |
+// +----+----+
+// |hunk|hunk|
+// | 01 | 11 |
+// +----+----+
+//
+// Each hunk is 100x100 in size, next to each other. This is just a sample script: you can of course
+// add more hunks to output, change the size of the hunks, etc. I'm just showing the two things you
+// need to do to output a hunk: select the location, then export.
+
+// These first four lines are to set up how you want to export:
+//   to Wavefront OBJ format,
+//   materials export to separate textures, which are then shared among all hunks
+//   not centered, so that each hunk can be read in next to its neighbor,
+//   and without block faces since hunks should join together.
+Set render type: Wavefront OBJ absolute indices
+File type: Export tiles for textures to directory texture
+Center model: NO
+Create block faces at the borders: NO
+
+Selection location: 0, 0, 0 to 99, 255, 99
+Export for rendering: c:\temp\hunk00.obj
+
+Selection location: 100, 0, 0 to 199, 255, 99
+Export for rendering: c:\temp\hunk10.obj
+
+Selection location: 0, 0, 100 to 99, 255, 199
+Export for rendering: c:\temp\hunk01.obj
+
+Selection location: 100, 0, 100 to 199, 255, 199
+Export for rendering: c:\temp\hunk11.obj
