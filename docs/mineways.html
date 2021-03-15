@@ -3364,7 +3364,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Extend color schemes to the new tiles with IDs greater than 255. These new IDs are admittedly bogus, but right now there's no way to turn off the output of these newer blocks. That said, color schemes appear to be a feature that's rarely used.
 <LI>Add a "Go to location" dialog, where you give a location and the view is centered on it.
 <LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways' texture storage space.
-<LI>Almost out of space for composites. Go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
+<LI>Almost out of space for composites. I've patched this by quadrupling the size of the texture output. Better would be to go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
 <LI>TileMaker should handle non-power-of-two tiles. Warn the user, as before, but it should give it a go.
 <LI>Go to location. Pop up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
@@ -3372,6 +3372,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Biome support: get biome color and use it to change terrain's output color. Currently only the biome at the center of the export is used to set the color of all blocks in the export. The hard part is blending (and saving all the resulting textures, a potentially large number) at biome margins.
 <LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g., pumpkin and melon stems color, farmland wetness. This will use up more texture tiles, but that might be acceptable.
 <LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks fairly easy, as well as letting users make their own custom block descriptions. That said, it's a lot of work to add this.
+<LI>Entities: there are <a href="https://minecraft.gamepedia.com/Entity">lots of entities</a>. I'll probably never add these, as they involve a lot of additional textures. But, it's on the list.
 <LI>Full "lesser" block merging for 3D printing: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together; I recommend using <a href="https://service.netfabb.com/login.php">netfabb's free cloud solution</a> for basic single-color-model cleanup. Some software does poorly with the current geometry, e.g., Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
 <LI>Work on Mac and Linux: my code is a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
@@ -3435,7 +3436,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/12/2021</p>
+		<p id="lastUpdate">Last updated 3/15/2021</p>
 	</div>
 </div>
 
