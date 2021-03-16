@@ -147,7 +147,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <H2 id="install">
 Installation
 </H2>
-Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
+Installation is trivial: <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">download</a> and unzip (using <a href="http://www.7-zip.org/download.html">7-Zip</a> or other decompressor) to some directory, like the desktop.
 <P>
 Uninstall: just delete the directory. If you created color schemes, there will be a few small entries in the registry, If you are fanatical and want to clean these out, search for "Mineways" in your registry editor and you'll find them.
 <P>
@@ -2648,13 +2648,11 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <UL>
 
 
-<LI>In the works: Version 8.05, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>In the works: Version 8.06, ?/?/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>UsdPreview fixes for Houdini: opacityThreshold set to 0.001, set proper wrap mode for s and t texture wrapping.
-<LI>*Try to deal with waterlogged objects better. A slab or stairs will have a water surface that causes z-fighting on the faces where they have geometry. Some work done for v8.04, which may have improved this area. Needs exploration. 
 <LI>*Showing all objects: maybe split into "Show small objects" and "Detect transparent objects"? This would make it easier to look under the sea for small things. Maybe Show small objects is on by default?
-<LI>*For OBJ, for emitters, if there is no Ke texture, use the color texture
 <LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on? Perhaps bleed inside TileMaker in a serious way!
 <LI>*In TileMaker, if there's an alpha for _m, _e, _r files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesselax pumpkin_face_on problem. (Though this contradicts bleeding - check into this more)
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
@@ -2662,6 +2660,15 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>*For USD export, allow export of individual blocks, created as instances.
 <LI>*For USD export, try to control wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile).
 <LI>*ChannelMixer/TileMaker: support TGA input.
+</UL>
+
+<LI>Version 8.05, 3/16/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Fix a regression: waterlogged glass panes now properly connect with one another again. (<i>Thanks to Parkouristik93 for reporting this error.</i>)
+<LI>Fix textures on waterlogged glass panes.
+<LI>Fix waterlogged chain to be properly oriented.
+<LI>Fix lanterns to be waterloggable.
 </UL>
 
 <LI>Version 8.04, 3/12/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3413,7 +3420,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV804.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3463,7 +3470,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/15/2021</p>
+		<p id="lastUpdate">Last updated 3/16/2021</p>
 	</div>
 </div>
 

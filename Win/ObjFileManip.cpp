@@ -455,12 +455,13 @@ ProgressValues gProgress;
 
 
 // objects that are waterlogged should be considered fully in water, as if the block was in water
-#define IS_FLUID(tval)	((tval) >= BLOCK_WATER && (tval) <= BLOCK_STATIONARY_LAVA)
-#define IS_NOT_FLUID(tval)	(((tval) < BLOCK_WATER) || ((tval) > BLOCK_STATIONARY_LAVA))
-#define IS_WATER(tval)	(((tval) == BLOCK_WATER) || ((tval) == BLOCK_STATIONARY_WATER))
-
 #define IS_WATERLOGGED(tval,bi) ((gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
 								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
+
+#define IS_FLUID(tval,bi)	(((tval) >= BLOCK_WATER && (tval) <= BLOCK_STATIONARY_LAVA) || IS_WATERLOGGED(tval,bi))
+#define IS_NOT_FLUID(tval,bi)	(!IS_FLUID(tval,bi))
+#define IS_WATER(tval,bi)	(((tval) == BLOCK_WATER) || ((tval) == BLOCK_STATIONARY_WATER) || IS_WATERLOGGED(tval,bi))
+
 
 
 
@@ -652,14 +653,14 @@ static int faceIdCompare(void* context, const void* str1, const void* str2);
 static int getDimensionsAndCount(Point dimensions);
 static void rotateLocation(Point pt);
 static int checkAndCreateFaces(int boxIndex, IPoint loc);
-static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex, int fluidFullBlock);
+static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex, int fluidFullBlock);
 static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex);
 static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, int view3D);
-static int isFluidBlockFull(int type, int boxIndex);
-static int cornerHeights(int type, int boxIndex, float heights[4]);
-static float computeUpperCornerHeight(int type, int boxIndex, int x, int z);
+static int isFluidBlockFull(int boxIndex);
+static int cornerHeights(int boxIndex, float heights[4]);
+static float computeUpperCornerHeight(int boxIndex, int x, int z);
 static float getFluidHeightPercent(int dataVal);
-static int sameFluid(int fluidType, int type);
+static int sameFluid(int fluidBI, int typeBI);
 static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4]);
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc);
 static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int heightIndex[4], int firstFace);
@@ -2634,11 +2635,6 @@ static void editBlock(int x, int y, int z, int editMode)
     case EDIT_MODE_CLEAR_TYPE:
         gBoxData[boxIndex].type = BLOCK_AIR;
         // don't clear data field, since origType is still intact
-        // if type is waterlogged, we need to clear origType to be water, as water
-        // is what is tested for water levels
-        if (IS_WATERLOGGED(gBoxData[boxIndex].origType, boxIndex)) {
-            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
-        }
         break;
     case EDIT_MODE_CLEAR_ALL:
         gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
@@ -2649,11 +2645,6 @@ static void editBlock(int x, int y, int z, int editMode)
         if (gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE)
         {
             gBoxData[boxIndex].origType = BLOCK_AIR;
-        }
-        // if type is waterlogged, we need to clear origType to be water, as water
-        // is what is tested for water levels
-        if (IS_WATERLOGGED(gBoxData[boxIndex].origType, boxIndex)) {
-            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
         }
         gBoxData[boxIndex].type = BLOCK_AIR;
         // don't clear data field, since origType may still be intact
@@ -2811,12 +2802,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass.
-                                        // We even clear out the origType, as this type gets used
-                                        // later on to determine the level of the water.
-                                        // Yet another hack, but much faster doing it here than
-                                        // trying to test when checking water levels in computeUpperCornerHeight()
-                                        gBoxData[boxIndex].type = 
-                                            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
+                                        gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
                                         gBoxData[boxIndex].data = 8;
                                     }
                                     else {
@@ -2847,12 +2833,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                             {
                                 if (IS_WATERLOGGED(type, boxIndex)) {
                                     // clears to water if waterlogged, e.g., seagrass
-                                    // We even clear out the origType, as this type gets used
-                                    // later on to determine the level of the water.
-                                    // Yet another hack, but much faster doing it here than
-                                    // trying to test when checking water levels in computeUpperCornerHeight()
-                                    gBoxData[boxIndex].type =
-                                        gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
+                                    gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
                                     gBoxData[boxIndex].data = 8; // level of water set to full
                                 }
                                 else {
@@ -2909,12 +2890,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass
-                                        // We even clear out the origType, as this type gets used
-                                        // later on to determine the level of the water.
-                                        // Yet another hack, but much faster doing it here than
-                                        // trying to test when checking water levels in computeUpperCornerHeight()
-                                        gBoxData[boxIndex].type =
-                                            gBoxData[boxIndex].origType = BLOCK_STATIONARY_WATER;
+                                        gBoxData[boxIndex].type = BLOCK_STATIONARY_WATER;
                                         gBoxData[boxIndex].data = 8;
                                     }
                                     else {
@@ -7618,8 +7594,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             topSwatchLoc = SWATCH_INDEX(4, 9);
             break;
         case BLOCK_STAINED_GLASS_PANE:
-            // get colored swatch and edge above it.
-            swatchLoc += dataVal;
+            // get colored swatch and edge above it. Must mask out waterlogged bit.
+            swatchLoc += (dataVal & 0xf);
             topSwatchLoc = swatchLoc + 16;
             break;
         case BLOCK_IRON_BARS:
@@ -8954,31 +8930,32 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             gUsingTransform = 1;
 
             // left half
+            int rotationDV = dataVal & 0xf;
             littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
             rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
             // now rotate it if going along X or Z axis
-            if (dataVal > 0) {
-                rotateMtx(mtx, (dataVal == 4) ? 0.0f : 90.0f, 0.0f, (dataVal == 4) ? 90.0f : 0.0f);
+            if (rotationDV > 0) {
+                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
             }
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(littleTotalVertexCount, mtx);
 
             // right half
             littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
             rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
             // now rotate it if going along X or Z axis
-            if (dataVal > 0) {
-                rotateMtx(mtx, (dataVal==4) ? 0.0f : 90.0f, 0.0f, (dataVal == 4) ? 90.0f : 0.0f);
+            if (rotationDV > 0) {
+                rotateMtx(mtx, (rotationDV ==4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
             }
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(littleTotalVertexCount, mtx);
@@ -14651,7 +14628,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
         // TODO: do we care if two transparent objects are touching each other? (Ice & water?)
         // Right now water and ice touching will generate no faces, which I think is fine.
         // so, create a face?
-        if (checkMakeFace(type, neighborType, !gModel.print3D, testPartial, faceDirection, neighborBoxIndex, false))
+        if (checkMakeFace(type, neighborType, !gModel.print3D, testPartial, faceDirection, boxIndex, neighborBoxIndex, false))
         {
             // Air (or water, or portal) found next to solid block: time to write it out.
             // First write out any vertices that are needed (this may do nothing, if they're
@@ -14659,13 +14636,13 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
 
             // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block.
             if ((!gModel.print3D || testPartial) &&
-                IS_FLUID(type) &&
+                IS_FLUID(type, boxIndex) &&
                 (faceDirection != DIRECTION_BLOCK_BOTTOM))
             {
                 if (computeHeights)
                 {
                     computeHeights = 0;
-                    isFullBlock = cornerHeights(type, boxIndex, heights);
+                    isFullBlock = cornerHeights(boxIndex, heights);
                     heightIndices[0] = heightIndices[1] = heightIndices[2] = heightIndices[3] = NO_INDEX_SET;
                 }
                 // are all heights 1.0, so that this is a full block?
@@ -14675,7 +14652,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
                     // If we're doing a 3D print export, we still check if the neighbor fully covers this full face.
                     if (gModel.print3D && testPartial)
                     {
-                        if (!checkMakeFace(type, neighborType, !gModel.print3D, testPartial, faceDirection, neighborBoxIndex, true))
+                        if (!checkMakeFace(type, neighborType, !gModel.print3D, testPartial, faceDirection, boxIndex, neighborBoxIndex, true))
                             // face is covered and we're 3D printing
                             continue;
                     }
@@ -14718,7 +14695,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
 // faceDirection is which way things connect
 // boxIndex and neighborBoxIndex is real locations, in case more info is needed
 // Return TRUE if we are to make the face, FALSE if not
-static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex, int fluidFullBlock)
+static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex, int fluidFullBlock)
 {
     // Our whole goal here is to determine if this face is visible. For most solid
     // blocks, if the neighbor covers the face and is not semitransparent, then the block
@@ -14756,7 +14733,7 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
                 {
                     // special check: if water next to stationary water, or (rare, user-defined semitransparent) lava next to stationary lava, that doesn't
                     // make a face
-                    if (IS_NOT_FLUID(type) || !sameFluid(type, neighborType))
+                    if (IS_NOT_FLUID(type, boxIndex) || !sameFluid(boxIndex, neighborBoxIndex))
                     {
                         // semitransparent neighbor of a different type reveals face.
                         return 1;
@@ -14814,7 +14791,7 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
     {
         // Check fluids.
         // Is our block a fluid?
-        if (IS_FLUID(type))
+        if (IS_FLUID(type,boxIndex))
         {
             // Check if rendering
             if (view3D)
@@ -14823,7 +14800,7 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
                 // Side and bottom block faces should not be output. All that's left is the top.
                 // For rendering, if we're not outputting full blocks and the top of the fluid is
                 // a partial thing and doesn't fill the block, then definitely output it.
-                if (testPartial && (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(type, neighborType))
+                if (testPartial && (faceDirection == DIRECTION_BLOCK_TOP) && !sameFluid(boxIndex, neighborBoxIndex))
                 {
                     // output the top face, as the fluid block doesn't fill its volume.
                     return 1;
@@ -14835,7 +14812,7 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
                 // we're 3D printing and we're outputting partial, so we want to output all liquid faces
                 // so that the fluid volume is watertight (as it were...). In this case we simply need to
                 // test neighbors: if it isn't the same fluid, then the face must be output.
-                if (!sameFluid(type, neighborType))
+                if (!sameFluid(boxIndex, neighborBoxIndex))
                 {
                     // We are 3D printing, so if this fluid block is *known* to be full, then don't output (return 0), as the face is covered.
                     // This occurs when the fluid block is tagged as full (all faces are full) or the bottom face is tested (it's always full).
@@ -14846,15 +14823,15 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
         // Faces that are left to test at this point: full block faces, and partial faces for rendered fluids.
         // These are assumed to be fully hidden by the neighbor *unless* the neighbor is lava or water, in which case
         // additional testing is needed.
-        if (IS_FLUID(neighborType))
+        if (IS_FLUID(neighborType, neighborBoxIndex))
         {
             // If the neighbor is water/lava, and this block is *not* water/lava, and this block face is not a TOP (which is
             // always covered), and partial rendering is happening, and the neighbor block is not full, then the neighbor
             // is not guaranteed to cover this block (the water/lava level might not be high enough, or it's a top), so output it.
-            if (!sameFluid(neighborType, type))
+            if (!sameFluid(neighborBoxIndex, boxIndex))
             {
                 // neighbor is e.g. lava, this block is not, and the lava block is not full (though lava will always cover the top)
-                if ((faceDirection != DIRECTION_BLOCK_TOP) && testPartial && !isFluidBlockFull(neighborType, neighborBoxIndex))
+                if ((faceDirection != DIRECTION_BLOCK_TOP) && testPartial && !isFluidBlockFull(neighborBoxIndex))
                 {
                     return 1;
                 }
@@ -15166,17 +15143,17 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
     return 0;
 }
 
-static int isFluidBlockFull(int type, int boxIndex)
+static int isFluidBlockFull(int boxIndex)
 {
     float heights[4];
-    return cornerHeights(type, boxIndex, heights);
+    return cornerHeights(boxIndex, heights);
 }
 
 // find heights at the four corners, x lo/z lo, x lo/z hi, etc.
-static int cornerHeights(int type, int boxIndex, float heights[4])
+static int cornerHeights(int boxIndex, float heights[4])
 {
     // if block above is same fluid, all heights are 1.0 - quick out.
-    if (sameFluid(type, gBoxData[boxIndex + 1].type))
+    if (sameFluid(boxIndex, boxIndex + 1))
     {
         return 1;
     }
@@ -15192,14 +15169,14 @@ static int cornerHeights(int type, int boxIndex, float heights[4])
         //}
         for (i = 0; i < 4; i++)
         {
-            heights[i] = computeUpperCornerHeight(type, boxIndex, i >> 1, i % 2);
+            heights[i] = computeUpperCornerHeight(boxIndex, i >> 1, i % 2);
         }
 
         return ((heights[0] >= 1.0f) && (heights[1] >= 1.0f) && (heights[2] >= 1.0f) && (heights[3] >= 1.0f));
     }
 }
 
-static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
+static float computeUpperCornerHeight(int boxIndex, int x, int z)
 {
     // if any location above this corner is same fluid, height is 1.0
     int i;
@@ -15221,17 +15198,15 @@ static float computeUpperCornerHeight(int type, int boxIndex, int x, int z)
         int newz = clamp(loc[Z] + offz, gAirBox.min[Z], gAirBox.max[Z]);
         neighbor[i] = BOX_INDEX(newx, loc[Y], newz);
         // walk through neighbor above this corner
-        if (sameFluid(type, gBoxData[neighbor[i] + 1].origType))
+        if (sameFluid(boxIndex,neighbor[i] + 1))
             return 1.0f;
     }
 
     // look at neighbors and blend them in.
     for (i = 0; i < 4; i++)
     {
-        // is neighbor same fluid? We are a bit hacky here:
-        // the type will be water if the block was waterlogged - waterlogged blocks
-        // get "turned into" water once whatever is in them gets output.
-        if (sameFluid(type, gBoxData[neighbor[i]].origType))
+        // is neighbor same fluid?
+        if (sameFluid(boxIndex, neighbor[i]))
         {
             // matches, so get neighbor's stored height
             int neighborDataVal = gBoxData[neighbor[i]].data;
@@ -15285,17 +15260,16 @@ static float getFluidHeightPercent(int dataVal)
 }
 
 // note: fluidType must be known to be either lava or water type
-static int sameFluid(int fluidType, int type)
+static int sameFluid(int fluidBI, int typeBI)
 {
-    if (IS_WATER(fluidType)) {
-        // note this works because waterlogged blocks are "cleared" of their contents
-        // by this point, so that the block is stationary water.
-        return IS_WATER(type);
+    // I think this is likely overkill, but the waterlogged and invisible edge of block code is so convoluted at this point, I'm testing both types, just to be safe
+    if (IS_WATER(gBoxData[fluidBI].type, fluidBI) || IS_WATER(gBoxData[fluidBI].origType, fluidBI)) {
+        return (IS_WATER(gBoxData[typeBI].type, typeBI) || IS_WATER(gBoxData[typeBI].origType, typeBI));
     }
     else
     {
-        assert((fluidType == BLOCK_LAVA) || (fluidType == BLOCK_STATIONARY_LAVA));
-        return (type == BLOCK_LAVA) || (type == BLOCK_STATIONARY_LAVA);
+        assert((gBoxData[fluidBI].origType == BLOCK_LAVA) || (gBoxData[fluidBI].origType == BLOCK_STATIONARY_LAVA));
+        return ((gBoxData[typeBI].origType == BLOCK_LAVA) || (gBoxData[typeBI].origType == BLOCK_STATIONARY_LAVA));
     }
 }
 
@@ -15532,7 +15506,7 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
                         {
                             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                             // special: if type is lava, use flowing lava; if water, use flowing water or overlay water
-                            if (IS_WATER(type)) {
+                            if (IS_WATER(type, boxIndex)) {
                                 if ((faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP))
                                 {
                                     int neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].origType;
@@ -18337,8 +18311,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_STAINED_GLASS:						// getSwatch
         case BLOCK_STAINED_GLASS_PANE:
-            // add data value to retrieve proper texture
-            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + dataVal;
+            // add data value to retrieve proper texture; must mask out waterlogged bit
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0xf);
             break;
         case BLOCK_COLORED_TERRACOTTA:						// getSwatch
             swatchLoc += dataVal;
@@ -20743,7 +20717,9 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 
     keString[0] = '\0';
     mapKeString[0] = '\0';
-    if (!foundMapKe && !gModel.print3D && (gBlockDefinitions[type].flags & BLF_EMITTER))
+    // if emission is on, but no emitter-specific map_Ke was found above, use the color map for the texture
+    // (this looks better in g3d anyway)
+    if ((gBlockDefinitions[type].flags & BLF_EMITTER) && !foundMapKe && !gModel.print3D )
     {
         bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
