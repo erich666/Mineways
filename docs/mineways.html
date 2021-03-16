@@ -2656,6 +2656,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>*Showing all objects: maybe split into "Show small objects" and "Detect transparent objects"? This would make it easier to look under the sea for small things. Maybe Show small objects is on by default?
 <LI>*For OBJ, for emitters, if there is no Ke texture, use the color texture
 <LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on? Perhaps bleed inside TileMaker in a serious way!
+<LI>*In TileMaker, if there's an alpha for _m, _e, _r files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesselax pumpkin_face_on problem. (Though this contradicts bleeding - check into this more)
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
 <LI>*For USD export, allow export of individual blocks, created as instances.
