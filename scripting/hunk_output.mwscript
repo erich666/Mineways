@@ -1,5 +1,6 @@
 // hunk_output.mwscript - A sample "hunk" output script, for exporting four adjacent pieces
-// ("hunks") of a Minecraft world next to each other on the map
+// ("hunks") of a Minecraft world next to each other on the map. This one's hand-coded - see
+// hunk_maker.py for a Python script that you can use to output chunks as you desire.
 //
 // version 1.01
 //
