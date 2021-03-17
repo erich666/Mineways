@@ -17,6 +17,8 @@ close.mwscript - A trivial little script to close Mineways
 
 custom_printer_defaults.mwscript - For custom 3D printing; shows how to set various 3D printing values.
 
+diamond_posts.mwscript - shows how to temporarily (on export only) place diamond block posts in your world.
+
 export_and_annotate.bat - Make the annotation map commands file magick_annotate_map.bat, and run it
 
 export_map.mwscript - Given that you have already loaded a world manually, select an area and export it

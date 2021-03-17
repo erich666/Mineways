@@ -1,0 +1,13 @@
+// A little script that makes a temporary diamond post at the locations below, in this case the four corners of
+// a Minecraft chunk from 0-15,0-15.
+// These diamond blocks are not put in your actual world; instead, they are put in only your next export from Mineways,
+// then cleared. You need to import the script again to mark the blocks for the next export.
+// See the scripting page at http://www.realtimerendering.com/erich/minecraft/public/mineways/scripting.html#cbce
+// for more block commands you could use instead. For example, by putting "from 0" instead of "from 0-255", you
+// will put diamond blocks only where air blocks exist, not replace all blocks.
+// A Python script like hunk_maker.py can easily be converted to make a series of lines like those below.
+
+Change blocks: from 0-255 to "block of diamond" at 0,0,0 to 0,255,0
+Change blocks: from 0-255 to "block of diamond" at 16,0,0 to 16,255,0
+Change blocks: from 0-255 to "block of diamond" at 0,0,16 to 0,255,16
+Change blocks: from 0-255 to "block of diamond" at 16,0,16 to 16,255,16
