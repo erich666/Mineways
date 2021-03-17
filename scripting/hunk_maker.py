@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 # Simple Python script to output adjacent hunks of a world.
 # Version 1.0, Eric Haines, erich@acm.org
 #

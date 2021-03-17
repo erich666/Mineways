@@ -21,6 +21,10 @@ export_and_annotate.bat - Make the annotation map commands file magick_annotate_
 
 export_map.mwscript - Given that you have already loaded a world manually, select an area and export it
 
+hunk_maker.py - a simple Python script to make a Mineways .mwscript file that will export a series of separate large, square area models.
+
+hunks_output.mwscript - A sample hunks output script, for exporting four rendering models next to each other on the map
+
 load_world.mwscript - A simple script to load your world. You'll need to edit it before you run this one.
 
 make_map_tiles.mwscript - An example of exporting a set of maps, each 1000 x 1000 pixels
@@ -40,5 +44,3 @@ simple_export.mwscript - A simple rendering model export script
 sketchfab.mwscript - How to upload to Sketchfab in a script
 
 startup.mwscript - A sample startup script for Mineways, called by mineways.bat in the directory above. Edit to your own preferences.
-
-tiled_output.mwscript - A sample tiled output script, for exporting four rendering models next to each other on the map
