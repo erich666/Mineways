@@ -25664,7 +25664,9 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     WRITE_STAT;
     sprintf_s(outputString, 256, "# Lighting: %s\n", (gModel.options->worldType & LIGHTING) ? "YES" : "no");
     WRITE_STAT;
-    sprintf_s(outputString, 256, "# Transparent Water: %s\n", (gModel.options->worldType & TRANSPARENT_WATER) ? "YES" : "no");
+    sprintf_s(outputString, 256, "# Transparent water: %s\n", (gModel.options->worldType & TRANSPARENT_WATER) ? "YES" : "no");
+    WRITE_STAT;
+    sprintf_s(outputString, 256, "# Map grid: %s\n", (gModel.options->worldType & MAP_GRID) ? "YES" : "no");
     WRITE_STAT;
 
 

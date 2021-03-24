@@ -32,7 +32,7 @@ container to store chunks in single files in runs of 4KB sectors.
 Each region file represents a 32x32 group of chunks. The conversion from
 chunk number to region number is floor(coord / 32); a chunk at (30, -3)
 would be in region (0, -1), and one at (70, -30) would be at (3, -1).
-Region files are named "r.x.z.mcr", where x and z are the region coordinates.
+Region files are named "r.x.z.mca", where x and z are the region coordinates.
 
 A region file begins with an 8KB header that describes where chunks are stored
 in the file and when they were last modified. A 4-byte big-endian integer

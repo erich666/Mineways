@@ -3215,7 +3215,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     unsigned char r, g, b, seenempty;
     double alpha, blend;
 
-    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, transparentWater, showAll;
+    char useBiome, useElevation, cavemode, showobscured, depthshading, lighting, transparentWater, mapGrid, showAll;
     unsigned char* bits;
 
     retCode = 0;
@@ -3228,6 +3228,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     showobscured = !(pOpts->worldType & HIDEOBSCURED);
     useElevation = !!(pOpts->worldType & DEPTHSHADING);
     transparentWater = !!(pOpts->worldType & TRANSPARENT_WATER);
+    mapGrid = !!(pOpts->worldType & MAP_GRID);
     showAll = !!(pOpts->worldType & SHOWALL);
     // use depthshading only if biome shading is off
     //depthshading= !useBiome && useElevation;
@@ -3366,6 +3367,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         {
             prevSely = -1;
             saveHeight = -1; // the "not found" value.
+            bool hitGrid = false;
 
             voxel = ((maxHeight * 16 + z) * 16 + x);
             r = gEmptyR;
@@ -3535,6 +3537,23 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 }
             }
 
+            // all the above is needed for various reasons, but blast in map grid if needed
+            if (mapGrid && (x == 0 || z == 0)) {
+                if (((bx % 32) == 0 && x == 0) || ((bz % 32) == 0 && z == 0)) {
+                    // bright MCA line
+                    r = 0;
+                    g = 255;
+                    b = 255;
+                }
+                else {
+                    // normal chunk line
+                    r = 0;
+                    g = 200;
+                    b = 200;
+                }
+                hitGrid = true;
+            }
+
             if (gBoxHighlightUsed) {
                 // make selected area slightly red, if at right heightmap range
                 if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
@@ -3598,7 +3617,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 }
             }
 
-            if (prevy == -1) {
+            if (prevy == -1 && !hitGrid) {
                 // empty, so make it background color to start
                 unsigned char* clr = &gBlankTile[(x + z * 16) * 4];
                 r = *clr++;
@@ -5374,7 +5393,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
-        // sythetic world we populate - no need to go nuts here
+        // synthetic world we populate - no need to go nuts here
         int type = cx * 2;
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.

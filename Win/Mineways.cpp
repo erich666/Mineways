@@ -2040,6 +2040,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & TRANSPARENT_WATER) ? MF_CHECKED : MF_UNCHECKED);
             REDRAW_ALL;
             break;
+        case IDM_MAPGRID:
+            gOptions.worldType ^= MAP_GRID;
+            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & MAP_GRID) ? MF_CHECKED : MF_UNCHECKED);
+            REDRAW_ALL;
+            break;
         case IDM_RELOAD_WORLD:
             // reload world, if loaded
             if (gLoaded)
@@ -2763,6 +2768,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     wchar_t buf[150];
     char sbuftype[100];
     char sbufbiome[100];
+    char sbufmap[100];
 
     // always show all information - it's fine
     //if ( gOptions.worldType & SHOWALL )
@@ -2778,6 +2784,15 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     else
         sbufbiome[0] = '\0';
 
+    // also note map chunk file name and chunk itself
+    if (gWorldGuide.type == WORLD_TEST_BLOCK_TYPE) {
+        sbufmap[0] = '\0';
+    }
+    else {
+        // (((mx>>4) % 32) + 32) % 32) ensures the value is non-negative - there's probably a better way
+        sprintf_s(sbufmap, 100, " - r.%d.%d.mca, chunk [%d, %d]", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32 + 32) % 32));
+    }
+
 
     // if my is out of bounds, print dashes
     if (my < -1 + gMinHeight || my >= gMaxHeight + 1)
@@ -2791,10 +2806,10 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d[%d,%d] %S%S%S", mx, mz, my, mx * 8, mz * 8, blockLabel, sbuftype, sbufbiome);	// char to wchar
+            wsprintf(buf, L"%d,%d; y=%d[%d,%d] %S%S%S%S", mx, mz, my, mx * 8, mz * 8, blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
         else
             //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d %S%S%S", mx, mz, my, blockLabel, sbuftype, sbufbiome);	// char to wchar
+            wsprintf(buf, L"%d,%d; y=%d %S%S%S%S", mx, mz, my, blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
     }
     SendMessage(hwndStatus, SB_SETTEXT, 0, (LPARAM)buf);
 }
@@ -6008,7 +6023,9 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return retCode;
     if (findBitToggle(line, is, "Lighting", LIGHTING, IDM_LIGHTING, &retCode))
         return retCode;
-    if (findBitToggle(line, is, "Transparent Water", TRANSPARENT_WATER, IDM_TRANSPARENT_WATER, &retCode))
+    if (findBitToggle(line, is, "Transparent water", TRANSPARENT_WATER, IDM_TRANSPARENT_WATER, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Map grid", MAP_GRID, IDM_MAPGRID, &retCode))
         return retCode;
 
     strPtr = findLineDataNoCase(line, "File type:");
@@ -6961,6 +6978,8 @@ JumpToSpawn:
     if (findBitToggle(line, is, "Hide obscured", HIDEOBSCURED, IDM_OBSCURED, &retCode))
         return retCode;
     if (findBitToggle(line, is, "Transparent water", TRANSPARENT_WATER, IDM_TRANSPARENT_WATER, &retCode))
+        return retCode;
+    if (findBitToggle(line, is, "Map grid", MAP_GRID, IDM_MAPGRID, &retCode))
         return retCode;
 
     strPtr = findLineDataNoCase(line, "Give more export memory:");

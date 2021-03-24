@@ -38,16 +38,17 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __cdecl
 #endif
 
-#define CAVEMODE		0x0001
-#define HIDEOBSCURED	0x0002
-#define DEPTHSHADING	0x0004
-#define LIGHTING		0x0008
-#define HELL			0x0010
-#define ENDER			0x0020
-//#define SLIME			0x0040
-#define SHOWALL         0x0080
-#define BIOMES          0x0100
+#define CAVEMODE		    0x0001
+#define HIDEOBSCURED	    0x0002
+#define DEPTHSHADING	    0x0004
+#define LIGHTING		    0x0008
+#define HELL			    0x0010
+#define ENDER			    0x0020
+//#define SLIME			    0x0040
+#define SHOWALL             0x0080
+#define BIOMES              0x0100
 #define TRANSPARENT_WATER	0x0200
+#define MAP_GRID        	0x0400
 
 typedef void (*ProgressCallback)(float progress);
 
