@@ -136,8 +136,8 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				// 
 				if (!used) {
 					int flag = 0x0;
-					int imageType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND)) {
+					int imageFileType = isImageFile(ffd.cFileName);
+					if (filesProcessed > 0 && !chestFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so note that this file was not used.
 						if (verbose) {
 							wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
@@ -147,10 +147,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						}
 					}
 					// if JPG or BMP, note it if corresponding PNG or TGA not found
-					else if (imageType == JPG_EXTENSION_FOUND || imageType == BMP_EXTENSION_FOUND) {
+					else if (imageFileType == JPG_EXTENSION_FOUND || imageFileType == BMP_EXTENSION_FOUND) {
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
-						if (imageType == JPG_EXTENSION_FOUND || imageType == BMP_EXTENSION_FOUND) {
+						if (imageFileType == JPG_EXTENSION_FOUND || imageFileType == BMP_EXTENSION_FOUND) {
 							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 							assert(category >= 0);
 							int index = findTileIndex(tileName, alternate);
@@ -247,8 +247,8 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 
 	wcscpy_s(tileName, MAX_PATH, origTileName);
 
-	int imageType = isImageFile(tileName);
-	if (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND) {
+	int imageFileType = isImageFile(tileName);
+	if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
 		removeFileType(tileName);
 		// has a PNG or TGA file type, now removed, so test if it's a file name type we understand.
 		int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
@@ -322,8 +322,8 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 
 	wcscpy_s(tileName, MAX_PATH_AND_FILE, origTileName);
 
-	int imageType = isImageFile(tileName);
-	if (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND) {
+	int imageFileType = isImageFile(tileName);
+	if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
 		removeFileType(tileName);
 		// has a suffix, now removed, so test if it's a file name type we understand.
 		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);

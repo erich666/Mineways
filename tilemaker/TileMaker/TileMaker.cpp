@@ -1194,7 +1194,7 @@ int wmain(int argc, wchar_t* argv[])
 	if (gErrorCount)
 		wprintf(L"Error count: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
 
-	wprintf(L"TileMaker summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
+	wprintf(L"TileMaker summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	if (filesFound > filesProcessed) {
 		wprintf(L"    This difference of %d files means that some files were found and not used.\n", filesFound - filesProcessed);
 		wprintf(L"    Look through the warnings and repair, rename, or delete those files you do not want to use.\n");

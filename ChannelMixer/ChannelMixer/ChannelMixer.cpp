@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
-#include "rwpng.h"
+#include "readtga.h"
 #include "tiles.h"
 #include "tilegrid.h"
 
@@ -425,6 +425,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 	int isGrayscale = 0;
 	int isSME = 0;
 	int filesRead = 0;
+	int imageFileType;
 
 	// SME order, inverting the red channel:
 	int category[] = { CATEGORY_ROUGHNESS, CATEGORY_METALLIC, CATEGORY_EMISSION };
@@ -442,7 +443,8 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 			// read tile header
 			progimage_info tile;
 			LodePNGColorType colortype;
-			rc = readpngheader(&tile, inputFile, colortype);
+			imageFileType = isImageFile(inputFile);
+			rc = readImageHeader(&tile, inputFile, colortype, imageFileType);
 			if (rc != 0)
 			{
 				// skip file - we'll report the read error below
@@ -455,7 +457,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 			}
 			else if (colortype == LCT_PALETTE ) {
 				// ugh, need to read image and see if any alphas are < 255 (and > 0, just to be safe)
-				rc = readpng(&tile, inputFile, LCT_RGBA);
+				rc = readImage(&tile, inputFile, LCT_RGBA, imageFileType);
 				if (rc != 0)
 				{
 					continue;
@@ -463,11 +465,11 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 				if (isAlphaSemitransparent(&tile)) {
 					readColorType = LCT_RGBA;
 					numChannels = 4;
-					readpng_cleanup(1, &tile);
+					readImage_cleanup(1, &tile);
 					wprintf(L"LabPBR emission data detected; using the alpha channel for the emission map.\n");
 					break;
 				}
-				readpng_cleanup(1, &tile);
+				readImage_cleanup(1, &tile);
 			}
 		}
 	}
@@ -485,7 +487,8 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 
 			// read in tile for later
 			progimage_info tile;
-			rc = readpng(&tile, inputFile, readColorType);
+			imageFileType = isImageFile(inputFile);
+			rc = readImage(&tile, inputFile, readColorType, imageFileType);
 			if (rc != 0)
 			{
 				reportReadError(rc, inputFile);
@@ -615,7 +618,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 						writepng_cleanup(smer_ptr);
 					}
 				}
-				readpng_cleanup(1, &tile);
+				readImage_cleanup(1, &tile);
 			}
 		}
 	}
@@ -641,7 +644,8 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 
 			// read in tile for later
 			progimage_info tile;
-			rc = readpng(&tile, inputFile, LCT_RGB);
+			imageFileType = isImageFile(inputFile);
+			rc = readImage(&tile, inputFile, LCT_RGB, imageFileType);
 			if (rc != 0)
 			{
 				reportReadError(rc, inputFile);
@@ -759,7 +763,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 						writepng_cleanup(smer_ptr);
 					}
 				}
-				readpng_cleanup(1, &tile);
+				readImage_cleanup(1, &tile);
 			}
 		}
 	}
@@ -776,6 +780,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 	int rc;
 	int isMER = 0;
 	int filesRead = 0;
+	int imageFileType;
 
 	// MER order
 	int category[] = { CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS };
@@ -796,7 +801,8 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 
 			// read in tile
 			progimage_info tile;
-			rc = readpng(&tile, inputFile, LCT_RGB);
+			imageFileType = isImageFile(inputFile);
+			rc = readImage(&tile, inputFile, LCT_RGB, imageFileType);
 			if (rc != 0)
 			{
 				reportReadError(rc, inputFile);
@@ -837,7 +843,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 					writepng_cleanup(destination_ptr);
 				}
 
-				readpng_cleanup(1, &tile);
+				readImage_cleanup(1, &tile);
 			}
 		}
 	}
@@ -865,7 +871,8 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 
 			// read in tile
 			progimage_info tile;
-			rc = readpng(&tile, inputFile, LCT_RGB);
+			imageFileType = isImageFile(inputFile);
+			rc = readImage(&tile, inputFile, LCT_RGB, imageFileType);
 			if (rc != 0)
 			{
 				reportReadError(rc, inputFile);
@@ -906,7 +913,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 					writepng_cleanup(destination_ptr);
 				}
 
-				readpng_cleanup(1, &tile);
+				readImage_cleanup(1, &tile);
 			}
 		}
 	}
@@ -1065,6 +1072,18 @@ static void reportReadError(int rc, const wchar_t* filename)
 		break;
 	case 78:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
+		break;
+	case 102:
+		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
+		break;
+	case 103:
+		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
+		break;
+	case 104:
+		wsprintf(gErrorString, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
+		break;
+	case 999:
+		wsprintf(gErrorString, L"***** ERROR [%s] - unknown image file type.\n", filename);
 		break;
 	default:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);

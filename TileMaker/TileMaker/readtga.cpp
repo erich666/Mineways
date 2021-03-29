@@ -223,12 +223,13 @@ int readtgaheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
 }
 
 //============================
+// Yes, these should be in yet another separate file, but alas
 
-int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype, int imageType)
+int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype, int imageFileType)
 {
-    if (imageType == 1) {
+    if (imageFileType == 1) {
         return readpng(im, filename, colortype);
-    } else if (imageType == 2) {
+    } else if (imageFileType == 2) {
         return readtga(im, filename, colortype);
     }
     assert(0);
@@ -242,12 +243,12 @@ void readImage_cleanup(int mode, progimage_info* im)
     readpng_cleanup(mode, im);
 }
 
-int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype, int imageType)
+int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype, int imageFileType)
 {
-    if (imageType == 1) {
+    if (imageFileType == 1) {
         return readpngheader(im, filename, colortype);
     }
-    else if (imageType == 2) {
+    else if (imageFileType == 2) {
         return readtgaheader(im, filename, colortype);
     }
     assert(0);

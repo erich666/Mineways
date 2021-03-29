@@ -35,6 +35,6 @@ int readtga(progimage_info *mainprog_ptr, wchar_t *filename, LodePNGColorType co
 //void readtga_cleanup(int free_image_data, progimage_info *mainprog_ptr);
 int readtgaheader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype);
 
-int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype, int imageType);
+int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype, int imageFileType);
 void readImage_cleanup(int mode, progimage_info* im);
-int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype, int imageType);
+int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype, int imageFileType);

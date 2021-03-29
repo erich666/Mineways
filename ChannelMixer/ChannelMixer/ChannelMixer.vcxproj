@@ -145,6 +145,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\TileMaker\TileMaker\image_iterator.cpp" />
+    <ClCompile Include="..\..\TileMaker\TileMaker\readtga.cpp" />
+    <ClCompile Include="..\..\TileMaker\TileMaker\stdio.cpp" />
+    <ClCompile Include="..\..\TileMaker\TileMaker\tga_decoder.cpp">
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
+    </ClCompile>
     <ClCompile Include="..\..\TileMaker\TileMaker\tilegrid.cpp" />
     <ClCompile Include="..\..\Win\lodepng.cpp">
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
@@ -154,6 +161,8 @@
     <ClCompile Include="ChannelMixer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\TileMaker\TileMaker\readtga.h" />
+    <ClInclude Include="..\..\TileMaker\TileMaker\tga.h" />
     <ClInclude Include="..\..\TileMaker\TileMaker\tilegrid.h" />
     <ClInclude Include="..\..\Win\lodepng.h" />
     <ClInclude Include="..\..\Win\rwpng.h" />
