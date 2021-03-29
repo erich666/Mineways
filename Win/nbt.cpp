@@ -302,6 +302,12 @@ static int worldVersion = 0;
 // lit: true|false
 // signal_fire: true|false
 #define CAMPFIRE_PROP		EXTENDED_SWNE_FACING_PROP
+// UGH, not implemented - too many bits! Need data values to be 16 bits to consider it. TODO
+// east, north, south, west: low|none|tall
+// up: false|true
+// waterlogged
+// which adds up to 9 bits, which is too many
+#define WALL_PROP           NO_PROP
 
 // axis: 1 EW, 2 NS
 #define NETHER_PORTAL_AXIS_PROP	51
@@ -641,8 +647,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 210,           0, "repeating_command_block", COMMAND_BLOCK_PROP },
     { 0, 211,           0, "chain_command_block", COMMAND_BLOCK_PROP },
     { 0, 138,           0, "beacon", NO_PROP },
-    { 0, 139,           0, "cobblestone_wall", NO_PROP },
-    { 0, 139,           1, "mossy_cobblestone_wall", NO_PROP },
+    { 0, 139,           0, "cobblestone_wall", WALL_PROP },
+    { 0, 139,           1, "mossy_cobblestone_wall", WALL_PROP },
     { 0, 141,           0, "carrots", NO_PROP },
     { 0, 142,           0, "potatoes", NO_PROP },
     { 0, 151,           0, "daylight_detector", DAYLIGHT_PROP },
@@ -975,18 +981,18 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 120,       HIGH_BIT, "mossy_cobblestone_stairs", STAIRS_PROP },
     { 0, 121,	    HIGH_BIT, "smooth_sandstone_stairs", STAIRS_PROP },
     { 0, 122,	    HIGH_BIT, "smooth_red_sandstone_stairs", STAIRS_PROP },
-    { 0, 139,              2, "brick_wall", NO_PROP },
-    { 0, 139,              3, "granite_wall", NO_PROP },
-    { 0, 139,              4, "diorite_wall", NO_PROP },
-    { 0, 139,              5, "andesite_wall", NO_PROP },
-    { 0, 139,              6, "prismarine_wall", NO_PROP },
-    { 0, 139,              7, "stone_brick_wall", NO_PROP },
-    { 0, 139,              8, "mossy_stone_brick_wall", NO_PROP },
-    { 0, 139,              9, "end_stone_brick_wall", NO_PROP },
-    { 0, 139,             10, "nether_brick_wall", NO_PROP },
-    { 0, 139,             11, "red_nether_brick_wall", NO_PROP },
-    { 0, 139,             12, "sandstone_wall", NO_PROP },
-    { 0, 139,             13, "red_sandstone_wall", NO_PROP },
+    { 0, 139,              2, "brick_wall", WALL_PROP },
+    { 0, 139,              3, "granite_wall", WALL_PROP },
+    { 0, 139,              4, "diorite_wall", WALL_PROP },
+    { 0, 139,              5, "andesite_wall", WALL_PROP },
+    { 0, 139,              6, "prismarine_wall", WALL_PROP },
+    { 0, 139,              7, "stone_brick_wall", WALL_PROP },
+    { 0, 139,              8, "mossy_stone_brick_wall", WALL_PROP },
+    { 0, 139,              9, "end_stone_brick_wall", WALL_PROP },
+    { 0, 139,             10, "nether_brick_wall", WALL_PROP },
+    { 0, 139,             11, "red_nether_brick_wall", WALL_PROP },
+    { 0, 139,             12, "sandstone_wall", WALL_PROP },
+    { 0, 139,             13, "red_sandstone_wall", WALL_PROP },
     { 0,  75,		HIGH_BIT, "jigsaw", EXTENDED_FACING_PROP },
     { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
     { 0, BLOCK_FURNACE,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
@@ -1052,9 +1058,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
     { 0, BLOCK_TNT,		   1, "target", TRULY_NO_PROP },
     { 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
-    { 0, 139,             14, "blackstone_wall", NO_PROP },
-    { 0, 139,             15, "polished_blackstone_wall", NO_PROP },
-    { 0, 139,             16, "polished_blackstone_brick_wall", NO_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
+    { 0, 139,             14, "blackstone_wall", WALL_PROP },
+    { 0, 139,             15, "polished_blackstone_wall", WALL_PROP },
+    { 0, 139,             16, "polished_blackstone_brick_wall", WALL_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
     { 0, 123,       HIGH_BIT, "crimson_stairs", STAIRS_PROP },
     { 0, 124,       HIGH_BIT, "warped_stairs", STAIRS_PROP },
     { 0, 125,       HIGH_BIT, "blackstone_stairs", STAIRS_PROP },

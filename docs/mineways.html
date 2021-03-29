@@ -676,10 +676,10 @@ When exporting <B>Tiles for textures</B> these settings have slightly different 
 
 Checking this box causes a more elaborate illumination model to be output. By default it is checked, so that a more elaborate material model is used. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set, and map_d is not set (most modern applications will use the alpha channel set in map_Kd, so setting a separate alpha in map_d is not needed and can be detrimental). Also, a special mode is exported for use by G3D: "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION". This hints to G3D to make the textures look blocky, giving the classic Minecraft look. This line should not hurt OBJ readers, which should simply ignore it (or possibly flag a warning).
 <P>
-If you are also using a <a href="textures.html">photorealistic terrain set</a>, the custom material will also include additional channels of information, such as textures for normal maps, shininess power, metallic, and emission textures. Here is an example:
+If you are also using a <a href="textures.html">photorealistic terrain set</a>, the custom material will also include additional channels of information, such as textures for normal maps, shininess power, metallic, and emission textures. These attempt to follow <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">this proposed specification</a>, also documented <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>. An example:
 <UL>
-<LI>map_Kn textures_jgrtx/nether_portal_n.png - the RGB normals map (not a heightmap)
-<LI>map_metallic textures_jgrtx/nether_portal_m.png - the grayscale metallic texture
+<LI>map_Kn textures_jgrtx/nether_portal_n.png - the RGB normals map (<I>not</I> a heightmap, so "bump" or "norm" is not used)
+<LI>map_Pm textures_jgrtx/nether_portal_m.png - the grayscale metallic texture
 <LI>map_Ke textures_jgrtx/nether_portal_e.png - the grayscale emissive intensity texture
 <LI>map_Ns textures_jgrtx/nether_portal_s.png - the grayscale specular power texture, 0-255
 </UL>
@@ -2652,16 +2652,18 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <BR>
 <UL>
 <LI>Map grid, "m" hotkey: overlays a grid showing the Anvil (r*.mca) file bounds and the individual chunks. Also, map file and chunk numbers are now always shown in the status display in the lower left. One of those "I should have added this a decade ago" features, as it also helps me debug. (<I>thanks to <a href="https://www.reddit.com/r/mineways/comments/m5m7h4/export_complete_world/">lajawi</a> for the suggestion.</I>)
+<LI>Fix walls: increase height by one, and become solid (and remove the post if not at a junction) if there is an object above the post. Note that the new 1.16 wall rules are not complete, but closer than they were. It will take major rework of the data values system (e.g., go to 16 bits) to capture the full state of a wall block. (<I>Thanks to Joefy200 for reporting this bug.</I>)
+<LI>Fix fences: glass blocks now properly connect to fences.
 <LI>UsdPreview fixes for Houdini: opacityThreshold set to 0.001, set proper wrap mode for s and t texture wrapping.
+<LI>Changed "map_metallic" to "map_Pm", proposed <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">here</a> and noted <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>.
 <LI>*Showing all objects: maybe split into "Show small objects" and "Detect transparent objects"? This would make it easier to look under the sea for small things. Maybe Show small objects is on by default?
-<LI>*Maybe add a "show chunk, show MCA" map feature. Doesn't export, just displays grid lines on top. Maybe also display in status line the name and file, as seen in NBT Explorer.
 <LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on? Perhaps bleed inside TileMaker in a serious way!
 <LI>*In TileMaker, if there's an alpha for _m, _e, _r files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesselax pumpkin_face_on problem. (Though this contradicts bleeding - check into this more)
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
-<LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data instead of checking neighbors, as was done in 1.12 and earlier.
+<LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, water?, lava?, and other objects, using the block's additional data, instead of checking neighbors, as was done in 1.12 and earlier. Can't be done for walls - not enough bits!
 <LI>*For USD export, allow export of individual blocks, created as instances.
-<LI>*For USD export, try to control wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile).
-<LI>*ChannelMixer/TileMaker: support TGA input.
+<LI>*For USD export, try to control wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile). At least do this for UsdPreview materials.
+<LI>*ChannelMixer/TileMaker: support TGA input. Explore JG-RTX TGA vs. PNG bug.
 <LI>*Note to self: change minewaysV806beta.zip to minewaysV806.zip and remove beta from site.
 </UL>
 
@@ -3473,7 +3475,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/16/2021</p>
+		<p id="lastUpdate">Last updated 3/29/2021</p>
 	</div>
 </div>
 

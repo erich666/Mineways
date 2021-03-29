@@ -4120,7 +4120,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     // lots of these could be moved into individual cases, but let's not bother
     int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;  // cppcheck-suppress 398
     float xrot, yrot, zrot;
-    float hasPost, newHeight;  // cppcheck-suppress 398
+    float hasPost, covered, newHeight;  // cppcheck-suppress 398
     float mtx[4][4], angle, hingeAngle, signMult;
     int swatchLocSet[6];
     // how much to add to dimension when fattening
@@ -4564,15 +4564,59 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
-        // Note that if a render export chops through a fence, the fence will not join.
 
         hasPost = 0;
+        // "covered" means the walls themselves should go all the way up. TODO:
+        // right now there's covered and not covered, only. In fact, of the four walls
+        // radiating from a post, each could be covered or not. For example, glass panes
+        // put along the top edge of a wall will cover just the parts of the wall that
+        // they are above. This is a lot of logic! So, the real fix is to move to a 16 bit
+        // field for dataVals, not just 8, so there's enough room to save all the states.
+        covered = 0;
         // if there's *anything* above the wall, put the post
         if (gBoxData[boxIndex + 1].origType != 0)
         {
             hasPost = 1;
+            if (gMcVersion >= 16) {
+                // only in 1.16 on does coverage by something above pull the wall up, maybe.
+                // Some rules:
+                // if a solid block is above, then it's covered and not necessarily a post (further testing below is done for the post) - the default.
+                covered = 1;
+                hasPost = 0;
+                neighborType = gBoxData[boxIndex + 1].origType;
+                // if a pressure plate, sea pickle, or banner is above, then it has a post but is not covered
+                if ((neighborType == BLOCK_SEA_PICKLE) ||
+                    (neighborType == BLOCK_STONE_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT) ||
+                    (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY) ||
+                    (neighborType == BLOCK_SPRUCE_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_BIRCH_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_JUNGLE_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_ACACIA_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_DARK_OAK_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_CRIMSON_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_WARPED_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
+                    (neighborType == BLOCK_STANDING_BANNER) ||
+                    (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER)
+                    ) {
+                    covered = 0;
+                    hasPost = 1;
+                }
+                // if the block above is a slab or stairs that's "above" (upside down), it doesn't affect the wall at all
+                else if (((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && (gBoxData[boxIndex + 1].data & 0x4)) ||
+                    ((gBlockDefinitions[neighborType].flags & BLF_HALF) && (gBoxData[boxIndex + 1].data & 0x8))
+                    ) {
+                    covered = 0;
+                    hasPost = 0;
+                }
+            }
         }
-        else
+        // did we find a post? If not (because it's 1.16, for example), test for one.
+        // These rules are not quite right, e.g., fences next to walls are not neighbors.
+        // Really, the best fix is as above, that we should go 16 bits for types and for data values
+        if (!hasPost)
         {
             // else, test if there are neighbors and not across from one another.
             int xCount = 0;
@@ -4602,11 +4646,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 zCount++;
             }
 
-            // for cobblestone walls, if the count is anything but 2 and both along an axis, put the post
+            // for walls, if the count is anything but 2 and both along an axis, put the post
             if (!(((xCount == 2) && (zCount == 0)) || ((xCount == 0) && (zCount == 2))))
             {
-                // cobblestone post
-                hasPost = 1;
+                // special case for 1.16 and newer: if it's a four way, no post
+                if (gMcVersion < 16 || !(((xCount == 2) && (zCount == 2)))) {
+                    // cobblestone post
+                    hasPost = 1;
+                }
             }
         }
 
@@ -4632,8 +4679,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             // this fence connects to the neighboring block, so output the fence pieces
             // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 13, 5, 11);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 14 + covered * 2, 5, 11);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
@@ -4641,8 +4688,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 13, 5, 11);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 14 + covered * 2, 5, 11);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
@@ -4650,8 +4697,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 13, 0, 8 - hasPost * 4);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 14 + covered * 2, 0, 8 - hasPost * 4);
             firstFace = 0;
         }
         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
@@ -4659,8 +4706,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
         {
             // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 13, 8 + hasPost * 4, 16);
+            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 14 + covered * 2, 8 + hasPost * 4, 16);
             firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
         }
         break; // saveBillboardOrGeometry
@@ -20687,24 +20734,25 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
                 gModel.tileList[i][swatchLoc] = true;
                 formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
+                // from http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr and
+                // https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
                 switch (i) {
                 default:
                     assert(0);
                 case CATEGORY_NORMALS:
-                    // seen somewhere as valid. Omniverse uses it, for example.
+                    // seen somewhere as valid. Omniverse uses it, for example. NOT the same as a bump map,
+                    // which has "norm" as an alternate name
                     strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Kn ");
                     break;
                 case CATEGORY_METALLIC:
-                    // just made up
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_metallic ");
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Pm ");
                     break;
                 case CATEGORY_EMISSION:
-                    // just made up
                     strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ke ");
                     foundMapKe = true;
                     break;
                 case CATEGORY_ROUGHNESS:
-                    // could be real... specular power - we invert the roughness earlier
+                    // specular power - we invert the roughness earlier; https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
                     strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ns ");
                     break;
                 }
