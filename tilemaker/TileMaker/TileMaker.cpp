@@ -7,12 +7,12 @@
 // For example, if a 64x64 tile is found, the background set of tile are all expanded to this size.
 // Step 4: overlay new tiles. Write out new tile set as terrain_new.png
 
-#include "rwpng.h"
 #include <assert.h>
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
 
+#include "readtga.h"
 #include "tiles.h"
 #include "tilegrid.h"
 
@@ -260,7 +260,7 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(terrainBase, MAX_PATH_AND_FILE, argv[argLoc]);
-			if (!isPNGfile(terrainBase)) {
+			if (isImageFile(terrainBase) != PNG_EXTENSION_FOUND) {
 				wprintf(L"***** ERROR: '-i %s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainBase);
 				// quit!
 				return 1;
@@ -283,7 +283,7 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, argv[argLoc]);
-			if (!isPNGfile(terrainExtOutputTemplate)) {
+			if (isImageFile(terrainExtOutputTemplate) != PNG_EXTENSION_FOUND) {
 				wprintf(L"***** ERROR: '-o %s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainExtOutputTemplate);
 				// quit!
 				return 1;
@@ -368,7 +368,7 @@ int wmain(int argc, wchar_t* argv[])
 	xTiles = 16;	// this should always be the same for all things
 	if (!nobase)
 	{
-		// read the base terrain file
+		// read the base terrain file - must be a PNG
 		rc = readpng(&basicterrain, terrainBase, LCT_RGBA);
 		if (rc != 0)
 		{
@@ -595,7 +595,7 @@ int wmain(int argc, wchar_t* argv[])
 						}
 					}
 					else {
-						wprintf(L"SERIOUS WARNING: the grass_block_side_overlay texture does not exist, so %s replaces it.\n  But, this texture has cutout (transparent) texels, so will give incorrect results!", gFG.fr[sideIndex].fullFilename);
+						wprintf(L"SERIOUS WARNING: the grass_block_side_overlay texture does not exist, so %s replaces it.\n  But, this texture has cutout (transparent) texels, so will give incorrect results!\n", gFG.fr[sideIndex].fullFilename);
 					}
 				}
 				else {
@@ -669,7 +669,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// get "root" of output file, i.e., without '.png', for ease of writing the PBR output files
 	wcscpy_s(terrainExtOutputRoot, MAX_PATH_AND_FILE, terrainExtOutputTemplate);
-	removePNGsuffix(terrainExtOutputRoot);
+	removeFileType(terrainExtOutputRoot);
 
 	// Warn of tiles where the color tile is missing but another was found for the tile type
 	for (index = 0; index < gFG.totalTiles; index++) {
@@ -793,7 +793,7 @@ int wmain(int argc, wchar_t* argv[])
 					wcscat_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[fullIndex].fullFilename);
 
 					progimage_info tile;
-					rc = readpng(&tile, inputFile, gCatFormat[catIndex]);
+					rc = readImage(&tile, inputFile, gCatFormat[catIndex], isImageFile(inputFile));
 					if (rc != 0)
 					{
 						reportReadError(rc, inputFile);
@@ -1080,7 +1080,7 @@ int wmain(int argc, wchar_t* argv[])
 
 						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
 						progimage_info chestImage;
-						rc = readpng(&chestImage, chestFile, gCatFormat[catIndex]);
+						rc = readImage(&chestImage, chestFile, gCatFormat[catIndex], isImageFile(chestFile));
 						if (rc != 0)
 						{
 							// file not found
@@ -1178,7 +1178,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// warn user that nothing was done
-	// 3 is the number of MW_*.png files that come with TileMaker
+	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
 	if (gFG.fileCount <= 3 && !anyChests) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
@@ -1291,7 +1291,7 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean
 	// read tile header
 	progimage_info tile;
 	LodePNGColorType colortype;
-	int rc = readpngheader(&tile, inputFile, colortype);
+	int rc = readImageHeader(&tile, inputFile, colortype, isImageFile(inputFile));
 	if (rc != 0)
 	{
 		reportReadError(rc, inputFile);
@@ -2191,14 +2191,14 @@ bool doesTileHaveCutouts(int index)
 		wcscpy_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[index].path);
 		wcscat_s(inputFile, MAX_PATH_AND_FILE, gFG.fr[index].fullFilename);
 
-		int rc = readpng(&tile, inputFile, gCatFormat[CATEGORY_RGBA]);
+		int rc = readImage(&tile, inputFile, gCatFormat[CATEGORY_RGBA], isImageFile(inputFile));
 		if (rc != 0)
 		{
 			reportReadError(rc, gFG.fr[index].fullFilename);
 			return false;
 		}
 		bool retCode = checkForCutout(&tile);
-		readpng_cleanup(1, &tile);
+		readImage_cleanup(1, &tile);
 		return retCode;
 	}
 	else {

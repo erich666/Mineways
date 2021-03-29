@@ -136,7 +136,8 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				// 
 				if (!used) {
 					int flag = 0x0;
-					if (filesProcessed > 0 && !chestFound && isPNGfile(ffd.cFileName)) {
+					int imageType = isImageFile(ffd.cFileName);
+					if (filesProcessed > 0 && !chestFound && (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so note that this file was not used.
 						if (verbose) {
 							wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
@@ -145,11 +146,11 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 							wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
 						}
 					}
-					// if TGA or JPG or BMP, note it if corresponding PNG not found
-					else if (isTGAorJPGorBMPfile(ffd.cFileName,flag)) {
+					// if JPG or BMP, note it if corresponding PNG or TGA not found
+					else if (imageType == JPG_EXTENSION_FOUND || imageType == BMP_EXTENSION_FOUND) {
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
-						if (removeTGAorJPGorBMPsuffix(tileName)) {
+						if (imageType == JPG_EXTENSION_FOUND || imageType == BMP_EXTENSION_FOUND) {
 							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 							assert(category >= 0);
 							int index = findTileIndex(tileName, alternate);
@@ -172,7 +173,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 		FindClose(hFind);
 	}
 
-	// done. Now look for any entries where a TGA or JPEG was found and not a PNG
+	// done. Now look for any entries where a JPEG or BMP was found and not a PNG or TGA
 	for ( int i = 0; i < TOTAL_CATEGORIES * TOTAL_TILES; i++) {
 		if (!pfg->fr[i].exists && pfg->fr[i].alternateExtensionFound) {
 			// not a duplicate, so warn
@@ -246,8 +247,10 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 
 	wcscpy_s(tileName, MAX_PATH, origTileName);
 
-	if (removePNGsuffix(tileName)) {
-		// has a PNG suffix, now removed, so test if it's a file name type we understand.
+	int imageType = isImageFile(tileName);
+	if (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND) {
+		removeFileType(tileName);
+		// has a PNG or TGA file type, now removed, so test if it's a file name type we understand.
 		int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 		assert(category >= 0);
 		// return a negative value from findTileIndex if tile is not found in any way
@@ -319,11 +322,13 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 
 	wcscpy_s(tileName, MAX_PATH_AND_FILE, origTileName);
 
-	if (removePNGsuffix(tileName)) {
-		// has a PNG suffix, now removed, so test if it's a file name type we understand.
+	int imageType = isImageFile(tileName);
+	if (imageType == PNG_EXTENSION_FOUND || imageType == TGA_EXTENSION_FOUND) {
+		removeFileType(tileName);
+		// has a suffix, now removed, so test if it's a file name type we understand.
 		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
 
-		// the four PNG files we care about
+		// the four PNG/TGA files we care about
 		boolean found = false;
 		int index = 0;
 		for (int i = 0; i < TOTAL_CHEST_TILES && !found; i++) {
@@ -368,65 +373,40 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 	return FILE_NOT_FOUND;
 }
 
-boolean removePNGsuffix(wchar_t* name)
+boolean removeFileType(wchar_t* name)
 {
-	// check for .png suffix - note test is case insensitive
-	int len = (int)wcslen(name);
-	if (len > 4 && _wcsicmp(&name[len - 4], L".png") == 0)
+	wchar_t *loc = wcsrchr(name, L'.');
+	if (loc != NULL)
 	{
 		// remove .png suffix
-		name[len - 4] = 0x0;
+		*loc = 0x0;
 		return true;
 	}
 	return false;
 }
 
-boolean isPNGfile(wchar_t* name)
-{
-	// check for .png suffix - note test is case insensitive
-	int len = (int)wcslen(name);
-	if (len > 4 && _wcsicmp(&name[len - 4], L".png") == 0)
-	{
-		return true;
-	}
-	return false;
-}
-
-boolean removeTGAorJPGorBMPsuffix(wchar_t* name)
-{
-	// check for .tga suffix - note test is case insensitive
-	int len = (int)wcslen(name);
-	if (len > 4 && ((_wcsicmp(&name[len - 4], L".tga") == 0) || (_wcsicmp(&name[len - 4], L".jpg") == 0) || (_wcsicmp(&name[len - 4], L".bmp") == 0)))
-	{
-		// remove .tga or .jpg or .bmp suffix
-		name[len - 4] = 0x0;
-		return true;
-	}
-	return false;
-}
-
-int isTGAorJPGorBMPfile(wchar_t* name, int &flag)
+int isImageFile(wchar_t* name)
 {
 	// check for .png suffix - note test is case insensitive
 	int len = (int)wcslen(name);
 	if (len > 4) {
-		if (_wcsicmp(&name[len - 4], L".tga") == 0)
+		if (_wcsicmp(&name[len - 4], L".png") == 0)
 		{
-			flag = TGA_EXTENSION_FOUND;
+			return PNG_EXTENSION_FOUND;
+		} else if (_wcsicmp(&name[len - 4], L".tga") == 0)
+		{
 			return TGA_EXTENSION_FOUND;
 		}
 		else if (_wcsicmp(&name[len - 4], L".jpg") == 0)
 		{
-			flag = JPG_EXTENSION_FOUND;
 			return JPG_EXTENSION_FOUND;
 		}
 		else if (_wcsicmp(&name[len - 4], L".bmp") == 0)
 		{
-			flag = BMP_EXTENSION_FOUND;
 			return BMP_EXTENSION_FOUND;
 		}
 	}
-	return false;
+	return UNKNOWN_FILE_EXTENSION;
 }
 
 // return -1 if no suffix matches

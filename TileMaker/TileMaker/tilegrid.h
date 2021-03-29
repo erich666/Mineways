@@ -29,9 +29,11 @@
 static const wchar_t* gCatSuffixes[TOTAL_CATEGORIES] = { L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap" };
 static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_normal", "_m", "_e", "_r", "_s", "_mer", "_y", "_heightmap" };
 
-#define	TGA_EXTENSION_FOUND	1
-#define JPG_EXTENSION_FOUND 2
-#define BMP_EXTENSION_FOUND	3
+#define UNKNOWN_FILE_EXTENSION 0 
+#define	PNG_EXTENSION_FOUND 1
+#define	TGA_EXTENSION_FOUND	2
+#define JPG_EXTENSION_FOUND 3
+#define BMP_EXTENSION_FOUND	4
 
 typedef struct FileRecord {
 	wchar_t* rootName;
@@ -81,10 +83,8 @@ bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
 int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnDNE, boolean warnDups);
 int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
-boolean removePNGsuffix(wchar_t* name);
-boolean isPNGfile(wchar_t* name);
-boolean removeTGAorJPGorBMPsuffix(wchar_t* name);
-int isTGAorJPGorBMPfile(wchar_t* name, int &flag);
+boolean removeFileType(wchar_t* name);
+int isImageFile(wchar_t* name);
 int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes);
 int findTileIndex(const wchar_t* tileName, int alternate);
 void clearFileRecordStorage(FileRecord* pfr);

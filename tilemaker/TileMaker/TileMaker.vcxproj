@@ -157,8 +157,10 @@
     <ClInclude Include="..\..\Win\lodepng.h" />
     <ClInclude Include="..\..\Win\rwpng.h" />
     <ClInclude Include="..\..\Win\tiles.h" />
+    <ClInclude Include="readtga.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="tga.h" />
     <ClInclude Include="tilegrid.h" />
   </ItemGroup>
   <ItemGroup>
@@ -169,6 +171,15 @@
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
     </ClCompile>
     <ClCompile Include="..\..\Win\rwpng.cpp" />
+    <ClCompile Include="image_iterator.cpp" />
+    <ClCompile Include="readtga.cpp" />
+    <ClCompile Include="stdio.cpp" />
+    <ClCompile Include="tga_decoder.cpp">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Level4</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Level4</WarningLevel>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
+      <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
+    </ClCompile>
     <ClCompile Include="tilegrid.cpp" />
     <ClCompile Include="TileMaker.cpp" />
   </ItemGroup>
