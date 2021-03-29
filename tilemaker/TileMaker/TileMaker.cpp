@@ -949,7 +949,7 @@ int wmain(int argc, wchar_t* argv[])
 						if (verbose)
 							wprintf(L"File '%s' merged.\n", gFG.fr[fullIndex].fullFilename);
 					}
-					readpng_cleanup(1, &tile);
+					readImage_cleanup(1, &tile);
 				}
 			}
 
@@ -1094,7 +1094,7 @@ int wmain(int argc, wchar_t* argv[])
 						// chests must be powers of two
 						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
 							allChests = false;
-							readpng_cleanup(1, &chestImage);
+							readImage_cleanup(1, &chestImage);
 							// It's important to note the count is down,
 							// as this determines whether anything was done for the category.
 							deleteChestFromGrid(&gCG, catIndex, index + catIndex * gCG.totalTiles);
@@ -1131,7 +1131,7 @@ int wmain(int argc, wchar_t* argv[])
 							wprintf(L"Chest file '%s' merged.\n", chestFile);
 
 						// clean up
-						readpng_cleanup(1, &chestImage);
+						readImage_cleanup(1, &chestImage);
 					}
 				}
 
@@ -1381,8 +1381,20 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 83:
 		wsprintf(gErrorString, L"***** ERROR [%s] allocation failed. Image file is too large for your system to handle?\n", filename);
 		break;
+	case 102:
+		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
+		break;
+	case 103:
+		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
+		break;
+	case 104:
+		wsprintf(gErrorString, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
+		break;
+	case 999:
+		wsprintf(gErrorString, L"***** ERROR [%s] - unknown image file type.\n", filename);
+		break;
 	default:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() or targa error.\n", filename);
 		break;
 	}
 	saveErrorForEnd();

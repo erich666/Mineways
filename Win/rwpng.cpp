@@ -71,6 +71,7 @@ void readpng_cleanup(int mode, progimage_info *im)
     }
 }
 
+// return 0 if no error
 int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype)
 {
     unsigned int width, height;

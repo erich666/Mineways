@@ -46,7 +46,7 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
     tga::Decoder decoder(&file);
     tga::Header header;
     if (!decoder.readHeader(header))
-        return 2;
+        return 102;
 
     bool match = false;
     int channels_in = header.bytesPerPixel();
@@ -56,8 +56,6 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
             match = true;
         }
         break;
-    default:
-        assert(0);
     case 3:
         if (colortype == LCT_RGB) {
             match = true;
@@ -68,6 +66,9 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
             match = true;
         }
         break;
+    default:
+        // unsupported file type, we assume
+        return 104;
     }
 
     im->width = (int)header.width;
@@ -81,7 +82,7 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
     image.pixels = &buffer[0];
 
     if (!decoder.readImage(header, image, nullptr))
-        return 3;
+        return 103;
 
     // Optional post-process to fix the alpha channel in
     // some TGA files where alpha=0 for all pixels when
@@ -101,8 +102,6 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
             // gray to RGB or RGBA
             channels_out = (colortype == LCT_RGB) ? 3 : 4;
             break;
-        default:
-            assert(0);
         case 3:
             // RGB to gray or RGBA
             channels_out = (colortype == LCT_RGBA) ? 1 : 4;
@@ -130,8 +129,6 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
                 *dst_data++ = *src_data++;
             }
             break;
-        default:
-            assert(0);
         case 3:
             // RGB to gray or RGBA
             if (channels_out == 4) {
@@ -201,7 +198,7 @@ int readtgaheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
     tga::Decoder decoder(&file);
     tga::Header header;
     if (!decoder.readHeader(header))
-        return 2;
+        return 102;
 
     im->width = (int)header.width;
     im->height = (int)header.height;
@@ -235,6 +232,7 @@ int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype,
         return readtga(im, filename, colortype);
     }
     assert(0);
+    // unknown image type
     return 1;
 }
 
@@ -253,6 +251,7 @@ int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& col
         return readtgaheader(im, filename, colortype);
     }
     assert(0);
-    return 1;
+    // unknown image type
+    return 999;
 }
 
