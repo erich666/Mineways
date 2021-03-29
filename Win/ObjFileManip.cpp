@@ -4584,8 +4584,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 covered = 1;
                 hasPost = 0;
                 neighborType = gBoxData[boxIndex + 1].origType;
-                // if a pressure plate, sea pickle, or banner is above, then it has a post but is not covered
-                if ((neighborType == BLOCK_SEA_PICKLE) ||
+                // if a fence, pressure plate, sea pickle, or banner is above, then it has a post but is not covered
+                if ((gBlockDefinitions[neighborType].flags & BLF_FENCE) ||
+                    (neighborType == BLOCK_SEA_PICKLE) ||
                     (neighborType == BLOCK_STONE_PRESSURE_PLATE) ||
                     (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
                     (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT) ||
