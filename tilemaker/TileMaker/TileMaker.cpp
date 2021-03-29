@@ -1400,7 +1400,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	saveErrorForEnd();
 	gErrorCount++;
 
-	if (rc != 78 && rc != 79) {
+	if (rc != 78 && rc != 79 && rc < 100) {
 		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
 	}
 	saveErrorForEnd();
