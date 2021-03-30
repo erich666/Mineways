@@ -231,10 +231,10 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
 	if (gWriteProtectCount > 0) {
-		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered; %d of these were used and\n  %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
+		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered; %d of these were used and\n  %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
 	}
 	else {
-		wprintf(L"ChannelMixer summary: %d relevant PNG files discovered and %d of these were used.\n", filesFound, filesProcessed);
+		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	}
 	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount ) {
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
@@ -1092,7 +1092,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	saveErrorForEnd();
 	gErrorCount++;
 
-	if (rc != 78) {
+	if (rc != 78 && rc < 100) {
 		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that ChannelMixer cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that ChannelMixer's somewhat-fragile PNG reader dies on.\n");
 	}
 	saveErrorForEnd();
