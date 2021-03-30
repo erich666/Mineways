@@ -195,7 +195,8 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 static bool rotateTileIfHorizontal(progimage_info& tile);
 static void rotateTile(progimage_info& tile, int channels);
 static int classifyImageBumpMap(progimage_info& tile);
-bool doesTileHaveCutouts(int index);
+
+int doesTileHaveCutouts(int index);
 
 
 
@@ -531,6 +532,10 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// if there's a grass_block_overlay, then do this equivalency
+	// How the tiles are in Minecraft itself:
+	// grass_block_side.png - a fully-colored grass block side, with green grass and brown dirt, location x=3, y=0 in terrainExt.png
+	// grass_block_side_overlay.png - a grayscale grass block side, with gray grass and transparency where there is dirt, location x=6, y=2
+	// Mineways doesn't really process the PBR versions of grass block sides, just taking the grass_block_side location itself as the one.
 	index = findTileIndex(L"grass_block_side_overlay", 0);
 	sideIndex = findTileIndex(L"grass_block_side", 0);
 	int prevProcessed;
@@ -556,16 +561,17 @@ int wmain(int argc, wchar_t* argv[])
 					wprintf(L"NOTE: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n", gFG.fr[index].fullFilename, gFG.fr[sideIndex].fullFilename, gFG.fr[index].fullFilename);
 				}
 				else {
-					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have cutout (fully transparent) texels.\n", gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName);
+					wprintf(L"WARNING: since %s is detected, we assume %s is the grass_block_side_overlay\n  and %s is the grass_block_side.\n  However, this overlay texture %s does not have transparent texels.\n", gFG.fr[index].rootName, gFG.fr[sideIndex].rootName, gFG.fr[index].rootName, gFG.fr[sideIndex].rootName);
 				}
-				// swap all records in all categories, as found.
+				// Swap all records in all categories, as found. Normally not done, but good to let the user know something's up.
+				// Mineways just grabs the grass_block_side images for PBR, no compositing, and that's how people tend to name them.
 				for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 					fullIndex = catIndex * gFG.totalTiles + index;
 					fullSideIndex = catIndex * gFG.totalTiles + sideIndex;
 					if (!swapFileRecords(&gFG, fullIndex, fullSideIndex)) {
 						// check whether just one is missing
 						if (gFG.fr[fullIndex].exists || gFG.fr[fullSideIndex].exists) {
-							wprintf(L"  FURTHER WARNING: note that not all block images were swapped, as only %s exists.\n", gFG.fr[fullIndex].exists ? gFG.fr[fullIndex].fullFilename : gFG.fr[fullSideIndex].fullFilename);
+							wprintf(L"  INFORMATIONAL: note that not all block images were swapped, as only %s exists.\n", gFG.fr[fullIndex].exists ? gFG.fr[fullIndex].fullFilename : gFG.fr[fullSideIndex].fullFilename);
 						}
 					}
 				}
@@ -816,7 +822,7 @@ int wmain(int argc, wchar_t* argv[])
 
 							if ( !(gTilesTable[index].flags & (SBIT_DECAL | SBIT_CUTOUT_GEOMETRY | SBIT_ALPHA_OVERLAY))) {
 								// flag not set, so check for alpha == 0 and that it's not glass, which could be fully transparent in spots from modding
-								if (checkForCutout(&tile) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
+								if ((checkForCutout(&tile) == 1) && wcsstr(gTilesTable[index].filename,L"glass") == NULL) {
 									wprintf(L"SERIOUS WARNING: File '%s' has texels that are fully transparent, but the image is not\n  identified as having cutout geometry, being a decal, or being an overlay.\n", gFG.fr[fullIndex].fullFilename);
 									gWarningCount++;
 								}
@@ -1970,8 +1976,11 @@ static void makeSolidTile(progimage_info* dst, int chosenTile, int solid)
 }
 
 // does any pixel have an alpha of 0?
+// return 1 - has an alpha of 0
+// return 2 - no alpha 0, but has alpha < 255
 static int checkForCutout(progimage_info* dst)
 {
+	int ret_code = 0;
 	int row, col;
 	unsigned char* dst_data = &dst->image_data[0];
 
@@ -1983,10 +1992,14 @@ static int checkForCutout(progimage_info* dst)
 			{
 				return 1;
 			}
+			if (dst_data[3] < 255)
+			{
+				ret_code = 2;
+			}
 			dst_data += 4;
 		}
 	}
-	return 0;
+	return ret_code;
 };
 
 // assumes 3 channels
@@ -2194,7 +2207,7 @@ static int classifyImageBumpMap(progimage_info& tile)
 	return TILE_IS_NOT_BUMP_MAP;
 }
 
-bool doesTileHaveCutouts(int index)
+int doesTileHaveCutouts(int index)
 {
 	if (gFG.fr[index].exists) {
 		// load tile, check for cutouts, close tile - kind of a waste, we could keep the tile as-is, but this is rarely done (i.e., just once) currently
@@ -2209,7 +2222,7 @@ bool doesTileHaveCutouts(int index)
 			reportReadError(rc, gFG.fr[index].fullFilename);
 			return false;
 		}
-		bool retCode = checkForCutout(&tile);
+		int retCode = checkForCutout(&tile);
 		readImage_cleanup(1, &tile);
 		return retCode;
 	}
