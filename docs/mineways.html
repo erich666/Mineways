@@ -2657,8 +2657,8 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>UsdPreview fixes for Houdini: opacityThreshold set to 0.001, set proper wrap mode for s and t texture wrapping.
 <LI>Changed "map_metallic" to "map_Pm", proposed <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">here</a> and noted <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>.
 <LI>ChannelMixer/TileMaker: support TGA input. Improve logic for testing for cutouts, clean up error and warning messages.
-<LI>*For USD export, control wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile). At least do this for UsdPreview materials.
-<LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on? Perhaps bleed inside TileMaker in a serious way!
+<LI>For UsdPreview material, set wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile). I believe I made this fix in 8.05 but forgot to record it.
+<LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on?
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, and other objects, using the block's additional data, instead of checking neighbors, as was done in 1.12 and earlier. Can't be done for walls - not enough bits!
 <LI>*For USD export, allow export of individual blocks, created as instances.
@@ -3390,7 +3390,8 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>With Minecraft 1.17 now having a height range of -64 to 319, it would be nice to trim memory usage for map chunks. Find the highest block in a chunk and trim the memory usage for the chunk down to this when done reading it. This maximum height number should help other search functions, too.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 <LI>In TileMaker, if there's an alpha for _e files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesellax pumpkin_face_on_e.png problem. But, really, Tesellax should fix its content.
-<LI>Multithreaded block loading, like Minutor does. This would make scrolling the map, making it huge, etc., much faster.
+<LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly.
+<LI>Multithreaded block loading, like Minutor does. This would make scrolling the map, making it huge, etc., much faster. Probably just a dream - hard work!
 <LI>For TileMaker, instead of a blocks directory, read the *.jar or an unzipped directory structure to get the blocks, chests, bed, end portal, barrier, and anything else directly from the structure. Allow reading in a series of .jars and overlaying (analyze each first to get the maximum resolution needed overall). Then get rid of TerrainBase.png.
 <LI>Consider reading in the chest, bed, and other elements (maybe shulker boxes - there are a lot of them, though) as separate textures in a separate zone (say, at the bottom) of the TerrainExt.png file, like in jmc2obj. Also allows direct export of these textures.
 <LI>Analyze name of file given on command line. If it's a world level.dat file (or single world directory), load that world. This functionality is easy enough to do by <a href="scripting.html#clo">making a script</a> that loads the world, but having the program figure this out would be a nice little usability addition.
