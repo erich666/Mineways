@@ -20754,7 +20754,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
                     break;
                 case CATEGORY_ROUGHNESS:
                     // specular power - we invert the roughness earlier; https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ns ");
+                    // We use ASSIMP's lowercase "map_ns" here, since it is read in that way by ASSIMP.
+                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_ns ");
                     break;
                 }
                 strcat_s(pbrString, MAX_PATH * 5 + 50, pbrFile);
