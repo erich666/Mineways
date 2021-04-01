@@ -20722,7 +20722,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     }
 
     char pbrFile[MAX_PATH];
-    char pbrString[MAX_PATH*5 + 50];
+    char pbrString[MAX_PATH*6 + 100];    // could have 6 long paths, plus 100 for the rest
     pbrString[0] = (wchar_t)0;
     bool foundMapKe = false;
     // If exporting tiles, check if normals texture is available
@@ -20734,33 +20734,55 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
             if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
                 gModel.tileList[i][swatchLoc] = true;
-                formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
-                // from http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr and
-                // https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
-                switch (i) {
-                default:
-                    assert(0);
-                case CATEGORY_NORMALS:
-                    // seen somewhere as valid. Omniverse uses it, for example. NOT the same as a bump map,
-                    // which has "norm" as an alternate name
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Kn ");
-                    break;
-                case CATEGORY_METALLIC:
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Pm ");
-                    break;
-                case CATEGORY_EMISSION:
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_Ke ");
-                    foundMapKe = true;
-                    break;
-                case CATEGORY_ROUGHNESS:
-                    // specular power - we invert the roughness earlier; https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
-                    // We use ASSIMP's lowercase "map_ns" here, since it is read in that way by ASSIMP.
-                    strcat_s(pbrString, MAX_PATH * 5 + 50, "map_ns ");
-                    break;
+                for (int alt = 0; alt < 2; alt++) {
+                    formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
+                    // from http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr and
+                    // https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
+                    bool hasAlt = false;
+                    switch (i) {
+                    default:
+                        assert(0);
+                    case CATEGORY_NORMALS:
+                        // seen somewhere as valid. Omniverse uses it, for example. NOT the same as a bump map,
+                        // which has "norm" as an alternate name. See https://github.com/assimp/assimp/issues/3726
+                        if (alt==0) {
+                            // ASSIMP name
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "map_Kn ");
+                        }
+                        else {
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "norm ");
+                            hasAlt = true;
+                        }
+                        break;
+                    case CATEGORY_METALLIC:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "map_Pm ");
+                        }
+                        break;
+                    case CATEGORY_EMISSION:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "map_Ke ");
+                            foundMapKe = true;
+                        }
+                        break;
+                    case CATEGORY_ROUGHNESS:
+                        // specular power - we invert the roughness earlier; https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
+                        // We use ASSIMP's lowercase "map_ns" here, since it is read in that way by ASSIMP. See https://github.com/assimp/assimp/issues/3726
+                        if (alt == 0) {
+                            // ASSIMP name
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "map_ns ");
+                        }
+                        else {
+                            strcat_s(pbrString, MAX_PATH*6 + 100, "map_Ns ");
+                            hasAlt = true;
+                        }
+                        break;
+                    }
+                    if (alt == 0 || hasAlt) {
+                        strcat_s(pbrString, MAX_PATH*6 + 100, pbrFile);
+                        strcat_s(pbrString, MAX_PATH*6 + 100, "\n");
+                    }
                 }
-                strcat_s(pbrString, MAX_PATH * 5 + 50, pbrFile);
-                strcat_s(pbrString, MAX_PATH * 5 + 50, "\n");
-                gModel.tileList[i][swatchLoc] = true;
             }
         }
     }
@@ -20816,7 +20838,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             "%smap_Ka %s\n"
             "%s"    // custom material settings
             "map_Kd %s\n"
-            "%s" // map_d, if there's a cutout
+            "%s" // map_d, if there's a cutout - for dissolve. Usually not needed. See http://paulbourke.net/dataformats/mtl/
             "%s"	// map_Ke
             // "Ni 1.0\n" - Blender likes to output this - no idea what it is
             "%sillum %d\n"

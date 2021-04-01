@@ -5398,9 +5398,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        int bedrockHeight = 60;      // cppcheck-suppress 398
-        int grassHeight = 62;
-        int blockHeight = 63;
+        int bedrockHeight = 62;      // cppcheck-suppress 398
+        int grassHeight = 64;
+        int blockHeight = 65;
 
         memset(block->grid, 0, 16 * 16 * block->maxHeight);
         memset(block->data, 0, 16 * 16 * block->maxHeight);
