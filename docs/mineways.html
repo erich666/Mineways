@@ -138,6 +138,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
 <LI><a href="#blocks">Block Types Supported</a> - how various block types are exported.
 <LI><a href="#versions">Version History</a>
 <LI><a href="#wishlist">Wish List</a>
+<LI><a href="#nightmarelist">Nightmare List</a>
 <LI><a href="#offsite">Links</a> - useful links to Mineways-related information.
 <LI><a href="#credits">Credits</a> - who did what.
 </UL>
@@ -2659,10 +2660,14 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Changed "map_metallic" to "map_Pm", proposed <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">here</a> and noted <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>. Output both "norm" and "map_Kn" for normal maps and both "map_ns" and "map_Ns" for shininess maps when exporting PBR textures to OBJ materials, due to <a href="https://github.com/assimp/assimp/issues/3726">this issue</a>.
 <LI>ChannelMixer/TileMaker: support TGA input. Improve logic for testing for cutouts, clean up error and warning messages.
 <LI>For UsdPreview material, set wrapping vs. clamping of tiles, to avoid "fire wrap" problem (where the bottom of a fire gets interpolated to the top edge of the tile). I believe I made this fix in 8.05 but forgot to record it.
+<LI>Added a "<a href="#nightmarelist">Nightmare List</a>"  to the docs, basically proposed features that seem like too much work for too little return.
 <LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on?
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
 <LI>*For 1.13 and newer content, properly handle connectivity for redstone, stems, fences, and other objects, using the block's additional data, instead of checking neighbors, as was done in 1.12 and earlier. Can't be done for walls - not enough bits!
+<LI>*Try to deal with waterlogged objects better. A slab or stairs will have a water surface that causes z-fighting on the faces where they have geometry. Some work done for v8.04, which may have improved this area. Needs exploration.
 <LI>*For USD export, allow export of individual blocks, created as instances.
+<LI>*Extend color schemes to the new tiles with IDs greater than 255. These new IDs are admittedly bogus, but right now there's no way to turn off the output of these newer blocks. That said, color schemes appear to be a feature that's rarely used.
+<LI>*Individual block export does not currently work with tiled textures. It should; the logic's involved...
 <LI>*Note to self: change minewaysV806beta.zip to minewaysV806.zip and remove beta from site.
 </UL>
 
@@ -3385,12 +3390,10 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
-<LI>Try to deal with waterlogged objects better. A slab or stairs will have a water surface that causes z-fighting on the faces where they have geometry. Some work done for v8.04, which may have improved this area. Needs exploration.
 <LI>Extend color schemes to the new tiles with IDs greater than 255. These new IDs are admittedly bogus, but right now there's no way to turn off the output of these newer blocks. That said, color schemes appear to be a feature that's rarely used.
 <LI>Individual block export does not currently work with tiled textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
 <LI>With Minecraft 1.17 now having a height range of -64 to 319, it would be nice to trim memory usage for map chunks. Find the highest block in a chunk and trim the memory usage for the chunk down to this when done reading it. This maximum height number should help other search functions, too.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
-<LI>In TileMaker, if there's an alpha for _e files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesellax pumpkin_face_on_e.png problem. But, really, Tesellax should fix its content.
 <LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly.
 <LI>Multithreaded block loading, like Minutor does. This would make scrolling the map, making it huge, etc., much faster. Probably just a dream - hard work!
 <LI>For TileMaker, instead of a blocks directory, read the *.jar or an unzipped directory structure to get the blocks, chests, bed, end portal, barrier, and anything else directly from the structure. Allow reading in a series of .jars and overlaying (analyze each first to get the maximum resolution needed overall). Then get rid of TerrainBase.png.
@@ -3402,24 +3405,30 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed. One more level of complication, though.
 <LI>Add Bedrock/Pocket Edition/Education Edition support. Right now <a href="#mcpe">MCC ToolChest PE</a> and MCEdit properly reads such files. This addition turns out to be a large bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft, not to mention that Bedrock differs from Classic Minecraft in a huge number of ways. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
 <LI>Add a "Go to location" dialog, where you give a location and the view is centered on it.
-<LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways' texture storage space.
 <LI>Almost out of space for composites. I've patched this by quadrupling the size of the texture output. Better would be to go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
-<LI>TileMaker should handle non-power-of-two tiles. Warn the user, as before, but it should give it a go.
+<LI>TileMaker should handle non-power-of-two tiles. Warn the user, as before, but it should give it a go and resize.
 <LI>Go to location. Pop up a little dialog for X and Z location you want to go to on the map. Beats scrolling. There's a super-indirect way to do this right now: select an area, export, in the export dialog give the location you want to go, hit OK, then hit F4 to go to that location (or you could <a href="scripting.html">write a script</a>: select a block location, then jump to that location).
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
-<LI>Zoom out: Some people use Mineways for mapping. Being able to zoom out further has been requested. The downside: more map chunks to read so it might be slow, I'd have to mess with code I don't know well, selection could be funky. My advice is to use <a href="https://seancode.com/minutor/">Minutor</a>, which has parallelized map chunk reading and is optimized for mapping.
 <LI>Biome support: get biome color and use it to change terrain's output color. Currently only the biome at the center of the export is used to set the color of all blocks in the export. The hard part is blending (and saving all the resulting textures, a potentially large number) at biome margins.
 <LI><a href="http://mineways.com/mineways.html#blocks">Various blocks</a> could use more support, e.g., pumpkin and melon stems color, farmland wetness. This will use up more texture tiles, but that might be acceptable.
 <LI>JSON support. Version 1.8 of Minecraft supports <a href="http://minecraft.gamepedia.com/Block_models">JSON descriptions of block models</a>. Supporting this would make adding new blocks fairly easy, as well as letting users make their own custom block descriptions. That said, it's a lot of work to add this.
 <LI>Entities: there are <a href="https://minecraft.gamepedia.com/Entity">lots of entities</a>. I'll probably never add these, as they involve a lot of additional textures. But, it's on the list.
 <LI>Full "lesser" block merging for 3D printing: right now smaller blocks such as fences are not merged properly with surrounding blocks to make a manifold, watertight mesh. This is done a bit for slabs and stairs and some other cases, by not generating a face if it's fully covered. However, for the most part I'm leaving it up to the 3D printer's software to properly merge these blocks together; I recommend using <a href="https://service.netfabb.com/login.php">netfabb's free cloud solution</a> for basic single-color-model cleanup. Some software does poorly with the current geometry, e.g., Sculpteo drops blocks. Adding a robust triangulator and the ability for a block to query its neighbor's face loops would begin to fix this problem. Insanely hard problem, so this is definitely in the "wish" category.
-<LI>Due to all the new tiles added, Mineways has little room for composite swatches for colored 3D prints. Partially solved: increased the output PNG size. Better would be to reuse unused swatch locations, but that's a bit fussy.
-<LI>Work on Mac and Linux: my code is a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
 <LI>Better color selection: this is a weakness with the original <a href="http://seancode.com/minutor/">minutor</a>. Yes, you have to put in <a href="http://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal numbers for the color</a>.
 <LI>Vines should work better for 3D printing. When they hang down without anything next to them, they have to be blocks, but when they're adjacent to trunks or other blocks they should go flat. That said, this doesn't look quite right: a vine on a trunk will be flat, but then if it hangs in the air it will fill the "outside" block. I think the answer is to shift the vine inward from whatever block it's in to the one it's touching, but intervening properly is tricky.
 <LI>Shulker boxes would be nice to process from their separate composite image files, as we do with chests. Also, the "default" shulker_box should use its pale purple version.
-<LI><a href="https://web.archive.org/web/20170912203020/http://www.minecraftforum.net:80/forums/mapping-and-modding/minecraft-mods/1272765-1-2-5-connected-textures-mod-v1-4-1">Connected textures</a> would give more continuous results for surfaces such as glass and bookshelves. One problem with this idea is that these are custom tiles, so this feature could be added for the default texture set, but not the various other texture packs.
+</UL>
+
+<h2 id="nightmarelist">Nightmare List</h2>
+Just a joke name, but ideas I've pretty much ruled out at this point, and why. Listed in order from "some slight chance it could happen" to "extremely unlikely."
+<UL>
+<LI>In TileMaker, if there's an alpha for _e files, it should get folded in to make the color black as needed. For example, if an alpha is 0, set the _e for that pixel to 0. This will help avoid Tesellax pumpkin_face_on_e.png problem. But, really, Tesellax should fix its content.
+<LI>Beds should have separate colors. Or not. These would take up a lot of tiles and kinda overload Mineways' texture storage space.
+<LI>Consolidate flat areas of the mesh: large flat grassy areas are common in Minecraft worlds, as are large bodies of water. These could be merged into one giant polygon (for OBJ, with the assumption there's a good triangulator on the other end) or a better mesh that doesn't include all the interior vertices. There are two reasons that make me leery of this one, however. First, it won't work on the mosaiced single-tile texture output that Mineways uses by default, so it will only be useful for when exporting separate textures for every block face. For the giant single-texture mosaics used by default, the texture won't repeat on a simplified triangle mesh. Second, there's a question of whether to remove vertices along the edges of such areas. This will cause T-vertices, where the side of the block has a vertex but there's no vertex on the top of the block. This can lead to cracking artifacts when rendering. But, if you can remove the vertex on the side, too, then that's further savings. Basically, this problem can get pretty complex and tricky if you try to do a good job. Since it's only useful for the "separate texture" export mode, not the default for Mineways, this seems like a lot of work for few users. Most DCC apps already have such functionality anyway, e.g., see <a href="https://blender.stackexchange.com/questions/31467/how-to-reduce-vertex-count-on-a-mesh">this for Blender</a>. So, pass.
+<LI>Work on Mac and Linux: my code is a Windows beast. Currently, Mineways works on Linux under Wine on Linux and the Mac. If someone wanted to make a Qt version of this code, great. The MinewaysMap subdirectory shouldn't need much work, it's just the Win subdirectory that is platform-specific.
+<LI><a href="https://web.archive.org/web/20170912203020/http://www.minecraftforum.net:80/forums/mapping-and-modding/minecraft-mods/1272765-1-2-5-connected-textures-mod-v1-4-1">Connected textures</a> would give more continuous results for surfaces such as glass and bookshelves. One problem with this idea is that these are custom tiles, so this feature could be added for the default texture set, but not the various other texture packs. Not sure this is even still a thing at this point.
 <LI>Integration with <a href="http://www.shapeways.com/api">Shapeways' API</a> and <a href="http://i.materialise.com/">i.materialise</a> API: Mineways could save each user a few minutes by directly uploading the resulting model files to Shapeways or i.materialise. While manually zipping and uploading is not a big deal, it's a bit of a pain to set the default material, add "Minecraft" as a keyword, and so on. These APIs would set all this information for the user, as is done by <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">MineToys</a>, <a href="http://www.3dtin.com/">3DTin</a>, and <a href="http://tinkercad.com/">TinkerCAD</a>. That said, this option is at the bottom of the list because I think it's the wrong workflow. Normally you want to export from Mineways and then use MeshLab or other program to preview the model to make sure it looks right, then you want to upload. Not checking the model before uploading seems over-optimistic to me in most situations.
+<LI>Support for modded blocks. <a href="https://github.com/erich666/Mineways/issues/44">Sorry, no</a>.
 </UL>
 
 <P><H2 id="offsite">Links</H2>
@@ -3476,7 +3485,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/29/2021</p>
+		<p id="lastUpdate">Last updated 4/2/2021</p>
 	</div>
 </div>
 
