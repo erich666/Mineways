@@ -153,7 +153,7 @@
 						Is your first language not English? Mineways can have problems with accented characters. If, after checking into antivirus blockers, it fails to run or save, try unpacking Mineways into a directory with a short name such as C:\temp and try running it and saving there.
 						</p>
 						<P>
-						If a particular world is not loading, note that Mineways is less likely to work on modded worlds. Mineways assumes certain things about how blocks can connect, and if those rules are modified, all bets are off.
+						If a particular world is not loading, note that Mineways is unlikely to work on modded worlds. Mineways assumes certain things about how blocks can connect, and if those rules are modified, all bets are off.
 						<P>
 						If you find you scroll the map and the program crashes, or you crash when  exporting, it's likely you're out of memory. Ideas: close down all other applications you have running; use Mineways32.exe instead of Mineways.exe, which limits map memory usage to about 2 gigabytes; under "Help" select "Give more export memory!"
 						<P>
@@ -161,7 +161,7 @@
 						<P>
 						One user had a problem where the left mouse did not drag the map. He found unzipping the zip again fixed it - strange. Me, I'd also try rebooting.
 						<P>
-						Still stuck? See the <a href="#generalTrouble">General Troubleshooting</a> section below.
+						Still stuck? See the <a href="#generalTrouble">General Troubleshooting</a> section below for other common problems.
 						<P>
 						Feel free <a href="contact.html">to write me</a> if you still have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.
 				</div>
@@ -219,7 +219,7 @@
 					<UL>
 						<LI>Did you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">download the latest version</a>? Mineways has undergone many bug fixes.
 						<LI>Did you read any warnings from the program carefully?
-						<LI>Reboot your computer and try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertently checked, or untangles some hidden program bug.
+						<LI>Reboot your computer and try the program one more time, just to be sure. Sometimes starting fresh clears out some box inadvertently checked, or untangles some hidden operating system bug.
 						<LI>Run through the platform-specific problems for <a href="#windows">Windows</a>, <a href="#mac">Mac</a>, and <a href="#linux">Linux</a>.
 						<LI>Try starting from the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a>, e.g., <a href="scripting.html#clo">"mineways -s none"</a>.
 					</UL>
@@ -228,7 +228,8 @@
 						<LI> "I double-click on Mineways, it seems to run but doesn't appear" - This is often due to some (still mysterious to me) path problem with where your worlds are located. Instead of double-clicking on Mineways.exe, double-click on the file "mineways_without_worlds" (you might see it end in ".bat"). You'll have to open your worlds manually by finding the right directory. You can easily do this by using File | Open... and then pasting in this for the file name: <b>%appdata%\.minecraft\saves</b> - choose a world directory and select the level.dat file there to open it.
 						<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps get you to the right spot on your map. Next, you <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV805.zip">have the latest version of Mineways</a>, right? The latest version is needed to support the newest version of Minecraft, and beta versions of Minecraft can cause problems.</LI>
 						<LI> "I use the <i>insert-name-here</i> mod and Mineways doesn't work with it" - Sorry, Mineways likely never will, see <a href="https://github.com/erich666/Mineways/issues/44">this explanation</a> for why mod support is hard.</LI>
-						<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place. You can use color schemes for all sorts of tricks, e.g., export your model a few times, with different options for the blocks you want to export. To change the textures on a block, use "Export tiles for textures" and edit the individual texture output. You might also look into <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> if you use Blender.</LI>
+						<LI> "I don't like your torches/flames/etc." - you can remove any block from export by using a <a href="#schemes">color scheme</a>, then put your own models in place. You can use color schemes for all sorts of tricks, e.g., export your model a few times, with different options for the blocks you want to export. To change the textures on a block, use "Export tiles for textures" and edit the individual texture output. You might also look into <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> if you use Blender.
+						<LI> "I read the OBJ file Mineways made into Blender and objects like grass and flowers are surrounded in black." Read the <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#blender">Blender import documentation</a>, especially step 9.
 						<LI> "I selected a color scheme and the program locked up and died!" - my advice is to delete all your color schemes and remake them. Sorry about that! I thought I had licked this bug, but it might still be there under some circumstances.</LI>
 						<LI> "I uploaded to Shapeways, but they say my model could not be processed" - read their email carefully. Sometimes, however, they'll have no additional hints. First, you uploaded the .ZIP file, right? It should have a .wrl and .png file inside of it. Second thing to try: upload the .ZIP file again - I've sometimes had a model rejected which I then upload again and it's fine. Third thing: try exporting with the option "Weld all shared edges" checked. This may affect how your model looks, so preview it, but it does give a more robust (and stronger) model that Shapeways likes. <I>Do not</I> normally bother with trying STL instead of VRML; STL will not print at Shapeways with color.</LI>
 						<LI> "I uploaded to Shapeways, but on the model page it says the model is tiny" - on the Shapeways upload page where it says "Unit of Measure" and "Choose", the default is millimeters (though Shapeways has changed this in the past). Make sure the "Model's units" on the export dialog says "Millimeters".</LI>
@@ -238,13 +239,8 @@
 				</div>
 				<div id="knownBugs" class="helpInnerSector">
 					<H2>Known Bugs</H2>
-					<UL>
-						<LI>
-							Superhollow can sometimes create little separate objects at the bottom layer unconnected to the rest of the model, caused by internal tunnels. "Delete floating objects" currently does not remove these. The workaround is to use "fill in isolated tunnels", or to just let these separate little chunks print and pay a bit more for them. The real fix to add to the code is to search the whole model again for groups and delete the small groups.
-						</LI>
-					</UL>
+					See the <a href="https://github.com/erich666/Mineways/issues">open issues</a> for known bugs and feature requests.
 				</div>
-
 
 				<div id="howToPrint" class="helpInnerSector">
 					<H2 id="myway">How I Make a 3D Print Export</H2>
