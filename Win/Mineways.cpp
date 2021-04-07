@@ -4640,7 +4640,7 @@ static void initializePrintExportData(ExportFileData& printData)
     INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
 
     // OBJ and VRML have color, depending...
-    // order: Sculpteo OBJ, relative OBJ, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML
+    // order: Sculpteo OBJ, relative OBJ, USDA, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML, (Schematic)
     INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
     // might as well export color with OBJ and binary STL - nice for previewing
     INIT_ALL_FILE_TYPES(printData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
@@ -4740,6 +4740,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.fileType = FILE_TYPE_WAVEFRONT_ABS_OBJ;
 #endif
 
+    // order: Sculpteo OBJ, relative OBJ, USDA, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML, (Schematic)
     // don't really need to create a zip for rendering output
     INIT_ALL_FILE_TYPES(viewData.chkCreateZip,            0, 0, 0, 0, 0, 0, 0, 0);
     INIT_ALL_FILE_TYPES(viewData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
@@ -4747,8 +4748,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
     INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
     INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
 
     strcpy_s(viewData.tileDirString, MAX_PATH, "textures");
 
