@@ -164,7 +164,6 @@ typedef struct FaceRecordPool {
     int count;
 } FaceRecordPool;
 
-
 typedef struct SwatchComposite {
     int swatchLoc;
     int backgroundSwatchLoc;
@@ -173,6 +172,15 @@ typedef struct SwatchComposite {
     struct SwatchComposite* next;
 } SwatchComposite;
 
+typedef struct BlockInstance {
+    int hash;
+    int faceNumber; // first face in list of faces
+} BlockInstance;
+
+typedef struct InstanceLocation {
+    int index;  // index into array of BlockInstances
+    float location[3];
+} InstanceLocation;
 
 typedef struct Model {
     float scale;    // size of a block, in meters
@@ -259,6 +267,13 @@ typedef struct Model {
     bool singleSided;
     bool emitterSingleSided;
     int blockCount;
+    bool instancing; // true for USDA with instancing output enabled
+    int instanceCount;
+    int instanceListSize;
+    BlockInstance* instance;
+    int instanceLocCount;
+    int instanceLocListSize;
+    InstanceLocation* instanceLoc;
 } Model;
 
 extern Model gModel;

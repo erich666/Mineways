@@ -174,7 +174,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, epd.chkMakeGroupsObjects);
             CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, epd.chkSeparateTypes);
             CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
-            CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
             // if neither of the two above are checked, this one's indeterminate
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
@@ -185,7 +184,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             // other file formats: keep these grayed out and unselectable, except for USD
             CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
+            if (epd.fileType == FILE_TYPE_USD)
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+            else
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
             if (epd.fileType == FILE_TYPE_USD)
@@ -454,7 +456,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TILES:
-            if ((epd.flags & EXPT_3DPRINT) || 
+            if ((epd.flags & EXPT_3DPRINT) ||
                 epd.fileType == FILE_TYPE_ASCII_STL || epd.fileType == FILE_TYPE_BINARY_MAGICS_STL ||
                 epd.fileType == FILE_TYPE_BINARY_VISCAM_STL || epd.fileType == FILE_TYPE_VRML2) {
                 // don't allow tile output
@@ -700,6 +702,15 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                         CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_UNCHECKED);
                     }
                 }
+                else if (epd.fileType == FILE_TYPE_USD)
+                {
+                    if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE)
+                    {
+                        // uncheck the box
+                        // go from the indeterminate tristate to unchecked - indeterminate is not selectable
+                        CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+                    }
+                }
                 else
                 {
                     CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
@@ -707,7 +718,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
         case IDC_MATERIAL_PER_BLOCK_FAMILY:
-            if ((IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
+            if ((epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) &&
+                (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
             {
                 // things are unlocked
                 if (IsDlgButtonChecked(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY) == BST_INDETERMINATE)
@@ -722,7 +734,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
         case IDC_SPLIT_BY_BLOCK_TYPE:
-            if ((IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
+            if ((epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) && 
+                (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED))
             {
                 if (IsDlgButtonChecked(hDlg, IDC_SPLIT_BY_BLOCK_TYPE) == BST_INDETERMINATE)
                 {

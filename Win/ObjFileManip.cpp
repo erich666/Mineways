@@ -646,6 +646,9 @@ static void meltSnow();
 static void hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, int* seedCount);
 
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
+static void createInstance(int type, int dataVal);
+static bool findInstance(int type, int dataVal, int& instanceID);
+static void saveInstanceLocation(float* anchorPt, int instanceID);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
@@ -699,6 +702,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
 static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc);
 
 static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC);
+static void nameFromHash(int hash, char* instanceNameString);
 static int openUSDFile(wchar_t* destination);
 static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD();
@@ -868,6 +872,19 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gModel.print3D = (gModel.options->exportFlags & EXPT_3DPRINT) ? 1 : 0;
 
+    // For instancing, we have three USDA files to output:
+    // MaterialLibrary.usda - material definitions
+    // BlockLibrary.usda - mesh and bindings for each block (lower left corner at the origin), put in a named Xform
+    // output.usda - pointers to instances. Gives locations and which instance it is.
+    //
+    // Design: collect blocks, currently identified purely by type and dataVal. Data structures:
+    //     Array of block locations and index to the block type stored
+    //     Array of unique block instances found and where each starts in the gModel mesh database (which face)
+    //     TODO: hash from the id&dataVal that says if the block type has had its instand found.
+    // collect materials, as usual.
+    // On output, do the blocks/materials/overarching file output.
+    gModel.instancing = (fileType == FILE_TYPE_USD && (gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS));
+
     // Billboards and true geometry to be output?
     // True only if we're exporting all geometry.
     // Must be set now, as this influences whether we stretch textures.
@@ -918,7 +935,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     if (options->moreExportMemory)
     {
         // clear the cache before export - this lets us export larger worlds.
-        // This could be made optional, but map reload is pretty fast, so let's always do this.
         ClearCache();
     }
 
@@ -1159,7 +1175,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gXformScale = 1.0f;
     }
 
-    // create database and compute statistics for output
+    // create database from all full-sized blocks and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
@@ -2284,10 +2300,11 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
 
     // done with reading chunk for export, so free memory.
     // should all be freed, but just in case...
-    if (gModel.options->moreExportMemory)
-    {
-        ClearCache();
-    }
+    // Nah, checked - it's freed, just above, so many many times
+    //if (gModel.options->moreExportMemory)
+    //{
+    //    ClearCache();
+    //}
 
     // convert to solid relative box (0 through boxSize-1)
     Vec3Op(gSolidBox.min, =, gSolidWorldBox.min, +, gWorld2BoxOffset);
@@ -14401,6 +14418,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     // At this point all partial blocks have been output, and their type set to BLOCK_AIR. Now output the fully solid blocks.
     // Go through blocks and see which is solid; output these solid blocks.
+    IPoint origin = { 0,0,0 };
     for (loc[X] = gSolidBox.min[X]; loc[X] <= gSolidBox.max[X]; loc[X]++)
     {
         // update on each row of X
@@ -14415,27 +14433,64 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                 if (gBoxData[boxIndex].type > BLOCK_AIR)
                 {
                     // block is solid, may need to output some faces.
-                    retCode |= checkAndCreateFaces(boxIndex, loc);
-                    if (retCode >= MW_BEGIN_ERRORS) return retCode;
+                    bool outputFaces = true;
+                    if (gModel.instancing) {
+                        // is block already output?
+                        int instanceID;
+                        if (findInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, instanceID)) {
+                            // block is already output to an instance
+                            outputFaces = false;
+                        }
+                        else {
+                            // prepare for new instance - gModel.instanceCount is incremented later when the instance is actually created
+                            instanceID = gModel.instanceCount;
+                        }
+                        // store the instance location, which is gModel.faceCount, which points at the next set of faces
+                        float anchorPt[3];
+                        anchorPt[X] = (float)(loc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+                        anchorPt[Y] = (float)(loc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+                        anchorPt[Z] = (float)(loc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+                        // save instance location and ID and faceCount start to a long list.
+                        saveInstanceLocation(anchorPt, instanceID);
+                    }
+                    if (outputFaces) {
+                        if (gModel.instancing) {
+                            // create a new instance of this block type, storing away the first face ID.
+                            // adjust the scale and location (center at origin) of the instance.
+                            // this method will test the increment gModel.instanceCount
+                            createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data);
+
+                            // make the instance at the origin, storing it in the regular database the usual way.
+                            retCode |= checkAndCreateFaces(boxIndex, origin);
+                            if (retCode >= MW_BEGIN_ERRORS)
+                                return retCode;
+                        }
+                        else {
+                            // the normal thing: create the faces as needed
+                            retCode |= checkAndCreateFaces(boxIndex, loc);
+                        }
+                    }
                 }
             }
         }
     }
 
     //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
+    // already done readjustment if we're instancing
+    if (!gModel.instancing) {
+        // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
+        for (i = 0; i < gModel.vertexCount; i++)
+        {
+            float* pt = (float*)gModel.vertices[i];
+            float anchor[3];
+            Vec2Op(anchor, =, gModel.vertices[i]);
+            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
 
-    // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
-    for (i = 0; i < gModel.vertexCount; i++)
-    {
-        float* pt = (float*)gModel.vertices[i];
-        float anchor[3];
-        Vec2Op(anchor, =, gModel.vertices[i]);
-        pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-        pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-        pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-
-        // rotate location as needed
-        rotateLocation(pt);
+            // rotate location as needed
+            rotateLocation(pt);
+        }
     }
 
     UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.75f);
@@ -14463,6 +14518,66 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     return retCode;
 }
+
+static void createInstance(int type, int dataVal)
+{
+    // make room
+    if (gModel.instanceCount == gModel.instanceListSize)
+    {
+        if (gModel.instanceListSize == 0) {
+            // allocate for first time
+            gModel.instanceListSize = 100;  // TODOTODO - maybe adjust?
+            gModel.instance = (BlockInstance*)malloc(gModel.instanceListSize * sizeof(BlockInstance));
+        }
+        else {
+            // resize
+            gModel.instanceListSize *= 2;
+            gModel.instance = (BlockInstance*)realloc(gModel.instance, gModel.instanceListSize * sizeof(BlockInstance));
+        }
+    }
+
+    BlockInstance *bi = &gModel.instance[gModel.instanceCount++];
+    bi->faceNumber = gModel.faceCount;
+    bi->hash = type << 8 | dataVal;
+}
+
+static bool findInstance(int type, int dataVal, int& instanceID)
+{
+    // make the hash for the ID - so clever :)
+    int hash = type << 8 | dataVal;
+    for (int i = 0; i < gModel.instanceCount; i++) {
+        if (gModel.instance[i].hash == hash) {
+            instanceID = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void saveInstanceLocation(float* anchorPt, int instanceID)
+{
+    // make room
+    if (gModel.instanceLocCount == gModel.instanceLocListSize)
+    {
+        if (gModel.instanceLocListSize == 0) {
+            // allocate for first time
+            gModel.instanceLocListSize = 1000;  // TODOTODO - what's a good number of blocks?
+            gModel.instanceLoc = (InstanceLocation*)malloc(gModel.instanceLocListSize * sizeof(InstanceLocation));
+        }
+        else {
+            // resize
+            gModel.instanceLocListSize *= 2;
+            gModel.instanceLoc = (InstanceLocation*)realloc(gModel.instance, gModel.instanceLocListSize * sizeof(InstanceLocation));
+        }
+    }
+
+    InstanceLocation* bil = &gModel.instanceLoc[gModel.instanceLocCount++];
+    bil->index = instanceID;
+    for (int i = 0; i < 3; i++) {
+        bil->location[i] = anchorPt[i];
+    }
+}
+
 
 #define UV_TO_SWATCHLOC(pUV) 
 // sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
@@ -19420,6 +19535,26 @@ static void freeModel(Model* pModel)
         free(pModel->vertexIndices);
         pModel->vertexIndices = NULL;
     }
+    if (pModel->vertexIndices)
+    {
+        free(pModel->vertexIndices);
+        pModel->vertexIndices = NULL;
+    }
+
+    if (pModel->uvIndexList)
+    {
+        int i;
+        free(pModel->uvIndexList);
+        pModel->uvIndexList = NULL;
+
+        // free all per-swatch UVRecord lists
+        for (i = 0; i < NUM_MAX_SWATCHES; i++)
+        {
+            free(pModel->uvSwatches[i].records);
+            pModel->uvSwatches[i].records = NULL;
+        }
+    }
+
     if (pModel->faceList)
     {
         FaceRecordPool* pPool = gModel.faceRecordPool;
@@ -19448,20 +19583,6 @@ static void freeModel(Model* pModel)
         pModel->faceSize = 0;
     }
 
-    if (pModel->uvIndexList)
-    {
-        int i;
-        free(pModel->uvIndexList);
-        pModel->uvIndexList = NULL;
-
-        // free all per-swatch UVRecord lists
-        for (i = 0; i < NUM_MAX_SWATCHES; i++)
-        {
-            free(pModel->uvSwatches[i].records);
-            pModel->uvSwatches[i].records = NULL;
-        }
-    }
-
     for (catIndex = 0; catIndex < TOTAL_CATEGORIES; catIndex++) {
         if (pModel->pInputTerrainImage[catIndex])
         {
@@ -19469,6 +19590,17 @@ static void freeModel(Model* pModel)
             delete pModel->pInputTerrainImage[catIndex];
             pModel->pInputTerrainImage[catIndex] = NULL;
         }
+    }
+
+    if (pModel->instance)
+    {
+        free(pModel->instance);
+        pModel->instance = NULL;
+    }
+    if (pModel->instanceLoc)
+    {
+        free(pModel->instanceLoc);
+        pModel->instanceLoc = NULL;
     }
 
     if (pModel->pPNGtexture)
@@ -22529,6 +22661,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     char worldNameUnderlined[MAX_PATH_AND_FILE];
     int retCode = MW_NO_ERROR;
     char outputString[256];
+    int i;
 
     concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
 
@@ -22574,14 +22707,82 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    if (gXformScale != 1.0f) {
-        sprintf_s(outputString, 256, "    float3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
+    // if we're instancing, we need to simply write out the instance locations and what blocks they refer to
+    if (gModel.instancing) {
+        char blockLibraryName[MAX_PATH_AND_FILE];
+        wchar_t blockLibraryNameWithSuffix[MAX_PATH_AND_FILE];
+        char materialLibraryName[MAX_PATH_AND_FILE];
+        wchar_t materialLibraryNameWithSuffix[MAX_PATH_AND_FILE];
+
+        strcpy_s(materialLibraryName, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
+        strcat_s(materialLibraryName, MAX_PATH_AND_FILE - strlen(materialLibraryName), "_MaterialLibrary.usda");
+        concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L"_MaterialLibrary.usda");
+
+        strcpy_s(blockLibraryName, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
+        strcat_s(blockLibraryName, MAX_PATH_AND_FILE - strlen(blockLibraryName), "_BlockLibrary.usda");
+        concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L"_BlockLibrary.usda");
+
+        strcpy_s(outputString, 256, "    def PointInstancer \"pointinstancer\" {\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "        point3f[] positions = [\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        // output all positions, then all indices, end with ]
+        InstanceLocation* pil = gModel.instanceLoc;
+        for (i = 0; i < gModel.instanceLocCount; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pil++;
+        }
+
+        strcpy_s(outputString, 256, "        int[] protoIndices = [\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        pil = gModel.instanceLoc;
+        for (i = 0; i < gModel.instanceLocCount; i++) {
+            sprintf_s(outputString, 256, "%d%s\n", pil->index, (i == gModel.instanceLocCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pil++;
+        }
+
+        // output all instance names
+        strcpy_s(outputString, 256, "        prepend rel prototypes = [\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        BlockInstance* pbi = gModel.instance;
+        char instanceNameString[MAX_PATH_AND_FILE];
+        for (i = 0; i < gModel.instanceCount; i++) {
+            nameFromHash(pbi->hash, instanceNameString);
+            sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameString, (i == gModel.instanceCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pbi++;
+        }
+
+        sprintf_s(outputString, 256, "        over \"Blocks\" (references = @./%s@)    {   }\n", blockLibraryName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "    }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        // Xform will be closed below, this is what it will do:
+        //strcpy_s(outputString, 256, "}\n");
+        //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+        // create material library TODOTODO
+        materialLibraryNameWithSuffix;
+
+        // create block instance library TODOTODO
+        blockLibraryNameWithSuffix;
+
+    }
+    else {
+
+        if (gXformScale != 1.0f) {
+            sprintf_s(outputString, 256, "    float3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        if (retCode |= createMeshesUSD()) {
+            goto Exit;
+        }
     }
 
-    if (retCode |= createMeshesUSD()) {
-        goto Exit;
-    }
     // close the Xform
     strcpy_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -22597,16 +22798,20 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         fc = strchr(texturePath, '\\');
     }
 
-    // export the materials
-    if (retCode |= createMaterialsUSD(texturePath)) {
-        // failed to write
-        goto Exit;
+    // export the materials to the main file
+    if (!gModel.instancing) {
+        if (retCode |= createMaterialsUSD(texturePath)) {
+            // failed to write
+            goto Exit;
+        }
     }
 
+    // create lighting
     if (retCode |= createLightingUSD(texturePath)) {
         goto Exit;
     }
 
+    // create custom MDLs, if needed
     if (gModel.customMaterial) {
         if (retCode |= writeMDLforUSD(gOutputFilePath)) {
             goto Exit;
@@ -22621,7 +22826,7 @@ Exit:
     if (retCode < MW_BEGIN_ERRORS) {
         // note that textures get written out in SaveVolume(), which calls this function.
         // But we need this value computed, for the progress bar
-        for (int i = 0; i < TOTAL_TILES; i++) {
+        for (i = 0; i < TOTAL_TILES; i++) {
             // tile name is material name, period
             if (gModel.tileList[CATEGORY_RGBA][i]) {
                 gModel.tileListCount++;
@@ -22631,6 +22836,17 @@ Exit:
 
     return retCode;
 }
+
+static void nameFromHash(int hash, char* instanceNameString)
+{
+    int type = hash >> 8;
+    int dataVal = hash & 0xff;
+    // TODOTODO much better here would be to access the map naming routine, but that's tricky - 
+    // you have to get the name and mask out the data value (should be made part of that routine and shared)
+    sprintf_s(instanceNameString, 256, "%s_%d_%d", gBlockDefinitions[type].name, type, dataVal);
+    changeCharToUnderline(' ', instanceNameString);
+}
+
 
 static int openUSDFile(wchar_t* destination)
 {
@@ -25798,6 +26014,11 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
         // was, pre-7.0, "Split materials into subtypes"
         sprintf_s(outputString, 256, "#   Split by block type: %s\n", gModel.options->pEFD->chkSplitByBlockType ? "YES" : "no");
+        WRITE_STAT;
+    }
+    else if (gModel.options->pEFD->fileType == FILE_TYPE_USD)
+    {
+        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks ? "YES" : "no");
         WRITE_STAT;
     }
 
