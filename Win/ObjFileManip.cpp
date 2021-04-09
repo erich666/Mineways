@@ -14810,7 +14810,8 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
                     heightIndices[0] = heightIndices[1] = heightIndices[2] = heightIndices[3] = NO_INDEX_SET;
                 }
                 // are all heights 1.0, so that this is a full block?
-                if (isFullBlock)
+                // TODOTODO for instancing in USD, consider all fluid blocks as full, since we can't really differentiate
+                if (isFullBlock || gModel.instancing)
                 {
                     // full block, so save vertices as-is;
                     // If we're doing a 3D print export, we still check if the neighbor fully covers this full face.

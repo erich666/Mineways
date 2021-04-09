@@ -4195,6 +4195,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_STATIONARY_WATER:
     case BLOCK_LAVA:
     case BLOCK_STATIONARY_LAVA:
+        // water has no data value normally (bubble column is only exception)
+        finalDataVal = 0;
         // uses 0-8, with 8 giving one above
         if (dataVal <= 8)
         {
