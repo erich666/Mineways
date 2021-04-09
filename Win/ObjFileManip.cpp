@@ -646,7 +646,7 @@ static void meltSnow();
 static void hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, int* seedCount);
 
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
-static void createInstance(int type, int dataVal);
+static void createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
 static void saveInstanceLocation(float* anchorPt, int instanceID);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
@@ -14455,15 +14455,16 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                     }
                     if (outputFaces) {
                         if (gModel.instancing) {
-                            // create a new instance of this block type, storing away the first face ID.
-                            // adjust the scale and location (center at origin) of the instance.
-                            // this method will test the increment gModel.instanceCount
-                            createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data);
-
+                            int faceID = gModel.faceCount;
                             // make the instance at the origin, storing it in the regular database the usual way.
                             retCode |= checkAndCreateFaces(boxIndex, origin);
                             if (retCode >= MW_BEGIN_ERRORS)
                                 return retCode;
+
+                            // create a new instance of this block type, storing away the first face ID.
+                            // adjust the scale and location (center at origin) of the instance.
+                            // this method will test the increment gModel.instanceCount
+                            createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, faceID);
                         }
                         else {
                             // the normal thing: create the faces as needed
@@ -14519,7 +14520,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     return retCode;
 }
 
-static void createInstance(int type, int dataVal)
+static void createInstance(int type, int dataVal, int faceIndex)
 {
     // make room
     if (gModel.instanceCount == gModel.instanceListSize)
@@ -14537,14 +14538,14 @@ static void createInstance(int type, int dataVal)
     }
 
     BlockInstance *bi = &gModel.instance[gModel.instanceCount++];
-    bi->faceNumber = gModel.faceCount;
-    bi->hash = type << 8 | dataVal;
+    bi->faceNumber = faceIndex;
+    bi->hash = type << 8 | (dataVal & 0x3f);
 }
 
 static bool findInstance(int type, int dataVal, int& instanceID)
 {
     // make the hash for the ID - so clever :)
-    int hash = type << 8 | dataVal;
+    int hash = type << 8 | (dataVal & 0x3f);
     for (int i = 0; i < gModel.instanceCount; i++) {
         if (gModel.instance[i].hash == hash) {
             instanceID = i;
@@ -14567,7 +14568,7 @@ static void saveInstanceLocation(float* anchorPt, int instanceID)
         else {
             // resize
             gModel.instanceLocListSize *= 2;
-            gModel.instanceLoc = (InstanceLocation*)realloc(gModel.instance, gModel.instanceLocListSize * sizeof(InstanceLocation));
+            gModel.instanceLoc = (InstanceLocation*)realloc(gModel.instanceLoc, gModel.instanceLocListSize * sizeof(InstanceLocation));
         }
     }
 
@@ -22841,9 +22842,10 @@ static void nameFromHash(int hash, char* instanceNameString)
 {
     int type = hash >> 8;
     int dataVal = hash & 0xff;
+    const char* subName = RetrieveBlockSubname(type, dataVal);
     // TODOTODO much better here would be to access the map naming routine, but that's tricky - 
     // you have to get the name and mask out the data value (should be made part of that routine and shared)
-    sprintf_s(instanceNameString, 256, "%s_%d_%d", gBlockDefinitions[type].name, type, dataVal);
+    sprintf_s(instanceNameString, 256, "%s_%d_%d", subName, type, dataVal);
     changeCharToUnderline(' ', instanceNameString);
 }
 
