@@ -23272,7 +23272,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
             startRun = firstFaceNumber;
-            while (findEndOfGroup(startRun, mtlName, nextStart, numVerts) || nextStart > nextFaceNumber) {
+            while (findEndOfGroup(startRun, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
                 outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, resScale, progressTick, progressIncrement);
                 // go to next group
                 startRun = nextStart;
