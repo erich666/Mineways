@@ -2655,6 +2655,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Map grid, "m" hotkey: overlays a grid showing the Anvil (r*.mca) file bounds and the individual chunks. Also, map file and chunk numbers are now always shown in the status display in the lower left. One of those "I should have added this a decade ago" features, as it also helps me debug. (<I>thanks to <a href="https://www.reddit.com/r/mineways/comments/m5m7h4/export_complete_world/">lajawi</a> for the suggestion.</I>)
 <LI>Fix walls: increase height by one, and become solid (and remove the post if not at a junction) if there is an object above the post. Note that the new 1.16 wall rules are not complete, but closer than they were. It will take major rework of the data values system (e.g., go to 16 bits) to capture the full state of a wall block. (<I>Thanks to Joefy200 for reporting this bug.</I>)
 <LI>Fix fences: glass blocks now properly connect to fences.
+<LI>Fix biome coloration code: mesa and roofed forest colors fixed. (<I>Thanks to Joefy200 for reporting <a href="https://github.com/erich666/Mineways/issues/80">this bug</a>.</I>)
 <LI>Kick the built-in Block Test World up two blocks in height, so that the visible y height is not negative.
 <LI>Cleaned up VRML export, so that it properly shows using a single mosaic tile during export. Fixed VRML and STL export so that radio buttons that should not be selectable, aren't.
 <LI>UsdPreview fixes for Houdini: opacityThreshold set to 0.001, set proper wrap mode for s and t texture wrapping.

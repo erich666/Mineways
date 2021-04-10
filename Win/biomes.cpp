@@ -366,7 +366,7 @@ void PrecomputeBiomeColors()
 // or 64 high or below. 
 int ComputeBiomeColor(int biome, int elevation, int isGrass)
 {
-    switch (biome & 0x7)
+    switch (biome)
     {
     case SWAMPLAND_BIOME:
         // the fefefe makes it so that carries are copied to the low bit,
