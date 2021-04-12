@@ -291,7 +291,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 214 */ "Nether Wart Block",      		0x770C0D, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,26, 0x01, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 215 */ "Red Nether Bricks",       		0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,26, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 216 */ "Bone Block",             		0xE1DDC9, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,26, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR }, // top location; side is previous tile
-    { /* 217 */ "Structure Void",        		0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY },	// uses red wool TODO
+    { /* 217 */ "Structure Void",        		0xff0000, 0.000f, 0xff7711, 0xff7711, 0.12345f,   1, 8, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY },	// uses red wool TODO - invisible by default
     { /* 218 */ "Observer",				  		0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4,33, 0x00, BLF_WHOLE },
     { /* 219 */ "White Shulker Box",      		0xD8DDDE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 27, 0x00, BLF_WHOLE },
     { /* 220 */ "Orange Shulker Box",     		0xEB6B0B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 27, 0x00, BLF_WHOLE },

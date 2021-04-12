@@ -425,8 +425,8 @@ typedef struct Options {
 // until the code settles down.
 #define NUM_BLOCKS NUM_BLOCKS_MAP
 
-// for ColorSchemes, needed to have ColorScheme code not break for now. TODO: fix this code
-#define NUM_BLOCKS_CS	256
+// for ColorSchemes, needed to have ColorScheme code not break for now.
+#define NUM_BLOCKS_CS	NUM_BLOCKS_MAP
 
 // absolute max the 4x4 * 16x16 space that tiles could have (without borders)
 // TODO: memory-wise, might be better to alloc and realloc as needed, as this is now 4096 in size

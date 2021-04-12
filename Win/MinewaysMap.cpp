@@ -963,7 +963,8 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
         break;
 
     case BLOCK_SAPLING:
-        switch (dataVal & 0xf)
+        // mask off the age_bit - specifies the sapling's growth stage.
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);

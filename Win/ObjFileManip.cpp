@@ -10840,7 +10840,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     switch (type)
     {
     case BLOCK_SAPLING:				// saveBillboardFacesExtraData
-        // The 0x8 bit functions as the counter. The counter is cleared when a sapling is dropped as an item.
+        // The 0x8 age_bit functions as the counter. The counter is cleared when a sapling is dropped as an item.
         switch (dataVal & 0x7)
         {
         default:
@@ -18173,6 +18173,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_SAPLING:						// getSwatch
+            // mask off the age_bit - specifies the sapling's growth stage.
             switch (dataVal & 0x7)
             {
             default:
@@ -25524,6 +25525,8 @@ static int writeSchematicBox()
                     data = 0x0;
                     retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
                 }
+                // ignore or turn into bedrock if at end of list of valid blocks
+                // for this old-fashioned schematic file format.
                 if (gBoxData[boxIndex].type >= BLOCK_UNKNOWN)
                 {
                     // unknown block?

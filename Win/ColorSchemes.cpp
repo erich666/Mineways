@@ -111,6 +111,23 @@ void ColorManager::load(ColorScheme* cs)
     DWORD csLen = sizeof(ColorScheme);
     RegQueryValueEx(key, keyname, NULL, NULL, (LPBYTE)cs, &csLen);
 
+    // are we upgrading from an old scheme to more blocks? Check all blocks read in for valid colors.
+    // 0xcccccccc is a bad color
+    bool corrected = false;
+    for (int i = 0; i < NUM_BLOCKS_CS; i++) {
+        // detect common "no color saved" cases, release and debug, and then assign
+        if (cs->colors[i] == 0 || cs->colors[i] == 0xcccccccc || cs->colors[i] == NO_COLOR_ENTRY) {
+            cs->colors[i] = blockColor(i);
+            corrected = true;
+        }
+    }
+
+    // if we made changes, i.e., added default colors for missing entries, save the new version
+    if (corrected) {
+        save(cs);
+    }
+
+    /* old code that is no longer needed, since we go well past BLOCK_UNKNOWN:
     // find out how many entries are invalid and fix these by shifting up
     int endLoc = BLOCK_UNKNOWN;
     // Find unknown block entry (for backwards compatibility)
@@ -142,6 +159,7 @@ void ColorManager::load(ColorScheme* cs)
         }
         save(cs);
     }
+    */
 }
 // Already has name and data fields, along with unique ID; just copy colors.
 // You should load the cs and csSource before calling to ensure they're the same size,
@@ -157,7 +175,7 @@ void ColorManager::copy(ColorScheme* cs, ColorScheme* csSource)
     swprintf(keyname, 50, L"scheme %d", csSource->id);
     RegQueryValueEx(key, keyname, NULL, NULL, (LPBYTE)csSource, &csLen);
 
-    for (int i = 0; i <= BLOCK_UNKNOWN; i++)
+    for (int i = 0; i < NUM_BLOCKS_CS; i++)
     {
         // copy color
         cs->colors[i] = csSource->colors[i];
@@ -209,24 +227,28 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 {
     HWND list;
     UNREFERENCED_PARAMETER(lParam);
+    ColorScheme cs;
+    ColorManager cm;
     switch (message)
     {
     case WM_INITDIALOG:
-    {
-        ColorManager cm;
-        list = GetDlgItem(hDlg, IDC_SCHEMELIST);
-        ColorScheme cs;
-        int id = cm.next(0, &cs);
-        while (id)
         {
-            int pos = (int)SendMessage(list, LB_ADDSTRING, 0, (LPARAM)cs.name);
-            SendMessage(list, LB_SETITEMDATA, pos, cs.id);
-            id = cm.next(id, &cs);
+            list = GetDlgItem(hDlg, IDC_SCHEMELIST);
+            int id = cm.next(0, &cs);
+            while (id)
+            {
+                int pos = (int)SendMessage(list, LB_ADDSTRING, 0, (LPARAM)cs.name);
+                SendMessage(list, LB_SETITEMDATA, pos, cs.id);
+                id = cm.next(id, &cs);
+                // get a "likely to be unique" number if the user adds a scheme.
+                // not foolproof, we should really check all cs.names to avoid a
+                // match, but better than starting at 1.
+                gLocalCountForNames++;
+            }
+            validateButtons(hDlg);
+            wcsncpy_s(gLastItemSelected, 255, L"", 1);
         }
-        validateButtons(hDlg);
-        wcsncpy_s(gLastItemSelected, 255, L"", 1);
-    }
-    return (INT_PTR)TRUE;
+        return (INT_PTR)TRUE;
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
@@ -244,7 +266,6 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
             list = GetDlgItem(hDlg, IDC_SCHEMELIST);
             int item = (int)SendMessage(list, LB_GETCURSEL, 0, 0);
             curCS.id = (int)SendMessage(list, LB_GETITEMDATA, item, 0);
-            ColorManager cm;
             cm.load(&curCS);
             DialogBox(NULL, MAKEINTRESOURCE(IDD_COLORSCHEME), hDlg, ColorSchemeEdit);
             cm.save(&curCS);
@@ -262,8 +283,6 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
             int item = (int)SendMessage(list, LB_GETCURSEL, 0, 0);
             curCS.id = (int)SendMessage(list, LB_GETITEMDATA, item, 0);
 
-            ColorManager cm;
-            ColorScheme cs;
             // this ensures the source is the proper size in blocks, same as the new one
             cm.load(&curCS);
             swprintf_s(cs.name, 255, L"%ls %d", curCS.name, gLocalCountForNames);
@@ -280,9 +299,7 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
         break;
         case IDC_ADD:
         {
-            ColorManager cm;
-            ColorScheme cs;
-            // goofy, all color schemes use the same name by default.
+            // all color schemes use the same name by default.
             swprintf_s(cs.name, 255, L"Color Scheme %d", gLocalCountForNames);
             gLocalCountForNames++;
             cm.create(&cs);
@@ -294,7 +311,6 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
         break;
         case IDC_REMOVE:
         {
-            ColorManager cm;
             list = GetDlgItem(hDlg, IDC_SCHEMELIST);
             int item = (int)SendMessage(list, LB_GETCURSEL, 0, 0);
             if (item != LB_ERR)
@@ -319,7 +335,6 @@ INT_PTR CALLBACK ColorSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
             else
             {
                 curCS.id = (int)SendMessage(list, LB_GETITEMDATA, item, 0);
-                ColorManager cm;
                 cm.load(&curCS);
                 wcsncpy_s(gLastItemSelected, 255, curCS.name, 255);
             }

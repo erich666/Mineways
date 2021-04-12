@@ -366,6 +366,8 @@ void PrecomputeBiomeColors()
 // or 64 high or below. 
 int ComputeBiomeColor(int biome, int elevation, int isGrass)
 {
+    static int my_biome = SWAMPLAND_BIOME;
+    biome = my_biome;
     switch (biome)
     {
     case SWAMPLAND_BIOME:
