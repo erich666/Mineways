@@ -463,8 +463,6 @@ ProgressValues gProgress;
 #define IS_WATER(tval,bi)	(((tval) == BLOCK_WATER) || ((tval) == BLOCK_STATIONARY_WATER) || IS_WATERLOGGED(tval,bi))
 
 
-
-
 typedef struct TouchCell {
     unsigned short connections;	// bit field showing connections to edges
     unsigned char count;		// number of connections (up to 12)
@@ -650,6 +648,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
 static void createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
 static void saveInstanceLocation(float* anchorPt, int instanceID);
+static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
@@ -2556,6 +2555,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                             //assert(i < block->numEntities);
                         }
                     }
+                    // for 1.12 and earlier, shove bottom half flower ID number into top half, too
                     else if ((blockID == BLOCK_DOUBLE_FLOWER) && (gBoxData[boxIndex].data & 0x8)) {
                         // The top part of the flower doesn't always have the lower bits that identifies it. Copy these over from the block below, if available.
                         // This could screw up schematic export. TODO
@@ -4020,7 +4020,7 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
     }
 }
 
-// Some growing objects get "wobbled" by +/- 3/16:
+// Some growing objects get "wobbled" by +/- 3/16, moving them horizontally in the block, depending on position.
 // Bamboo sapling - yes, other saplings - no
 // Grass, fern, flowers - yes, dead bush - no
 // Tall grass and other tall flowers - yes
@@ -4028,6 +4028,12 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 // everything else (mushrooms, crops, stems, carrots, potatoes, beetroot, nether wart, kelp) do not
 static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
 {
+    // instanced models should not be wobbled
+    if (gModel.instancing) {
+        shiftX = shiftZ = 0.0f;
+        return;
+    }
+
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);  // cppcheck-suppress 563
     // make the numbers positive
@@ -4049,9 +4055,9 @@ static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
     z = z ^ (z >> 16u);
 
     float val = (float)x / 4294967296.0f;
-    shiftX = (float)(6 * val - 3);
+    shiftX = 6.0f * val - 3.0f;
     val = (float)z / 4294967296.0f;
-    shiftZ = (float)(6 * val - 3);
+    shiftZ = 6.0f * val - 3.0f;
 }
 
 static void randomRotation(int boxIndex, int& angle)
@@ -11375,6 +11381,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     // If dontWobbleOverride is true, then we force wobbleIt to false;
     // this is for flower pots
     if (dontWobbleOverride) {
+        // wobbleIt may have been set above to true - turn it off
         wobbleIt = false;
     }
     if (wobbleIt) {
@@ -14533,21 +14540,18 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     }
 
     //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
-    // already done readjustment if we're instancing
-    if (!gModel.instancing) {
-        // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
-        for (i = 0; i < gModel.vertexCount; i++)
-        {
-            float* pt = (float*)gModel.vertices[i];
-            float anchor[3];
-            Vec2Op(anchor, =, gModel.vertices[i]);
-            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+    // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
+    for (i = 0; i < gModel.vertexCount; i++)
+    {
+        float* pt = (float*)gModel.vertices[i];
+        float anchor[3];
+        Vec2Op(anchor, =, gModel.vertices[i]);
+        pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+        pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+        pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
 
-            // rotate location as needed
-            rotateLocation(pt);
-        }
+        // rotate location as needed
+        rotateLocation(pt);
     }
 
     UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.75f);
@@ -14595,14 +14599,15 @@ static void createInstance(int type, int dataVal, int faceIndex)
 
     BlockInstance *bi = &gModel.instance[gModel.instanceCount++];
     bi->faceNumber = faceIndex;
-    bi->hash = type << 8 | (dataVal & 0x3f);
+    bi->hash = makeInstanceHash(type, dataVal);
 }
 
 static bool findInstance(int type, int dataVal, int& instanceID)
 {
-    // make the hash for the ID - so clever :)
-    int hash = type << 8 | (dataVal & 0x3f);
+    // make the hash for the ID
+    int hash = makeInstanceHash(type, dataVal);
     for (int i = 0; i < gModel.instanceCount; i++) {
+        // does it match an existing one?
         if (gModel.instance[i].hash == hash) {
             instanceID = i;
             return true;
@@ -14635,6 +14640,13 @@ static void saveInstanceLocation(float* anchorPt, int instanceID)
     }
 }
 
+static int makeInstanceHash(int type, int dataVal)
+{
+    if (gBlockDefinitions[type].flags & BLF_MAYWATERLOG) {
+        dataVal &= ~WATERLOGGED_BIT;
+    }
+    return type << 16 | dataVal;
+}
 
 #define UV_TO_SWATCHLOC(pUV) 
 // sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
@@ -15905,6 +15917,11 @@ static int getMaterialUsingGroup(int groupID)
 
 static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly)
 {
+    if (gModel.instancing) {
+        // don't rotate when instancing, since only one grass block is going to be set.
+        // An alternative would be to set a rotation value for the block.
+        return;
+    }
     int angle;  // cppcheck-suppress 398
     if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
         // random rotation based on location - not same algorithm as Minecraft, but same idea
@@ -22778,6 +22795,11 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+    if (gXformScale != 1.0f) {
+        sprintf_s(outputString, 256, "    float3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    }
+
     // if we're instancing, we need to simply write out the instance locations and what blocks they refer to
     if (gModel.instancing) {
         char blockLibraryName[MAX_PATH_AND_FILE];
@@ -22856,11 +22878,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     }
     else {
 
-        if (gXformScale != 1.0f) {
-            sprintf_s(outputString, 256, "    float3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        }
-
         if (retCode |= createMeshesUSD(NULL, NULL)) {
             goto Exit;
         }
@@ -22911,7 +22928,7 @@ Exit:
 
 static void nameFromHash(int hash, char* instanceNameString)
 {
-    int type = hash >> 8;
+    int type = hash >> 16;
     int dataVal = hash & 0xff;
     const char* subName = RetrieveBlockSubname(type, dataVal);
     // TODOTODO much better here would be to access the map naming routine, but that's tricky - 

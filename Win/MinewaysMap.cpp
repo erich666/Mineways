@@ -549,7 +549,7 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
         }
     }
 
-    return RetrieveBlockSubname(*type, *dataVal, block, xoff, y, zoff);
+    return RetrieveBlockSubname(*type, *dataVal); //, block), xoff, y, zoff);
 }
 
 
@@ -586,7 +586,7 @@ static struct {
     { "Horn" },
 };
 
-const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int xoff, int y, int zoff)
+const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block), int xoff, int y, int zoff)
 {
     ///////////////////////////////////
     // give a better name if possible
@@ -798,12 +798,11 @@ const char* RetrieveBlockSubname(int type, int dataVal, WorldBlock* block, int x
     case BLOCK_DOUBLE_FLOWER:
         // subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
         // This is just a safety net now - we actually shove the data value into the upper part of the plant nowadays, in extractChunk
-        if ((block != NULL) && (dataVal & 0x8)) {
-            // can get name only when the block data is available
-            dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
-        }
-        // dataVal will not be correct for 1.12 and earlier if block is not available. 1.13 on, it will.
-        switch (dataVal & 0xf)
+        //if ((block != NULL) && (dataVal & 0x8)) {
+        //    // can get name only when the block data is available
+        //    dataVal = block->data[xoff + zoff * 16 + (y - 1) * 256];
+        //}
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
@@ -3882,8 +3881,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // add flower above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_DOUBLE_FLOWER;
-            // not entirely sure about this number, but 10 seems to be the norm
-            block->data[bi] = (unsigned char)10;
+            // not entirely sure about this number, but 10 seems to be the norm,
+            // but https://minecraft.fandom.com/wiki/Flower#Data_values says to use 8
+            // Note that the top half is made to be the dataVal, too, which is the modern
+            // way that nbt.cpp reads in this data. 1.12 and earlier would not have this set,
+            // but this artificial map is considered modern.
+            block->data[bi] = (unsigned char)(dataVal | 8);
         }
         break;
     case BLOCK_SAPLING:	// now with bamboo

@@ -2653,7 +2653,8 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <BR>
 <UL>
 <LI>Map grid, "m" hotkey: overlays a grid showing the Anvil (r*.mca) file bounds and the individual chunks. Also, map file and chunk numbers are now always shown in the status display in the lower left. One of those "I should have added this a decade ago" features, as it also helps me debug. (<I>thanks to <a href="https://www.reddit.com/r/mineways/comments/m5m7h4/export_complete_world/">lajawi</a> for the suggestion.</I>)
-<LI>Note if block is waterlogged in status display (but only if it isn't always waterlogged, i.e., <a href="https://minecraft.fandom.com/wiki/Waterlogging">inherent</a>). Add waterlogged status to some [Block Test World] blocks.
+<LI>Note if block is waterlogged in status display (but only if it isn't always waterlogged, i.e., <a href="https://minecraft.fandom.com/wiki/Waterlogging">inherent</a>).
+<LI>Add waterlogged status to some [Block Test World] blocks; also fix this world in a number of places.
 <LI>Updated color schemes to include all block types, using my internal block type numbering scheme for blocks from 1.13 on. If you get flaky problems with old color schemes, at worst you can always run REGEDIT and delete the ColorSchemes directory at "Computer\HKEY_CURRENT_USER\Software\&lt;your name here&gt;\Mineways".
 <LI>Fix walls: increase height by one, and become solid (and remove the post if not at a junction) if there is an object above the post. Note that the new 1.16 wall rules are not complete, but closer than they were. It will take major rework of the data values system (e.g., go to 16 bits) to capture the full state of a wall block. (<I>Thanks to Joefy200 for reporting this bug.</I>)
 <LI>Fix fences: glass blocks now properly connect to fences.

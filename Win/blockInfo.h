@@ -708,7 +708,7 @@ enum block_types {
     BLOCK_ACACIA_WOOD_STAIRS = 0xA3,
     BLOCK_DARK_OAK_WOOD_STAIRS = 0xA4,
     // 1.7.2
-    BLOCK_DOUBLE_FLOWER = 0xAF,
+    BLOCK_DOUBLE_FLOWER = 175,  // yes, it's out of order.
     // 1.8
     BLOCK_SLIME = 165,
     BLOCK_BARRIER = 0xA6,

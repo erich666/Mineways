@@ -115,7 +115,7 @@ static Options gOptions = { 0,   // which world is visible
 static WorldGuide gWorldGuide;
 // find versions here: https://minecraft.gamepedia.com/Data_version
 static int gVersionID = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
-// translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14
+// translate the number above into a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14:
 static int gMinecraftVersion = 0;
 static int gMaxHeight = INIT_MAP_MAX_HEIGHT;
 static int gMinHeight = 0;
@@ -221,6 +221,8 @@ static int gSubError = 0;
 
 static int gOneTimeDrawError = true;
 static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
+
+static int gInstanceError = true;
 
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
@@ -3068,7 +3070,7 @@ static int loadWorld(HWND hWnd)
     if (!gSameWorld)
     {
         // new world loaded
-        gOneTimeDrawError = true;
+        gOneTimeDrawError = gInstanceError = true;
         gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
 
         gCurX = gSpawnX;
@@ -4474,6 +4476,13 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         if (*updateProgress)
         {
             (*updateProgress)(1.0f);
+        }
+
+        // check if world is 1.12 or earlier, USD export, and instancing - warn once per world
+        if (gModel.instancing && (gMinecraftVersion <= 12) && gInstanceError) {
+            gInstanceError = false;
+            MessageBox(NULL, _T("Warning: Exporting individual blocks from this older world may not work well, due to incomplete data. For a better conversion, consider first reading your world into a recent version of Minecraft so that it is saved into a newer file format."),
+                _T("Export limitation"), MB_OK | MB_ICONERROR);
         }
 
         if (errCode < MW_BEGIN_ERRORS) {
