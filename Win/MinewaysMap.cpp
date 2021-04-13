@@ -3687,7 +3687,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     int type = origType;
     if (origType > 255) {
         // how we signal a block type is > 255.
-        finalDataVal |= 0x80;
+        //finalDataVal |= HIGH_BIT; - now done at end
         type &= 0xFF;
     }
 
@@ -3809,16 +3809,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_JACK_O_LANTERN:
     case BLOCK_CORAL_BLOCK:
     case BLOCK_DEAD_CORAL_BLOCK:
-    case BLOCK_CORAL:
-    case BLOCK_CORAL_FAN:
-    case BLOCK_DEAD_CORAL_FAN:
-    case BLOCK_DEAD_CORAL:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
         // uses 0-4
         if (dataVal < 5)
         {
             addBlock = 1;
+        }
+        break;
+    case BLOCK_CORAL:
+    case BLOCK_CORAL_FAN:
+    case BLOCK_DEAD_CORAL_FAN:
+    case BLOCK_DEAD_CORAL:
+        // uses 0-9
+        if (dataVal < 10)
+        {
+            addBlock = 1;
+            if (dataVal >= 5) {
+                finalDataVal = (dataVal-5) | WATERLOGGED_BIT;	// waterlogged
+            }
         }
         break;
     case BLOCK_DIRT:
@@ -3851,7 +3860,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_CRIMSON_SLAB:
-        // uses 0-4 and 8-12
+        // uses 0-4 and 8-12 for different slab types + lower or upper
         if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
         {
             addBlock = 1;
@@ -3859,7 +3868,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_WOODEN_SLAB:
     case BLOCK_ANDESITE_SLAB:
-        // uses 0-5 and 8-13
+        // uses 0-5 and 8-13 for different slab types + lower or upper
         if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
         {
             addBlock = 1;
@@ -4105,7 +4114,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // TODO: fan in different directions
     case BLOCK_CORAL_WALL_FAN:
     case BLOCK_DEAD_CORAL_WALL_FAN:
-        // uses 0-15
+        // uses 0-15 - no waterlogging (no room!)
     {
         int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
         int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
@@ -4230,6 +4239,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
         }
+        else if (dataVal >= 6 && dataVal <= 9)
+        {
+            addBlock = 1;
+            finalDataVal = (dataVal - 4) | WATERLOGGED_BIT;	// waterlogged
+        }
         break;
     case BLOCK_FURNACE:
         // uses 0-15, remapping dataVal to the four facings of the furnace, loom, smoker, and blast furnace 
@@ -4332,6 +4346,31 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_LADDER:
+        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+        {
+            addBlock = 1;
+            switch (dataVal & 0x7)
+            {
+            case 2:
+                // put block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 5:
+                // put block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            }
+            finalDataVal = (dataVal & 0x7) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
+        }
+        break;
     case BLOCK_WALL_BANNER:
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:
@@ -4348,7 +4387,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_GREEN_WALL_BANNER:
     case BLOCK_RED_WALL_BANNER:
     case BLOCK_BLACK_WALL_BANNER:
-        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+        if (dataVal >= 2 && dataVal <= 5)
         {
             addBlock = 1;
             switch (dataVal)
@@ -4589,6 +4628,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DARK_OAK_TRAPDOOR:
     case BLOCK_CRIMSON_TRAPDOOR:
     case BLOCK_WARPED_TRAPDOOR:
+        // use all 0-15
         addBlock = 1;
 
         trimVal = dataVal & 0x3;
@@ -5020,7 +5060,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
             if (dataVal == 0) {
-                finalDataVal = HIGH_BIT | BIT_32;
+                finalDataVal = BIT_32;
                 block->data[bi] = (unsigned char)HIGH_BIT;
             }
             else {
@@ -5046,8 +5086,24 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             if (dataVal >= 4) {
-                finalDataVal = (dataVal & 0x3) | (WATERLOGGED_BIT | HIGH_BIT);	// waterlogged, and high bit
+                finalDataVal = (dataVal & 0x3) | WATERLOGGED_BIT;	// waterlogged
             }
+        }
+        break;
+    case BLOCK_CHAIN:
+        // uses 0-2 to mean 0,4,8, but also with waterlogged
+        if (dataVal < 6)
+        {
+            addBlock = 1;
+            finalDataVal = ((dataVal % 3) * 4) | ((dataVal >= 3) ? WATERLOGGED_BIT : 0);	// waterlogged
+        }
+        break;
+    case BLOCK_CONDUIT:
+        // also with waterlogged
+        if (dataVal < 2)
+        {
+            addBlock = 1;
+            finalDataVal = (dataVal >= 1) ? WATERLOGGED_BIT : 0;	// waterlogged
         }
         break;
     case BLOCK_BARREL:
@@ -5147,19 +5203,20 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_LANTERN:
-        // uses bits 0-4
-        if ((dataVal & 0xf) < 2)
+        // uses lowest bit 0 for hanging, 1 for soul lantern, plus waterlogging
+        if ((dataVal & 0xf) < 8)
         {
             addBlock = 1;
             if (dataVal & 0x1) {
-                // put block above
+                // put block above lantern
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
             }
+            finalDataVal = (dataVal & 0x3) | ((dataVal >= 4) ? WATERLOGGED_BIT : 0);
         }
         break;
     case BLOCK_SCAFFOLDING:
-        // uses only bit 0, but put three of them up
-        if (dataVal < 1)
+        // uses only bit 0, but put three of them up, and waterlog
+        if (dataVal < 4)
         {
             addBlock = 1;
             // put block above
@@ -5170,6 +5227,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
             block->data[bi] = (unsigned char)(HIGH_BIT | 0x1);
+            finalDataVal = (dataVal % 2) | ((dataVal >= 2) ? WATERLOGGED_BIT : 0);
         }
         break;
     case BLOCK_BEE_NEST:
@@ -5191,6 +5249,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     // if we want to do a normal sort of thing
     if (addBlock)
     {
+        finalDataVal |= (origType > 255) ? HIGH_BIT : 0x0;
         bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)finalDataVal;

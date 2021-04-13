@@ -9034,7 +9034,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             gUsingTransform = 1;
 
             // left half
-            int rotationDV = dataVal & 0xf;
+            int rotationDV = dataVal & 0xf; // x-axis == 4, z-axis == 8
             littleTotalVertexCount = gModel.vertexCount;
             saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
@@ -9059,7 +9059,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
             // now rotate it if going along X or Z axis
             if (rotationDV > 0) {
-                rotateMtx(mtx, (rotationDV ==4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
+                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
             }
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(littleTotalVertexCount, mtx);

@@ -89,6 +89,10 @@ if (FH) { \
     } \
 }
 
+// for outputting waterlogged status for a block
+// this part is left off, as those types of blocks are always waterlogged:  ((gBlockDefinitions[type].flags & BLF_WATERLOG) ||
+#define WATERLOGGED_LABEL(type,dataVal) ((gBlockDefinitions[type].flags & BLF_MAYWATERLOG) && (dataVal & WATERLOGGED_BIT))
+
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -2802,14 +2806,17 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     }
     else
     {
-
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d[%d,%d] %S%S%S%S", mx, mz, my, mx * 8, mz * 8, blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
+            wsprintf(buf, L"%d,%d; y=%d[%d,%d] %S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+                WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
+                blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
         else
             //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d %S%S%S%S", mx, mz, my, blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
+            wsprintf(buf, L"%d,%d; y=%d %S%S%S%S%S", mx, mz, my, 
+                WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
+                blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
     }
     SendMessage(hwndStatus, SB_SETTEXT, 0, (LPARAM)buf);
 }
