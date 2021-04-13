@@ -555,7 +555,8 @@ static void determineProgressValues(int fileType, int xdim, int zdim);
 
 static int modifyAndWriteTextures(int needDifferentTextures, int fileType);
 
-static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation);
+static void convertWcharPathUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation);
+static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldCharName, bool convertPunctuation);
 
 static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
 static int initializeModelData();
@@ -713,7 +714,7 @@ static void freeOutData();
 static int createMaterialsUSD(char *texturePath, wchar_t* mtlLibraryFile);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
-static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts);
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
 static int writeMDLforUSD(wchar_t* filePath);
 static int closeUSDFile(PORTAFILE& modelFile);
@@ -1830,18 +1831,21 @@ void StripLastString(const wchar_t* src, wchar_t* path, wchar_t* piece)
     *endPathPtr = (wchar_t)0;
 }
 
-static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation)
+static void convertWcharPathUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation)
 {
     char worldChar[MAX_PATH_AND_FILE];
-    const char* justWorldFileName;
     WcharToChar(worldName, worldChar, MAX_PATH_AND_FILE);
-    justWorldFileName = removePathChar(worldChar);
+    convertCharPathUnderlined(worldNameUnderlined, worldChar, convertPunctuation);
+}
+static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldCharName, bool convertPunctuation)
+{
+    const char* justWorldFileName = removePathChar(worldCharName);
 
     // replace spaces with underscores for world name output
     strcpy_s(worldNameUnderlined, MAX_PATH_AND_FILE, justWorldFileName);
     changeCharToUnderline(' ', worldNameUnderlined);
     // convert all punctuation found in Windows file names to underscores
-    if (convertPunctuation ) {
+    if (convertPunctuation) {
         char* charFound = strpbrk(worldNameUnderlined, " -+=[]{}`~,.';!@#$%^&()");
         while (charFound) {
             *charFound = '_';
@@ -1849,7 +1853,6 @@ static void getWorldNameUnderlined(char* worldNameUnderlined, wchar_t* worldName
         }
     }
 }
-
 
 static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
 {
@@ -3861,13 +3864,13 @@ static void translateMtx(float mtx[4][4], float tx, float ty, float tz)
 static void translateToOriginMtx(float mtx[4][4], int boxIndex)
 {
     IPoint anchor;
-    boxIndexToLoc(anchor, boxIndex);
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
     translateMtx(mtx, VecList(-0.5f - (float)anchor));
 }
 static void translateFromOriginMtx(float mtx[4][4], int boxIndex)
 {
     IPoint anchor;
-    boxIndexToLoc(anchor, boxIndex);
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
     translateMtx(mtx, VecList(0.5f + (float)anchor));
 }
 static void scaleMtx(float mtx[4][4], float sx, float sy, float sz)
@@ -9350,15 +9353,10 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
     vertices = &gModel.vertices[gModel.vertexCount];
     startVertexIndex = gModel.vertexCount;
-    if (gModel.instancing) {
-        // put at origin
-        anchor[X] = anchor[Y] = anchor[Z] = 0;
-    }
-    else {
-        // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
-        // but is still considered a billboard - I forget why...).
-        boxIndexToLoc(anchor, boxIndex);
-    }
+
+    // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+    // but is still considered a billboard - I forget why...).
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
 
     for (i = 0; i < 8; i++)
     {
@@ -10025,15 +10023,9 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         // normal case: make vertices
         startVertexIndex = gModel.vertexCount;
 
-        if (gModel.instancing) {
-            // put at origin
-            anchor[X] = anchor[Y] = anchor[Z] = 0;
-        }
-        else {
-            // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
-            // but is still considered a billboard - I forget why...).
-            boxIndexToLoc(anchor, boxIndex);
-        }
+        // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+        // but is still considered a billboard - I forget why...).
+        boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
 
         // create the eight corner locations: xmin, ymin, zmin; xmin, ymin, zmax; etc.
         fminx = minPixX / 16.0f;
@@ -10886,6 +10878,16 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     assert(!gModel.print3D);
 
     swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+
+    // for instancing, never wobble it, and set boxIndex internally here to 0, since it's an instance
+    int boxIndexOut;
+    if (gModel.instancing) {
+        dontWobbleOverride = true;
+        boxIndexOut = 0;
+    }
+    else {
+        boxIndexOut = boxIndex;
+    }
 
     // some types use data values for which billboard to use
     switch (type)
@@ -11840,7 +11842,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     else {
         // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
         // but is still considered a billboard - I forget why...).
-        boxIndexToLoc(anchor, boxIndex);
+        boxIndexToLoc(anchor, boxIndexOut);
     }
 
     // now output, if anything found (redstone wire may not actually have any sides)
@@ -14506,7 +14508,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
                             // create a new instance of this block type, storing away the first face ID.
                             // adjust the scale and location (center at origin) of the instance.
-                            // this method will test the increment gModel.instanceCount
+                            // this method will test the increment gModel.instanceCount.
                             createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, faceID);
                         }
                         // Whatever the case, store the instance location, which is the stored gModel.faceCount,
@@ -14869,7 +14871,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
                 {
                     // full block, so save vertices as-is;
                     // If we're doing a 3D print export, we still check if the neighbor fully covers this full face.
-                    if (gModel.print3D && testPartial)
+                    if (gModel.print3D && testPartial && !gModel.instancing)
                     {
                         if (!checkMakeFace(type, neighborType, !gModel.print3D, testPartial, faceDirection, boxIndex, neighborBoxIndex, true))
                             // face is covered and we're 3D printing
@@ -15508,7 +15510,7 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
         Vec2Op(offset, =, gFaceToVertexOffset[faceDirection][i]);
         // gFaceToVertexOffset[6][4][3] gives the X,Y,Z offsets to the
         // vertex to be written for this box
-        vertexIndex = boxIndex +
+        vertexIndex = ( gModel.instancing ? 0 : boxIndex ) +
             offset[X] * gBoxSizeYZ +
             offset[Y] +
             offset[Z] * gBoxSize[Y];
@@ -15590,8 +15592,9 @@ static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
     {
         Vec2Op(offset, =, gFaceToVertexOffset[faceDirection][i]);
         // gFaceToVertexOffset[6][4][3] gives the X,Y,Z offsets to the
-        // vertex to be written for this box
-        vertexIndex = boxIndex +
+        // vertex to be written for this box.
+        // If instancing, everything's "at the origin"
+        vertexIndex = (gModel.instancing ? 0 : boxIndex ) +
             offset[X] * gBoxSizeYZ +
             offset[Y] +
             offset[Z] * gBoxSize[Y];
@@ -15744,7 +15747,7 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
         else
         {
         UseGridLoc:
-            vertexIndex = boxIndex +
+            vertexIndex = ( gModel.instancing ? 0 : boxIndex ) +
                 offset[X] * gBoxSizeYZ +
                 offset[Y] +
                 offset[Z] * gBoxSize[Y];
@@ -20073,7 +20076,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     int mkGroupsObjs = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
     if (!mkGroupsObjs) {
@@ -21988,7 +21991,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     if (isMagics)
     {
@@ -22136,7 +22139,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
     if (gModelFile == INVALID_HANDLE_VALUE)
         return MW_CANNOT_CREATE_FILE;
 
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, false);
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     // Object name - give them a hint where it's from: world name and coordinates
     sprintf_s(outputString, 256, "solid %s__%d_%d_%d_to_%d_%d_%d\n", worldNameUnderlined,
@@ -22757,7 +22760,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     //if (createCameraUSD()) {
     //}
     // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, true);
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
     if (strlen(worldNameUnderlined)) {
         // is first character a numeral? Illegal in USD
         if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
@@ -22818,8 +22821,11 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         BlockInstance* pbi = gModel.instance;
         char instanceNameString[MAX_PATH_AND_FILE];
         for (i = 0; i < gModel.instanceCount; i++) {
+            char instanceNameUnderlined[MAX_PATH_AND_FILE];
             nameFromHash(pbi->hash, instanceNameString);
-            sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameString, (i == gModel.instanceCount - 1) ? "]" : ",");
+            convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
+
+            sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pbi++;
         }
@@ -23322,9 +23328,11 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
         // Output each set.
         for (i = 0; i < gModel.instanceCount; i++) {
             char blockName[MAX_PATH_AND_FILE];
+            char blockNameUnderlined[MAX_PATH_AND_FILE];
             nameFromHash(gModel.instance[i].hash, blockName);
 
-            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", blockName);
+            convertCharPathUnderlined(blockNameUnderlined, blockName, true);
+            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", blockNameUnderlined);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
 
             int firstFaceNumber = gModel.instance[i].faceNumber;
@@ -23335,7 +23343,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
             startRun = firstFaceNumber;
-            while (findEndOfGroup(startRun, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
+            while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
                 outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, resScale, progressTick, progressIncrement);
                 // go to next group
                 startRun = nextStart;
@@ -23356,7 +23364,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
         //SM code makes every mesh have the first material - for efficiency testing experiments
         //SM boolean firstName = true;
         //SM char useMtlName[MAX_PATH_AND_FILE];
-        while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
+        while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
 
             outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, resScale, progressTick, progressIncrement);
             // go to next group
@@ -23693,7 +23701,7 @@ static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
     // Assume we always want this on, but pre-emptively added to allow export toggle
     bool usePreviewSurface = true;
 
-    while (findEndOfGroup(startRun, mtlName, nextStart, numVerts)) {
+    while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
         FaceRecord* pFace = gModel.faceList[startRun];
         int swatchLoc = gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc;
 
@@ -25034,7 +25042,7 @@ static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
 
     // doing instancing?
     if (mtlLibraryFilename != NULL) {
-        strcpy_s(outputString, 256, "} # close Blocks Scope\n");
+        strcpy_s(outputString, 256, "} # close Scope \"Blocks\"\n");
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
         if (retCode |= closeUSDFile(materialFile)) {
             // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
@@ -25166,11 +25174,11 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
     }
 }
 
-static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& numVerts)
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts)
 {
     numVerts = 0;
     nextStart = startRun;
-    if (startRun >= gModel.faceCount)
+    if (startRun >= endCount)
         return false;
 
     // TODOUSD: we could really get rid of all of this and just pay attention to swatchLoc;
@@ -25226,7 +25234,7 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
     }
     // else don't output material, there's only one for the whole scene - TODOUSD
 
-    for (int i = startRun; i < gModel.faceCount; i++)
+    for (int i = startRun; i < endCount; i++)
     {
         FaceRecord* pFace = gModel.faceList[i];
 
@@ -25255,7 +25263,7 @@ static boolean findEndOfGroup(int startRun, char* mtlName, int& nextStart, int& 
 
         numVerts += (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
     }
-    nextStart = gModel.faceCount;
+    nextStart = endCount;
     return true;
 }
 

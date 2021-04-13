@@ -4375,13 +4375,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_WALL_SIGN:
         // there are now 6 materials for wall signs. Rather than going absolutely nuts, we change the dataVal for each
-        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+        if ((dataVal & 0x7) <= 5)
         {
             addBlock = 1;
             // set higher bits BIT_8 and BIT_16
             finalDataVal = ((dataVal % 6) << 3) | (dataVal & 0x7);
             switch (dataVal & 0x7)
             {
+                // do all the wood types
+            case 0:
+            case 1:
             case 2:
                 // put block to south
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
