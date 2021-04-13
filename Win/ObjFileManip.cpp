@@ -4164,6 +4164,41 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gMinorBlockCount++;
     }
 
+    // If USDA instancing
+    if (gModel.instancing) {
+        // is block instance already output?
+        int instanceID;
+        bool populateInstance = false;
+        if (!findInstance(type, dataVal, instanceID)) {
+            populateInstance = true;
+            // prepare for new instance - gModel.instanceCount is incremented next, when the instance is actually created
+            instanceID = gModel.instanceCount;
+
+            // create a new instance of this block type, storing away the first face ID.
+            // adjust the scale and location (center at origin) of the instance.
+            // this method will test the increment gModel.instanceCount
+            createInstance(type, dataVal, gModel.faceCount);
+        }
+        // store the instance location, which is gModel.faceCount, which points at the next set of faces
+        //loc derives from boxIndex here:
+        IPoint iloc;
+        boxIndexToLoc(iloc, boxIndex);
+        float anchorPt[3];
+        //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+        //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+        //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+        anchorPt[X] = (float)iloc[X];
+        anchorPt[Y] = (float)iloc[Y];
+        anchorPt[Z] = (float)iloc[Z];
+        // save instance location and ID and faceCount start to a long list.
+        saveInstanceLocation(anchorPt, instanceID);
+        // if the instance has just been created, now we populate with the code that follows.
+        // But, if not just created, then we don't need to do anything that follows.
+        if (!populateInstance) {
+            return 1;
+        }
+    }
+
     switch (type)
     {
     case BLOCK_SAPLING:						// saveBillboardOrGeometry
@@ -8243,8 +8278,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
         // 0x4 means "tripwire connected"
         // 0x8 means "tripwire tripped"
-        bool tripwireConnected = (gBoxData[boxIndex].data & 0x4) ? true : false;
-        bool tripwireTripped = (gBoxData[boxIndex].data & 0x8) ? true : false;
+        bool tripwireConnected = (dataVal & 0x4) ? true : false;
+        bool tripwireTripped = (dataVal & 0x8) ? true : false;
 
         // make the tripwire hook in position, facing east, then rotate it as needed
         totalVertexCount = gModel.vertexCount;
@@ -9315,7 +9350,15 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
     vertices = &gModel.vertices[gModel.vertexCount];
     startVertexIndex = gModel.vertexCount;
-    boxIndexToLoc(anchor, boxIndex);
+    if (gModel.instancing) {
+        // put at origin
+        anchor[X] = anchor[Y] = anchor[Z] = 0;
+    }
+    else {
+        // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+        // but is still considered a billboard - I forget why...).
+        boxIndexToLoc(anchor, boxIndex);
+    }
 
     for (i = 0; i < 8; i++)
     {
@@ -9982,7 +10025,15 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         // normal case: make vertices
         startVertexIndex = gModel.vertexCount;
 
-        boxIndexToLoc(anchor, boxIndex);
+        if (gModel.instancing) {
+            // put at origin
+            anchor[X] = anchor[Y] = anchor[Z] = 0;
+        }
+        else {
+            // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+            // but is still considered a billboard - I forget why...).
+            boxIndexToLoc(anchor, boxIndex);
+        }
 
         // create the eight corner locations: xmin, ymin, zmin; xmin, ymin, zmax; etc.
         fminx = minPixX / 16.0f;
@@ -11782,9 +11833,15 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
     totalVertexCount = gModel.vertexCount;
 
-    // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
-    // but is still considered a billboard - I forget why...).
-    boxIndexToLoc(anchor, boxIndex);
+    if (gModel.instancing) {
+        // put at origin
+        anchor[X] = anchor[Y] = anchor[Z] = 0;
+    }
+    else {
+        // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
+        // but is still considered a billboard - I forget why...).
+        boxIndexToLoc(anchor, boxIndex);
+    }
 
     // now output, if anything found (redstone wire may not actually have any sides)
     if (faceCount > 0) {
@@ -14434,28 +14491,13 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                 if (gBoxData[boxIndex].type > BLOCK_AIR)
                 {
                     // block is solid, may need to output some faces.
-                    bool outputFaces = true;
                     if (gModel.instancing) {
                         // is block already output?
                         int instanceID;
-                        if (findInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, instanceID)) {
-                            // block is already output to an instance
-                            outputFaces = false;
-                        }
-                        else {
+                        // is there an instance already for this type and data value? If so, set the instanceID to it.
+                        if (!findInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, instanceID)) {
                             // prepare for new instance - gModel.instanceCount is incremented later when the instance is actually created
                             instanceID = gModel.instanceCount;
-                        }
-                        // store the instance location, which is gModel.faceCount, which points at the next set of faces
-                        float anchorPt[3];
-                        anchorPt[X] = (float)(loc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-                        anchorPt[Y] = (float)(loc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-                        anchorPt[Z] = (float)(loc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-                        // save instance location and ID and faceCount start to a long list.
-                        saveInstanceLocation(anchorPt, instanceID);
-                    }
-                    if (outputFaces) {
-                        if (gModel.instancing) {
                             int faceID = gModel.faceCount;
                             // make the instance at the origin, storing it in the regular database the usual way.
                             retCode |= checkAndCreateFaces(boxIndex, origin);
@@ -14467,10 +14509,21 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                             // this method will test the increment gModel.instanceCount
                             createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, faceID);
                         }
-                        else {
-                            // the normal thing: create the faces as needed
-                            retCode |= checkAndCreateFaces(boxIndex, loc);
-                        }
+                        // Whatever the case, store the instance location, which is the stored gModel.faceCount,
+                        // which points at the next set of faces
+                        float anchorPt[3];
+                        //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+                        //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+                        //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+                        anchorPt[X] = (float)loc[X];
+                        anchorPt[Y] = (float)loc[Y];
+                        anchorPt[Z] = (float)loc[Z];
+                        // save instance location and ID to a long list. ID points to the created instance, which has the faceID
+                        saveInstanceLocation(anchorPt, instanceID);
+                    }
+                    else {
+                        // the normal thing: create the faces as needed
+                        retCode |= checkAndCreateFaces(boxIndex, loc);
                     }
                 }
             }
