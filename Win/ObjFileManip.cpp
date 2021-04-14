@@ -4111,6 +4111,10 @@ static float getRand3to1(int boxIndex)
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 {
+    if (gMcVersion > 12) {
+        // should be handled entirely by the extra bits now
+        return false;
+    }
     int neighborIndex = boxIndex + gFaceOffset[blockSide];
     int neighborType = gBoxData[neighborIndex].origType;
     // is neighbor of same type? Easy out
@@ -4484,7 +4488,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             hasPost = 1;
             firstFace = 0;
 
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+            // which side fence rails are needed: WENS is order
+            if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 // - if we're doing 3D printing, neighbor type must exactly match for the face to be removed
@@ -4494,7 +4499,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 0, 8 - hasPost * 4, 0, 13, 5, 11);
                 firstFace = 0;
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+            if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
@@ -4502,7 +4507,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 8 + hasPost * 4, 16, 0, 13, 5, 11);
                 firstFace = 0;
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+            if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
@@ -4510,7 +4515,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 0, 8 - hasPost * 4);
                 firstFace = 0;
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+            if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
@@ -4525,11 +4530,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // post, always output
             saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 6 - fatten, 10 + fatten);
-            // which posts are needed: NSEW. Brute-force it.
+            // which side fence rails are needed: WENS is order
 
             // since we erase "billboard" objects as we go, we need to test against origType.
             // Note that if a render export chops through a fence, the fence will not join. TODO - this would be good to fix, as it means tiling output doesn't work in this case.
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+            if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
@@ -4538,21 +4543,21 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+            if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+            if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
                 saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
             }
-            if (fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+            if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
@@ -4781,7 +4786,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // for each neighbor, decide whether to extend the side (and so not put the face).
 
         // top
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_TOP]].origType;
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & BIT_32) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_TOP]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
         //tricky: when extended, cap it only if 3D printing and the neighbor is NOT the same type; i.e. we want caps when it's a flower or end stone.
         //in other words, we remove face if not 3D printing and newHeight is 16, OR if neighbor == type.
@@ -4789,7 +4799,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxGeometry(boxIndex, type, dataVal, 1, (((!gModel.print3D && (newHeight == 16)) || (type == neighborType)) ? DIR_TOP_BIT : 0x0) | DIR_BOTTOM_BIT, 4, 12, 12, newHeight, 4, 12);
 
         // bottom
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_BOTTOM]].origType;
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & BIT_16) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_BOTTOM]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType) || (BLOCK_END_STONE == neighborType)) ? 0.0f : 3.0f;
         saveBoxGeometry(boxIndex, type, dataVal, 0, (((!gModel.print3D && (newHeight == 0)) || (type == neighborType)) ? DIR_BOTTOM_BIT : 0x0) | DIR_TOP_BIT, 4, 12, newHeight, 4, 4, 12);
 
@@ -4805,8 +4820,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             odds = (int)(getRand3to1(fallbackBoxIndex) * 256.0f);
         }
 
-        // Lo X
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+        // Lo X - west
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & 0x2) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
         // four cases:
         // connected to neighbor, always the same
@@ -4829,8 +4849,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((newHeight == 4) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT) : 0x0),	// don't create sides if a 6x6 is generated
             newHeight, 4, 4, 12, 4, 12);
 
-        // Hi X
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+        // Hi X - east
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & 0x8) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
         if (newHeight == 13.0f) {
             newHeight = ((odds >> 2) & 0x1) ? 12.0f : (((odds >> 2) & 0x2) ? 13.0f : 14.0f);
@@ -4848,8 +4873,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             12, newHeight, 4, 12, 4, 12);
 
 
-        // Lo Z
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+        // Lo Z - north
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & 0x4) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 0.0f : 3.0f;
         // four cases:
         // connected to neighbor, always the same
@@ -4872,8 +4902,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             ((newHeight == 4) ? (DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT) : 0x0),	// don't create sides if a 6x6 is generated
             4, 12, 4, 12, newHeight, 4);
 
-        // Hi Z
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+        // Hi Z - south
+        if (gMcVersion > 12) {
+            neighborType = (dataVal & 0x1) ? type : 0;
+        }
+        else {
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+        }
         newHeight = ((type == neighborType) || (BLOCK_CHORUS_FLOWER == neighborType)) ? 16.0f : 13.0f;
         if (newHeight == 13.0f) {
             newHeight = ((odds >> 6) & 0x1) ? 12.0f : (((odds >> 6) & 0x2) ? 13.0f : 14.0f);
@@ -7717,35 +7752,49 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         filled = 0x0;
         faceMask = 0x0;
 
-        // which neighboring blocks have something that attaches to a glass pane? Things that attach:
-        // whole blocks, glass panes, iron bars
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
-            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
-        {
-            filled |= 0x1;
-            faceMask |= DIR_LO_Z_BIT;
+        // sadly, the bits in the stained glass pane are used for colors
+        if (gMcVersion > 12 && type != BLOCK_STAINED_GLASS_PANE) {
+            filled =
+                ((dataVal & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
+                ((dataVal & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
+                ((dataVal & 0x1) ? 0x4 : 0) |   // dataVal south 0x1 translated to fill 0x4
+                ((dataVal & 0x4) ? 0x1 : 0);    // dataVal north 0x4 translated to fill 0x1
         }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
-            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
-        {
-            filled |= 0x2;
-            faceMask |= DIR_HI_X_BIT;
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
-            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
-        {
-            filled |= 0x4;
-            faceMask |= DIR_HI_Z_BIT;
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
-            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
-        {
-            filled |= 0x8;
-            faceMask |= DIR_LO_X_BIT;
+        else {
+            // which neighboring blocks have something that attaches to a glass pane? Things that attach:
+            // whole blocks, glass panes, iron bars
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+            if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+            {
+                // north
+                filled |= 0x1;
+                faceMask |= DIR_LO_Z_BIT;
+            }
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+            if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+            {
+                // east
+                filled |= 0x2;
+                faceMask |= DIR_HI_X_BIT;
+            }
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+            if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+            {
+                // south
+                filled |= 0x4;
+                faceMask |= DIR_HI_Z_BIT;
+            }
+            neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+            if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+            {
+                // west
+                filled |= 0x8;
+                faceMask |= DIR_LO_X_BIT;
+            }
         }
 
         // in 1.9 addition of posts made glass and bars merge differently

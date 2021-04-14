@@ -132,7 +132,7 @@ typedef struct UnitType {
 
 extern UnitType gUnitTypeTable[];
 
-
+// west/bottom/north/east/top/south
 #define DIRECTION_BLOCK_SIDE_LO_X	0	
 #define DIRECTION_BLOCK_BOTTOM		1	
 #define DIRECTION_BLOCK_SIDE_LO_Z	2	

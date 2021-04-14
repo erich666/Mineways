@@ -223,7 +223,7 @@ static int worldVersion = 0;
 // short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|up: true|false
-#define VINE_PROP			 34
+#define FENCE_AND_VINE_PROP			 34
 // facing: south|west|north|east
 #define END_PORTAL_PROP		 35
 // age: 0-3
@@ -414,7 +414,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  95,          13, "green_stained_glass", NO_PROP },
     { 0,  95,          14, "red_stained_glass", NO_PROP },
     { 0,  95,          15, "black_stained_glass", NO_PROP },
-    { 0, 160,           0, "white_stained_glass_pane", NO_PROP },
+    { 0, 160,           0, "white_stained_glass_pane", NO_PROP },   // sadly, these all share a type so there are not 4 bits for directions, especially since it may waterlog
     { 0, 160,           1, "orange_stained_glass_pane", NO_PROP },
     { 0, 160,           2, "magenta_stained_glass_pane", NO_PROP },
     { 0, 160,           3, "light_blue_stained_glass_pane", NO_PROP },
@@ -430,7 +430,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 160,          13, "green_stained_glass_pane", NO_PROP },
     { 0, 160,          14, "red_stained_glass_pane", NO_PROP },
     { 0, 160,          15, "black_stained_glass_pane", NO_PROP },
-    { 0, 102,           0, "glass_pane", NO_PROP },
+    { 0, 102,           0, "glass_pane", FENCE_AND_VINE_PROP },
     { 0,  37,           0, "dandelion", NO_PROP },
     { 0,  38,           0, "poppy", NO_PROP },
     { 0,  38,           1, "blue_orchid", NO_PROP },
@@ -557,12 +557,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 172,           0, "terracotta", NO_PROP },
     { 0,  83,           0, "sugar_cane", AGE_PROP },
     { 0,  84,           0, "jukebox", NO_PROP },
-    { 0,  85,           0, "oak_fence", NO_PROP }, // has props, but we ignore them
-    { 0, 188,           0, "spruce_fence", NO_PROP },
-    { 0, 189,           0, "birch_fence", NO_PROP },
-    { 0, 190,           0, "jungle_fence", NO_PROP },
-    { 0, 191,           0, "dark_oak_fence", NO_PROP },
-    { 0, 192,           0, "acacia_fence", NO_PROP },
+    { 0,  85,           0, "oak_fence", FENCE_AND_VINE_PROP },
+    { 0, 188,           0, "spruce_fence", FENCE_AND_VINE_PROP },
+    { 0, 189,           0, "birch_fence", FENCE_AND_VINE_PROP },
+    { 0, 190,           0, "jungle_fence", FENCE_AND_VINE_PROP },
+    { 0, 191,           0, "dark_oak_fence", FENCE_AND_VINE_PROP },
+    { 0, 192,           0, "acacia_fence", FENCE_AND_VINE_PROP },
     { 0, 107,           0, "oak_fence_gate", FENCE_GATE_PROP },
     { 0, 183,           0, "spruce_fence_gate", FENCE_GATE_PROP },
     { 0, 184,           0, "birch_fence_gate", FENCE_GATE_PROP },
@@ -616,13 +616,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  97,           5, "infested_chiseled_stone_bricks", NO_PROP },
     { 0,  33,           0, "piston", PISTON_PROP },
     { 0,  29,           0, "sticky_piston", PISTON_PROP },
-    { 0, 101,           0, "iron_bars", NO_PROP }, // we derive props from situation
+    { 0, 101,           0, "iron_bars", FENCE_AND_VINE_PROP },
     { 0, 103,           0, "melon", NO_PROP },
     { 0, 108,           0, "brick_stairs", STAIRS_PROP },
     { 0, 109,           0, "stone_brick_stairs", STAIRS_PROP },
-    { 0, 106,           0, "vine", VINE_PROP },
+    { 0, 106,           0, "vine", FENCE_AND_VINE_PROP },
     { 0, 112,           0, "nether_bricks", NO_PROP },
-    { 0, 113,           0, "nether_brick_fence", NO_PROP },
+    { 0, 113,           0, "nether_brick_fence", FENCE_AND_VINE_PROP },
     { 0, 114,           0, "nether_brick_stairs", STAIRS_PROP },
     { 0, 115,           0, "nether_wart", AGE_PROP },
     { 0, 118,           0, "cauldron", NO_PROP }, // level directly translates to dataVal
@@ -1071,8 +1071,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  92,       HIGH_BIT, "crimson_button", BUTTON_PROP },
     { 0,  93,       HIGH_BIT, "warped_button", BUTTON_PROP },
     { 0,  94,       HIGH_BIT, "polished_blackstone_button", BUTTON_PROP },
-    { 0,  95,       HIGH_BIT, "crimson_fence", NO_PROP },
-    { 0,  96,       HIGH_BIT, "warped_fence", NO_PROP },
+    { 0,  95,       HIGH_BIT, "crimson_fence", FENCE_AND_VINE_PROP },
+    { 0,  96,       HIGH_BIT, "warped_fence", FENCE_AND_VINE_PROP },
     { 0,  97,       HIGH_BIT, "crimson_fence_gate", FENCE_GATE_PROP },
     { 0,  98,       HIGH_BIT, "warped_fence_gate", FENCE_GATE_PROP },
     { 0,  99,       HIGH_BIT, "crimson_door", DOOR_PROP },
@@ -2650,7 +2650,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             signal_fire = false;
                             honey_level = 0;
                             break;
-                        case VINE_PROP:
+                        case FENCE_AND_VINE_PROP:
+                            // Note that for vines, 0 means there's one "above" (really, underneath).
+                            // When there's one above, there (happily) cannot be east/west/n/s, so
+                            // no extra bit is needed.
                             dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
                             break;
                         case COCOA_PROP:

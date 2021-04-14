@@ -4755,60 +4755,66 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
     case BLOCK_CHORUS_PLANT:
-        // this one is specialized: dataVal just says where to put neighbors, NSEW
+        // this one is specialized: dataVal says where to put neighbors, NSEW
+        addBlock = 1;
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)finalDataVal;
+        //block->grid[bi] = (unsigned char)type;
+        //block->data[bi] = (unsigned char)finalDataVal;
 
         // put block above, too, for every fifth one, just to see it's working
         if ((dataVal % 5) == 4) {
+            finalDataVal |= (type == BLOCK_CHORUS_PLANT) ? BIT_32 : 0;
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            // just a post
+            block->data[bi] = (unsigned char)(type == BLOCK_CHORUS_PLANT)? BIT_16 : 0;
         }
 
         // for just chorus plant, put endstone below
         if (type == BLOCK_CHORUS_PLANT)
         {
+            finalDataVal |= BIT_16;
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_END_STONE;
-            // half the time put chorus flower above, instead
+            // half the time also put chorus flower above
             if (dataVal & 0x1) {
+                finalDataVal |= BIT_32;
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_CHORUS_FLOWER;
             }
         }
 
-        if (dataVal & 0x1)
+        if (dataVal & 0x4)
         {
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            block->data[bi] = (unsigned char)0x1;
         }
-        if (dataVal & 0x2)
+        if (dataVal & 0x8)
         {
             // put block to east
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            block->data[bi] = (unsigned char)0x2;
         }
-        if (dataVal & 0x4)
+        if (dataVal & 0x1)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            block->data[bi] = (unsigned char)0x4;
         }
-        if (dataVal & 0x8)
+        if (dataVal & 0x2)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            block->data[bi] = (unsigned char)0x8;
         }
         break;
     case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
-        // this one is specialized: dataVal just says where to put neighbors, NSEW
-        // *and* what color to use
+        // this one is specialized: incoming dataVal chooses where to put neighbors, NSEW
+        // *and* what color to use. Unlike the "clear" glass pane, above, the 4 bits
+        // in the final dataVal are the color, not the neighbors. :( - need more bits
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)dataVal;
@@ -5256,6 +5262,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)finalDataVal;
+#ifdef _DEBUG
         static bool extraBlock = false;
         if (extraBlock)
         {
@@ -5265,6 +5272,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->grid[bi] = (unsigned char)type;
             block->data[bi] = (unsigned char)finalDataVal;
         }
+#endif
     }
 }
 
