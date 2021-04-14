@@ -3949,13 +3949,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLACKSTONE_STAIRS:
     case POLISHED_BLACKSTONE_STAIRS:
     case POLISHED_BLACKSTONE_BRICK_STAIRS:
-        // uses 0-7 - we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
+        // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if (dataVal < 8)
         {
             addBlock = 1;
         }
         break;
-    case BLOCK_CROPS:
+    case BLOCK_WHEAT:
     case BLOCK_CARROTS:
     case BLOCK_POTATOES:
         // uses 0-7, put farmland beneath it

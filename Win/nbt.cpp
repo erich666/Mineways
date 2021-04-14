@@ -308,9 +308,12 @@ static int worldVersion = 0;
 // waterlogged
 // which adds up to 9 bits, which is too many
 #define WALL_PROP           NO_PROP
-
 // axis: 1 EW, 2 NS
 #define NETHER_PORTAL_AXIS_PROP	51
+// pumpkin and melon stems
+// age:0-7
+// facing: north|south|west|east - done as BIT_32|BIT_16 0,1,2,3 ESWN
+#define HIGH_FACING_PROP    52
 
 // If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
 // and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
@@ -570,7 +573,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 186,           0, "dark_oak_fence_gate", FENCE_GATE_PROP },
     { 0, 187,           0, "acacia_fence_gate", FENCE_GATE_PROP },
     { 0, 104,           0, "pumpkin_stem", AGE_PROP },
-    { 0, 104,           7, "attached_pumpkin_stem", NO_PROP },	// someday could use facing property FACING_PROP to point to correct pumpkin (same with melons) long-term TODO
+    { 0, 104,     0x8 | 7, "attached_pumpkin_stem", HIGH_FACING_PROP }, // 0x8 means attached
     { 0,  86,           4, "pumpkin", NO_PROP }, //  uncarved pumpkin, same on all sides - dataVal 4
     { 0,  86,           0, "carved_pumpkin", SWNE_FACING_PROP },	// black carved pumpkin
     { 0,  91,           0, "jack_o_lantern", SWNE_FACING_PROP },
@@ -748,7 +751,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  34,           0, "moving_piston", PISTON_HEAD_PROP },	// not 100% sure that's what this is...
     { 0,  40,           0, "red_mushroom", NO_PROP },
     { 0,  80,           0, "snow_block", NO_PROP },
-    { 0, 105,           7, "attached_melon_stem", NO_PROP },	// see pumpking stem - could someday know which way to go from the facing prop
+    { 0, 105,     0x8 | 7, "attached_melon_stem", HIGH_FACING_PROP },
     { 0, 105,           0, "melon_stem", AGE_PROP },
     { 0, 117,           0, "brewing_stand", NO_PROP },	// see has_bottle_0
     { 0, 119,           0, "end_portal", NO_PROP },
@@ -2061,7 +2064,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         // frosted ice, crops, cocoa (which needs age separate)
                                         else if (strcmp(token, "age") == 0) {
                                             // AGE_PROP
-                                            // 0-3
+                                            // 0-3 or 0-7
                                             age = dataVal = atoi(value);
                                         }
                                         // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
@@ -2662,6 +2665,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case LEAF_SIZE_PROP:
                             dataVal = (leaves << 1) | age;
                             break;
+                        case HIGH_FACING_PROP:
+                            dataVal = 0xf | (door_facing << 4);
                         case QUARTZ_PILLAR_PROP:
                             // for quartz pillar, change data val based on axis
                             switch (axis) {

@@ -4255,23 +4255,54 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         if ((dataVal & 0x7) == 7)
         {
             // fully mature, change height to 10 if the proper fruit is next door
-            matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) {
-                // to west
-                angle = 0;
+            if (gMcVersion > 12) {
+                if (dataVal & 0x8) {
+                    // attached stem
+                    switch (dataVal & (BIT_16 | BIT_32)) {
+                    default:
+                    case 0:
+                        // east
+                        angle = 180;
+                        break;
+                    case BIT_16:
+                        // south
+                        angle = 270;
+                        break;
+                    case BIT_32:
+                        // to west
+                        angle = 0;
+                        break;
+                    case BIT_32 | BIT_16:
+                        // north
+                        angle = 90;
+                        break;
+                    }
+                }
+                else {
+                    // fully grown, but not attached
+                    return 1;
+                }
             }
-            else if (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) {
-                angle = 180;
+            else {
+                matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
+                if (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) {
+                    // to west
+                    angle = 0;
+                }
+                else if (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) {
+                    // east
+                    angle = 180;
+                }
+                else if (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) {
+                    angle = 90;
+                }
+                else if (gBoxData[boxIndex + gBoxSize[Y]].origType == matchType) {
+                    angle = 270;
+                }
+                else
+                    // all done, nothing next to it
+                    return 1;
             }
-            else if (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) {
-                angle = 90;
-            }
-            else if (gBoxData[boxIndex + gBoxSize[Y]].origType == matchType) {
-                angle = 270;
-            }
-            else
-                // all done, nothing next to it
-                return 1;
 
             // connected melon or pumpkin stem
             swatchLoc = (type == BLOCK_PUMPKIN_STEM) ? SWATCH_INDEX(15, 11) : SWATCH_INDEX(15, 7);
@@ -4292,7 +4323,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         return 1;
         break; // saveBillboardOrGeometry
 
-    case BLOCK_CROPS:						// saveBillboardOrGeometry
+    case BLOCK_WHEAT:						// saveBillboardOrGeometry
     case BLOCK_NETHER_WART:
     case BLOCK_CARROTS:
     case BLOCK_POTATOES:
@@ -11052,7 +11083,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         //    return 0;
         //}
         break;
-    case BLOCK_CROPS:				// saveBillboardFacesExtraData
+    case BLOCK_WHEAT:				// saveBillboardFacesExtraData
         // adjust for growth
         // undocumented: village-grown wheat appears to have
         // the 0x8 bit set, which doesn't seem to matter. Mask it out.
@@ -11100,11 +11131,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         height = ((float)dataVal * 2.0f - 15.0f) / 16.0f;
         // the tricky bit is rotating the stem to a reasonable pumpkin,
         // which we do as a separate piece
-        if (dataVal == 7)
+        if ((dataVal & 0x7) == 7)
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if ((gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) ||
+            if ( (dataVal & 0x8) ||  // the new way - if there's an attachment, https://minecraft.fandom.com/wiki/Pumpkin_Seeds#Metadata
+                (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) ||
                 (gBoxData[boxIndex + gBoxSize[Y]].origType == matchType)) {
