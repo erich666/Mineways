@@ -4732,7 +4732,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_VINES:
         // uses all bits, 0-15
-        // TODO: really should place vines on the sides and under stuff, but this is a pain
+        // TODO: really should place vines under stuff, but this is a pain
         if (dataVal > 0)
         {
             addBlock = 1;

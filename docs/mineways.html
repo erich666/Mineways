@@ -2657,7 +2657,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Add waterlogged status to some [Block Test World] blocks; also fix this world in a number of places.
 <LI>Updated color schemes to include all block types, using my internal block type numbering scheme for blocks from 1.13 on. If you get flaky problems with old color schemes, at worst you can always run REGEDIT and delete the ColorSchemes directory at "Computer\HKEY_CURRENT_USER\Software\&lt;your name here&gt;\Mineways".
 <LI>Fix walls: increase height by one, and become solid (and remove the post if not at a junction) if there is an object above the post. Note that the new 1.16 wall rules are not complete, but closer than they were. It will take major rework of the data values system (e.g., go to 16 bits) to capture the full state of a wall block. (<I>Thanks to Joefy200 for reporting this bug.</I>)
-<LI>Fix fences: glass blocks now properly connect to fences.
+<LI>Fix fences: glass blocks now properly connect to fences. Also encoded fences, iron bars, clear glass pane, and chorus plants to properly read in and use attributes for 1.13 and newer maps.
 <LI>Fix biome coloration code: mesa and roofed forest colors fixed. (<I>Thanks to Joefy200 for reporting <a href="https://github.com/erich666/Mineways/issues/80">this bug</a>.</I>)
 <LI>Kick the built-in Block Test World up two blocks in height, so that the visible y height is not negative.
 <LI>Cleaned up VRML export, so that it properly shows using a single mosaic tile during export. Fixed VRML and STL export so that radio buttons that should not be selectable, aren't.

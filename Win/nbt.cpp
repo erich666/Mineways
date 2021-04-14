@@ -222,7 +222,7 @@ static int worldVersion = 0;
 // type: sticky|normal
 // short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
-// south|west|north|east|up: true|false
+// south|west|north|east|down|up: true|false
 #define FENCE_AND_VINE_PROP			 34
 // facing: south|west|north|east
 #define END_PORTAL_PROP		 35
@@ -665,7 +665,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 168,           2, "dark_prismarine", NO_PROP },
     { 0, 169,           0, "sea_lantern", NO_PROP },
     { 0, 198,           0, "end_rod", EXTENDED_FACING_PROP },
-    { 0, 199,           0, "chorus_plant", NO_PROP },
+    { 0, 199,           0, "chorus_plant", FENCE_AND_VINE_PROP },
     { 0, 200,           0, "chorus_flower", NO_PROP },	// uses age
     { 0, 201,           0, "purpur_block", NO_PROP },
     { 0, 202,           0, "purpur_pillar", AXIS_PROP },
@@ -2653,8 +2653,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case FENCE_AND_VINE_PROP:
                             // Note that for vines, 0 means there's one "above" (really, underneath).
                             // When there's one above, there (happily) cannot be east/west/n/s, so
-                            // no extra bit is needed.
-                            dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
+                            // no extra bit is needed or used internally.
+                            dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
                             break;
                         case COCOA_PROP:
                             dataVal = ((door_facing + 3) % 4) + (age << 2);
