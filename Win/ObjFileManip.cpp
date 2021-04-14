@@ -4111,7 +4111,7 @@ static float getRand3to1(int boxIndex)
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 {
-    if (gMcVersion > 12) {
+    if (gIs13orNewer) {
         // should be handled entirely by the extra bits now
         return false;
     }
@@ -4255,7 +4255,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         if ((dataVal & 0x7) == 7)
         {
             // fully mature, change height to 10 if the proper fruit is next door
-            if (gMcVersion > 12) {
+            if (gIs13orNewer) {
                 if (dataVal & 0x8) {
                     // attached stem
                     switch (dataVal & (BIT_16 | BIT_32)) {
@@ -4817,7 +4817,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // for each neighbor, decide whether to extend the side (and so not put the face).
 
         // top
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & BIT_32) ? type : 0;
         }
         else {
@@ -4830,7 +4830,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxGeometry(boxIndex, type, dataVal, 1, (((!gModel.print3D && (newHeight == 16)) || (type == neighborType)) ? DIR_TOP_BIT : 0x0) | DIR_BOTTOM_BIT, 4, 12, 12, newHeight, 4, 12);
 
         // bottom
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & BIT_16) ? type : 0;
         }
         else {
@@ -4852,7 +4852,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
 
         // Lo X - west
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & 0x2) ? type : 0;
         }
         else {
@@ -4881,7 +4881,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             newHeight, 4, 4, 12, 4, 12);
 
         // Hi X - east
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & 0x8) ? type : 0;
         }
         else {
@@ -4905,7 +4905,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
 
         // Lo Z - north
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & 0x4) ? type : 0;
         }
         else {
@@ -4934,7 +4934,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             4, 12, 4, 12, newHeight, 4);
 
         // Hi Z - south
-        if (gMcVersion > 12) {
+        if (gIs13orNewer) {
             neighborType = (dataVal & 0x1) ? type : 0;
         }
         else {
@@ -7784,7 +7784,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         faceMask = 0x0;
 
         // sadly, the bits in the stained glass pane are used for colors
-        if (gMcVersion > 12 && type != BLOCK_STAINED_GLASS_PANE) {
+        if (gIs13orNewer && type != BLOCK_STAINED_GLASS_PANE) {
             filled =
                 ((dataVal & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
                 ((dataVal & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
