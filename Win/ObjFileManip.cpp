@@ -307,6 +307,10 @@ static int gBlockRetCode = 0;
 // Ignore gModel.options->pEFD->chkCompositeOverlay when exporting tiles
 #define CHECK_COMPOSITE_OVERLAY	(gModel.options->pEFD->chkCompositeOverlay && !gModel.exportTiles)
 
+// how well is our searching going?
+//int gHashFinds = 0;
+//int gHashHits = 0;
+//int gHashSlogs = 0;
 
 // these should not be relied on for much of anything during processing,
 // the fields are filled out until writing.
@@ -1283,7 +1287,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
         break;
     case FILE_TYPE_USD:
-        gProgress.relative.output = 92000;  // TODOUSD - any way to make this output faster? It's so slow...
+        gProgress.relative.output = (gModel.instancing ? 2000.0f : 92000.0f);  // TODOUSD - any way to make this output faster? It's so slow...
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
@@ -14689,10 +14693,32 @@ static bool findInstance(int type, int dataVal, int& instanceID)
 {
     // make the hash for the ID
     int hash = makeInstanceHash(type, dataVal);
-    for (int i = 0; i < gModel.instanceCount; i++) {
+    static int prevHash = -1;
+    static int prevID = -1;
+
+    //gHashFinds++;
+
+    // Test against previous hash found, since there are often runs of the same things.
+    // This worked well in my one test: 385k tests (22k hash hits, 363k normal) vs. 915k tests
+    // doing just the reverse slog below. (If forward slog below, that gave 22k hash and
+    // 1,849k normal, almost 6x doing the reverse slog).
+    if (hash == prevHash) {
+        // quick out
+        instanceID = prevID;
+        //gHashHits++;
+        return true;
+    }
+
+    // Start slogging. Going from last one to first gives about 5x fewer iterations,
+    // at least for one model tested. 915k backwards vs. 4,549k forwards.
+    for (int i = gModel.instanceCount-1; i >= 0; i--) {
+    //for (int i = 0; i < gModel.instanceCount; i++) {
         // does it match an existing one?
         if (gModel.instance[i].hash == hash) {
-            instanceID = i;
+            instanceID = prevID = i;
+            prevHash = hash;
+            // for reverse: gHashSlogs += gModel.instanceCount - i;
+            //gHashSlogs += i + 1;
             return true;
         }
     }
@@ -22903,9 +22929,18 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         strcpy_s(outputString, 256, "        point3f[] positions = [\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+        // update progress bar every 4%
+        float doubleCount = (float)gModel.instanceLocCount * 2.0f;
+        int progressIncrement = 1 + (int)((float)gModel.instanceLocCount / 25.0f);
+        int progressTick = progressIncrement;
         // output all positions, then all indices, end with ]
         InstanceLocation* pil = gModel.instanceLoc;
         for (i = 0; i < gModel.instanceLocCount; i++) {
+            if (i > progressTick) {
+                // there are unlikely to be *that* many groups, so just update on each found
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
+                progressTick += progressIncrement;
+            }
             sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]" : ",");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pil++;
@@ -22913,8 +22948,15 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
         strcpy_s(outputString, 256, "        int[] protoIndices = [\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        // reset and count second half
+        progressTick = progressIncrement;
         pil = gModel.instanceLoc;
         for (i = 0; i < gModel.instanceLocCount; i++) {
+            if (i > progressTick) {
+                // there are unlikely to be *that* many groups, so just update on each found
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + gModel.instanceLocCount) / doubleCount));
+                progressTick += progressIncrement;
+            }
             sprintf_s(outputString, 256, "%d%s\n", pil->index, (i == gModel.instanceLocCount - 1) ? "]" : ",");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pil++;
@@ -22926,6 +22968,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         BlockInstance* pbi = gModel.instance;
         char instanceNameString[MAX_PATH_AND_FILE];
         for (i = 0; i < gModel.instanceCount; i++) {
+
             char instanceNameUnderlined[MAX_PATH_AND_FILE];
             nameFromHash(pbi->hash, instanceNameString);
             convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
@@ -23501,7 +23544,8 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 
     for (i = 0; i < numFaces; i++)
     {
-        if (i + startingFace > progressTick) {
+        // do progress only when not instancing
+        if (prefixLook == NULL && (i + startingFace > progressTick)) {
             // there are unlikely to be *that* many groups, so just update on each found
             UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + startingFace) / (float)gModel.faceCount));
             progressTick += progressIncrement;
