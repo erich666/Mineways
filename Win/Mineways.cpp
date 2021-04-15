@@ -91,6 +91,7 @@ if (FH) { \
 
 // for outputting waterlogged status for a block
 // this part is left off, as those types of blocks are always waterlogged:  ((gBlockDefinitions[type].flags & BLF_WATERLOG) ||
+// Since we're just showing status, double-slabs that are waterlogged are shown as such
 #define WATERLOGGED_LABEL(type,dataVal) ((gBlockDefinitions[type].flags & BLF_MAYWATERLOG) && (dataVal & WATERLOGGED_BIT))
 
 
@@ -4207,7 +4208,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // Export separate types?
         if (gpEFD->chkSeparateTypes)
         {
-            MY_ASSERT(gpEFD->chkIndividualBlocks == 0);
+            MY_ASSERT(gpEFD->chkIndividualBlocks[gpEFD->fileType] == 0);
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES;
 
             // Material per block?
@@ -4216,7 +4217,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 gOptions.exportFlags |= EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
             }
         }
-        else if (gpEFD->chkIndividualBlocks)
+        else if (gpEFD->chkIndividualBlocks[gpEFD->fileType])
         {
             // these must be on for individual block export, plus grouping by block (separate material for each block)
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK ;
@@ -4274,7 +4275,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
     else if (gpEFD->fileType == FILE_TYPE_USD)
     {
         // TODOUSD - this will evolve as I understand USD better
-        if (gpEFD->chkIndividualBlocks)
+        if (gpEFD->chkIndividualBlocks[gpEFD->fileType])
         {
             // these must be on for individual block export, plus grouping by block (separate material for each block)
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_INDIVIDUAL_BLOCKS | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK;
@@ -4714,7 +4715,7 @@ static void initializePrintExportData(ExportFileData& printData)
     // should normally just have one material and group
     printData.chkMakeGroupsObjects = 0;
     printData.chkSeparateTypes = 0;
-    printData.chkIndividualBlocks = 0;
+    INIT_ALL_FILE_TYPES(printData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
@@ -4801,7 +4802,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     // G3D material off by default for rendering
     viewData.chkMakeGroupsObjects = 0;
     viewData.chkSeparateTypes = 1;
-    viewData.chkIndividualBlocks = 0;
+    INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 0;
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 1, 0, 0, 0, 0, 0);
@@ -6183,7 +6184,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkIndividualBlocks = interpretBoolean(string1);
+            is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

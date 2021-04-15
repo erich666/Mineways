@@ -53,6 +53,12 @@ typedef struct BlockTranslator {
 static bool hashMade = false;
 static int worldVersion = 0;
 
+// if defined, only those data values that have an effect on graphics display (vs. sound or
+// simulation) are actually filled in. This is a good thing for instancing, but allows the
+// code to be turned on in the future (though there are still a bunch of non-graphical values
+// that we nonetheless don't track).
+#define GRAPHICAL_ONLY
+
 
 // properties and which blocks use them:
 // age: AGE_PROP
@@ -122,14 +128,14 @@ static int worldVersion = 0;
 // powered: true|false
 #define DOOR_PROP			  3
 // for water and lava
-// falling: true|false
-// level: 1-7|8 when falling true
+// See https://minecraft.fandom.com/wiki/Water#Block_states
+// level: 1-7|8 when falling true - note that level 0 is the "source block" and higher means further away
 #define FLUID_PROP			  4
 // saplings
-// stage: 0|1 - ignored
+// stage: 0|1 - non-graphical, so ignored
 #define SAPLING_PROP			  5
-// persistent: true|false
-// distance: 1-7 - ignored
+// persistent: true|false - non-graphical, so ignored
+// distance: 1-7 - non-graphical, so ignored
 #define LEAF_PROP			  6
 // for sunflowers, etc.
 // half: upper|lower
@@ -198,13 +204,13 @@ static int worldVersion = 0;
 // bites: 0-6
 #define BITES_PROP			 29
 // facing: south|west|north|east
-// occupied: true|false - seems to be occupied only if someone else is occupying it?
+// occupied: true|false - seems to be occupied only if someone else is occupying it? non-graphical, so ignored
 // part: head|foot
 #define BED_PROP			 30
 
 #define EXTENDED_FACING_PROP 31
 // facing: down|up|north|south|west|east
-// triggered: true|false
+// triggered: true|false - ignore, non-graphical
 #define DROPPER_PROP		 EXTENDED_FACING_PROP
 // facing: down|up|north|south|west|east
 // half: top|bottom
@@ -220,7 +226,7 @@ static int worldVersion = 0;
 // facing: down|up|north|south|west|east
 // extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
 // type: sticky|normal
-// short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
+// short: true|false - TODOTODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|down|up: true|false
 #define FENCE_AND_VINE_PROP			 34
@@ -478,7 +484,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  49,           0, "obsidian", NO_PROP },
     { 0,  50,           0, "torch", TORCH_PROP },
     { 0,  50,           0, "wall_torch", TORCH_PROP },
+#ifdef GRAPHICAL_ONLY
+    { 0, BLOCK_FIRE,    0, "fire", TRULY_NO_PROP }, // ignore age
+#else
     { 0, BLOCK_FIRE,    0, "fire", NO_PROP },
+#endif
     { 0,  52,           0, "spawner", NO_PROP },
     { 0,  53,           0, "oak_stairs", STAIRS_PROP },
     { 0, 134,           0, "spruce_stairs", STAIRS_PROP },
@@ -2007,7 +2017,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         // SAPLING_PROP
                                         else if (strcmp(token, "stage") == 0) {
                                             // 0 or 1, 1 is about to grow into a tree.
+                                            // mask out, since this is non-graphical
+#ifndef GRAPHICAL_ONLY
                                             dataVal = 8 * atoi(value);
+#endif
                                         }
                                         // leaves LEAF_PROP
                                         // there does not seem to be any "check decay" flag 
@@ -2016,7 +2029,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             // https://minecraft.gamepedia.com/Leaves#Block_states
                                             // Instead, I'm guessing persistent means "no decay"
                                             // https://minecraft.gamepedia.com/Java_Edition_data_values#Leaves
+                                            // ignore, since it is has no graphical effect
+#ifndef GRAPHICAL_ONLY
                                             dataVal = (strcmp(value, "true") == 0) ? 4 : 0;
+#endif
                                         }
                                         // SLAB_PROP
                                         else if (strcmp(token, "type") == 0) {
@@ -2061,7 +2077,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             if (dataVal > 7 || dataVal < 0)
                                                 dataVal = 1;
                                         }
-                                        // frosted ice, crops, cocoa (which needs age separate)
+                                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored)
                                         else if (strcmp(token, "age") == 0) {
                                             // AGE_PROP
                                             // 0-3 or 0-7
@@ -2245,14 +2261,19 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         }
                                         // bed
                                         else if (strcmp(token, "occupied") == 0) {
-                                            occupied = (strcmp(value, "true") == 0) ? 4 : 0;
+#ifndef GRAPHICAL_ONLY
+                                            occupied = (strcmp(value, "true") == 0) ? 4 : 0; // non-graphical
+#endif
                                         }
                                         else if (strcmp(token, "part") == 0) {
                                             part = (strcmp(value, "head") == 0) ? 8 : 0;
                                         }
                                         // dropper/dispenser
                                         else if (strcmp(token, "triggered") == 0) {
+                                            // ignore, non-graphical
+#ifndef GRAPHICAL_ONLY
                                             triggered = (strcmp(value, "true") == 0);
+#endif
                                         }
                                         // END_PORTAL_PROP (really, the frame)
                                         else if (strcmp(token, "eye") == 0) {
@@ -2621,14 +2642,15 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             break;
                         case BED_PROP:
                             // south/west/north/east == 0/1/2/3
-                            dataVal = ((door_facing + 3) % 4) + occupied + part;
+                            // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
+                            dataVal = ((door_facing + 3) % 4) + part + occupied;
                             break;
                         case EXTENDED_FACING_PROP:
                             // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
                             // also WALL_SIGN_PROP, OBSERVER_PROP
-                            dataVal = dropper_facing | (triggered ? 8 : 0) | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0);
+                            dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
                             dropper_facing = 0;
-                            triggered = false;
+                            triggered = false; // non-graphical
                             extended = false;
                             sticky = 0x0;
                             enabled = false;

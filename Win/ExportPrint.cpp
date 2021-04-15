@@ -173,10 +173,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         {
             CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, epd.chkMakeGroupsObjects);
             CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, epd.chkSeparateTypes);
-            CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+            CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks[epd.fileType]);
             // if neither of the two above are checked, this one's indeterminate
-            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks)) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
         }
         else
@@ -185,7 +185,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_MAKE_GROUPS_OBJECTS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_INDETERMINATE);
             if (epd.fileType == FILE_TYPE_USD)
-                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks);
+                CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkIndividualBlocks[epd.fileType]);
             else
                 CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
@@ -1032,7 +1032,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     lepd.chkCustomMaterial[epd.fileType] = origEpd.chkCustomMaterial[epd.fileType];
             }
             // 3D printing should never use this option.
-            lepd.chkIndividualBlocks = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);
+            lepd.chkIndividualBlocks[epd.fileType] = (epd.flags & EXPT_3DPRINT) ? 0 : (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED);
 
             //lepd.chkMergeFlattop = IsDlgButtonChecked(hDlg,IDC_MERGE_FLATTOP);
             lepd.chkMakeZUp[lepd.fileType] = (IsDlgButtonChecked(hDlg, IDC_MAKE_Z_UP) == BST_CHECKED);

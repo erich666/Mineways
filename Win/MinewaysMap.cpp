@@ -629,6 +629,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             assert(0);
             break;
         case 0: // dead bush
+            // left for backward compatibility, I think it was called this long ago
+            // (in Bedrock it's "Fern", though) https://minecraft.fandom.com/wiki/Grass#Block_states
             return "Dead Bush";
         case 1:	// tall grass - really, the default name Grass
             break; // return "TALL_GRASS";
@@ -3837,6 +3839,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_GRASS:
+        // uses 1-5 - dead bush is a separate block, type==32
+        // type 31 dataVal 0 was once dead bush, I think it was called this long ago
+        // (in Bedrock it's "Fern", though) https://minecraft.fandom.com/wiki/Grass#Block_states
+        if (dataVal > 0 && dataVal < 6)
+        {
+            addBlock = 1;
+        }
+        break;
+        break;
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:
     case BLOCK_QUARTZ_BLOCK:
@@ -3974,8 +3985,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_STONE_DOUBLE_SLAB:
-        // uses 0-7, F (15)
-        if (dataVal < 8 || dataVal == 15)
+        // uses 0-7, 0xF (15)
+        // changed: we now don't show the old 15 slab, to avoid duplication
+        if (dataVal < 8) // || dataVal == 15) - double quartz slab duplicate, from some 1.12 or earlier version of Minecraft, I believe
         {
             addBlock = 1;
         }
@@ -4118,38 +4130,48 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CORAL_WALL_FAN:
     case BLOCK_DEAD_CORAL_WALL_FAN:
         // uses 0-15 - no waterlogging (no room!)
-    {
-        int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
-        int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
-        finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
-        addBlock = 1;
-        // add attached block
-        switch (rotVal)
         {
-        case 3:	// not actually used
-            // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            break;
-        case 1:
-            // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            break;
-        case 2:
-            // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            break;
-        case 0:
-            // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            break;
+            int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
+            int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
+            finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
+            addBlock = 1;
+            // add attached block
+            switch (rotVal)
+            {
+            case 3:	// not actually used
+                // put block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 1:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 2:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 0:
+                // put block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            }
         }
-    }
-    break;
-    case BLOCK_STONE:
+        break;
     case BLOCK_LOG:	// really just 12, but we pay attention to directionless
+    case BLOCK_AD_LOG:
+        // add new style diagonally SE of original
+        if (dataVal < ((type == BLOCK_LOG) ? 4 : 2)) {
+            // add "wood" variant to map
+            int neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
+        }
+        // uses all bits, 0-15
+        addBlock = 1;
+        break;
+    case BLOCK_STONE:
     case BLOCK_STRIPPED_OAK:
     case BLOCK_STRIPPED_OAK_WOOD:
-    case BLOCK_AD_LOG:
     case BLOCK_STRIPPED_ACACIA:
     case BLOCK_STRIPPED_ACACIA_WOOD:
     case BLOCK_STONE_SLAB:

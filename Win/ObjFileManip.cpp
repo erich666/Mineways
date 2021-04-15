@@ -41,6 +41,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
+// If defined, the instance meshes are output in order. This invalidates the instanced file itself, as it will
+// be pointing at the wrong numbers! But, this mode is useful for use with Debug Mode world to dump all blocks
+// Mineways instances, into a giant library.
+//#define OUTPUT_ORDERED_INSTANCES
+
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
@@ -460,7 +465,7 @@ ProgressValues gProgress;
 
 // objects that are waterlogged should be considered fully in water, as if the block was in water
 #define IS_WATERLOGGED(tval,bi) ((gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
-								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
+								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && !(gBlockDefinitions[tval].flags & BLF_LAME_WATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
 
 #define IS_FLUID(tval,bi)	(((tval) >= BLOCK_WATER && (tval) <= BLOCK_STATIONARY_LAVA) || IS_WATERLOGGED(tval,bi))
 #define IS_NOT_FLUID(tval,bi)	(!IS_FLUID(tval,bi))
@@ -656,6 +661,9 @@ static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
+#ifdef OUTPUT_ORDERED_INSTANCES
+static int instanceUSDCompare(void* context, const void* str1, const void* str2);
+#endif
 
 static int getDimensionsAndCount(Point dimensions);
 static void rotateLocation(Point pt);
@@ -1170,10 +1178,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     }
     UPDATE_PROGRESS(gProgress.start.makeFaces);
 
-    // if we have matrix transforms available, transfer the unit scale to that scale factor instead
+    // if we have matrix transforms available, transfer the unit and model scale to that scale factor instead
     if (fileType == FILE_TYPE_USD) {
-        gXformScale = gUnitsScale;
+        gXformScale = gModel.scale * gUnitsScale;
         gUnitsScale = 1.0f;
+        gModel.scale = 1.0f;
     }
     else {
         // reset, just in case
@@ -4085,6 +4094,10 @@ static void randomRotation(int boxIndex, int& angle)
 
 static float getRand3to1(int boxIndex)
 {
+    if (gModel.instancing) {
+        // chorus plant random bulges
+        return 0.0f;
+    }
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
     // make the location numbers positive (y already is)
@@ -4183,6 +4196,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     // If USDA instancing
     if (gModel.instancing) {
+        // annoying special case: if piston is not extended, we won't form it in this method:
+        if ((type == BLOCK_STICKY_PISTON || type == BLOCK_PISTON) && !(dataVal & 0x8)) {
+            return 0;
+        }
         // is block instance already output?
         int instanceID;
         bool populateInstance = false;
@@ -5155,7 +5172,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 // their step masks and levels. The short version: are their data values exactly the same as this block's?
                 // If so, then mask out that 1x1 side face, but only if "export separate blocks" is off. This then covers the
                 // easy and common case where two identical steps are next to each other and continuing.
-                if ((stepMask == 0x0) && !(gModel.options->pEFD->chkIndividualBlocks))
+                if ((stepMask == 0x0) && !(gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType]))
                 {
                     int neighborData;
                     // OK, this is a 2x1 block. Does it go north-south or east-west?
@@ -7419,14 +7436,20 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 0, 16, 0, 6, 0, 16);
         break; // saveBillboardOrGeometry
 
+    // The part of the piston that stays put, doesn't move. It's a full block if the piston is not extended.
+    // Note how this body defines the type of piston head in use: sticky or not.
+    // If the piston is not extended, this is a solid block with a sticky or not face to it.
+    // If it is extended, this is still the "sticky or not" block defining the piston,
+    // with the piston head needing to look at this block to know what it is.
     case BLOCK_STICKY_PISTON:						// saveBillboardOrGeometry
     case BLOCK_PISTON:
         // TODO: should really add fattening someday, but the textures don't work properly for that
-        // is the piston head extended?
+        // is the piston head extended? Note: will confuse gModel.instancing - the piston head will have no mesh!
+        
         if (!(dataVal & 0x8))
         {
             // If the piston head is not extended, this is a full block and we can return and
-            // use the more efficient full-block output
+            // use the more efficient full-block output for the body of the piston, next to it.
             gMinorBlockCount--;
             return 0;
         }
@@ -7510,6 +7533,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
+    // The part of the piston that moves.
     case BLOCK_PISTON_HEAD:						// saveBillboardOrGeometry
         // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
         // we form the head pointing up, so the up direction needs no transform
@@ -7554,6 +7578,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         default:
             assert(0);
         }
+        // look at neighboring piston block to know what kind of piston head we are.
         neighborType = gBoxData[boxIndex + gFaceOffset[dir]].origType;
         assert((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON) || (neighborType == BLOCK_AIR));
 
@@ -7575,7 +7600,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(littleTotalVertexCount, mtx);
 
-        // piston head, formed pointing up
+        // piston head, formed pointing up; dataVal & 0x8 means it's a sticky piston head
         saveBoxMultitileGeometry(boxIndex, type, dataVal, (dataVal & 0x8) ? (swatchLoc - 2) : (swatchLoc - 1), swatchLoc, swatchLoc - 1, 0, 0x0, 0, 0, 16, 12, 16, 0, 16);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -14628,17 +14653,19 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
     // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
-    for (i = 0; i < gModel.vertexCount; i++)
-    {
-        float* pt = (float*)gModel.vertices[i];
-        float anchor[3];
-        Vec2Op(anchor, =, gModel.vertices[i]);
-        pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-        pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-        pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+    if (!gModel.instancing) {
+        for (i = 0; i < gModel.vertexCount; i++)
+        {
+            float* pt = (float*)gModel.vertices[i];
+            float anchor[3];
+            Vec2Op(anchor, =, gModel.vertices[i]);
+            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
 
-        // rotate location as needed
-        rotateLocation(pt);
+            // rotate location as needed
+            rotateLocation(pt);
+        }
     }
 
     UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.75f);
@@ -14752,6 +14779,7 @@ static void saveInstanceLocation(float* anchorPt, int instanceID)
 static int makeInstanceHash(int type, int dataVal)
 {
     if (gBlockDefinitions[type].flags & BLF_MAYWATERLOG) {
+        // even lame, double-slab blocks need to have this bit removed
         dataVal &= ~WATERLOGGED_BIT;
     }
     return type << 16 | dataVal;
@@ -14849,6 +14877,20 @@ static int faceIdCompare(void* context, const void* str1, const void* str2)
     else return ((f1->materialType < f2->materialType) ? -1 : 1);
 }
 
+#ifdef OUTPUT_ORDERED_INSTANCES
+// sort by instance hash
+static int instanceUSDCompare(void* context, const void* str1, const void* str2)
+{
+    BlockInstance* f1;
+    BlockInstance* f2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+
+    f1 = (BlockInstance*)str1;
+    f2 = (BlockInstance*)str2;
+
+    return ((f1->hash < f2->hash) ? -1 : 1);
+}
+#endif
 
 // return 0 if nothing solid in box
 // Note that the dimensions are returned in floats, for later use for statistics
@@ -22968,7 +23010,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         BlockInstance* pbi = gModel.instance;
         char instanceNameString[MAX_PATH_AND_FILE];
         for (i = 0; i < gModel.instanceCount; i++) {
-
             char instanceNameUnderlined[MAX_PATH_AND_FILE];
             nameFromHash(pbi->hash, instanceNameString);
             convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
@@ -23469,18 +23510,52 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
         // Go through all instances.
         // Sort each set of faces by the material.
         // Output each set.
-        for (i = 0; i < gModel.instanceCount; i++) {
-            char blockName[MAX_PATH_AND_FILE];
-            char blockNameUnderlined[MAX_PATH_AND_FILE];
-            nameFromHash(gModel.instance[i].hash, blockName);
 
+        // go through all faces and establish final counts at this point.
+        // Really, we could do this in the loop below, but if we want to sort the instances,
+        // need to do this before sorting.
+        for (i = 0; i < gModel.instanceCount; i++) {
+            gModel.instance[i].numFaces = ((i < gModel.instanceCount - 1) ? gModel.instance[i + 1].faceNumber : gModel.faceCount) - gModel.instance[i].faceNumber;
+        }
+
+#ifdef OUTPUT_ORDERED_INSTANCES
+        // sort by hash
+        qsort_s(gModel.instance, gModel.instanceCount, sizeof(BlockInstance), instanceUSDCompare, NULL);
+#endif
+
+        for (i = 0; i < gModel.instanceCount; i++) {
+#ifdef OUTPUT_ORDERED_INSTANCES
+            // different naming, etc.
+            int type = gModel.instance[i].hash >> 16;
+            int dataVal = gModel.instance[i].hash & 0xff;
+            const char* subName = RetrieveBlockSubname(type, dataVal);
+
+            sprintf_s(outputString, 256, "\ndef Xform \"Block_%d_%d\"\n{\n", type, dataVal);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "    int blockType = %d\n", type);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "    int blockSubType = %d\n", dataVal);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "    string typeName = \"%s\"\n", gBlockDefinitions[type].name);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "    string subTypeName = \"%s\"\n", subName);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "    int blockFlags = %d\n\n", gBlockDefinitions[type].flags);
+            WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+#else
+            char blockName[MAX_PATH_AND_FILE];
+            nameFromHash(gModel.instance[i].hash, blockName);
+            char blockNameUnderlined[MAX_PATH_AND_FILE];
             convertCharPathUnderlined(blockNameUnderlined, blockName, true);
             sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", blockNameUnderlined);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
+#endif
 
             int firstFaceNumber = gModel.instance[i].faceNumber;
-            int nextFaceNumber = (i < gModel.instanceCount - 1) ? gModel.instance[i + 1].faceNumber : gModel.faceCount;
-            numFaces = nextFaceNumber - firstFaceNumber;
+            //int nextFaceNumber = (i < gModel.instanceCount - 1) ? gModel.instance[i + 1].faceNumber : gModel.faceCount;
+            //numFaces = nextFaceNumber - firstFaceNumber;
+            numFaces = gModel.instance[i].numFaces;
+            int nextFaceNumber = firstFaceNumber + numFaces;
 
             // sort
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
@@ -23641,7 +23716,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (interpolation = \"vertex\")\n" : ", ");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
@@ -26353,10 +26428,10 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
         sprintf_s(outputString, 256, "# Export separate objects: %s\n", gModel.options->pEFD->chkSeparateTypes ? "YES" : "no");
         WRITE_STAT;
-        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
         WRITE_STAT;
 
-        if (gModel.options->pEFD->chkSeparateTypes || gModel.options->pEFD->chkIndividualBlocks)
+        if (gModel.options->pEFD->chkSeparateTypes || gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType])
         {
             sprintf_s(outputString, 256, "#   Material per family: %s\n", gModel.options->pEFD->chkMaterialPerFamily ? "YES" : "no");
             WRITE_STAT;
@@ -26368,7 +26443,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     }
     else if (gModel.options->pEFD->fileType == FILE_TYPE_USD)
     {
-        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
         WRITE_STAT;
     }
 

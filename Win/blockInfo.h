@@ -380,7 +380,7 @@ typedef struct ExportFileData
 
     UINT chkMakeGroupsObjects;
     UINT chkSeparateTypes;	// "Export separate types"
-    UINT chkIndividualBlocks;
+    UINT chkIndividualBlocks[FILE_TYPE_TOTAL];
     UINT chkMaterialPerFamily;	// "Material per family" of blocks
     UINT chkSplitByBlockType;	// "Split by block type"
     UINT chkCustomMaterial[FILE_TYPE_TOTAL];
@@ -501,6 +501,8 @@ typedef struct Options {
 #define BLF_FENCE_GATE		0x8000000
 // this object is a fence that attachs to fences if of the right type - like BLF_FENCE_NEIGHBOR, but needs for types (nether, wood) to match to connect
 #define BLF_FENCE			0x10000000
+// this object is a double-slab or other voxel-filling block. Officially, it can waterlog, but for Mineways this behavior is basically idiotic, AFAIK, and causes additional unneeded instance outputs
+#define BLF_LAME_WATERLOG	0x20000000
 
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTEN|BLF_FLATTEN_SMALL|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 

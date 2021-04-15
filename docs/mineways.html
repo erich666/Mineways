@@ -2651,12 +2651,16 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>In the works: Version 8.07, ?/?/2021 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+<LI>Fix obscure interaction between OBJ and USDA individual block export by making the two values entirely separate.
+<LI>Clean up [Block Test World] map a bit, getting rid of duplicates such as Dead Bush (33:0 and 34:0) and Double Quartz Slab (43:7 and 43:15), adding types of Wood.
+<LI>Fix USDA instancing: don't shift instances from origin, move all scaling to scale transformation, get rid of non-graphical data values (such as the age of the fire), check for piston as a full block, note double slabs are waterloggable but don't actually output water for their locations, and much other trivia too painful to describe.
+<LI>*If you hold down Shift key, the [] keys move the upper limit up or down.
 <LI>*1.17 - is release imminent? Maybe consider implementing some of the new blocks, to get a jump on it.
 <LI>*Does Houdini apprentice show fringing on cutouts? Why? Is bleeding not going on?
 <LI>*Add docs for Houdini Apprentice, or at least make a movie.
-<LI>Better USD instancing for water and lava, as right now a full block is what gets generated. Use "level" attribute.
+<LI>*Better USD instancing for water and lava, as right now a full block is what gets generated. Use "level" attribute?
 <LI>*Individual block export does not currently work with tiled textures for OBJs. It should; the logic's involved...
-<LI>*Contemplate moving to a 16-bit data value instead of 8, and maybe a 16-bit type data value. If done, blocks could more precisely be generated (e.g., walls could work perfectly, redstone dots would work) and instancing for USD could be much better supported. Should be done in conjunction with a "max height" dynamic allocation of chunks, freeing up memory that currently is entirely 
+<LI>*Contemplate someday moving to a 16-bit data value instead of 8, and maybe a 16-bit type data value. If done, blocks could more precisely be generated (e.g., walls could work perfectly, redstone dots would work) and instancing for USD could be much better supported. Should be done in conjunction with a "max height" dynamic allocation of chunks, freeing up memory that currently is entirely air.
 </UL>
 
 <LI>Version 8.06, 4/14/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV806.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
