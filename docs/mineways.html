@@ -984,7 +984,7 @@ At this point the paths diverge, depending on which version of Blender you have.
 <LI><a href="#new_blender">Blender 2.80 (aka Blender 2.8) and newer</a> - recommended, as it's easier to use
 <LI><a href="#nold_blender">Blender 2.79 and older</a>
 </UL>
-You'll also want to consider using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> in conjunction with Mineways to improve your materials, geometry, etc. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> with people that are quick to respond to Minecraft + Blender questions. Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter (which I can't figure out any more), and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import.
+You'll also want to consider using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> in conjunction with Mineways to improve your materials, geometry, etc. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> with people that are quick to respond to Minecraft + Blender questions. Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter (which I can't figure out any more), and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import.
 <P>
 <font size="+1"><b id="new_blender">Blender 2.80 and newer</b></font>
 <P>
@@ -1024,9 +1024,9 @@ To adjust this now-a-sun light, go to the "render preview" mode by clicking the 
 Now press Shift-"t" and move your mouse around in the viewport. Hey, the sun's moving. When you left-click with the mouse, you lock down the direction of the sun. It's a bit non-intuitive, and you may need to rotate the view, Shift-T, rotate again, etc. to get the angle you want. Try F12 again to render the scene.
 <P>
 <B>9) Material Conversion:</B> Those cutout and semitransparent objects look dumb. 
-Fastest (in the long term) is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. 
+Fastest (by far) is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
 <P>
-If you want to do this manually, it's a tedious process of selecting each object type in the model. Open your world and there's a list of objects. Choose a semitransparent or cutout object you want to make display properly, pick Context.Material from the vertical icons (next to last one). Under Settings in the properties page below, change its Blend Mode and Shadow Mode both to Alpha Hashed:
+If you want to do this conversion manually, it's a tedious process of selecting each object type in the model. Open your world and there's a list of objects. Choose a semitransparent or cutout object you want to make display properly, pick Context.Material from the vertical icons (next to last one). Under Settings in the properties page below, change its Blend Mode and Shadow Mode both to Alpha Hashed:
 <p class="center">
 <img src="images/b28_transparency.jpg">
 </p>
@@ -1053,7 +1053,7 @@ Technical note: if you use the material option "Export tiles for textures" when 
 <P>
 <b>12) Upload</b> pictures of your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but I hope you do - I like seeing what people make.)
 <P>
-I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your materials. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
+I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your materials. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
 
 <P>
 <font size="+1"><b id="old_blender">Blender 2.79 and older</b></font>
@@ -1082,7 +1082,7 @@ If you cannot select Wavefront from the Import dialog, you have to activate this
 <P>
 <b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render | Render Image" from the menu and have a look.
 <P>
-<B>8) Material Conversion:</B> You may wish to make better materials for your objects. The easy routes are to either use one of two scripts provided with the Mineways distribution: <a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways.py</a>, or possibly <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>. The third easy choice is <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a>, a Blender python script that can improve model quality of Mineways and jmc2obj exports.
+<B>8) Material Conversion:</B> You may wish to make better materials for your objects. The easy routes are to either use one of two scripts provided with the Mineways distribution: <a href="https://github.com/JMY1000/CyclesMineways">CyclesMineways.py</a>, or possibly <a href="https://github.com/erich666/Mineways/blob/master/blender_mineways.py">blender_mineways.py</a>, created by <a href="https://www.youtube.com/channel/UC3aYQUUaNo3wIq9E0WHX4gw">Nicky</a> and improved by <a href="https://www.youtube.com/channel/UCb-WAAyYvhtbZJaoqHxbP5A">Wyatt Jameson</a>. The third easy choice is <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a>, a Blender python script that can improve model quality of Mineways and jmc2obj exports. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
 
 <UL>
 <LI>
@@ -1524,7 +1524,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </p><ul>
 <li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can no longer quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in some ways.
 
-</li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports.
+</li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
 
 </li><li>OptiFine, Sonic Ether's Unbelievable Shaders, and related resource packs are definitely worth checking out. <a href="#renderTips">Find information here</a>.
 
@@ -3500,7 +3500,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 4/14/2021</p>
+		<p id="lastUpdate">Last updated 4/16/2021</p>
 	</div>
 </div>
 
