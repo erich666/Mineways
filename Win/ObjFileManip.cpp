@@ -41,11 +41,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 
-// If defined, the instance meshes are output in order. This invalidates the instanced file itself, as it will
-// be pointing at the wrong numbers! But, this mode is useful for use with Debug Mode world to dump all blocks
-// Mineways instances, into a giant library.
-//#define OUTPUT_ORDERED_INSTANCES
-
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
@@ -661,9 +656,7 @@ static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
-#ifdef OUTPUT_ORDERED_INSTANCES
 static int instanceUSDCompare(void* context, const void* str1, const void* str2);
-#endif
 
 static int getDimensionsAndCount(Point dimensions);
 static void rotateLocation(Point pt);
@@ -14711,9 +14704,10 @@ static void createInstance(int type, int dataVal, int faceIndex)
         }
     }
 
-    BlockInstance *bi = &gModel.instance[gModel.instanceCount++];
+    BlockInstance *bi = &gModel.instance[gModel.instanceCount];
     bi->faceNumber = faceIndex;
     bi->hash = makeInstanceHash(type, dataVal);
+    bi->startingLocation = gModel.instanceCount++;
 }
 
 static bool findInstance(int type, int dataVal, int& instanceID)
@@ -14877,7 +14871,6 @@ static int faceIdCompare(void* context, const void* str1, const void* str2)
     else return ((f1->materialType < f2->materialType) ? -1 : 1);
 }
 
-#ifdef OUTPUT_ORDERED_INSTANCES
 // sort by instance hash
 static int instanceUSDCompare(void* context, const void* str1, const void* str2)
 {
@@ -14890,7 +14883,6 @@ static int instanceUSDCompare(void* context, const void* str1, const void* str2)
 
     return ((f1->hash < f2->hash) ? -1 : 1);
 }
-#endif
 
 // return 0 if nothing solid in box
 // Note that the dimensions are returned in floats, for later use for statistics
@@ -22975,57 +22967,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         float doubleCount = (float)gModel.instanceLocCount * 2.0f;
         int progressIncrement = 1 + (int)((float)gModel.instanceLocCount / 25.0f);
         int progressTick = progressIncrement;
-        // output all positions, then all indices, end with ]
-        InstanceLocation* pil = gModel.instanceLoc;
-        for (i = 0; i < gModel.instanceLocCount; i++) {
-            if (i > progressTick) {
-                // there are unlikely to be *that* many groups, so just update on each found
-                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
-                progressTick += progressIncrement;
-            }
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]" : ",");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            pil++;
-        }
-
-        strcpy_s(outputString, 256, "        int[] protoIndices = [\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        // reset and count second half
-        progressTick = progressIncrement;
-        pil = gModel.instanceLoc;
-        for (i = 0; i < gModel.instanceLocCount; i++) {
-            if (i > progressTick) {
-                // there are unlikely to be *that* many groups, so just update on each found
-                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + gModel.instanceLocCount) / doubleCount));
-                progressTick += progressIncrement;
-            }
-            sprintf_s(outputString, 256, "%d%s\n", pil->index, (i == gModel.instanceLocCount - 1) ? "]" : ",");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            pil++;
-        }
-
-        // output all instance names
-        strcpy_s(outputString, 256, "        prepend rel prototypes = [\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        BlockInstance* pbi = gModel.instance;
-        char instanceNameString[MAX_PATH_AND_FILE];
-        for (i = 0; i < gModel.instanceCount; i++) {
-            char instanceNameUnderlined[MAX_PATH_AND_FILE];
-            nameFromHash(pbi->hash, instanceNameString);
-            convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
-
-            sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
-            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            pbi++;
-        }
-
-        sprintf_s(outputString, 256, "        over \"Blocks\" (references = @./%s@)    {   }\n", blockLibraryName);
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "    }\n");
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        // Xform will be closed below, this is what it will do:
-        //strcpy_s(outputString, 256, "}\n");
-        //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
         // create block instance library
         if (retCode |= createMeshesUSD(blockLibraryNameWithSuffix, materialLibraryName)) {
@@ -23042,6 +22983,70 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
             // failed to write
             goto Exit;
         }
+
+        // now output the instances, since things are all sorted at this point
+        // output all positions, then all indices, end with ]
+        InstanceLocation* pil = gModel.instanceLoc;
+        for (i = 0; i < gModel.instanceLocCount; i++) {
+            if (i > progressTick) {
+                // there are unlikely to be *that* many groups, so just update on each found
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
+                progressTick += progressIncrement;
+            }
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pil++;
+        }
+
+        // make list of where each block went after being sorted
+        int* blockIndex = (int*)malloc(gModel.instanceCount * sizeof(int));
+        BlockInstance* pbi = gModel.instance;
+        for (i = 0; i < gModel.instanceCount; i++) {
+            blockIndex[pbi->startingLocation] = i;
+            pbi++;
+        }
+
+        strcpy_s(outputString, 256, "        int[] protoIndices = [\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        // reset and count second half
+        progressTick = progressIncrement;
+        pil = gModel.instanceLoc;
+        for (i = 0; i < gModel.instanceLocCount; i++) {
+            if (i > progressTick) {
+                // there are unlikely to be *that* many groups, so just update on each found
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + gModel.instanceLocCount) / doubleCount));
+                progressTick += progressIncrement;
+            }
+            sprintf_s(outputString, 256, "%d%s\n", blockIndex[pil->index], (i == gModel.instanceLocCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            pil++;
+        }
+
+        // output all instance names
+        strcpy_s(outputString, 256, "        prepend rel prototypes = [\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        char instanceNameString[MAX_PATH_AND_FILE];
+        for (i = 0; i < gModel.instanceCount; i++) {
+            //char instanceNameUnderlined[MAX_PATH_AND_FILE];
+            //pbi = &gModel.instance[blockIndex[i]];
+            pbi = &gModel.instance[i];
+            nameFromHash(pbi->hash, instanceNameString);
+            // convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
+
+            //sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
+            sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameString, (i == gModel.instanceCount - 1) ? "]" : ",");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        }
+
+        free(blockIndex);
+
+        sprintf_s(outputString, 256, "        over \"Blocks\" (references = @./%s@)    {   }\n", blockLibraryName);
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "    }\n");
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+        // Xform will be closed below, this is what it will do:
+        //strcpy_s(outputString, 256, "}\n");
+        //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
     else {
 
@@ -23097,11 +23102,12 @@ static void nameFromHash(int hash, char* instanceNameString)
 {
     int type = hash >> 16;
     int dataVal = hash & 0xff;
-    const char* subName = RetrieveBlockSubname(type, dataVal);
+    //const char* subName = RetrieveBlockSubname(type, dataVal);
     // TODOTODO much better here would be to access the map naming routine, but that's tricky - 
     // you have to get the name and mask out the data value (should be made part of that routine and shared)
-    sprintf_s(instanceNameString, 256, "%s_%d_%d", subName, type, dataVal);
-    changeCharToUnderline(' ', instanceNameString);
+    //sprintf_s(instanceNameString, 256, "%s_%d_%d", subName, type, dataVal);
+    //changeCharToUnderline(' ', instanceNameString);
+    sprintf_s(instanceNameString, 256, "Block_%d_%d", type, dataVal);
 }
 
 
@@ -23518,13 +23524,10 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
             gModel.instance[i].numFaces = ((i < gModel.instanceCount - 1) ? gModel.instance[i + 1].faceNumber : gModel.faceCount) - gModel.instance[i].faceNumber;
         }
 
-#ifdef OUTPUT_ORDERED_INSTANCES
         // sort by hash
         qsort_s(gModel.instance, gModel.instanceCount, sizeof(BlockInstance), instanceUSDCompare, NULL);
-#endif
 
         for (i = 0; i < gModel.instanceCount; i++) {
-#ifdef OUTPUT_ORDERED_INSTANCES
             // different naming, etc.
             int type = gModel.instance[i].hash >> 16;
             int dataVal = gModel.instance[i].hash & 0xff;
@@ -23542,14 +23545,14 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary)
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "    int blockFlags = %d\n\n", gBlockDefinitions[type].flags);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
-#else
+            /* old, non-sorted method, without metadata
             char blockName[MAX_PATH_AND_FILE];
             nameFromHash(gModel.instance[i].hash, blockName);
             char blockNameUnderlined[MAX_PATH_AND_FILE];
             convertCharPathUnderlined(blockNameUnderlined, blockName, true);
             sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", blockNameUnderlined);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
-#endif
+            */
 
             int firstFaceNumber = gModel.instance[i].faceNumber;
             //int nextFaceNumber = (i < gModel.instanceCount - 1) ? gModel.instance[i + 1].faceNumber : gModel.faceCount;

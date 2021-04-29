@@ -176,6 +176,7 @@ typedef struct BlockInstance {
     int hash;
     int faceNumber; // first face in list of faces
     int numFaces;   // in theory not needed if we don't sort the list, but could be useful
+    int startingLocation;
 } BlockInstance;
 
 typedef struct InstanceLocation {
