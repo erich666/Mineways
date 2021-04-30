@@ -225,6 +225,8 @@ static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
 
 static int gInstanceError = true;
 
+static int gInstanceChunkSize = 16;
+
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
 #define	IMPORT_SCRIPT	2
@@ -3882,7 +3884,8 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
+        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
+        gInstanceChunkSize);
 
     deleteCommandBlockSet(gChangeBlockCommands);
     gChangeBlockCommands = NULL;
@@ -4393,7 +4396,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands);
+            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
+            gInstanceChunkSize);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
 
@@ -7225,6 +7229,25 @@ JumpToSpawn:
             }
         }
         return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    // USDA control commands - not in the UI yet... TODO USD
+    strPtr = findLineDataNoCase(line, "Chunk size:");
+    if (strPtr != NULL) {
+        int v;
+        if (1 != sscanf_s(strPtr, "%d", &v)) {
+            // bad parse - warn and quit
+            saveErrorMessage(is, L"could not read 'Chunk size' value.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if ((v < 0) || (v >= 512)) {
+            saveErrorMessage(is, L"chunk size must be from 0 to 511, with '0' meaninng no chunking.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            gInstanceChunkSize = v;
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
 
     // something on line, but means nothing - warn user
