@@ -279,12 +279,16 @@ static int gUsingTransform = 0;
 // TODO - make separate hunks of memory that don't get output.
 #define SWATCH_WORKSPACE        SWATCH_INDEX( 8, 2 )
 
+// say we save to c:\temp\Buildings\Eiffel.usda
+wchar_t gOutputFilePath[MAX_PATH_AND_FILE]; // this is then "c:\\temp\\Buildings\\"
+wchar_t gOutputFileRoot[MAX_PATH_AND_FILE]; // this is "Eiffel"
+wchar_t gOutputFileRootClean[MAX_PATH_AND_FILE]; // used by all files that are referenced inside text files - "Eiffel"
+char gOutputFileRootCleanChar[MAX_PATH_AND_FILE]; // - "Eiffel" in chars
 
-wchar_t gOutputFilePath[MAX_PATH_AND_FILE];
-wchar_t gOutputFileRoot[MAX_PATH_AND_FILE];
-wchar_t gOutputFileRootClean[MAX_PATH_AND_FILE]; // used by all files that are referenced inside text files
-wchar_t gTextureDirectoryPath[MAX_PATH_AND_FILE];
-char gOutputFileRootCleanChar[MAX_PATH_AND_FILE];
+wchar_t gMaterialFileSubdir[MAX_PATH_AND_FILE]; // directory "Eiffel_materials"
+char gMaterialFileSubdirChar[MAX_PATH_AND_FILE]; // directory "Eiffel_materials"
+wchar_t gMaterialDirectoryPath[MAX_PATH_AND_FILE]; // "c:\\temp\\Buildings\\Eiffel_materials\\"
+wchar_t gTextureDirectoryPath[MAX_PATH_AND_FILE]; // "c:\\temp\\Buildings\\Eiffel_materials\\textures\\"
 
 // how many blocks are needed to make a thick enough wall
 static int gWallBlockThickness = UNINITIALIZED_INT;
@@ -717,7 +721,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary);
 static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, float resScale, int progressTick, int progressIncrement);
 static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
-static int createMaterialsUSD(char *texturePath, wchar_t* mtlLibraryFile);
+static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
 static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts);
@@ -938,6 +942,26 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     wcharCleanse(gOutputFileRootClean);
     spacesToUnderlines(gOutputFileRootClean);
     WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
+
+    // get subdirectory path and try to create it - only needed for USDA, else it's just the same as gOutputFilePath
+    if (fileType == FILE_TYPE_USD) {
+        wcscpy_s(gMaterialFileSubdir, MAX_PATH_AND_FILE, gOutputFileRootClean);
+        wcscat_s(gMaterialFileSubdir, MAX_PATH_AND_FILE, L"_materials");
+        WcharToChar(gMaterialFileSubdir, gMaterialFileSubdirChar, MAX_PATH_AND_FILE);
+        concatFileName3(gMaterialDirectoryPath, gOutputFilePath, gMaterialFileSubdir, L"\\");
+        // try to create it
+        if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
+            ERROR_ALREADY_EXISTS == GetLastError()))
+        {
+            // Failed to create directory.
+            retCode |= MW_CANNOT_CREATE_DIRECTORY;
+            return retCode;
+        }
+    }
+    else {
+        // Needed for gTextureDirectoryPath later
+        wcscpy_s(gMaterialDirectoryPath, MAX_PATH_AND_FILE, gOutputFilePath);
+    }
 
     // start exporting for real - this should be the same value as above, in the first call of UPDATE_PROGRESS,
     // before gProgress was populated
@@ -1580,15 +1604,19 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     wchar_t subpath[MAX_PATH_AND_FILE];
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
                     wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+
                     // create subdirectory if it doesn't exist
-                    if (wcschr(subpath, (wchar_t)':')) {
-                        // looks like an absolute path is being specified
-                        wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, subpath);
-                    }
-                    else {
-                        // relative path
-                        concatFileName4(gTextureDirectoryPath, gOutputFilePath, subpath, L"", L"");
-                    }
+                    concatFileName4(gTextureDirectoryPath, gMaterialDirectoryPath, subpath, L"", L"");
+
+                    // NO LONGER ALLOW ABSOLUTE PATH - too confusing, anyway - TODOTODO: test if colon in path and flag error, note in docs
+                    //if (wcschr(subpath, (wchar_t)':')) {
+                    //    // looks like an absolute path is being specified
+                    //    wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, subpath);
+                    //}
+                    //else {
+                    //    // relative path
+                    //    concatFileName4(gTextureDirectoryPath, gMaterialDirectoryPath, subpath, L"", L"");
+                    //}
                     if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
                         ERROR_ALREADY_EXISTS == GetLastError()))
                     {
@@ -4093,8 +4121,8 @@ static void randomRotation(int boxIndex, int& angle)
 static float getRand3to1(int boxIndex)
 {
     if (gModel.instancing) {
-        // chorus plant random bulges
-        return 0.0f;
+        // chorus plant random bulges - keep consistent when instancing, so that position won't affect these
+        return 65.0f/256.0f;
     }
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
@@ -4863,11 +4891,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // else extend randomly, based on random value: 50/50 there's a growth or not, and 50/50 the growth is a 6x6/8x8
         int odds = (int)(getRand3to1(boxIndex) * 256.0f);
         int fallbackBoxIndex = boxIndex;
+        int count = 0;
         // if all bump out bits are on (no bumps) or all are off (four bumps), get another value, as those two values are not valid
         while (((odds & 0x55) == 0x55) || ((odds & 0x55) == 0x0)) {
             // Can't use boxIndex again, as it will give the same result. Somewhat random increment:
             fallbackBoxIndex += 12345;
             odds = (int)(getRand3to1(fallbackBoxIndex) * 256.0f);
+            count++;
+            if (count == 10) {
+                // something is very wrong with getRand3to1
+                assert(0);
+                odds = 0x41;
+            }
         }
 
         // Lo X - west
@@ -22813,72 +22848,6 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
 
 //===============================================================================================
 
-//#define PLAN_A
-#ifdef PLAN_A
-// Globals for Omniverse Connection and base Stage
-
-extern int openUSDFile(const std::string& destinationPath);
-extern int writeCommentUSD(char* commentString);
-extern int finishCommentsUSD();
-extern int createCameraUSD();
-extern int createMaterialsUSD();
-extern int createMeshesUSD( char *worldName );
-extern int createLightingUSD();
-extern int closeUSDFile();
-
-static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, ChangeBlockCommand* pCBC)
-{
-    wchar_t fileNameWithSuffix[MAX_PATH_AND_FILE];
-    char usdFileNameWithSuffix[MAX_PATH_AND_FILE];
-    char worldNameUnderlined[MAX_PATH_AND_FILE];
-    int retCode = MW_NO_ERROR;
-    char outputString[256];
-
-    concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
-
-    // Need to use 8-bit chars for file names, etc.
-    WcharToChar(fileNameWithSuffix, usdFileNameWithSuffix, MAX_PATH_AND_FILE);
-    std::string usdStagePath = usdFileNameWithSuffix;
-    if (openUSDFile(usdStagePath)) {
-        // TODOUSD cannot open file
-        goto Exit;
-    }
-
-    // write comments for Import Settings and write globals
-    sprintf_s(outputString, 256, "\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
-    if (writeCommentUSD(outputString)) {
-        // TODOUSD failed to write
-        goto Exit;
-    }
-    retCode |= writeStatistics(gModelFile, writeCommentUSD, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
-    if (retCode >= MW_BEGIN_ERRORS) {
-        goto Exit;
-    }
-    if (finishCommentsUSD()) {
-        // TODOUSD failed to write
-        goto Exit;
-    }
-
-    // export a reasonable camera
-    if (createCameraUSD()) {
-    }
-
-    getWorldNameUnderlined(worldNameUnderlined, pWorldGuide->world, true);
-
-    if (createMeshesUSD(worldNameUnderlined)) {
-        goto Exit;
-    }
-
-    if (createLightingUSD()) {
-        goto Exit;
-    }
-
-Exit:
-    if (closeUSDFile()) {
-        // TODOUSD failed to quit
-    }
-#else
-
 // sort by chunk
 static int chunkUSDCompare(void* context, const void* str1, const void* str2)
 {
@@ -22937,11 +22906,22 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     // TODOTODOUSD - I suspect absolute path name for texture directory will break this - TEST!
     char texturePath[MAX_PATH_AND_FILE];
     strcpy_s(texturePath, MAX_PATH_AND_FILE, gModel.options->pEFD->tileDirString);
-    // get rid of backslashes for USD
+    // get rid of backslashes for USD output into file
     char* fc = strchr(texturePath, '\\');
     while (fc) {
         *fc = '/';
         fc = strchr(texturePath, '\\');
+    }
+
+    // needed for dome light by all:
+    char fullTexturePath[MAX_PATH_AND_FILE];
+    strcpy_s(fullTexturePath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
+    strcat_s(fullTexturePath, MAX_PATH_AND_FILE, "/");
+    strcat_s(fullTexturePath, MAX_PATH_AND_FILE, texturePath);
+
+    // if not instancing, need to point to the texture directory using the full path
+    if (!gModel.instancing) {
+        strcpy_s(texturePath, MAX_PATH_AND_FILE, fullTexturePath);
     }
 
     if (retCode |= openUSDFile(fileNameWithSuffix, gModelFile)) {
@@ -22993,18 +22973,23 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
     // if we're instancing, we need to simply write out the instance locations and what blocks they refer to
     if (gModel.instancing) {
+        // for output in file
         char blockLibraryName[MAX_PATH_AND_FILE];
+        // for actually opening with PortaCreate()
         wchar_t blockLibraryNameWithSuffix[MAX_PATH_AND_FILE];
         char materialLibraryName[MAX_PATH_AND_FILE];
         wchar_t materialLibraryNameWithSuffix[MAX_PATH_AND_FILE];
+        char subDirectoryName[MAX_PATH_AND_FILE];
+        //wchar_t subDirWchar[MAX_PATH_AND_FILE];
 
-        strcpy_s(materialLibraryName, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
-        strcat_s(materialLibraryName, MAX_PATH_AND_FILE - strlen(materialLibraryName), "_MaterialLibrary.usda");
-        concatFileName3(materialLibraryNameWithSuffix, gOutputFilePath, gOutputFileRoot, L"_MaterialLibrary.usda");
+        subDirectoryName[0] = (char)0;
 
-        strcpy_s(blockLibraryName, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
-        strcat_s(blockLibraryName, MAX_PATH_AND_FILE - strlen(blockLibraryName), "_BlockLibrary.usda");
-        concatFileName3(blockLibraryNameWithSuffix, gOutputFilePath, gOutputFileRoot, L"_BlockLibrary.usda");
+        // just so they're in one place
+        strcpy_s(materialLibraryName, "MaterialLibrary.usda");
+        strcpy_s(blockLibraryName, MAX_PATH_AND_FILE, "BlockLibrary.usda");
+
+        concatFileName2(materialLibraryNameWithSuffix, gMaterialDirectoryPath, L"MaterialLibrary.usda");
+        concatFileName2(blockLibraryNameWithSuffix, gMaterialDirectoryPath, L"BlockLibrary.usda");
 
         // update progress bar every 4%
         float doubleCount = (float)gModel.instanceLocCount * 2.0f;
@@ -23022,7 +23007,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
         // create material library
-        if (retCode |= createMaterialsUSD(texturePath, materialLibraryNameWithSuffix)) {
+        if (retCode |= createMaterialsUSD(texturePath, "", materialLibraryNameWithSuffix)) {
             // failed to write
             goto Exit;
         }
@@ -23094,7 +23079,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
 
-            sprintf_s(outputString, 256, "        over \"Blocks\" (references = @./%s@) {}\n", blockLibraryName);
+            sprintf_s(outputString, 256, "        over \"Blocks\" (references = @./%s/%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "    }\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23116,13 +23101,12 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
             sprintf_s(outputString, 256, "        int3 chunkSize = (%d, %d, %d)\n\n", gModel.instanceChunkSize, gModel.instanceChunkSize, gModel.instanceChunkSize);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-            // TODOTODO USD - doesn't work, need to figure out with Viktor
-            //strcpy_s(outputString, 256, "        def BlockLib \"BlockLib\"\n        {\n");
-            //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            //sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s@) {}\n", blockLibraryName);
-            //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            //strcpy_s(outputString, 256, "        }\n\n");
-            //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "        def BlockLib \"BlockLib\"\n        {\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s/%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "        }\n\n");
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             int* localBlockIndex = (int*)malloc(gModel.instanceCount * sizeof(int));
             int* absoluteIndex = (int*)malloc(gModel.instanceCount * sizeof(int));
@@ -23132,6 +23116,13 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
             char chunkLocation[256];
 
             while (findNextChunk(startInstance, endInstance, chunkLocation)) {
+                // chunks are usually small, so just check progress per chunk
+                if (startInstance > progressTick) {
+                    // there are unlikely to be *that* many groups, so just update on each found
+                    UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)startInstance / (float)gModel.instanceLocCount));
+                    progressTick += progressIncrement;
+                }
+            
                 // analyze chunk for what instances it uses and re-index, yet one more level of indirection
                 for (i = 0; i < gModel.instanceCount; i++) {
                     localBlockIndex[i] = -1;
@@ -23166,11 +23157,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
-                    if (i > progressTick) {
-                        // there are unlikely to be *that* many groups, so just update on each found
-                        UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
-                        progressTick += progressIncrement;
-                    }
                     sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     pil++;
@@ -23182,11 +23168,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
                 progressTick = progressIncrement;
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
-                    if (i > progressTick) {
-                        // there are unlikely to be *that* many groups, so just update on each found
-                        UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + gModel.instanceLocCount) / doubleCount));
-                        progressTick += progressIncrement;
-                    }
                     assert(localBlockIndex[pil->index] >= 0);
                     sprintf_s(outputString, 256, "%d%s\n", localBlockIndex[pil->index], (i == endInstance - 1) ? "]" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -23194,7 +23175,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
                 }
 
                 // output all instance names
-                strcpy_s(outputString, 256, "            prepend rel prototypes = [\n");
+                strcpy_s(outputString, 256, "            rel prototypes = [\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 char instanceNameString[MAX_PATH_AND_FILE];
                 for (i = 0; i < relIndex; i++) {
@@ -23204,11 +23185,11 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
                     // convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
 
                     //sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
-                    sprintf_s(outputString, 256, "            <Blocks/%s>%s\n", instanceNameString, (i == relIndex - 1) ? "]" : ",");
+                    sprintf_s(outputString, 256, "            <../BlockLib/Blocks/%s>%s\n", instanceNameString, (i == relIndex - 1) ? "]" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 }
-                sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s@) {}\n", blockLibraryName);
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                //sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s@) {}\n", blockLibraryName);
+                //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "        }\n");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -23232,7 +23213,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     } // instancing endif
 
     // create lighting
-    if (retCode |= createLightingUSD(texturePath)) {
+    if (retCode |= createLightingUSD(fullTexturePath)) {
         goto Exit;
     }
 
@@ -23242,7 +23223,10 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
     // export the materials to the main file
     if (!gModel.instancing) {
-        if (retCode |= createMaterialsUSD(texturePath, NULL)) {
+        char mdlPath[MAX_PATH_AND_FILE];
+        strcpy_s(mdlPath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
+        strcat_s(mdlPath, MAX_PATH_AND_FILE, "/");
+        if (retCode |= createMaterialsUSD(texturePath, mdlPath, NULL)) {
             // failed to write
             goto Exit;
         }
@@ -23250,7 +23234,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
 
     // create custom MDLs, if needed
     if (gModel.customMaterial) {
-        if (retCode |= writeMDLforUSD(gOutputFilePath)) {
+        if (retCode |= writeMDLforUSD(gMaterialDirectoryPath)) {
             goto Exit;
         }
     }
@@ -24088,7 +24072,7 @@ static void freeOutData()
 //}
 
 // if libraryFile is not NULL, we make a separate material library
-static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
+static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibraryFilename)
 {
     int retCode = 0;
 
@@ -24235,16 +24219,17 @@ static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
             // don't use any custom material for semitransparent (glass, water) materials
             if (gModel.customMaterial && !isSemitransparent) {
                 // TODOUSD UberNN, or make a MinecraftGlass.mdl file as a wrapper?
-                //sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%s.mdl@\n", isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
+                //sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%s%s.mdl@\n", mdlPath, isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
                 //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 //sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"%s\"\n", isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
                 //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Minecraft.mdl@\n");
+                sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%sMinecraft.mdl@\n", mdlPath);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Minecraft\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
+                // NOTE: no mdlPath, as OmniGlass, OmniPBR, and OmniPBR_Opacity are built-in MDL files
                 sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @Omni%s.mdl@\n", isSemitransparent ? "Glass" : (isCutout ? "PBR_Opacity" : "PBR"));
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Omni%s\"\n", isSemitransparent ? "Glass" : (isCutout ? "PBR_Opacity" : "PBR"));
@@ -24915,27 +24900,26 @@ static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                    // not actually needed by custom material Minecraft.mdl, for some reason.
-                    // But, doesn't hurt to set it, so it's set.
-                    //if (!gModel.customMaterial) {
-                    strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    if (outputCustomData) {
+                    // not actually needed by custom material Minecraft.mdl. Warning given if set.
+                    if (!gModel.customMaterial) {
+                        strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        if (outputCustomData) {
 
-                        strcpy_s(outputString, 256, "                customData = {\n");
+                            strcpy_s(outputString, 256, "                customData = {\n");
+                            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                            strcpy_s(outputString, 256, "                    bool default = 0\n");
+                            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                            strcpy_s(outputString, 256, "                }\n");
+                            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        }
+                        strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                        strcpy_s(outputString, 256, "                    bool default = 0\n");
+                        strcpy_s(outputString, 256, "                displayName = \"Enable Opacity Texture\"\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                        strcpy_s(outputString, 256, "                }\n");
+                        strcpy_s(outputString, 256, "            )\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     }
-                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                displayName = \"Enable Opacity Texture\"\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "            )\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    //}
                 }
 
                 // metallic?
@@ -25050,33 +25034,36 @@ static int createMaterialsUSD(char *texturePath, wchar_t *mtlLibraryFilename)
 
             // cutout? Part 2
             if (isCutout) {
-                strcpy_s(outputString, 256, "            int inputs:opacity_mode = 0 (\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                if (outputCustomData) {
-
-                    strcpy_s(outputString, 256, "                customData = {\n");
+                // not actually needed by custom material Minecraft.mdl. Warning given if set.
+                if (!gModel.customMaterial) {
+                    strcpy_s(outputString, 256, "            int inputs:opacity_mode = 0 (\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    int default = 1\n");
+                    if (outputCustomData) {
+
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    int default = 1\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Opacity Mono Source\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                renderType = \"::base::mono_mode\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                sdrMetadata = {\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    string __SDR__enum_value = \"mono_average\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    string options = \"mono_alpha:0|mono_average:1|mono_luminance:2|mono_maximum:3\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                }\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 }
-                strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                displayName = \"Opacity Mono Source\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                renderType = \"::base::mono_mode\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                sdrMetadata = {\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                    string __SDR__enum_value = \"mono_average\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                    string options = \"mono_alpha:0|mono_average:1|mono_luminance:2|mono_maximum:3\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                }\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            )\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
@@ -25891,7 +25878,6 @@ static int writeUSDTextures()
 
     return retCode;
 }
-#endif
 
 //===============================================================================================
 static int writeSchematicBox()
@@ -28285,31 +28271,31 @@ static void getPathAndRoot(const wchar_t* src, int fileType, wchar_t* path, wcha
 static void concatFileName2(wchar_t* dst, const wchar_t* src1, const wchar_t* src2)
 {
     wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src2);
 }
 
 static void concatFileName3(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3)
 {
     wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src3);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src2);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src3);
 }
 
 static void concatFileName4(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4)
 {
     wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src3);
-    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src4);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src2);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src3);
+    wcscat_s(dst, MAX_PATH_AND_FILE, src4);
 }
 
 //static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5)
 //{
 //    wcscpy_s(dst, MAX_PATH_AND_FILE, src1);
-//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src2);
-//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src3);
-//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src4);
-//    wcscat_s(dst, MAX_PATH_AND_FILE - wcslen(dst), src5);
+//    wcscat_s(dst, MAX_PATH_AND_FILE, src2);
+//    wcscat_s(dst, MAX_PATH_AND_FILE, src3);
+//    wcscat_s(dst, MAX_PATH_AND_FILE, src4);
+//    wcscat_s(dst, MAX_PATH_AND_FILE, src5);
 //}
 
 static void charToWchar(char* inString, wchar_t* outWString)
