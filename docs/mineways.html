@@ -2658,7 +2658,7 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do."
 <UL>
 
-<LI>In the works: Version 8.07, ?/?/2021 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 8.07, 5/5/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV807.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Fix obscure interaction between OBJ and USDA individual block export by making the two values entirely separate.
@@ -2666,13 +2666,6 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Unify UDSA export files: put all export files other than the primary USDA file in a subdirectory. This is much tidier, though it means the custom materials need to be recompiled for every model, not per directory, and the texture library directory doesn't get shared (for good or ill). Also removed unneeded parameters from the Minecraft.mdl file.
 <LI>Fix USDA instancing: don't shift instances from origin, move all scaling to scale transformation, get rid of non-graphical data values (such as the age of the fire), check for piston as a full block, note double slabs are waterloggable but don't actually output water for their locations, and much other trivia too painful to describe.
 <LI>Added a video for using Mineways with the free <a href="#houdini">Houdini Apprentice</a> program.
-<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
-<LI>*Individual block export does not currently work with tiled textures for OBJs. It should; the logic's involved...
-<LI>*Update doors with new shared data format and a split path; update redstone a bit with directionality and on/off and a split path.
-<LI>*Add an information dialog about the world read in, e.g., what version it is, spawn point, player loc, if nothing else.
-<LI>*1.17 - is release imminent? Maybe consider implementing some of the new blocks, to get a jump on it.
-<LI>*Better USD instancing for water and lava, as right now a full block is what gets generated. Use "level" attribute?
-<LI>*Contemplate someday moving to a 16-bit data value instead of 8, and maybe a 16-bit type data value. If done, blocks could more precisely be generated (e.g., walls could work perfectly, redstone dots would work) and instancing for USD could be much better supported. Should be done in conjunction with a "max height" dynamic allocation of chunks, freeing up memory that currently is entirely air.
 </UL>
 
 <LI>Version 8.06, 4/14/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV806.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3415,8 +3408,14 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
-<LI>Extend color schemes to the new tiles with IDs greater than 255. These new IDs are admittedly bogus, but right now there's no way to turn off the output of these newer blocks. That said, color schemes appear to be a feature that's rarely used.
+<LI>1.17 - is release imminent? Maybe consider implementing some of the new blocks, to get a jump on it.
 <LI>Individual block export does not currently work with tiled textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
+<LI>Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
+<LI>Individual block export does not currently work with tiled textures for OBJs. It should; the logic's involved...
+<LI>Update doors with new shared data format and a split path; update redstone a bit with directionality and on/off and a split path.
+<LI>Add an information dialog about the world read in, e.g., what version it is, spawn point, player loc, if nothing else.
+<LI>Better USD instancing for water and lava, as right now a full block is what gets generated. Use "level" attribute?
+<LI>Contemplate someday moving to a 16-bit data value instead of 8, and maybe a 16-bit type data value. If done, blocks could more precisely be generated (e.g., walls could work perfectly, redstone dots would work) and instancing for USD could be much better supported. Should be done in conjunction with a "max height" dynamic allocation of chunks, freeing up memory that currently is entirely air.
 <LI>With Minecraft 1.17 now having a height range of -64 to 319, it would be nice to trim memory usage for map chunks. Find the highest block in a chunk and trim the memory usage for the chunk down to this when done reading it. This maximum height number should help other search functions, too.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 <LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly.
@@ -3461,7 +3460,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV806.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV807.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3511,7 +3510,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/4/2021</p>
+		<p id="lastUpdate">Last updated 5/5/2021</p>
 	</div>
 </div>
 

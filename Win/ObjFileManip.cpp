@@ -20300,6 +20300,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     if (gModel.exportTexture)
     {
         if (gModel.exportTiles) {
+            // go from the "UVs for one giant mosaic" to "UVs per tile" -
+            // happily, all coordinates are powers of two, so this process is lossless
             retCode = mosaicUVtoSeparateUV();
             if (retCode >= MW_BEGIN_ERRORS)
                 goto Exit;
