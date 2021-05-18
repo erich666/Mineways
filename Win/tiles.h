@@ -171,8 +171,8 @@ static struct {
     { 14,  5,   6, 0, L"wheat_stage6", L"wheat_stage_6", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15,  5,  59, 0, L"wheat_stage7", L"wheat_stage_7", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0,  6,  69, 0, L"lever", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  1,  6,   6, 0, L"oak_door_bottom", L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  2,  6,   6, 0, L"iron_door_bottom", L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  1,  6,   6, 0, L"oak_door_bottom", L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
+    {  2,  6,   6, 0, L"iron_door_bottom", L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
     {  3,  6,  76, 0, L"redstone_torch", L"redstone_torch_on", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4,  6,   6, 0, L"mossy_stone_bricks", L"stone_bricks_mossy", SWATCH_REPEAT_ALL },
     {  5,  6,   6, 0, L"cracked_stone_bricks", L"stone_bricks_cracked", SWATCH_REPEAT_ALL },
@@ -442,16 +442,16 @@ static struct {
     { 13, 22, 178, 0, L"daylight_detector_inverted_top", L"", SWATCH_REPEAT_ALL },
     { 14, 22, 169, 0, L"sea_lantern", L"", SWATCH_REPEAT_ALL },
     { 15, 22,   6, 0, L"wet_sponge", L"sponge_wet", SWATCH_REPEAT_ALL },
-    {  0, 23,   6, 0, L"spruce_door_bottom", L"door_spruce_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  1, 23, 193, 0, L"spruce_door_top", L"door_spruce_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  0, 23,   6, 0, L"spruce_door_bottom", L"door_spruce_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
+    {  1, 23, 193, 0, L"spruce_door_top", L"door_spruce_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	    // this particular one does not need SBIT_DECAL normally, but mods could use it
     {  2, 23,   6, 0, L"birch_door_bottom",  L"door_birch_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
     {  3, 23, 194, 0, L"birch_door_top", L"door_birch_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },		// this particular one does not need SBIT_DECAL normally, but mods could use it
     {  4, 23,   6, 0, L"jungle_door_bottom", L"door_jungle_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
     {  5, 23, 195, 0, L"jungle_door_top", L"door_jungle_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  6, 23,   6, 0, L"acacia_door_bottom", L"door_acacia_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  7, 23, 196, 0, L"acacia_door_top", L"door_acacia_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    {  8, 23,   6, 0, L"dark_oak_door_bottom", L"door_dark_oak_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  9, 23, 197, 0, L"dark_oak_door_top", L"door_dark_oak_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  8, 23,   6, 0, L"dark_oak_door_bottom", L"door_dark_oak_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
+    {  9, 23, 197, 0, L"dark_oak_door_top", L"door_dark_oak_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
     { 10, 23,  43, 0, L"smooth_stone", L"smooth_stone_top", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was top of banner; NOTE: this looks a heckuva lot like "stone_slab_top" - which gets used? This one, so it's used for 6,0
     { 11, 23,   6, 0, L"smooth_stone_slab_side", L"", SWATCH_REPEAT_ALL },	// now reused for 1.14 - was bottom of banner; NOTE: this looks a heckuva lot like "stone_slab_side" - which gets used? This one, so it's used for 5,0
     { 12, 23, 198, 0, L"end_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },

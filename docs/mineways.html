@@ -1378,7 +1378,9 @@ A problem with jmc2obj is that each material must be adjusted by hand. One optio
 <P>
 Houdini Apprentice can be <a href="https://www.sidefx.com/buy/#houdini0">downloaded for free</a> for non-commercial use. Houdini Apprentice pays attention to the UsdPreview material Mineways produces. 
 <P>
-I made <a href="https://youtu.be/w3qCPts_70I">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. One thing I forgot to mention in the narration: at 1:14, where I add a File node, what I did was right-click in that lower-right area and typed "file" to get that node, then clicked in the area to make the node appear.
+I made <a href="https://www.youtube.com/watch?v=w3qCPts_70I&t=67s">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. Summary: select Build -> Solaris, right-click in the lower right "/stage" dialog, type "file," and then click in the dialog to place this element. Above this dialog is now "Sublayer file1" - scroll down to find "Sublayer File" and in "File" give the USDA file you want to import. Once imported, scroll out with Alt and mouse-wheel down. Turn off the sun and dome light in the lower left dialog, "Scene Graph Tree." Add your own lights from the icons in the upper left of the app. Hold down "Alt" and use the mouse for camera moves. In the upper right of the viewport select the Karma renderer from "persp" to use the path tracer. 
+<P>
+One thing I did forget to mention in the video narration: at time 1:14, where I add a File node, what I did was right-click in that lower-right area and typed "file" to get that node, then clicked in the area to make the node appear.
 
 <HR>
 <H2 id="sketchfab">Publish to Sketchfab</H2>
@@ -2658,6 +2660,14 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do."
 <UL>
+
+<LI>TBD                Version 8.08, 5/18/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV807.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<BR>
+<UL>
+<LI>Change doors to all possibly have cutouts. While vanilla Minecraft doors do not, some resource packs add cutouts. Really, I should test all textures for alpha cutouts, but that can be costly and it's simpler to just note doors can have semi-transparency.
+<LI>Change UsdPreviewSurface to output the opacity threshold and use the diffuse texture alpha only if the texture has semitransparency or is a cutout.
+</UL>
+
 
 <LI>Version 8.07, 5/5/2021 - <a href="http://realtimerendering.com/erich/minecraft/public/mineways/minewaysV807.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>

@@ -22950,21 +22950,25 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     //if (createCameraUSD()) {
     //}
     // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
-    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
-    if (strlen(worldNameUnderlined)) {
-        // is first character a numeral? Illegal in USD
-        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
-            // name is assumed valid
-            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
+    if (gModel.instancing) {
+        strcpy_s(outputString, 256, "\ndef Xform \"World\"\n{\n");
+    } else {
+        convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
+        if (strlen(worldNameUnderlined)) {
+            // is first character a numeral? Illegal in USD
+            if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
+                // name is assumed valid
+                sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
+            }
+            else {
+                // put a _ in front of the illegal name, making it valid
+                sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
+            }
         }
         else {
-            // put a _ in front of the illegal name, making it valid
-            sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
+            // no name given, which happens with the block test world
+            strcpy_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
         }
-    }
-    else {
-        // no name given, which happens with the block test world
-        strcpy_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
     }
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -24133,6 +24137,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         bool isCutout = false;
         bool isSemitransparent = false;
         float alpha = retrieveMtlAlpha(pFace->materialType);
+        // TODO: could key off of the alpha of the tile, e.g.,
+        // gTilesTable[swatchLoc].flags & TILE_USES_ALPHA - not sure there's any gain
         if (!gModel.print3D &&
             (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
 
@@ -24162,6 +24168,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
             else if ((gBlockDefinitions[pFace->materialType].flags & BLF_CUTOUTS) &&
                 !(gModel.options->pEFD->chkLeavesSolid && (gBlockDefinitions[pFace->materialType].flags & BLF_LEAF_PART))) {
+                // TODO: this is not entirely trustworthy, unfortunately. If a resource pack uses a cutout but BLF_CUTOUT is
+                // not flagged, the object is not considered a cutout. We should really check every texture (ugh) to see if
+                // it has an alpha at all in it.
                 isCutout = true;
             }
         }
@@ -25228,8 +25237,12 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             // opacity threshold is not well-defined. Does 0 mean "if 0, it's transparent" or "if less than 0, it's transparent?"
             // In Omniverse, it's the former. In Houdini, the latter.
-            strcpy_s(outputString, 256,  "            float inputs:opacityThreshold = 0.001\n");
-            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            // Needed only if a texture has alphas. Not needed if there's no alpha.
+            // Better would be to do the full alpha test, just to be sure.
+            if (isCutout || isSemitransparent) {
+                strcpy_s(outputString, 256, "            float inputs:opacityThreshold = 0.001\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            }
 
             // - roughness input
             sprintf_s(outputString, 256, "            float inputs:roughness = %g\n", roughness);
@@ -25393,8 +25406,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            float2 inputs:st.connect = <%s/Looks/%s/uv_reader.outputs:result>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "            float outputs:a\n");
-            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            if (isCutout || isSemitransparent) {
+                strcpy_s(outputString, 256, "            float outputs:a\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            }
             strcpy_s(outputString, 256, "            color3f outputs:rgb\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "        }\n");
