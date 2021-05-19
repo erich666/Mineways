@@ -5033,6 +5033,7 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
         (strstr(lineString, "#usda 1.0") != NULL) ||
         (strstr(lineString, "#VRML V2.0 utf8") != NULL) ||
         (strstr(lineString, "# Minecraft world:") != NULL) ||
+        (strstr(lineString, "# World:") != NULL) || // newer style
         (strstr(lineString, "# Extracted from Minecraft world") != NULL)) {
         exported = true;
 
@@ -5657,9 +5658,14 @@ static int interpretImportLine(char* line, ImportedSet& is)
     // find save file name
     // old style
     strPtr = findLineDataNoCase(line, "Extracted from Minecraft world saves/");
-    if (strPtr == NULL)
+    if (strPtr == NULL) {
         // new script style:
         strPtr = findLineDataNoCase(line, "Minecraft world: ");
+    }
+    if (strPtr == NULL) {
+        // newer still script style:
+        strPtr = findLineDataNoCase(line, "World: ");
+    }
     if (strPtr != NULL) {
         if (*strPtr == (char)0) {
             saveErrorMessage(is, L"no world given.");

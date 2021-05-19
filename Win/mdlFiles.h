@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-const char* file_Minecraft[] = {
+const char* file_Mineways[] = {
 	"/***************************************************************************************************\n",
 	" * Copyright 2020 NVIDIA Corporation. All rights reserved.\n",
 	" *\n",
@@ -29,7 +29,7 @@ const char* file_Minecraft[] = {
 	" * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n",
 	" **************************************************************************************************/\n",
 	"\n",
-	"// A wrapper for Minecraft for Omni's surface lite using nearest neighbour texture lookups\n",
+	"// A wrapper for Mineways for Omni's surface lite using nearest neighbour texture lookups\n",
 	"\n",
 	"mdl 1.6;\n",
 	"\n",
@@ -41,7 +41,7 @@ const char* file_Minecraft[] = {
 	"import OmniImageNN::*;\n",
 	"import OmniShared::*;\n",
 	"\n",
-	"export material Minecraft(\n",
+	"export material Mineways(\n",
 	"    uniform texture_2d diffuse_texture = texture_2d()\n",
 	"        [[ anno::display_name(\"Diffuse Texture\") ]],\n",
 	"\n",
@@ -3039,7 +3039,7 @@ const int mdlFileLines[] = {
 };
 
 const char** mdlFileContents[] = {
-	file_Minecraft,
+	file_Mineways,
 	file_OmniImageNN,
 	file_OmniShared,
 	file_OmniSurfaceLiteBase,
@@ -3048,7 +3048,7 @@ const char** mdlFileContents[] = {
 };
 
 const wchar_t* mdlFileNames[] = {
-	L"Minecraft.mdl",
+	L"Mineways.mdl",
 	L"OmniImageNN.mdl",
 	L"OmniShared.mdl",
 	L"OmniSurfaceLiteBase.mdl",

@@ -22949,27 +22949,29 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
     // export a reasonable camera
     //if (createCameraUSD()) {
     //}
+    // if a standard name is needed, it could be done like so:
+    //if (gModel.instancing) {
+    //    strcpy_s(outputString, 256, "\ndef Xform \"World\"\n{\n");
+    //} else {
+    // 
     // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
-    if (gModel.instancing) {
-        strcpy_s(outputString, 256, "\ndef Xform \"World\"\n{\n");
-    } else {
-        convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
-        if (strlen(worldNameUnderlined)) {
-            // is first character a numeral? Illegal in USD
-            if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
-                // name is assumed valid
-                sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
-            }
-            else {
-                // put a _ in front of the illegal name, making it valid
-                sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
-            }
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
+    if (strlen(worldNameUnderlined)) {
+        // is first character a numeral? Illegal in USD
+        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
+            // name is assumed valid
+            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
         }
         else {
-            // no name given, which happens with the block test world
-            strcpy_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
+            // put a _ in front of the illegal name, making it valid
+            sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
         }
     }
+    else {
+        // no name given, which happens with the block test world
+        strcpy_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
+    }
+    //}
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     if (gXformScale != 1.0f) {
@@ -24230,13 +24232,13 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // don't use any custom material for semitransparent (glass, water) materials
             if (gModel.customMaterial && !isSemitransparent) {
                 // TODOUSD UberNN, or make a MinecraftGlass.mdl file as a wrapper?
-                //sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%s%s.mdl@\n", mdlPath, isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
+                //sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%s%s.mdl@\n", mdlPath, isSemitransparent ? "OmniSurfaceUber" : "Mineways");
                 //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                //sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"%s\"\n", isSemitransparent ? "OmniSurfaceUber" : "Minecraft");
+                //sprintf_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"%s\"\n", isSemitransparent ? "OmniSurfaceUber" : "Mineways");
                 //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%sMinecraft.mdl@\n", mdlPath);
+                sprintf_s(outputString, 256, "            uniform asset info:mdl:sourceAsset = @%sMineways.mdl@\n", mdlPath);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Minecraft\"\n");
+                strcpy_s(outputString, 256, "            uniform token info:mdl:sourceAsset:subIdentifier = \"Mineways\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
@@ -24911,7 +24913,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                    // not actually needed by custom material Minecraft.mdl. Warning given if set.
+                    // not actually needed by custom material Mineways.mdl. Warning given if set.
                     if (!gModel.customMaterial) {
                         strcpy_s(outputString, 256, "            bool inputs:enable_opacity_texture = 1 (\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25045,7 +25047,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             // cutout? Part 2
             if (isCutout) {
-                // not actually needed by custom material Minecraft.mdl. Warning given if set.
+                // not actually needed by custom material Mineways.mdl. Warning given if set.
                 if (!gModel.customMaterial) {
                     strcpy_s(outputString, 256, "            int inputs:opacity_mode = 0 (\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26380,10 +26382,10 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
     if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
     {
-        strcpy_s(outputString, 256, "# Minecraft world: [Block Test World]\n");
+        strcpy_s(outputString, 256, "# World: [Block Test World]\n");
     }
     else {
-        sprintf_s(outputString, 256, "# Minecraft world: %s\n", justWorldFileName);
+        sprintf_s(outputString, 256, "# World: %s\n", justWorldFileName);
     }
     WRITE_STAT;
 
