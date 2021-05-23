@@ -2959,6 +2959,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 int dataY = 0;
                 int dataZ = 0;
                 int dataData = 0;
+                int dataBase = 0;
                 for (;;)
                 {
                     type = 0;
@@ -2978,6 +2979,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                 break;
                             case BLOCK_FLOWER_POT:
                                 pBE->data = (unsigned char)((dataFlowerPotType << 4) | dataData);
+                                break;
+                            case BLOCK_STANDING_BANNER:
+                            //case BLOCK_WALL_BANNER:
+                                // entity data will be used to convert to full color ID type
+                                pBE->data = (unsigned char)dataBase;
                                 break;
                             default:
                                 // should flag an error!
@@ -3028,6 +3034,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             else if (strcmp(idName, "minecraft:flower_pot") == 0)
                             {
                                 dataType = BLOCK_FLOWER_POT;
+                            }
+                            else if (strcmp(idName, "minecraft:banner") == 0)
+                            {
+                                // actually, unknown here - either a standing or a wall banner
+                                dataType = BLOCK_STANDING_BANNER;
                             }
                             else {
                                 skipSection = true;
@@ -3093,6 +3104,16 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         else if (strcmp(thisName, "Data") == 0 && type == 3)
                         {
                             dataData = readDword(pbf);
+                        }
+                        else if (strcmp(thisName, "Base") == 0 && type == 3)
+                        {
+                            dataBase = readDword(pbf);
+                        }
+                        else if (strcmp(thisName, "Patterns") == 0 && type == 9)
+                        {
+                            // skip past the patterns when reading banners
+                            if (skipType(pbf, type) < 0)
+                                return -43;
                         }
                         else {
                             // unused type, skip it, and skip all rest of object, since it's something we don't care about

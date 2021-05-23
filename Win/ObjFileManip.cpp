@@ -2546,8 +2546,8 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
 
                 // tile entities needed if using old data format
                 if (!gIs13orNewer) {
-                    // if the block is a flower pot or head, we need to extract the extra data from the block
-                    if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD))
+                    // if the block is a flower pot or head, or banner, we need to extract the extra data from the block
+                    if ((blockID == BLOCK_FLOWER_POT) || (blockID == BLOCK_HEAD) || (blockID == BLOCK_STANDING_BANNER) || (blockID == BLOCK_WALL_BANNER))
                     {
                         // don't do extraction if 1.7 or earlier data for the flower pot, i.e. the data shows there's something in the pot right now
                         if (!((blockID == BLOCK_FLOWER_POT) && (dataVal > 0)))
@@ -2557,12 +2557,12 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                             for (i = 0; i < block->numEntities; i++, pBE++) {
                                 int listChunkIndex = pBE->y << 8 | pBE->zx;
                                 if (chunkIndex == listChunkIndex) {
-                                    if (pBE->type == blockID) {
+                                    if (pBE->type == blockID || ((pBE->type == BLOCK_STANDING_BANNER) && (blockID == BLOCK_WALL_BANNER))) {
                                         // found it, data gets stored differently for heads and flowers
                                         if (blockID == BLOCK_FLOWER_POT) {
                                             gBoxData[boxIndex].data = pBE->data;
                                         }
-                                        else {
+                                        else if (blockID == BLOCK_HEAD) {
                                             // BLOCK_HEAD
 
                                             // most arcane storage ever, as I need to fit everything in 8 bits in my extended data value field.
@@ -2584,6 +2584,25 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                                                 // use head data and rotation data, and flag topmost bit to note it's this way
                                                 gBoxData[boxIndex].data = pBE->data | 0x80;
                                             }
+                                        }
+                                        else if ((blockID == BLOCK_STANDING_BANNER) || (blockID == BLOCK_WALL_BANNER)) {
+                                            // 15 is the white banner form, so no modification needed
+                                            if (pBE->data < 15) {
+                                                // from nbt.cpp
+                                                //{ 0, 176, 0, "white_banner", STANDING_SIGN_PROP },
+                                                //{ 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },
+                                                //{ 0, 177,           0, "white_wall_banner", FACING_PROP },
+                                                //{ 0,  38,    HIGH_BIT, "orange_wall_banner", FACING_PROP },
+                                                if (blockID == BLOCK_STANDING_BANNER) {
+                                                    gBoxData[boxIndex].type = (23 | 0x100) + 14 - pBE->data;
+                                                }
+                                                else {
+                                                    gBoxData[boxIndex].type = (38 | 0x100) + 14 - pBE->data;
+                                                }
+                                            }
+                                        }
+                                        else {
+                                            assert(0);
                                         }
                                     }
                                     break;
