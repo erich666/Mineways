@@ -59,6 +59,7 @@ static int worldVersion = 0;
 // that we nonetheless don't track).
 #define GRAPHICAL_ONLY
 
+// Shows all data names and values and what uses them: https://minecraft.fandom.com/wiki/Java_Edition_data_values
 
 // properties and which blocks use them:
 // age: AGE_PROP
@@ -2729,39 +2730,49 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                     dataVal = 14;
                                 }
                                 else if (west) {
+                                    // top, west, and north:
                                     dataVal = 1;
                                 }
                                 else if (east) {
+                                    // top, north, and east:
                                     dataVal = 3;
                                 }
                                 else
+                                    // top and north
                                     dataVal = 2;
                             }
                             else {
-                                // 0,4,5,6,7,8,9 (stem is separate with 10 and 15)
+                                // 0,4,5,6,7,8,9 (stem is separate with 10 and 15, above)
                                 if (south) {
                                     // 7,8,9
                                     if (west) {
+                                        // top, south, west
                                         dataVal = 7;
                                     }
                                     else if (east) {
+                                        // top, south, east
                                         dataVal = 9;
                                     }
                                     else
+                                        // top, south
                                         dataVal = 8;
                                 }
                                 else {
                                     // 0,4,5,6
                                     if (west) {
+                                        // top, west
                                         dataVal = 4;
                                     }
                                     else if (east) {
+                                        // top, east
                                         dataVal = 6;
                                     }
                                     else if (up) {
+                                        // top, only
                                         dataVal = 5;
                                     }
                                     else
+                                        // nothing: pores on all sides
                                         dataVal = 0;
                                 }
                             }
