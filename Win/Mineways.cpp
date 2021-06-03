@@ -30,6 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "Mineways.h"
 #include "ColorSchemes.h"
 #include "ExportPrint.h"
+#include "Location.h"
 #ifdef SKETCHFAB
 #include "publishSkfb.h"
 #endif
@@ -1655,6 +1656,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case ID_FILE_DOWNLOADTERRAINFILES:
             ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
+            break;
+        case IDM_FOCUSVIEW:
+            setLocationData((int)gCurX, (int)gCurZ);
+            if (doLocation(hInst, hWnd))
+            {
+                // successful, so change location
+                int x, z;
+                getLocationData(x, z);
+                gCurX = (double)x;
+                gCurZ = (double)z;
+                REDRAW_ALL;
+            }
+
+            //DialogBox(hInst, MAKEINTRESOURCE(IDD_FOCUS_VIEW), hWnd, About);
             break;
         case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
@@ -3549,6 +3564,7 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu, IDM_JUMPSPAWN, MF_ENABLED);
         EnableMenuItem(menu, IDM_JUMPPLAYER, MF_ENABLED);
         EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_ENABLED);
+        EnableMenuItem(menu, IDM_FOCUSVIEW, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_ENABLED);
@@ -3564,6 +3580,7 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu, IDM_JUMPSPAWN, MF_DISABLED);
         EnableMenuItem(menu, IDM_JUMPPLAYER, MF_DISABLED);
         EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_DISABLED);
+        EnableMenuItem(menu, IDM_FOCUSVIEW, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_DISABLED);

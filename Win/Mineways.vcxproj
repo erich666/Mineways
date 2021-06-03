@@ -186,6 +186,7 @@
     <ClInclude Include="cache.h" />
     <ClInclude Include="ColorSchemes.h" />
     <ClInclude Include="ExportPrint.h" />
+    <ClInclude Include="Location.h" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="mdlFiles.h" />
     <ClInclude Include="Mineways.h" />
@@ -212,6 +213,7 @@
     <ClCompile Include="cache.cpp" />
     <ClCompile Include="ColorSchemes.cpp" />
     <ClCompile Include="ExportPrint.cpp" />
+    <ClCompile Include="Location.cpp" />
     <ClCompile Include="lodepng.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
