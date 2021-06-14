@@ -723,8 +723,8 @@ This option was on by default for rendering up to version 5.00 of Mineways (in t
 
 When checked, the center of the bottom of the model is put at the origin, location (0,0,0). This helps for import into some renderers, and can improve the floating-point resolution of the data. If you want to instead have the same coordinate values as in your world, uncheck this box (you might also want to set the "Make each block" size to whatever you like). Unchecking this option is useful if you do multiple exports from the same world for rendering and want them to use the same coordinate space. Multiple exports are a way to get around the export size limits for the 32-bit version of Mineways, which is what runs on the Mac.
 </P>
+<b>Use biome in center of export area:</b> Instead of the default colors (seen on the <a href="http://minecraft.gamepedia.com/Biome">Plains biome</a>), use the grass, tree, and water colors computed by the biome in the export. Currently the biome at the center of the export is used for the whole export. It would be nice to export multiple biomes someday, but this is a complex export, as it can require many different color variants of grass and tree blocks. Show biomes (F8) to display the biomes in the map itself.
 <p>
-<b>Use biome in center of export area:</b> Instead of the default colors (seen on the <a href="http://minecraft.gamepedia.com/Biome">Plains biome</a>), use the grass, tree, and water colors computed by the biome in the export. Currently the biome at the center of the export is used for the whole export. I hope to export multiple biomes someday, but this is a complex export, as it can require many different color variants of grass and tree blocks. See <a href="#biomes">the biomes display option</a> for how to display the biomes.
 </p>
 <P>
 <a id="border_faces">
@@ -3310,7 +3310,7 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Version 4.07, 10/14/2014 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV407.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>, <a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMac407.zip">Mac 32-bit only</a> - the little big one.
 <UL>
 <LI>Added Windows 8 executable, mineways_windows8.exe. You may need to install the 64-bit version of the <a href="http://www.microsoft.com/en-us/download/details.aspx?id=40784">Visual Studio 2013 redistributables</a> to be able to run it.
-<LI>Added biome mapping mode: View | Show Biomes (or F8). See <a href="#biomes">documentation</a> for details.
+<LI>Added biome mapping mode: View | Show Biomes (or F8).
 <LI>When biomes are displayed, elevation shading takes into account the altitude's influence on temperature for the biome. This effect is subtle, but it's there.
 <LI>Biome of the center of the area chosen for export can be used to modify the grass, trees, and water color (yes, I'm getting closer to exporting multiple biomes, but that's hard).
 <LI>Tilemaker 2.01: the grass_side_overlay.png texture is now used to properly form sides of grass blocks from scratch. If you make your own tile sets, you would be wise to rerun this new Tilemaker for best results.
