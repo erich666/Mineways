@@ -959,7 +959,7 @@ Rendering Tips
   <P>
   While I have your ear (eye?), you should also check out <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a> and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. (which Mineways does not - sorry - though you should be able to jigger TileMaker to make such sets of textures for you). Some nice texture packs: <a href="https://umsoea.com/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>.
   <P>
-  Also worth a shout-out, the <a href="https://www.nvidia.com/en-us/geforce/news/minecraft-with-rtx-beta-out-now-download-play/">Minecraft RTX beta</a>. If you have an RTX card, this system accelerates ray tracing effects on the Bedrock Edition (sorry, no Java Edition version). However, conversion of a Java Edition world is fairly straightforward; they give <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">a long guide</a>, but really, just follow the <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/#textcomponentenhance_16365283995c6722f5_46dd_4cdd_ba02_77ef3ae0242d">MCC Tool Chest Conversion</a> steps - it's all I needed. If you're really feeling frisky, you can <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/#resource-pack-setup">design a texture pack</a> (though be warned, <a href="https://help.minecraft.net/hc/en-us/articles/360042255511">the format will change</a>).
+  Also worth a shout-out, the <a href="https://www.nvidia.com/en-us/geforce/news/minecraft-with-rtx-beta-out-now-download-play/">Minecraft RTX beta</a>. If you have an RTX card, this system accelerates ray tracing effects on the Bedrock Edition (sorry, no Java Edition version). However, conversion of a Java Edition world is fairly straightforward; they give <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">a long guide</a>, but really, just follow the <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/#textcomponentenhance_16365283995c6722f5_46dd_4cdd_ba02_77ef3ae0242d">MCC Tool Chest Conversion</a> steps - it's all I needed (note that MCC Tool Chest has, sadly, disappeared, but can be found archived <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">here</a>). If you're really feeling frisky, you can <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/#resource-pack-setup">design a texture pack</a> (though be warned, <a href="https://help.minecraft.net/hc/en-us/articles/360042255511">the format will change</a>).
   <P>
   <h4 id="previewing">Previewing:</h4>
   <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer. <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a good previewer models in any format Mineways produces.</p>
@@ -1595,10 +1595,10 @@ Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_E
 <P>
 The options I know of are:
 <UL>
-  <LI><a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a> - a little quirky, but free.</LI>
+  <LI><a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">MCC ToolChest PE</a> - a little quirky, but free. Sadly, it seems to have disappeared in June 2021; we link to the archived site where you can still download it (should work for Minecraft 1.16 and earlier).</LI>
   <LI><a href="https://www.universalminecraftconverter.com/">Universal Minecraft Converter</a> - evidently more reliable than the MCC ToolChest, but is a (rather pricey) subscription service.</LI>
 </UL>
-<P>What follows are instructions for the free <a href="http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
+<P>What follows are instructions for the free <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
 <LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
 <LI>Select "Tools | Convert -> To Java." A large dialog box appears.
@@ -1610,7 +1610,7 @@ If there were no errors, great, and you should see your converted world in your 
 <P>
 If you did get some error, try the "Help" button, it might actually help. I found not setting "Convert into" properly or not giving a good directory path can give errors.
 <P>
-If you need more help, <a href="https://mcctoolchest.weebly.com/tutorial.html">this older site</a> <i>might</i> help (sadly, the <a href="http://www.mcctoolchest.com/">new site</a> does not have <a href="http://www.mcctoolchest.com/Tutorial">any tutorial</a> as of this writing).
+If you need more help, <a href="https://web.archive.org/web/20200625020835/https://mcctoolchest.weebly.com/tutorial.html">this older site</a> <i>might</i> help.
 <P>
 Note that this tool can also convert from Java to Bedrock, if that's of interest. <a href="https://youtu.be/LcqD1FPcF5o?t=61">This video</a> goes through most of the steps for that process. There's also <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">this detailed guide</a>, which filters out bad data.
 <P>
@@ -2661,9 +2661,17 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do."
 <UL>
 
-<LI>TBD                Version 8.08, sometime after 5/23/2021 - <a href="http://www.realtimerendering.com/erich/minecraft/public/mineways/downloads/Mineways_808_beta_4.zip">BETA exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 9.00, 6/??/2021
+  <BR>
+  <UL>
+    <LI>Minecraft 1.17 support.
+    <LI>Stretch goal: cut down memory use for chunks by noting areas consisting of just air and trimming down the storage for these.
+  </UL>
+
+<LI>Version 8.08, 6/17/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV808.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
+  <LI>Re-fix the biome system - I fixed a biome bug in 8.06, but then left in some debug code that forced everything to be a swamp. D'oh. Thanks to Evgenii for reporting this major bug.</LI>
   <LI>Add "Focus View" option, under the View menu. Lets you center the view at a given location.
   <LI>Fix <a href="https://github.com/erich666/Mineways/issues/82">issue #82</a>, add base color to banners exported from worlds from Minecraft 1.12 and earlier.</LI>
   <LI>Change doors to all possibly have cutouts. While vanilla Minecraft doors do not, some resource packs add cutouts. Really, I should test all textures for alpha cutouts, but that can be costly and it's simpler to just note doors can have semi-transparency.
@@ -3472,7 +3480,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV807.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV808.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3522,7 +3530,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 5/5/2021</p>
+		<p id="lastUpdate">Last updated 6/17/2021</p>
 	</div>
 </div>
 
