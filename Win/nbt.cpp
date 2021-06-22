@@ -65,7 +65,7 @@ static int worldVersion = 0;
 // age: AGE_PROP
 // attached: TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP
 // axis: AXIS_PROP, QUARTZ_PILLAR_PROP
-// bites: BITES_PROP
+// bites: CANDLE_CAKE_PROP
 // bottom: true|false - scaffolding, for which we ignore the "distance" field
 // conditional: COMMAND_BLOCK_PROP
 // delay: REPEATER_PROP
@@ -121,7 +121,7 @@ static int worldVersion = 0;
 #define AXIS_PROP			  1
 // snowy: false|true
 // note that the snowy prop actually does nothing; put here mostly to keep track; could be deleted. COULD BE REUSED
-#define SNOWY_PROP			  2
+// separate prop not needed: #define SNOWY_PROP			  2
 // facing: north|south|east|west
 // half: upper|lower
 // hinge: left|right
@@ -157,7 +157,7 @@ static int worldVersion = 0;
 // Redstone wire
 // north|south|east|west: none|side|up https://minecraft.gamepedia.com/Redstone#Block_state - we ignore, it's from geometry
 // power: 0-15
-#define WIRE_PROP		     13
+// not needed, done direct #define WIRE_PROP		     13
 // Lever
 // face: floor|ceiling|wall
 // facing: north|west|south|east
@@ -202,8 +202,10 @@ static int worldVersion = 0;
 #define FENCE_GATE_PROP		 27
 // facing: south|west|north|east
 #define SWNE_FACING_PROP	 28
-// bites: 0-6
-#define BITES_PROP			 29
+// bites: 0-6; 7 means it's actually a normal candle
+// if BIT_16 is flagged, it means there's a candle on top and that 0xf is the color
+// lit: true or false, goes to BIT_32
+#define CANDLE_CAKE_PROP	 29
 // facing: south|west|north|east
 // occupied: true|false - seems to be occupied only if someone else is occupying it? non-graphical, so ignored
 // part: head|foot
@@ -321,12 +323,18 @@ static int worldVersion = 0;
 // age:0-7
 // facing: north|south|west|east - done as BIT_32|BIT_16 0,1,2,3 ESWN
 #define HIGH_FACING_PROP    52
+// candles: 1-4 maps to 0x00-0x30
+// lit: adds one to the type
+// waterlogged: the usual bit
+#define CANDLE_PROP         53
+// facing: 0-3 door_facing
+// tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC)
+#define BIG_DRIPLEAF_PROP   54
+// facing: 0-3 door_facing
+// half: lower/upper 0x0/0x4
+#define SMALL_DRIPLEAF_PROP 55
 
-// If we run out of bits, here's an easy solution: merge everything that uses dropper_facing and call all of these "EXTENDED_FACING_PROP",
-// and OR in all the other properties, *AND* reset these other properties to 0 or false or whatever right after the dataVal is set, e.g. triggered, extended, sticky...
-
-
-#define NUM_TRANS 766
+#define NUM_TRANS 801
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -346,10 +354,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   1,           5, "andesite", NO_PROP },
     { 0,   1,           6, "polished_andesite", NO_PROP },
     { 0, 170,           0, "hay_block", AXIS_PROP },
-    { 0,   2,           0, "grass_block", SNOWY_PROP },
+    { 0,   2,           0, "grass_block", NO_PROP },    // uses SNOWY_PROP
     { 0,   3,           0, "dirt", NO_PROP }, // no SNOWY_PROP
     { 0,   3,           1, "coarse_dirt", NO_PROP }, // note no SNOWY_PROP
-    { 0,   3,           2, "podzol", SNOWY_PROP }, // does indeed have snowy prop
+    { 0,   3,           2, "podzol", NO_PROP },    // uses SNOWY_PROP
     { 0,   4,           0, "cobblestone", NO_PROP },
     { 0,   5,           0, "oak_planks", NO_PROP },
     { 0,   5,           1, "spruce_planks", NO_PROP },
@@ -499,7 +507,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 164,           0, "dark_oak_stairs", STAIRS_PROP },
     { 0,  54,           0, "chest", CHEST_PROP },
     { 0, 146,           0, "trapped_chest", CHEST_PROP },
-    { 0,  55,           0, "redstone_wire", WIRE_PROP },
+    { 0,  55,           0, "redstone_wire", NO_PROP },  // WIRE_PROP
     { 0,  56,           0, "diamond_ore", NO_PROP },
     { 0,  93,           0, "repeater", REPEATER_PROP },
     { 0, 149,           0, "comparator", COMPARATOR_PROP },
@@ -613,7 +621,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  23,           0, "dispenser", DROPPER_PROP },
     { 0, 158,           0, "dropper", DROPPER_PROP },
     { 0,  25,           0, "note_block", NO_PROP },	// pitch, powered, instrument - ignored
-    { 0,  92,           0, "cake", BITES_PROP },
+    { 0,  92,           0, "cake", CANDLE_CAKE_PROP },
     { 0,  26,           0, "bed", BED_PROP },
     { 0,  96,           0, "oak_trapdoor", TRAPDOOR_PROP },
     { 0, 167,           0, "iron_trapdoor", TRAPDOOR_PROP },
@@ -646,7 +654,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 145,           8, "damaged_anvil", ANVIL_PROP },
     { 0, 121,           0, "end_stone", NO_PROP },
     { 0, 120,           0, "end_portal_frame", END_PORTAL_PROP },
-    { 0, 110,           0, "mycelium", SNOWY_PROP },
+    { 0, 110,           0, "mycelium", NO_PROP }, // uses SNOWY_PROP
     { 0, 111,           0, "lily_pad", NO_PROP },
     { 0, 122,           0, "dragon_egg", NO_PROP },
     { 0, 123,           0, "redstone_lamp", REDSTONE_ORE_PROP }, // goes to 124 when lit
@@ -1113,6 +1121,136 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
     { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
     { 0, 108,       HIGH_BIT, "chain", AXIS_PROP },
+
+    // 1.17
+    { 0, 128,       HIGH_BIT, "candle", CANDLE_PROP },  // 129 is lit
+    { 0, 130,   HIGH_BIT |  0, "white_candle", CANDLE_PROP }, // 131 is lit
+    { 0, 130,   HIGH_BIT |  1, "orange_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  2, "magenta_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  3, "light_blue_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  4, "yellow_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  5, "lime_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  6, "pink_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  7, "gray_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  8, "light_gray_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT |  9, "cyan_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 10, "purple_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 11, "blue_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 12, "brown_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 13, "green_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 14, "red_candle", CANDLE_PROP },
+    { 0, 130,   HIGH_BIT | 15, "black_candle", CANDLE_PROP },
+    { 0,  92,            0x7, "candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 0, "white_candle_cake", CANDLE_CAKE_PROP },  // funky: cake can be either with a single candle, lit or not, OR have a bite taken out of it. 
+    { 0,  92,     BIT_16 | 1, "orange_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 2, "magenta_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 3, "light_blue_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 4, "yellow_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 5, "lime_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 6, "pink_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 7, "gray_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 8, "light_gray_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 9, "cyan_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 10, "purple_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 11, "blue_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 12, "brown_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 13, "green_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 14, "red_candle_cake", CANDLE_CAKE_PROP },
+    { 0,  92,     BIT_16 | 15, "black_candle_cake", CANDLE_CAKE_PROP },
+    { 0, 132,   HIGH_BIT | 0, "amethyst_block", NO_PROP },
+        /*
+    { 0, 134,   HIGH_BIT | 0, "small_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 134,   HIGH_BIT | 1, "medium_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 134,   HIGH_BIT | 2, "large_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 134,   HIGH_BIT | 3, "amethyst_cluster", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 132,   HIGH_BIT | 1, "budding_amethyst", NO_PROP },
+    { 0, 132,   HIGH_BIT | 2, "calcite", NO_PROP },
+    { 0, 132,   HIGH_BIT | 3, "tuff", NO_PROP },
+    { 0, 20,               1, "tinted_glass", NO_PROP },  // stuffed in with glass
+    { 0, 132,   HIGH_BIT | 4, "dripstone_block", NO_PROP },
+    { 0, 135,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 tips, up up/down
+    { 0, 132,   HIGH_BIT | 4, "copper_ore", NO_PROP },
+    { 0, 132,   HIGH_BIT | 5, "deepslate_copper_ore", NO_PROP },
+    { 0, 132,   HIGH_BIT | 6, "copper_block", NO_PROP },
+    { 0, 132,   HIGH_BIT | 7, "exposed_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 8, "weathered_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 9, "oxidized_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 10, "cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 11, "exposed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 12, "weathered_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 13, "oxidized_cut_copper", NO_PROP },
+    { 0, 136,	    HIGH_BIT, "cut_copper_stairs", STAIRS_PROP },
+    { 0, 137,	    HIGH_BIT, "exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 138,	    HIGH_BIT, "weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 139,	    HIGH_BIT, "oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 141,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 132,  HIGH_BIT | 14, "waxed_copper_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 15, "waxed_exposed_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 16, "waxed_weathered_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 17, "waxed_oxidized_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 18, "waxed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 19, "waxed_exposed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 20, "waxed_weathered_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 21, "waxed_oxidized_cut_copper", NO_PROP },
+    { 0, 142,	    HIGH_BIT, "waxed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 143,	    HIGH_BIT, "waxed_exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 145,	    HIGH_BIT, "waxed_weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 146,	    HIGH_BIT, "waxed_oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 141,	HIGH_BIT | 4, "waxed_cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 5, "waxed_exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 141,	HIGH_BIT | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 147,	    HIGH_BIT, "lightning_rod", LIGHTNING_ROD_PROP },
+    { 0, 148,	    HIGH_BIT, "cave_vines", NO_PROP },  // berries is folded into dataVal without needing a prop
+    { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", NO_PROP },    // berries and age are folded into dataVal without needing a prop
+    { 0, 149,	    HIGH_BIT, "spore_blossom", NO_PROP },
+    { 0, 150,	    HIGH_BIT, "azalea", NO_PROP },
+    { 0, 150,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
+    { 0, 161,	           2, "azalea_leaves", NO_PROP },
+    { 0, 162,	           3, "flowering_azalea_leaves", NO_PROP },
+    { 0, 171,             16, "moss_carpet", NO_PROP },
+    { 0, 132,  HIGH_BIT | 22, "moss_block", NO_PROP },
+    { 0, 130,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
+    { 0, 131,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    { 0, 132,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
+    { 0, 132,  HIGH_BIT | 23, "rooted_dirt", NO_PROP },
+    { 0, 127,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
+    { 0, 132,  HIGH_BIT | 24, "powder_snow", NO_PROP },
+    { 0, 132,       HIGH_BIT, "glow_lichen", NO_PROP },
+    { 0, 134,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
+    { 0, 135,   HIGH_BIT | 0, "deepslate", LOG_PROP },
+    { 0, 132,  HIGH_BIT | 25, "cobbled_deepslate", NO_PROP },
+    { 0, 137,	HIGH_BIT | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
+    { 0, 138,	    HIGH_BIT, "cobbled_deepslate_stairs", STAIRS_PROP },
+    { 0, 139,             17, "cobbled_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 132,  HIGH_BIT | 26, "chiseled_deepslate", NO_PROP },
+    { 0, 132,  HIGH_BIT | 27, "polished_deepslate", NO_PROP },
+    { 0, 136,	HIGH_BIT | 1, "polished_deepslate_slab", SLAB_PROP },
+    { 0, 138,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
+    { 0, 139,             18, "polished_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 132,  HIGH_BIT | 28, "deepslate_bricks", NO_PROP },
+    { 0, 136,	HIGH_BIT | 2, "deepslate_bricks_slab", SLAB_PROP },
+    { 0, 139,	    HIGH_BIT, "deepslate_bricks_stairs", STAIRS_PROP },
+    { 0, 139,             19, "deepslate_bricks_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 132,  HIGH_BIT | 29, "deepslate_tiles", NO_PROP },
+    { 0, 136,	HIGH_BIT | 3, "deepslate_tiles_slab", SLAB_PROP },
+    { 0, 141,	    HIGH_BIT, "deepslate_tiles_stairs", STAIRS_PROP },
+    { 0, 139,             20, "deepslate_tiles_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 132,  HIGH_BIT | 30, "cracked_deepslate_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 31, "crackeinfeepslate_tiles", NO_PROP },
+    { 0, 135,   HIGH_BIT | 1, "infested_deepslate", LOG_PROP },
+    { 0, 132,  HIGH_BIT | 32, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
+    { 0, 132,  HIGH_BIT | 33, "raw_iron_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 34, "raw_copper_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 35, "raw_gold_block", NO_PROP },
+    { 0, 208,              0, "dirt_path", NO_PROP },   // in 1.17 renamed to dirt path and given textures https://minecraft.fandom.com/wiki/Dirt_Path
+    */
+    // last used was 141
+
+ // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
 
 #define HASH_SIZE 1024
@@ -1190,6 +1328,9 @@ void makeHashTable()
         mask_array[BLOCK_CAMPFIRE] |= 0x04;
         // special case: respawn anchors have 5 levels based on charges
         mask_array[BLOCK_RESPAWN_ANCHOR] |= 0x07;
+        // for lit candles, different emissive value for # of candles
+        mask_array[BLOCK_LIT_CANDLE] |= 0x30;
+        mask_array[BLOCK_LIT_COLORED_CANDLE] |= 0x30;
         for (i = 0; i < NUM_TRANS; i++)
         {
             // these are special and already set, so should not be set here
@@ -1214,8 +1355,12 @@ void makeHashTable()
         mask_array[BLOCK_CRIMSON_DOUBLE_SLAB] |= mask_array[BLOCK_CRIMSON_SLAB];
         // special case: kelp and kelp_plant are really the same thing, material-wise
         mask_array[BLOCK_KELP] = 0x0;
+        // special case: cake can have a lit candle (a bit debatable anyway - illuminates the whole cake)
+        mask_array[BLOCK_CAKE] |= BIT_32;
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
+            // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
+            assert(gBlockDefinitions[i].subtype_mask == mask_array[i]);
             gBlockDefinitions[i].subtype_mask = mask_array[i];
         }
 
@@ -1617,11 +1762,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //if (inttype != 11)
         //    return -4;
         //else {
-            newFormat = true;
-            if (!hashMade) {
-                makeHashTable();
-                hashMade = true;
-            }
+        newFormat = true;
+        if (!hashMade) {
+            makeHashTable();
+            hashMade = true;
+        }
         //}
     }
 
@@ -1713,7 +1858,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     memset(buff, 0, 16 * 16 * maxHeight);
     memset(data, 0, 16 * 16 * maxHeight);
-    memset(blockLight, 0, 16 * 16 * maxHeight/2);
+    memset(blockLight, 0, 16 * 16 * maxHeight / 2);
 
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
@@ -1824,13 +1969,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
                 conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
             int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
-                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs;
+                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt;
             // to avoid Release build warning, but should always be set by code in practice
             int typeIndex = 0;
             half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
                 = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
             axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
-                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = 0;
+                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt = 0;
 
             int bigbufflen = 0;
             int entry_index = 0;
@@ -1989,6 +2134,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         // Very common, for grass blocks, so checked first
                                         if (strcmp(token, "snowy") == 0) {
                                             // blocks with the SNOWY_PROP property have only this flag, plus sub-type data values, so we can set it directly.
+                                            // This is why the SNOWY_PROP does not have to be defined
                                             if (strcmp(value, "true") == 0) {
                                                 dataVal = SNOWY_BIT;
                                             }
@@ -2078,11 +2224,12 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             if (dataVal > 7 || dataVal < 0)
                                                 dataVal = 1;
                                         }
-                                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored)
+                                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored), cave vines plant (also ignored, but there)
                                         else if (strcmp(token, "age") == 0) {
                                             // AGE_PROP
-                                            // 0-3 or 0-7
-                                            age = dataVal = atoi(value);
+                                            // 0-3 or 0-7 or 0-25 (for cave vines plant)
+                                            dataVal |= atoi(value);
+                                            age = atoi(value);
                                         }
                                         // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
                                         else if (strcmp(token, "shape") == 0) {
@@ -2219,11 +2366,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         }
                                         // WIRE_PROP
                                         else if (strcmp(token, "power") == 0) {
-                                            dataVal = atoi(value);
+                                            dataVal |= atoi(value);
                                         }
-                                        // BITES_PROP
+                                        // CANDLE_CAKE_PROP
                                         else if (strcmp(token, "bites") == 0) {
-                                            dataVal = atoi(value);
+                                            bites = atoi(value);
                                         }
                                         // FARMLAND_PROP
                                         else if (strcmp(token, "moisture") == 0) {
@@ -2438,7 +2585,83 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             else if (strcmp(value, "down_south") == 0) {
                                                 dropper_facing = 0 | BIT_8;
                                             }
+                                            else {
+                                                // unknown state found
+                                                assert(0);
+                                            }
                                         }
+                                        // CANDLE_PROP
+                                        else if (strcmp(token, "candles") == 0) {
+                                            // doesn't need a separate variable - "lit" will change the type
+                                            // 1-4 candles == 0-3 * 16 (i.e., 0x00, 0x10, 0x20, 0x30)
+                                            dataVal |= ((atoi(value)-1) << 4);
+                                        }
+                                        // for big dripleaf https://minecraft.fandom.com/wiki/Big_Dripleaf
+                                        else if (strcmp(token, "tilt") == 0) {
+                                            if (strcmp(value, "none") == 0) {
+                                                tilt = 0;
+                                            }
+                                            else if (strcmp(value, "partial") == 0) {
+                                                tilt = 1;
+                                            }
+                                            else if (strcmp(value, "unstable") == 0) {
+                                                tilt = 2;
+                                            }
+                                            else if (strcmp(value, "full") == 0) {
+                                                tilt = 3;
+                                            }
+                                            else {
+                                                // unknown state found
+                                                assert(0);
+                                            }
+                                        }
+                                        // for cave vines and cave vines plant (which also has "age") https://minecraft.fandom.com/wiki/Glow_Berries#ID
+                                        else if (strcmp(token, "berries") == 0) {
+                                            // "age" is also folded in
+                                            dataVal |= (strcmp(value, "true") == 0) ? BIT_32 : 0;
+                                        }
+                                        // for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
+                                        else if (strcmp(token, "thickness") == 0) {
+                                            if (strcmp(value, "tip") == 0) {
+                                                dataVal |= 0;
+                                            }
+                                            else if (strcmp(value, "tip_merge") == 0) {
+                                                dataVal |= 1;
+                                            }
+                                            else if (strcmp(value, "frustum") == 0) {
+                                                dataVal |= 2;
+                                            }
+                                            else if (strcmp(value, "middle") == 0) {
+                                                dataVal |= 3;
+                                            }
+                                            else if (strcmp(value, "base") == 0) {
+                                                dataVal |= 4;
+                                            }
+                                            else {
+                                                // unknown state found
+                                                assert(0);
+                                            }
+                                        }
+                                        // also for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
+                                        else if (strcmp(token, "vertical_direction") == 0) {
+                                            dataVal |= (strcmp(value, "down") == 0) ? 0x8 : 0;
+                                        }
+                                        else if (strcmp(token, "sculk_sensor_phase") == 0) {
+                                            if (strcmp(value, "cooldown") == 0) {
+                                                dataVal |= 0;
+                                            }
+                                            else if (strcmp(value, "active") == 0) {
+                                                dataVal |= BIT_16;
+                                            }
+                                            else if (strcmp(value, "inactive") == 0) {
+                                                dataVal |= BIT_32;
+                                            }
+                                            else {
+                                                // unknown state found
+                                                assert(0);
+                                            }
+                                        }
+
 
 #ifdef _DEBUG
                                         else {
@@ -2465,11 +2688,26 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         // done, so determine and fold in dataVal
                         int tf = BlockTranslations[typeIndex].translateFlags;
                         switch (tf) {
+                        default:
+                            // prop defined but not used in list below - just use NO_PROP if the prop does nothing
+                            // TODOTODO uncomment when all props implemented:
+                            assert(0);
+                        case NO_PROP:
+                            break;
+                        case TRULY_NO_PROP:
+                            dataVal = 0x0;
+                            break;
                         case SLAB_PROP:
                             // everything is fine if double is false
                             if (doubleSlab) {
                                 // turn single slabs into double slabs by using the type ID just before (it's traditional)
                                 paletteBlockEntry[entry_index]--;
+                            }
+                            break;
+                        case CANDLE_PROP:
+                            if (lit) {
+                                // turn candle type into lit candle, which is one above an unlit candle
+                                paletteBlockEntry[entry_index]++;
                             }
                             break;
                         case AXIS_PROP:
@@ -2479,6 +2717,16 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case NETHER_PORTAL_AXIS_PROP:
                             // was 4 and 8, make it 1 and 2
                             dataVal = axis >> 2;
+                            break;
+                        case CANDLE_CAKE_PROP:
+                            // 3 lowest bits is number of bites, which is 0-6. However, 7 bites means there's a regular (non-colored) candle.
+                            // 0x10 bit is whether the cake has a COLORED candle or not. If it does, then the four lowest bits are the color
+                            // 0x20 bit is whether the candle is lit or not, for all 17 candles.
+                            dataVal |= bites | (lit ? BIT_32 : 0x0);
+                            // Must reset "lit", as the basic "cake" object does not have this property, but the candle cakes do.
+                            // Similarly, "bites" must be reset, as candle cakes always have 0 bites and only care about "lit".
+                            lit = false;
+                            bites = 0;
                             break;
                         case TORCH_PROP:
                             // if dataVal is not set, i.e. is 0, then set to 5
@@ -2650,6 +2898,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
                             // also WALL_SIGN_PROP, OBSERVER_PROP
                             dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
+                            // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
+                            // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
+                            // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
                             dropper_facing = 0;
                             triggered = false; // non-graphical
                             extended = false;
@@ -2834,14 +3085,14 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case EGG_PROP:
                             dataVal |= (hatch << 2);
                             break;
-                        //case WIRE_PROP:
-                        //    dataVal |= redstone_side;
-                        //    break;
-                        case TRULY_NO_PROP:
-                            dataVal = 0x0;
+                            //case WIRE_PROP:
+                            //    dataVal |= redstone_side;
+                            //    break;
+                        case BIG_DRIPLEAF_PROP:
+                            dataVal = door_facing | (tilt << 2);
                             break;
-                        case NO_PROP:
-                        default:
+                        case SMALL_DRIPLEAF_PROP:
+                            dataVal = door_facing | (half << 2);
                             break;
                         }
                         // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
@@ -2892,7 +3143,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
                     int bbshift = bitpull & 0x7;
                     // get the top bits out of the topmost byte, on down the row
-                    int bits = (bigbuff[bbindex] >> bbshift)& bitmask;
+                    int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
                     // Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
                     // 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
                     int remainingBitLength = bitlength - (8 - bbshift);
@@ -2992,8 +3243,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                 pBE->data = (unsigned char)((dataFlowerPotType << 4) | dataData);
                                 break;
                             case BLOCK_STANDING_BANNER:
-                            //case BLOCK_WALL_BANNER:
-                                // entity data will be used to convert to full color ID type
+                                //case BLOCK_WALL_BANNER:
+                                    // entity data will be used to convert to full color ID type
                                 pBE->data = (unsigned char)dataBase;
                                 break;
                             default:
@@ -3238,7 +3489,7 @@ int nbtGetFileVersionId(bfFile* pbf, int* versionId)
     return 0;
 }
 
-/* currently not used: 
+/* currently not used:
 int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength)
 {
     *versionName = '\0'; // initialize to empty string

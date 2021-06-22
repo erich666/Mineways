@@ -121,6 +121,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						used = 1;
 						filesProcessed++;
 					}
+					else if (status == FILE_FOUND_AND_IGNORED) {
+						// file not really processed, just ignored.
+						used = 1;
+					}
 				}
 				if (used == 0) {
 					if (topmost || wcsstr(tilePathAppended + origTPLen, L"chest") != NULL) {

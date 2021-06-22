@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.04"
+#define	VERSION_STRING	L"3.05"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -453,22 +453,6 @@ int wmain(int argc, wchar_t* argv[])
 	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
-	}
-
-	// look for tiles not input?
-	if (checkmissing)
-	{
-		for (i = 0; i < TOTAL_TILES; i++)
-		{
-			if (!gFG.fr[i].exists)
-			{
-				// if it starts with "MW" or is the empty string, ignore miss
-				if (wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename, L"MW", 2) != 0) {
-					wprintf(L"WARNING: TileMaker needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
-					gWarningCount++;
-				}
-			}
-		}
 	}
 
 	// Find largest tile.
@@ -972,9 +956,9 @@ int wmain(int argc, wchar_t* argv[])
 				int neutralSideIndex = findTileIndex(L"MW_SHULKER_SIDE", 0);
 				int neutralBottomIndex = findTileIndex(L"MW_SHULKER_BOTTOM", 0);
 				// where do shulker sides start?
-				fullIndex = catIndex * gFG.totalTiles + startIndex + index;
+				fullIndex = catIndex * gFG.totalTiles + startIndex;
 				// go through 16 side and bottoms
-				for (index = 0; index < 16; index++) {
+				for (i = 0; i < 16; i++) {
 					boolean sideNeeded = !gFG.fr[fullIndex].exists;
 					boolean bottomNeeded = !gFG.fr[fullIndex + 16].exists;	// bottoms follow sides
 					if (sideNeeded || bottomNeeded) {
@@ -994,7 +978,7 @@ int wmain(int argc, wchar_t* argv[])
 
 						// compute side and bottom color
 						// First, find brightest pixel
-						if (index == 0) {
+						if (i == 0) {
 							// the white box needs no adjustment
 							getBrightestPNGPixel(destination_ptr, channels, gTilesTable[topIndex].txrX * outputTileSize, gTilesTable[topIndex].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
 							for (j = 0; j < 4; j++) {
@@ -1016,11 +1000,15 @@ int wmain(int argc, wchar_t* argv[])
 						}
 						// we now have the multiplier color, so multiply base tile by it
 						if (sideNeeded) {
+							// note it "exists" (on output, only) so that the -m missing option is fooled
+							gFG.fr[fullIndex].exists = true;
 							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 4) * outputTileSize, outputTileSize, outputTileSize,
 								destination_ptr, gTilesTable[neutralSideIndex].txrX * outputTileSize, gTilesTable[neutralSideIndex].txrY * outputTileSize);
 							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 4, mult_color);
 						}
 						if (bottomNeeded) {
+							// note it "exists" (on output, only) so that the -m missing option is fooled
+							gFG.fr[fullIndex + 16].exists = true;
 							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
 								destination_ptr, gTilesTable[neutralBottomIndex].txrX * outputTileSize, gTilesTable[neutralBottomIndex].txrY * outputTileSize);
 							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 5, mult_color);
@@ -1170,6 +1158,22 @@ int wmain(int argc, wchar_t* argv[])
 			else {
 				wprintf(L"SERIOUS WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
 				gWarningCount++;
+			}
+		}
+	}
+
+	// look for tiles not input or manufactured
+	if (checkmissing)
+	{
+		for (i = 0; i < TOTAL_TILES; i++)
+		{
+			if (!gFG.fr[i].exists)
+			{
+				// if it starts with "MW" or is the empty string, ignore miss
+				if (wcslen(gTilesTable[i].filename) > 0 && wcsncmp(gTilesTable[i].filename, L"MW", 2) != 0) {
+					wprintf(L"WARNING: TileMaker needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
+					gWarningCount++;
+				}
 			}
 		}
 	}

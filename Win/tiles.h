@@ -13,7 +13,10 @@
 
 // if tile is a cutout, note this, as it should be "bled" outwards before output when rendering
 #define SBIT_DECAL				0x40
-// if tile is cutout geometry, note this so it's bled out for 3D printing and rendering
+// if tile is cutout geometry, note this so it's bled out for 3D printing and rendering. Cutout geometry differs from a decal in that
+// the texture defines exactly where various content is supposed to exist - alpha transparency is not actually needed for the object,
+// and in fact should be discouraged, as if nearest neighbor sampling is not used, the alphas will cause gaps in the object. Examples:
+// chests, cauldron top.
 #define SBIT_CUTOUT_GEOMETRY	0x80
 // if tile has full transparency for some other reason, e.g., it's an overlay, tag it here so that we know that's the case 
 #define SBIT_ALPHA_OVERLAY		0x100
@@ -56,7 +59,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 47
+#define VERTICAL_TILES 55
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -195,10 +198,10 @@ static struct {
     {  6,  7,   6, 0, L"pumpkin_side", L"", SWATCH_REPEAT_ALL },
     {  7,  7,   6, 0, L"carved_pumpkin", L"pumpkin_face_off", SWATCH_REPEAT_ALL },
     {  8,  7,  91, 0, L"jack_o_lantern", L"pumpkin_face_on", SWATCH_REPEAT_ALL },
-    {  9,  7,  92, 0, L"cake_top", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
+    {  9,  7,  92, 0, L"cake_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 10,  7,  92, 0, L"cake_side", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
     { 11,  7,  92, 0, L"cake_inner", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
-    { 12,  7,  92, 0, L"cake_bottom", L"", SBIT_CLAMP_BOTTOM | SBIT_CUTOUT_GEOMETRY },
+    { 12,  7,  92, 0, L"cake_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13,  7, 100, 0, L"red_mushroom_block", L"mushroom_block_skin_red", SWATCH_REPEAT_ALL },
     { 14,  7,  99, 0, L"brown_mushroom_block", L"mushroom_block_skin_brown", SWATCH_REPEAT_ALL },
     { 15,  7,   6, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
@@ -259,7 +262,7 @@ static struct {
     {  6, 11,   6, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11,   6, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
     {  8, 11, 119, 0, L"MW_end_portal", L"", SWATCH_REPEAT_ALL },    // custom - the 3D effect seen through the end portal - TODO: extract a small chunk from assets\minecraft\textures\entity
-    {  9, 11,   6, 0, L"item_frame", L"item_frame_front", SWATCH_REPEAT_ALL },	// frame around item, unimplemented, should really never be output TODO
+    {  9, 11,   6, 0, L"MWO_flattened_soul_torch_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
     { 10, 11, 140, 0, L"flower_pot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 11,   6, 0, L"birch_log_top", L"log_birch_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 12, 11,   6, 0, L"spruce_log_top", L"log_spruce_top", SWATCH_REPEAT_ALL },	// ADD-IN
@@ -823,9 +826,137 @@ static struct {
     { 10, 46,   6, 0, L"target_top", L"", SWATCH_REPEAT_ALL },
     { 11, 46,   6, 0, L"target_side", L"", SWATCH_REPEAT_ALL },
     { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 13, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
-    { 14, 46,   6, 0, L"", L"", SWATCH_REPEAT_ALL },	// unused
-    { 15, 46, 362, 0, L"MWO_flattened_soul_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
+    { 13, 46, 365, 0, L"candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL  },
+    { 14, 46, 366, 0, L"candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL  },
+    { 15, 46, 370, 0, L"tinted_glass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 47, 367, 0, L"white_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 47, 367, 0, L"orange_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 47, 367, 0, L"magenta_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 47, 367, 0, L"light_blue_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 47, 367, 0, L"yellow_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 47, 367, 0, L"lime_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 47, 367, 0, L"pink_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 47, 367, 0, L"gray_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  8, 47, 367, 0, L"light_gray_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  9, 47, 367, 0, L"cyan_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 10, 47, 367, 0, L"purple_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 11, 47, 367, 0, L"blue_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 12, 47, 367, 0, L"brown_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 13, 47, 367, 0, L"green_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 47, 367, 0, L"red_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 47, 367, 0, L"black_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 48, 368, 0, L"white_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 48, 368, 0, L"orange_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 48, 368, 0, L"magenta_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 48, 368, 0, L"light_blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 48, 368, 0, L"yellow_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 48, 368, 0, L"lime_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 48, 368, 0, L"pink_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 48, 368, 0, L"gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  8, 48, 368, 0, L"light_gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  9, 48, 368, 0, L"cyan_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 10, 48, 368, 0, L"purple_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 11, 48, 368, 0, L"blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 12, 48, 368, 0, L"brown_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 13, 48, 368, 0, L"green_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 48, 368, 0, L"red_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 48, 368, 0, L"black_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 49, 367, 0, L"amethyst_block", L"", SWATCH_REPEAT_ALL },                  // TODO figure out numbers and flags
+    {  1, 49, 367, 0, L"small_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 49, 367, 0, L"medium_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 49, 367, 0, L"large_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 49, 367, 0, L"amethyst_cluster", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 49, 367, 0, L"budding_amethyst", L"", SWATCH_REPEAT_ALL },
+    {  6, 49, 367, 0, L"calcite", L"", SWATCH_REPEAT_ALL },
+    {  7, 49, 367, 0, L"tuff", L"", SWATCH_REPEAT_ALL },
+    {  8, 49, 367, 0, L"dripstone_block", L"", SWATCH_REPEAT_ALL },
+    {  9, 49, 367, 0, L"pointed_dripstone_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 10, 49, 367, 0, L"pointed_dripstone_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 11, 49, 367, 0, L"pointed_dripstone_down_middle", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 12, 49, 367, 0, L"pointed_dripstone_down_tip", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    { 13, 49, 367, 0, L"pointed_dripstone_down_tip_merge", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 49, 367, 0, L"pointed_dripstone_up_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 15, 49, 367, 0, L"pointed_dripstone_up_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  0, 50, 367, 0, L"pointed_dripstone_up_middle", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  1, 50, 367, 0, L"pointed_dripstone_up_tip", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 50, 367, 0, L"pointed_dripstone_up_tip_merge", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  3, 50, 367, 0, L"copper_ore", L"", SWATCH_REPEAT_ALL },
+    {  4, 50, 367, 0, L"deepslate_copper_ore", L"", SWATCH_REPEAT_ALL },
+    {  5, 50, 367, 0, L"copper_block", L"", SWATCH_REPEAT_ALL },
+    {  6, 50, 367, 0, L"exposed_copper", L"", SWATCH_REPEAT_ALL },
+    {  7, 50, 367, 0, L"weathered_copper", L"", SWATCH_REPEAT_ALL },
+    {  8, 50, 367, 0, L"oxidized_copper", L"", SWATCH_REPEAT_ALL },
+    {  9, 50, 367, 0, L"cut_copper", L"", SWATCH_REPEAT_ALL },
+    { 10, 50, 367, 0, L"exposed_cut_copper", L"", SWATCH_REPEAT_ALL },
+    { 11, 50, 367, 0, L"weathered_cut_copper", L"", SWATCH_REPEAT_ALL },
+    { 12, 50, 367, 0, L"oxidized_cut_copper", L"", SWATCH_REPEAT_ALL },
+    { 13, 50, 367, 0, L"lightning_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 14, 50, 367, 0, L"lightning_rod_on", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 15, 50, 367, 0, L"cave_vines", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 51, 367, 0, L"cave_vines_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 51, 367, 0, L"cave_vines_plant", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 51, 367, 0, L"cave_vines_plant_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 51, 367, 0, L"spore_blossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 51, 367, 0, L"spore_blossom_base", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 51, 367, 0, L"azalea_top", L"", SWATCH_REPEAT_ALL },
+    {  6, 51, 367, 0, L"flowering_azalea_top", L"", SWATCH_REPEAT_ALL },
+    {  7, 51, 367, 0, L"azalea_side", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    {  8, 51, 367, 0, L"flowering_azalea_side", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    {  9, 51, 367, 0, L"azalea_plant", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    { 10, 51, 367, 0, L"potted_azalea_bush_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 11, 51, 367, 0, L"potted_flowering_azalea_bush_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 51, 367, 0, L"potted_azalea_bush_side", L"", SBIT_DECAL },
+    { 13, 51, 367, 0, L"potted_flowering_azalea_bush_side", L"", SBIT_DECAL },
+    { 14, 51, 367, 0, L"potted_azalea_bush_plant", L"", SBIT_DECAL },
+    { 15, 51, 367, 0, L"potted_flowering_azalea_bush_plant", L"", SBIT_DECAL },
+    {  0, 52, 367, 0, L"azalea_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  1, 52, 367, 0, L"flowering_azalea_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  2, 52, 367, 0, L"moss_block", L"", SWATCH_REPEAT_ALL },
+    {  3, 52, 367, 0, L"big_dripleaf_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  4, 52, 367, 0, L"big_dripleaf_side", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  5, 52, 367, 0, L"big_dripleaf_tip", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  6, 52, 367, 0, L"big_dripleaf_stem", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  7, 52, 367, 0, L"small_dripleaf_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  8, 52, 367, 0, L"small_dripleaf_side", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  9, 52, 367, 0, L"small_dripleaf_stem_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    { 10, 52, 367, 0, L"small_dripleaf_stem_bottom", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    { 11, 52, 367, 0, L"rooted_dirt", L"", SWATCH_REPEAT_ALL },
+    { 12, 52, 367, 0, L"hanging_roots", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    { 13, 52, 367, 0, L"powder_snow", L"", SWATCH_REPEAT_ALL },
+    { 14, 52, 367, 0, L"glow_lichen", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 15, 52, 367, 0, L"sculk_sensor_top", L"", SWATCH_REPEAT_ALL },
+    {  0, 53, 367, 0, L"sculk_sensor_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    {  1, 53, 367, 0, L"sculk_sensor_bottom", L"", SWATCH_REPEAT_ALL },
+    {  2, 53, 367, 0, L"sculk_sensor_tendril_active", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 53, 367, 0, L"sculk_sensor_tendril_inactive", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 53, 367, 0, L"deepslate_top", L"", SWATCH_REPEAT_ALL },
+    {  5, 53, 367, 0, L"deepslate", L"", SWATCH_REPEAT_ALL },
+    {  6, 53, 367, 0, L"cobbled_deepslate", L"", SWATCH_REPEAT_ALL },
+    {  7, 53, 367, 0, L"chiseled_deepslate", L"", SWATCH_REPEAT_ALL },
+    {  8, 53, 367, 0, L"polished_deepslate", L"", SWATCH_REPEAT_ALL },
+    {  9, 53, 367, 0, L"deepslate_bricks", L"", SWATCH_REPEAT_ALL },
+    { 10, 53, 367, 0, L"deepslate_tiles", L"", SWATCH_REPEAT_ALL },
+    { 11, 53, 367, 0, L"cracked_deepslate_bricks", L"", SWATCH_REPEAT_ALL },
+    { 12, 53, 367, 0, L"cracked_deepslate_tiles", L"", SWATCH_REPEAT_ALL },
+    { 13, 53, 367, 0, L"deepslate_gold_ore", L"", SWATCH_REPEAT_ALL },
+    { 14, 53, 367, 0, L"deepslate_iron_ore", L"", SWATCH_REPEAT_ALL },
+    { 15, 53, 367, 0, L"deepslate_coal_ore", L"", SWATCH_REPEAT_ALL },
+    {  0, 54, 367, 0, L"deepslate_diamond_ore", L"", SWATCH_REPEAT_ALL },
+    {  1, 54, 367, 0, L"deepslate_redstone_ore", L"", SWATCH_REPEAT_ALL },
+    {  2, 54, 367, 0, L"deepslate_lapis_ore", L"", SWATCH_REPEAT_ALL },
+    {  3, 54, 367, 0, L"deepslate_emerald_ore", L"", SWATCH_REPEAT_ALL },
+    {  4, 54, 367, 0, L"smooth_basalt", L"", SWATCH_REPEAT_ALL },
+    {  5, 54, 367, 0, L"raw_iron_block", L"", SWATCH_REPEAT_ALL },
+    {  6, 54, 367, 0, L"raw_copper_block", L"", SWATCH_REPEAT_ALL },
+    {  7, 54, 367, 0, L"raw_gold_block", L"", SWATCH_REPEAT_ALL },
+    {  8, 54, 367, 0, L"dirt_path_top", L"", SWATCH_REPEAT_ALL },
+    {  9, 54, 367, 0, L"dirt_path_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 10, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 11, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 12, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 13, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
 };
 
 // There is more than one alternate name, so test more of them
@@ -921,7 +1052,6 @@ static const struct {
     { L"grass-tuft", L"grass" },    // JG-RTX
     { L"iron_door_lower", L"iron_door_bottom" },    // Absolution
     { L"iron_door_upper", L"iron_door_top" },    // Absolution
-    { L"itemframe_background", L"item_frame" },    // Absolution
     { L"jungle_door_lower", L"jungle_door_bottom" },    // Absolution
     { L"jungle_door_upper", L"jungle_door_top" },    // Absolution
     //{ L"jungle_wood", L"jungle_planks" },    // Ultimate Immersion - but already has jungle_planks
@@ -980,15 +1110,20 @@ static const wchar_t* gUnneeded[] = {
     L"destroy_stage_8",
     L"destroy_stage_9",
     L"fire_layer_1",
-    L"structure_block", // only used in inventory, not used when placed: http://minecraft.gamepedia.com/Structure_Block - we use the other ones of this type
     // older names
     L"leaves_birch_opaque",
     L"leaves_jungle_opaque",
     L"leaves_oak_opaque",
     L"leaves_spruce_opaque",
     L"fire_1",
+    L"glow_item_frame",
+    L"item_frame",
+    L"item_frame_front",
+    L"itemframe_background", // Absolution
     L"shulker_box", // generic 1.13; specific colors now used per box
     L"soul_fire_1",
+    L"structure_block", // only used in inventory, not used when placed: http://minecraft.gamepedia.com/Structure_Block - we use the other ones of this type
+
     L"flower_paeonia", // experimental block, never used: https://minecraft.gamepedia.com/Java_Edition_removed_features#Paeonia
 
     // this empty string is used to mark the end of this array

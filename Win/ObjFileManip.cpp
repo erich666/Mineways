@@ -273,7 +273,7 @@ static int gUsingTransform = 0;
 #define REDSTONE_WIRE_3_OFF			SWATCH_INDEX( 14,26 )
 #define REDSTONE_WIRE_4_OFF         SWATCH_INDEX( 15,26 )
 
-#define SOUL_TORCH_TOP               SWATCH_INDEX( 15,46 )
+#define SOUL_TORCH_TOP               SWATCH_INDEX( 9,11 )
 
 // these spots are used for compositing, as temporary places to put swatches to edit
 // TODO - make separate hunks of memory that don't get output.
@@ -594,6 +594,7 @@ static void setDefaultUVs(Point2 uvs[3], int skip);
 static FaceRecord* allocFaceRecordFromPool();
 static unsigned short getSignificantMaterial(int type, int dataVal);
 static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3]);
+static int saveCandle(int type, int dataVal, int boxIndex, float height, float xLoc, float yLoc, float zLoc);
 static void saveBlockGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static void saveBoxGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static void saveBoxTileGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
@@ -1117,7 +1118,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
         {
             // use true textures - for 3D printing or if swatches are needed, we need to make output image larger to accomodate composite swatches.
-            gModel.textureResolution = ((gModel.print3D || gModel.options->pEFD->chkCompositeOverlay)? 4 : 2) * gModel.pInputTerrainImage[CATEGORY_RGBA]->width;
+            // for 1.16 and earlier: gModel.textureResolution = ((gModel.print3D || gModel.options->pEFD->chkCompositeOverlay) ? 4 : 2) * gModel.pInputTerrainImage[CATEGORY_RGBA]->width;
+            gModel.textureResolution = 4 * gModel.pInputTerrainImage[CATEGORY_RGBA]->width;
             gModel.terrainWidth = gModel.pInputTerrainImage[CATEGORY_RGBA]->width;
         }
         else
@@ -1125,7 +1127,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             // Use "noisy" colors, fixed 512 x 512 - we could actually make this texture quite small
             // Note this used to be 256 x 256, but that's only 14*14 = 196 materials, and we're now
             // at 198 or so...
-            gModel.textureResolution = 512;
+            gModel.textureResolution = 1024;    // was 512 for 1.16
             // This number determines number of swatches per row. Make it 256, even though there's
             // no incoming image. This then ensures there's room for enough solid color images.
             gModel.terrainWidth = 256;    // really, no image, but act like there is
@@ -5096,24 +5098,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_PRISMARINE_BRICK_STAIRS:
     case BLOCK_DARK_PRISMARINE_STAIRS:
     case BLOCK_STONE_STAIRS:
-    case GRANITE_STAIRS:
-    case POLISHED_GRANITE_STAIRS:
-    case SMOOTH_QUARTZ_STAIRS:
-    case DIORITE_STAIRS:
-    case POLISHED_DIORITE_STAIRS:
-    case END_STONE_BRICK_STAIRS:
-    case ANDESITE_STAIRS:
-    case POLISHED_ANDESITE_STAIRS:
-    case RED_NETHER_BRICK_STAIRS:
-    case MOSSY_STONE_BRICK_STAIRS:
-    case MOSSY_COBBLESTONE_STAIRS:
-    case SMOOTH_SANDSTONE_STAIRS:
-    case SMOOTH_RED_SANDSTONE_STAIRS:
-    case CRIMSON_STAIRS:
-    case WARPED_STAIRS:
-    case BLACKSTONE_STAIRS:
-    case POLISHED_BLACKSTONE_STAIRS:
-    case POLISHED_BLACKSTONE_BRICK_STAIRS:
+    case BLOCK_GRANITE_STAIRS:
+    case BLOCK_POLISHED_GRANITE_STAIRS:
+    case BLOCK_SMOOTH_QUARTZ_STAIRS:
+    case BLOCK_DIORITE_STAIRS:
+    case BLOCK_POLISHED_DIORITE_STAIRS:
+    case BLOCK_END_STONE_BRICK_STAIRS:
+    case BLOCK_ANDESITE_STAIRS:
+    case BLOCK_POLISHED_ANDESITE_STAIRS:
+    case BLOCK_RED_NETHER_BRICK_STAIRS:
+    case BLOCK_MOSSY_STONE_BRICK_STAIRS:
+    case BLOCK_MOSSY_COBBLESTONE_STAIRS:
+    case BLOCK_SMOOTH_SANDSTONE_STAIRS:
+    case BLOCK_SMOOTH_RED_SANDSTONE_STAIRS:
+    case BLOCK_CRIMSON_STAIRS:
+    case BLOCK_WARPED_STAIRS:
+    case BLOCK_BLACKSTONE_STAIRS:
+    case BLOCK_POLISHED_BLACKSTONE_STAIRS:
+    case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
 
         // set texture
         switch (type)
@@ -6227,13 +6229,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         // top, sides, and bottom, and don't stretch the sides if output here
     case BLOCK_CAKE:						// saveBillboardOrGeometry
-        swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(12, 7);
-        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = dataVal ? SWATCH_INDEX(11, 7) : SWATCH_INDEX(10, 7);
-        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 7);
-        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)(dataVal & 0x7) * 2, 15, 0, 8, 1, 15);
+        {
+            // 3 lowest bits is number of bites, which is 0 - 6. However, 7 bites means there's a regular (non-colored) candle
+            // 0x10 bit is whether the cake has a COLORED candle or not.If it does, then the four lowest bits are the color
+            // 0x20 bit is whether the candle is lit or not, for all 17 candles.
+            int candle = 0;
+            int bites = dataVal & 0x7;
+            // mask out the candle, if any
+            if (bites == 7) {
+                bites = 0;
+                candle = 16;
+            }
+            else if (dataVal & BIT_16) {
+                // colored candle
+                bites = 0;
+                candle = dataVal & 0xf;
+            }
+            swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(12, 7);
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = bites ? SWATCH_INDEX(11, 7) : SWATCH_INDEX(10, 7);
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 7);
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)bites * 2, 15, 0, 8, 1, 15);
+
+            if (candle > 0) {
+                int ctype = ((dataVal & BIT_32) ? 1 : 0) + ((candle == 16) ? BLOCK_CANDLE : BLOCK_COLORED_CANDLE);
+                // four lowest bits is color of candle, if any (candle 16 is the "normal candle")
+                int cdataval = candle & 0xf;
+                
+                saveCandle(ctype, cdataval, boxIndex, 6, 0.0f, 8.0f, 0.0f);
+            }
+        }
         break; // saveBillboardOrGeometry
 
     case BLOCK_FARMLAND:						// saveBillboardOrGeometry
@@ -9457,6 +9484,44 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         break; // saveBillboardOrGeometry
 
+    case BLOCK_CANDLE:						// saveBillboardOrGeometry
+    case BLOCK_LIT_CANDLE:
+    case BLOCK_COLORED_CANDLE:
+    case BLOCK_LIT_COLORED_CANDLE:
+        // Make each of the up to four candles.
+
+        // we definitely do move the candle into place, always
+
+        // form the candle or candles
+        switch (((dataVal & 0x30) >> 4)) {
+        default:
+            assert(0);
+        case 0:
+            // one candle
+            saveCandle(type, dataVal, boxIndex, 6, 0.0f, 0.0f, 0.0f);
+            break;
+        case 1:
+            // two candles
+            saveCandle(type, dataVal, boxIndex, 6, 2.0f, 0.0f, -1.0f);
+            saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
+            break;
+        case 2:
+            // three candles
+            saveCandle(type, dataVal, boxIndex, 6, 2.0f, 0.0f, -1.0f);
+            saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
+            saveCandle(type, dataVal, boxIndex, 3, 0.0f, -3.0f, 2.0f);
+            break;
+        case 3:
+            // four candles
+            saveCandle(type, dataVal, boxIndex, 6, 1.0f, 0.0f, -2.0f);
+            saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, -2.0f);
+            saveCandle(type, dataVal, boxIndex, 5, 2.0f, -1.0f, 1.0f);
+            saveCandle(type, dataVal, boxIndex, 3, -1.0f, -3.0f, 1.0f);
+            break;
+        }
+
+        break; // saveBillboardOrGeometry
+
     default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -9993,7 +10058,7 @@ static unsigned short getSignificantMaterial(int type, int dataVal)
     // special cases
     switch (type) {
     case BLOCK_QUARTZ_BLOCK:
-        // make the pillar quartzs, 2-4, all have the same value
+        // make the pillar quartzes, 2-4, all have the same value
         if (dataVal > 2)
             dataVal = 2;
         break;
@@ -10082,6 +10147,57 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
 
     return retCode;
 }
+
+
+static int saveCandle(int type, int dataVal, int boxIndex, float height, float xLoc, float yLoc, float zLoc)
+{
+    float mtx[4][4];
+    gUsingTransform = 1;
+
+    int swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+    if (type == BLOCK_COLORED_CANDLE || type == BLOCK_LIT_COLORED_CANDLE) {
+        // move to colored swatch
+        swatchLoc += (dataVal & 0xf);
+    }
+
+    int totalVertexCount = gModel.vertexCount;
+
+    // the sides
+    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 2, 8-height, 8, 0, 2);
+    // for the high X and Z, we need to use (1-u) for x and z
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 8-height, 8, 14, 16);
+    // the ends; we need to use (1-v) for z here
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 2, 2, 0, 2);
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, height+2, height+2, 8, 10);
+
+    int littleTotalVertexCount = gModel.vertexCount - totalVertexCount;
+
+    identityMtx(mtx);
+    //translateToOriginMtx(mtx, boxIndex);
+    //rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
+    translateMtx(mtx, (7.0f + xLoc) / 16.0f, (yLoc - 2.0f) / 16.0f, (7.0f + zLoc) / 16.0f);
+    //translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(littleTotalVertexCount, mtx);
+
+    // wick
+    for (int i = 0; i < 2; i++) {
+        totalVertexCount = gModel.vertexCount;
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 1, 10, 11, 0, 0);
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 7.5f / 16.0f, 0.0f, 8.0f / 16.0f);
+        rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
+        translateMtx(mtx, xLoc / 16.0f, (yLoc - 4.0f) / 16.0f, zLoc / 16.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+    }
+
+    gUsingTransform = 0;
+
+    return MW_NO_ERROR;
+}
+
 
 // save the proper faces for the given block type and data value
 static void saveBlockGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
@@ -10785,24 +10901,24 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_PRISMARINE_BRICK_STAIRS:
             case BLOCK_DARK_PRISMARINE_STAIRS:
             case BLOCK_STONE_STAIRS:
-            case GRANITE_STAIRS:
-            case POLISHED_GRANITE_STAIRS:
-            case SMOOTH_QUARTZ_STAIRS:
-            case DIORITE_STAIRS:
-            case POLISHED_DIORITE_STAIRS:
-            case END_STONE_BRICK_STAIRS:
-            case ANDESITE_STAIRS:
-            case POLISHED_ANDESITE_STAIRS:
-            case RED_NETHER_BRICK_STAIRS:
-            case MOSSY_STONE_BRICK_STAIRS:
-            case MOSSY_COBBLESTONE_STAIRS:
-            case SMOOTH_SANDSTONE_STAIRS:
-            case SMOOTH_RED_SANDSTONE_STAIRS:
-            case CRIMSON_STAIRS:
-            case WARPED_STAIRS:
-            case BLACKSTONE_STAIRS:
-            case POLISHED_BLACKSTONE_STAIRS:
-            case POLISHED_BLACKSTONE_BRICK_STAIRS:
+            case BLOCK_GRANITE_STAIRS:
+            case BLOCK_POLISHED_GRANITE_STAIRS:
+            case BLOCK_SMOOTH_QUARTZ_STAIRS:
+            case BLOCK_DIORITE_STAIRS:
+            case BLOCK_POLISHED_DIORITE_STAIRS:
+            case BLOCK_END_STONE_BRICK_STAIRS:
+            case BLOCK_ANDESITE_STAIRS:
+            case BLOCK_POLISHED_ANDESITE_STAIRS:
+            case BLOCK_RED_NETHER_BRICK_STAIRS:
+            case BLOCK_MOSSY_STONE_BRICK_STAIRS:
+            case BLOCK_MOSSY_COBBLESTONE_STAIRS:
+            case BLOCK_SMOOTH_SANDSTONE_STAIRS:
+            case BLOCK_SMOOTH_RED_SANDSTONE_STAIRS:
+            case BLOCK_CRIMSON_STAIRS:
+            case BLOCK_WARPED_STAIRS:
+            case BLOCK_BLACKSTONE_STAIRS:
+            case BLOCK_POLISHED_BLACKSTONE_STAIRS:
+            case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -15335,24 +15451,24 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_PRISMARINE_BRICK_STAIRS:
         case BLOCK_DARK_PRISMARINE_STAIRS:
         case BLOCK_STONE_STAIRS:
-        case GRANITE_STAIRS:
-        case POLISHED_GRANITE_STAIRS:
-        case SMOOTH_QUARTZ_STAIRS:
-        case DIORITE_STAIRS:
-        case POLISHED_DIORITE_STAIRS:
-        case END_STONE_BRICK_STAIRS:
-        case ANDESITE_STAIRS:
-        case POLISHED_ANDESITE_STAIRS:
-        case RED_NETHER_BRICK_STAIRS:
-        case MOSSY_STONE_BRICK_STAIRS:
-        case MOSSY_COBBLESTONE_STAIRS:
-        case SMOOTH_SANDSTONE_STAIRS:
-        case SMOOTH_RED_SANDSTONE_STAIRS:
-        case CRIMSON_STAIRS:
-        case WARPED_STAIRS:
-        case BLACKSTONE_STAIRS:
-        case POLISHED_BLACKSTONE_STAIRS:
-        case POLISHED_BLACKSTONE_BRICK_STAIRS:
+        case BLOCK_GRANITE_STAIRS:
+        case BLOCK_POLISHED_GRANITE_STAIRS:
+        case BLOCK_SMOOTH_QUARTZ_STAIRS:
+        case BLOCK_DIORITE_STAIRS:
+        case BLOCK_POLISHED_DIORITE_STAIRS:
+        case BLOCK_END_STONE_BRICK_STAIRS:
+        case BLOCK_ANDESITE_STAIRS:
+        case BLOCK_POLISHED_ANDESITE_STAIRS:
+        case BLOCK_RED_NETHER_BRICK_STAIRS:
+        case BLOCK_MOSSY_STONE_BRICK_STAIRS:
+        case BLOCK_MOSSY_COBBLESTONE_STAIRS:
+        case BLOCK_SMOOTH_SANDSTONE_STAIRS:
+        case BLOCK_SMOOTH_RED_SANDSTONE_STAIRS:
+        case BLOCK_CRIMSON_STAIRS:
+        case BLOCK_WARPED_STAIRS:
+        case BLOCK_BLACKSTONE_STAIRS:
+        case BLOCK_POLISHED_BLACKSTONE_STAIRS:
+        case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -19957,6 +20073,7 @@ static int addNormalToList(Vector normal, Vector* normalList, int* normalListCou
 // go through all face normals and, if not set, find the proper face normal (or add it to the list)
 static void resolveFaceNormals()
 {
+    int maxFaceNormalIndex = -1;
     for (int i = 0; i < gModel.faceCount; i++)
     {
         FaceRecord* pFace = gModel.faceList[i];
@@ -19983,12 +20100,21 @@ static void resolveFaceNormals()
             Vector tnormal;
             int index = findMatchingNormal(pFace, tnormal, gModel.normals, gModel.normalListCount);
             if (pFace->normalIndex != index) {
-                // put a break on this line to see any problem
+                // put a break on this line to see any problem -
+                // If you hit this assert, it almost assuredly means that you did not set
+                //         gUsingTransform = 1;
+                // before you generated (and then transformed) some content.
                 assert(0);
             }
         }
+        if (pFace->normalIndex > maxFaceNormalIndex) {
+            maxFaceNormalIndex = pFace->normalIndex;
+        }
 #endif
     }
+    // Tiny optimization: don't output the "standard normals" if they're not used.
+    // Really, some unused normals could still be output, but this cuts the number down a little.
+    gModel.normalListCount = maxFaceNormalIndex + 1;
 }
 
 bool IsASubblock(int type, int dataVal)
@@ -20185,6 +20311,17 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
                 break;
             }
         }
+        break;
+    // Here's a dilemma: do we up the emission value of the candle group as a whole, based
+    // on the number of candles, or is a single emission value per candle (3.0) better,
+    // since more candles will give off more light? And, really, should candles
+    // give off light? It's the lit tips, which we don't export, that illuminate.
+    // This is one of the great philosophical questions of our age.
+    // Anyway, for "split by block type", we get different emission levels, else the same.
+    case BLOCK_LIT_CANDLE:
+    case BLOCK_LIT_COLORED_CANDLE:
+        // upper 2 bits is number of candles
+        emission = (float)((((dataVal & 0x30)>>4) + 1 ) * 3);
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
@@ -21550,7 +21687,7 @@ static int createBaseMaterialTexture()
         // fix grass path block
         if (gModel.print3D && !gExportBillboards)
         {
-            // exporting whole block - stretch to top
+            // exporting whole block - stretch to top TODOTODO - still needed? dirt path now uses a texture
             stretchSwatchToTop(mainprog, SWATCH_INDEX(gBlockDefinitions[BLOCK_GRASS_PATH].txrX + 1, gBlockDefinitions[BLOCK_GRASS_PATH].txrY),
                 (float)(gModel.swatchSize * (1.0 / 16.0) + (float)SWATCH_BORDER) / (float)gModel.swatchSize);
         }
@@ -25258,7 +25395,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             // opacity threshold is not well-defined. Does 0 mean "if 0, it's transparent" or "if less than 0, it's transparent?"
             // In Omniverse, it's the former. In Houdini, the latter.
-            // Needed only if a texture has alphas. Not needed if there's no alpha.
+            // Needed only if a texture has alphas. Not needed if there's no alpha, and inefficient to boot (anyhit shader invoked).
             // Better would be to do the full alpha test, just to be sure.
             if (isCutout || isSemitransparent) {
                 strcpy_s(outputString, 256, "            float inputs:opacityThreshold = 0.001\n");
@@ -25341,9 +25478,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256,  "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256,  "            token inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256,  "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256,  "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25366,9 +25503,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256, "            token inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            float4 inputs:scale = (2.0, 2.0, 2.0, 2.0)\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25395,9 +25532,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256, "            token inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
+                sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25419,9 +25556,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, (gTilesTable[swatchLoc].flags & SBIT_SYTHESIZED) ? "_y" : "");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
+            sprintf_s(outputString, 256, "            token inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
+            sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25439,7 +25576,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // Emissive Texture
 
             // Because UsdPreviewSurface only allows an emissionColor, I don't think the current set of 
-            // mineways textures can properly be used for this. We would need a combined mask and emissive color 
+            // Mineways textures can properly be used for this. We would need a combined mask and emissive color 
             // texture exported. Is this possible? 
 
             if (tileIsAnEmitter(pFace->materialType, swatchLoc)) {
@@ -25476,9 +25613,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     sprintf_s(outputString, 256, "            asset inputs:file = @%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
 #endif
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "            asset inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
+                    sprintf_s(outputString, 256, "            token inputs:wrapS = \"%s\"\n", sRepeat ? "repeat" : "clamp");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "            asset inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
+                    sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));

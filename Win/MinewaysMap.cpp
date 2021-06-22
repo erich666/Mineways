@@ -1750,11 +1750,24 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Damaged Anvil";
         }
         break;
+
     case BLOCK_BEE_NEST:
         if (dataVal & BIT_32)
         {
             return "Beehive";
         }
+        break;
+
+    case BLOCK_COLORED_CANDLE:
+        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
+        sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
+        return gConcatString;
+
+    case BLOCK_LIT_COLORED_CANDLE:
+        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
+        sprintf_s(gConcatString, 100, "Lit %s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
+        return gConcatString;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -3086,6 +3099,122 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_COLORED_CANDLE:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0xDD5F00;
+            break;
+        case 2:
+            color = 0xA02A98;
+            break;
+        case 3:
+            color = 0x2089C9;
+            break;
+        case 4:
+            color = 0xCFA12C;
+            break;
+        case 5:
+            color = 0x5EAD14;
+            break;
+        case 6:
+            color = 0xD15F8B;
+            break;
+        case 7:
+            color = 0x4E5D5E;
+            break;
+        case 8:
+            color = 0x73766C;
+            break;
+        case 9:
+            color = 0x0F7877;
+            break;
+        case 10:
+            color = 0x6620A0;
+            break;
+        case 11:
+            color = 0x374A9F;
+            break;
+        case 12:
+            color = 0x6B4224;
+            break;
+        case 13:
+            color = 0x445B12;
+            break;
+        case 14:
+            color = 0x992421;
+            break;
+        case 15:
+            color = 0x201F32;
+            break;
+        }
+        break;
+
+    case BLOCK_LIT_COLORED_CANDLE:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0xFFDA4B;
+            break;
+        case 2:
+            color = 0xFF9CC2;
+            break;
+        case 3:
+            color = 0xBFF0E1;
+            break;
+        case 4:
+            color = 0xFDFF9A;
+            break;
+        case 5:
+            color = 0xD2DA3B;
+            break;
+        case 6:
+            color = 0xFFDDBF;
+            break;
+        case 7:
+            color = 0xEDC591;
+            break;
+        case 8:
+            color = 0xFFE5A8;
+            break;
+        case 9:
+            color = 0x8ADCB0;
+            break;
+        case 10:
+            color = 0xCB2172;
+            break;
+        case 11:
+            color = 0x6A83F5;
+            break;
+        case 12:
+            color = 0xFFB55F;
+            break;
+        case 13:
+            color = 0xC0B419;
+            break;
+        case 14:
+            color = 0xFF9456;
+            break;
+        case 15:
+            color = 0xCF5C20;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -3942,24 +4071,24 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_NETHER_BRICK_STAIRS:
     case BLOCK_SANDSTONE_STAIRS:
     case BLOCK_STONE_STAIRS:
-    case GRANITE_STAIRS:
-    case POLISHED_GRANITE_STAIRS:
-    case SMOOTH_QUARTZ_STAIRS:
-    case DIORITE_STAIRS:
-    case POLISHED_DIORITE_STAIRS:
-    case END_STONE_BRICK_STAIRS:
-    case ANDESITE_STAIRS:
-    case POLISHED_ANDESITE_STAIRS:
-    case RED_NETHER_BRICK_STAIRS:
-    case MOSSY_STONE_BRICK_STAIRS:
-    case MOSSY_COBBLESTONE_STAIRS:
-    case SMOOTH_SANDSTONE_STAIRS:
-    case SMOOTH_RED_SANDSTONE_STAIRS:
-    case CRIMSON_STAIRS:
-    case WARPED_STAIRS:
-    case BLACKSTONE_STAIRS:
-    case POLISHED_BLACKSTONE_STAIRS:
-    case POLISHED_BLACKSTONE_BRICK_STAIRS:
+    case BLOCK_GRANITE_STAIRS:
+    case BLOCK_POLISHED_GRANITE_STAIRS:
+    case BLOCK_SMOOTH_QUARTZ_STAIRS:
+    case BLOCK_DIORITE_STAIRS:
+    case BLOCK_POLISHED_DIORITE_STAIRS:
+    case BLOCK_END_STONE_BRICK_STAIRS:
+    case BLOCK_ANDESITE_STAIRS:
+    case BLOCK_POLISHED_ANDESITE_STAIRS:
+    case BLOCK_RED_NETHER_BRICK_STAIRS:
+    case BLOCK_MOSSY_STONE_BRICK_STAIRS:
+    case BLOCK_MOSSY_COBBLESTONE_STAIRS:
+    case BLOCK_SMOOTH_SANDSTONE_STAIRS:
+    case BLOCK_SMOOTH_RED_SANDSTONE_STAIRS:
+    case BLOCK_CRIMSON_STAIRS:
+    case BLOCK_WARPED_STAIRS:
+    case BLOCK_BLACKSTONE_STAIRS:
+    case BLOCK_POLISHED_BLACKSTONE_STAIRS:
+    case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -4224,6 +4353,34 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex3] = (unsigned char)type;
             block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
+        }
+        break;
+    case BLOCK_COLORED_CANDLE:
+    case BLOCK_LIT_COLORED_CANDLE:
+        // uses all bits, 0-15, with variations to show other styles
+        // This is for when adding content with the HIGH_BIT set
+        addBlock = 1;
+        {
+            // add new style diagonally SE of original
+            int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+
+            int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex2] = (unsigned char)type;
+            block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+
+            int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+            block->grid[neighborIndex3] = (unsigned char)type;
+            block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        }
+        break;
+    case BLOCK_CANDLE:
+    case BLOCK_LIT_CANDLE:
+        // uses 0x3 bits for number of candles
+        if (dataVal < 4) {
+            addBlock = 1;
+            finalDataVal = dataVal << 4;
         }
         break;
     case BLOCK_WATER:
