@@ -849,6 +849,19 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_GLASS:
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Tinted Glass";
+        }
+        break;
+
     case BLOCK_STONE:
         switch (dataVal & 0xf)
         {
@@ -1768,6 +1781,38 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         sprintf_s(gConcatString, 100, "Lit %s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
         return gConcatString;
 
+    case BLOCK_AMETHYST:
+        switch (dataVal & 0x3f) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Budding Amethyst";
+        case 2:
+            return "Calcite";
+        case 3:
+            return "Tuff";
+        }
+        break;
+
+    case BLOCK_AMETHYST_BUD:
+        switch (dataVal & 0x3) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Medium Amethyst Bud";
+        case 2:
+            return "Large Amethyst Bud";
+        case 3:
+            return "Amethyst Cluster";
+        }
+        break;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -2171,6 +2216,20 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_GLASS:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0xf)
+        {
+        default:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// tinted glass
+            color = 0xA2A1A2;
+            break;
+        }
+        break;
+        
     case BLOCK_NETHER_BRICKS:
         dataVal = block->data[voxel];
         switch (dataVal & 0xf)
@@ -3215,6 +3274,67 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_AMETHYST:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x3f)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// amethyst cluster
+            color = 0x8E69BF;
+            break;
+        case 2:	// calcite
+            color = 0xE0E1DE;
+            break;
+        case 3:	// tuff
+            color = 0x6F6F69;
+            break;
+            /*
+        case 4:	// polished diorite
+            color = 0xC9C9CD;
+            break;
+        case 5:	// andesite
+            color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
+            break;
+        case 6:	// polished andesite
+            color = 0x7F7F84;
+            break;
+        case 7: // blackstone
+            color = 0x2D282F;
+            break;
+        case 8: // chiseled_polished_blackstone
+            color = 0x39353E;
+            break;
+        case 9: // polished_blackstone
+            color = 0x37333D;
+            break;
+        case 10: // gilded_blackstone
+            color = 0x4A392D;
+            break;
+        case 11: // polished_blackstone_bricks
+            color = 0x322E36;
+            break;
+        case 12: // cracked_polished_blackstone_bricks
+            color = 0x2F2B32;
+            break;
+        case 13: // netherite_block
+            color = 0x444042;
+            break;
+        case 14: // ancient_debris
+            color = 0x67504A;
+            break;
+        case 15: // nether_gold_ore
+            color = 0x7E4E31;
+            break;
+            */
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -3821,6 +3941,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         type &= 0xFF;
     }
 
+    int neighborIndex;
+
     switch (origType)
     {
     default:
@@ -3849,6 +3971,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SOUL_SAND:
     case BLOCK_GLOWSTONE:
     case BLOCK_NETHER_WART_BLOCK:
+    case BLOCK_GLASS:
         // uses 0-1
         if (dataVal < 2)
         {
@@ -3912,6 +4035,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_STONECUTTER:
     case BLOCK_LECTERN:
+    case BLOCK_AMETHYST:    // TODOTODO - this will expand by end of adding 1.17
         // uses 0-3
         if (dataVal < 4)
         {
@@ -4145,7 +4269,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         // add new style diagonally SE of original
         {
-            int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             switch (dataVal) {
             case 1:
@@ -4291,7 +4415,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // add new style diagonally SE of original
         if (dataVal < ((type == BLOCK_LOG) ? 4 : 2)) {
             // add "wood" variant to map
-            int neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
         }
@@ -4342,17 +4466,17 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         addBlock = 1;
         {
             // add new style diagonally SE of original
-            int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
 
-            int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex2] = (unsigned char)type;
-            block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32;
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32;
 
-            int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex3] = (unsigned char)type;
-            block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
         }
         break;
     case BLOCK_COLORED_CANDLE:
@@ -4362,17 +4486,47 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         addBlock = 1;
         {
             // add new style diagonally SE of original
-            int neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
 
-            int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex2] = (unsigned char)type;
-            block->data[neighborIndex2] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
 
-            int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex3] = (unsigned char)type;
-            block->data[neighborIndex3] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        }
+        break;
+    case BLOCK_AMETHYST_BUD:
+        if (dataVal < 4) {
+            addBlock = 1;
+
+            // add the five other variants around a block of stone
+            neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = BLOCK_STONE;
+            block->data[neighborIndex] = 0x0;
+
+            neighborIndex = BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (4 << 2)) | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y+1, 4 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (5 << 2)) | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 3 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (2 << 2)) | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (3 << 2)) | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+2, 4 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (1 << 2)) | HIGH_BIT;
         }
         break;
     case BLOCK_CANDLE:
@@ -5080,7 +5234,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         if (dataVal > 0 && dataVal < 14) {
             // add neighbor of different material, to see it
-            int neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)dataVal;
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);

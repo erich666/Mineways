@@ -9522,6 +9522,72 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         break; // saveBillboardOrGeometry
 
+    case BLOCK_AMETHYST_BUD:						// saveBillboardOrGeometry
+        bottomDataVal = (dataVal & 0x1c)>>2;
+        // compute two rotations, and piston nubbin visibility.
+        // Piston nubbin visibility:
+        // the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
+        // normally the piston body is in the next voxel. If we see *anything* else, assert, as
+        // something's probably wrong with the code.
+        yrot = zrot = 0.0f;
+        //dir = DIRECTION_BLOCK_TOP;
+        switch (bottomDataVal)
+        {
+        case 0: // pointing down
+            //dir = DIRECTION_BLOCK_TOP;
+            zrot = 180.0f;
+            yrot = 270.0f;
+            break;
+        case 1: // pointing up
+            //dir = DIRECTION_BLOCK_BOTTOM;
+            yrot = 270.0f;
+            break;
+        case 2: // pointing north
+            //dir = DIRECTION_BLOCK_SIDE_HI_Z;
+            zrot = 90.0f;
+            yrot = 270.0f;
+            break;
+        case 3: // pointing south
+            //dir = DIRECTION_BLOCK_SIDE_LO_Z;
+            zrot = 90.0f;
+            yrot = 90.0f;
+            break;
+        case 4: // pointing west
+            //dir = DIRECTION_BLOCK_SIDE_HI_X;
+            zrot = 90.0f;
+            yrot = 180.0f;
+            break;
+        case 5: // pointing east
+            //dir = DIRECTION_BLOCK_SIDE_LO_X;
+            zrot = 90.0f;
+            break;
+        default:
+            assert(0);
+        }
+
+        // we definitely do move the piston shaft into place, always
+        gUsingTransform = 1;
+        // grab bud
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
+
+        // form the bud
+        for (i = 0; i < 2; i++) {
+            totalVertexCount = gModel.vertexCount;
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, 0.0f, 0.0f, 8.0f / 16.0f);
+            rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
+            rotateMtx(mtx, 0.0, 0.0f, zrot);
+            rotateMtx(mtx, 0.0f, yrot, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+        }
+
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+
     default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -19636,6 +19702,78 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5 + (dataVal & 0x7), 45, 10, 45);
             break;
 
+        case BLOCK_AMETHYST:
+            switch (dataVal & 0x3f)
+            {
+            default: // block of amethyst
+                assert(0);
+            case 0:
+                // no change, default is fine
+                break;
+            case 1: // budding amethyst
+                swatchLoc = SWATCH_INDEX(5, 49);
+                break;
+            case 2: // calcite
+                swatchLoc = SWATCH_INDEX(6, 49);
+                break;
+            case 3: // tuff
+                swatchLoc = SWATCH_INDEX(7, 49);
+                break;
+                /*
+            case 4: // polished diorite
+                swatchLoc = SWATCH_INDEX(7, 22);
+                break;
+            case 5: // andesite
+                swatchLoc = SWATCH_INDEX(4, 22);
+                break;
+            case 6: // polished andesite
+                swatchLoc = SWATCH_INDEX(5, 22);
+                break;
+            case 7: // blackstone
+                swatchLoc = SWATCH_INDEX(0, 46);
+                SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
+                break;
+            case 8: // chiseled_polished_blackstone
+                swatchLoc = SWATCH_INDEX(2, 46);
+                break;
+            case 9: // polished_blackstone
+                swatchLoc = SWATCH_INDEX(4, 46);
+                break;
+            case 10: // gilded_blackstone
+                swatchLoc = SWATCH_INDEX(15, 45);
+                break;
+            case 11: // polished_blackstone_bricks
+                swatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            case 12: // cracked_polished_blackstone_bricks
+                swatchLoc = SWATCH_INDEX(3, 46);
+                break;
+            case 13: // netherite_block
+                swatchLoc = SWATCH_INDEX(13, 45);
+                break;
+            case 14: // ancient_debris
+                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 1, 45, 0, 45);
+                break;
+            case 15: // nether_gold_ore
+                swatchLoc = SWATCH_INDEX(14, 45);
+                break;
+                */
+            }
+            break;
+
+        case BLOCK_GLASS:
+            switch (dataVal & 0x3f)
+            {
+            default: // block of glass
+                assert(0);
+            case 0:
+                // no change, default is fine
+                break;
+            case 1: // tinted glass
+                swatchLoc = SWATCH_INDEX(15, 46);
+                break;
+            }
+            break;
         }
     }
 

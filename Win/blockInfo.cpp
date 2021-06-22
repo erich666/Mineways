@@ -89,7 +89,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Leaves block color is from Plains biome color (default terrain in a flat world). Acacia Leaves should also be changed if this is changed.
     { /*  18 */ "Oak Leaves",					0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 3, 0x03, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART},	//12
     { /*  19 */ "Sponge",                 		0xD1D24E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 3, 0x01, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//13
-    { /*  20 */ "Glass",                  		0xc0f6fe, 0.500f, 0xff7711, 0xff7711, 0.12345f,   1, 3, 0x00, BLF_WHOLE | BLF_CUTOUTS | BLF_FENCE_NEIGHBOR},	//14 - note that BLF_TRANSPARENT is not flagged, 0x00FF, Because glass is either fully on or off, not blended
+    { /*  20 */ "Glass",                  		0xc0f6fe, 0.500f, 0xff7711, 0xff7711, 0.12345f,   1, 3, 0x01, BLF_WHOLE | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR},	//14 - note that BLF_TRANSPARENT is not flagged, 0x00FF, Because glass is either fully on or off, not blended
     { /*  21 */ "Lapis Lazuli Ore",       		0x143880, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,10, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//15
     { /*  22 */ "Lapis Lazuli Block",     		0x1b4ebb, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 9, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//16
     { /*  23 */ "Dispenser",              		0x6f6f6f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE},	//17 14,2 front, 13,2 sides
@@ -462,11 +462,12 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 381 */ "Blackstone Stairs",          	0x2D282F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
     { /* 382 */ "Polished Blackstone Stairs",   0x37333D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
     { /* 383 */ "Polished Blackstone Brick Stairs",0x322E36,1.000f,0xff7711,0xff7711, 0.12345f,  5, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 384 */ "Candle",                  	    0xF0C997, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS },
-    { /* 385 */ "Lit Candle",                  	0xFFFAF1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 46, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER },
-    { /* 386 */ "White Candle",            		0xD3DCDC, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 47, 0x0f, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS },
-    { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER },
-    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 384 */ "Candle",                  	    0xF0C997, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 385 */ "Lit Candle",                  	0xFFFAF1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 46, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
+    { /* 386 */ "White Candle",            		0xD3DCDC, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 47, 0x0f, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
+    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS },
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

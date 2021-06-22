@@ -131,7 +131,7 @@ static int worldVersion = 0;
 // for water and lava
 // See https://minecraft.fandom.com/wiki/Water#Block_states
 // level: 1-7|8 when falling true - note that level 0 is the "source block" and higher means further away
-#define FLUID_PROP			  4
+// separate prop not needed: #define FLUID_PROP			  4
 // saplings
 // stage: 0|1 - non-graphical, so ignored
 #define SAPLING_PROP			  5
@@ -327,14 +327,17 @@ static int worldVersion = 0;
 // lit: adds one to the type
 // waterlogged: the usual bit
 #define CANDLE_PROP         53
+// bottom two bits is sub-type.
+// facing: 0-6 << 2 dropper_facing
+#define AMETHYST_PROP       54
 // facing: 0-3 door_facing
 // tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC)
-#define BIG_DRIPLEAF_PROP   54
+#define BIG_DRIPLEAF_PROP   55
 // facing: 0-3 door_facing
 // half: lower/upper 0x0/0x4
-#define SMALL_DRIPLEAF_PROP 55
+#define SMALL_DRIPLEAF_PROP 56
 
-#define NUM_TRANS 801
+#define NUM_TRANS 809
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -378,8 +381,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 196,           0, "acacia_door", DOOR_PROP },
     { 0, 197,           0, "dark_oak_door", DOOR_PROP },
     { 0,   7,           0, "bedrock", NO_PROP },
-    { 0,   9,           0, "water", FLUID_PROP },
-    { 0,  11,           0, "lava", FLUID_PROP },
+    { 0,   9,           0, "water", NO_PROP },   // FLUID_PROP
+    { 0,  11,           0, "lava", NO_PROP },   // FLUID_PROP
     { 0,  12,           0, "sand", NO_PROP },
     { 0,  12,           1, "red_sand", NO_PROP },
     { 0,  24,           0, "sandstone", NO_PROP }, // TODO 1.13 check: For normal sandstone the bottom has a cracked pattern. The other types of sandstone have bottom faces same as the tops.
@@ -1158,15 +1161,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  92,     BIT_16 | 14, "red_candle_cake", CANDLE_CAKE_PROP },
     { 0,  92,     BIT_16 | 15, "black_candle_cake", CANDLE_CAKE_PROP },
     { 0, 132,   HIGH_BIT | 0, "amethyst_block", NO_PROP },
-        /*
-    { 0, 134,   HIGH_BIT | 0, "small_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 134,   HIGH_BIT | 1, "medium_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 134,   HIGH_BIT | 2, "large_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 134,   HIGH_BIT | 3, "amethyst_cluster", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   HIGH_BIT | 0, "small_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   HIGH_BIT | 1, "medium_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   HIGH_BIT | 2, "large_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   HIGH_BIT | 3, "amethyst_cluster", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
     { 0, 132,   HIGH_BIT | 1, "budding_amethyst", NO_PROP },
     { 0, 132,   HIGH_BIT | 2, "calcite", NO_PROP },
     { 0, 132,   HIGH_BIT | 3, "tuff", NO_PROP },
-    { 0, 20,               1, "tinted_glass", NO_PROP },  // stuffed in with glass
+    { 0,  20,              1, "tinted_glass", NO_PROP },  // stuffed in with glass
+    /*
     { 0, 132,   HIGH_BIT | 4, "dripstone_block", NO_PROP },
     { 0, 135,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 tips, up up/down
     { 0, 132,   HIGH_BIT | 4, "copper_ore", NO_PROP },
@@ -2317,7 +2320,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                                 dropper_facing = 5;
                                                 dataVal = 1;
                                             }
-                                            // dispenser, dropper
+                                            // dispenser, dropper, amethyst buds
                                             else if (strcmp(value, "up") == 0) {
                                                 door_facing = 0;
                                                 //chest_facing = 5;
@@ -3088,6 +3091,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             //case WIRE_PROP:
                             //    dataVal |= redstone_side;
                             //    break;
+                        case AMETHYST_PROP:
+                            dataVal = dropper_facing << 2;
+                            break;
                         case BIG_DRIPLEAF_PROP:
                             dataVal = door_facing | (tilt << 2);
                             break;
