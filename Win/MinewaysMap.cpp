@@ -1794,6 +1794,32 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Calcite";
         case 3:
             return "Tuff";
+        case 4:
+            return "Dripstone Block";
+        case 5:
+            return "Copper Ore";
+        case 6:
+            return "Deepslate Copper Ore";
+        case 7:
+            return "Block of Copper";
+        case 8:
+            return "Exposed Copper";
+        case 9:
+            return "Weathered Copper";
+        case 10:
+            return "Oxidized Copper";
+        case 11:
+            return "Cut Copper";
+        case 12:
+            return "Exposed Cut Copper";
+        case 13:
+            return "Weathered Cut Copper";
+        case 14:
+            return "Oxidized Cut Copper";
+        case 15:
+            return "TODOTODO";
+        case 16:
+            return "TODOTODO";
         }
         break;
 
@@ -3294,40 +3320,40 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 3:	// tuff
             color = 0x6F6F69;
             break;
+        case 4:	// Dripstone Block
+            color = 0x886E5E;
+            break;
+        case 5:	// Copper Ore
+            color = 0x817F7A;
+            break;
+        case 6:	// Deepslate Copper Ore
+            color = 0x65625D;
+            break;
+        case 7: // Block of Copper
+            color = 0xC26D52;
+            break;
+        case 8: // Exposed Copper
+            color = 0xA37E69;
+            break;
+        case 9: // Weathered Copper
+            color = 0x6F936E;
+            break;
+        case 10: // Oxidized Copper
+            color = 0x54A587;
+            break;
+        case 11: // Cut Copper
+            color = 0xC16D53;
+            break;
+        case 12: // Exposed Cut Copper
+            color = 0x9E7B67;
+            break;
+        case 13: // Weathered Cut Copper
+            color = 0x6F936E;
+            break;
+        case 14: // Oxidized Cut Copper
+            color = 0x529D81;
+            break;
             /*
-        case 4:	// polished diorite
-            color = 0xC9C9CD;
-            break;
-        case 5:	// andesite
-            color = gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
-            break;
-        case 6:	// polished andesite
-            color = 0x7F7F84;
-            break;
-        case 7: // blackstone
-            color = 0x2D282F;
-            break;
-        case 8: // chiseled_polished_blackstone
-            color = 0x39353E;
-            break;
-        case 9: // polished_blackstone
-            color = 0x37333D;
-            break;
-        case 10: // gilded_blackstone
-            color = 0x4A392D;
-            break;
-        case 11: // polished_blackstone_bricks
-            color = 0x322E36;
-            break;
-        case 12: // cracked_polished_blackstone_bricks
-            color = 0x2F2B32;
-            break;
-        case 13: // netherite_block
-            color = 0x444042;
-            break;
-        case 14: // ancient_debris
-            color = 0x67504A;
-            break;
         case 15: // nether_gold_ore
             color = 0x7E4E31;
             break;
@@ -4035,7 +4061,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_STONECUTTER:
     case BLOCK_LECTERN:
-    case BLOCK_AMETHYST:    // TODOTODO - this will expand by end of adding 1.17
         // uses 0-3
         if (dataVal < 4)
         {
@@ -4213,6 +4238,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_BLACKSTONE_STAIRS:
     case BLOCK_POLISHED_BLACKSTONE_STAIRS:
     case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
+    case BLOCK_CUT_COPPER_STAIRS:
+    case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
+    case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
+    case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -4367,6 +4396,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_TURTLE_EGG: // number is 0-3, hatch is 0-2, total of 12
         // uses 0-11
         if (dataVal < 12)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_AMETHYST:    // TODOTODO - this will expand by end of adding 1.17
+        if (dataVal < 15)
         {
             addBlock = 1;
         }

@@ -4297,6 +4297,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_DEAD_CORAL:
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_WEEPING_VINES:
+    case BLOCK_POINTED_DRIPSTONE:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -5116,6 +5117,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_BLACKSTONE_STAIRS:
     case BLOCK_POLISHED_BLACKSTONE_STAIRS:
     case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
+    case BLOCK_CUT_COPPER_STAIRS:
+    case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
+    case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
+    case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
 
         // set texture
         switch (type)
@@ -10985,6 +10990,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_BLACKSTONE_STAIRS:
             case BLOCK_POLISHED_BLACKSTONE_STAIRS:
             case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
+            case BLOCK_CUT_COPPER_STAIRS:
+            case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
+            case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
+            case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -11551,6 +11560,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 }
             }
         }
+        break;
+    case BLOCK_POINTED_DRIPSTONE:
+        wobbleIt = true;
+        // swatch is indexed directly by dataVal
+        swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
         break;
     case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
         wobbleIt = true;
@@ -15535,6 +15549,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_BLACKSTONE_STAIRS:
         case BLOCK_POLISHED_BLACKSTONE_STAIRS:
         case BLOCK_POLISHED_BLACKSTONE_BRICK_STAIRS:
+        case BLOCK_CUT_COPPER_STAIRS:
+        case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
+        case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
+        case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -19719,45 +19737,39 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 3: // tuff
                 swatchLoc = SWATCH_INDEX(7, 49);
                 break;
-                /*
-            case 4: // polished diorite
-                swatchLoc = SWATCH_INDEX(7, 22);
+            case 4:	// Dripstone Block
+                swatchLoc = SWATCH_INDEX(8, 49);
                 break;
-            case 5: // andesite
-                swatchLoc = SWATCH_INDEX(4, 22);
+            case 5:	// Copper Ore
+                swatchLoc = SWATCH_INDEX(3, 50);
                 break;
-            case 6: // polished andesite
-                swatchLoc = SWATCH_INDEX(5, 22);
+            case 6:	// Deepslate Copper Ore
+                swatchLoc = SWATCH_INDEX(4, 50);
                 break;
-            case 7: // blackstone
-                swatchLoc = SWATCH_INDEX(0, 46);
-                SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
+            case 7: // Block of Copper
+                swatchLoc = SWATCH_INDEX(5, 50);
                 break;
-            case 8: // chiseled_polished_blackstone
-                swatchLoc = SWATCH_INDEX(2, 46);
+            case 8: // Exposed Copper
+                swatchLoc = SWATCH_INDEX(6, 50);
                 break;
-            case 9: // polished_blackstone
-                swatchLoc = SWATCH_INDEX(4, 46);
+            case 9: // Weathered Copper
+                swatchLoc = SWATCH_INDEX(7, 50);
                 break;
-            case 10: // gilded_blackstone
-                swatchLoc = SWATCH_INDEX(15, 45);
+            case 10: // Oxidized Copper
+                swatchLoc = SWATCH_INDEX(8, 50);
                 break;
-            case 11: // polished_blackstone_bricks
-                swatchLoc = SWATCH_INDEX(5, 46);
+            case 11: // Cut Copper
+                swatchLoc = SWATCH_INDEX(9, 50);
                 break;
-            case 12: // cracked_polished_blackstone_bricks
-                swatchLoc = SWATCH_INDEX(3, 46);
+            case 12: // Exposed Cut Copper
+                swatchLoc = SWATCH_INDEX(10, 50);
                 break;
-            case 13: // netherite_block
-                swatchLoc = SWATCH_INDEX(13, 45);
+            case 13: // Weathered Cut Copper
+                swatchLoc = SWATCH_INDEX(11, 50);
                 break;
-            case 14: // ancient_debris
-                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 1, 45, 0, 45);
+            case 14: // Oxidized Cut Copper
+                swatchLoc = SWATCH_INDEX(12, 50);
                 break;
-            case 15: // nether_gold_ore
-                swatchLoc = SWATCH_INDEX(14, 45);
-                break;
-                */
             }
             break;
 
@@ -19770,7 +19782,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // no change, default is fine
                 break;
             case 1: // tinted glass
-                swatchLoc = SWATCH_INDEX(15, 46);
+                swatchLoc = SWATCH_INDEX(13, 46);
                 break;
             }
             break;
@@ -25645,9 +25657,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            float4 inputs:scale = (2.0, 2.0, 2.0, 2.0)\n");
+                // yes, this scale of Y=-2 (and bias of 1.0 in the next line) seems weird to me, too, but seems to work. I don't love it.
+                strcpy_s(outputString, 256,  "            float4 inputs:scale = (2.0, -2.0, 2.0, 2.0)\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256,  "            float4 inputs:bias = (-1.0, -1.0, -1.0, -1.0)\n");
+                strcpy_s(outputString, 256,  "            float4 inputs:bias = (-1.0, 1.0, -1.0, -1.0)\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));

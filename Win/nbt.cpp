@@ -330,14 +330,17 @@ static int worldVersion = 0;
 // bottom two bits is sub-type.
 // facing: 0-6 << 2 dropper_facing
 #define AMETHYST_PROP       54
+// thickness: 5 states
+// vertical_direction: up/down
+#define DRIPSTONE_PROP      55
 // facing: 0-3 door_facing
 // tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC)
-#define BIG_DRIPLEAF_PROP   55
+#define BIG_DRIPLEAF_PROP   56
 // facing: 0-3 door_facing
 // half: lower/upper 0x0/0x4
-#define SMALL_DRIPLEAF_PROP 56
+#define SMALL_DRIPLEAF_PROP 57
 
-#define NUM_TRANS 809
+#define NUM_TRANS 825
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1169,9 +1172,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,   HIGH_BIT | 2, "calcite", NO_PROP },
     { 0, 132,   HIGH_BIT | 3, "tuff", NO_PROP },
     { 0,  20,              1, "tinted_glass", NO_PROP },  // stuffed in with glass
-    /*
     { 0, 132,   HIGH_BIT | 4, "dripstone_block", NO_PROP },
-    { 0, 135,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 tips, up up/down
+    { 0, 134,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 thickness, vertical_direction: up/down
     { 0, 132,   HIGH_BIT | 4, "copper_ore", NO_PROP },
     { 0, 132,   HIGH_BIT | 5, "deepslate_copper_ore", NO_PROP },
     { 0, 132,   HIGH_BIT | 6, "copper_block", NO_PROP },
@@ -1182,14 +1184,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 11, "exposed_cut_copper", NO_PROP },
     { 0, 132,  HIGH_BIT | 12, "weathered_cut_copper", NO_PROP },
     { 0, 132,  HIGH_BIT | 13, "oxidized_cut_copper", NO_PROP },
-    { 0, 136,	    HIGH_BIT, "cut_copper_stairs", STAIRS_PROP },
-    { 0, 137,	    HIGH_BIT, "exposed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 138,	    HIGH_BIT, "weathered_cut_copper_stairs", STAIRS_PROP },
-    { 0, 139,	    HIGH_BIT, "oxidized_cut_copper_stairs", STAIRS_PROP },
-    { 0, 141,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 135,	    HIGH_BIT, "cut_copper_stairs", STAIRS_PROP },
+    { 0, 136,	    HIGH_BIT, "exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 137,	    HIGH_BIT, "weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 138,	    HIGH_BIT, "oxidized_cut_copper_stairs", STAIRS_PROP },
+        /*
+    { 0, 139,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
+    { 0, 139,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 139,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 139,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
     { 0, 132,  HIGH_BIT | 14, "waxed_copper_block", NO_PROP },
     { 0, 132,  HIGH_BIT | 15, "waxed_exposed_copper", NO_PROP },
     { 0, 132,  HIGH_BIT | 16, "waxed_weathered_copper", NO_PROP },
@@ -1969,16 +1972,18 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // walk through all elements of each Palette array element
             int dataVal = 0;
             // for doors
-            bool half, north, south, east, west, up, down, lit, powered, triggered, extended, attached, disarmed,
-                conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book;
+            bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
+                conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up;
             int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
-                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt;
+                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
+                thickness, vertical_direction;
             // to avoid Release build warning, but should always be set by code in practice
             int typeIndex = 0;
-            half = north = south = east = west = up = down = lit = powered = triggered = extended = attached = disarmed
-                = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = false;
+            half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
+                = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = up = false;
             axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
-                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt = 0;
+                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
+                thickness = vertical_direction = 0;
 
             int bigbufflen = 0;
             int entry_index = 0;
@@ -2387,24 +2392,24 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         // also WIRE_PROP: none or side;
                                         // we test for "side" for redstone dots vs. crosses
                                         else if (strcmp(token, "north") == 0) {
-                                            north = (strcmp(value, "true") == 0) ? 2 : 0;
-                                            // setting this bit means "make it a cross"
+                                            north = (strcmp(value, "true") == 0);
+                                            // setting this bit means "make it a cross" - TODO, ran out of bits!
                                             //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
                                         }
                                         else if (strcmp(token, "south") == 0) {
-                                            south = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            south = (strcmp(value, "true") == 0);
                                         }
                                         else if (strcmp(token, "east") == 0) {
-                                            east = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            east = (strcmp(value, "true") == 0);
                                         }
                                         else if (strcmp(token, "west") == 0) {
-                                            west = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            west = (strcmp(value, "true") == 0);
                                         }
                                         else if (strcmp(token, "up") == 0) {
-                                            up = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            up = (strcmp(value, "true") == 0);
                                         }
                                         else if (strcmp(token, "down") == 0) {
-                                            down = (strcmp(value, "true") == 0) ? 2 : 0;
+                                            down = (strcmp(value, "true") == 0);
                                         }
                                         // redstone
                                         else if (strcmp(token, "lit") == 0) {
@@ -2626,19 +2631,19 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         // for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
                                         else if (strcmp(token, "thickness") == 0) {
                                             if (strcmp(value, "tip") == 0) {
-                                                dataVal |= 0;
+                                                thickness = 0;
                                             }
                                             else if (strcmp(value, "tip_merge") == 0) {
-                                                dataVal |= 1;
+                                                thickness = 1;
                                             }
                                             else if (strcmp(value, "frustum") == 0) {
-                                                dataVal |= 2;
+                                                thickness = 2;
                                             }
                                             else if (strcmp(value, "middle") == 0) {
-                                                dataVal |= 3;
+                                                thickness = 3;
                                             }
                                             else if (strcmp(value, "base") == 0) {
-                                                dataVal |= 4;
+                                                thickness = 4;
                                             }
                                             else {
                                                 // unknown state found
@@ -2647,7 +2652,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         }
                                         // also for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
                                         else if (strcmp(token, "vertical_direction") == 0) {
-                                            dataVal |= (strcmp(value, "down") == 0) ? 0x8 : 0;
+                                            vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
                                         }
                                         else if (strcmp(token, "sculk_sensor_phase") == 0) {
                                             if (strcmp(value, "cooldown") == 0) {
@@ -3093,6 +3098,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             //    break;
                         case AMETHYST_PROP:
                             dataVal = dropper_facing << 2;
+                            break;
+                        case DRIPSTONE_PROP:
+                            // up is vertical_direction, and if "down" the value is set to 0x08
+                            dataVal = thickness | vertical_direction;
                             break;
                         case BIG_DRIPLEAF_PROP:
                             dataVal = door_facing | (tilt << 2);

@@ -440,34 +440,39 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 359 */ "Polished Blackstone Pressure Plate",0x37333D,1.000f,0xff7711,0xff7711,0.12345f, 4, 46, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
     { /* 360 */ "Double Crimson Slab",   		0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	//32/50 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
+    { /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// should be BLF_EMITTER, flatten torches only if sides get flattened, too
     { /* 363 */ "Weeping Vines",		  		0x8D211A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x21, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 364 */ "Chain",		          		0x3E4453, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_CUTOUTS | BLF_MAYWATERLOG },    // removed | BLF_FLATTEN_SMALL - seemed debatable
-    { /* 365 */ "Stone Stairs",          		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  0, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 366 */ "Granite Stairs",          		0xA77562, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 367 */ "Polished Granite Stairs",      0x946251, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 368 */ "Smooth Quartz Stairs",         0xE0DDD7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 17, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 369 */ "Diorite Stairs",          		0x9B9B9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 370 */ "Polished Diorite Stairs",      0xC9C9CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 371 */ "End Stone Brick Stairs",       0xDBE2A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 24, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 372 */ "Andesite Stairs",          	0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 373 */ "Polished Andesite Stairs",     0x7F7F84, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 374 */ "Red Nether Brick Stairs",      0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 26, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 375 */ "Mossy Stone Brick Stairs",     0x767B6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4,  6, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 376 */ "Mossy Cobblestone Stairs",     0x627162, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4,  2, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 377 */ "Smooth Sandstone Stairs",      0xe0d8a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 11, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 378 */ "Smooth Red Sandstone Stairs",  0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 19, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 379 */ "Crimson Stairs",          		0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 380 */ "Warped Stairs",          		0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 44, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 381 */ "Blackstone Stairs",          	0x2D282F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 382 */ "Polished Blackstone Stairs",   0x37333D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 383 */ "Polished Blackstone Brick Stairs",0x322E36,1.000f,0xff7711,0xff7711, 0.12345f,  5, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /* 384 */ "Candle",                  	    0xF0C997, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
-    { /* 385 */ "Lit Candle",                  	0xFFFAF1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 46, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
+    { /* 365 */ "Stone Stairs",          		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  0, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 366 */ "Granite Stairs",          		0xA77562, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 367 */ "Polished Granite Stairs",      0x946251, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 368 */ "Smooth Quartz Stairs",         0xE0DDD7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 17, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 369 */ "Diorite Stairs",          		0x9B9B9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 370 */ "Polished Diorite Stairs",      0xC9C9CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 371 */ "End Stone Brick Stairs",       0xDBE2A4, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 24, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 372 */ "Andesite Stairs",          	0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 373 */ "Polished Andesite Stairs",     0x7F7F84, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 374 */ "Red Nether Brick Stairs",      0x470709, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 26, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 375 */ "Mossy Stone Brick Stairs",     0x767B6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4,  6, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 376 */ "Mossy Cobblestone Stairs",     0x627162, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4,  2, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 377 */ "Smooth Sandstone Stairs",      0xe0d8a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 11, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 378 */ "Smooth Red Sandstone Stairs",  0x964C19, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 19, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 379 */ "Crimson Stairs",          		0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 380 */ "Warped Stairs",          		0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 44, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 381 */ "Blackstone Stairs",          	0x2D282F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 382 */ "Polished Blackstone Stairs",   0x37333D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 383 */ "Polished Blackstone Brick Stairs",0x322E36,1.000f,0xff7711,0xff7711, 0.12345f,  5, 46, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 384 */ "Candle",                  	    0xF0C997, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 385 */ "Lit Candle",                  	0xFFFAF1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 46, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
     { /* 386 */ "White Candle",            		0xD3DCDC, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 47, 0x0f, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
-    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS },
+    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x00, BLF_SMALL_BILLBOARD | BLF_CUTOUTS },	// TODO: could maybe make some geometry instead for 3D printing
+    { /* 391 */ "Cut Copper Stairs",            0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 394 */ "Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
