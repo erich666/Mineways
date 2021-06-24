@@ -466,13 +466,22 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 385 */ "Lit Candle",                  	0xFFFAF1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 46, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
     { /* 386 */ "White Candle",            		0xD3DCDC, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 47, 0x0f, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
-    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x3f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS },
     { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x00, BLF_SMALL_BILLBOARD | BLF_CUTOUTS },	// TODO: could maybe make some geometry instead for 3D printing
     { /* 391 */ "Cut Copper Stairs",            0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 394 */ "Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 395 */ "Lightning Rod",                0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID },
+    { /* 396 */ "Flower Pot", /* USED */  		0x7C4536, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 11, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },   //8C
+    { /* 397 */ "Double Cut Copper Slab",   	0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
+    { /* 398 */ "Cut Copper Slab",              0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//2c/44 - was 6,0, and 5,0 side
+    { /* 399 */ "Waxed Cut Copper Stairs",      0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 400 */ "Mob Head", /* USED */	        0xcacaca, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	//90/144 - TODO; we use a pumpkin for now...
+    { /* 401 */ "Waxed Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 402 */ "Waxed Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 403 */ "Waxed Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

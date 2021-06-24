@@ -1358,6 +1358,41 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         return gConcatString;
 
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
+    case BLOCK_CUT_COPPER_SLAB:
+        // a little wasteful if the default is returned after all
+        strcpy_s(gConcatString, 100, (type == BLOCK_CUT_COPPER_DOUBLE_SLAB) ? "Double " : "");
+        switch (dataVal & 0x7)
+        {
+        default:
+            assert(0);
+            return gBlockDefinitions[type].name;
+        case 0: // crimson
+            return gBlockDefinitions[type].name;
+        case 1:
+            strcat_s(gConcatString, 100, "Exposed Cut Copper Slab");
+            break;
+        case 2:
+            strcat_s(gConcatString, 100, "Weathered Cut Copper Slab");
+            break;
+        case 3:
+            strcat_s(gConcatString, 100, "Oxidized Cut Copper Slab");
+            break;
+        case 4:
+            strcat_s(gConcatString, 100, "Waxed Cut Copper Slab");
+            break;
+        case 5:
+            strcat_s(gConcatString, 100, "Waxed Exposed Cut Copper Slab");
+            break;
+        case 6:
+            strcat_s(gConcatString, 100, "Waxed Weathered Cut Copper Slab");
+            break;
+        case 7:
+            strcat_s(gConcatString, 100, "Waxed Oxidized Cut Copper Slab");
+            break;
+        }
+        return gConcatString;
+
     case BLOCK_WEEPING_VINES:
         // note we ignore BIT_32, which is top and bottom
         switch (dataVal & 0xf) {
@@ -1817,9 +1852,63 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 14:
             return "Oxidized Cut Copper";
         case 15:
-            return "TODOTODO";
+            return "Waxed Block of Copper";
         case 16:
-            return "TODOTODO";
+            return "Waxed Exposed Copper";
+        case 17:
+            return "Waxed Weathered Copper";
+        case 18:
+            return "Waxed Oxidized Copper";
+        case 19:
+            return "Waxed Cut Copper";
+        case 20:
+            return "Waxed Exposed Cut Copper";
+        case 21:
+            return "Waxed Weathered Cut Copper";
+        case 22:
+            return "Waxed Oxidized Cut Copper";
+        case 23:
+            return "Moss Block";
+        case 24:
+            return "Rooted Dirt";
+        case 25:
+            return "Powder Snow";
+        case 26:
+            return "Cobbled Deepslate";
+        case 27:
+            return "Chiseled Deepslate";
+        case 28:
+            return "Polished Deepslate";
+        case 29:
+            return "Deepslate Bricks";
+        case 30:
+            return "Deepslate Tiles";
+        case 31:
+            return "Cracked Deepslate Bricks";
+        case 32:
+            return "Cracked Deepslate Tiles";
+        case 33:
+            return "Smooth Basalt";
+        case 34:
+            return "Block of Raw Iron";
+        case 35:
+            return "Block of Raw Copper";
+        case 36:
+            return "Block of Raw Gold";
+        case 37:
+            return "Deepslate Coal Ore";
+        case 38:
+            return "Deepslate Iron Ore";
+        case 39:
+            return "Deepslate Gold Ore";
+        case 40:
+            return "Deepslate Redstone Ore";
+        case 41:
+            return "Deepslate Emerald Ore";
+        case 42:
+            return "Deepslate Lapis Lazuli Ore";
+        case 43:
+            return "Deepslate Diamond Ore";
         }
         break;
 
@@ -2665,6 +2754,35 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
+    case BLOCK_CUT_COPPER_SLAB:
+        dataVal = block->data[voxel];
+        alphaComputed = true;
+        // mask by 0x3 for the four slab types - waxed looks the same as regular
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+        case 0:
+        //case 4:	// Waxed Cut Copper Slab
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// Exposed Cut Copper Slab
+        //case 5:	// Waxed Exposed Cut Copper Slab
+            color = 0xA37E69;
+            break;
+        case 2:	// Weathered Cut Copper Slab
+        //case 6:	// Waxed Weathered Cut Copper Slab
+            color = 0x6F936E;
+            break;
+        case 3: // Oxidized Cut Copper Slab
+        //case 7:	// Waxed Oxidized Cut Copper Slab
+            color = 0x54A587;
+            break;
+        }
+        break;
+
     case BLOCK_POPPY:
         dataVal = block->data[voxel];
         switch (dataVal & 0xf)
@@ -3329,35 +3447,101 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 6:	// Deepslate Copper Ore
             color = 0x65625D;
             break;
-        case 7: // Block of Copper
+        case 7:	// Block of Copper
+        case 15: // Waxed Block of Copper
             color = 0xC26D52;
             break;
         case 8: // Exposed Copper
+        case 16: // Waxed Exposed Copper
             color = 0xA37E69;
             break;
         case 9: // Weathered Copper
+        case 17: // Waxed Weathered Copper
             color = 0x6F936E;
             break;
         case 10: // Oxidized Copper
+        case 18: // Waxed Oxidized Copper
             color = 0x54A587;
             break;
         case 11: // Cut Copper
+        case 19: // Waxed Cut Copper
             color = 0xC16D53;
             break;
         case 12: // Exposed Cut Copper
+        case 20: // Waxed Exposed Cut Copper
             color = 0x9E7B67;
             break;
         case 13: // Weathered Cut Copper
+        case 21: // Waxed Weathered Cut Copper
             color = 0x6F936E;
             break;
         case 14: // Oxidized Cut Copper
+        case 22: // Waxed Oxidized Cut Copper
             color = 0x529D81;
             break;
-            /*
-        case 15: // nether_gold_ore
-            color = 0x7E4E31;
+        case 23: // Moss Block
+            color = 0x5B6F2E;
             break;
-            */
+        case 24: // Rooted Dirt
+            color = 0x946B52;
+            break;
+        case 25: // Powder Snow
+            color = 0xF8FDFD;
+            break;
+        case 26: // Cobbled Deepslate
+            color = 0x515153;
+            break;
+        case 27: // Chiseled Deepslate
+            color = 0x39393A;
+            break;
+        case 28: // Polished Deepslate
+            color = 0x4C4C4C;
+            break;
+        case 29: // Deepslate Bricks
+            color = 0x4B4B4B;
+            break;
+        case 30: // Deepslate Tiles
+            color = 0x39393A;
+            break;
+        case 31: // Cracked Deepslate Bricks
+            color = 0x454546;
+            break;
+        case 32: // Cracked Deepslate Tiles
+            color = 0x373737;
+            break;
+        case 33: // Smooth Basalt
+            color = 0x4B4B4F;
+            break;
+        case 34: // Block of Raw Iron
+            color = 0xAC8D74;
+            break;
+        case 35: // Block of Raw Copper
+            color = 0xA36D53;
+            break;
+        case 36: // Block of Raw Gold
+            color = 0xE0B03E;
+            break;
+        case 37: // Deepslate Coal Ore
+            color = 0x515152;
+            break;
+        case 38: // Deepslate Iron Ore
+            color = 0x756A63;
+            break;
+        case 39: // Deepslate Gold Ore
+            color = 0x847256;
+            break;
+        case 40: // Deepslate Redstone Ore
+            color = 0x785152;
+            break;
+        case 41: // Deepslate Emerald Ore
+            color = 0x5A7760;
+            break;
+        case 42: // Deepslate Lapis Lazuli Ore
+            color = 0x575F7F;
+            break;
+        case 43: // Deepslate Diamond Ore
+            color = 0x5B7876;
+            break;
         }
         break;
 
@@ -4105,7 +4289,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             if (dataVal >= 5) {
-                finalDataVal = (dataVal-5) | WATERLOGGED_BIT;	// waterlogged
+                finalDataVal = (dataVal - 5) | WATERLOGGED_BIT;	// waterlogged
             }
         }
         break;
@@ -4126,7 +4310,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
         break;
-    case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CAKE:
     case BLOCK_QUARTZ_BLOCK:
     case BLOCK_INFESTED_STONE:
@@ -4154,9 +4337,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_POINTED_DRIPSTONE:
+        // uses 0-4 and 8-12 for different bits
+        if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
+        {
+            addBlock = 1;
+        }
+        // TODO: could add vertical versions, joined and unjoined, in my copious free time
+        break;
     case BLOCK_WOODEN_SLAB:
     case BLOCK_ANDESITE_SLAB:
+    case BLOCK_LIGHTNING_ROD:
         // uses 0-5 and 8-13 for different slab types + lower or upper
+        // or for lightning rod, powered is top bit
         if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
         {
             addBlock = 1;
@@ -4242,6 +4435,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
     case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
     case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
+    case BLOCK_WOODEN_DOUBLE_SLAB:
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -4400,11 +4599,23 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_AMETHYST:    // TODOTODO - this will expand by end of adding 1.17
-        if (dataVal < 15)
-        {
-            addBlock = 1;
+    case BLOCK_AMETHYST:
+        addBlock = 1;
+
+        // add new subtypes diagonally SE of original
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+
+        if (dataVal < 12) { // 12+32 == 44
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
         }
+
+        //neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+        //block->grid[neighborIndex] = (unsigned char)type;
+        //block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         break;
     case BLOCK_BONE_BLOCK:
         // uses 0,1,2 for low bits in 0x3
@@ -4492,6 +4703,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
+    case BLOCK_CUT_COPPER_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -5613,6 +5825,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         finalDataVal = 0x80 | ((dataVal & 0x8) ? BIT_32 : 0) |	// beehive / bee_nest
             ((dataVal & 0x4) ? 5 << 2 : 0) |	// honey level
             (dataVal & 0x3);	// facing
+        break;
+
+    // don't add anything for these "high_bit" reserved spots
+    case BLOCK_RESERVED_FLOWER_POT:
+    case BLOCK_RESERVED_MOB_HEAD:
         break;
 
         // don't show special blocks to users

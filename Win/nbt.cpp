@@ -340,7 +340,7 @@ static int worldVersion = 0;
 // half: lower/upper 0x0/0x4
 #define SMALL_DRIPLEAF_PROP 57
 
-#define NUM_TRANS 825
+#define NUM_TRANS 846
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1174,42 +1174,42 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  20,              1, "tinted_glass", NO_PROP },  // stuffed in with glass
     { 0, 132,   HIGH_BIT | 4, "dripstone_block", NO_PROP },
     { 0, 134,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 thickness, vertical_direction: up/down
-    { 0, 132,   HIGH_BIT | 4, "copper_ore", NO_PROP },
-    { 0, 132,   HIGH_BIT | 5, "deepslate_copper_ore", NO_PROP },
-    { 0, 132,   HIGH_BIT | 6, "copper_block", NO_PROP },
-    { 0, 132,   HIGH_BIT | 7, "exposed_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 8, "weathered_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 9, "oxidized_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 10, "cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 11, "exposed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 12, "weathered_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 13, "oxidized_cut_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 5, "copper_ore", NO_PROP },
+    { 0, 132,   HIGH_BIT | 6, "deepslate_copper_ore", NO_PROP },
+    { 0, 132,   HIGH_BIT | 7, "copper_block", NO_PROP },
+    { 0, 132,   HIGH_BIT | 8, "exposed_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 9, "weathered_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 10, "oxidized_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 11, "cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 12, "exposed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 13, "weathered_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 14, "oxidized_cut_copper", NO_PROP },
     { 0, 135,	    HIGH_BIT, "cut_copper_stairs", STAIRS_PROP },
     { 0, 136,	    HIGH_BIT, "exposed_cut_copper_stairs", STAIRS_PROP },
     { 0, 137,	    HIGH_BIT, "weathered_cut_copper_stairs", STAIRS_PROP },
     { 0, 138,	    HIGH_BIT, "oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 132,  HIGH_BIT | 15, "waxed_copper_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 16, "waxed_exposed_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 17, "waxed_weathered_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 18, "waxed_oxidized_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 19, "waxed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 20, "waxed_exposed_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 21, "waxed_weathered_cut_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 22, "waxed_oxidized_cut_copper", NO_PROP },
+    { 0, 143,	    HIGH_BIT, "waxed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 145,	    HIGH_BIT, "waxed_exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 146,	    HIGH_BIT, "waxed_weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 147,	    HIGH_BIT, "waxed_oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | 4, "waxed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 5, "waxed_exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	HIGH_BIT | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 139,	    HIGH_BIT, "lightning_rod", EXTENDED_FACING_PROP },
         /*
-    { 0, 139,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
-    { 0, 139,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
-    { 0, 139,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
-    { 0, 139,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
-    { 0, 132,  HIGH_BIT | 14, "waxed_copper_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 15, "waxed_exposed_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 16, "waxed_weathered_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 17, "waxed_oxidized_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 18, "waxed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 19, "waxed_exposed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 20, "waxed_weathered_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 21, "waxed_oxidized_cut_copper", NO_PROP },
-    { 0, 142,	    HIGH_BIT, "waxed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 143,	    HIGH_BIT, "waxed_exposed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 145,	    HIGH_BIT, "waxed_weathered_cut_copper_stairs", STAIRS_PROP },
-    { 0, 146,	    HIGH_BIT, "waxed_oxidized_cut_copper_stairs", STAIRS_PROP },
-    { 0, 141,	HIGH_BIT | 4, "waxed_cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 5, "waxed_exposed_cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
-    { 0, 141,	HIGH_BIT | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
-    { 0, 147,	    HIGH_BIT, "lightning_rod", LIGHTNING_ROD_PROP },
     { 0, 148,	    HIGH_BIT, "cave_vines", NO_PROP },  // berries is folded into dataVal without needing a prop
     { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", NO_PROP },    // berries and age are folded into dataVal without needing a prop
     { 0, 149,	    HIGH_BIT, "spore_blossom", NO_PROP },
@@ -1218,41 +1218,50 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 161,	           2, "azalea_leaves", NO_PROP },
     { 0, 162,	           3, "flowering_azalea_leaves", NO_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
-    { 0, 132,  HIGH_BIT | 22, "moss_block", NO_PROP },
-    { 0, 130,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
-    { 0, 131,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
-    { 0, 132,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
-    { 0, 132,  HIGH_BIT | 23, "rooted_dirt", NO_PROP },
-    { 0, 127,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
-    { 0, 132,  HIGH_BIT | 24, "powder_snow", NO_PROP },
-    { 0, 132,       HIGH_BIT, "glow_lichen", NO_PROP },
-    { 0, 134,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
+    { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
+    { 0, 151,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
+    { 0, 152,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    { 0, 153,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
+    { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
+    { 0, 154,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
+    { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
+    { 0, 155,       HIGH_BIT, "glow_lichen", NO_PROP },
+    { 0, 156,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
     { 0, 135,   HIGH_BIT | 0, "deepslate", LOG_PROP },
-    { 0, 132,  HIGH_BIT | 25, "cobbled_deepslate", NO_PROP },
+    { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
     { 0, 137,	HIGH_BIT | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
     { 0, 138,	    HIGH_BIT, "cobbled_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             17, "cobbled_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 26, "chiseled_deepslate", NO_PROP },
-    { 0, 132,  HIGH_BIT | 27, "polished_deepslate", NO_PROP },
+    { 0, 132,  HIGH_BIT | 27, "chiseled_deepslate", NO_PROP },
+    { 0, 132,  HIGH_BIT | 28, "polished_deepslate", NO_PROP },
     { 0, 136,	HIGH_BIT | 1, "polished_deepslate_slab", SLAB_PROP },
     { 0, 138,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             18, "polished_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 28, "deepslate_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 29, "deepslate_bricks", NO_PROP },
     { 0, 136,	HIGH_BIT | 2, "deepslate_bricks_slab", SLAB_PROP },
     { 0, 139,	    HIGH_BIT, "deepslate_bricks_stairs", STAIRS_PROP },
     { 0, 139,             19, "deepslate_bricks_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 29, "deepslate_tiles", NO_PROP },
+    { 0, 132,  HIGH_BIT | 30, "deepslate_tiles", NO_PROP },
     { 0, 136,	HIGH_BIT | 3, "deepslate_tiles_slab", SLAB_PROP },
     { 0, 141,	    HIGH_BIT, "deepslate_tiles_stairs", STAIRS_PROP },
     { 0, 139,             20, "deepslate_tiles_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 30, "cracked_deepslate_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 31, "crackeinfeepslate_tiles", NO_PROP },
+    { 0, 132,  HIGH_BIT | 31, "cracked_deepslate_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 32, "crackeinfeepslate_tiles", NO_PROP },
     { 0, 135,   HIGH_BIT | 1, "infested_deepslate", LOG_PROP },
-    { 0, 132,  HIGH_BIT | 32, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
-    { 0, 132,  HIGH_BIT | 33, "raw_iron_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 34, "raw_copper_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 35, "raw_gold_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 33, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
+    { 0, 132,  HIGH_BIT | 34, "raw_iron_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 35, "raw_copper_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 36, "raw_gold_block", NO_PROP },
     { 0, 208,              0, "dirt_path", NO_PROP },   // in 1.17 renamed to dirt path and given textures https://minecraft.fandom.com/wiki/Dirt_Path
+    { 0, 132,  HIGH_BIT | 37, "deepslate_coal_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 38, "deepslate_iron_ore", NO_PROP },  // copper done way earlier, so be it...
+    { 0, 132,  HIGH_BIT | 39, "deepslate_gold_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 30, "deepslate_redstone_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 41, "deepslate_emerald_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 42, "deepslate_lapis_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
+
+    DEEPSLATE COAL ORE etc. - not sure how to add these. 
     */
     // last used was 141
 
@@ -1359,6 +1368,7 @@ void makeHashTable()
         mask_array[BLOCK_PURPUR_DOUBLE_SLAB] |= mask_array[BLOCK_PURPUR_SLAB];
         mask_array[BLOCK_ANDESITE_DOUBLE_SLAB] |= mask_array[BLOCK_ANDESITE_SLAB];
         mask_array[BLOCK_CRIMSON_DOUBLE_SLAB] |= mask_array[BLOCK_CRIMSON_SLAB];
+        mask_array[BLOCK_CUT_COPPER_DOUBLE_SLAB] |= mask_array[BLOCK_CUT_COPPER_SLAB];
         // special case: kelp and kelp_plant are really the same thing, material-wise
         mask_array[BLOCK_KELP] = 0x0;
         // special case: cake can have a lit candle (a bit debatable anyway - illuminates the whole cake)

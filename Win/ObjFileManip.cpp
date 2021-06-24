@@ -5121,6 +5121,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
     case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
     case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
+    case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
 
         // set texture
         switch (type)
@@ -5358,6 +5362,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_PURPUR_SLAB:
     case BLOCK_ANDESITE_SLAB:
     case BLOCK_CRIMSON_SLAB:
+    case BLOCK_CUT_COPPER_SLAB:
         switch (type)
         {
         default:
@@ -5558,6 +5563,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 46);
                 break;
             }
+            break;
+
+        case BLOCK_CUT_COPPER_SLAB:
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
             break;
 
         }
@@ -7771,88 +7780,122 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_END_ROD:						// saveBillboardOrGeometry
-        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        yrot = zrot = 0.0f;
-        //dir = DIRECTION_BLOCK_TOP;
-        switch (dataVal & 0x7)
+    case BLOCK_LIGHTNING_ROD:				// saveBillboardOrGeometry
         {
-        case 0: // pointing down
-            //dir = DIRECTION_BLOCK_BOTTOM;
-            zrot = 180.0f;
-            break;
-        case 1: // pointing up
+            bool endRod = (type == BLOCK_END_ROD);
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            if (!endRod && dataVal & 0x8) {
+                // use lit version of lightning rod if powered
+                swatchLoc++;
+            }
+            yrot = zrot = 0.0f;
             //dir = DIRECTION_BLOCK_TOP;
-            break;
-        case 2: // pointing north
-            //dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            //dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            //dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            //dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            break;
-        default:
-            assert(0);
-        }
+            switch (dataVal & 0x7)
+            {
+            case 0: // pointing down
+                //dir = DIRECTION_BLOCK_BOTTOM;
+                zrot = 180.0f;
+                break;
+            case 1: // pointing up
+                //dir = DIRECTION_BLOCK_TOP;
+                break;
+            case 2: // pointing north
+                //dir = DIRECTION_BLOCK_SIDE_LO_Z;
+                zrot = 90.0f;
+                yrot = 270.0f;
+                break;
+            case 3: // pointing south
+                //dir = DIRECTION_BLOCK_SIDE_HI_Z;
+                zrot = 90.0f;
+                yrot = 90.0f;
+                break;
+            case 4: // pointing west
+                //dir = DIRECTION_BLOCK_SIDE_LO_X;
+                zrot = 90.0f;
+                yrot = 180.0f;
+                break;
+            case 5: // pointing east
+                //dir = DIRECTION_BLOCK_SIDE_HI_X;
+                zrot = 90.0f;
+                break;
+            default:
+                assert(0);
+            }
 
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
+            totalVertexCount = gModel.vertexCount;
+            littleTotalVertexCount = gModel.vertexCount;
 
-        // we definitely do move the shaft into place, always
-        gUsingTransform = 1;
+            // we definitely do move the shaft into place, always
+            gUsingTransform = 1;
 
-        // form the rod
-        // the sides
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 0, 2, 1, 16, 0, 2);
-        // for the high X and Z, we need to use (1-u) for x and z
-        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 1, 16, 14, 16);
-        // the ends; we need to use (1-v) for z here
-        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 2, 4, 1, 16, 0, 2);
+            // form the rod
+            // the sides
+            if (endRod)
+            {
+                miny = 1;
+                maxy = 16;
+            }
+            else
+            {
+                miny = 0;
+                maxy = 12;
+            }
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 0, 2, miny, maxy, 0, 2);
+            // for the high X and Z, we need to use (1-u) for x and z
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, miny, maxy, 14, 16);
+            // the ends; we need to use (1-v) for z here
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 2, 4, miny, maxy, 0, 2);
 
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
-        identityMtx(mtx);
-        //translateToOriginMtx(mtx, boxIndex);
-        //rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
-        translateMtx(mtx, 7.0f / 16.0f, 0.0f, 7.0f / 16.0f);
-        //translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // form the base of the rod, put it at the bottom
-        //gUsingTransform = (bottomDataVal != 1);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 2, 6, 0, 1, 2, 6);
-        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 2, 6, 9, 10, 2, 6);
-        // for the high X and Z, we need to use (1-u) for x and z
-        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 10, 14, 9, 10, 10, 14);
-
-        totalVertexCount = gModel.vertexCount - totalVertexCount;
-        identityMtx(mtx);
-        translateMtx(mtx, 4.0f / 16.0f, 0.0f, 4.0f / 16.0f);
-        // note we transform just the last object, the base
-        transformVertices(totalVertexCount - littleTotalVertexCount, mtx);
-
-        // if any rotation occurs, here we go
-        if ((zrot != 0.0) || (yrot != 0.0))
-        {
             identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            rotateMtx(mtx, 0.0, 0.0f, zrot);
-            rotateMtx(mtx, 0.0f, yrot, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount, mtx);
+            //translateToOriginMtx(mtx, boxIndex);
+            //rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
+            translateMtx(mtx, 7.0f / 16.0f, 0.0f, 7.0f / 16.0f);
+            //translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(littleTotalVertexCount, mtx);
+
+            // form the base of the rod, put it at the bottom (or top, for lightning rod)
+            if (endRod)
+            {
+                //gUsingTransform = (bottomDataVal != 1);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 2, 6, 0, 1, 2, 6);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 2, 6, 9, 10, 2, 6);
+                // for the high X and Z, we need to use (1-u) for x and z
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 10, 14, 9, 10, 10, 14);
+            }
+            else {
+                // lightning rod
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 4, 12, 16, 12, 16);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 4, 12, 16, 12, 16);
+                // for the high X and Z, we need to use (1-u) for x and z
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 12, 16, 12, 16);
+            }
+
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            // note we transform just the last object, the base
+            if (endRod) {
+                translateMtx(mtx, 4.0f / 16.0f, 0.0f, 4.0f / 16.0f);
+                transformVertices(totalVertexCount - littleTotalVertexCount, mtx);
+            }
+            else {
+                translateMtx(mtx, 6.0f / 16.0f, 0.0f, -6.0f / 16.0f);
+                transformVertices(totalVertexCount - littleTotalVertexCount, mtx);
+            }
+
+            // if any rotation occurs, here we go
+            if ((zrot != 0.0) || (yrot != 0.0))
+            {
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0, 0.0f, zrot);
+                rotateMtx(mtx, 0.0f, yrot, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+            }
+            gUsingTransform = 0;
         }
-        gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_FLOWER:						// saveBillboardOrGeometry
@@ -10938,6 +10981,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_PURPUR_SLAB:
             case BLOCK_ANDESITE_SLAB:
             case BLOCK_CRIMSON_SLAB:
+            case BLOCK_CUT_COPPER_SLAB:
                 // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
                 // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
                 if (dataVal & 0x8)
@@ -10994,6 +11038,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
             case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
             case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
+            case BLOCK_WAXED_CUT_COPPER_STAIRS:
+            case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
+            case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
+            case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -15553,6 +15601,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_EXPOSED_CUT_COPPER_STAIRS:
         case BLOCK_WEATHERED_CUT_COPPER_STAIRS:
         case BLOCK_OXIDIZED_CUT_COPPER_STAIRS:
+        case BLOCK_WAXED_CUT_COPPER_STAIRS:
+        case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
+        case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
+        case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -15592,6 +15644,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_PURPUR_SLAB:
         case BLOCK_ANDESITE_SLAB:
         case BLOCK_CRIMSON_SLAB:
+        case BLOCK_CUT_COPPER_SLAB:
             // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
             if (neighborDataVal & 0x8)
@@ -19475,6 +19528,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
+        case BLOCK_CUT_COPPER_DOUBLE_SLAB:					// getSwatch
+        case BLOCK_CUT_COPPER_SLAB:						// getSwatch
+            swatchLoc += (dataVal & 0x3);
+            break;
+
         case BLOCK_COMPOSTER:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 12, 38, 13, 38);
             break;
@@ -19737,7 +19795,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 3: // tuff
                 swatchLoc = SWATCH_INDEX(7, 49);
                 break;
-            case 4:	// Dripstone Block
+            case 4: // Dripstone Block
                 swatchLoc = SWATCH_INDEX(8, 49);
                 break;
             case 5:	// Copper Ore
@@ -19746,29 +19804,100 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 6:	// Deepslate Copper Ore
                 swatchLoc = SWATCH_INDEX(4, 50);
                 break;
-            case 7: // Block of Copper
+            case 7:	// Block of Copper
+            case 15: // Waxed Block of Copper
                 swatchLoc = SWATCH_INDEX(5, 50);
                 break;
             case 8: // Exposed Copper
+            case 16: // Waxed Exposed Copper
                 swatchLoc = SWATCH_INDEX(6, 50);
                 break;
             case 9: // Weathered Copper
+            case 17: // Waxed Weathered Copper
                 swatchLoc = SWATCH_INDEX(7, 50);
                 break;
             case 10: // Oxidized Copper
+            case 18: // Waxed Oxidized Copper
                 swatchLoc = SWATCH_INDEX(8, 50);
                 break;
             case 11: // Cut Copper
+            case 19: // Waxed Cut Copper
                 swatchLoc = SWATCH_INDEX(9, 50);
                 break;
             case 12: // Exposed Cut Copper
+            case 20: // Waxed Exposed Cut Copper
                 swatchLoc = SWATCH_INDEX(10, 50);
                 break;
             case 13: // Weathered Cut Copper
+            case 21: // Waxed Weathered Cut Copper
                 swatchLoc = SWATCH_INDEX(11, 50);
                 break;
             case 14: // Oxidized Cut Copper
+            case 22: // Waxed Oxidized Cut Copper
                 swatchLoc = SWATCH_INDEX(12, 50);
+                break;
+            case 23: // Moss Block
+                swatchLoc = SWATCH_INDEX(2, 52);
+                break;
+            case 24: // Rooted Dirt
+                swatchLoc = SWATCH_INDEX(11, 52);
+                break;
+            case 25: // Powder Snow
+                swatchLoc = SWATCH_INDEX(13, 52);
+                break;
+            case 26: // Cobbled Deepslate
+                swatchLoc = SWATCH_INDEX(6, 53);
+                break;
+            case 27: // Chiseled Deepslate
+                swatchLoc = SWATCH_INDEX(7, 53);
+                break;
+            case 28: // Polished Deepslate
+                swatchLoc = SWATCH_INDEX(8, 53);
+                break;
+            case 29: // Deepslate Bricks
+                swatchLoc = SWATCH_INDEX(9, 53);
+                break;
+            case 30: // Deepslate Tiles
+                swatchLoc = SWATCH_INDEX(10, 53);
+                break;
+            case 31: // Cracked Deepslate Bricks
+                swatchLoc = SWATCH_INDEX(11, 53);
+                break;
+            case 32: // Cracked Deepslate Tiles
+                swatchLoc = SWATCH_INDEX(12, 53);
+                break;
+            case 33: // Smooth Basalt
+                swatchLoc = SWATCH_INDEX(4, 54);
+                break;
+            case 34: // Block of Raw Iron
+                swatchLoc = SWATCH_INDEX(5, 54);
+                break;
+            case 35: // Block of Raw Copper
+                swatchLoc = SWATCH_INDEX(6, 54);
+                break;
+            case 36: // Block of Raw Gold
+                swatchLoc = SWATCH_INDEX(7, 54);
+                break;
+            case 37: // Deepslate Coal Ore
+                swatchLoc = SWATCH_INDEX(15, 53);
+                break;
+            case 38: // Deepslate Iron Ore
+                swatchLoc = SWATCH_INDEX(14, 53);
+                break;
+            case 39: // Deepslate Gold Ore
+                swatchLoc = SWATCH_INDEX(13, 53);
+                break;
+            case 40: // Deepslate Redstone Ore
+                swatchLoc = SWATCH_INDEX(1, 54);
+                break;
+            case 41: // Deepslate Emerald Ore
+                swatchLoc = SWATCH_INDEX(3, 54);
+                break;
+            case 42: // Deepslate Lapis Lazuli Ore
+                swatchLoc = SWATCH_INDEX(2, 54);
+                break;
+            case 43: // Deepslate Diamond Ore
+                swatchLoc = SWATCH_INDEX(0, 54);
                 break;
             }
             break;
