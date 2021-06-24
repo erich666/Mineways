@@ -114,9 +114,6 @@ static int worldVersion = 0;
 
 // various properties of palette entries, can be used to differentiate how to use properties
 #define NO_PROP				  0
-// age: 0-7 or 0-15, (0-3 for frosted ice)
-// property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
-#define AGE_PROP			  0
 // axis: x|y|z
 #define AXIS_PROP			  1
 // snowy: false|true
@@ -131,10 +128,10 @@ static int worldVersion = 0;
 // for water and lava
 // See https://minecraft.fandom.com/wiki/Water#Block_states
 // level: 1-7|8 when falling true - note that level 0 is the "source block" and higher means further away
-// separate prop not needed: #define FLUID_PROP			  4
+#define FLUID_PROP			  4
 // saplings
 // stage: 0|1 - non-graphical, so ignored
-#define SAPLING_PROP			  5
+#define SAPLING_PROP		  5
 // persistent: true|false - non-graphical, so ignored
 // distance: 1-7 - non-graphical, so ignored
 #define LEAF_PROP			  6
@@ -157,7 +154,7 @@ static int worldVersion = 0;
 // Redstone wire
 // north|south|east|west: none|side|up https://minecraft.gamepedia.com/Redstone#Block_state - we ignore, it's from geometry
 // power: 0-15
-// not needed, done direct #define WIRE_PROP		     13
+#define WIRE_PROP		     13
 // Lever
 // face: floor|ceiling|wall
 // facing: north|west|south|east
@@ -232,7 +229,7 @@ static int worldVersion = 0;
 // short: true|false - TODOTODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|down|up: true|false
-#define FENCE_AND_VINE_PROP			 34
+#define FENCE_AND_VINE_PROP	 34
 // facing: south|west|north|east
 #define END_PORTAL_PROP		 35
 // age: 0-3
@@ -306,7 +303,7 @@ static int worldVersion = 0;
 // attachment: floor|ceiling|single_wall|double_wall
 #define BELL_PROP		EXTENDED_SWNE_FACING_PROP
 // hanging: true|false
-#define LANTERN_PROP		58
+#define LANTERN_PROP		51
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
 // lit: true|false
 // signal_fire: true|false
@@ -318,29 +315,34 @@ static int worldVersion = 0;
 // which adds up to 9 bits, which is too many
 #define WALL_PROP           NO_PROP
 // axis: 1 EW, 2 NS
-#define NETHER_PORTAL_AXIS_PROP	51
+#define NETHER_PORTAL_AXIS_PROP	52
 // pumpkin and melon stems
 // age:0-7
 // facing: north|south|west|east - done as BIT_32|BIT_16 0,1,2,3 ESWN
-#define HIGH_FACING_PROP    52
+#define HIGH_FACING_PROP    53
 // candles: 1-4 maps to 0x00-0x30
 // lit: adds one to the type
 // waterlogged: the usual bit
-#define CANDLE_PROP         53
+#define CANDLE_PROP         54
 // bottom two bits is sub-type.
 // facing: 0-6 << 2 dropper_facing
-#define AMETHYST_PROP       54
+#define AMETHYST_PROP       55
 // thickness: 5 states
 // vertical_direction: up/down
-#define DRIPSTONE_PROP      55
+#define DRIPSTONE_PROP      56
 // facing: 0-3 door_facing
 // tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC)
-#define BIG_DRIPLEAF_PROP   56
+#define BIG_DRIPLEAF_PROP   57
 // facing: 0-3 door_facing
 // half: lower/upper 0x0/0x4
-#define SMALL_DRIPLEAF_PROP 57
+#define SMALL_DRIPLEAF_PROP 58
+// berries: 0x2 if berries
+#define BERRIES_PROP        59
+// age: 0-7 or 0-15, (0-3 for frosted ice)
+// property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
+#define AGE_PROP			60
 
-#define NUM_TRANS 846
+#define NUM_TRANS 848
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -384,8 +386,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 196,           0, "acacia_door", DOOR_PROP },
     { 0, 197,           0, "dark_oak_door", DOOR_PROP },
     { 0,   7,           0, "bedrock", NO_PROP },
-    { 0,   9,           0, "water", NO_PROP },   // FLUID_PROP
-    { 0,  11,           0, "lava", NO_PROP },   // FLUID_PROP
+    { 0,   9,           0, "water", FLUID_PROP },   // FLUID_PROP
+    { 0,  11,           0, "lava", FLUID_PROP },   // FLUID_PROP
     { 0,  12,           0, "sand", NO_PROP },
     { 0,  12,           1, "red_sand", NO_PROP },
     { 0,  24,           0, "sandstone", NO_PROP }, // TODO 1.13 check: For normal sandstone the bottom has a cracked pattern. The other types of sandstone have bottom faces same as the tops.
@@ -513,7 +515,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 164,           0, "dark_oak_stairs", STAIRS_PROP },
     { 0,  54,           0, "chest", CHEST_PROP },
     { 0, 146,           0, "trapped_chest", CHEST_PROP },
-    { 0,  55,           0, "redstone_wire", NO_PROP },  // WIRE_PROP
+    { 0,  55,           0, "redstone_wire", WIRE_PROP },  // WIRE_PROP
     { 0,  56,           0, "diamond_ore", NO_PROP },
     { 0,  93,           0, "repeater", REPEATER_PROP },
     { 0, 149,           0, "comparator", COMPARATOR_PROP },
@@ -653,7 +655,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 113,           0, "nether_brick_fence", FENCE_AND_VINE_PROP },
     { 0, 114,           0, "nether_brick_stairs", STAIRS_PROP },
     { 0, 115,           0, "nether_wart", AGE_PROP },
-    { 0, 118,           0, "cauldron", NO_PROP }, // level directly translates to dataVal
+    { 0, 118,           0, "cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 116,           0, "enchanting_table", NO_PROP },
     { 0, 145,           0, "anvil", ANVIL_PROP },
     { 0, 145,           4, "chipped_anvil", ANVIL_PROP },
@@ -1209,9 +1211,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 142,	HIGH_BIT | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
     { 0, 142,	HIGH_BIT | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
     { 0, 139,	    HIGH_BIT, "lightning_rod", EXTENDED_FACING_PROP },
-        /*
-    { 0, 148,	    HIGH_BIT, "cave_vines", NO_PROP },  // berries is folded into dataVal without needing a prop
-    { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", NO_PROP },    // berries and age are folded into dataVal without needing a prop
+    { 0, 148,	    HIGH_BIT, "cave_vines", BERRIES_PROP },
+    { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
+                /*
     { 0, 149,	    HIGH_BIT, "spore_blossom", NO_PROP },
     { 0, 150,	    HIGH_BIT, "azalea", NO_PROP },
     { 0, 150,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
@@ -1219,6 +1221,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 162,	           3, "flowering_azalea_leaves", NO_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
     { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
+    
     { 0, 151,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
     { 0, 152,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
     { 0, 153,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
@@ -1260,6 +1263,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 41, "deepslate_emerald_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 42, "deepslate_lapis_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
+    { 0, 118,            0x0, "water_cauldron", NO_PROP }, // I assume this is the same as a cauldron, basically, with the level > 0, https://minecraft.fandom.com/wiki/Cauldron
+    { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
+    { 0, 118,            0x8, "powder_snow_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
+    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 0, "potted_azalea_bush", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 1, "potted_flowering_azalea_bush", NO_PROP },
+    { 0, 166,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
+
 
     DEEPSLATE COAL ORE etc. - not sure how to add these. 
     */
@@ -1986,14 +1997,14 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up;
             int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
                 delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-                thickness, vertical_direction;
+                thickness, vertical_direction, berries;
             // to avoid Release build warning, but should always be set by code in practice
             int typeIndex = 0;
             half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
                 = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = up = false;
             axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
                 delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-                thickness = vertical_direction = 0;
+                thickness = vertical_direction = berries = 0;
 
             int bigbufflen = 0;
             int entry_index = 0;
@@ -2634,9 +2645,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             }
                                         }
                                         // for cave vines and cave vines plant (which also has "age") https://minecraft.fandom.com/wiki/Glow_Berries#ID
+                                        // BERRIES_PROP
                                         else if (strcmp(token, "berries") == 0) {
-                                            // "age" is also folded in
-                                            dataVal |= (strcmp(value, "true") == 0) ? BIT_32 : 0;
+                                            // "age" is also folded into dataVal for cave_vines_plant, which is why we can't use the dataVal directly
+                                            berries = (strcmp(value, "true") == 0) ? 0x2 : 0;
                                         }
                                         // for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
                                         else if (strcmp(token, "thickness") == 0) {
@@ -2715,6 +2727,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             // these are also ones where nothing needs to be done. They could all be called NO_PROP,
                             // but it's handy to know what blocks have what properties associated with them.
                         case SNOWY_PROP:
+                        case AGE_PROP:
+                        case FLUID_PROP:
                         case SAPLING_PROP:
                         case LEAF_PROP:
                         case FARMLAND_PROP:
@@ -2722,6 +2736,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case WT_PRESSURE_PROP:
                         case PICKLE_PROP:
                         case LANTERN_PROP:
+                        case WIRE_PROP:
                             break;
 
                         case TRULY_NO_PROP:
@@ -3131,6 +3146,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             break;
                         case SMALL_DRIPLEAF_PROP:
                             dataVal = door_facing | (half << 2);
+                            break;
+                        case BERRIES_PROP:
+                            dataVal = berries;
                             break;
                         }
                         // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test

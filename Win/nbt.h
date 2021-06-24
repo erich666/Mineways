@@ -55,6 +55,7 @@ enum { BF_BUFFER, BF_GZIP };
 #define TALLGRASS_FIELD			0x70
 #define CACTUS_FIELD			0x80
 #define BAMBOO_FIELD			0x90
+#define AZALEA_FIELD            0xA0
 
 // TODO: also add error codes for true return errors, below, the -1, -2, etc.
 #define		NBT_WARNING_NAME_NOT_FOUND	0x4

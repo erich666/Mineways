@@ -4298,6 +4298,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_WEEPING_VINES:
     case BLOCK_POINTED_DRIPSTONE:
+    case BLOCK_CAVE_VINES:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -11613,6 +11614,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         wobbleIt = true;
         // swatch is indexed directly by dataVal
         swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
+        break;
+    case BLOCK_CAVE_VINES:
+        // doesn't see to wobble: wobbleIt = true;
+        // swatch is indexed directly by dataVal
+        swatchLoc += (dataVal & 0x3);
         break;
     case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
         wobbleIt = true;
