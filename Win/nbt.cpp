@@ -120,8 +120,8 @@ static int worldVersion = 0;
 // axis: x|y|z
 #define AXIS_PROP			  1
 // snowy: false|true
-// note that the snowy prop actually does nothing; put here mostly to keep track; could be deleted. COULD BE REUSED
-// separate prop not needed: #define SNOWY_PROP			  2
+// note that the snowy prop actually does nothing; put here mostly to keep track; could be deleted.
+#define SNOWY_PROP			  2
 // facing: north|south|east|west
 // half: upper|lower
 // hinge: left|right
@@ -306,7 +306,7 @@ static int worldVersion = 0;
 // attachment: floor|ceiling|single_wall|double_wall
 #define BELL_PROP		EXTENDED_SWNE_FACING_PROP
 // hanging: true|false
-//#define LANTERN_PROP		not needed as a separate thing, sets dataVal directly
+#define LANTERN_PROP		58
 // facing: north|south|west|east - done as 0,1,2,3 SWNE
 // lit: true|false
 // signal_fire: true|false
@@ -360,10 +360,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   1,           5, "andesite", NO_PROP },
     { 0,   1,           6, "polished_andesite", NO_PROP },
     { 0, 170,           0, "hay_block", AXIS_PROP },
-    { 0,   2,           0, "grass_block", NO_PROP },    // uses SNOWY_PROP
+    { 0,   2,           0, "grass_block", SNOWY_PROP },
     { 0,   3,           0, "dirt", NO_PROP }, // no SNOWY_PROP
     { 0,   3,           1, "coarse_dirt", NO_PROP }, // note no SNOWY_PROP
-    { 0,   3,           2, "podzol", NO_PROP },    // uses SNOWY_PROP
+    { 0,   3,           2, "podzol", SNOWY_PROP },
     { 0,   4,           0, "cobblestone", NO_PROP },
     { 0,   5,           0, "oak_planks", NO_PROP },
     { 0,   5,           1, "spruce_planks", NO_PROP },
@@ -660,7 +660,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 145,           8, "damaged_anvil", ANVIL_PROP },
     { 0, 121,           0, "end_stone", NO_PROP },
     { 0, 120,           0, "end_portal_frame", END_PORTAL_PROP },
-    { 0, 110,           0, "mycelium", NO_PROP }, // uses SNOWY_PROP
+    { 0, 110,           0, "mycelium", SNOWY_PROP },
     { 0, 111,           0, "lily_pad", NO_PROP },
     { 0, 122,           0, "dragon_egg", NO_PROP },
     { 0, 123,           0, "redstone_lamp", REDSTONE_ORE_PROP }, // goes to 124 when lit
@@ -1034,7 +1034,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  79,       HIGH_BIT, "grindstone", GRINDSTONE_PROP }, // facing SWNE and face: floor|ceiling|wall
     { 0,  80,       HIGH_BIT, "lectern", LECTERN_PROP },
     { 0,  81,       HIGH_BIT, "bell", BELL_PROP },
-    { 0,  82,       HIGH_BIT, "lantern", NO_PROP },	// uses just "hanging" for bit 0x1
+    { 0,  82,       HIGH_BIT, "lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
     { 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
     { 0,  84,       HIGH_BIT, "scaffolding", NO_PROP },	// uses just "bottom" for bit 0x1
 
@@ -1120,7 +1120,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FIRE,  BIT_16, "soul_fire", NO_PROP },
     { 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
     { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-    { 0,  82, HIGH_BIT | 0x2, "soul_lantern", NO_PROP },	// uses just "hanging" for bit 0x1
+    { 0,  82, HIGH_BIT | 0x2, "soul_lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
     { 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
     { 0, 107,       HIGH_BIT, "weeping_vines_plant", TRULY_NO_PROP },
     { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
@@ -2549,7 +2549,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         else if (strcmp(token, "has_book") == 0) {
                                             has_book = (strcmp(value, "true") == 0);
                                         }
-                                        // for lantern
+                                        // for lantern LANTERN_PROP
                                         else if (strcmp(token, "hanging") == 0) {
                                             dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
                                         }
@@ -2710,11 +2710,24 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             // prop defined but not used in list below - just use NO_PROP if the prop does nothing
                             // TODOTODO uncomment when all props implemented:
                             assert(0);
+
                         case NO_PROP:
+                            // these are also ones where nothing needs to be done. They could all be called NO_PROP,
+                            // but it's handy to know what blocks have what properties associated with them.
+                        case SNOWY_PROP:
+                        case SAPLING_PROP:
+                        case LEAF_PROP:
+                        case FARMLAND_PROP:
+                        case STANDING_SIGN_PROP:
+                        case WT_PRESSURE_PROP:
+                        case PICKLE_PROP:
+                        case LANTERN_PROP:
                             break;
+
                         case TRULY_NO_PROP:
                             dataVal = 0x0;
                             break;
+
                         case SLAB_PROP:
                             // everything is fine if double is false
                             if (doubleSlab) {

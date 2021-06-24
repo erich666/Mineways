@@ -11837,11 +11837,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     {
         float texelWidth, texelLow, texelHigh;
 
-        // shift down for crops
-        float vertShift = -1.0f / 16.0f;
-        if (type == BLOCK_NETHER_WART || type == BLOCK_CACTUS || billboardType == BB_FIRE)
+        float vertShift;
+        switch (type) {
+        default:
             vertShift = 0.0f;
-
+            break;
+        case BLOCK_WHEAT:						// saveBillboardOrGeometry
+        case BLOCK_NETHER_WART:
+        case BLOCK_CARROTS:
+        case BLOCK_POTATOES:
+        case BLOCK_BEETROOT_SEEDS:
+            // shift down for crops, only
+            vertShift = -1.0f / 16.0f;
+            break;
+        }
+        
         // width is space between parallel billboards
         // Fire goes to almost the very edge of the block (by not going to the very edge, this stops z-fighting with neighboring blocks).
         texelWidth = (billboardType == BB_FIRE) ? 0.995f : 0.5f;
@@ -11862,25 +11872,27 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         faceDir[6] = DIRECTION_BLOCK_SIDE_HI_Z;
         faceDir[7] = DIRECTION_BLOCK_SIDE_LO_Z;
 
-        Vec3Scalar(vertexOffsets[0][0], =, texelLow, vertShift, 0);
-        Vec3Scalar(vertexOffsets[0][1], =, texelLow, vertShift, 1);
-        Vec3Scalar(vertexOffsets[0][2], =, texelLow, 1 + vertShift, 1);
-        Vec3Scalar(vertexOffsets[0][3], =, texelLow, 1 + vertShift, 0);
+        float minY = vertShift;
+        float maxY = (1 + vertShift);
+        Vec3Scalar(vertexOffsets[0][0], =, texelLow, minY, 0);
+        Vec3Scalar(vertexOffsets[0][1], =, texelLow, minY, 1);
+        Vec3Scalar(vertexOffsets[0][2], =, texelLow, maxY, 1);
+        Vec3Scalar(vertexOffsets[0][3], =, texelLow, maxY, 0);
 
-        Vec3Scalar(vertexOffsets[1][0], =, texelHigh, vertShift, 0);
-        Vec3Scalar(vertexOffsets[1][1], =, texelHigh, vertShift, 1);
-        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, 1 + vertShift, 1);
-        Vec3Scalar(vertexOffsets[1][3], =, texelHigh, 1 + vertShift, 0);
+        Vec3Scalar(vertexOffsets[1][0], =, texelHigh, minY, 0);
+        Vec3Scalar(vertexOffsets[1][1], =, texelHigh, minY, 1);
+        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, maxY, 1);
+        Vec3Scalar(vertexOffsets[1][3], =, texelHigh, maxY, 0);
 
-        Vec3Scalar(vertexOffsets[2][0], =, 0, vertShift, texelLow);
-        Vec3Scalar(vertexOffsets[2][1], =, 1, vertShift, texelLow);
-        Vec3Scalar(vertexOffsets[2][2], =, 1, 1 + vertShift, texelLow);
-        Vec3Scalar(vertexOffsets[2][3], =, 0, 1 + vertShift, texelLow);
+        Vec3Scalar(vertexOffsets[2][0], =, 0, minY, texelLow);
+        Vec3Scalar(vertexOffsets[2][1], =, 1, minY, texelLow);
+        Vec3Scalar(vertexOffsets[2][2], =, 1, maxY, texelLow);
+        Vec3Scalar(vertexOffsets[2][3], =, 0, maxY, texelLow);
 
-        Vec3Scalar(vertexOffsets[3][0], =, 0, vertShift, texelHigh);
-        Vec3Scalar(vertexOffsets[3][1], =, 1, vertShift, texelHigh);
-        Vec3Scalar(vertexOffsets[3][2], =, 1, 1 + vertShift, texelHigh);
-        Vec3Scalar(vertexOffsets[3][3], =, 0, 1 + vertShift, texelHigh);
+        Vec3Scalar(vertexOffsets[3][0], =, 0, minY, texelHigh);
+        Vec3Scalar(vertexOffsets[3][1], =, 1, minY, texelHigh);
+        Vec3Scalar(vertexOffsets[3][2], =, 1, maxY, texelHigh);
+        Vec3Scalar(vertexOffsets[3][3], =, 0, maxY, texelHigh);
     }
     break;
     case BB_TORCH:
