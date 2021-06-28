@@ -621,6 +621,7 @@ int wmain(int argc, wchar_t* argv[])
 		if (gFG.fr[fullIndexNormals].exists || gFG.fr[fullIndexHeightmaps].exists) {
 			// does _n version exist?
 			if (gFG.fr[fullIndexN].exists) {
+				// _n does exist, so delete alternates
 				if (gFG.fr[fullIndexNormals].exists) {
 					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
 					wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
@@ -632,26 +633,28 @@ int wmain(int argc, wchar_t* argv[])
 					gWarningCount++;
 				}
 			} else {
-				// move the _normal or _heightmap to _n - favor _normal by using it second
+				// move the _normal or _heightmap to _n - favor _normal
 				if (gFG.fr[fullIndexNormals].exists) {
 					if (verbose) {
 						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexNormals].fullFilename);
 					}
 					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
 					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
-					if (gFG.fr[fullIndexNormals].exists) {
+					if (gFG.fr[fullIndexHeightmaps].exists) {
+						wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexNormals].fullFilename, gFG.fr[fullIndexHeightmaps].fullFilename);
 						deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
 					}
 				}
 				else if (gFG.fr[fullIndexHeightmaps].exists) {
+					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexHeightmaps]);
 					if (verbose) {
 						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexHeightmaps].fullFilename);
 					}
-					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexHeightmaps]);
 					deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
 				}
 			}
 		}
+		assert(!gFG.fr[fullIndexNormals].exists&& !gFG.fr[fullIndexHeightmaps].exists);
 	}
 	// these should all now be cleared out
 	assert(gFG.categories[CATEGORY_NORMALS_LONG] == 0);
