@@ -482,7 +482,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 401 */ "Waxed Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 402 */ "Waxed Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 403 */ "Waxed Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 404 */ "Cave Vines",                   0x5D722A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 50, 0x01, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },
+    { /* 404 */ "Cave Vines",                   0x5D722A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 50, 0x01, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 405 */ "Cave Vines lit", /*berries*/   0x73762C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 51, 0x01, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },  // note that "lit" has to be there, as it needs to be a different name than above
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

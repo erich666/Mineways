@@ -4299,6 +4299,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WEEPING_VINES:
     case BLOCK_POINTED_DRIPSTONE:
     case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES_LIT:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -11616,9 +11617,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
         break;
     case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES_LIT:
         // doesn't see to wobble: wobbleIt = true;
         // swatch is indexed directly by dataVal
-        swatchLoc += (dataVal & 0x3);
+        swatchLoc += (dataVal & 0x1);
         break;
     case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
         wobbleIt = true;
@@ -20619,6 +20621,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     case BLOCK_LIT_COLORED_CANDLE:
         // upper 2 bits is number of candles
         emission = (float)((((dataVal & 0x30)>>4) + 1 ) * 3);
+        break;
+    case BLOCK_CAVE_VINES_LIT:
+        emission = 14.0f;
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.

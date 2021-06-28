@@ -1407,6 +1407,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES_LIT:
         switch (dataVal & 0x1) {
         default:
             assert(0);
@@ -2290,7 +2291,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_CAVE_VINES:
         dataVal = block->data[voxel];
         // The 0x1 is the type
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x1)
         {
         default:
             assert(0);
@@ -2301,10 +2302,20 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 1: // plant
             color = 0x6B7252;
             break;
-        case 2: // berries (lit)
-            color = 0x73762C;
+        }
+        break;
+    case BLOCK_CAVE_VINES_LIT:
+        dataVal = block->data[voxel];
+        // The 0x1 is the type
+        switch (dataVal & 0x1)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
             break;
-        case 3: // plant berries (lit)
+        case 1: // plant berries (lit)
             color = 0x74712B;
             break;
         }
@@ -4217,6 +4228,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_GLOWSTONE:
     case BLOCK_NETHER_WART_BLOCK:
     case BLOCK_GLASS:
+    case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES_LIT:
         // uses 0-1
         if (dataVal < 2)
         {
@@ -4280,7 +4293,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_STONECUTTER:
     case BLOCK_LECTERN:
-    case BLOCK_CAVE_VINES:
         // uses 0-3
         if (dataVal < 4)
         {

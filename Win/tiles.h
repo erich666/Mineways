@@ -613,7 +613,7 @@ static struct {
     {  5, 33,   6, 0, L"MW_SHULKER_SIDE", L"MW_shulker_side", SWATCH_REPEAT_ALL },
     {  6, 33,   6, 0, L"MW_SHULKER_BOTTOM", L"MW_shulker_bottom", SWATCH_REPEAT_ALL },
     {  7, 33, 313, 0, L"dried_kelp_top", L"", SWATCH_REPEAT_ALL },  // 1.13 starts here
-    {  8, 33,   6, 0, L"dried_kelp_side", L"", SWATCH_REPEAT_ALL },
+    {  8, 33,   6, 0, L"dried_kelp_side", L"dried_kelp_side_a", SWATCH_REPEAT_ALL },    // alt bedrock; there's also a side_b
     {  9, 33,   6, 0, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },
     { 10, 33,   6, 0, L"kelp", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 11, 33, 314, 0, L"kelp_plant", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
@@ -711,7 +711,7 @@ static struct {
     {  7, 39,   6, 0, L"fletching_table_top", L"", SWATCH_REPEAT_ALL },
     {  8, 39,   6, 0, L"fletching_table_side", L"", SWATCH_REPEAT_ALL },
     {  9, 39,   6, 0, L"fletching_table_front", L"", SWATCH_REPEAT_ALL },
-    { 10, 39, 335, 0, L"grindstone_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 10, 39, 335, 0, L"grindstone_side", L"grindstone", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // alternate name used by KOW, I think
     { 11, 39,   6, 0, L"grindstone_pivot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 39,   6, 0, L"grindstone_round", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 39, 331, 0, L"jigsaw_top", L"", SWATCH_REPEAT_ALL },
@@ -775,7 +775,7 @@ static struct {
     {  7, 43,   6, 0, L"crimson_roots_pot", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 43,   6, 0, L"crimson_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 43,   6, 0, L"crimson_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 10, 43,   6, 0, L"crimson_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    { 10, 43,   6, 0, L"crimson_door_bottom", L"crimson_door_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // alt bedrock
     { 11, 43,   6, 0, L"crimson_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 12, 43,   6, 0, L"stripped_crimson_stem_top", L"", SWATCH_REPEAT_ALL },
     { 13, 43,   6, 0, L"stripped_crimson_stem", L"stripped_crimson_stem_side", SWATCH_REPEAT_ALL },	// more like wood
@@ -825,7 +825,7 @@ static struct {
     {  9, 46,   6, 0, L"jigsaw_lock", L"", SWATCH_REPEAT_ALL },
     { 10, 46,   6, 0, L"target_top", L"", SWATCH_REPEAT_ALL },
     { 11, 46,   6, 0, L"target_side", L"", SWATCH_REPEAT_ALL },
-    { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 12, 46,   6, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },    // TODO: bedrock uses chain1 and chain2: these could be composited into the single chain tile
     { 13, 46, 370, 0, L"tinted_glass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14, 46, 365, 0, L"candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL  },
     { 15, 46, 366, 0, L"candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL  },
@@ -871,12 +871,12 @@ static struct {
     {  7, 49, 367, 0, L"tuff", L"", SWATCH_REPEAT_ALL },
     {  8, 49, 367, 0, L"dripstone_block", L"", SWATCH_REPEAT_ALL },
     {  9, 49, 367, 0, L"pointed_dripstone_up_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    { 10, 49, 367, 0, L"pointed_dripstone_up_tip_merge", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 10, 49, 367, 0, L"pointed_dripstone_up_tip_merge", L"pointed_dripstone_up_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt
     { 11, 49, 367, 0, L"pointed_dripstone_up_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 12, 49, 367, 0, L"pointed_dripstone_up_middle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 13, 49, 367, 0, L"pointed_dripstone_up_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 14, 49, 367, 0, L"pointed_dripstone_down_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    { 15, 49, 367, 0, L"pointed_dripstone_down_tip_merge", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 15, 49, 367, 0, L"pointed_dripstone_down_tip_merge", L"pointed_dripstone_down_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt
     {  0, 50, 367, 0, L"pointed_dripstone_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  1, 50, 367, 0, L"pointed_dripstone_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  2, 50, 367, 0, L"pointed_dripstone_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
@@ -892,14 +892,14 @@ static struct {
     { 12, 50, 367, 0, L"oxidized_cut_copper", L"", SWATCH_REPEAT_ALL },
     { 13, 50, 367, 0, L"lightning_rod", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 50, 367, 0, L"lightning_rod_on", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 15, 50, 367, 0, L"cave_vines", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  0, 51, 367, 0, L"cave_vines_plant", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  1, 51, 367, 0, L"cave_vines_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 51, 367, 0, L"cave_vines_plant_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 50, 367, 0, L"cave_vines", L"cave_vines_head", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 51, 367, 0, L"cave_vines_plant", L"cave_vines_body", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 51, 367, 0, L"cave_vines_lit", L"cave_vines_head_berries", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 51, 367, 0, L"cave_vines_plant_lit", L"cave_vines_body_berries", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  3, 51, 367, 0, L"spore_blossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 51, 367, 0, L"spore_blossom_base", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  5, 51, 367, 0, L"azalea_top", L"", SWATCH_REPEAT_ALL },
-    {  6, 51, 367, 0, L"flowering_azalea_top", L"", SWATCH_REPEAT_ALL },
+    {  5, 51, 367, 0, L"azalea_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },   // not cutout normally, but resource packs such as KOW do
+    {  6, 51, 367, 0, L"flowering_azalea_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },   // not cutout normally, but resource packs such as KOW do
     {  7, 51, 367, 0, L"azalea_side", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  8, 51, 367, 0, L"flowering_azalea_side", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  9, 51, 367, 0, L"azalea_plant", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
@@ -910,17 +910,17 @@ static struct {
     { 14, 51, 367, 0, L"potted_azalea_bush_plant", L"", SBIT_DECAL },
     { 15, 51, 367, 0, L"potted_flowering_azalea_bush_plant", L"", SBIT_DECAL },
     {  0, 52, 367, 0, L"azalea_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
-    {  1, 52, 367, 0, L"flowering_azalea_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  1, 52, 367, 0, L"flowering_azalea_leaves", L"azalea_leaves_flowers", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     {  2, 52, 367, 0, L"moss_block", L"", SWATCH_REPEAT_ALL },
     {  3, 52, 367, 0, L"big_dripleaf_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
-    {  4, 52, 367, 0, L"big_dripleaf_side", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
-    {  5, 52, 367, 0, L"big_dripleaf_tip", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
+    {  4, 52, 367, 0, L"big_dripleaf_side", L"big_dripleaf_side1", SWATCH_CLAMP_ALL | SBIT_DECAL }, // alt bedrock
+    {  5, 52, 367, 0, L"big_dripleaf_tip", L"big_dripleaf_side2", SWATCH_CLAMP_ALL | SBIT_DECAL },
     {  6, 52, 367, 0, L"big_dripleaf_stem", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
     {  7, 52, 367, 0, L"small_dripleaf_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
     {  8, 52, 367, 0, L"small_dripleaf_side", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
     {  9, 52, 367, 0, L"small_dripleaf_stem_top", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
     { 10, 52, 367, 0, L"small_dripleaf_stem_bottom", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },
-    { 11, 52, 367, 0, L"rooted_dirt", L"", SWATCH_REPEAT_ALL },
+    { 11, 52, 367, 0, L"rooted_dirt", L"dirt_with_roots", SWATCH_REPEAT_ALL },
     { 12, 52, 367, 0, L"hanging_roots", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     { 13, 52, 367, 0, L"powder_snow", L"", SWATCH_REPEAT_ALL },
     { 14, 52, 367, 0, L"glow_lichen", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
@@ -1043,7 +1043,6 @@ static const struct {
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
     { L"dirt_podzol-side", L"podzol_side" },    // JG-RTX
     { L"dirt_podzol-top", L"podzol_top" },    // JG-RTX
-    { L"dried_kelp_side_a", L"dried_kelp_side" },    // Muddle
     { L"fletcher_table_side1", L"fletching_table_side" },    // Muddle
     { L"fletcher_table_top", L"fletching_table_top" },    // Muddle
     //{ L"grass-side", L"grass_block_side" },    // JG-RTX

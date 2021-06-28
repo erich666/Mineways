@@ -1384,6 +1384,8 @@ void makeHashTable()
         mask_array[BLOCK_KELP] = 0x0;
         // special case: cake can have a lit candle (a bit debatable anyway - illuminates the whole cake)
         mask_array[BLOCK_CAKE] |= BIT_32;
+        // lit version of cave_vines is same as unlit
+        mask_array[BLOCK_CAVE_VINES_LIT] |= mask_array[BLOCK_CAVE_VINES];
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
@@ -3148,7 +3150,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             dataVal = door_facing | (half << 2);
                             break;
                         case BERRIES_PROP:
-                            dataVal = berries;
+                            dataVal = 0x0;
+                            // use lit/berries form if berries present
+                            if (berries) {
+                                paletteBlockEntry[entry_index]++;
+                            }
                             break;
                         }
                         // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
