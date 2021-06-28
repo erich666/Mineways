@@ -4247,6 +4247,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             }
         }
         break;
+    case BLOCK_SPORE_BLOSSOM:
+        if (dataVal < 1) {
+            addBlock = 1;
+            // put stone overhead
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+        }
+        break;
 
     case BLOCK_GRASS_BLOCK:
         // uses 0,8 - snowy

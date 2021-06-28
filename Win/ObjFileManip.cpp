@@ -3871,6 +3871,10 @@ static int computeFlatFlags(int boxIndex)
         computeRedstoneConnectivity(boxIndex);
         break;
 
+    case BLOCK_SPORE_BLOSSOM:						// computeFlatFlags
+        gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
+        break;
+
     default:
         // something needs to be added to the cases above!
         assert(0);
@@ -9638,6 +9642,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
+    case BLOCK_SPORE_BLOSSOM:						// saveBillboardOrGeometry
+        // make base and blossom, which is like fan coral but upside down
+        saveBillboardFaces(boxIndex, type, BB_SIDE);
+        saveBillboardFaces(boxIndex, type, BB_FAN);
+        break;
+
     default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -11277,6 +11287,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int metaVertexCount = 0;
     float shiftX = 0.0f;
     float shiftZ = 0.0f;
+    float shiftY = 0.0f;
     bool wobbleIt = false;
     int origDataVal = dataVal;
     int origUsingTransform = gUsingTransform;
@@ -11547,6 +11558,15 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             if ((dataVal == 0) || (dataVal == BIT_16) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
                 vineUnderBlock = true;
             }
+        }
+        break;
+    case BLOCK_SPORE_BLOSSOM:
+        if (billboardType == BB_SIDE) {
+            // green leaf base
+            swatchLoc++;
+            vineUnderBlock = true;
+            // move it up close. In game it's flush against bottom of block above, but that would lead to z-fighting
+            shiftY = 0.75f*ONE_PIXEL;
         }
         break;
     case BLOCK_LADDER:				// saveBillboardFacesExtraData
@@ -12009,121 +12029,121 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     break;
 
     case BB_SIDE:
-    {
-        // vines and ladders
-
-        // simply billboard all the vines and be done with it.
-        int sideCount = 0;
-        int inPositive = 0;
-        int inZdirection = 0;
-        int billCount = 0;
-        float texelDist = 0.0f;
-
-        // only the bottommost 4 bits are important
-        dataVal = dataVal & 0xf;
-        while (dataVal)
         {
-            if (dataVal & 0x1)
+            // vines and ladders
+
+            // simply billboard all the vines and be done with it.
+            int sideCount = 0;
+            int inPositive = 0;
+            int inZdirection = 0;
+            int billCount = 0;
+            float texelDist = 0.0f;
+
+            // only the bottommost 4 bits are important
+            dataVal = dataVal & 0xf;
+            while (dataVal)
             {
-                // side has a vine or ladder or redstone vertical, so put out billboard
-                switch (sideCount)
+                if (dataVal & 0x1)
                 {
-                case 0:
-                    // south face +Z
-                    inZdirection = 1;
-                    inPositive = 1;
-                    texelDist = 1.0f - distanceOffset;
-                    break;
-                case 1:
-                    // west face -X
-                    inZdirection = 0;
-                    inPositive = 0;
-                    texelDist = distanceOffset;
-                    break;
-                case 2:
-                    // north face -Z
-                    inZdirection = 1;
-                    inPositive = 0;
-                    texelDist = distanceOffset;
-                    break;
-                case 3:
-                    // east face +X
-                    inZdirection = 0;
-                    inPositive = 1;
-                    texelDist = 1.0f - distanceOffset;
-                    break;
-                default:
-                    assert(0);
+                    // side has a vine or ladder or redstone vertical, so put out billboard
+                    switch (sideCount)
+                    {
+                    case 0:
+                        // south face +Z
+                        inZdirection = 1;
+                        inPositive = 1;
+                        texelDist = 1.0f - distanceOffset;
+                        break;
+                    case 1:
+                        // west face -X
+                        inZdirection = 0;
+                        inPositive = 0;
+                        texelDist = distanceOffset;
+                        break;
+                    case 2:
+                        // north face -Z
+                        inZdirection = 1;
+                        inPositive = 0;
+                        texelDist = distanceOffset;
+                        break;
+                    case 3:
+                        // east face +X
+                        inZdirection = 0;
+                        inPositive = 1;
+                        texelDist = 1.0f - distanceOffset;
+                        break;
+                    default:
+                        assert(0);
+                    }
+                    if (inPositive)
+                    {
+                        faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
+                        faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
+                    }
+                    else
+                    {
+                        faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
+                        faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
+                    }
+                    assert(faceCount <= 10);
+
+                    switch (sideCount)
+                    {
+                    case 0:
+                        // south face +Z
+                        Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 0.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, 0.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, 1.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][3], =, 1.0f, 1.0f, texelDist);
+                        break;
+                    case 1:
+                        // west face -X
+                        Vec3Scalar(vertexOffsets[billCount][0], =, texelDist, 0.0f, 1.0f);
+                        Vec3Scalar(vertexOffsets[billCount][1], =, texelDist, 0.0f, 0.0f);
+                        Vec3Scalar(vertexOffsets[billCount][2], =, texelDist, 1.0f, 0.0f);
+                        Vec3Scalar(vertexOffsets[billCount][3], =, texelDist, 1.0f, 1.0f);
+                        break;
+                    case 2:
+                        // north face -Z
+                        Vec3Scalar(vertexOffsets[billCount][0], =, 0.0f, 0.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 0.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][2], =, 1.0f, 1.0f, texelDist);
+                        Vec3Scalar(vertexOffsets[billCount][3], =, 0.0f, 1.0f, texelDist);
+                        break;
+                    case 3:
+                        // east face +X
+                        Vec3Scalar(vertexOffsets[billCount][0], =, texelDist, 0.0f, 0.0f);
+                        Vec3Scalar(vertexOffsets[billCount][1], =, texelDist, 0.0f, 1.0f);
+                        Vec3Scalar(vertexOffsets[billCount][2], =, texelDist, 1.0f, 1.0f);
+                        Vec3Scalar(vertexOffsets[billCount][3], =, texelDist, 1.0f, 0.0f);
+                        break;
+                    default:
+                        assert(0);
+                    }
+                    billCount++;
+                    assert(billCount <= 5);
                 }
-                if (inPositive)
-                {
-                    faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
-                    faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
-                }
-                else
-                {
-                    faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_HI_Z : DIRECTION_BLOCK_SIDE_HI_X;
-                    faceDir[faceCount++] = inZdirection ? DIRECTION_BLOCK_SIDE_LO_Z : DIRECTION_BLOCK_SIDE_LO_X;
-                }
+
+                sideCount++;
+                dataVal = dataVal >> 1;
+            }
+            if (vineUnderBlock) {
+                // vine under block
+                // two paired billboards
+                faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
+                faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 assert(faceCount <= 10);
 
-                switch (sideCount)
-                {
-                case 0:
-                    // south face +Z
-                    Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 0.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, 0.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, 1.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][3], =, 1.0f, 1.0f, texelDist);
-                    break;
-                case 1:
-                    // west face -X
-                    Vec3Scalar(vertexOffsets[billCount][0], =, texelDist, 0.0f, 1.0f);
-                    Vec3Scalar(vertexOffsets[billCount][1], =, texelDist, 0.0f, 0.0f);
-                    Vec3Scalar(vertexOffsets[billCount][2], =, texelDist, 1.0f, 0.0f);
-                    Vec3Scalar(vertexOffsets[billCount][3], =, texelDist, 1.0f, 1.0f);
-                    break;
-                case 2:
-                    // north face -Z
-                    Vec3Scalar(vertexOffsets[billCount][0], =, 0.0f, 0.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 0.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][2], =, 1.0f, 1.0f, texelDist);
-                    Vec3Scalar(vertexOffsets[billCount][3], =, 0.0f, 1.0f, texelDist);
-                    break;
-                case 3:
-                    // east face +X
-                    Vec3Scalar(vertexOffsets[billCount][0], =, texelDist, 0.0f, 0.0f);
-                    Vec3Scalar(vertexOffsets[billCount][1], =, texelDist, 0.0f, 1.0f);
-                    Vec3Scalar(vertexOffsets[billCount][2], =, texelDist, 1.0f, 1.0f);
-                    Vec3Scalar(vertexOffsets[billCount][3], =, texelDist, 1.0f, 0.0f);
-                    break;
-                default:
-                    assert(0);
-                }
+                Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 1.0f);
+                Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 0.0f);
+                Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, 1.0f - ONE_PIXEL + shiftY, 0.0f);
+                Vec3Scalar(vertexOffsets[billCount][3], =, 0.0f, 1.0f - ONE_PIXEL + shiftY, 1.0f);
                 billCount++;
                 assert(billCount <= 5);
+                break;
             }
-
-            sideCount++;
-            dataVal = dataVal >> 1;
         }
-        if (vineUnderBlock) {
-            // vine under block
-            // two paired billboards
-            faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
-            faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
-            assert(faceCount <= 10);
-
-            Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 1.0f - ONE_PIXEL, 1.0f);
-            Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 1.0f - ONE_PIXEL, 0.0f);
-            Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, 1.0f - ONE_PIXEL, 0.0f);
-            Vec3Scalar(vertexOffsets[billCount][3], =, 0.0f, 1.0f - ONE_PIXEL, 1.0f);
-            billCount++;
-            assert(billCount <= 5);
-            break;
-        }
-    }
-    break;
+        break;
     case BB_BOTTOM:
         // lily pad
         faceCount = 2;
@@ -12145,38 +12165,57 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // corals
     case BB_FAN:
     {
-        float texelCenter, texelExtent, texelHigh;
+        float texelCenter, texelExtent, texelLow, texelHigh;
         texelCenter = 0.5f;
         texelExtent = 0.924f;
-        texelHigh = 0.4f;
         faceCount = 8;  // really, 4
                         // two paired billboards
-        faceDir[0] = DIRECTION_UP_LO_X;	// TODO!!!
-        faceDir[1] = DIRECTION_DN_HI_X;
-        faceDir[2] = DIRECTION_UP_HI_X;
-        faceDir[3] = DIRECTION_DN_LO_X;
-        faceDir[4] = DIRECTION_UP_LO_Z;
-        faceDir[5] = DIRECTION_DN_HI_Z;
-        faceDir[6] = DIRECTION_UP_HI_Z;
-        faceDir[7] = DIRECTION_DN_LO_Z;
+        if (type == BLOCK_SPORE_BLOSSOM) {
+            // put at top and point down
+            texelLow = 1.0f;
+            texelHigh = 1 - 0.4f;
+            // we know from how it's called that this is not the first face - sleazy, but it works
+            firstFace = 0;
+            // swap LO and HI
+            faceDir[0] = DIRECTION_UP_HI_X;
+            faceDir[1] = DIRECTION_DN_LO_X;
+            faceDir[2] = DIRECTION_UP_LO_X;
+            faceDir[3] = DIRECTION_DN_HI_X;
+            faceDir[4] = DIRECTION_UP_HI_Z;
+            faceDir[5] = DIRECTION_DN_LO_Z;
+            faceDir[6] = DIRECTION_UP_LO_Z;
+            faceDir[7] = DIRECTION_DN_HI_Z;
+        }
+        else {
+            texelLow = 0.0f;
+            texelHigh = 0.4f;
+            faceDir[0] = DIRECTION_UP_LO_X;
+            faceDir[1] = DIRECTION_DN_HI_X;
+            faceDir[2] = DIRECTION_UP_HI_X;
+            faceDir[3] = DIRECTION_DN_LO_X;
+            faceDir[4] = DIRECTION_UP_LO_Z;
+            faceDir[5] = DIRECTION_DN_HI_Z;
+            faceDir[6] = DIRECTION_UP_HI_Z;
+            faceDir[7] = DIRECTION_DN_LO_Z;
+        }
 
-        Vec3Scalar(vertexOffsets[0][0], =, texelCenter, 0, 0);
-        Vec3Scalar(vertexOffsets[0][1], =, texelCenter, 0, 1);
+        Vec3Scalar(vertexOffsets[0][0], =, texelCenter, texelLow, 0);
+        Vec3Scalar(vertexOffsets[0][1], =, texelCenter, texelLow, 1);
         Vec3Scalar(vertexOffsets[0][2], =, texelCenter + texelExtent, texelHigh, 1);
         Vec3Scalar(vertexOffsets[0][3], =, texelCenter + texelExtent, texelHigh, 0);
 
-        Vec3Scalar(vertexOffsets[1][0], =, texelCenter, 0, 1);
-        Vec3Scalar(vertexOffsets[1][1], =, texelCenter, 0, 0);
+        Vec3Scalar(vertexOffsets[1][0], =, texelCenter, texelLow, 1);
+        Vec3Scalar(vertexOffsets[1][1], =, texelCenter, texelLow, 0);
         Vec3Scalar(vertexOffsets[1][2], =, texelCenter - texelExtent, texelHigh, 0);
         Vec3Scalar(vertexOffsets[1][3], =, texelCenter - texelExtent, texelHigh, 1);
 
-        Vec3Scalar(vertexOffsets[2][0], =, 1, 0, texelCenter);
-        Vec3Scalar(vertexOffsets[2][1], =, 0, 0, texelCenter);
+        Vec3Scalar(vertexOffsets[2][0], =, 1, texelLow, texelCenter);
+        Vec3Scalar(vertexOffsets[2][1], =, 0, texelLow, texelCenter);
         Vec3Scalar(vertexOffsets[2][2], =, 0, texelHigh, texelCenter + texelExtent);
         Vec3Scalar(vertexOffsets[2][3], =, 1, texelHigh, texelCenter + texelExtent);
 
-        Vec3Scalar(vertexOffsets[3][0], =, 0, 0, texelCenter);
-        Vec3Scalar(vertexOffsets[3][1], =, 1, 0, texelCenter);
+        Vec3Scalar(vertexOffsets[3][0], =, 0, texelLow, texelCenter);
+        Vec3Scalar(vertexOffsets[3][1], =, 1, texelLow, texelCenter);
         Vec3Scalar(vertexOffsets[3][2], =, 1, texelHigh, texelCenter - texelExtent);
         Vec3Scalar(vertexOffsets[3][3], =, 0, texelHigh, texelCenter - texelExtent);
     }
@@ -12298,7 +12337,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     return retCode | MW_WORLD_EXPORT_TOO_LARGE;
                 }
 
-                // if  we sort, we want to keep faces in the order generated, which is
+                // if we sort, we want to keep faces in the order generated, which is
                 // generally cache-coherent (and also just easier to view in the file)
                 face->faceIndex = firstFaceModifier((i == 0) && firstFace, gModel.faceCount);
                 face->materialType = (short)type;

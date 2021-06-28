@@ -342,7 +342,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 848
+#define NUM_TRANS 849
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1213,8 +1213,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 139,	    HIGH_BIT, "lightning_rod", EXTENDED_FACING_PROP },
     { 0, 148,	    HIGH_BIT, "cave_vines", BERRIES_PROP },
     { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
-                /*
-    { 0, 149,	    HIGH_BIT, "spore_blossom", NO_PROP },
+    { 0, 150,	    HIGH_BIT, "spore_blossom", NO_PROP },
+        /*
     { 0, 150,	    HIGH_BIT, "azalea", NO_PROP },
     { 0, 150,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
     { 0, 161,	           2, "azalea_leaves", NO_PROP },
