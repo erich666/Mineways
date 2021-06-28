@@ -610,7 +610,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_AD_LEAVES:
-        switch (dataVal & 0x1)
+        switch (dataVal & 0x3)
         {
         default:
             assert(0);
@@ -619,6 +619,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break; //return concatStrings(ACACIA_NAME, LEAVES_NAME);
         case 1:	// dark oak
             return "Dark Oak Leaves";
+        case 2:	//
+            return "Azalea Leaves";
+        case 3:	//
+            return "Flowering Azalea Leaves";
         }
         break;
 
@@ -648,12 +652,20 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     case BLOCK_WOOL:
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
-    case BLOCK_CARPET:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
         // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[type].name);
         return gConcatString;
+
+    case BLOCK_CARPET:
+        if (dataVal & 0x10) {
+            return "Moss Carpet";
+        }
+        else {
+            sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[type].name);
+            return gConcatString;
+        }
 
     case BLOCK_COLORED_TERRACOTTA:
         sprintf_s(gConcatString, 100, "%s Terracotta", gColorNames[dataVal & 0xf].name);
@@ -753,6 +765,24 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Cactus";
         case BAMBOO_FIELD | 0:
             return "Potted Bamboo";
+        case AZALEA_FIELD | 0:
+            return "Potted Azalea";
+        case AZALEA_FIELD | 1:
+            return "Potted Flowering Azalea";
+        }
+        break;
+
+    case BLOCK_AZALEA:
+        switch (dataVal & 0x1)
+        {
+        default:
+            assert(0);
+            break;
+        case 0: // normal
+            break;
+        case 1:	// flowering
+            return "Potted Flowering Azalea";
+            break;
         }
         break;
 
@@ -2028,7 +2058,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_WOOL:
     case BLOCK_CARPET:
         dataVal = block->data[voxel];
-        switch (dataVal & 0xf)
+        switch (dataVal & 0x1f)
         {
             // I picked the color from the tile location 2 from the left, 3 down.
         default:
@@ -2083,6 +2113,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 15:
             color = 0x1D1818;
             break;
+        case 16:    // moss
+            color = 0x5B6F2E;
         }
         break;
 
@@ -2608,23 +2640,28 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         break;
 
     case BLOCK_AD_LEAVES:
-        affectedByBiome = 2;
-        // if the default color is in use, use something more visible
-        if (gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color)
-        {
-            // NOTE: considerably darker than what is stored:
-            // the stored value is used to affect only the output color, not the map color.
-            // This oak leaf color (and jungle, below) makes the trees easier to pick out.
-
-            // acacia and 
-            dataVal = block->data[voxel];
-            // dark oak and acacia
-            color = dataVal ? 0x2C6F0F : 0x3D9A14;
+        dataVal = block->data[voxel];
+        if (dataVal & 0x2) {
+            // azalea
+            color = 0x677E30;
         }
-        else
-        {
-            lightComputed = true;
-            color = gBlockColors[type * 16 + light];
+        else {
+            // if the default color is in use, use something more visible
+            if (gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color) {
+                // NOTE: considerably darker than what is stored:
+                // the stored value is used to affect only the output color, not the map color.
+                // This oak leaf color (and jungle, below) makes the trees easier to pick out.
+
+                // acacia and dark oak
+                dataVal = block->data[voxel];
+                // dark oak and acacia
+                color = dataVal ? 0x2C6F0F : 0x3D9A14;
+            }
+            else
+            {
+                lightComputed = true;
+                color = gBlockColors[type * 16 + light];
+            }
         }
         break;
 
@@ -3591,6 +3628,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    // didn't bother with flowering azalea, as blend color is gray - blah
+
     default:
         // Everything else
         lightComputed = true;
@@ -4222,7 +4261,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_PRESSURE_PLATE:
     case BLOCK_WARPED_PRESSURE_PLATE:
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
-    case BLOCK_AD_LEAVES:
     case BLOCK_SPONGE:
     case BLOCK_SOUL_SAND:
     case BLOCK_GLOWSTONE:
@@ -4230,6 +4268,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_GLASS:
     case BLOCK_CAVE_VINES:
     case BLOCK_CAVE_VINES_LIT:
+    case BLOCK_AZALEA:
         // uses 0-1
         if (dataVal < 2)
         {
@@ -4300,6 +4339,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_STONECUTTER:
     case BLOCK_LECTERN:
+    case BLOCK_AD_LEAVES:
         // uses 0-3
         if (dataVal < 4)
         {
@@ -4554,12 +4594,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             switch (dataVal) {
             case 1:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex] = SAPLING_FIELD | 0;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 7;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex3] = AZALEA_FIELD | 1;
                 break;
             case 2:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
@@ -4642,6 +4685,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 15:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 6;
+                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex2] = AZALEA_FIELD | 0;
                 break;
             }
         }
@@ -4734,7 +4779,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_REDSTONE_COMPARATOR:
     case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
     case BLOCK_COLORED_TERRACOTTA:
-    case BLOCK_CARPET:
     case BLOCK_STAINED_GLASS:
     case BLOCK_STANDING_BANNER:
     case BLOCK_WOOL:
@@ -4762,6 +4806,17 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // uses all bits, 0-15
         addBlock = 1;
         break;
+
+    case BLOCK_CARPET:
+        addBlock = 1;
+        if (dataVal == 0) {
+            // add new style diagonally SE of original
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
+        }
+        break;
+
     case BLOCK_SIGN_POST:
     case BLOCK_ACACIA_SIGN_POST:
         // uses all bits, 0-15, with variations to show other styles

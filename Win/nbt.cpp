@@ -342,7 +342,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 849
+#define NUM_TRANS 857
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1214,22 +1214,24 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 148,	    HIGH_BIT, "cave_vines", BERRIES_PROP },
     { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
     { 0, 150,	    HIGH_BIT, "spore_blossom", NO_PROP },
-        /*
-    { 0, 150,	    HIGH_BIT, "azalea", NO_PROP },
-    { 0, 150,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
+    { 0, 151,	    HIGH_BIT, "azalea", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 0, "potted_azalea_bush", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 1, "potted_flowering_azalea_bush", NO_PROP },
+    { 0, 151,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
     { 0, 161,	           2, "azalea_leaves", NO_PROP },
-    { 0, 162,	           3, "flowering_azalea_leaves", NO_PROP },
+    { 0, 161,	           3, "flowering_azalea_leaves", NO_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
     { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
-    
-    { 0, 151,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
-    { 0, 152,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
-    { 0, 153,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
+        /*
+
+    { 0, 152,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
+    { 0, 153,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    { 0, 154,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
     { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
-    { 0, 154,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
+    { 0, 155,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
     { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
-    { 0, 155,       HIGH_BIT, "glow_lichen", NO_PROP },
-    { 0, 156,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
+    { 0, 156,       HIGH_BIT, "glow_lichen", NO_PROP },
+    { 0, 157,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
     { 0, 135,   HIGH_BIT | 0, "deepslate", LOG_PROP },
     { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
     { 0, 137,	HIGH_BIT | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
@@ -1267,8 +1269,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 118,            0x0, "water_cauldron", NO_PROP }, // I assume this is the same as a cauldron, basically, with the level > 0, https://minecraft.fandom.com/wiki/Cauldron
     { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 118,            0x8, "powder_snow_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
-    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 0, "potted_azalea_bush", NO_PROP },
-    { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 1, "potted_flowering_azalea_bush", NO_PROP },
     { 0, 166,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
 
 

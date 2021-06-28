@@ -5083,7 +5083,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // yes, we fall through to wool here
     case BLOCK_WOOL:						// saveBillboardOrGeometry
         // use dataVal to retrieve location. These are scattered all over.
-        swatchLoc = retrieveWoolSwatch(dataVal);
+        if (dataVal & 0x10) {
+            swatchLoc = SWATCH_INDEX(2, 52);
+        }
+        else {
+            swatchLoc = retrieveWoolSwatch(dataVal);
+        }
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 1, 0, 16);
         break; // saveBillboardOrGeometry
 
@@ -6664,7 +6669,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         if (gModel.print3D || !(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
         {
             // printing or not using images: only geometry we can add is a cactus (bamboo is too thin to print)
-            if ((dataVal == 9) || (dataVal == CACTUS_FIELD))
+            if ((dataVal == 9) || (dataVal == CACTUS_FIELD))    // TODO - could maybe add some form of azalea someday, but need to thicken at bottom
             {
                 swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_CACTUS].txrX, gBlockDefinitions[BLOCK_CACTUS].txrY);
                 saveBoxMultitileGeometry(boxIndex, BLOCK_CACTUS, dataVal, swatchLoc + 1, swatchLoc + 1, swatchLoc + 1, firstFace, gModel.print3D ? 0x0 : DIR_BOTTOM_BIT, 0, 6, 10, 6, 16, 6, 10);
@@ -6823,6 +6828,26 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 translateFromOriginMtx(mtx, boxIndex);
                 transformVertices(totalVertexCount, mtx);
                 gUsingTransform = 0;
+                break;
+            case AZALEA_FIELD | 0:
+            case AZALEA_FIELD | 1:
+                // TODO - this is not exactly right. Close enough for now.
+                // azalea
+                addBillboard = 1;
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_AZALEA].txrX, gBlockDefinitions[BLOCK_AZALEA].txrY) + 5 + (dataVal & 0x1);
+                totalVertexCount = gModel.vertexCount;
+                gUsingTransform = 1;
+                saveBoxMultitileGeometry(boxIndex, BLOCK_AZALEA, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 1, DIR_BOTTOM_BIT, 0x0, 4, 12, 0, 11, 4, 12);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, 0.0f, 5.0f / 16.0f, 0.0f);
+                transformVertices(totalVertexCount, mtx);
+                gUsingTransform = 0;
+
+                // trunk
+                firstFace = 0;
+                typeB = BLOCK_RED_MUSHROOM;
+                dataValB = 3 + (dataVal & 0x1);
                 break;
             default:
                 // Debug world gives: assert(0); - a value here is "fine", and should be ignored
@@ -9648,6 +9673,20 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBillboardFaces(boxIndex, type, BB_FAN);
         break;
 
+    case BLOCK_AZALEA:						// saveBillboardOrGeometry
+        // get the top swatch loc as a start, offset for flowering
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x1);
+        if (gModel.print3D)
+        {
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 1, 0x0, 1, 0, 16, 0, 16, 0, 16);
+        }
+        else {
+            // cross tree
+            saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_BOTTOM_BIT, 1, 0, 16, 0, 16, 0, 16);
+        }
+        break; // saveBillboardOrGeometry
+
     default:
         // something tagged as billboard or geometry, but no case here!
         assert(0);
@@ -11401,6 +11440,14 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // warped fungus
             swatchLoc = SWATCH_INDEX(4, 44);
             break;
+        case 3:
+            // azalea
+            swatchLoc = SWATCH_INDEX(14, 51);
+            break;
+        case 4:
+            // flowering azalea
+            swatchLoc = SWATCH_INDEX(15, 51);
+            break;
         }
         break;
     case BLOCK_TORCH:				// saveBillboardFacesExtraData
@@ -11804,6 +11851,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         if (dataVal & BIT_16) {
             swatchLoc = SWATCH_INDEX(12, 42);
         }
+        break;
+
+    case BLOCK_AZALEA:
+        // tree trunk part
+        swatchLoc += 4;
         break;
 
     default:
@@ -17267,6 +17319,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 1: // dark oak
                 swatchLoc = SWATCH_INDEX(11, 19);
                 break;
+            case 2: // azalea
+                swatchLoc = SWATCH_INDEX(0, 52);
+                break;
+            case 3: // flowering azalea
+                swatchLoc = SWATCH_INDEX(1, 52);
+                break;
             }
             break;
         case BLOCK_SAND:						// getSwatch
@@ -19060,6 +19118,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_CARPET:						// getSwatch
+            if (dataVal & 0x10) {
+                swatchLoc = SWATCH_INDEX(2, 52);
+            }
+            else {
+                swatchLoc = retrieveWoolSwatch(dataVal);
+            }
         case BLOCK_WOOL:
             swatchLoc = retrieveWoolSwatch(dataVal);
             break;
@@ -19974,6 +20038,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
             break;
+
+        case BLOCK_AZALEA: // getSwatch
+            swatchLoc += (dataVal & 0x1);
+            SWATCH_SWITCH_SIDE(faceDirection, 6 + (dataVal & 0x1), 51);
+            break;
+
         }
     }
 

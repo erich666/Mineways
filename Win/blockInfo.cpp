@@ -234,7 +234,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 158 */ "Dropper",                		0x6E6E6E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE },	// 9E/158
     { /* 159 */ "Colored Terracotta",           0xCEAE9E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,16, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 9F/159
     { /* 160 */ "Stained Glass Pane",     		0xEFEFEF, 0.500f, 0xff7711, 0xff7711, 0.12345f,   0,20, 0x0f, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_TRANSPARENT | BLF_MAYWATERLOG },	// A0/160 - semitransparent, not a cutout like glass panes are
-    { /* 161 */ "Acacia Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,19, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART },	//A1/161
+    { /* 161 */ "Acacia Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11,19, 0x03, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART },	//A1/161
     { /* 162 */ "Acacia Log", 					0x766F64, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,19, 0x13, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },	//A2/162
     { /* 163 */ "Acacia Stairs",          		0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A3
     { /* 164 */ "Dark Oak Stairs",        		0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A4/164
@@ -244,7 +244,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 168 */ "Prismarine",             		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,22, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 1.8 add
     { /* 169 */ "Sea Lantern",            		0xD3DBD3, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,22, 0x00, BLF_WHOLE | BLF_EMITTER },   //59
     { /* 170 */ "Hay Bale",               		0xB5970C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,15, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// AA/170
-    { /* 171 */ "Carpet",                 		0xEAEDED, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x0f, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// AB/171
+    { /* 171 */ "Carpet",                 		0xEAEDED, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x1f, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// AB/171
     { /* 172 */ "Terracotta",	         		0x945A41, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,17, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as 159, except that it doesn't have names
     { /* 173 */ "Block of Coal",          		0x191919, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	// AD/173
     // 1.7
@@ -485,6 +485,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 404 */ "Cave Vines",                   0x5D722A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 50, 0x01, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 405 */ "Cave Vines lit", /*berries*/   0x73762C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 51, 0x01, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },  // note that "lit" has to be there, as it needs to be a different name than above
     { /* 406 */ "Spore Blossom",                0xD566A5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 51, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 407 */ "Azalea",		    			0x677E30, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 51, 0x01, BLF_ALMOST_WHOLE | BLF_BILLBOARD | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// AF/175 - note color is used to multiply grayscale textures, so don't change it
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
