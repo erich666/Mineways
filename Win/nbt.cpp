@@ -2632,10 +2632,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                             if (strcmp(value, "none") == 0) {
                                                 tilt = 0;
                                             }
-                                            else if (strcmp(value, "partial") == 0) {
+                                            else if (strcmp(value, "unstable") == 0) {
+                                                // doesn't really do anything
                                                 tilt = 1;
                                             }
-                                            else if (strcmp(value, "unstable") == 0) {
+                                            else if (strcmp(value, "partial") == 0) {
                                                 tilt = 2;
                                             }
                                             else if (strcmp(value, "full") == 0) {

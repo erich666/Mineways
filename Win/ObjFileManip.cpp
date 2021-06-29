@@ -9713,7 +9713,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         yrot *= 90.0f;
         for (i = 0; i < 2; i++) {
             totalVertexCount = gModel.vertexCount;
-            // get to the stem
+            // make the stem.
+            // Not quite right, in that in MC the "taller" leaves at the bottom always point west,
+            // we rotate ours.
             saveBoxMultitileGeometry(boxIndex, BLOCK_BIG_DRIPLEAF, dataVal, swatchLoc + 3, swatchLoc + 3, swatchLoc + 3, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
@@ -9741,6 +9743,15 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
+            // tilt is kicked up by 3; so, 16 bit is whether it's actually tilted
+            if (dataVal & 0x10) {
+                // now move to pivot point and tilt the leaf
+                translateMtx(mtx, 0.0f, -0.5f, -8.0f / 16.0f);
+                rotateMtx(mtx, ((dataVal & 0x18) == 0x18) ? 45.0f : 22.5f, 0.0f, 0.0f);
+
+                // move back to center
+                translateMtx(mtx, 0.0f, 0.5f, 8.0f / 16.0f);
+            }
             rotateMtx(mtx, 0.0f, yrot, 0.0f);
             translateMtx(mtx, 0.0f, -ONE_PIXEL, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
