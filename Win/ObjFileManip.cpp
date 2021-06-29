@@ -9827,7 +9827,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (!(dataVal & 0x1)) {
                 // it's a leaf, so make three of those and position them
                 float yr[] = { 180.0f, 0.0f, 270.0f };
-                float yt[] = { (1.5f - 16) * ONE_PIXEL, (6.5f - 16) * ONE_PIXEL, (11.2f - 16) * ONE_PIXEL };
+                float yt[] = { (1.5f - 16) * ONE_PIXEL, (7.2f - 16) * ONE_PIXEL, (11.2f - 16) * ONE_PIXEL };
                 for (i = 0; i < 3; i++) {
                     littleTotalVertexCount = gModel.vertexCount;
                     // leaf itself on top

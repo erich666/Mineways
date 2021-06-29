@@ -343,7 +343,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 864
+#define NUM_TRANS 903
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1230,29 +1230,28 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 107,   HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
     { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
     { 0, 154,       HIGH_BIT, "glow_lichen", FENCE_AND_VINE_PROP },
-        /*
-    { 0, 155,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
-    { 0, 135,   HIGH_BIT | 0, "deepslate", LOG_PROP },
+    { 0, 155,       HIGH_BIT, "sculk_sensor", NO_PROP },    // datavals do it all
+    { 0, 216,              3, "deepslate", AXIS_PROP }, // with bone block, basalt, etc.
     { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
-    { 0, 137,	HIGH_BIT | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
-    { 0, 138,	    HIGH_BIT, "cobbled_deepslate_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | BIT_16 | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
+    { 0, 156,	    HIGH_BIT, "cobbled_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             17, "cobbled_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 27, "chiseled_deepslate", NO_PROP },
     { 0, 132,  HIGH_BIT | 28, "polished_deepslate", NO_PROP },
-    { 0, 136,	HIGH_BIT | 1, "polished_deepslate_slab", SLAB_PROP },
-    { 0, 138,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | BIT_16 | 1, "polished_deepslate_slab", SLAB_PROP },
+    { 0, 157,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             18, "polished_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 29, "deepslate_bricks", NO_PROP },
-    { 0, 136,	HIGH_BIT | 2, "deepslate_bricks_slab", SLAB_PROP },
-    { 0, 139,	    HIGH_BIT, "deepslate_bricks_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | BIT_16 | 2, "deepslate_bricks_slab", SLAB_PROP },
+    { 0, 158,	    HIGH_BIT, "deepslate_bricks_stairs", STAIRS_PROP },
     { 0, 139,             19, "deepslate_bricks_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 30, "deepslate_tiles", NO_PROP },
-    { 0, 136,	HIGH_BIT | 3, "deepslate_tiles_slab", SLAB_PROP },
-    { 0, 141,	    HIGH_BIT, "deepslate_tiles_stairs", STAIRS_PROP },
+    { 0, 142,	HIGH_BIT | BIT_16 | 3, "deepslate_tiles_slab", SLAB_PROP },
+    { 0, 159,	    HIGH_BIT, "deepslate_tiles_stairs", STAIRS_PROP },
     { 0, 139,             20, "deepslate_tiles_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 31, "cracked_deepslate_bricks", NO_PROP },
     { 0, 132,  HIGH_BIT | 32, "crackeinfeepslate_tiles", NO_PROP },
-    { 0, 135,   HIGH_BIT | 1, "infested_deepslate", LOG_PROP },
+    { 0, 216,     BIT_16 | 3, "infested_deepslate", AXIS_PROP }, // with bone block, basalt, etc. - note value is same as deepslate + BIT_16
     { 0, 132,  HIGH_BIT | 33, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
     { 0, 132,  HIGH_BIT | 34, "raw_iron_block", NO_PROP },
     { 0, 132,  HIGH_BIT | 35, "raw_copper_block", NO_PROP },
@@ -1269,12 +1268,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 118,            0x0, "water_cauldron", NO_PROP }, // I assume this is the same as a cauldron, basically, with the level > 0, https://minecraft.fandom.com/wiki/Cauldron
     { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 118,            0x8, "powder_snow_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
-    { 0, 166,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
-
-
-    DEEPSLATE COAL ORE etc. - not sure how to add these. 
-    */
-    // last used was 141
+    { 0, 0,                0, "light", NO_PROP },   // for now, just make it air, since it normally doesn't appear
+    //{ 0, 160,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
+    // last used was 160 | HIGH_BIT
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
