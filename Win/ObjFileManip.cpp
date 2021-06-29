@@ -9804,43 +9804,52 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             yrot = (float)((((dataVal & 0x6) >> 1) + 1) % 4);
             yrot *= 90.0f;
             int lower = dataVal & 0x1;
+            totalVertexCount = gModel.vertexCount;
             for (i = 0; i < 2; i++) {
-                totalVertexCount = gModel.vertexCount;
+                littleTotalVertexCount = gModel.vertexCount;
                 // make the stem.
                 // Not quite right, in that in MC the "taller" leaves at the bottom always point west,
                 // we rotate ours.
                 saveBoxMultitileGeometry(boxIndex, BLOCK_SMALL_DRIPLEAF, dataVal, swatchLoc + 2 + lower, swatchLoc + 2 + lower, swatchLoc + 2 + lower, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
-                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
                 // move over half a pixel to center, and bottom to origin
-                translateMtx(mtx, 0.0f, 0.5f, 0.0f);
-                // 6 * sqrt(2) / 11, and stem or not
-                scaleMtx(mtx, 0.771f, 14.0f/16.0f, 0.771f);
+                translateMtx(mtx, -0.5f * ONE_PIXEL, 0.5f, 0.0f);
+                // about 11 high on the second block, minus two voxels, so add and divide
+                scaleMtx(mtx, 0.771f, (16.0f + 13.0f)/32.0f, 0.771f);
                 rotateMtx(mtx, 0.0f, 45.0f + 90.0f * (float)i, 0.0f);
-                translateMtx(mtx, 0.0f, -0.5f - (lower ? 0.0f : 2.0f * ONE_PIXEL), 4.0f / 16.0f);
+                translateMtx(mtx, 0.0f, -0.5f - (lower ? 0.0f : 3.0f/32.0f), 0.0f);
                 rotateMtx(mtx, 0.0f, yrot, 0.0f);
                 translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(totalVertexCount, mtx);
+                transformVertices(littleTotalVertexCount, mtx);
             }
             if (!(dataVal & 0x1)) {
-                // it's a leaf, so do that
-                totalVertexCount = gModel.vertexCount;
-                // leaf itself on top
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 16, 16, 0, 16);
-                // leaf sides
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 8, 12, 16, 0, 8);
-                saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc + 1, 0x0, 0, 8, 12, 16);
-                //saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 8);
-                //saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 8, 0, 16, 0, 16);
-                totalVertexCount = gModel.vertexCount - totalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                rotateMtx(mtx, 0.0f, yrot, 0.0f);
-                translateMtx(mtx, 0.0f, -ONE_PIXEL, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(totalVertexCount, mtx);
+                // it's a leaf, so make three of those and position them
+                float yr[] = { 180.0f, 0.0f, 270.0f };
+                float yt[] = { (1.5f - 16) * ONE_PIXEL, (6.5f - 16) * ONE_PIXEL, (11.2f - 16) * ONE_PIXEL };
+                for (i = 0; i < 3; i++) {
+                    littleTotalVertexCount = gModel.vertexCount;
+                    // leaf itself on top
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 16, 16, 0, 16);
+                    // leaf sides
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 8, 12, 16, 0, 8);
+                    saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc + 1, 0x0, 0, 8, 12, 16);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 0.0f, yt[i], 0.0f);
+                    rotateMtx(mtx, 0.0f, yrot + yr[i], 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
             }
+            // wobble the whole thing!
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0, shiftZ / 16.0f);
+            transformVertices(totalVertexCount, mtx);
             gUsingTransform = 0;
         }
         break;
