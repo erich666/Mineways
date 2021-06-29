@@ -330,8 +330,9 @@ static int worldVersion = 0;
 // thickness: 5 states
 // vertical_direction: up/down
 #define DRIPSTONE_PROP      56
-// facing: 0-3 door_facing
-// tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC)
+// bottommost is stem
+// facing: 0-3 door_facing << 1
+// tilt: none/partial/unstable/full 0xc0 fields (0x0,0x4,0x8,0xC) << 1
 #define BIG_DRIPLEAF_PROP   57
 // facing: 0-3 door_facing
 // half: lower/upper 0x0/0x4
@@ -342,7 +343,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 857
+#define NUM_TRANS 859
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1222,10 +1223,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 161,	           3, "flowering_azalea_leaves", NO_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
     { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
-        /*
-
     { 0, 152,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
-    { 0, 153,	    HIGH_BIT, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    { 0, 152,	HIGH_BIT | 1, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    /*
     { 0, 154,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
     { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
     { 0, 155,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
@@ -3144,7 +3144,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             dataVal = thickness | vertical_direction;
                             break;
                         case BIG_DRIPLEAF_PROP:
-                            dataVal = door_facing | (tilt << 2);
+                            // bottommost bit is stem or not
+                            dataVal = (door_facing | (tilt << 2)) << 1;
                             break;
                         case SMALL_DRIPLEAF_PROP:
                             dataVal = door_facing | (half << 2);

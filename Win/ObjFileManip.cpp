@@ -3495,6 +3495,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_CAMPFIRE:
     case BLOCK_WEEPING_VINES:
+    case BLOCK_BIG_DRIPLEAF:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -9686,6 +9687,67 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_BOTTOM_BIT, 1, 0, 16, 0, 16, 0, 16);
         }
         break; // saveBillboardOrGeometry
+
+    case BLOCK_BIG_DRIPLEAF:
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        // save stem always
+        gUsingTransform = 1;
+        yrot = (float)((((dataVal & 0x6) >> 1) + 1 ) % 4);
+        // same as:
+        //switch (dir) {
+        //default:
+        //    assert(0);
+        //case 0:
+        //    yrot = 1;
+        //    break;
+        //case 1:
+        //    yrot = 2;
+        //    break;
+        //case 2:
+        //    yrot = 3;
+        //    break;
+        //case 3:
+        //    yrot = 0;
+        //    break;
+        //}
+        yrot *= 90.0f;
+        for (i = 0; i < 2; i++) {
+            totalVertexCount = gModel.vertexCount;
+            // get to the stem
+            saveBoxMultitileGeometry(boxIndex, BLOCK_BIG_DRIPLEAF, dataVal, swatchLoc + 3, swatchLoc + 3, swatchLoc + 3, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            // move over half a pixel to center, and bottom to origin
+            translateMtx(mtx, -0.5f * ONE_PIXEL, 0.5f, 0.0f);
+            // 6 * sqrt(2) / 11, and stem or not
+            scaleMtx(mtx, 0.771f, (dataVal & 0x1) ? 1.0f : (1.0f - ONE_PIXEL), 0.771f);
+            rotateMtx(mtx, 0.0f, 45.0f + 90.0f * (float)i, 0.0f);
+            translateMtx(mtx, 0.0f, -0.5f, 4.0f / 16.0f);
+            rotateMtx(mtx, 0.0f, yrot, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+        }
+        if (!(dataVal & 0x1)) {
+            // it's a leaf, so do that
+            totalVertexCount = gModel.vertexCount;
+            // leaf itself on top
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 16, 16, 0, 16);
+            // leaf tip
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 0, 16, 0, 0);
+            // leaf sides
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 0, 0, 16, 0, 16);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 16, 16, 0, 16, 0, 16);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, yrot, 0.0f);
+            translateMtx(mtx, 0.0f, -ONE_PIXEL, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+        }
+        gUsingTransform = 0;
+        break;
 
     default:
         // something tagged as billboard or geometry, but no case here!

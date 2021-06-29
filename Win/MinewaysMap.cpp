@@ -1971,6 +1971,18 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_BIG_DRIPLEAF:
+        switch (dataVal & 0x1) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Big Dripleaf Stem";
+        }
+        break;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -5937,6 +5949,17 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             (dataVal & 0x3);	// facing
         break;
 
+    case BLOCK_BIG_DRIPLEAF:
+        // uses only bit 0, but put three of them up, and waterlog
+        addBlock = 1;
+        // put dripleaf above, stem below
+        bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+        block->grid[bi] = BLOCK_BIG_DRIPLEAF & 0xff;
+        block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal<<1));
+        // stem uses facing
+        finalDataVal = ((dataVal & 0x3)<<1) | 0x1;
+        break;
+        
     // don't add anything for these "high_bit" reserved spots
     case BLOCK_RESERVED_FLOWER_POT:
     case BLOCK_RESERVED_MOB_HEAD:
