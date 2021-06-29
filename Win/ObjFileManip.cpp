@@ -3494,8 +3494,8 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_DEAD_CORAL: // TODO probably never: for 3D printing, could turn this X decal into a dead coral block
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_CAMPFIRE:
-    case BLOCK_WEEPING_VINES:
     case BLOCK_BIG_DRIPLEAF:
+    case BLOCK_SMALL_DRIPLEAF:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -3868,8 +3868,48 @@ static int computeFlatFlags(int boxIndex)
         }
         break;
 
+        // TODOTODO might also be the code we want for vines, just above, for 1.13 on?
+    case BLOCK_GLOW_LICHEN:
+        // (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
+        if (gBoxData[boxIndex].data & 0x01) {
+            // south, +Z
+            gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+        }
+        if (gBoxData[boxIndex].data & 0x02) {
+            // west, -X
+            gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+        }
+        if (gBoxData[boxIndex].data & 0x04) {
+            // north, -Z
+            gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+        }
+        if (gBoxData[boxIndex].data & 0x08) {
+            // east, +X
+            gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+        }
+        if (gBoxData[boxIndex].data & 0x10) {
+            // (hanging) down
+            gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
+        }
+        if (gBoxData[boxIndex].data & 0x20) {
+            // up
+            gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+        }
+        break;
+
     case BLOCK_REDSTONE_WIRE:						// computeFlatFlags
         computeRedstoneConnectivity(boxIndex);
+        break;
+
+    case BLOCK_WEEPING_VINES:
+        if ((gBoxData[boxIndex].data & 0xf) == 0x1) {
+            // twisting vines go up
+            gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_ABOVE;
+        }
+        else {
+            // other vines, roots, etc. hang
+            gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
+        }
         break;
 
     case BLOCK_SPORE_BLOSSOM:						// computeFlatFlags
@@ -4555,10 +4595,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_FIRE:						// saveBillboardOrGeometry
         return saveBillboardFaces(boxIndex, type, BB_FIRE);
 
+    case BLOCK_REDSTONE_WIRE:				// saveBillboardOrGeometry
+    case BLOCK_LADDER:						// saveBillboardOrGeometry
     case BLOCK_VINES:						// saveBillboardOrGeometry
-        return saveBillboardFaces(boxIndex, type, BB_SIDE);
-
-    case BLOCK_LADDER:
+    case BLOCK_GLOW_LICHEN:				    // saveBillboardOrGeometry
+        // note that save billboard faces gives one or more faces for vines and lichen
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
     case BLOCK_LILY_PAD:					// saveBillboardOrGeometry
@@ -4566,11 +4607,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // Not doing it, because in part we'd be inconsistent between this and composite swatches,
         // where the lily pad is always the same orientation (otherwise we'd need up to four swatches).
         return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
-
-
-    case BLOCK_REDSTONE_WIRE:				// saveBillboardOrGeometry
-        return saveBillboardFaces(boxIndex, type, BB_SIDE);
-
 
         /////////////////////////////////////////////////////////////////////////////////////////
         // real-live solid output, baby
@@ -9716,7 +9752,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // make the stem.
             // Not quite right, in that in MC the "taller" leaves at the bottom always point west,
             // we rotate ours.
-            saveBoxMultitileGeometry(boxIndex, BLOCK_BIG_DRIPLEAF, dataVal, swatchLoc + 3, swatchLoc + 3, swatchLoc + 3, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, BLOCK_BIG_DRIPLEAF, dataVal, swatchLoc + 3, swatchLoc + 3, swatchLoc + 3, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -9758,6 +9794,55 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             transformVertices(totalVertexCount, mtx);
         }
         gUsingTransform = 0;
+        break;
+
+    case BLOCK_SMALL_DRIPLEAF:
+        {
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            // save stem always
+            gUsingTransform = 1;
+            yrot = (float)((((dataVal & 0x6) >> 1) + 1) % 4);
+            yrot *= 90.0f;
+            int lower = dataVal & 0x1;
+            for (i = 0; i < 2; i++) {
+                totalVertexCount = gModel.vertexCount;
+                // make the stem.
+                // Not quite right, in that in MC the "taller" leaves at the bottom always point west,
+                // we rotate ours.
+                saveBoxMultitileGeometry(boxIndex, BLOCK_SMALL_DRIPLEAF, dataVal, swatchLoc + 2 + lower, swatchLoc + 2 + lower, swatchLoc + 2 + lower, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                // move over half a pixel to center, and bottom to origin
+                translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+                // 6 * sqrt(2) / 11, and stem or not
+                scaleMtx(mtx, 0.771f, 14.0f/16.0f, 0.771f);
+                rotateMtx(mtx, 0.0f, 45.0f + 90.0f * (float)i, 0.0f);
+                translateMtx(mtx, 0.0f, -0.5f - (lower ? 0.0f : 2.0f * ONE_PIXEL), 4.0f / 16.0f);
+                rotateMtx(mtx, 0.0f, yrot, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+            }
+            if (!(dataVal & 0x1)) {
+                // it's a leaf, so do that
+                totalVertexCount = gModel.vertexCount;
+                // leaf itself on top
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 16, 16, 0, 16);
+                // leaf sides
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 8, 12, 16, 0, 8);
+                saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc + 1, 0x0, 0, 8, 12, 16);
+                //saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 8);
+                //saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 8, 0, 16, 0, 16);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, yrot, 0.0f);
+                translateMtx(mtx, 0.0f, -ONE_PIXEL, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+            }
+            gUsingTransform = 0;
+        }
         break;
 
     default:
@@ -11388,6 +11473,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int retCode = MW_NO_ERROR;
     int matchType;  // cppcheck-suppress 398
     bool vineUnderBlock = false;
+    bool lichenOverBlock = false;
     bool redstoneWireOnBottom = false;
     int faceDirection;
     float distanceOffset = ONE_PIXEL;
@@ -11680,6 +11766,20 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             }
         }
         break;
+    case BLOCK_GLOW_LICHEN:				// saveBillboardFacesExtraData
+        if (!CHECK_COMPOSITE_OVERLAY) {
+            if (dataVal & BIT_16) {
+                lichenOverBlock = true;
+            }
+            if (dataVal & BIT_32) {
+                // note that, weirdly enough, bit 32, "up", means cover the top of the block here,
+                // but "up" for BLOCK_VINES is BIT_16
+                vineUnderBlock = true;
+            }
+            shiftY = 0.75f * ONE_PIXEL;
+            distanceOffset = 0.25f * ONE_PIXEL;
+        }
+        break;
     case BLOCK_SPORE_BLOSSOM:
         if (billboardType == BB_SIDE) {
             // green leaf base
@@ -11691,7 +11791,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_LADDER:				// saveBillboardFacesExtraData
         assert(!CHECK_COMPOSITE_OVERLAY);
-        // we convert dataVal for ladder into the bit-wise conversion for vines
+        // we convert dataVal for ladder into the bit-wise conversion for vines:
+        // (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
         switch (dataVal & 0x7)
         {
         case 2: // north, -Z
@@ -11811,9 +11912,22 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             origDataVal = gBoxData[boxIndex - 1].data;
         }
         else {
-            // full plant; is it twisting vines instead?
-            if (dataVal & 0x1) {
+            // full plant; is it twisting vines or hanging roots instead?
+            switch (dataVal & 0xf) {
+            default:
+                assert(0);
+            case 0:
+                // no change - weeping vines
+                break;
+            case 1:
+                // twisting vines
                 swatchLoc += 16;
+                break;
+            case 2:
+                // hanging roots
+                swatchLoc = SWATCH_INDEX(12, 52);
+                wobbleIt = true;
+                break;
             }
         }
         break;
@@ -11866,7 +11980,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         redstoneOn = (dataVal & 0xf) ? true : false;
         // we reuse dataVal here for edges.
         dataVal = 0x0;
-        distanceOffset = ONE_PIXEL * 0.25;
+        distanceOffset = 0.25f * ONE_PIXEL;
 
         // go through the six directions to the neighbors. For example, if direction is down, check if
         // the neighbor below has its "above" flat flag set.
@@ -12267,7 +12381,22 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 assert(billCount <= 5);
                 break;
             }
-        }
+            if (lichenOverBlock) {
+                // lichen over block
+                // two paired billboards
+                faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
+                faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
+                assert(faceCount <= 10);
+
+                Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, ONE_PIXEL - shiftY, 1.0f);
+                Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, ONE_PIXEL - shiftY, 1.0f);
+                Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, ONE_PIXEL - shiftY, 0.0f);
+                Vec3Scalar(vertexOffsets[billCount][3], =, 1.0f, ONE_PIXEL - shiftY, 0.0f);
+                billCount++;
+                assert(billCount <= 5);
+                break;
+            }
+}
         break;
     case BB_BOTTOM:
         // lily pad
@@ -18837,6 +18966,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_PUMPKIN_STEM:
         case BLOCK_MELON_STEM:
         case BLOCK_SEAGRASS:
+        case BLOCK_GLOW_LICHEN:
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
             break;
         case BLOCK_CAMPFIRE:
@@ -18887,7 +19017,23 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
-            swatchLoc = (dataVal & 0x1) ? swatchLoc + 15 : swatchLoc - 1;   // twisting or weeping, and use the short bit
+            // twisting or weeping or hanging composite, and use the short bit of the vine, even though it might not be right underneath
+            switch (dataVal & 0xf) {
+            default:
+                assert(0);
+            case 0:
+                // use the short bit
+                swatchLoc--;
+                break;
+            case 1:
+                // twisting vines
+                swatchLoc += 15;
+                break;
+            case 2:
+                // hanging roots
+                swatchLoc = SWATCH_INDEX(12, 52);
+                break;
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_SAPLING:						// getSwatch
@@ -20806,6 +20952,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_CAVE_VINES_LIT:
         emission = 14.0f;
+        break;
+    case BLOCK_GLOW_LICHEN:
+        emission = 7.0f;
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
@@ -27008,7 +27157,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         "Export solid material colors only (no textures)",
         "Export richer color textures",
         "Export full color texture patterns",
-        "Export tiles for textures"
+        "Export separate textures"
     };
 
     float inCM = gModel.scale * METERS_TO_CM;

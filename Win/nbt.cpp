@@ -343,7 +343,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 859
+#define NUM_TRANS 864
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1225,13 +1225,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
     { 0, 152,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
     { 0, 152,	HIGH_BIT | 1, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
-    /*
-    { 0, 154,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
+    { 0, 153,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
     { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
-    { 0, 155,	HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },
+    { 0, 107,   HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
     { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
-    { 0, 156,       HIGH_BIT, "glow_lichen", NO_PROP },
-    { 0, 157,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
+    { 0, 154,       HIGH_BIT, "glow_lichen", FENCE_AND_VINE_PROP },
+        /*
+    { 0, 155,       HIGH_BIT, "sculk_sensor", SCULK_SENSOR_PROP },
     { 0, 135,   HIGH_BIT | 0, "deepslate", LOG_PROP },
     { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
     { 0, 137,	HIGH_BIT | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
@@ -2353,7 +2353,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                                 door_facing = 0;
                                                 //chest_facing = 5;
                                                 dropper_facing = 1;
-                                                dataVal = 1;
+                                                dataVal = 0;
                                             }
                                             else if (strcmp(value, "down") == 0) {
                                                 door_facing = 0;
@@ -3149,7 +3149,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             dataVal = (door_facing | (tilt << 2)) << 1;
                             break;
                         case SMALL_DRIPLEAF_PROP:
-                            dataVal = door_facing | (half << 2);
+                            // note that upper half is 0x0, lower is 0x1
+                            dataVal = (door_facing << 1) | ( half ? 0 : 1 );
                             break;
                         case BERRIES_PROP:
                             dataVal = 0x0;

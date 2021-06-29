@@ -6087,15 +6087,21 @@ static int interpretImportLine(char* line, ImportedSet& is)
             "richer", // "Export richer color textures",
             "full", // "Export full color texture patterns",
             "tiles" // "Export tiles for textures"
+            "separate" // "Export separate textures"
         };
-        for (i = 0; i < 5; i++)
+        for (i = 0; i < 6; i++)
         {
             if (_stricmp(outputTypeString[i], string1) == 0)
             {
                 break;
             }
         }
-        if (i >= 5) {
+        // "Export separate textures"?
+        if (i == 5) {
+            // "Export tiles for textures"
+            i = 4;
+        }
+        if (i >= 6) {
             saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }
@@ -6130,6 +6136,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 }
                 break;
             default:
+                assert(0);
                 break;
             }
         }

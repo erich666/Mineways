@@ -1433,6 +1433,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 1:
             return "Twisting Vines";
+        case 2:
+            return "Hanging Roots";
         }
         break;
 
@@ -1979,6 +1981,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 0:
             break;
         case 1:
+            // goofy, but they call it out as a separate block type with a name
             return "Big Dripleaf Stem";
         }
         break;
@@ -2320,7 +2323,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_WEEPING_VINES:
         dataVal = block->data[voxel];
         // The 0x1 is the type
-        switch (dataVal & 0x1)
+        switch (dataVal & 0xf)
         {
         default:
             lightComputed = true;
@@ -2328,6 +2331,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 1:	// twisting
             color = 0x148C7C;
+            break;
+        case 2:	// hanging roots
+            color = 0xA37661;
             break;
         }
         break;
@@ -5051,11 +5057,45 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_LADDER:
+        // show with and without waterlogging
         if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
         {
             addBlock = 1;
             switch (dataVal & 0x7)
             {
+            case 2:
+                // put block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 5:
+                // put block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            }
+            finalDataVal = (dataVal & 0x7) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
+        }
+        break;
+    case BLOCK_GLOW_LICHEN:
+        // show with and without waterlogging
+        // note we don't try all permutations (6 bits)
+        if ((dataVal & 0x7) <= 5)
+        {
+            addBlock = 1;
+            // dropper facing
+            switch (dataVal & 0x7)
+            {
+            case 1:
+                // put block above
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
             case 2:
                 // put block to south
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
@@ -5764,19 +5804,21 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_WEEPING_VINES:
-        if (dataVal < 2)
+        if (dataVal < 3)
         {
             addBlock = 1;
-            // add leaves above
-            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
-            if (dataVal == 0) {
-                finalDataVal = BIT_32;
-                block->data[bi] = (unsigned char)HIGH_BIT;
-            }
-            else {
-                // twisting vines are 0x1
-                block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
+            if (dataVal < 2) {
+                // add leaves above
+                bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+                block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
+                if (dataVal == 0) {
+                    finalDataVal = BIT_32;
+                    block->data[bi] = (unsigned char)HIGH_BIT;
+                }
+                else {
+                    // twisting vines are 0x1
+                    block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
+                }
             }
         }
         break;
@@ -5950,17 +5992,32 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_BIG_DRIPLEAF:
-        // uses only bit 0, but put three of them up, and waterlog
+        // facing, and put one above a stem
         addBlock = 1;
         // put dripleaf above, stem below
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
         block->grid[bi] = BLOCK_BIG_DRIPLEAF & 0xff;
-        block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal<<1));
+        // tilt, and facing
+        block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
         // stem uses facing
-        finalDataVal = ((dataVal & 0x3)<<1) | 0x1;
+        finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
         break;
-        
-    // don't add anything for these "high_bit" reserved spots
+
+    case BLOCK_SMALL_DRIPLEAF:
+        if (dataVal < 4) {
+            // facing, and upper/lower half
+            addBlock = 1;
+            // put dripleaf above, stem below
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = BLOCK_SMALL_DRIPLEAF & 0xff;
+            // facing
+            block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
+            // stem uses facing
+            finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
+        }
+        break;
+
+        // don't add anything for these "high_bit" reserved spots
     case BLOCK_RESERVED_FLOWER_POT:
     case BLOCK_RESERVED_MOB_HEAD:
         break;
