@@ -1392,7 +1392,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     case BLOCK_CUT_COPPER_SLAB:
         // a little wasteful if the default is returned after all
         strcpy_s(gConcatString, 100, (type == BLOCK_CUT_COPPER_DOUBLE_SLAB) ? "Double " : "");
-        switch (dataVal & 0x7)
+        switch (dataVal & 0x17)
         {
         default:
             assert(0);
@@ -1419,6 +1419,18 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 7:
             strcat_s(gConcatString, 100, "Waxed Oxidized Cut Copper Slab");
+            break;
+        case BIT_16 | 0:
+            strcat_s(gConcatString, 100, "Cobbled Deepslate Slab");
+            break;
+        case BIT_16 | 1:
+            strcat_s(gConcatString, 100, "Polished Deepslate Slab");
+            break;
+        case BIT_16 | 2:
+            strcat_s(gConcatString, 100, "Deepslate Brick Slab");
+            break;
+        case BIT_16 | 3:
+            strcat_s(gConcatString, 100, "Deepslate Tile Slab");
             break;
         }
         return gConcatString;
@@ -1452,7 +1464,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_COBBLESTONE_WALL:
-        switch (dataVal & 0xf) {
+        switch (dataVal & 0x1f) {
         default:
             assert(0);
             break;
@@ -1491,6 +1503,14 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Polished Blackstone Wall";
         case 16:
             return "Polished Blackstone Brick Wall";
+        case 17:
+            return "Cobbled Deepslate Wall";
+        case 18:
+            return "Polished Deepslate Wall";
+        case 19:
+            return "Deepslate Brick Wall";
+        case 20:
+            return "Deepslate Tile Wall";
         }
         break;
 
@@ -1711,7 +1731,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
     case BLOCK_BONE_BLOCK:
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x13)
         {
         default:
             assert(0);
@@ -1722,6 +1742,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Basalt";
         case 2:
             return "Polished Basalt";
+        case 3:
+            return "Deepslate";
+        case BIT_16:
+            return "Infested Deepslate";
         }
         break;
 
@@ -2274,6 +2298,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2292,6 +2318,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 5:	// dark oak
             color = gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].pcolor;
             break;
+        case 6: // Crimson Planks
+            color = gBlockDefinitions[BLOCK_CRIMSON_STAIRS].pcolor;
+            break;
+        case 7: // Warped Planks
+            color = gBlockDefinitions[BLOCK_WARPED_STAIRS].pcolor;
+            break;
         }
         break;
 
@@ -2302,6 +2334,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2326,6 +2360,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2376,6 +2412,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2432,6 +2470,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2446,6 +2486,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2463,6 +2505,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2477,6 +2521,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2491,6 +2537,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2517,6 +2565,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2531,6 +2581,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2545,6 +2597,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2559,6 +2613,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2576,6 +2632,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & BIT_16)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2592,6 +2650,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x3)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2609,9 +2669,11 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_BONE_BLOCK:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x13)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2621,6 +2683,10 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 2:	// polished basalt
             color = 0x676667;
             break;
+        case 3:
+        case BIT_16: // (infested) deepslate
+            color = 0x59595B;
+            break;
         }
         break;
 
@@ -2629,6 +2695,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x3)
         {
         default:
+            assert(0);
         case 0:	// oak
         case 3:	// jungle
             // if the default color is in use, use something more visible
@@ -2739,7 +2806,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & 0x3)
         {
-        default:	// acacia
+        default:
+            assert(0);
+        case 0: // acacia
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2762,6 +2831,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
         case 8:	// full stone
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -2806,6 +2877,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
+        case 0:
         case 1:	// cut red sandstone
         case 2:	// smooth red sandstone
             lightComputed = true;
@@ -2834,6 +2907,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2859,27 +2934,38 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_CUT_COPPER_SLAB:
         dataVal = block->data[voxel];
         alphaComputed = true;
-        // mask by 0x3 for the four slab types - waxed looks the same as regular
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x17)
         {
         default:
             assert(0);
         case 0:
-        //case 4:	// Waxed Cut Copper Slab
+        case 4:	// Waxed Cut Copper Slab
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
         case 1:	// Exposed Cut Copper Slab
-        //case 5:	// Waxed Exposed Cut Copper Slab
+        case 5:	// Waxed Exposed Cut Copper Slab
             color = 0xA37E69;
             break;
         case 2:	// Weathered Cut Copper Slab
-        //case 6:	// Waxed Weathered Cut Copper Slab
+        case 6:	// Waxed Weathered Cut Copper Slab
             color = 0x6F936E;
             break;
         case 3: // Oxidized Cut Copper Slab
-        //case 7:	// Waxed Oxidized Cut Copper Slab
+        case 7:	// Waxed Oxidized Cut Copper Slab
             color = 0x54A587;
+            break;
+        case BIT_16 | 0: // Cobbled Deepslate Slab
+            color = 0x515153;
+            break;
+        case BIT_16 | 1: // Polished Deepslate Slab
+            color = 0x4C4C4C;
+            break;
+        case BIT_16 | 2: // Deepslate Brick Slab
+            color = 0x4B4B4B;
+            break;
+        case BIT_16 | 3: // Deepslate Tile Slab
+            color = 0x39393A;
             break;
         }
         break;
@@ -2888,7 +2974,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & 0xf)
         {
-        default:	// poppy
+        default:
+            assert(0);
+        case 0: // poppy
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -2939,6 +3027,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
         case 0:	// sunflower
             color = 0xEAD31F;
             break;
@@ -2971,6 +3060,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            assert(0);
+        case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
@@ -3115,6 +3206,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
         case 0:	// full stone
         case 1:	// purpur, just in case
             lightComputed = true;
@@ -3149,6 +3241,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
         case 0:	// tube coral - as is
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3174,7 +3267,6 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         {
         default:
             assert(0);
-            break;
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3197,7 +3289,6 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         {
         default:
             assert(0);
-            break;
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3220,7 +3311,6 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         {
         default:
             assert(0);
-            break;
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3254,6 +3344,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0x3)
         {
         default:
+            assert(0);
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3274,6 +3365,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & 0xf) {
         default:
+            assert(0);
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3326,6 +3418,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 16: // polished blackstone brick wall
             color = 0x322E36;
             break;
+        case 17: // Cobbled Deepslate
+            color = 0x515153;
+            break;
+        case 18: // Polished Deepslate
+            color = 0x4C4C4C;
+            break;
+        case 19: // Deepslate Bricks
+            color = 0x4B4B4B;
+            break;
+        case 20: // Deepslate Tiles
+            color = 0x39393A;
+            break;
         }
         break;
 
@@ -3333,6 +3437,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & 0xf) {
         default:
+            assert(0);
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3351,6 +3456,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & (BIT_32 | BIT_16)) {
         default:
+            assert(0);
         case 0x0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3371,6 +3477,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         switch (dataVal & 0xf) {
         default:
+            assert(0);
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3525,7 +3632,6 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         {
         default:
             assert(0);
-            break;
         case 0:
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -3673,6 +3779,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (affectedByBiome)
         {
         default:
+            assert(0);
         case 1:
             // grass
             // We'll have to compute the effect of light, alpha, etc.
@@ -4335,7 +4442,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_LEAVES:
     case BLOCK_NETHER_WART:
     case BLOCK_STONE_BRICKS:
-    case BLOCK_CAULDRON:
     case BLOCK_FROSTED_ICE:
     case BLOCK_STRUCTURE_BLOCK:
     case BLOCK_GLAZED_TERRACOTTA:
@@ -4553,9 +4659,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
     case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
     case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
+    case BLOCK_COBBLED_DEEPSLATE_STAIRS:
+    case BLOCK_POLISHED_DEEPSLATE_STAIRS:
+    case BLOCK_DEEPSLATE_BRICKS_STAIRS:
+    case BLOCK_DEEPSLATE_TILES_STAIRS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
-        // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the "step block trim" feature of week 39
+        // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
             addBlock = 1;
@@ -4599,6 +4709,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_CAULDRON:
+        // uses 0-11, but without 5-7
+        if (dataVal < 12 && (dataVal < 5 || dataVal > 7))
         {
             addBlock = 1;
         }
@@ -4737,11 +4854,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         //block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         break;
     case BLOCK_BONE_BLOCK:
-        // uses 0,1,2 for low bits in 0x3
-        if ((dataVal & 0x3) < 3)
-        {
-            addBlock = 1;
-        }
+        // uses 0,1,2,3 for low bits in 0x3 - note, leaves out infested deepslate, which is a repeat of deepslate anyway
+        addBlock = 1;
         break;
 
         // TODO: fan in different directions
@@ -4821,7 +4935,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_CUT_COPPER_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -4829,6 +4942,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CARPET:
         addBlock = 1;
         if (dataVal == 0) {
+            // add new style diagonally SE of original
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
+        }
+        break;
+
+    case BLOCK_CUT_COPPER_SLAB:
+        addBlock = 1;
+        if (dataVal < 4) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
@@ -5093,28 +5216,32 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // dropper facing
             switch (dataVal & 0x7)
             {
-            case 1:
-                // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 2:
+            case 0:
                 // put block to south
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
-            case 3:
-                // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 4:
-                // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 5:
+            case 1:
                 // put block to west
                 block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
+            case 2:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 4:
+                break;
+            case 5:
+                // put block above
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            default:
+                break;
             }
-            finalDataVal = (dataVal & 0x7) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
+            finalDataVal = (1 << (dataVal & 0x7)) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
         }
         break;
     case BLOCK_WALL_BANNER:
@@ -5642,17 +5769,21 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // alternate between wall and mossy wall
             block->data[bi] |= (unsigned char)(dataVal % 2);
         }
-        if (dataVal > 0 && dataVal < 14) {
-            // add neighbor of different material, to see it
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        // add neighbor of different material, to see it
+        neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)dataVal;
+        neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)dataVal;
+        neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)dataVal;
+        if (dataVal < 5) {
+            // 16 through 20, just a post
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)dataVal;
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)dataVal;
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)dataVal;
+            block->data[neighborIndex] = (unsigned char)dataVal | BIT_16;
         }
         break;
     case BLOCK_REDSTONE_WIRE:

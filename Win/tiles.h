@@ -71,7 +71,7 @@ static struct {
     int flags;
 
     // Mineways uses a few special tiles for input, and for output. Tiles starting "MW_" are ones that are not (easily) found in Minecraft
-    // in the block textures and so are ones cobbled together to provide the effect: barrier, bed parts, end portal effect, shulker box side and bottom.
+    // in the block textures and so are ones cobbled together to provide the effect: bed parts, end portal effect, shulker box side and bottom.
     // Tiles starting "MWO_" are not required as inputs (though could be, if needed), but are output. These are chests and redstone wire,
     // at this point, which the TileMaker normally reads specially from the chests directory and writes to these locations, or Mineways
     // creates on the fly internally.
@@ -469,8 +469,8 @@ static struct {
     {  5, 24,   6, 0, L"beetroots_stage1", L"beetroots_stage_1", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  6, 24,   6, 0, L"beetroots_stage2", L"beetroots_stage_2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 24, 207, 0, L"beetroots_stage3", L"beetroots_stage_3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 24, 208, 0, L"grass_path_top", L"", SWATCH_REPEAT_ALL },
-    {  9, 24,   6, 0, L"grass_path_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY },
+    {  8, 24, 208, 0, L"dirt_path_top", L"grass_path_top", SWATCH_REPEAT_ALL }, // note that in 1.16 and earlier this was called grass_path_top. Name and texture changed for some reason
+    {  9, 24,   6, 0, L"dirt_path_side", L"grass_path_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // ditto
     { 10, 24, 137, 0, L"command_block_front", L"", SWATCH_REPEAT_ALL },
     { 11, 24,   6, 0, L"command_block_back", L"", SWATCH_REPEAT_ALL },  // also "commandBlock", but no room...
     { 12, 24,   6, 0, L"command_block_side", L"", SWATCH_REPEAT_ALL },
@@ -491,7 +491,7 @@ static struct {
     { 11, 25,   6, 0, L"structure_block_data", L"", SWATCH_REPEAT_ALL },
     { 12, 25,   6, 0, L"structure_block_load", L"", SWATCH_REPEAT_ALL },
     { 13, 25,   6, 0, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
-    { 14, 25, 166, 0, L"barrier", L"MW_barrier", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
+    { 14, 25, 166, 0, L"barrier", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
     { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },    // 1.9 - water looks like this through glass.
     {  0, 26, 213, 0, L"magma", L"", SWATCH_REPEAT_ALL },
     {  1, 26, 214, 0, L"nether_wart_block", L"", SWATCH_REPEAT_ALL },
@@ -949,8 +949,8 @@ static struct {
     {  5, 54, 367, 0, L"raw_iron_block", L"", SWATCH_REPEAT_ALL },
     {  6, 54, 367, 0, L"raw_copper_block", L"", SWATCH_REPEAT_ALL },
     {  7, 54, 367, 0, L"raw_gold_block", L"", SWATCH_REPEAT_ALL },
-    {  8, 54, 367, 0, L"dirt_path_top", L"", SWATCH_REPEAT_ALL },
-    {  9, 54, 367, 0, L"dirt_path_side", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    {  8, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  9, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 10, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 11, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 12, 54, 367, 0, L"", L"", SWATCH_REPEAT_ALL },

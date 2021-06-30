@@ -2037,9 +2037,11 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     // test if terrainExt.png file does not exist
     if (rc == PNG_FILE_DOES_NOT_EXIST)
     {
+        // if this fails, it means that the terrainData file has not been recreated at the proper size and put in the code.
+        assert(gTerrainExtHeight == VERTICAL_TILES * 16);
         //FILE DOESN'T EXIST
         // if color RGBA, read memory file, setting all fields
-        if (category == CATEGORY_RGBA) {
+        if ((gTerrainExtHeight == VERTICAL_TILES * 16) && category == CATEGORY_RGBA) {
             pITI->width = gTerrainExtWidth;
             pITI->height = gTerrainExtHeight;
             pITI->image_data.insert(pITI->image_data.end(), &gTerrainExt[0], &gTerrainExt[gTerrainExtWidth * gTerrainExtHeight * 4]);
@@ -4773,6 +4775,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         case 16: // polished_blackstone_brick_wall
             swatchLoc = SWATCH_INDEX(5, 46);
             break;
+        case 17: // Cobbled Deepslate Wall
+            swatchLoc = SWATCH_INDEX(6, 53);
+            break;
+        case 18: // Polished Deepslate Wall
+            swatchLoc = SWATCH_INDEX(8, 53);
+            break;
+        case 19: // Deepslate Brick Wall
+            swatchLoc = SWATCH_INDEX(9, 53);
+            break;
+        case 20: // Deepslate Tile Wall
+            swatchLoc = SWATCH_INDEX(10, 53);
+            break;
         }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
@@ -5175,6 +5189,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
     case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
     case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
+    case BLOCK_COBBLED_DEEPSLATE_STAIRS:
+    case BLOCK_POLISHED_DEEPSLATE_STAIRS:
+    case BLOCK_DEEPSLATE_BRICKS_STAIRS:
+    case BLOCK_DEEPSLATE_TILES_STAIRS:
 
         // set texture
         switch (type)
@@ -5616,7 +5634,28 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
 
         case BLOCK_CUT_COPPER_SLAB:
-            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
+            if (dataVal & BIT_16) {
+                switch (dataVal & 0x17) {
+                default:
+                    assert(0);
+                case BIT_16 | 0: // Cobbled Deepslate Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(6, 53);
+                    break;
+                case BIT_16 | 1: // Polished Deepslate Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 53);
+                    break;
+                case BIT_16 | 2: // Deepslate Brick Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(9, 53);
+                    break;
+                case BIT_16 | 3: // Deepslate Tile Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(10, 53);
+                    break;
+                }
+            }
+            else {
+                // as luck would have it, the first 8 are next to each other
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
+            }
             break;
 
         }
@@ -6344,7 +6383,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 15, 0, 16);
         break; // saveBillboardOrGeometry
 
-    case BLOCK_GRASS_PATH:						// saveBillboardOrGeometry
+    case BLOCK_DIRT_PATH:						// saveBillboardOrGeometry
         topSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX + 1, gBlockDefinitions[type].txrY);
         bottomSwatchLoc = SWATCH_INDEX(2, 0);  // dirt
@@ -6608,11 +6647,29 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
 
-        if (dataVal > 0 && dataVal < 4)
-        {
+        // is there anything in the cauldron? Level 0 means empty
+        if ((dataVal & 0x3) || (dataVal& 0x4)) {
             // water level
-            saveBoxGeometry(boxIndex, BLOCK_STATIONARY_WATER, 0 /* water data value is always 0 */, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT,
-                2, 14, 6 + (float)dataVal * 3, 6 + (float)dataVal * 3, 2, 14);
+            waterHeight = (float)(6 + (dataVal & 0x3) * 3);
+            switch (dataVal & 0xc) {
+            default:
+                assert(0);
+            case 0: // water
+                i = BLOCK_STATIONARY_WATER;
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[i].txrX, gBlockDefinitions[i].txrY);
+                break;
+            case 0x4: // lava
+                waterHeight = 15;   // lava is always full
+                i = BLOCK_STATIONARY_LAVA;
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[i].txrX, gBlockDefinitions[i].txrY);
+                break;
+            case 0x8: // powdered snow - data value 25, as shown below
+                i = BLOCK_AMETHYST;
+                swatchLoc = SWATCH_INDEX(13, 52);
+                break;
+            }
+            saveBoxTileGeometry(boxIndex, i, (dataVal & 0x8) ? 25 : 0, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT,
+                2, 14, waterHeight, waterHeight, 2, 14);
         }
 
         break; // saveBillboardOrGeometry
@@ -9014,7 +9071,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         // inside bottom
         if (heightVal == 0) {
-            // show clean inside bottom if cauldron is empty
+            // show clean inside bottom if composter is empty
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 2, swatchLoc + 2, swatchLoc + 2, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
                 2, 14, 3, 6, 2, 14);
         }
@@ -10573,12 +10630,13 @@ static void saveBlockGeometry(int boxIndex, int type, int dataVal, int markFirst
 
 static void saveBoxGeometry(int boxIndex, int type, int dataVal, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
+    // note how dataVal is NOT used to get the swatchLoc - use saveBoxTileGeometry for that 
     int swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 
     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
 }
 
-// With this one we specify the swatch location explicitly, vs. get it from the type - e.g., cobblestone vs. moss stone for cobblestone walls
+// With this one we specify the swatch location explicitly, vs. get it from (only) the type - e.g., cobblestone vs. moss stone for cobblestone walls
 static void saveBoxTileGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int markFirstFace, int faceMask, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, markFirstFace, faceMask, 0, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
@@ -11288,6 +11346,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
             case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
             case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
+            case BLOCK_COBBLED_DEEPSLATE_STAIRS:
+            case BLOCK_POLISHED_DEEPSLATE_STAIRS:
+            case BLOCK_DEEPSLATE_BRICKS_STAIRS:
+            case BLOCK_DEEPSLATE_TILES_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -15959,6 +16021,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_WAXED_EXPOSED_CUT_COPPER_STAIRS:
         case BLOCK_WAXED_WEATHERED_CUT_COPPER_STAIRS:
         case BLOCK_WAXED_OXIDIZED_CUT_COPPER_STAIRS:
+        case BLOCK_COBBLED_DEEPSLATE_STAIRS:
+        case BLOCK_POLISHED_DEEPSLATE_STAIRS:
+        case BLOCK_DEEPSLATE_BRICKS_STAIRS:
+        case BLOCK_DEEPSLATE_TILES_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -19375,6 +19441,18 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 16: // polished_blackstone_brick_wall
                 swatchLoc = SWATCH_INDEX(5, 46);
                 break;
+            case 17: // Cobbled Deepslate Wall
+                swatchLoc = SWATCH_INDEX(6, 53);
+                break;
+            case 18: // Polished Deepslate Wall
+                swatchLoc = SWATCH_INDEX(8, 53);
+                break;
+            case 19: // Deepslate Brick Wall
+                swatchLoc = SWATCH_INDEX(9, 53);
+                break;
+            case 20: // Deepslate Tile Wall
+                swatchLoc = SWATCH_INDEX(10, 53);
+                break;
             }
             break;
         case BLOCK_CARPET:						// getSwatch
@@ -19570,7 +19648,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
-        case BLOCK_GRASS_PATH:						// getSwatch
+        case BLOCK_DIRT_PATH:						// getSwatch
             // normal block
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 24, 2, 0);
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
@@ -19739,7 +19817,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
                 break;
             }
-            switch (dataVal & 0x3) {
+            switch (dataVal & 0x13) {
+            default:
+                assert(0);
             case 0:
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
                     gBlockDefinitions[BLOCK_BONE_BLOCK].txrX - 1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
@@ -19750,6 +19830,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // polished_basalt
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 10, 42, 9, 42);
+                break;
+            case 3: // deepslate
+            case BIT_16: // deepslate
+                SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 53, 4, 53);
                 break;
             }
             // probably not quite right, but better than not doing this; at least all the sides, regardless of direction,
@@ -19913,7 +19997,28 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_CUT_COPPER_DOUBLE_SLAB:					// getSwatch
         case BLOCK_CUT_COPPER_SLAB:						// getSwatch
-            swatchLoc += (dataVal & 0x3);
+            if (dataVal & BIT_16) {
+                switch (dataVal & 0x17) {
+                default:
+                    assert(0);
+                case BIT_16 | 0: // Cobbled Deepslate Slab
+                    swatchLoc = SWATCH_INDEX(6, 53);
+                    break;
+                case BIT_16 | 1: // Polished Deepslate Slab
+                    swatchLoc = SWATCH_INDEX(8, 53);
+                    break;
+                case BIT_16 | 2: // Deepslate Brick Slab
+                    swatchLoc = SWATCH_INDEX(9, 53);
+                    break;
+                case BIT_16 | 3: // Deepslate Tile Slab
+                    swatchLoc = SWATCH_INDEX(10, 53);
+                    break;
+                }
+            }
+            else {
+                // as luck would have it, the first 8 are next to each other
+                swatchLoc += (dataVal & 0x3);
+            }
             break;
 
         case BLOCK_COMPOSTER:						// getSwatch
@@ -20994,14 +21099,26 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     // Anyway, for "split by block type", we get different emission levels, else the same.
     case BLOCK_LIT_CANDLE:
     case BLOCK_LIT_COLORED_CANDLE:
-        // upper 2 bits is number of candles
-        emission = (float)((((dataVal & 0x30)>>4) + 1 ) * 3);
+        if (splitByBlockType) {
+            // upper 2 bits is number of candles
+            emission = (float)((((dataVal & 0x30) >> 4) + 1) * 3);
+        }
+        else {
+            emission = 12.0f; // assume 4 candles, I guess?
+        }
         break;
     case BLOCK_CAVE_VINES_LIT:
         emission = 14.0f;
         break;
     case BLOCK_GLOW_LICHEN:
         emission = 7.0f;
+        break;
+    case BLOCK_CAULDRON:
+        emission = 0.0f;    // empty, water, or snow
+        if (splitByBlockType && (dataVal & 0x4)) {
+            // lava
+            emission = 15.0f;
+        }
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
@@ -22367,14 +22484,14 @@ static int createBaseMaterialTexture()
         // fix grass path block
         if (gModel.print3D && !gExportBillboards)
         {
-            // exporting whole block - stretch to top TODOTODO - still needed? dirt path now uses a texture
-            stretchSwatchToTop(mainprog, SWATCH_INDEX(gBlockDefinitions[BLOCK_GRASS_PATH].txrX + 1, gBlockDefinitions[BLOCK_GRASS_PATH].txrY),
+            // exporting whole block - stretch to top
+            stretchSwatchToTop(mainprog, SWATCH_INDEX(gBlockDefinitions[BLOCK_DIRT_PATH].txrX + 1, gBlockDefinitions[BLOCK_DIRT_PATH].txrY),
                 (float)(gModel.swatchSize * (1.0 / 16.0) + (float)SWATCH_BORDER) / (float)gModel.swatchSize);
         }
         else
         {
             // copy the next-to-top row to top, to avoid black bleed.
-            SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_GRASS_PATH].txrX + 1, gBlockDefinitions[BLOCK_GRASS_PATH].txrY), dstCol, dstRow);
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_DIRT_PATH].txrX + 1, gBlockDefinitions[BLOCK_DIRT_PATH].txrY), dstCol, dstRow);
             copyPNGArea(mainprog,
                 gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy to top
                 gModel.swatchSize * dstRow + SWATCH_BORDER,

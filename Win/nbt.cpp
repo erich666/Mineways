@@ -313,7 +313,7 @@ static int worldVersion = 0;
 // up: false|true
 // waterlogged
 // which adds up to 9 bits, which is too many
-#define WALL_PROP           NO_PROP
+#define WALL_PROP           TRULY_NO_PROP
 // axis: 1 EW, 2 NS
 #define NETHER_PORTAL_AXIS_PROP	52
 // pumpkin and melon stems
@@ -704,7 +704,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 205,           0, "purpur_slab", SLAB_PROP },	// allegedly data value is 1
     { 0, 206,           0, "end_stone_bricks", NO_PROP },
     { 0, 207,           0, "beetroots", AGE_PROP },
-    { 0, 208,           0, "grass_path", NO_PROP },
+    { 0, 208,           0, "grass_path", NO_PROP }, // note that in 1.17 this is renamed to dirt_path, and that's the name we'll use; left here for backward compatibility
     { 0, 213,           0, "magma_block", NO_PROP },
     { 0, 214,           0, "nether_wart_block", NO_PROP },
     { 0, 215,           0, "red_nether_bricks", NO_PROP },
@@ -1242,16 +1242,16 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 157,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             18, "polished_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 29, "deepslate_bricks", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 2, "deepslate_bricks_slab", SLAB_PROP },
-    { 0, 158,	    HIGH_BIT, "deepslate_bricks_stairs", STAIRS_PROP },
-    { 0, 139,             19, "deepslate_bricks_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 142,	HIGH_BIT | BIT_16 | 2, "deepslate_brick_slab", SLAB_PROP },
+    { 0, 158,	    HIGH_BIT, "deepslate_brick_stairs", STAIRS_PROP },
+    { 0, 139,             19, "deepslate_brick_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 30, "deepslate_tiles", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 3, "deepslate_tiles_slab", SLAB_PROP },
-    { 0, 159,	    HIGH_BIT, "deepslate_tiles_stairs", STAIRS_PROP },
-    { 0, 139,             20, "deepslate_tiles_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0, 142,	HIGH_BIT | BIT_16 | 3, "deepslate_tile_slab", SLAB_PROP },
+    { 0, 159,	    HIGH_BIT, "deepslate_tile_stairs", STAIRS_PROP },
+    { 0, 139,             20, "deepslate_tile_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0, 132,  HIGH_BIT | 31, "cracked_deepslate_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 32, "crackeinfeepslate_tiles", NO_PROP },
-    { 0, 216,     BIT_16 | 3, "infested_deepslate", AXIS_PROP }, // with bone block, basalt, etc. - note value is same as deepslate + BIT_16
+    { 0, 132,  HIGH_BIT | 32, "cracked_deepslate_tiles", NO_PROP },
+    { 0, 216,     BIT_16 | 0, "infested_deepslate", AXIS_PROP }, // with bone block, basalt, etc. - continues deepslate
     { 0, 132,  HIGH_BIT | 33, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
     { 0, 132,  HIGH_BIT | 34, "raw_iron_block", NO_PROP },
     { 0, 132,  HIGH_BIT | 35, "raw_copper_block", NO_PROP },
@@ -1260,7 +1260,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 37, "deepslate_coal_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 38, "deepslate_iron_ore", NO_PROP },  // copper done way earlier, so be it...
     { 0, 132,  HIGH_BIT | 39, "deepslate_gold_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 30, "deepslate_redstone_ore", NO_PROP },
+    { 0, 132,  HIGH_BIT | 40, "deepslate_redstone_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 41, "deepslate_emerald_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 42, "deepslate_lapis_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
@@ -2127,6 +2127,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 #ifdef _DEBUG
                                     // Make it bedrock, so we see it's not translated
                                     paletteBlockEntry[entry_index] = 7;
+                                    assert(0);
 #else
                                     // For release, make it air, so it doesn't gunk up the export
                                     paletteBlockEntry[entry_index] = 0;
@@ -2740,6 +2741,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             break;
 
                         case TRULY_NO_PROP:
+                            // well, it can have waterlogged, further down
                             dataVal = 0x0;
                             break;
 
