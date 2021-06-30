@@ -3399,6 +3399,8 @@ static void computeRedstoneConnectivity(int boxIndex)
     // -X and -Z on this level (by these same tests below) and the 4 "wires down a level"
     // possibilities (by these same tests above).
     // Test *all* things that redstone connects to. This could become a table, for speed.
+    // What this means: given a block, it will have BLF_CONNECTS_REDSTONE for it if, when you put the block
+    // down and put redstone dust next to it, the dust forms a single straight line into the block, instead of a cross.
     if ((gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].origType].flags & BLF_CONNECTS_REDSTONE) ||
         // repeaters attach only at their ends, so test the direction they're at
         (gBoxData[boxIndex + gBoxSizeYZ].origType == BLOCK_REDSTONE_REPEATER_OFF && (gBoxData[boxIndex + gBoxSizeYZ].data & 0x1)) ||
@@ -9724,7 +9726,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_BIG_DRIPLEAF:
+    case BLOCK_BIG_DRIPLEAF:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         // save stem always
         gUsingTransform = 1;
@@ -9796,7 +9798,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 0;
         break;
 
-    case BLOCK_SMALL_DRIPLEAF:
+    case BLOCK_SMALL_DRIPLEAF:						// saveBillboardOrGeometry
         {
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
             // save stem always
@@ -9832,7 +9834,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     littleTotalVertexCount = gModel.vertexCount;
                     // leaf itself on top
                     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 16, 16, 16, 0, 16);
-                    // leaf sides
+                    // leaf sides - note these really do want to be one-sided, as made here, to match MC
                     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 8, 12, 16, 0, 8);
                     saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc + 1, 0x0, 0, 8, 12, 16);
                     littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
@@ -9853,6 +9855,32 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             gUsingTransform = 0;
         }
         break;
+
+    case BLOCK_SCULK_SENSOR:						// saveBillboardOrGeometry
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, 0x0, 0, 0, 16, 0, 8, 0, 16);
+        if (!gModel.print3D) {
+            // active or inactive tendril
+            gUsingTransform = 1;
+            swatchLoc += (dataVal & BIT_16) ? 3 : 4;
+            for (i = 0; i < 4; i++) {
+                littleTotalVertexCount = gModel.vertexCount;
+                // tendril
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                // move in a bit from edge before rotation - turns out to be just right
+                translateMtx(mtx, 0.0f, 0.5f, ONE_PIXEL);
+                rotateMtx(mtx, 0.0f, 45.0f + 90.0f * (float)i, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+            }
+            gUsingTransform = 0;
+        }
+        break;
+
+        // END saveBillboardOrGeometry
 
     default:
         // something tagged as billboard or geometry, but no case here!
@@ -11360,6 +11388,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_COMPOSTER:
                 // fills the block, and if something is above it, it will cover that, too.
                 setTop = 16;
+                break;
+
+            case BLOCK_SCULK_SENSOR:
+                setTop = 8;
                 break;
 
             default:
@@ -20272,6 +20304,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE(faceDirection, 6 + (dataVal & 0x1), 51);
             break;
 
+        case BLOCK_SCULK_SENSOR:
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 53, 1, 53);
+            break;
+
+
+            // END getSwatch
         }
     }
 

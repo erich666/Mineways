@@ -488,6 +488,8 @@ typedef struct Options {
 // set if the block does not affect fluid height. See https://minecraft.gamepedia.com/Waterlogging
 #define BLF_DNE_FLUID		0x200000
 // set if the block connects to redstone - do only if there's no orientation to the block, e.g. repeaters attach only on two sides, so don't have this flag
+// What this means: given a block, it will have BLF_CONNECTS_REDSTONE for it if, when you put the block
+// down and put redstone dust next to it, the dust forms a single straight line into the block, instead of a cross.
 #define BLF_CONNECTS_REDSTONE		0x400000
 // has no geometry, on purpose
 #define BLF_NONE			0x800000

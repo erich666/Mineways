@@ -4287,14 +4287,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES:
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
-        // uses 0-1
+        // uses 0-1 
         if (dataVal < 2)
         {
             addBlock = 1;
         }
         break;
     case BLOCK_FIRE:
-        // uses 0-1
+    case BLOCK_SCULK_SENSOR:
+        // uses 0-1, with 1 meaning bit 16
         if (dataVal < 2)
         {
             addBlock = 1;

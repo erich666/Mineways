@@ -2677,13 +2677,14 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                                         }
                                         else if (strcmp(token, "sculk_sensor_phase") == 0) {
                                             if (strcmp(value, "cooldown") == 0) {
-                                                dataVal |= 0;
+                                                //dataVal |= 0;
                                             }
                                             else if (strcmp(value, "active") == 0) {
                                                 dataVal |= BIT_16;
                                             }
                                             else if (strcmp(value, "inactive") == 0) {
-                                                dataVal |= BIT_32;
+                                                // inactive and cooldown are basically the same
+                                                //dataVal |= 0;
                                             }
                                             else {
                                                 // unknown state found
