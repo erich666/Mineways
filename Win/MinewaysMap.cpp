@@ -6488,7 +6488,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     else {
         // it's a real world or schematic or no world is loaded
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
-            // absolute insanely high maximum, just in case
+            // absolute insanely high maximum, just in case - 384 is fine here, just to be safe, since it's temporary storage
             BlockEntity blockEntities[16 * 16 * 384];
 
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight);

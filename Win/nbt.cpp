@@ -1800,7 +1800,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     // note if Y value needs to be adjusted by +4
     signed char y_offset = (versionID >= 2685) ? 4 : 0;
     // 1.17 has a height of 384
-    //int max_height = (versionID >= 2685) ? 384 : 256;
+    //int max_height = MAX_HEIGHT(versionID); - would need to expose MAX_HEIGHT here for this to work
     //int maxSlice = (maxHeight / 16) - 1;
 
     len = readDword(pbf); //array length

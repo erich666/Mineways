@@ -2992,7 +2992,7 @@ static int loadSchematic(wchar_t* pathAndFile)
 static void setHeightsFromVersionID()
 {
     if (gVersionID >= 2685) {
-        // this version of 1.17 beta went to a height of 384;
+        // this version of 1.17 beta went to a height of 384; also see MAX_HEIGHT() macro. Here we are offsetting to ground level properly
         gMaxHeight = 255 + 64;
         gMinHeight = -64;
     }
