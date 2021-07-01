@@ -2444,6 +2444,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
                 // fold in the high bit to get the type
                 // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
                 // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
+                assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 if (gIs13orNewer && (block->data[chunkIndex] & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
                     // high bit set, so blockID >= 256
                     blockID = block->grid[chunkIndex] | 0x100;
@@ -2528,10 +2529,21 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
 
     int useBiomes = (gModel.options->exportFlags & EXPT_BIOME);
 
+    int miny = edgeWorldBox->min[Y];
+    if (miny > block->maxFilledHeight) {
+        // done! The box doesn't overlap this chunk
+        return;
+    }
+    int maxy = edgeWorldBox->max[Y];
+    if (maxy > block->maxFilledHeight) {
+        // don't search empty (and possibly unallocated) space
+        maxy = block->maxFilledHeight;
+    }
+
     for (x = loopXmin; x <= loopXmax; x++) {
         for (z = loopZmin; z <= loopZmax; z++) {
-            boxIndex = WORLD_TO_BOX_INDEX(x, edgeWorldBox->min[Y], z);
-            chunkIndex = CHUNK_INDEX(bx, bz, x, edgeWorldBox->min[Y], z);
+            boxIndex = WORLD_TO_BOX_INDEX(x, miny, z);
+            chunkIndex = CHUNK_INDEX(bx, bz, x, miny, z);
             if (useBiomes)
             {
                 // X and Z location index is stored in the low-order bits; mask off Y location
@@ -2539,8 +2551,9 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 gBiome[biomeIdx] = block->biome[chunkIndex & 0xff];
             }
 
-            for (y = edgeWorldBox->min[Y]; y <= edgeWorldBox->max[Y]; y++, boxIndex++) {
+            for (y = miny; y <= maxy; y++, boxIndex++) {
                 // Get the extra values (orientation, type) for the blocks
+                assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 unsigned char dataVal = block->data[chunkIndex];
                 // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
                 // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
@@ -2632,7 +2645,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                     else if ((blockID == BLOCK_DOUBLE_FLOWER) && (gBoxData[boxIndex].data & 0x8)) {
                         // The top part of the flower doesn't always have the lower bits that identifies it. Copy these over from the block below, if available.
                         // This could screw up schematic export. TODO
-                        if (y > edgeWorldBox->min[Y]) {
+                        if (y > miny) {
                             gBoxData[boxIndex].data = 0x8 | gBoxData[boxIndex - 1].data;
                         }
                     }
@@ -29511,13 +29524,15 @@ int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int mi
     return (minHeightFound == mapMaxHeight + 1) ? 0 : minHeightFound;
 }
 
-// find first (optional: non-transparent) block visible from above
+// find first (optional: non-transparent) block visible from above.
+// Returns mapMaxHeight + 1 if nothing was found
 static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID)
 {
     // super-icky coding - this method gets called before SaveVolume, and CHUNK_INDEX quietly uses gMinHeight in it,
     // so we have to set this global here.
     gMinHeight = mapMinHeight;
     gMaxHeight = mapMaxHeight;
+    // the height we return, the lowest height found in the chunk
     int minHeight = mapMaxHeight + 1;
     // we do not need to convert into grid block space 0 to 383 - CHUNK_INDEX does this for us
     //miny -= mapMinHeight;
@@ -29573,13 +29588,24 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
     // draw() method, though probably needs to be. That's touchy code, though, so I won't mess with it now.
     bool showobscured = !seenempty && (pOptions->worldType & HIDEOBSCURED);
 
+    if (miny > block->maxFilledHeight) {
+        // done! The box doesn't overlap this chunk, so return the height+1 (a tipoff that nothing was hit)
+        return minHeight;
+    }
+    int gridmaxy = maxy;
+    if (gridmaxy > block->maxFilledHeight) {
+        // don't search empty (and possibly unallocated) space
+        gridmaxy = block->maxFilledHeight;
+    }
+
     for (x = loopXmin; x <= loopXmax; x++) {
         for (z = loopZmin; z <= loopZmax; z++) {
-            chunkIndex = CHUNK_INDEX(bx, bz, x, maxy, z);
-            int adj_maxy = maxy;
+            chunkIndex = CHUNK_INDEX(bx, bz, x, gridmaxy, z);
+            int adj_maxy = gridmaxy;
             if (showobscured) {
                 // ignore solid voxels, continue from the first "hollow" empty area
                 for (; adj_maxy >= miny; adj_maxy--) {
+                    assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                     int type = block->grid[chunkIndex];
 
                     // always ignore air; if we ignore transparent, then anything with alpha < 1.0 is ignored, else alpha == 0.0 only is ignored
@@ -29590,6 +29616,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
                 }
             }
             for (y = adj_maxy; y >= miny; y--) {
+                assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 int type = block->grid[chunkIndex];
 
                 // always ignore air; if we ignore transparent, then anything with alpha < 1.0 is ignored, else alpha == 0.0 only is ignored
