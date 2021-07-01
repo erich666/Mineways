@@ -2425,13 +2425,23 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
     loopXmax = min(worldBox->max[X], chunkX + 15);
     loopZmax = min(worldBox->max[Z], chunkZ + 15);
 
+    int miny = worldBox->min[Y];
+    if (miny > block->maxFilledHeight) {
+        // done! The box doesn't overlap this chunk
+        return;
+    }
+    int maxy = worldBox->max[Y];
+    if (maxy > block->maxFilledHeight) {
+        // don't search empty (and possibly unallocated) space
+        maxy = block->maxFilledHeight;
+    }
+
     for (x = loopXmin; x <= loopXmax; x++) {
         for (z = loopZmin; z <= loopZmax; z++) {
-            boxIndex = WORLD_TO_BOX_INDEX(x, worldBox->min[Y], z);
-            chunkIndex = CHUNK_INDEX(bx, bz, x, worldBox->min[Y], z);
-            for (y = worldBox->min[Y]; y <= worldBox->max[Y]; y++, boxIndex++) {
+            boxIndex = WORLD_TO_BOX_INDEX(x, miny, z);
+            chunkIndex = CHUNK_INDEX(bx, bz, x, miny, z);
+            for (y = miny; y <= maxy; y++, boxIndex++) {
                 // fold in the high bit to get the type
-
                 // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
                 // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
                 if (gIs13orNewer && (block->data[chunkIndex] & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
