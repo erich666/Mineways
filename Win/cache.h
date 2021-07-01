@@ -39,11 +39,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct WorldBlock {
     int maxHeight;
-    unsigned char grid[16 * 16 * 384];  // blockid array [y+(z+x*16)*256]
+    unsigned char *grid;  // blockid array [y+(z+x*16)*256] -> [16 * 16 * 384]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char data[16 * 16 * 384];  // half-byte additional data about each block, i.e., subtype such as log type, etc.
-    unsigned char light[16 * 16 * 384/2]; // half-byte lighting data
+    unsigned char *data;  // half-byte additional data about each block, i.e., subtype such as log type, etc. -> [16 * 16 * 384]
+    unsigned char *light; // half-byte lighting data -> [16 * 16 * 384/2]
 
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render
     short heightmap[16 * 16]; // height of rendered block [x+z*16]
@@ -81,5 +81,5 @@ void Cache_Empty();
 * prevents expensive reallocations.
 */
 
-WorldBlock* block_alloc();           // allocate memory for a block
+WorldBlock* block_alloc( int height );           // allocate memory for a block
 void block_free(WorldBlock* block); // release memory for a block

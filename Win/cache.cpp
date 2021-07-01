@@ -180,57 +180,39 @@ void Cache_Empty()
     gCacheHistory = NULL;
 }
 
-/* a simple malloc wrapper, based on the observation that a common
-** behavior pattern for Mineways when the cache is at max capacity
-** is something like:
-**
-** newBlock = malloc(sizeof(Block));
-** cacheAdd(newBlock)
-**  free(oldBlock) // same size
-**
-** Repeatedly. Recycling the old block can prevent the need for
-** malloc and free.
-**/
-
-static WorldBlock* last_block = NULL;
-
-WorldBlock* block_alloc()
+WorldBlock* block_alloc(int height)
 {
     WorldBlock* ret = NULL;
-    if (last_block != NULL)
-    {
-        ret = last_block;
-        if (ret->entities != NULL) {
-            free(ret->entities);
-            ret->entities = NULL;
-            ret->numEntities = 0;
-        }
-        last_block = NULL;
-        return ret;
-    }
-    else {
-        ret = (WorldBlock*)malloc(sizeof(WorldBlock));
-        if (ret == NULL)
-            return NULL;
-        ret->entities = NULL;
-        ret->numEntities = 0;
-        ret->maxHeight = 256;    // for 1.17+ it is 384 - change by checking versionID
-        return ret;
-    }
+    ret = (WorldBlock*)malloc(sizeof(WorldBlock));
+    if (ret == NULL)
+        return NULL;
+    ret->grid = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
+    if (ret->grid == NULL)
+        return NULL;
+    ret->data = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
+    if (ret->data == NULL)
+        return NULL;
+    ret->light = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char) / 2);
+    if (ret->light == NULL)
+        return NULL;
+    ret->entities = NULL;
+    ret->numEntities = 0;
+    ret->maxHeight = height;    // for 1.17+ it is 384 - change by checking versionID
+    return ret;
 }
 
 void block_free(WorldBlock* block)
 {
-    // keep latest freed block available in "last_block", so free the one already there
-    if (last_block != NULL)
-    {
-        if (last_block->entities != NULL) {
-            free(last_block->entities);
-            last_block->entities = NULL;
-            last_block->numEntities = 0;
-        }
-        free(last_block);
+    if (block->entities != NULL) {
+        free(block->entities);
+        block->entities = NULL;
+        block->numEntities = 0;
     }
-
-    last_block = block;
+    if (block->grid != NULL)
+        free(block->grid);
+    if (block->data != NULL)
+        free(block->data);
+    if (block->light != NULL)
+        free(block->light);
+    free(block);
 }

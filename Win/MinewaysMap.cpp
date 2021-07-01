@@ -6355,13 +6355,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
         return NULL;
 
-    WorldBlock* block = block_alloc();
+    WorldBlock* block = block_alloc(MAX_HEIGHT(versionID));
 
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
     {
         Cache_Empty();
-        block = block_alloc();
+        block = block_alloc(MAX_HEIGHT(versionID));
         if (block == NULL) {
             // oh well, out of luck
             return NULL;
@@ -6372,7 +6372,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     block->mcVersion = mcVersion;
     block->versionID = versionID;
     // this version of 1.17 beta went to a height of 384;
-    block->maxHeight = (versionID >= 2685) ? 384 : 256;
+    // now is set above in block_alloc(): block->maxHeight = (versionID >= 2685) ? 384 : 256;
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
     {
