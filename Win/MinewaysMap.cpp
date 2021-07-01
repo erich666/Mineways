@@ -6543,9 +6543,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 determineMaxFilledHeight(block);
 
                 // look for unknown blocks and recover
-                unsigned char* pBlockID = block->grid + 16 * 16 * block->maxFilledSectionHeight - 1;
-                for (i = 16 * 16 * block->maxFilledHeight - 1; i >= 0; i--, pBlockID--)
+                unsigned char* pBlockID = block->grid;
+                for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
                 {
+                    assert((i >> 8) <= block->maxFilledHeight);
                     if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
                     {
                         // some new version of Minecraft, block ID is unrecognized;
@@ -6576,10 +6577,10 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
     if (block->maxFilledSectionHeight <= -1) {
         // the maxFilledSectionHeight should have been set before calling this method!
         assert(0);
-        block->maxFilledSectionHeight = block->maxHeight;
+        block->maxFilledSectionHeight = block->maxHeight - 1;
     }
-    unsigned char* pBlockID = block->grid + 16 * 16 * block->maxFilledSectionHeight - 1;
-    for (i = 16 * 16 * block->maxFilledSectionHeight - 1; i >= 0 && searchMaxHeight; i--, pBlockID--)
+    unsigned char* pBlockID = block->grid + 16 * 16 * (block->maxFilledSectionHeight+1) - 1;
+    for (i = 16 * 16 * (block->maxFilledSectionHeight + 1) - 1; i >= 0 && searchMaxHeight; i--, pBlockID--)
     {
         // find first filled block
         if (*pBlockID) {
@@ -6613,7 +6614,7 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
     memset(block->grid, 0, 16 * 16 * block->maxHeight);
     memset(block->data, 0, 16 * 16 * block->maxHeight);
 
-    block->maxFilledSectionHeight = block->maxFilledHeight = pWorldGuide->sch.height;
+    block->maxFilledSectionHeight = block->maxFilledHeight = pWorldGuide->sch.height - 1;
 
     // not sure why I made this a static int, but let's leave it be, shall we?
     static int border = 1;      // cppcheck-suppress 398
