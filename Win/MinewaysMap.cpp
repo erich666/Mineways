@@ -38,8 +38,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, int mapMaxY, Options* pOpts,
     ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode);
-static void blit(unsigned char* block, unsigned char* bits, int px, int py,
-    double zoom, int w, int h);
+static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
+static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 
@@ -4023,6 +4023,13 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         block->rendermissing = 1; //note improperly rendered block to west
         prevblock = NULL; //block was rendered at a different y level, ignore
     }
+
+    // what height can we (must we, if we reduce the grid storage) start at?
+    int clippedMaxHeight = maxHeight;
+    assert(block->maxFilledHeight > -1);
+    if (block->maxFilledHeight < clippedMaxHeight && block->maxFilledHeight > -1) {
+        clippedMaxHeight = block->maxFilledHeight;
+    }
     // z increases south, decreases north
     for (z = 0; z < 16; z++)
     {
@@ -4040,7 +4047,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             saveHeight = -1; // the "not found" value.
             bool hitGrid = false;
 
-            voxel = ((maxHeight * 16 + z) * 16 + x);
+            voxel = ((clippedMaxHeight * 16 + z) * 16 + x);
             r = gEmptyR;
             g = gEmptyG;
             b = gEmptyB;
@@ -4048,11 +4055,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             // The idea here is that if you're delving into cave areas, "hide obscured" will treat all
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
             // the next solid block is then shown. If it's solid all the way down, the block will be
-            // drawn as "empty"
+            // drawn as "empty". Note we truly want to test maxHeight here, not clippedMaxHeight.
             seenempty = (maxHeight == mapMaxY ? 1 : 0);
             alpha = 0.0;
             // go from top down through all voxels, looking for the first one visible.
-            for (i = maxHeight; i >= 0; i--, voxel -= 16 * 16)
+            for (i = clippedMaxHeight; i >= 0; i--, voxel -= 16 * 16)
             {
                 type = retrieveType(block, voxel);
                 // if block is air or something very small, or water when transparent water is flagged, note it's empty and continue to next voxel
@@ -6385,6 +6392,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         int grassHeight = 64;
         int blockHeight = 65;
 
+        // really, we should not need to go higher than this, 14 blocks above the surface; if we do, just kick this up
+        // - higher is just more inefficient
+        block->maxFilledSectionHeight = blockHeight + 15;
+
         memset(block->grid, 0, 16 * 16 * block->maxHeight);
         memset(block->data, 0, 16 * 16 * block->maxHeight);
         memset(block->biome, 1, 16 * 16);
@@ -6414,7 +6425,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 testBlock(block, type + 1, blockHeight, cz * 2);
                 testBlock(block, type + 1, blockHeight, cz * 2 + 1);
             }
-            return block;
+            return determineMaxFilledHeight(block);
         }
         // tick marks
         else if (type >= 0 && type < NUM_BLOCKS_DEFINED && (cz == -1 || cz == 8))
@@ -6442,7 +6453,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                     }
                 }
             }
-            return block;
+            return determineMaxFilledHeight(block);
         }
         // numbers (yes, I'm insane)
         else if (type >= 0 && type < NUM_BLOCKS_DEFINED && (cz <= -2 && cz >= -3))
@@ -6477,7 +6488,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 testNumeral(block, type + 1, blockHeight, -cz * 2 - 3, letterType);
                 testNumeral(block, type + 1, blockHeight, -cz * 2 - 1 - 3, letterType);
             }
-            return block;
+            return determineMaxFilledHeight(block);
         }
         else
         {
@@ -6491,7 +6502,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // absolute insanely high maximum, just in case - 384 is fine here, just to be safe, since it's temporary storage
             BlockEntity blockEntities[16 * 16 * 384];
 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings
             if (retCode >= 0) {
@@ -6525,8 +6536,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // does block have anything in it other than air?
             if (block->blockType == 1) {
                 int i;
-                unsigned char* pBlockID = block->grid;
-                for (i = 0; i < 16 * 16 * block->maxHeight; i++, pBlockID++)
+                determineMaxFilledHeight(block);
+
+                // look for unknown blocks and recover
+                unsigned char* pBlockID = block->grid + 16 * 16 * block->maxFilledSectionHeight - 1;
+                for (i = 16 * 16 * block->maxFilledHeight - 1; i >= 0; i--, pBlockID--)
                 {
                     if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
                     {
@@ -6549,6 +6563,29 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
     block_free(block);
     return NULL;
+}
+
+static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
+{
+    int i;
+    bool searchMaxHeight = true;
+    if (block->maxFilledSectionHeight <= -1) {
+        // the maxFilledSectionHeight should have been set before calling this method!
+        assert(0);
+        block->maxFilledSectionHeight = block->maxHeight;
+    }
+    unsigned char* pBlockID = block->grid + 16 * 16 * block->maxFilledSectionHeight - 1;
+    for (i = 16 * 16 * block->maxFilledSectionHeight - 1; i >= 0 && searchMaxHeight; i--, pBlockID--)
+    {
+        // find first filled block
+        if (*pBlockID) {
+            block->maxFilledHeight = i >> 8;
+            searchMaxHeight = false;
+        }
+    }
+    // really, this assert should always be true! But if not, let's take corrective action
+    assert(block->maxFilledHeight >= 0);
+    return (block->maxFilledHeight >= 0) ? block : NULL;
 }
 
 // cx and cz are the chunk location - multiply by 16 to get the starting world location

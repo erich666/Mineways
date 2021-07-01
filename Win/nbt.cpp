@@ -1757,11 +1757,12 @@ unsigned char mod16(int val)
 }
 
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion, int versionID, int maxHeight)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion, int versionID, int maxHeight, int & mfsHeight)
 {
     int len, nsections;
     int biome_save;
     int returnCode = 1;	// means "fine"
+    int sectionHeight;
     //int found;
 
     //Level/Blocks
@@ -1965,6 +1966,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     len = readDword(pbf); //array length
                     if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0)
                         return -18;
+                    // and update the maxFilledSectionHeight
+                    sectionHeight = 16 * y + 15;
+                    if (sectionHeight > mfsHeight)
+                        mfsHeight = sectionHeight;
                 }
                 else if (strcmp(thisName, "Data") == 0)
                 {
@@ -3199,6 +3204,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
                 unsigned char* bout = buff + 16 * 16 * 16 * y;
                 unsigned char* dout = data + 16 * 16 * 16 * y;
+                sectionHeight = 16 * y + 15;
+                if (sectionHeight > mfsHeight)
+                    mfsHeight = sectionHeight;
+
                 int bitpull = 0;
                 for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
                     // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.

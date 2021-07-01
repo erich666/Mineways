@@ -198,6 +198,7 @@ WorldBlock* block_alloc(int height)
     ret->entities = NULL;
     ret->numEntities = 0;
     ret->maxHeight = height;    // for 1.17+ it is 384 - change by checking versionID
+    ret->maxFilledSectionHeight = ret->maxFilledHeight = -1;  // not yet determined
     return ret;
 }
 
