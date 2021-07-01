@@ -40,7 +40,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 typedef struct WorldBlock {
     int maxHeight;      // 256 for worlds < 1.17, 384 for 1.17 and beyond
     int maxFilledSectionHeight;    // set to -1 if not yet determined. Gives the height for the first non-zero content found, by 16-height sections. The value could be lower, so use:
-    int maxFilledHeight;    // set to -1 if not yet determined. Gives the height for the first non-zero content found.
+    int maxFilledHeight;    // set to -1 if not yet determined. Gives the height for the first non-zero content found. Lowest value is 0 (not -96 i.e. -gMinHeight for 1.17)
     unsigned char *grid;  // blockid array [y+(z+x*16)*256] -> [16 * 16 * 384]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format

@@ -2426,14 +2426,14 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
     loopZmax = min(worldBox->max[Z], chunkZ + 15);
 
     int miny = worldBox->min[Y];
-    if (miny > block->maxFilledHeight) {
+    if (miny > block->maxFilledHeight + gMinHeight) {
         // done! The box doesn't overlap this chunk
         return;
     }
     int maxy = worldBox->max[Y];
-    if (maxy > block->maxFilledHeight) {
+    if (maxy > block->maxFilledHeight + gMinHeight) {
         // don't search empty (and possibly unallocated) space
-        maxy = block->maxFilledHeight;
+        maxy = block->maxFilledHeight + gMinHeight;
     }
 
     for (x = loopXmin; x <= loopXmax; x++) {
@@ -2530,14 +2530,14 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
     int useBiomes = (gModel.options->exportFlags & EXPT_BIOME);
 
     int miny = edgeWorldBox->min[Y];
-    if (miny > block->maxFilledHeight) {
+    if (miny > block->maxFilledHeight + gMinHeight) {
         // done! The box doesn't overlap this chunk
         return;
     }
     int maxy = edgeWorldBox->max[Y];
-    if (maxy > block->maxFilledHeight) {
+    if (maxy > block->maxFilledHeight + gMinHeight) {
         // don't search empty (and possibly unallocated) space
-        maxy = block->maxFilledHeight;
+        maxy = block->maxFilledHeight + gMinHeight;
     }
 
     for (x = loopXmin; x <= loopXmax; x++) {
@@ -29588,14 +29588,14 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
     // draw() method, though probably needs to be. That's touchy code, though, so I won't mess with it now.
     bool showobscured = !seenempty && (pOptions->worldType & HIDEOBSCURED);
 
-    if (miny > block->maxFilledHeight) {
+    if (miny > block->maxFilledHeight + gMinHeight) {
         // done! The box doesn't overlap this chunk, so return the height+1 (a tipoff that nothing was hit)
         return minHeight;
     }
     int gridmaxy = maxy;
-    if (gridmaxy > block->maxFilledHeight) {
+    if (gridmaxy > block->maxFilledHeight + gMinHeight) {
         // don't search empty (and possibly unallocated) space
-        gridmaxy = block->maxFilledHeight;
+        gridmaxy = block->maxFilledHeight + gMinHeight;
     }
 
     for (x = loopXmin; x <= loopXmax; x++) {

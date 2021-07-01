@@ -537,8 +537,10 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
         return "(off map)";
     }
 
-    *type = block->grid[xoff + zoff * 16 + y * 256];
-    *dataVal = block->data[xoff + zoff * 16 + y * 256];
+    int chunkIndex = xoff + zoff * 16 + y * 256;
+    assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
+    *type = block->grid[chunkIndex];
+    *dataVal = block->data[chunkIndex];
 
     // 1.13+ fun: move topmost dataVal value to type - note that BLOCK_HEAD and BLOCK_FLOWER_POT are "reserved" and the high-bit version is not used
     // Here is where the high data bit gets masked off and moved to the type bit.
@@ -2056,6 +2058,8 @@ void CloseAll()
 
 static unsigned short retrieveType(WorldBlock* block, unsigned int voxel)
 {
+    assert(((int)voxel >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
+
     unsigned short type = block->grid[voxel];
     if (block->mcVersion >= 13) {
         if ((block->data[voxel] & 0x80) && (type != BLOCK_HEAD) && (type != BLOCK_FLOWER_POT)) {
@@ -6394,7 +6398,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
         // really, we should not need to go higher than this, 14 blocks above the surface; if we do, just kick this up
         // - higher is just more inefficient
-        block->maxFilledSectionHeight = blockHeight + 15;
+        block->maxFilledSectionHeight = 15 - ZERO_HEIGHT(versionID);
 
         memset(block->grid, 0, 16 * 16 * block->maxHeight);
         memset(block->data, 0, 16 * 16 * block->maxHeight);
@@ -6608,6 +6612,8 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
     // clear the rest, so we fill these in as found
     memset(block->grid, 0, 16 * 16 * block->maxHeight);
     memset(block->data, 0, 16 * 16 * block->maxHeight);
+
+    block->maxFilledSectionHeight = block->maxFilledHeight = pWorldGuide->sch.height;
 
     // not sure why I made this a static int, but let's leave it be, shall we?
     static int border = 1;      // cppcheck-suppress 398

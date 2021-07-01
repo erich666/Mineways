@@ -3205,6 +3205,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 unsigned char* bout = buff + 16 * 16 * 16 * y;
                 unsigned char* dout = data + 16 * 16 * 16 * y;
                 sectionHeight = 16 * y + 15;
+                // and update the maxFilledSectionHeight
                 if (sectionHeight > mfsHeight)
                     mfsHeight = sectionHeight;
 
