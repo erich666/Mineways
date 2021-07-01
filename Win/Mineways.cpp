@@ -6086,7 +6086,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
             "solid", // "Export solid material colors only (no textures)",
             "richer", // "Export richer color textures",
             "full", // "Export full color texture patterns",
-            "tiles" // "Export tiles for textures"
+            "tiles", // "Export tiles for textures"
             "separate" // "Export separate textures"
         };
         for (i = 0; i < 6; i++)

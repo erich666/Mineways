@@ -1499,6 +1499,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
             { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
             { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
+            // TODO: really, should add all the other cutouts that get flattened since then, but cross fingers that we don't run out of composite swatch room
         };
 
         int rc;
@@ -3482,6 +3483,10 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_SAPLING:
     case BLOCK_GRASS:
     case BLOCK_DEAD_BUSH:
+    case BLOCK_NETHER_WART:
+    case BLOCK_CARROTS:
+    case BLOCK_POTATOES:
+    case BLOCK_BEETROOT_SEEDS:
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
     case BLOCK_DAYLIGHT_SENSOR:
@@ -3872,6 +3877,33 @@ static int computeFlatFlags(int boxIndex)
         }
         break;
 
+    case BLOCK_AMETHYST_BUD:
+        switch ((gBoxData[boxIndex].data & 0x1c) >> 2)
+        {
+        case 0: // pointing down
+            gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
+            break;
+        case 1: // pointing up
+            gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+            break;
+        case 2: // pointing north
+            gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+            break;
+        case 3: // pointing south
+            gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+            break;
+        case 4: // pointing west
+            gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
+            break;
+        case 5: // pointing east
+            gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+            break;
+        default:
+            assert(0);
+            return 0;
+        }
+        break;
+
         // TODOTODO might also be the code we want for vines, just above, for 1.13 on?
     case BLOCK_GLOW_LICHEN:
         // (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
@@ -3905,7 +3937,7 @@ static int computeFlatFlags(int boxIndex)
         computeRedstoneConnectivity(boxIndex);
         break;
 
-    case BLOCK_WEEPING_VINES:
+    case BLOCK_WEEPING_VINES:						// computeFlatFlags
         if ((gBoxData[boxIndex].data & 0xf) == 0x1) {
             // twisting vines go up
             gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_ABOVE;
@@ -6356,7 +6388,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 7);
             saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)bites * 2, 15, 0, 8, 1, 15);
 
-            if (candle > 0) {
+            if (!gModel.print3D && candle > 0) {
                 int ctype = ((dataVal & BIT_32) ? 1 : 0) + ((candle == 16) ? BLOCK_CANDLE : BLOCK_COLORED_CANDLE);
                 // four lowest bits is color of candle, if any (candle 16 is the "normal candle")
                 int cdataval = candle & 0xf;
@@ -6601,8 +6633,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CAULDRON:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        // if printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom
-        waterHeight = gModel.print3D ? (6 + (float)dataVal * 3) : 6;
+        // If printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom.
+        // This convoluted code for waterHeight here is actually duplicated for the rendering version, below, in more readable form.
+        waterHeight = gModel.print3D ? ( (dataVal & 0xc) ? 15 : (6 + (float)(dataVal & 0x3) * 3) ) : 6;
         // outsides - if printing, just go down to bottom, no real feet, else kick it up
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | DIR_BOTTOM_BIT, 0, 0, 16, gModel.print3D ? 0.0f : 3.0f, 16, 0, 16);
         // bottom
@@ -11755,7 +11788,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_BEETROOT_SEEDS:				// saveBillboardFacesExtraData
         // mask out high bits just in case
-        swatchLoc += (dataVal & 0x3) - 3;
+        swatchLoc += (dataVal & 0x3);
         break;
     case BLOCK_NETHER_WART:				// saveBillboardFacesExtraData
         if (dataVal == 0)
@@ -16973,6 +17006,48 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         // now do anything special needed for the particular type, data, and face direction
         switch (type)
         {
+            // The easy cutout cases - just composite
+        case BLOCK_TRAPDOOR:						// getSwatch
+        case BLOCK_IRON_TRAPDOOR:
+        case BLOCK_SPRUCE_TRAPDOOR:
+        case BLOCK_BIRCH_TRAPDOOR:
+        case BLOCK_JUNGLE_TRAPDOOR:
+        case BLOCK_ACACIA_TRAPDOOR:
+        case BLOCK_DARK_OAK_TRAPDOOR:
+        case BLOCK_CRIMSON_TRAPDOOR:
+        case BLOCK_WARPED_TRAPDOOR:
+        case BLOCK_DAYLIGHT_SENSOR:
+        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+        case BLOCK_LADDER:
+        case BLOCK_DANDELION:
+        case BLOCK_BROWN_MUSHROOM:
+        case BLOCK_RED_MUSHROOM:
+        case BLOCK_DEAD_BUSH:
+        case BLOCK_PUMPKIN_STEM:
+        case BLOCK_MELON_STEM:
+        case BLOCK_SEAGRASS:
+        case BLOCK_CONDUIT:
+        case BLOCK_POINTED_DRIPSTONE:
+        case BLOCK_SPORE_BLOSSOM:
+        case BLOCK_GLOW_LICHEN:
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_LILY_PAD:
+            // as above, but rotated
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 270);
+            break;
+        case BLOCK_MONSTER_SPAWNER:
+        case BLOCK_COBWEB:
+        case BLOCK_FIRE:
+        case BLOCK_SUGAR_CANE:
+        case BLOCK_IRON_BARS:
+        case BLOCK_GLASS_PANE:
+        case BLOCK_BEACON:
+        case BLOCK_CAVE_VINES:  // TODO: see BLOCK_VINES for a different way to handle these - not sure...
+        case BLOCK_CAVE_VINES_LIT:
+            // where compositing against black for 3d printing of cutouts is fine, i.e., leave it alone.
+            // Case is needed so that the "default:" case assertion doesn't go off, and so we know we've thought about the block
+            break;
         case BLOCK_GRASS_BLOCK:						// getSwatch
             //SWATCH_SWITCH_SIDE_BOTTOM( faceDirection, 3, 0,  2, 0 );
             // now use the manufactured grass block at 6,2
@@ -17601,6 +17676,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_LEAVES:						// getSwatch
             // if we're using print export, go with the non-fancy leaves (not transparent)
             // was, when we had opaque leaves: col = gModel.print3D ? 5 : 4;
+            // Now we just use black as the background
             switch (dataVal & 0x3)
             {
             default:
@@ -19053,29 +19129,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
             break;
-        case BLOCK_TRAPDOOR:						// getSwatch
-        case BLOCK_IRON_TRAPDOOR:
-        case BLOCK_SPRUCE_TRAPDOOR:
-        case BLOCK_BIRCH_TRAPDOOR:
-        case BLOCK_JUNGLE_TRAPDOOR:
-        case BLOCK_ACACIA_TRAPDOOR:
-        case BLOCK_DARK_OAK_TRAPDOOR:
-        case BLOCK_CRIMSON_TRAPDOOR:
-        case BLOCK_WARPED_TRAPDOOR:
-        case BLOCK_DAYLIGHT_SENSOR:
-        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
-        case BLOCK_LADDER:
-        case BLOCK_LILY_PAD:
-        case BLOCK_DANDELION:
-        case BLOCK_BROWN_MUSHROOM:
-        case BLOCK_RED_MUSHROOM:
-        case BLOCK_DEAD_BUSH:
-        case BLOCK_PUMPKIN_STEM:
-        case BLOCK_MELON_STEM:
-        case BLOCK_SEAGRASS:
-        case BLOCK_GLOW_LICHEN:
-            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, (type == BLOCK_LILY_PAD) ? 270 : 0);
-            break;
         case BLOCK_CAMPFIRE:
             switch (dataVal & 0x8)
             {
@@ -19103,7 +19156,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
-        case BLOCK_DOUBLE_FLOWER:						// getSwatch
+        case BLOCK_DOUBLE_FLOWER:				// getSwatch
             if ((dataVal & 0xf) < 8)
             {
                 // bottom half of plant
@@ -19119,11 +19172,41 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             } // else it's an unknown flower or flower top (weird), so just keep the default swatchLoc
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
-        case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
+        case BLOCK_WHEAT:				        // getSwatch
+        case BLOCK_NETHER_WART:				    // getSwatch
+        case BLOCK_BEETROOT_SEEDS:				// getSwatch
+        case BLOCK_SWEET_BERRY_BUSH:		    // getSwatch
+            swatchLoc += (dataVal & 0x7);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        // weirdly, these count backwards
+        case BLOCK_CARROTS:				        // getSwatch
+        case BLOCK_POTATOES:				    // getSwatch
+            switch (dataVal & 0x7)
+            {
+            case 0:
+            case 1:
+                swatchLoc -= 3;
+                break;
+            case 2:
+            case 3:
+                swatchLoc -= 2;
+                break;
+            case 4:
+            case 5:
+            case 6:
+                swatchLoc--;
+                break;
+            case 7:
+            default:
+                break;
+            }
+            break;
+        case BLOCK_TALL_SEAGRASS:				// getSwatch
             swatchLoc = SWATCH_INDEX(14, 33);
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
-        case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
+        case BLOCK_WEEPING_VINES:				// getSwatch
             // twisting or weeping or hanging composite, and use the short bit of the vine, even though it might not be right underneath
             switch (dataVal & 0xf) {
             default:
@@ -19462,6 +19545,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             else {
                 swatchLoc = retrieveWoolSwatch(dataVal);
             }
+            break;
         case BLOCK_WOOL:
             swatchLoc = retrieveWoolSwatch(dataVal);
             break;
@@ -19939,11 +20023,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
-        case BLOCK_SWEET_BERRY_BUSH:				// getSwatch
-            swatchLoc += (dataVal & 0x3);
-            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
-            break;
-
         case BLOCK_ANDESITE_DOUBLE_SLAB:				// getSwatch
         case BLOCK_ANDESITE_SLAB:						// getSwatch
             switch (dataVal & 0x7)
@@ -20404,8 +20483,38 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
+        case BLOCK_AMETHYST_BUD:
+            swatchLoc += (dataVal & 0x3);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
+            break;
+
+        case BLOCK_BIG_DRIPLEAF:
+        case BLOCK_SMALL_DRIPLEAF:
+            if (uvIndices)
+            {
+                switch ((dataVal & 0x6) >> 1)
+                {
+                default:
+                    assert(0);
+                case 0: // pointing north
+                    angle = 90;
+                    break;
+                case 1: // pointing east
+                    angle = 180;
+                    break;
+                case 2: // pointing south
+                    angle = 270;
+                    break;
+                case 3: // pointing west
+                    angle = 0;
+                    break;
+                }
+            }
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
+            break;
+
         case BLOCK_AZALEA: // getSwatch
-            swatchLoc += (dataVal & 0x1);
+            // note we don't composite, on purpose - the black background is reasonable
             SWATCH_SWITCH_SIDE(faceDirection, 6 + (dataVal & 0x1), 51);
             break;
 
@@ -20413,6 +20522,23 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 53, 1, 53);
             break;
 
+        default:
+            // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
+#ifdef _DEBUG
+            {
+                static bool doInit = true;
+                static bool blockCutoutFound[NUM_BLOCKS_DEFINED];
+                if (doInit) {
+                    memset(blockCutoutFound, 0, NUM_BLOCKS_DEFINED * sizeof(bool));
+                    doInit = false;
+                }
+                if (!blockCutoutFound[type]) {
+                    blockCutoutFound[type] = true;
+                    assert((gBlockDefinitions[type].flags & BLF_CUTOUTS) == 0);
+                }
+            }
+#endif
+            break;
 
             // END getSwatch
         }
@@ -20500,6 +20626,7 @@ static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirect
             pSwatch = pSwatch->next;
         }
         assert(0);  // you need to create a default type/backgroundType swatch for this type
+        // See faTable - not everything has a swatch, because I got tired of adding these and there's a fair bit of room
         return 0;
     }
 
@@ -21105,6 +21232,16 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         }
         else {
             emission = 12.0f; // assume 4 candles, I guess?
+        }
+        break;
+    case BLOCK_AMETHYST_BUD:
+        emission = 5.0;
+        if (splitByBlockType) {
+            // bottom 2 bits is level
+            emission = (float)(dataVal & 0x2) + 2.0f;
+        }
+        else {
+            emission = 5.0; // assume fully grown
         }
         break;
     case BLOCK_CAVE_VINES_LIT:
@@ -22481,16 +22618,27 @@ static int createBaseMaterialTexture()
             }
         }
 
-        // fix grass path block
+        // fix grass path block, sculk sensor block
         if (gModel.print3D && !gExportBillboards)
         {
             // exporting whole block - stretch to top
             stretchSwatchToTop(mainprog, SWATCH_INDEX(gBlockDefinitions[BLOCK_DIRT_PATH].txrX + 1, gBlockDefinitions[BLOCK_DIRT_PATH].txrY),
                 (float)(gModel.swatchSize * (1.0 / 16.0) + (float)SWATCH_BORDER) / (float)gModel.swatchSize);
+            // sculk: repeat bottom half to top - this is kinda bad, since the texture fades from light to dark,
+            // but is better than just being black
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_SCULK_SENSOR].txrX, gBlockDefinitions[BLOCK_SCULK_SENSOR].txrY) + 1, dstCol, dstRow);
+            copyPNGArea(mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize* dstRow + SWATCH_BORDER,
+                gModel.tileSize, gModel.tileSize / 2,
+                mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,
+                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
+            );
         }
         else
         {
-            // copy the next-to-top row to top, to avoid black bleed.
+            // for grass path, copy the next-to-top row to top, to avoid black bleed.
             SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_DIRT_PATH].txrX + 1, gBlockDefinitions[BLOCK_DIRT_PATH].txrY), dstCol, dstRow);
             copyPNGArea(mainprog,
                 gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy to top
@@ -22499,6 +22647,16 @@ static int createBaseMaterialTexture()
                 mainprog,
                 gModel.swatchSize * dstCol + SWATCH_BORDER,
                 gModel.swatchSize * dstRow + SWATCH_BORDER + gModel.tileSize * 1 / 16 // copy from one row down
+            );
+            // for sculk sensor, copy top of bottom half row up one to avoid any bleed with fully transparent black
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_SCULK_SENSOR].txrX, gBlockDefinitions[BLOCK_SCULK_SENSOR].txrY) + 1, dstCol, dstRow);
+            copyPNGArea(mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize/2),
+                gModel.tileSize, 1,  // just 1 pixel border
+                mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,
+                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
         }
 

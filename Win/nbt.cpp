@@ -191,6 +191,7 @@ static int worldVersion = 0;
 // powered: true|false
 #define BUTTON_PROP			 25
 // layers: 1-8
+// no post process actually done, as dataVal is set directly
 #define SNOW_PROP			 26
 // facing: north|south|east|west
 // open: true|false
@@ -259,6 +260,7 @@ static int worldVersion = 0;
 // powered: true|false
 #define OBSERVER_PROP		 EXTENDED_FACING_PROP
 // mode: data|save|load|corner
+// no post process actually done, as dataVal is set directly
 #define STRUCTURE_PROP		 41
 // delay: 1-4
 // facing: north|east|south|west
@@ -2728,6 +2730,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                             // these are also ones where nothing needs to be done. They could all be called NO_PROP,
                             // but it's handy to know what blocks have what properties associated with them.
                         case SNOWY_PROP:
+                        case SNOW_PROP:
                         case AGE_PROP:
                         case FLUID_PROP:
                         case SAPLING_PROP:
@@ -2738,6 +2741,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         case PICKLE_PROP:
                         case LANTERN_PROP:
                         case WIRE_PROP:
+                        case STRUCTURE_PROP:
                             break;
 
                         case TRULY_NO_PROP:

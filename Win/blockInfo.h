@@ -452,7 +452,7 @@ typedef struct Options {
 #define BLF_FLATTEN			0x0080
 // flat on a wall: sign, ladder, etc. - normally not shown on the map; to make something visible on map, use BLF_FLATTEN instead, which otherwise is identical
 #define BLF_FLATTEN_SMALL		0x0100
-// small, not as worth rendering (will disappear if not flattened, etc. when exporting for a 3D print), has geometry - normally not shown on the map
+// small (or placed weirdly), not worth representing in 3D print (will disappear if not flattened, etc. when exporting for a 3D print), has geometry - normally not shown on the map
 #define BLF_SMALL_MIDDLER	0x0200
 // small thing: lever, flower - normally culled out
 #define BLF_SMALL_BILLBOARD	0x0400
