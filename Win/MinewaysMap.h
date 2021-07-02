@@ -78,10 +78,6 @@ typedef struct WorldGuide {
     int nbtVersion;
 } WorldGuide;
 
-// this version of 1.17 beta went to a height of 384;
-#define MAX_HEIGHT(versionID)   ((versionID >= 2685) ? 384 : 256)
-#define ZERO_HEIGHT(versionID)   ((versionID >= 2685) ? -64 : 0)
-
 void SetSeparatorMap(const wchar_t* separator);
 void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight);
 void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight);

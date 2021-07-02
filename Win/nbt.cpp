@@ -1799,7 +1799,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     }
 
     // note if Y value needs to be adjusted by +4
-    signed char y_offset = (versionID >= 2685) ? 4 : 0;
+    //signed char y_offset = ZERO_WORLD_HEIGHT(versionID) / 16;
+    int minHeight = ZERO_WORLD_HEIGHT(versionID);
+    signed char minHeight16 = (signed char)(minHeight / 16);
     // 1.17 has a height of 384
     //int max_height = MAX_HEIGHT(versionID); - would need to expose MAX_HEIGHT here for this to work
     //int maxSlice = (maxHeight / 16) - 1;
@@ -1888,6 +1890,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     memset(data, 0, 16 * 16 * maxHeight);
     memset(blockLight, 0, 16 * 16 * maxHeight / 2);
 
+    int maxHeight16 = maxHeight / 16;
+
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
     // Weird false positive ("empty is always true") here from cppcheck
@@ -1929,7 +1933,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             return -14; //rewind to start of section
 
         // in 1.17, specifically 20w49a, we can now go from -5 (really, -4 is where data starts) to 19 for "y"; was -1 to 15 previously
-        y += y_offset;
+        // No, never mind, it's built in now I guess?
+        //y += y_offset;
 
         // TODOTODO for now, if world y is greater than 15, we're done - we ignore these higher levels. Need to revise when 1.17 comes out
         //if (y > maxSlice) {
@@ -1968,8 +1973,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         return -18;
                     // and update the maxFilledSectionHeight
                     sectionHeight = 16 * y + 15;
-                    if (sectionHeight > mfsHeight)
+                    if (sectionHeight > mfsHeight) {
+                        assert(maxHeight >= sectionHeight);
                         mfsHeight = sectionHeight;
+                    }
                 }
                 else if (strcmp(thisName, "Data") == 0)
                 {
@@ -2033,8 +2040,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     ret = 1;
                     len = readDword(pbf); //array length
                     // really need just y < 16 at this point, level y = -1 doesn't have much on it, but let's future proof it here
-                    if (y >= 0 && y < 16) {
-                        if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
+                    if (y >= minHeight16 && y < maxHeight16) {
+                        if (bfread(pbf, blockLight + 16 * 16 * 8 * (y - minHeight16), len) < 0)
                             return -23;
                     }
                     else {
@@ -3196,76 +3203,86 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // New format (which we call "uncompressed"):
             // 123451234512345123451234512345123451234512345123451234512345.... | 1234512345 - at the 60 - bit mark the 5 bits won't fit, so they start again.
             if (bigbufflen > 0 && entry_index > 0) {
-                // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
-                int bitlength = bigbufflen / 64;
-                // is this the new 1.16 20w17a format?
-                bool uncompressed = (bigbufflen > 64 * bitlength);
-                unsigned long int bitmask = (1 << bitlength) - 1;
+                // future proof: don't store data if the memory doesn't exist
+                if (y < maxHeight16 && y >= minHeight16) {
+                    // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
+                    int bitlength = bigbufflen / 64;
+                    // is this the new 1.16 20w17a format?
+                    bool uncompressed = (bigbufflen > 64 * bitlength);
+                    unsigned long int bitmask = (1 << bitlength) - 1;
 
-                unsigned char* bout = buff + 16 * 16 * 16 * y;
-                unsigned char* dout = data + 16 * 16 * 16 * y;
-                sectionHeight = 16 * y + 15;
-                // and update the maxFilledSectionHeight
-                if (sectionHeight > mfsHeight)
-                    mfsHeight = sectionHeight;
+                    unsigned char* bout = buff + 16 * 16 * 16 * (y - minHeight16);
+                    unsigned char* dout = data + 16 * 16 * 16 * (y - minHeight16);
+                    sectionHeight = 16 * y + 15;
+                    // and update the maxFilledSectionHeight
+                    if (sectionHeight > mfsHeight) {
+                        assert(maxHeight >= sectionHeight);
+                        mfsHeight = sectionHeight;
+                    }
 
-                int bitpull = 0;
-                for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
-                    // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
-                    // That is, if you see "5" here, the bits in the 64-bit long long are in order 
-                    // which bb should we access for these bits? Divide by 8
-                Restart:
-                    int bbindex = bitpull >> 3;
-                    // Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
-                    // But, this works.
-                    bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
-                    int bbshift = bitpull & 0x7;
-                    // get the top bits out of the topmost byte, on down the row
-                    int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
-                    // Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
-                    // 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
-                    int remainingBitLength = bitlength - (8 - bbshift);
-                    while (remainingBitLength > 0) {
-                        if (bbindex & 0x7) {
-                            // one of the middle bytes, not the bottommost one
-                            bits |= (bigbuff[bbindex - 1] << (8 - bbshift)) & bitmask;
-                        }
-                        else {
-                            // Bottommost byte, and not enough bits left: need to jump to topmost byte of next long long and restart.
-                            // If this is the new format and the length of bigbufflen is greater than expected,
-                            // e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
-                            // incremental up above) and pull entirely from the next +15 index, as shown here.
-                            if (uncompressed) {
-                                // start on next long long
-                                //bits = bigbuff[bbindex + 15] & bitmask;
-                                bitpull += (8 - bbshift);
-                                goto Restart;
-                                //next iteration it will be: bbshift = 0;
+                    int bitpull = 0;
+                    for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
+                        // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
+                        // That is, if you see "5" here, the bits in the 64-bit long long are in order 
+                        // which bb should we access for these bits? Divide by 8
+                    Restart:
+                        int bbindex = bitpull >> 3;
+                        // Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
+                        // But, this works.
+                        bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
+                        int bbshift = bitpull & 0x7;
+                        // get the top bits out of the topmost byte, on down the row
+                        int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
+                        // Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
+                        // 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
+                        int remainingBitLength = bitlength - (8 - bbshift);
+                        while (remainingBitLength > 0) {
+                            if (bbindex & 0x7) {
+                                // one of the middle bytes, not the bottommost one
+                                bits |= (bigbuff[bbindex - 1] << (8 - bbshift)) & bitmask;
                             }
                             else {
-                                bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
+                                // Bottommost byte, and not enough bits left: need to jump to topmost byte of next long long and restart.
+                                // If this is the new format and the length of bigbufflen is greater than expected,
+                                // e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
+                                // incremental up above) and pull entirely from the next +15 index, as shown here.
+                                if (uncompressed) {
+                                    // start on next long long
+                                    //bits = bigbuff[bbindex + 15] & bitmask;
+                                    bitpull += (8 - bbshift);
+                                    goto Restart;
+                                    //next iteration it will be: bbshift = 0;
+                                }
+                                else {
+                                    bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
+                                }
                             }
+                            // a waste 99% of the time - any faster way? TODO - could unwind loops, could properly track bbindex and bbshift without
+                            // recomputing them each time. Maybe try some timing tests one day to see if it matters.
+                            remainingBitLength -= 8;
+                            bbindex--;
+                            bbshift = 0;
                         }
-                        // a waste 99% of the time - any faster way? TODO - could unwind loops, could properly track bbindex and bbshift without
-                        // recomputing them each time. Maybe try some timing tests one day to see if it matters.
-                        remainingBitLength -= 8;
-                        bbindex--;
-                        bbshift = 0;
-                    }
 
-                    // sanity check
-                    if (bits >= entry_index) {
-                        // Should never reach here; means that a stored index value is greater than any value in the palette.
-                        assert(0);
+                        // sanity check
+                        if (bits >= entry_index) {
+                            // Should never reach here; means that a stored index value is greater than any value in the palette.
+                            assert(0);
 #ifdef _DEBUG
-                        // maximum value is entry_index - 1; which is useful for debugging - see things go bad
-                        bits = entry_index - 1;
+                            // maximum value is entry_index - 1; which is useful for debugging - see things go bad
+                            bits = entry_index - 1;
 #else
-                        bits = 0; // which is likely air
+                            bits = 0; // which is likely air
 #endif
+                        }
+                        *bout++ = paletteBlockEntry[bits];
+                        *dout++ = paletteDataEntry[bits];
                     }
-                    *bout++ = paletteBlockEntry[bits];
-                    *dout++ = paletteDataEntry[bits];
+                }
+                else {
+                    // should just be (probably) empty air, nothing here
+                    assert(entry_index <= 1);
+                    assert(0);
                 }
             }
         }

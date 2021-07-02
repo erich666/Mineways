@@ -32,6 +32,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "zlib.h"
 #include <stdio.h>
 
+// this version of 1.17 beta went to a height of 384;
+#define MAX_ARRAY_HEIGHT(versionID)   ((versionID >= 2685 && versionID < 2709) ? 384 : 256)
+#define MAX_WORLD_HEIGHT(versionID)   ((versionID >= 2685 && versionID < 2709) ? 319 : 255)
+#define ZERO_WORLD_HEIGHT(versionID)   ((versionID >= 2685 && versionID < 2709) ? -64 : 0)
+//#define MAX_ARRAY_HEIGHT(versionID)   ((versionID >= 2685) ? 384 : 256)
+//#define MAX_WORLD_HEIGHT(versionID)   ((versionID >= 2685) ? 319 : 255)
+//#define ZERO_WORLD_HEIGHT(versionID)   ((versionID >= 2685) ? -64 : 0)
+
+
 enum { BF_BUFFER, BF_GZIP };
 
 // for another 256 block types, this bit gets set in the dataVal field (we're out of bits with block IDs)

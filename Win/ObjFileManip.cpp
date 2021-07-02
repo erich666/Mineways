@@ -969,10 +969,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // before gProgress was populated
     //UPDATE_PROGRESS(gProgress.start.startup);
 
-    MinimizeCacheBlocks(options->moreExportMemory);
+    // not needed here, as it's already been called when toggled: MinimizeCacheBlocks(options->moreExportMemory);
     if (options->moreExportMemory)
     {
         // clear the cache before export and realloc with minimal memory - this lets us export larger worlds.
+        // Note that we'll clear again when reading in the chunks. 
         ClearCache();
     }
 
@@ -2234,13 +2235,13 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         {
             // this method sets gSolidWorldBox
             findChunkBounds(pWorldGuide, blockX, blockZ, worldBox, gMcVersion, gMinecraftWorldVersion);
-        }
-    }
 
-    // done with reading chunk for export, so free memory
-    if (gModel.options->moreExportMemory)
-    {
-        ClearCache();
+            // done with reading chunk for export, so free memory
+            if (gModel.options->moreExportMemory)
+            {
+                ClearCache();
+            }
+        }
     }
 
     if (willChangeBlockCommandModifyAir(pCBC)) {
@@ -2346,14 +2347,6 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
             }
         }
     }
-
-    // done with reading chunk for export, so free memory.
-    // should all be freed, but just in case...
-    // Nah, checked - it's freed, just above, so many many times
-    //if (gModel.options->moreExportMemory)
-    //{
-    //    ClearCache();
-    //}
 
     // convert to solid relative box (0 through boxSize-1)
     Vec3Op(gSolidBox.min, =, gSolidWorldBox.min, +, gWorld2BoxOffset);
