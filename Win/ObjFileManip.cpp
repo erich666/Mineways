@@ -9303,6 +9303,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+        if (gMcVersion >= 17) {
+            // lectern top is lower in version 17 on, https://bugs.mojang.com/browse/MC-214568
+            translateMtx(mtx, 0, -1.0f / 16.0f, 0.0f);
+        }
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(littleTotalVertexCount, mtx);
 
@@ -20997,7 +21001,7 @@ static int addNormalToList(Vector normal, Vector* normalList, int* normalListCou
 // go through all face normals and, if not set, find the proper face normal (or add it to the list)
 static void resolveFaceNormals()
 {
-    int maxFaceNormalIndex = -1;
+    //int maxFaceNormalIndex = -1;
     for (int i = 0; i < gModel.faceCount; i++)
     {
         FaceRecord* pFace = gModel.faceList[i];
@@ -21031,14 +21035,15 @@ static void resolveFaceNormals()
                 assert(0);
             }
         }
-        if (pFace->normalIndex > maxFaceNormalIndex) {
-            maxFaceNormalIndex = pFace->normalIndex;
-        }
+        //if (pFace->normalIndex > maxFaceNormalIndex) {
+        //    maxFaceNormalIndex = pFace->normalIndex;
+        //}
 #endif
     }
     // Tiny optimization: don't output the "standard normals" if they're not used.
     // Really, some unused normals could still be output, but this cuts the number down a little.
-    gModel.normalListCount = maxFaceNormalIndex + 1;
+    // Yikes, on second thought, don't do this - only works in _DEBUG! Left as a warning to my future self.
+    //gModel.normalListCount = maxFaceNormalIndex + 1;
 }
 
 bool IsASubblock(int type, int dataVal)

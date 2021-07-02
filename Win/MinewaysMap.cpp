@@ -6392,9 +6392,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        int bedrockHeight = 62;      // cppcheck-suppress 398
-        int grassHeight = 64;
-        int blockHeight = 65;
+        //int bedrockHeight = 62;      // cppcheck-suppress 398
+        int grassHeight = 0;
+        int blockHeight = 1;
 
         // really, we should not need to go higher than this, 14 blocks above the surface; if we do, just kick this up
         // - higher is just more inefficient
@@ -6414,9 +6414,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 for (z = 0; z < 16; z++)
                 {
                     // make the grass two blocks thick, and then "impenetrable" below, for test border code
-                    block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = BLOCK_BEDROCK;
-                    for (int y = bedrockHeight + 1; y < grassHeight; y++)
-                        block->grid[BLOCK_INDEX(x, y, z)] = BLOCK_DIRT;
+                    //block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = BLOCK_BEDROCK;
+                    //for (int y = bedrockHeight + 1; y < grassHeight; y++)
+                    //    block->grid[BLOCK_INDEX(x, y, z)] = BLOCK_DIRT;
                     block->grid[BLOCK_INDEX(x, grassHeight, z)] = BLOCK_GRASS_BLOCK;
                 }
             }
