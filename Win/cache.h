@@ -72,6 +72,7 @@ void Change_Cache_Size(int size);
 void* Cache_Find(int bx, int bz);
 void Cache_Add(int bx, int bz, void* data);
 void Cache_Empty();
+void MinimizeCacheBlocks(bool min);
 
 /* a simple malloc wrapper, based on the observation that a common
 * behavior pattern for Mineways when the cache is at max capacity
@@ -86,4 +87,5 @@ void Cache_Empty();
 */
 
 WorldBlock* block_alloc( int height );           // allocate memory for a block
+void block_realloc(WorldBlock* block);   // realloc and copy over
 void block_free(WorldBlock* block); // release memory for a block

@@ -57,6 +57,7 @@ static block_entry** gBlockCache = NULL;
 
 static IPoint2* gCacheHistory = NULL;
 static int gCacheN = 0;
+static bool gMinimizeBlockSize = false; // fast and memory hoggy
 
 static int hash_coord(int x, int z) {
     return (x & (HASH_XDIM - 1)) * (HASH_ZDIM)+(z & (HASH_ZDIM - 1));
@@ -180,6 +181,11 @@ void Cache_Empty()
     gCacheHistory = NULL;
 }
 
+void MinimizeCacheBlocks(bool min)
+{
+    gMinimizeBlockSize = min;
+}
+
 WorldBlock* block_alloc(int height)
 {
     WorldBlock* ret = NULL;
@@ -200,6 +206,30 @@ WorldBlock* block_alloc(int height)
     ret->maxHeight = height;    // for 1.17+ it is 384 - change by checking versionID
     ret->maxFilledSectionHeight = ret->maxFilledHeight = -1;  // not yet determined
     return ret;
+}
+
+// reallocs only if memory minimization is on.
+void block_realloc(WorldBlock* block)
+{
+    if (gMinimizeBlockSize) {
+        if (block->maxHeight > block->maxFilledHeight + 1) {
+            // we can make it smaller
+            int maxHeight = block->maxFilledHeight + 1;
+
+            unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * maxHeight);
+            unsigned char* data = (unsigned char*)realloc(block->data, 256 * maxHeight);
+            unsigned char* light = (unsigned char*)realloc(block->light, 128 * maxHeight);
+            if (grid && data && light) {
+                block->grid = grid;
+                block->data = data;
+                block->light = light;
+                block->maxHeight = maxHeight;
+            }
+            else {
+                //assert(0);
+            }
+        }
+    }
 }
 
 void block_free(WorldBlock* block)

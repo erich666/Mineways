@@ -6590,7 +6590,12 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
     }
     // really, this assert should always be true! But if not, let's take corrective action
     assert(block->maxFilledHeight >= 0);
+
+    // and, realloc!
+    block_realloc(block);
+
     return (block->maxFilledHeight >= 0) ? block : NULL;
+
 }
 
 // cx and cz are the chunk location - multiply by 16 to get the starting world location

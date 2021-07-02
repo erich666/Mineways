@@ -2174,11 +2174,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
         case IDM_HELP_GIVEMEMOREMEMORY:
-            // If you are using the 32-bit version, this option can help give you more memory during export.
-            // It clears and reloads the world during this process, the freed memory can then be used for
+            // This option can help give you more memory during export.
+            // It clears and reloads the world during this process and reallocs chunks to be smaller, the freed memory can then be used for
             // other export processing functions.
             gOptions.moreExportMemory = !gOptions.moreExportMemory;
             CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
+            MinimizeCacheBlocks(gOptions.moreExportMemory);
             break;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
@@ -7045,6 +7046,7 @@ JumpToSpawn:
         if (is.processData)
         {
             gOptions.moreExportMemory = interpretBoolean(string1);
+            MinimizeCacheBlocks(gOptions.moreExportMemory);
             CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELP_GIVEMEMOREMEMORY, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
         }
         return INTERPRETER_FOUND_VALID_LINE;

@@ -824,6 +824,7 @@ void ClearCache()
 {
     Cache_Empty();
 }
+
 ////////////////////////////////////////////////////////
 //
 // Main code begins
@@ -968,9 +969,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // before gProgress was populated
     //UPDATE_PROGRESS(gProgress.start.startup);
 
+    MinimizeCacheBlocks(options->moreExportMemory);
     if (options->moreExportMemory)
     {
-        // clear the cache before export - this lets us export larger worlds.
+        // clear the cache before export and realloc with minimal memory - this lets us export larger worlds.
         ClearCache();
     }
 
