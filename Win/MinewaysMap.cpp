@@ -6366,13 +6366,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
         return NULL;
 
-    WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID));
+    WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
 
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
     {
         Cache_Empty();
-        block = block_alloc(MAX_ARRAY_HEIGHT(versionID));
+        block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
         if (block == NULL) {
             // oh well, out of luck
             return NULL;
@@ -6398,7 +6398,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
         // really, we should not need to go higher than this, 14 blocks above the surface; if we do, just kick this up
         // - higher is just more inefficient
-        block->maxFilledSectionHeight = 15 - ZERO_WORLD_HEIGHT(versionID);
+        block->maxFilledSectionHeight = 15 - ZERO_WORLD_HEIGHT(versionID, mcVersion);
 
         memset(block->grid, 0, 16 * 16 * block->maxHeight);
         memset(block->data, 0, 16 * 16 * block->maxHeight);

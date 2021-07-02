@@ -1757,7 +1757,7 @@ unsigned char mod16(int val)
 }
 
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcversion, int versionID, int maxHeight, int & mfsHeight)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight)
 {
     int len, nsections;
     int biome_save;
@@ -1800,7 +1800,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     // note if Y value needs to be adjusted by +4
     //signed char y_offset = ZERO_WORLD_HEIGHT(versionID) / 16;
-    int minHeight = ZERO_WORLD_HEIGHT(versionID);
+    int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
     signed char minHeight16 = (signed char)(minHeight / 16);
     // 1.17 has a height of 384
     //int max_height = MAX_HEIGHT(versionID); - would need to expose MAX_HEIGHT here for this to work
@@ -1923,6 +1923,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     // read all slices that exist for this vertical block and process each
     while (nsections--)
     {
+        // y is the *world* height divided by 16.
+        // in 1.17, specifically 20w49a through 21w14a, we can now go from -5 (really, -4 is where data starts) to 19 for "y"; was -1 to 15 previously
         signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
@@ -1932,9 +1934,6 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         if (bfseek(pbf, save, SEEK_SET) < 0)
             return -14; //rewind to start of section
 
-        // in 1.17, specifically 20w49a, we can now go from -5 (really, -4 is where data starts) to 19 for "y"; was -1 to 15 previously
-        // No, never mind, it's built in now I guess?
-        //y += y_offset;
 
         // TODOTODO for now, if world y is greater than 15, we're done - we ignore these higher levels. Need to revise when 1.17 comes out
         //if (y > maxSlice) {
@@ -2119,12 +2118,12 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
                                 // incredibly stupid special case:
                                 // in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
-                                if ((mcversion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0)) {
+                                if ((mcVersion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0)) {
                                     strcpy_s(thisBlockName, 100, "minecraft:smooth_stone_slab");
                                 }
 
                                 // code to look for a specific name when debugging
-                                //if ((mcversion >= 13) && (strcmp("minecraft:frame", thisBlockName) == 0)) {
+                                //if ((mcVersion >= 13) && (strcmp("minecraft:frame", thisBlockName) == 0)) {
                                 //	type = type;
                                 //}
 
