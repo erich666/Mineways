@@ -226,6 +226,9 @@ void block_realloc(WorldBlock* block)
                 block->maxHeight = maxHeight;
             }
             else {
+                // we failed, but at least stop trying to realloc if we're really unable to do so.
+                // By setting the maxHeight here, we signal that we at least tried
+                block->maxHeight = maxHeight;
                 //assert(0);
             }
         }
