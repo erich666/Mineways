@@ -62,8 +62,8 @@
 				<li><a href="http://www.reddit.com/r/mineways/"><span>Reddit</span></a></li>
 				<li><a href="https://discord.gg/wfayQA6Dyc"><span>Discord</span></a></li>
 				<li><a href="https://www.minecraftforum.net/forums/minecraft-java-edition/discussion/326119-mineways-3d-prints-of-minecraft-objects?page=100"><span>Minecraft Forum</span></a></li>
-				<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
-			</ul>
+				<li><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
+				<li class='last'><a href="https://github.com/erich666/Mineways/issues"><span>Open issues on Github</span></a></li>			</ul>
 		</li>
 		<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 	</ul>
@@ -259,10 +259,10 @@ File type: <i>Export no materials</i><br>
 File type: <i>Export solid material colors only (no textures)</i><br>
 File type: <i>Export richer color textures</i><br>
 File type: <i>Export full color texture patterns</i><br>
-File type: <i>Export tiles for textures to directory texture</i><br>
+File type: <i>Export separate textures to directory texture</i><br>
 </td>
 <td>
-Yes, this is kind of a bad name, "Material type" would have been better. The type of material export done. Note that for "tiles for textures," where a separate texture is exported for each block face, a directory is also specified. This is shown here as "directory texture", but any directory, relative or absolute, can be specified, e.g. "to directory c:\temp".
+Yes, this is kind of a bad name, "Material type" would have been better. The type of material export done. Note that for "separate textures," where a separate texture is exported for each block face, a directory is also specified. This is shown here as "directory texture", but any directory, relative or absolute, can be specified, e.g. "to directory c:\temp".
 </td>
 </tr>
 
@@ -503,12 +503,13 @@ Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 <P>
 For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj
 <P>
-Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc.
+Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. Here's a script that comes with Mineways (along with hunk_maker.py, a Python program you can modify to generate sets of hunks as you wish):
+</P>
 <P>
 <div id="code">
 // file hunk_output.mwscript.txt
 Set render type: Wavefront OBJ absolute indices<br>
-File type: Export tiles for textures to directory texture<br>
+File type: Export separate textures to directory texture<br>
 Center model: no<br>
 Use biomes: no<br>
 Create block faces at the borders: no<br>
@@ -522,9 +523,9 @@ Selection location min to max: 100, 50, 100 to 199, 255, 199<br>
 Export for Rendering: C:\Users\erich\Desktop\hunk11.obj<br>
 </div>
 <P>
-Load your world, run this script, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely join with each other. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can override this as you wish. Biomes are off, since the biome is computed for the center of each hunk and so will differ. Block faces at the borders being off means that the polygons where the hunks join are not output, saving on polygon count. You can set that to "yes" if you prefer.
+Load your world, run this script via Import Settings, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely join with each other. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can override this as you wish. Biomes are off, since the biome is computed for the center of each hunk and so will differ. Block faces at the borders being off means that the polygons where the hunks join are not output, saving on polygon count. You can set that to "yes" if you prefer. You 
 <P>
-The one gotcha is that different PNG texture files are made for each separate model. If you prefer sharing PNG files (which saves on memory), I solve this problem here by setting the File type to use tiles. Tiles are separate textures for each block type face, such as "grass_top.png"; these have the same names for all exported files.
+The one gotcha is that differently named (but usually identical in content) PNG texture files are made for each separate model. If you prefer sharing PNG files (which saves on memory), I solve this problem here by setting the File type to use separate textures for each block type face, such as "grass_top.png"; these have the same names for all exported files.
 
 
 <h2 id="sketchfab">Sketchfab Script Commands</h2>
@@ -982,7 +983,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
     </div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/15/2021</p>
+		<p id="lastUpdate">Last updated 6/29/2021</p>
 	</div>
 </div>
 

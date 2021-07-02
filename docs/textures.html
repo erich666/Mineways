@@ -62,8 +62,8 @@
 				<li><a href="http://www.reddit.com/r/mineways/"><span>Reddit</span></a></li>
 				<li><a href="https://discord.gg/wfayQA6Dyc"><span>Discord</span></a></li>
 				<li><a href="https://www.minecraftforum.net/forums/minecraft-java-edition/discussion/326119-mineways-3d-prints-of-minecraft-objects?page=100"><span>Minecraft Forum</span></a></li>
-				<li class='last'><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
-			</ul>
+				<li><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
+				<li class='last'><a href="https://github.com/erich666/Mineways/issues"><span>Open issues on Github</span></a></li>			</ul>
 		</li>
 		<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 	</ul>
@@ -72,7 +72,7 @@
 	<div id="content" class="clearfix">
 <h1>Using Textures in Mineways</h1>
 
-You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Choose Terrain File" or "Open Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>. The physically based material renderings were done with the free <a href="mineways.html#ovcreate">Omniverse Create</a> program.
+You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Choose Terrain File" or "Open Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this program feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>. The physically based material renderings were done with the free <a href="mineways.html#ovcreate">Omniverse Create</a> program.
 
 <H2>Pre-Built Terrain Files</H2>
 
@@ -93,7 +93,7 @@ The larger <a href="http://mineways.com">Mineways download</a> comes with the fo
   <div class="textureBox">
     <a href="images/zen_coterie_craft.jpg">
     <img src="images/thumb_zen_coterie_craft.jpg" alt="Coterie Craft"></a>
-    <a href="http://coteriecraft.net/">Coterie Craft</a><span>by Cpt. Corn</span>
+    <a href="https://resourcepack.net/coterie-craft-resource-pack/">Coterie Craft</a><span>by Cpt. Corn</span>
 	<b><a href="https://sketchfab.com/models/fa71f250ca53407ea443ae03fbef8ba3">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
@@ -107,13 +107,6 @@ The larger <a href="http://mineways.com">Mineways download</a> comes with the fo
     <img src="images/thumb_zen_dokucraft_light.jpg" alt="Dokucraft Light"></a>
     <a href="https://dokucraft.co.uk/">DokuCraft Light</a><span>by Hickerydickery</span>
 	<b><a href="https://skfb.ly/QsEH">View on Sketchfab</a></b>
-  </div>
-  <div class="textureBox">
-    <a href="images/zen_modern_hd.jpg">
-    <img src="images/thumb_zen_modern_hd.jpg" alt="Modern HD"></a>
-    <a href="http://resourcepack.net/modern-hd-resource-pack/">Modern HD</a>
-    <span>by Mikeyto1o</span>
-	<b><a href="https://skfb.ly/QsEL">View on Sketchfab</a></b>
   </div>
   <div class="textureBox">
     <a href="images/zen_sphax_pure_bd_craft.jpg">
@@ -187,6 +180,27 @@ The single image file also guarantees that there is <i>some</i> tile image avail
 Making your own terrain file for Mineways takes only a few steps. You do have to know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, but that's not hard. Knowing how to create a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> is also useful and easy enough. A batch file can store and rerun your commands to Mineways' tools.
 
 <P>
+Here's the quickstart/refresher for the two ways to make a terrainExt image file of your own. One is to use just TileMaker. You put all the block textures you want into some directory, e.g., <I>your_block_directory</I> (putting the chest textures in the "chests" subdirectory) and then simply do in a <a href="https://www.computerhope.com/issues/chusedos.htm">command window</a> in the Mineways TileMaker subdirectory:
+
+<PRE>
+cd c:\temp\mineways\TileMaker
+TileMaker.exe -d your_block_directory -o terrainExtYours.png
+</PRE>
+Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program depends on terrainBase.png being in the same directory.
+<P>
+If you would rather not have to hand-copy images, or are using physically-based textures (i.e., more than just colored textures), do the following process instead. Unzip your resource pack into a directory, e.g., <I>resource_pack_directory</I>, then:
+
+<PRE>
+ChannelMixer.exe -i resource_pack_directory -o your_block_directory
+TileMaker.exe -d your_block_directory -o terrainExtYours.png
+</PRE>
+
+That's it! Read over any warnings and decide how you want to fix them. For example, if ChannelMixer says it's not using a texture you think it should, you may need to rename your version so that the program will find it.
+
+<P>
+What follows are more detailed instructions, in case these didn't make sense or didn't work for you.
+
+<P>
 The general flow is:
 <OL>
 <LI>Download and unzip a resource pack to some directory.
@@ -202,7 +216,7 @@ The general flow is:
 
 
 <P>
-That's it! Put your file wherever mineways.exe is located and start Mineways up. You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Choose Terrain File". You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
+Put your terrainExt image file wherever mineways.exe is located and start Mineways up. You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Choose Terrain File". You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
 
 <P>
 Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
@@ -489,7 +503,7 @@ on the command line.
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 3/8/2021</p>
+		<p id="lastUpdate">Last updated 7/2/2021</p>
 	</div>
 </div>
 
