@@ -6366,6 +6366,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
         return NULL;
 
+    // don't get a block for the sythetic world if it's not going to be populated
+    if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE) {
+        if (!(cx >= 0 && cx * 2 < NUM_BLOCKS_DEFINED && cz >= -3 && cz <= 8)) {
+            return NULL;
+        }
+    }
+
     WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
 
     // out of memory? If so, clear cache and cross fingers
@@ -6392,13 +6399,14 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        //int bedrockHeight = 62;      // cppcheck-suppress 398
-        int grassHeight = 0;
-        int blockHeight = 1;
+        int yoff = -ZERO_WORLD_HEIGHT(versionID, mcVersion);
+        int bedrockHeight = 60 + yoff;      // cppcheck-suppress 398
+        int grassHeight = 62 + yoff;
+        int blockHeight = 63 + yoff;
 
         // really, we should not need to go higher than this, 14 blocks above the surface; if we do, just kick this up
         // - higher is just more inefficient
-        block->maxFilledSectionHeight = 15 - ZERO_WORLD_HEIGHT(versionID, mcVersion);
+        block->maxFilledSectionHeight = 79 + yoff;
 
         memset(block->grid, 0, 16 * 16 * block->maxHeight);
         memset(block->data, 0, 16 * 16 * block->maxHeight);
@@ -6414,9 +6422,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 for (z = 0; z < 16; z++)
                 {
                     // make the grass two blocks thick, and then "impenetrable" below, for test border code
-                    //block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = BLOCK_BEDROCK;
-                    //for (int y = bedrockHeight + 1; y < grassHeight; y++)
-                    //    block->grid[BLOCK_INDEX(x, y, z)] = BLOCK_DIRT;
+                    block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = BLOCK_BEDROCK;
+                    for (int y = bedrockHeight + 1; y < grassHeight; y++)
+                        block->grid[BLOCK_INDEX(x, y, z)] = BLOCK_DIRT;
                     block->grid[BLOCK_INDEX(x, grassHeight, z)] = BLOCK_GRASS_BLOCK;
                 }
             }

@@ -87,5 +87,6 @@ void MinimizeCacheBlocks(bool min);
 */
 
 WorldBlock* block_alloc( int height );           // allocate memory for a block
-void block_realloc(WorldBlock* block);   // realloc and copy over
 void block_free(WorldBlock* block); // release memory for a block
+void block_force_free(WorldBlock* block); // no single block cache test - clears the cache, too
+void block_realloc(WorldBlock* block);   // realloc and copy over

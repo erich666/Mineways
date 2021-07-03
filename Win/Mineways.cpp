@@ -3018,7 +3018,7 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionID = 99999;	// always assumed to be the latest one.
+        gVersionID = 2724;	// Change this to the current release number
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;

@@ -65,6 +65,9 @@ static int hash_coord(int x, int z) {
 
 static block_entry* hash_new(int x, int z, void* data, block_entry* next) {
     block_entry* ret = (block_entry*)malloc(sizeof(block_entry));
+    if (ret == NULL) {
+        return NULL;
+    }
     ret->x = x;
     ret->z = z;
     ret->data = (WorldBlock*)data;
@@ -92,7 +95,14 @@ void Cache_Add(int bx, int bz, void* data)
     if (gBlockCache == NULL) {
         gBlockCache = (block_entry**)calloc(HASH_SIZE, sizeof(block_entry*));
         //memset(gBlockCache, 0, sizeof(block_entry*) * HASH_SIZE);
-        gCacheHistory = (IPoint2*)malloc(sizeof(IPoint2) * gHashMaxEntries);
+        do {
+            gCacheHistory = (IPoint2*)malloc(sizeof(IPoint2) * gHashMaxEntries);
+            if (gCacheHistory == NULL) {
+                // ruh roh
+                gHashMaxEntries /= 2;
+            }
+            // if we get to gHashMaxEntries then we're doomed
+        } while (gCacheHistory == NULL && gHashMaxEntries > 0);
         gCacheN = 0;
     }
 
@@ -126,6 +136,11 @@ void Cache_Add(int bx, int bz, void* data)
     }
     else {
         gBlockCache[hash] = hash_new(bx, bz, data, gBlockCache[hash]);
+        if (gBlockCache[hash] == NULL) {
+            // game over, out of memory
+            //assert(0);
+            return;
+        }
     }
 
     gCacheHistory[gCacheN % gHashMaxEntries].x = bx;
@@ -181,34 +196,98 @@ void Cache_Empty()
     gCacheHistory = NULL;
 }
 
+
+/* a simple malloc wrapper, based on the observation that a common
+** behavior pattern for Mineways when the cache is at max capacity
+** is something like:
+**
+** newBlock = malloc(sizeof(Block));
+** cacheAdd(newBlock)
+**  free(oldBlock) // same size
+**
+** Repeatedly. Recycling the old block can prevent the need for
+** malloc and free.
+**/
+
+static WorldBlock* last_block = NULL;
+
+WorldBlock* block_alloc(int height)
+{
+    WorldBlock* ret = NULL;
+    // is a cached block available and is it the right size?
+    if (last_block != NULL && last_block->maxHeight == height)
+    {
+        // use this cached block (clearing out just the optional entity storage first)
+        ret = last_block;
+        if (ret->entities != NULL) {
+            free(ret->entities);
+            ret->entities = NULL;
+            ret->numEntities = 0;
+        }
+        last_block = NULL;
+        return ret;
+    }
+    else {
+        // new block needed
+		if (last_block != NULL) {
+			// saved block was wrong size - clear it out, since it's unlikely to be used
+			block_force_free(last_block);
+			last_block = NULL;
+		}
+		// allocate normally
+	    ret = (WorldBlock*)malloc(sizeof(WorldBlock));
+	    if (ret == NULL)
+	        return NULL;
+	    ret->grid = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
+	    if (ret->grid == NULL)
+	        return NULL;
+	    ret->data = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
+	    if (ret->data == NULL)
+	        return NULL;
+	    ret->light = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char) / 2);
+	    if (ret->light == NULL)
+	        return NULL;
+	    ret->entities = NULL;
+	    ret->numEntities = 0;
+	    ret->maxHeight = height;    // for some betas of 1.17 it is 384 - change by checking versionID
+	    ret->maxFilledSectionHeight = ret->maxFilledHeight = -1;  // not yet determined
+	    return ret;
+	}
+}
+
+void block_free(WorldBlock* block)
+{
+    // keep latest freed block available in "last_block", so free the one already there
+    if (last_block != NULL)
+    {
+        block_force_free(last_block);
+    }
+
+    last_block = block;
+}
+
+void block_force_free(WorldBlock* block)
+{
+    if (block->entities != NULL) {
+        free(block->entities);
+        block->entities = NULL;
+        block->numEntities = 0;
+    }
+    if (block->grid != NULL)
+        free(block->grid);
+    if (block->data != NULL)
+        free(block->data);
+    if (block->light != NULL)
+        free(block->light);
+    free(block);
+}
+
+// reallocs only if memory minimization is on.
 void MinimizeCacheBlocks(bool min)
 {
     gMinimizeBlockSize = min;
 }
 
-WorldBlock* block_alloc(int height)
-{
-    WorldBlock* ret = NULL;
-    ret = (WorldBlock*)malloc(sizeof(WorldBlock));
-    if (ret == NULL)
-        return NULL;
-    ret->grid = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
-    if (ret->grid == NULL)
-        return NULL;
-    ret->data = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
-    if (ret->data == NULL)
-        return NULL;
-    ret->light = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char) / 2);
-    if (ret->light == NULL)
-        return NULL;
-    ret->entities = NULL;
-    ret->numEntities = 0;
-    ret->maxHeight = height;    // for some betas of 1.17 it is 384 - change by checking versionID
-    ret->maxFilledSectionHeight = ret->maxFilledHeight = -1;  // not yet determined
-    return ret;
-}
-
-// reallocs only if memory minimization is on.
 void block_realloc(WorldBlock* block)
 {
     if (gMinimizeBlockSize) {
@@ -235,18 +314,4 @@ void block_realloc(WorldBlock* block)
     }
 }
 
-void block_free(WorldBlock* block)
-{
-    if (block->entities != NULL) {
-        free(block->entities);
-        block->entities = NULL;
-        block->numEntities = 0;
-    }
-    if (block->grid != NULL)
-        free(block->grid);
-    if (block->data != NULL)
-        free(block->data);
-    if (block->light != NULL)
-        free(block->light);
-    free(block);
-}
+
