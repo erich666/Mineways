@@ -1614,7 +1614,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     // create subdirectory if it doesn't exist
                     concatFileName4(gTextureDirectoryPath, gMaterialDirectoryPath, subpath, L"", L"");
 
-                    // NO LONGER ALLOW ABSOLUTE PATH - too confusing, anyway - TODOTODO: test if colon in path and flag error, note in docs
+                    // NO LONGER ALLOW ABSOLUTE PATH - too confusing, anyway - TODO: test if colon in path and flag error, note in docs
                     //if (wcschr(subpath, (wchar_t)':')) {
                     //    // looks like an absolute path is being specified
                     //    wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, subpath);
@@ -3352,7 +3352,7 @@ static void computeRedstoneConnectivity(int boxIndex)
 
     // Really, "isCross" means "is potentially a cross" - if it has no neighbors,
     // then it becomes a cross, or is left a dot if this flag is not set.
-    //bool isCross = false; TODOTODO - this doesn't work; really need to interpret the sides parameter in nbt.cpp properly
+    //bool isCross = false; TODO - this doesn't work; really need to interpret the sides parameter in nbt.cpp properly
     // version isn't quite right, but basically 1.16 20w21a is the time
     //if (gMinecraftWorldVersion >= 2532) {
     //    isCross = (gBoxData[boxIndex].data == BIT_16);
@@ -15468,7 +15468,7 @@ static void createInstance(int type, int dataVal, int faceIndex)
     {
         if (gModel.instanceListSize == 0) {
             // allocate for first time
-            gModel.instanceListSize = 100;  // TODOTODO - maybe adjust?
+            gModel.instanceListSize = 100;  // TODO - maybe adjust?
             gModel.instance = (BlockInstance*)malloc(gModel.instanceListSize * sizeof(BlockInstance));
         }
         else {
@@ -15527,7 +15527,7 @@ static void saveInstanceLocation(float* anchorPt, int instanceID)
     {
         if (gModel.instanceLocListSize == 0) {
             // allocate for first time
-            gModel.instanceLocListSize = 1000;  // TODOTODO - what's a good number of blocks?
+            gModel.instanceLocListSize = 1000;  // TODO - what's a good number of blocks?
             gModel.instanceLoc = (InstanceLocation*)malloc(gModel.instanceLocListSize * sizeof(InstanceLocation));
         }
         else {
@@ -15795,7 +15795,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
                     heightIndices[0] = heightIndices[1] = heightIndices[2] = heightIndices[3] = NO_INDEX_SET;
                 }
                 // are all heights 1.0, so that this is a full block?
-                // TODOTODO for instancing in USD, consider all fluid blocks as full, since we can't really differentiate
+                // TODO for instancing in USD, consider all fluid blocks as full, since we can't really differentiate
                 if (isFullBlock || gModel.instancing)
                 {
                     // full block, so save vertices as-is;
@@ -20798,7 +20798,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
             // realloc
             UVRecord* records;
             int newSize = gModel.uvSwatches[swatchLoc].size * 3;	// I forget why I triple it - I think it's "floodgates are open, we need a lot more"
-            records = (UVRecord*)malloc(newSize * sizeof(UVRecord));    // TODOTODO - should use realloc here and elsewhere
+            records = (UVRecord*)malloc(newSize * sizeof(UVRecord));    // TODO - could use realloc here and elsewhere
             memcpy((void*)records, gModel.uvSwatches[swatchLoc].records, count * sizeof(UVRecord));
             free(gModel.uvSwatches[swatchLoc].records);
             gModel.uvSwatches[swatchLoc].records = records;
@@ -23273,7 +23273,7 @@ static int createBaseMaterialTexture()
                     // bleed multiple times, until the returned value (currently ignored) was zero, i.e., bleed to the edges, so that mipmapping works well.
                     // NOTE: this can work, mostly, but only if the "seed" of existing pixels is 3x3 in size to begin with. If smaller, no spread will happen.
                     // If no spread, then the neighbors to spread value should be set to 2, then to 1 - this code is not there.
-                    // TODOTODO: this could and probably should move to TileMaker, so it's done only once, though we need to think through the grayscale textures
+                    // TODO: this could and probably should move to TileMaker, so it's done only once, though we need to think through the grayscale textures
                     // and how they are formed, etc. So (sadly), maybe not...
                     int modCount = 0;
                     index = SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY);
@@ -24145,7 +24145,7 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         }
 
         // material library creation assumes everything's sorted by material, so do that now
-        // TODOTODO USD - may not really be needed, but could be more efficient
+        // TODO USD - may not really be needed, but could be more efficient
         qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
         // create material library
@@ -24446,7 +24446,7 @@ static void nameFromHash(int hash, char* instanceNameString)
     int type = hash >> 16;
     int dataVal = hash & 0xff;
     //const char* subName = RetrieveBlockSubname(type, dataVal);
-    // TODOTODO much better here would be to access the map naming routine, but that's tricky - 
+    // TODO much better here would be to access the map naming routine, but that's tricky - 
     // you have to get the name and mask out the data value (should be made part of that routine and shared)
     //sprintf_s(instanceNameString, 256, "%s_%d_%d", subName, type, dataVal);
     //changeCharToUnderline(' ', instanceNameString);
@@ -24502,7 +24502,7 @@ static int finishCommentsUSD()
     // render settings - could make a separate function
     strcpy_s(outputString, 256, "    customLayerData = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODOTODO
+    // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODO
     // Currently no 3D view within Mineways itself, of course. This view works well with QMAGNET's texture world
     static boolean exportCamera = false;
     if (exportCamera) {
@@ -26687,6 +26687,12 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
         *metallic = 1.00f;
         *roughness = 0.10f;
     }
+    else if (strstr(blockName, "copper") != NULL && strstr(blockName, " ore") == NULL) {
+        // iron
+        *metallic = 1.00f;
+        *roughness = 0.10f;
+    }
+    // TODOTODO - really, amethyst block should get subdivided into a bunch of materials. Need to pass in dataVal
     else if (strstr(blockName, "lantern") != NULL && strstr(blockName, "jack") == NULL) {
         // lantern (not jack) - includes sea lantern, probably doesn't matter
         *metallic = 0.80f;
@@ -27433,7 +27439,7 @@ static void formCategoryFileName(char* catFile, int category, char* textureRGB)
     int len = (int)strlen(catFile);
     if (_stricmp(&catFile[len - 4], ".png") == 0)
     {
-        // remove rgb.png suffix, if present. I don't think it should be, but just in case... TODOTODO
+        // remove rgb.png suffix, if present. I don't think it should be, but just in case...
         catFile[len - 4] = 0x0;
     }
     strcat_s(catFile, MAX_PATH, gCatStrSuffixes[category]);

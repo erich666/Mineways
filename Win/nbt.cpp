@@ -1934,13 +1934,6 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         if (bfseek(pbf, save, SEEK_SET) < 0)
             return -14; //rewind to start of section
 
-
-        // TODOTODO for now, if world y is greater than 15, we're done - we ignore these higher levels. Need to revise when 1.17 comes out
-        //if (y > maxSlice) {
-        //    assert(0);
-        //    return returnCode;
-        //}
-
         if (!newFormat) {
             // read all the arrays in this section
             for (;;)
@@ -2734,7 +2727,6 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         switch (tf) {
                         default:
                             // prop defined but not used in list below - just use NO_PROP if the prop does nothing
-                            // TODOTODO uncomment when all props implemented:
                             assert(0);
 
                         case NO_PROP:
