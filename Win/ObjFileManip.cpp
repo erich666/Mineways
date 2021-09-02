@@ -26371,8 +26371,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
             sprintf_s(outputString, 256, "            float inputs:opacity.connect = <%s/Looks/%s/diffuse_texture.outputs:a>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            // opacity threshold is not well-defined. Does 0 mean "if 0, it's transparent" or "if less than 0, it's transparent?"
-            // In Omniverse, it's the former. In Houdini, the latter.
+            // opacity threshold is not well-defined. Does the value mean "if exactly equal to val, it's transparent" or "if less than val, it's transparent"?
+            // In Omniverse, it's the former. In Houdini, the latter. So 0.0 gives a transparent pixel in Omniverse, 0.001 does in Houdini.
+            // But 0.001 makes things weirdly opaque in Omniverse, 0.0 opaque in Houdini (since the alphas cannot be below 0.0).
             // Needed only if a texture has alphas. Not needed if there's no alpha, and inefficient to boot (anyhit shader invoked).
             // Better would be to do the full alpha test, just to be sure.
             if (isCutout || isSemitransparent) {

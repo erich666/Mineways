@@ -345,7 +345,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 903
+#define NUM_TRANS 905
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -390,7 +390,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 197,           0, "dark_oak_door", DOOR_PROP },
     { 0,   7,           0, "bedrock", NO_PROP },
     { 0,   9,           0, "water", FLUID_PROP },   // FLUID_PROP
+    { 0,   9,           0, "flowing_water", FLUID_PROP },   // FLUID_PROP
     { 0,  11,           0, "lava", FLUID_PROP },   // FLUID_PROP
+    { 0,  11,           0, "flowing_lava", FLUID_PROP },   // FLUID_PROP
     { 0,  12,           0, "sand", NO_PROP },
     { 0,  12,           1, "red_sand", NO_PROP },
     { 0,  24,           0, "sandstone", NO_PROP }, // TODO 1.13 check: For normal sandstone the bottom has a cracked pattern. The other types of sandstone have bottom faces same as the tops.
@@ -706,7 +708,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 205,           0, "purpur_slab", SLAB_PROP },	// allegedly data value is 1
     { 0, 206,           0, "end_stone_bricks", NO_PROP },
     { 0, 207,           0, "beetroots", AGE_PROP },
-    { 0, 208,           0, "grass_path", NO_PROP }, // note that in 1.17 this is renamed to dirt_path, and that's the name we'll use; left here for backward compatibility
+    { 0, 208,           0, "grass_path", NO_PROP }, //through 1.16 - note that in 1.17 this is renamed to dirt_path, and that's the name we'll use; left here for backward compatibility
     { 0, 213,           0, "magma_block", NO_PROP },
     { 0, 214,           0, "nether_wart_block", NO_PROP },
     { 0, 215,           0, "red_nether_bricks", NO_PROP },
@@ -858,6 +860,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  21,  HIGH_BIT | 3, "stripped_jungle_wood", AXIS_PROP },
     { 0,  22,  HIGH_BIT | 0, "stripped_acacia_wood", AXIS_PROP },
     { 0,  22,  HIGH_BIT | 1, "stripped_dark_oak_wood", AXIS_PROP },
+    { 0, 176,           0, "ominous_banner", STANDING_SIGN_PROP },  // maybe not a real thing, but it's listed in the 1.17.1\assets\minecraft\lang\en_us.json file as a block, so let's be safe
     { 0, 176,           0, "white_banner", STANDING_SIGN_PROP },
     { 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },	// we could crush these a bit into four banners per entry by using bits 32 and 64 for different types.
     { 0,  24,    HIGH_BIT, "magenta_banner", STANDING_SIGN_PROP },
@@ -1265,7 +1268,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 40, "deepslate_redstone_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 41, "deepslate_emerald_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 42, "deepslate_lapis_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
     { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
     { 0, 118,            0x0, "water_cauldron", NO_PROP }, // I assume this is the same as a cauldron, basically, with the level > 0, https://minecraft.fandom.com/wiki/Cauldron
     { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
