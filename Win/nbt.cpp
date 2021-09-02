@@ -345,7 +345,7 @@ static int worldVersion = 0;
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
 
-#define NUM_TRANS 905
+#define NUM_TRANS 906
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -356,6 +356,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     // and older https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
     //hash,ID,BIT|dataval,  name, common properties flags
     { 0,   0,           0, "air", NO_PROP },
+    { 0,   0,           0, "empty", NO_PROP },  // not sure this is necessary, but it is mentioned in https://minecraft.fandom.com/wiki/Java_Edition_data_values
     { 0, 166,           0, "barrier", NO_PROP },
     { 0,   1,           0, "stone", NO_PROP },
     { 0,   1,           1, "granite", NO_PROP },

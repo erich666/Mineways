@@ -296,6 +296,7 @@ dripstone_block
 dropper
 emerald_block
 emerald_ore
+empty
 enchanting_table
 end_gateway
 end_portal
