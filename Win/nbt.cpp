@@ -635,7 +635,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 158,           0, "dropper", DROPPER_PROP },
     { 0,  25,           0, "note_block", NO_PROP },	// pitch, powered, instrument - ignored
     { 0,  92,           0, "cake", CANDLE_CAKE_PROP },
-    { 0,  26,           0, "bed", BED_PROP },
+    { 0,  26,           0, "bed", BED_PROP },   // 1.13 bed was renamed "red_bed"; we leave this in, just in case
     { 0,  96,           0, "oak_trapdoor", TRAPDOOR_PROP },
     { 0, 167,           0, "iron_trapdoor", TRAPDOOR_PROP },
     { 0,  30,           0, "cobweb", NO_PROP },
