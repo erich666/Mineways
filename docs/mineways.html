@@ -977,7 +977,9 @@ Rendering Tips
 <H4 id="blender">Blender</H4><p>
 <a href="https://www.blender.org"><img id="productLogo" src="images/blender_icon.jpg" alt="Blender icon"></a>
 <P>
-The first two steps are the same for all versions of Blender, since they involve only Mineways:
+Note: Blender 3.0 will have USD import, which should help make it easy to use physically-based materials (reflectance, non/metallic), normal maps, and other <a href="textures.html">more elaborate textures</a> found in some texture packs. If you're using this alpha software, give Mineways' USD export system a try with it and let me know how it goes (I haven't tried it yet).
+<P>
+To move your Minecraft world's data into Blender, the first two steps are the same for all versions of Blender, since they involve only Mineways:
 <P>
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle).
 </P>
@@ -2722,10 +2724,26 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <LI>Minecraft 1.12 and earlier: Mineways version 5.10
 </UL>
 <P>
-From newest to oldest. The very newest is work in progress, with "*" meaning "to do."
+From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
 
-<LI>Version 9.00, 7/3/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV900.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 9.01, ?/?/2021 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+    <LI>*Fix vines.
+	<LI>*Recognize the "short" data property and use it for pistons.
+	<LI>*Update JG-RTX with more 1.17 content; check other packs for 1.17 content.
+	<LI>*Check Color Schemes - there are probably names there for items 396 and 400, which should either not be shown, renamed, or...?
+	<LI>*Update doors with new shared data format and a split path (between 1.12 and 1.13's storage structures, since 1.13 on has full info); update redstone a bit with directionality and on/off and a split path, getting rid of distance and folding in directionality for 1.13 and newer.
+	<LI>*Add an information dialog about the world read in, e.g., what exact version it is, spawn point, and player loc, if nothing else.
+	<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
+	<LI>**Individual block export does not currently work with tiled textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
+	<LI>**Add the ability to remap mouse buttons for operations. See <a href="https://github.com/erich666/Mineways/issues/86">this issue</a>.
+	<LI>**Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
+	<LI>**TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly, and done only once, which would speed up export itself (which does this bleeding every single export).
+  </UL>
+
+<LI><B>Version 9.00</B>, 7/3/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV900.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
     <LI>Minecraft 1.17 support. This version of Mineways will read in older worlds, but uses the latest naming conventions, e.g., "Dirt Path" instead of "Grass Path," "Block of Lapis Lazuli" instead of "Lapiz Lazuli Block." Lectern top <a href="https://bugs.mojang.com/browse/MC-214568">is lowered for 1.17</a>. New textures used, of course.
@@ -2745,6 +2763,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 	<LI>Remove terrainExt_ModernHD.png terrain, as <a href="https://resourcepack.net/modern-hd-resource-pack/">this pack</a> has not been updated since 1.13. Updated Coterie Craft to 1.16, but at 16x resolution, down from 32x.
   </UL>
 
+<P>
 <LI>Version 8.08, 6/17/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV808.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>

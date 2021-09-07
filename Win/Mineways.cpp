@@ -337,7 +337,7 @@ static struct {
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
     // {_T("Error: cannot read your custom terrainExt*.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
     {_T("Error: cannot read terrainExt*.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt*.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK | MB_ICONERROR},	// << 19
-    {_T("Error writing to export file; partial file output\n\nPNG error: %s"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<21
+    {_T("Error writing to export file; partial file output\n\nPNG error: %s.\nThis error can often mean that antivirus software (such as Avast) is blocking Mineways. You need to give Mineways permission to write files. Another possibility is that your directory path is confusing Mineways. Try something simple, like c:\temp."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<21
 };
 
 #define RUNNING_SCRIPT_STATUS_MESSAGE L"Running script commands"

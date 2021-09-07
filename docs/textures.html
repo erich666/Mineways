@@ -396,6 +396,12 @@ However, ChannelMixer is not perfect, so you can give ChannelMixer commands for 
 Pro tip: if you want to see what blocks have what roughness, normals, or other textures directly, choose that texture when you use "File -> Choose Terrain File" in Mineways. With our JG RTX example, you could see the roughness textures by picking terrainExt_JG-RTX_r.png, the roughness texture. Most objects will be black, which means no texture applied. For example, here's <a href="https://www.curseforge.com/minecraft/texture-packs/vanilla-pbr">Vanilla PBR's</a> roughness textures applied to <a href="https://www.planetminecraft.com/project/qmagnets-texture-pack-test-map-13w03a/">QMAGNET's test world</a>.
 
 <P>
+<div>
+  <img src="images/vanilla_pbr_roughness.jpg" alt="Vanilla PBR roughness textures">
+</div>
+<P>
+
+<P>
 And, one last trick: I picked and chose a little with the JG RTX resource pack, as there were a few variant brick patterns and I didn't like the default (everyone's a critic...). If you use the JG RTX terrain set, but wish a few block faces were different, there are two ways to make that happen. You can always edit the resulting USDA file in Omniverse Create, by hand or by using a Python script (and I have no idea how to do that). If you want to make a more permanent change to a terrain file, you can do so pretty easily. You put the new block textures in some directory, say it's "new_blocks". You then do:
 
 <PRE>
@@ -403,12 +409,6 @@ TileMaker.exe -i terrainExt_JG-RTX.png -d new_blocks -o terrainExt_JG-RTX_improv
 </PRE>
 
 The "-i terrainExt_JG-RTX.png" command says to use terrainExt_JG-RTX.png as your input texture, "new_blocks" as your new input block textures, and the result should go into your new output file terrainExt_JG-RTX_improved.png/
-
-<P>
-<div>
-  <img src="images/vanilla_pbr_roughness.jpg" alt="Vanilla PBR roughness textures">
-</div>
-<P>
 
 <H2 id="resource_packs">Resource Packs</H2>
 
