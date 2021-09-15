@@ -3281,6 +3281,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             }
         }
     }
+    if (mfsHeight < 0) {
+        // no real data found in the block - this can happen with modded worlds, etc.
+        return 2;   // means it's empty
+    }
     if (!newFormat) {
         if (nbtFindElement(pbf, "TileEntities") != 9)
             // all done, no TileEntities found

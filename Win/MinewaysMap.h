@@ -76,6 +76,7 @@ typedef struct WorldGuide {
     wchar_t directory[520];
     Schematic sch;
     int nbtVersion;
+    bool isServerWorld;
 } WorldGuide;
 
 void SetSeparatorMap(const wchar_t* separator);

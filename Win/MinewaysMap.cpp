@@ -6548,6 +6548,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // does block have anything in it other than air?
             if (block->blockType == 1) {
                 int i;
+                // TODOTODO - or should we free the block?
                 determineMaxFilledHeight(block);
 
                 // look for unknown blocks and recover
@@ -6596,13 +6597,15 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
             searchMaxHeight = false;
         }
     }
-    // really, this assert should always be true! But if not, let's take corrective action
-    assert(block->maxFilledHeight >= 0);
+    if (block->maxFilledHeight < 0) {
+        block->blockType = 2;   // means empty
+        //return NULL;
+    }
 
-    // and, realloc!
+    // and, realloc, if set to minimize memory
     block_realloc(block);
 
-    return (block->maxFilledHeight >= 0) ? block : NULL;
+    return block;
 
 }
 

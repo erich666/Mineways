@@ -100,8 +100,9 @@ if (FH) { \
 HINSTANCE hInst;								// current instance
 TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
+// number of worlds in initial world list
 #define MAX_WORLDS	50
-TCHAR* gWorlds[MAX_WORLDS];							// number of worlds in initial world list
+TCHAR* gWorlds[MAX_WORLDS];			// the directory name for the world, which must be unique and so is the one we show
 int gNumWorlds = 0;
 #define MAX_TERRAIN_FILES	45
 TCHAR* gTerrainFiles[MAX_TERRAIN_FILES];							// number of terrain files in initial list
@@ -1676,6 +1677,58 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             //DialogBox(hInst, MAKEINTRESOURCE(IDD_FOCUS_VIEW), hWnd, About);
             break;
+        case IDM_VIEW_INFORMATION:
+            // show information about world:
+            // name, directory name, major & minor version, spawn loc, player loc
+            {
+                TCHAR infoString[1024];
+                switch (gWorldGuide.type) {
+                default:
+                    // should never reach here, as this control should be off if there's no world loaded
+                    assert(0);
+                case WORLD_TEST_BLOCK_TYPE:
+                    wsprintf(infoString, L"World is the built-in [Block Test World]");
+                    break;
+                case WORLD_LEVEL_TYPE:
+                    // TODO: add this table to convert to strings https://minecraft.fandom.com/wiki/Data_version
+                    char levelName[MAX_PATH_AND_FILE];
+                    // the only place we ever need the level name, other than populating the world list
+                    GetLevelName(gWorldGuide.world, levelName, MAX_PATH_AND_FILE);
+                    wsprintf(infoString, L"Level name: %S\nDirectory name: %s\n\nMajor version: 1.%d%s\nData version: %d\nSee http://bit.ly/minedv to convert this\ndata version value more precisely.\n\nSpawn location: %d, %d, %d\n",
+                        levelName, stripWorldName(gWorldGuide.world),
+                        gMinecraftVersion,
+                        (gMinecraftVersion == 8 ? L" or earlier" : L""),
+                        gVersionID,
+                        // gWorldGuide.nbtVersion, - always the same 19333 or whatever
+                        gSpawnX, gSpawnY, gSpawnZ
+                    );
+                    if (gWorldGuide.isServerWorld) {
+                        wcscat_s(infoString, 1024, L"This is a server world; no player location");
+                    }
+                    else {
+                        TCHAR playerString[1024];
+                        wsprintf(playerString, L"Player location : %d, %d, %d",
+                            gPlayerX, gPlayerY, gPlayerZ
+                        );
+                        wcscat_s(infoString, 1024, playerString);
+                    }
+                    break;
+                case WORLD_SCHEMATIC_TYPE:
+                    wsprintf(infoString, L"Schematic name: %s\n\nWidth (X - east/west): %d\nHeight (Y - vertical): %d\nLength (Z - north/south): %d",
+                        stripWorldName(gWorldGuide.world),
+                        gWorldGuide.sch.width, gWorldGuide.sch.height, gWorldGuide.sch.length
+                    );
+                    break;
+                }
+
+                MessageBox(
+                    NULL,
+                    infoString,
+                    _T("World information"),
+                    MB_OK | MB_ICONINFORMATION
+                );
+            }
+            break;
         case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
                 gTargetDepth = gMinHeight;
@@ -3018,6 +3071,7 @@ static int loadWorld(HWND hWnd)
     }
 
     gWorldGuide.nbtVersion = 0;
+    gWorldGuide.isServerWorld = false;
     switch (gWorldGuide.type) {
     case WORLD_TEST_BLOCK_TYPE:
         // load test world
@@ -3055,11 +3109,12 @@ static int loadWorld(HWND hWnd)
         if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 0) {
             // if this fails, it's a server world, so set the values equal to the spawn location; return no error
             // from http://minecraft.gamepedia.com/Level_format
-            // Player: The state of the Singleplayer player.This overrides the <player>.dat file with the same name as the
-            // Singleplayer player. This is only saved by Servers if it already exists, otherwise it is not saved for server worlds.See Player.dat Format.
+            // Player: The state of the Singleplayer player. This overrides the <player>.dat file with the same name as the
+            // Singleplayer player. This is only saved by Servers if it already exists, otherwise it is not saved for server worlds. See Player.dat Format.
             gPlayerX = gSpawnX;
             gPlayerY = gSpawnY;
             gPlayerZ = gSpawnZ;
+            gWorldGuide.isServerWorld = true;
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionID);
@@ -3402,8 +3457,10 @@ static int loadWorldList(HMENU menu)
                         info.fState = 0x0; // MFS_CHECKED;
                     }
                     InsertMenuItem(menu, IDM_TEST_WORLD, FALSE, &info);
-                    gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR) * MAX_PATH_AND_FILE);
-                    wcscpy_s(gWorlds[gNumWorlds], MAX_PATH_AND_FILE, testAnvil);
+                    size_t strLen = wcslen(testAnvil) + 1;
+                    gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR) * strLen);
+                    wcscpy_s(gWorlds[gNumWorlds], strLen, testAnvil);
+
                     // was: setWorldPath(worlds[numWorlds]);
                     //PathAppend(worlds[numWorlds],ffd.cFileName);
                     gNumWorlds++;
@@ -3565,6 +3622,7 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu, IDM_JUMPPLAYER, MF_ENABLED);
         EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_ENABLED);
         EnableMenuItem(menu, IDM_FOCUSVIEW, MF_ENABLED);
+        EnableMenuItem(menu, IDM_VIEW_INFORMATION, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_ENABLED);
         EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_ENABLED);
@@ -3581,6 +3639,7 @@ static void validateItems(HMENU menu)
         EnableMenuItem(menu, IDM_JUMPPLAYER, MF_DISABLED);
         EnableMenuItem(menu, IDM_VIEW_JUMPTOMODEL, MF_DISABLED);
         EnableMenuItem(menu, IDM_FOCUSVIEW, MF_DISABLED);
+        EnableMenuItem(menu, IDM_VIEW_INFORMATION, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_SAVEOBJ, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_PRINTOBJ, MF_DISABLED);
         EnableMenuItem(menu, IDM_FILE_SCHEMATIC, MF_DISABLED);
@@ -8029,6 +8088,12 @@ static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
     {
         wcscat_s(title, MAX_PATH_AND_FILE - 1, stripWorldName(pWorldGuide->world));
     }
+
+    TCHAR infoString[1024];
+    wsprintf(infoString, L" (1.%d%s)",
+        gMinecraftVersion,
+        (gMinecraftVersion == 8 ? L"?" : L""));
+    wcscat_s(title, MAX_PATH_AND_FILE - 1, infoString);
 
     // Really, there should always be a path and name.
     // We could test if it's terrain.png and ignore, I guess (assumes someone hasn't used the same name elsewhere
