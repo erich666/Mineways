@@ -13737,8 +13737,6 @@ static void fillGroups(IBox* bounds, int masterGroupID, bool solid, int fillType
                         // target is not solid, and master is solid, so needs to be made solid OR
                         // target is solid, and master is not solid, so need to be made air (fillType is
                         // assumed to be set correctly, to air.
-                        // Note that we don't bother setting the "data" to anything;
-                        // we assume the master fill type doesn't have a sub-field.
 
                         // special test: if a location is surrounded by trees and leaves and air, fill in with a leaf
                         if (solid && ((fillType == BLOCK_GLASS) || (fillType == BLOCK_STAINED_GLASS)))
@@ -13772,11 +13770,13 @@ static void fillGroups(IBox* bounds, int masterGroupID, bool solid, int fillType
                             {
                                 // normal fill
                                 gBoxData[boxIndex].type = (unsigned char)fillType;
+                                gBoxData[boxIndex].data = 0x0;
                             }
                         }
                         else
                         {
                             gBoxData[boxIndex].type = (unsigned char)fillType;
+                            gBoxData[boxIndex].data = 0x0;
                         }
                         // no real reason to clear data field, and we may
                         // in fact want to check it later with origType:
@@ -20513,7 +20513,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0x3f)
             {
             default: // block of glass
-                //assert(0);
+                assert(0);
             case 0:
                 // no change, default is fine
                 break;
