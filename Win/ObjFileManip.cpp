@@ -93,7 +93,7 @@ typedef struct BoxGroup
 } BoxGroup;
 
 static BoxCell* gBoxData = NULL;
-static unsigned char* gBiome = NULL;
+static unsigned char* gBiomeArray = NULL;
 static IPoint gBoxSize;
 static int gBoxSizeYZ = UNINITIALIZED_INT;
 static int gBoxSizeXYZ = UNINITIALIZED_INT;
@@ -836,7 +836,8 @@ void ClearCache()
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, int mapMinHeight, int mapMaxHeight,
-    ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize)
+    ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
+    int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
     // * Read the texture for the materials.
     // * populateBox:
@@ -930,8 +931,12 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gUnitsScale = gUnitTypeTable[gModel.options->pEFD->comboModelUnits[gModel.options->pEFD->fileType]].unitsPerMeter;
 
+    // already initialized above by memset to 0: gModel.groupCount = 0;
+    gModel.groupCountSize = groupCountSize;
+    gModel.groupCountArray = groupCountArray;
+
     gBoxData = NULL;
-    gBiome = NULL;
+    gBiomeArray = NULL;
 
     gMinorBlockCount = 0;
 
@@ -1255,6 +1260,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         break;
     }
 
+    // note if groups were updated, a value that is returned
+    groupCount = gModel.groupCount;
+
     if (retCode >= MW_BEGIN_ERRORS)
         goto Exit;
 
@@ -1284,9 +1292,9 @@ Exit:
         free(gBoxData);
     gBoxData = NULL;
 
-    if (gBiome)
-        free(gBiome);
-    gBiome = NULL;
+    if (gBiomeArray)
+        free(gBiomeArray);
+    gBiomeArray = NULL;
 
     if (gBadBlocksInModel)
         // if ( UnknownBlockRead() && gBadBlocksInModel )
@@ -1303,6 +1311,9 @@ Exit:
     sprintf_s(progString, 256, "Export took a total of %g milliseconds\n", diffTime);
     OutputDebugStringA(progString);
 #endif
+
+    // return biome selected, if any (else -1)
+    biomeIndex = (gModel.options->exportFlags & EXPT_BIOME) ? gModel.biomeIndex : -1;
 
     return retCode;
 }
@@ -2269,14 +2280,14 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
 
     if (gModel.options->exportFlags & EXPT_BIOME)
     {
-        gBiome = (unsigned char*)calloc(gBoxSize[X] * gBoxSize[Z], sizeof(unsigned char));
-        if (gBiome == NULL)
+        gBiomeArray = (unsigned char*)calloc(gBoxSize[X] * gBoxSize[Z], sizeof(unsigned char));
+        if (gBiomeArray == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
 
         // set all biome values to "plains"
-        //memset(gBiome, 0x1, gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
+        //memset(gBiomeArray, 0x1, gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
     }
 
     // Now actually copy the relevant data over to the newly-allocated box data grid.
@@ -2543,7 +2554,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
             {
                 // X and Z location index is stored in the low-order bits; mask off Y location
                 int biomeIdx = (x + gWorld2BoxOffset[X]) * gBoxSize[Z] + z + gWorld2BoxOffset[Z];
-                gBiome[biomeIdx] = block->biome[chunkIndex & 0xff];
+                gBiomeArray[biomeIdx] = block->biome[chunkIndex & 0xff];
             }
 
             for (y = miny; y <= maxy; y++, boxIndex++) {
@@ -3216,7 +3227,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                 int i;
                 for (i = 0; i <= gGroupCount; i++)
                 {
-                    if (gGroupList[i].population > maxPop&& gGroupList[i].solid)
+                    if (gGroupList[i].population > maxPop && gGroupList[i].solid)
                     {
                         groupMaxID = gGroupList[i].groupID;
                         maxPop = gGroupList[i].population;
@@ -14722,6 +14733,13 @@ static void deleteFloatingGroups()
                 assert(gSolidGroups >= 0);
                 free(neighborGroups);
             }
+            else {
+                // note size of group not deleted, for warning
+                if (gModel.groupCount < gModel.groupCountSize) {
+                    gModel.groupCountArray[gModel.groupCount] = pGroup->population;
+                }
+                gModel.groupCount++;
+            }
         }
     }
 }
@@ -20495,7 +20513,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0x3f)
             {
             default: // block of glass
-                assert(0);
+                //assert(0);
             case 0:
                 // no change, default is fine
                 break;
@@ -22868,7 +22886,8 @@ static int createBaseMaterialTexture()
         {
             // get foliage and grass color from center biome: half X and half Z
             idx = (int)(gBoxSize[X] / 2) * gBoxSize[Z] + gBoxSize[Z] / 2;
-            int biome = gBiome[idx];
+            int biome = gBiomeArray[idx];
+            gModel.biomeIndex = biome;
 
             // note we don't use location height at this point to adjust temperature
             grassColor = ComputeBiomeColor(biome, 0, 1);
@@ -27861,7 +27880,12 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
     }
 
-    sprintf_s(outputString, 256, "# Use biomes: %s\n", gModel.options->pEFD->chkBiome ? "YES" : "no");
+    if (gModel.options->pEFD->chkBiome) {
+        sprintf_s(outputString, 256, "# Use biomes: YES - index %d, %s\n", gModel.biomeIndex, gBiomes[gModel.biomeIndex].name);
+    }
+    else {
+        sprintf_s(outputString, 256, "# Use biomes: no\n");
+    }
     WRITE_STAT;
 
     // now always on by default

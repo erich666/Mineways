@@ -440,7 +440,7 @@ If you find you want your model data to be arranged a bit differently for your r
 <P>Any number of polygons can be in an object or group. There is also a set of materials (defined in the .mtl file). One and only one material is applied to each polygon.
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_group_objects">Make groups objects</a> option, as each group will then be a separate object you can manipulate. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export. With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda".
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export. With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda".
 <LI>Material per family: on by default; blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
@@ -485,7 +485,7 @@ SELECTED
 unchecked
 </td>
 <td>
-<b>Default for rendering:</b> Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces and one Stone group using the Stone material applied to 14 faces.
+<b>Default for rendering:</b> Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks).
 </td>
 <td>
 Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -506,7 +506,7 @@ SELECTED
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces, one Stone group using the Stone material applied to 6 faces, and one Diorite group using the Diorite material applied to 8 block faces.
+Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces.
 </td>
 <td>
 Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -527,7 +527,7 @@ unchecked
 unchecked
 </td>
 <td>
-Polygons are grouped by block family. Result is one Grass_Block group with 8 block faces and one Stone group with 14 faces.
+Polygons are grouped by block family. Result is one Grass_Block group with 8 visible block faces and one Stone group with 14 visible faces.
 </td>
 <td>
 Single material. A default MC_material is created and applied to all polygons.
@@ -548,7 +548,7 @@ unchecked
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type. Result is one Grass_Block group with 8 block faces, one Stone group with 6 faces, and one Diorite group with 8 block faces.
+Polygons are grouped by block type. Result is one Grass_Block group with 8 visible block faces, one Stone group with 6 visible faces, and one Diorite group with 8 visible block faces.
 </td>
 <td>
 Single material. A default MC_material is created and applied to all polygons.
@@ -575,7 +575,7 @@ unchecked
 (grayed out)
 </td>
 <td>
-<B>Default for 3D printing:</B> No groups are created at all. Result is 22 block faces.
+<B>Default for 3D printing:</B> No groups are created at all. Result is 22 visible block faces.
 </td>
 <td>
 Single material. A default MC_material is created and applied to all polygons.
@@ -602,7 +602,7 @@ SELECTED
 unchecked
 </td>
 <td>
-Each individual block is in its own group. Result is 6 block faces in each of six groups: block_00001, block_00002, etc. The related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
+Each individual block is in its own group. Result is 6 block faces in each of six groups (the six blocks): block_00001, block_00002, etc. The related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
 </td>
 <td>
 Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -623,7 +623,7 @@ SELECTED
 SELECTED
 </td>
 <td>
-Each individual block is in its own group. Result is 6 block faces in each of six groups: block_00001, block_00002, etc. The related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
+Each individual block is in its own group. Result is 6 block faces in each of six (block) groups: block_00001, block_00002, etc. The related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
 </td>
 <td>
 Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -644,7 +644,7 @@ unchecked
 unchecked
 </td>
 <td>
-Individual blocks are output, but grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 12 block faces and one Stone group using the Stone material applied to 24 faces.
+Individual blocks are output, but grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to two blocks' 12 block faces and one Stone group using the Stone material applied to four blocks' 24 faces.
 </td>
 <td>
 Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -665,7 +665,7 @@ unchecked
 SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to 12 block faces, one Stone group using the Stone material applied to 12 faces, and one Diorite group using the Diorite material applied to 12 block faces.
+Individual blocks are output, but grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to two blocks' 12 block faces, one Stone group using the Stone material applied to two blocks' 12 faces, and one Diorite group using the Diorite material applied to two blocks' 12 block faces.
 </td>
 <td>
 Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -677,7 +677,7 @@ Each block <i>type</i> has a separate material. Result is three materials, Grass
 When exporting <B>separate textures</B> these settings have slightly different meanings, because separate materials are created depending on the texture needed, not the Minecraft block family or type. "Export individual blocks" then means that "Split by block type" has no effect, since materials are set as needed. Similarly, if neither "Export separate types" nor "Export individual blocks" is on, materials are output as needed, since there can be no "single material for all" with "separate textures." Long and short: try various options out and see what they do.
 
 <P>
-<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box.
+<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box. This is useful in Blender, for example.
 
 <a id="full_material"><H4>Custom material</H4></a>
 
@@ -986,7 +986,7 @@ To move your Minecraft world's data into Blender, the first two steps are the sa
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle).
 </P>
 <P>
-<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export separate textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective. You may wish to try the <a href="#make_group_objects">"Make groups objects" option</a> if you are <a href="#individual">exporting individual blocks</a> for animation.
+<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export separate textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective. You may wish to try the <a href="#make_groups_objects">"Make groups objects" option</a> if you are <a href="#individual">exporting individual blocks</a> for animation.
 </P>
 
 <p>
@@ -1060,7 +1060,7 @@ Technical note: if you use the material option "Export separate textures" when e
 <P>
 <b>10) Render Size:</b> You can also set several parameters of the Renderer by selecting the Camera in the Scene Collection in the upper right, then clicking on the Context.Output icon in the vertical list of icons - it's the third one down, it looks like a printer spitting out an image. In the section "Dimensions", you can set the Resolution of the image, add a border, and so on. To export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
 <P>
-<b>11) Optional: Split into Objects:</b> Blender 2.8+ imports a Mineways OBJ file as a single object. If you did not use the <a href="#make_group_objects">"Make groups objects" option</a> but want to split the object in Blender, do the following. First, <a href="https://www.katsbits.com/codex/edit-mode-basics/#edit-mode">switch to Edit Mode</a>. Then hit the "p" key and with your mouse select the option "By Material." The objects will now be separated in this way. Note that this may not be what you want - likely you'll need to use the <a href="#individual">"Export individual blocks" option</a> in Mineways to get "solid" blocks you can animate.
+<b>11) Optional: Split into Objects:</b> Blender 2.8+ imports a Mineways OBJ file as a single object. If you did not use the <a href="#make_groups_objects">"Make groups objects" option</a> but want to split the object in Blender, do the following. First, <a href="https://www.katsbits.com/codex/edit-mode-basics/#edit-mode">switch to Edit Mode</a>. Then hit the "p" key and with your mouse select the option "By Material." The objects will now be separated in this way. Note that this may not be what you want - likely you'll need to use the <a href="#individual">"Export individual blocks" option</a> in Mineways to get "solid" blocks you can animate.
 <P>
 <b>12) Upload</b> pictures of your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but I hope you do - I like seeing what people make.)
 <P>
@@ -2732,6 +2732,10 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Version 9.01, ?/?/2021 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
+    <LI>Important bug fix: properly interpret flowing_water, flowing_lava, empty, and ominous_banner - not sure that last one is needed (<I>thanks to theOther_Kloud for reporting this problem</I>).
+	<LI>Shrink grass by 15/16ths, and put it from 0.0 to 3.0 texels down (<I>thanks to Raihan for reporting this problem</I>).
+	<LI>When exporting using the biome, show in the statistics which biome was chosen, and note the same at the top of the OBJ, VRML, or USD file.
+	<LI>Fix documentation for 3D printing instructions about filling in doors and windows (<I>thanks to Cadage for asking about this feature</I>). Other minor documentation improvements.
 	<LI>*Little defect: snow blocks put on grass will make the grass blocks below them snowy.
 	<LI>*Recognize the "short" data property and use it for pistons.
 	<LI>*Update JG-RTX with more 1.17 content; check other packs for 1.17 content.
@@ -2996,7 +3000,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Version 7.12, 3/28/2020 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV712.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Added export option <a href="#make_group_objects">"Make groups objects"</a> for OBJ export. This option makes every group formed into a separate object of the same name. It can help ease editing when exporting individual blocks, for example. <I>(Thanks to zero for reporting this problem.)</I>
+<LI>Added export option <a href="#make_groups_objects">"Make groups objects"</a> for OBJ export. This option makes every group formed into a separate object of the same name. It can help ease editing when exporting individual blocks, for example. <I>(Thanks to zero for reporting this problem.)</I>
 <LI>Added file scripting/annotate_map.py, which annotates output maps with where each region file is located, along with other related scripts. Such maps can help you decide to delete remote regions from your world, for example. Read the top of the file for how to install Python and ImageMagick and then run this program. <I>(Thanks to Rob P for testing these scripts out.)</I>
 <LI>Fixed script interpreter for "Zoom:" - input was incorrectly limited to between 1 and 15, not 1 to 40.
 <LI>Added scripting/_README.txt to explain the sample scripting files. This is the least known, and most powerful, part of Mineways.
@@ -3629,7 +3633,8 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p id="lastUpdate">Last updated 7/3/2021</p>
+		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
+		<br id="lastUpdate">Last updated 9/15/2021</p>
 	</div>
 </div>
 

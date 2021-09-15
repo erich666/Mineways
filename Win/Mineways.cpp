@@ -228,6 +228,11 @@ static int gInstanceError = true;
 
 static int gInstanceChunkSize = 16;
 
+static int gBiomeSelected = -1;
+static int gGroupCount = 0;
+static int gGroupCountSize = 10;
+static int gGroupCountArray[10];
+
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
 #define	IMPORT_SCRIPT	2
@@ -3897,7 +3902,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
         updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
-        gInstanceChunkSize);
+        gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
 
     deleteCommandBlockSet(gChangeBlockCommands);
     gChangeBlockCommands = NULL;
@@ -4409,7 +4414,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
             updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
-            gInstanceChunkSize);
+            gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
 
@@ -4502,6 +4507,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 _T("Export limitation"), MB_OK | MB_ICONERROR);
         }
 
+        // show errors first
+        if (errCode != MW_NO_ERROR)
+        {
+            PopupErrorDialogs(errCode);
+        }
+
         if (errCode < MW_BEGIN_ERRORS) {
 
             // output stats, if printing or rendering and there *are* stats (showStatistics is 0 if there's nothing in the volume)
@@ -4535,13 +4546,26 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 else if (printModel == RENDERING_EXPORT && gShowRenderStats) {
                     int retval;
                     wchar_t msgString[2000];
-                    swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                        formatWithCommas(gModel.blockCount, gCommaString1),
-                        formatWithCommas(gModel.billboardCount, gCommaString2),
-                        formatWithCommas(gModel.faceCount, gCommaString3),
-                        formatWithCommas(2 * gModel.faceCount, gCommaString4),
-                        formatWithCommas(gModel.vertexCount, gCommaString5)
-                    );
+                    if (gBiomeSelected >= 0) {
+                        swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            formatWithCommas(gModel.blockCount, gCommaString1),
+                            formatWithCommas(gModel.billboardCount, gCommaString2),
+                            formatWithCommas(gModel.faceCount, gCommaString3),
+                            formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                            formatWithCommas(gModel.vertexCount, gCommaString5),
+                            gBiomeSelected,
+                            gBiomes[gBiomeSelected].name
+                        );
+                    }
+                    else {
+                        swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            formatWithCommas(gModel.blockCount, gCommaString1),
+                            formatWithCommas(gModel.billboardCount, gCommaString2),
+                            formatWithCommas(gModel.faceCount, gCommaString3),
+                            formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                            formatWithCommas(gModel.vertexCount, gCommaString5)
+                        );
+                    }
                     retval = MessageBox(NULL, msgString,
                         _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                     if (retval != IDYES)
@@ -4552,10 +4576,6 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             }
         }
 
-        if (errCode != MW_NO_ERROR)
-        {
-            PopupErrorDialogs(errCode);
-        }
         // clear progress bar
         if (*updateProgress)
             (*updateProgress)(0.0f);
@@ -4583,6 +4603,53 @@ static void PopupErrorDialogs(int errCode)
                 size_t convertedChars = 0;
                 mbstowcs_s(&convertedChars, wcString, newsize, lodepng_error_text(pngError), _TRUNCATE);
                 wsprintf(errString, gPopupInfo[errNo + 1].text, wcString);
+                MessageBox(
+                    NULL,
+                    errString,
+                    gPopupInfo[errNo + 1].caption,
+                    gPopupInfo[errNo + 1].type
+                );
+            }
+            else if ((1 << errNo) == MW_MULTIPLE_GROUPS_FOUND)
+            {
+                // Show what the group sizes are.
+                TCHAR errString[1024], sizesString[20];
+                wsprintf(errString, L"%s\n\nNumber of separate floating groups: %d\nSizes:", gPopupInfo[errNo + 1].text, gGroupCount);
+                // sort values in gGroupArray by size, largest to smallest
+                int i, j;
+                int size = min(gGroupCount, gGroupCountSize);
+                for (i = 0; i < size - 1; i++) {
+                    // Last i elements are already in place 
+                    for (j = 0; j < size - i - 1; j++) {
+                        if (gGroupCountArray[j] < gGroupCountArray[j + 1]) {
+                            // swap
+                            int temp = gGroupCountArray[j];
+                            gGroupCountArray[j] = gGroupCountArray[j + 1];
+                            gGroupCountArray[j + 1] = temp;
+                        }
+                    }
+                }
+
+                for (i = 0; i < gGroupCount && i < gGroupCountSize; i++) {
+                    // output number
+                    wsprintf(sizesString, L" %d", gGroupCountArray[i]);
+                    wcscat_s(errString, 1024, sizesString);
+                    if (i < gGroupCount - 1 && i < gGroupCountSize - 1) {
+                        wcscat_s(errString, 1024, L",");
+                    }
+                    else {
+                        // at last possible element in array
+                        if (gGroupCount <= gGroupCountSize) {
+                            wcscat_s(errString, 1024, L".");
+                        }
+                        else {
+                            //gGroupCount is larger than gGroupCountSize, so not all values are saved - stop output and note all values are not shown
+                            wcscat_s(errString, 1024, L", ...");
+                            break;
+                        }
+                    }
+                }
+
                 MessageBox(
                     NULL,
                     errString,
