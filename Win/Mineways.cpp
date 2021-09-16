@@ -841,7 +841,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.2 or later and play it, then quit."),
+                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.9 or later and play it, then quit."),
                     _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
             }
         }
@@ -3405,6 +3405,18 @@ static int loadWorldList(HMENU menu)
                         continue;
                     }
 
+                    LOG_INFO(gExecutionLogfile, "        try to get file version ID\n");
+                    int versionID;
+                    errCode = GetFileVersionId(testAnvil, &versionID);
+                    if (errCode != 0) {
+                        // unreadable world, for some reason - couldn't read version and LevelName
+                        //flagUnreadableWorld(testAnvil, pConverted, errCode);
+                        //continue;
+                        // Note, some worlds do this, e.g., 1.7 and 1.8 worlds don't have a version.
+                        // So, set the versionID to 0 and move on.
+                        versionID = 0;
+                    }
+
                     /* Only needed for debug. Trying to minimize these calls, see issue https://github.com/erich666/Mineways/issues/31
                     int versionId = 0;
                     char versionName[MAX_PATH_AND_FILE];
@@ -3443,10 +3455,18 @@ static int loadWorldList(HMENU menu)
                     info.dwTypeData = worldIDString;
                     info.dwItemData = gNumWorlds;
                     // if version is pre-Anvil, show world but gray it out
+                    // TODOTODO: sorry, we don't read 1.18 files yet - the format has changed
                     if (version < 19133)
                     {
                         LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
                         oldVersionDetected = 1;
+                        // gray it out
+                        info.fMask |= MIIM_STATE;
+                        info.fState = MFS_DISABLED;
+                    }
+                    else if (DATA_VERSION_TO_RELEASE_NUMBER(versionID) >= 18)
+                    {
+                        LOG_INFO(gExecutionLogfile, "   file is 1.18 or newer - new format is not supported yet\n");
                         // gray it out
                         info.fMask |= MIIM_STATE;
                         info.fState = MFS_DISABLED;

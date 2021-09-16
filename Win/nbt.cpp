@@ -1811,12 +1811,56 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     len = readDword(pbf); //array length
     if (!newFormat) {
-        // old, direct format - done
+        // old, 1.12 or earlier direct format - done
         if (bfread(pbf, biome, len) < 0)
             return -5;
     }
     else {
-        // new format 1.13+
+        // new format 1.13+See: https://minecraft.fandom.com/wiki/Chunk_format
+
+        // See: https://minecraft.fandom.com/wiki/Chunk_format
+        // 
+        // How data is structured 1.13 through 1.17:
+        // /region: a directory of "regular" world region files
+        // r.0.0.mca: a typical region file of 32x32 chunks, each 16x16
+        //   Chunk [0, 0]: chunks go up to [31,31]
+        //     Level: really contains everything except the DataVersion
+        //       Heightmaps: contains 4 sets of 37 integers. We ignore. TODO may be useful? Looks compressed
+        //       Structures: ignored. References: bastion_remnant, buried_treasure, etc. / Starts: mineshaft, monument, etc.
+        //       Biomes: 1024 integers for whole chunk, biomes are 4x4, 64 levels
+        //       Sections: series of folders, each folder is a 16-voxel high chunk, go from bottom to top
+        //         folders with entries: has a few things. One folder per 16x16x16 chunk
+        //           Y: -1 to 16, some of these folder may have no palette (e.g., for -1)
+        //           Palette: bunch of folders, each folder holding one block type & dataVal, such as
+        //             Name: minecraft.redstone_ore
+        //             Properties: for blocks with optional data values, one or more entries, e.g.,
+        //               lit: false
+        //           BlockLight: light data, which Mineways uses
+        //           BlockStates: what data is is the 16x16x16 part of this chunk. Compressed format. Holds number for each voxel, pointing at a Palette entry.
+        //           SkyLight: some other lighting data, which we ignore.
+        //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
+        // 
+        // How data is structured in 1.18+: TODOTODO
+        // /region: a directory of "regular" world region files
+        // r.0.0.mca: a typical region file of 32x32 chunks, each 16x16
+        //   Chunk [0, 0]: chunks go up to [31,31]
+        //     Level: really contains everything except the DataVersion
+        //       Heightmaps: contains 4 sets of 37 integers. We ignore. TODO may be useful? Looks compressed
+        //       Structures: ignored. References: bastion_remnant, buried_treasure, etc. / Starts: mineshaft, monument, etc.
+        //       (CHANGE: biomes move below, so that vertical chunks can have separate biomes)
+        //       Sections: series of folders, each folder is a 16-voxel high chunk, go from bottom to top
+        //         folders with entries: has a few things. One folder per 16x16x16 chunk
+        //           Y: -4 to 19 or whatever
+        //           (CHANGE: Palette gone! moved to pallette below)
+        //           BlockLight: light data, which Mineways uses
+        //           (CHANGE BlockStates changed! moved to block_states directory)
+        //           SkyLight: some other lighting data, which we ignore.
+        //           biomes: NEW. Gives a palette of a number of biomes. If more than one, also has "data" of (for two entries) 32 bit integer. Not sure how that encodes... saw a negative number.
+        //           block_states: usually 2 entries
+        //             palette: number of folders of entries, like in 1.17, see above.
+        //             dataL this is the compressed block_states data.
+        //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
+
         if (len == 256) {
             // 1.13 and 1.14
             // convert to bytes
@@ -1938,6 +1982,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             return -14; //rewind to start of section
 
         if (!newFormat) {
+            // old 1.12 and earlier format
             // read all the arrays in this section
             for (;;)
             {
@@ -1996,6 +2041,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             }
         }
         else {
+            // 1.13 and newer "flattened" format
             // read all the arrays in this section
             // walk through all elements of each Palette array element
             int dataVal = 0;
@@ -3286,6 +3332,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         return 2;   // means it's empty
     }
     if (!newFormat) {
+        // 1.12 and earlier format - get TileEntities for data about heads, flower pots, standing banners
         if (nbtFindElement(pbf, "TileEntities") != 9)
             // all done, no TileEntities found
             return returnCode;
