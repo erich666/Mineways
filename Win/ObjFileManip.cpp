@@ -6300,18 +6300,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             angle = 0.0f;
             break;
         }
-#define HINGE_ANGLE 90.f
+
         // hinge move
         // is hinge on right or left?
         if (topDataVal & 0x1)
         {
             // reverse hinge - hinge is on the left
             angle += (topDataVal & 0x1) ? 180.0f : 0.0f;
-            hingeAngle = (bottomDataVal & 0x4) ? HINGE_ANGLE : 0.0f;
+            hingeAngle = (bottomDataVal & 0x4) ? 90.f : 0.0f;
         }
         else
         {
-            hingeAngle = (bottomDataVal & 0x4) ? 360.0f - HINGE_ANGLE : 0.0f;
+            hingeAngle = (bottomDataVal & 0x4) ? 360.0f - 90.f : 0.0f;
         }
 
         // one of the only uses of rotUVs other than beds - rotate the UV coordinates by 2, i.e. 180 degrees, for the LO Z face
@@ -20510,7 +20510,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
 
         case BLOCK_GLASS:
-            switch (dataVal & 0x3f)
+            switch (dataVal & 0xf)
             {
             default: // block of glass
                 assert(0);

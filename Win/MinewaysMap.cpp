@@ -886,7 +886,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         {
         default:
             assert(0);
-            break;
         case 0:
             break;
         case 1:
@@ -2474,6 +2473,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         switch (dataVal & 0xf)
         {
         default:
+            // Note to self: the Imperial City world has dataVals of 2 for glass, maybe some conversion error? Ignore.
             assert(0);
         case 0:
             lightComputed = true;
