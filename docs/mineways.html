@@ -2735,17 +2735,18 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
   <BR>
   <UL>
     <LI>Important bug fix: properly interpret flowing_water, flowing_lava, empty, and ominous_banner - not sure that last one is needed (<I>thanks to theOther_Kloud for reporting this problem</I>).
+	<LI>Added ability to remap the left, middle, and right mouse buttons' functionality: use "Set mouse order" using <a href="scripting.html">scripting</a>. The new remap_mouse_buttons.mwscript gives a fuller description.
 	<LI>New command: View->Information (shortcut key: i). Shows major version of the world and other bits of information. The major version is also now shown at the top in the title.
 	<LI>Make hotkeys work even if caps lock is on.
 	<LI>When exporting using the biome, show in the statistics popup which biome was chosen, and note the same at the top of the OBJ, VRML, or USD file.
 	<LI>Shrink grass by 15/16ths, and put it from 0.0 to 3.0 texels down (<I>thanks to Raihan for reporting this problem</I>).
 	<LI>Since glass now has a tinted type, when filling areas with glass for 3D print export, set the data value properly to 0 to avoid problems.
-	<LI>Internal cleanups, handling empty blocks more carefully and cleanly.
+	<LI>Gray out 1.18 beta worlds, as the format has changed and Mineways does not read it yet.
+	<LI>Internal cleanups, handling empty chunks more carefully and cleanly.
 	<LI>Note in the Color Scheme editor that entries 396 and 400 are unused.
 	<LI>Fix documentation for 3D printing instructions about filling in doors and windows (<I>thanks to Cadage for asking about this feature</I>). Other minor documentation improvements.
 	<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
-	<LI>**Read 1.18 data, ugh
-	<LI>*TileMaker: does it allow absolute paths for the input folder, for files, etc.?
+	<LI>**Read 1.18 data
 	<LI>**Add the ability to remap mouse buttons for operations. See <a href="https://github.com/erich666/Mineways/issues/86">this issue</a>.
 	<LI>**Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 	<LI>**Heads?

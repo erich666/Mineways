@@ -1,0 +1,24 @@
+// remap_mouse_buttons.mwscript - remap mouse buttons
+//
+// version 1.00
+//
+// Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
+// Read more about each command at http://mineways.com/scripting.html
+//
+// This is a simple script to flip the left and right mouse buttons' functionality
+//
+// By default:
+//   The left button moves (pans) the view
+//   The middle button down selects the bottom height for export
+//   The right button sets or adjusts the selection rectangle's bounds
+// So think of it as setting which button is for:
+// Set mouse order: {movement} {bottom height} {selection}
+
+// This swaps the left and right buttons' functionality
+Set mouse order: right middle left
+
+// If you instead want to move with the middle mouse and select with the left:
+//Set mouse order: middle right left
+
+// To instead reset the mouse order, uncomment this next line, or put it in a separate .mwscript file to read in
+//Reset mouse

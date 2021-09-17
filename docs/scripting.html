@@ -71,7 +71,7 @@
 	
     <div id="content" class="clearfix">
 <P>
-<B>Executive summary:</B> make a text file with some commands in it and read this file in using Import Settings. You can perform almost every Mineways operation by using a command instead of the user interface. You can also temporarily change, add, or clear any blocks you like for an export. You can also associate scripts with Mineways so double-clicking them starts Mineways and runs the script.
+<B>Executive summary:</B> make a text file with some commands in it and read this file in using Import Settings. You can perform almost every Mineways operation by using a command instead of the user interface. You can <a href="#soc">change how the mouse buttons are mapped</a>. You can also temporarily <a href="#soc">change, add, or clear any blocks</a> you like for an export. You can also <a href="#amfwm">associate scripts with Mineways</a> so double-clicking any of them starts Mineways and runs the script.
 <P>
 <UL>
 <LI><a href="#msl">Mineways Scripting Language</a>
@@ -629,13 +629,15 @@ The description and tags are optional. The proper strings are set, and then the 
 
 <h2 id="soc">Script-only Commands</h2>
 
-These are the value-added commands, things you simply can't do otherwise in Mineways. Want to turn your stone castle into diamond? Or have all the leaves disappear from your trees? Or add a giant pyramid to your spawn point? The Change blocks command is the genie that can made your dreams come true, if only for a short while.
+These are the value-added commands, things you simply can't do otherwise in Mineways, such as set how your mouse is mapped (which you may want to do when you start the program, by <a href="#clo">calling a script on startup</a>), set parameters for the estimation of 3D print costs, or temporarily change blocks for the next export done.
+<P>
+Want to turn your stone castle into diamond? Or have all the leaves disappear from your trees? Or add a giant pyramid to your spawn point? The Change blocks command is the genie that can made your dreams come true, if only for a short while.
 <P>
 The idea behind Change blocks is that you can specify extremely temporary changes to your world. These will not show up on the map, and they affect only the next export you perform. After the export the changes are cleared out; you have to load these changes again if you want to apply them again. No actual changes are made to your Minecraft world files.
 <P>
 You can specify a series of commands, which are applied in the order given. Each command works on the results of whatever previous commands did. For example, if you turn all crops into potatoes, then turn potatoes into grass, this has the effect of turning all crops into grass.
 <P>
-<b>One warning:</b> just like a genie fulfilling your wishes, Change blocks commands can set up combinations that can inadvertantly cause terrible things to happen, possibly causing assertions during export or even crashes. This is an expert-level feature, and it's up to you to do the right thing.
+<b>One warning:</b> just like a genie fulfilling your wishes, Change blocks commands can set up combinations that can inadvertently cause terrible things to happen, possibly causing assertions during export or even crashes. This is an expert-level feature, and it's up to you to do the right thing.
 <P>
 <TABLE id="scriptOnlyTable" border="1">
 <tr>
@@ -644,6 +646,31 @@ You can specify a series of commands, which are applied in the order given. Each
 </td>
 <td>
 <B>Notes</B>
+</td>
+</tr>
+
+<tr>
+<td>
+Set mouse order: [left|middle|right] [left|middle|right] [left|middle|right]
+</td>
+<td>
+Think of this command as setting the chosen mouse button for movement, bottom height selection, and rectangle selection, respectively, "Select mouse order: <i>movement button</I>, <i>height button</I>, <i>rectangle button</I>", and you specify a mouse button to each in turn.
+By default:
+<UL>
+<LI>The left button moves (pans) the view
+<LI>The middle button down selects the bottom height for export
+<LI>The right button sets or adjusts the selection rectangle's bounds
+</UL>
+So "Set mouse order: middle right left" makes the middle mouse perform movement and the left mouse selection. The mouse wheel (zoom) cannot be remapped.
+</td>
+</tr>
+
+<tr>
+<td>
+Reset mouse
+</td>
+<td>
+Reset the mouse to the default behavior. Equivalent to "Set mouse order: left middle right".
 </td>
 </tr>
 

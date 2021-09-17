@@ -234,6 +234,16 @@ static int gGroupCount = 0;
 static int gGroupCountSize = 10;
 static int gGroupCountArray[10];
 
+// left mouse button maps to left by default, etc.
+// The left mouse button pans the view, middle selects height of the bottom, right sets or adjusts the selection rectangle
+// If, say, gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] is set to 1, that remaps
+// the ability of the left mouse (i.e., pan movement) to the middle mouse button instead
+static int gRemapMouse[3] = { 0,1,2 };
+
+#define LEFT_MOUSE_BUTTON_INDEX 0
+#define MIDDLE_MOUSE_BUTTON_INDEX 1
+#define RIGHT_MOUSE_BUTTON_INDEX 2
+
 #define IMPORT_FAILED	0
 #define	IMPORT_MODEL	1
 #define	IMPORT_SCRIPT	2
@@ -439,6 +449,9 @@ static void saveWarningMessage(ImportedSet& is, wchar_t* error);
 static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine = NULL);
 static bool validBoolean(ImportedSet& is, char* string);
 static bool interpretBoolean(char* string);
+static bool validMouse(ImportedSet& is, char* string);
+static int interpretMouse(char* string);
+
 static void formTitle(WorldGuide* pWorldGuide, wchar_t* title);
 static void rationalizeFilePath(wchar_t* fileName);
 //static void checkUpdate( HINSTANCE hInstance );
@@ -966,6 +979,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     break;
     case WM_LBUTTONDOWN:
+        // For the Mac, an option:
         // if control key is held down, consider left-click to be a right-click,
         // i.e. for selection
         if (GetKeyState(VK_CONTROL) < 0)
@@ -973,6 +987,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gLeftIsRight = TRUE;
             goto RButtonDown;
         }
+        // else remapped?
+        switch (gRemapMouse[LEFT_MOUSE_BUTTON_INDEX]) {
+        case MIDDLE_MOUSE_BUTTON_INDEX:
+            goto MButtonDown;
+        case RIGHT_MOUSE_BUTTON_INDEX:
+            goto RButtonDown;
+        }
+    LButtonDown:
         dragging = TRUE;
         hdragging = FALSE;// just in case
         SetFocus(hWnd);
@@ -981,6 +1003,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         oldY = HIWORD(lParam);
         break;
     case WM_RBUTTONDOWN:
+        switch (gRemapMouse[RIGHT_MOUSE_BUTTON_INDEX]) {
+        case LEFT_MOUSE_BUTTON_INDEX:
+            goto LButtonDown;
+        case MIDDLE_MOUSE_BUTTON_INDEX:
+            goto MButtonDown;
+        }
     RButtonDown:
         gAdjustingSelection = 0;
         if (gLoaded)
@@ -1148,11 +1176,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gLeftIsRight = FALSE;
             goto RButtonUp;
         }
+        switch (gRemapMouse[LEFT_MOUSE_BUTTON_INDEX]) {
+        case MIDDLE_MOUSE_BUTTON_INDEX:
+            goto MButtonUp;
+        case RIGHT_MOUSE_BUTTON_INDEX:
+            goto RButtonUp;
+        }
+     LButtonUp:
         dragging = FALSE;
         hdragging = FALSE;	// just in case
         ReleaseCapture();
         break;
     case WM_MBUTTONDOWN:
+        switch (gRemapMouse[MIDDLE_MOUSE_BUTTON_INDEX]) {
+        case LEFT_MOUSE_BUTTON_INDEX:
+            goto LButtonDown;
+        case RIGHT_MOUSE_BUTTON_INDEX:
+            goto RButtonDown;
+        }
+    MButtonDown:
         // set new target depth
         hdragging = FALSE;
         dragging = FALSE;		// just in case
@@ -1182,6 +1224,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_RBUTTONUP:
+        switch (gRemapMouse[RIGHT_MOUSE_BUTTON_INDEX]) {
+        case LEFT_MOUSE_BUTTON_INDEX:
+            goto LButtonUp;
+        case MIDDLE_MOUSE_BUTTON_INDEX:
+            goto MButtonUp;
+        }
     RButtonUp:
         dragging = FALSE;		// just in case
         gLockMouseX = gLockMouseZ = 0;
@@ -1191,12 +1239,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         hdragging = FALSE;
         // Area selected.
-        // Check if this selection is not an adjustment
-        if (!gAdjustingSelection)
+        // Check if this selection is not an adjustment.
+        // We test "on" here only because on a remap, the left mouse that selected the mwscript now might become a right mouse up.
+        // This test isn't foolproof, but good enough for this obscure feature.
+        if (!gAdjustingSelection && on)
         {
             // Not an adjustment, but a new selection. As such, test if there's something below to be selected and
             // there's nothing in the actual selection volume.
-            assert(on);
             int minHeightFound = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, gMinHeight, gMaxHeight, true, true, maxy);	// note we favor rendering here - for 3D printing the next to last option should be "false"
             if (gHitsFound[0] && !gHitsFound[1])
             {
@@ -1291,6 +1340,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
             }
         }
+        break;
+    case WM_MBUTTONUP:
+        switch (gRemapMouse[MIDDLE_MOUSE_BUTTON_INDEX]) {
+        case LEFT_MOUSE_BUTTON_INDEX:
+            goto LButtonUp;
+        case RIGHT_MOUSE_BUTTON_INDEX:
+            goto RButtonUp;
+        }
+    MButtonUp:
         break;
     case WM_MOUSEMOVE:
         if (gLoaded)
@@ -6866,7 +6924,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
 static int interpretScriptLine(char* line, ImportedSet& is)
 {
     char* strPtr, * strPtr2;
-    char string1[100];
+    char string1[100], string2[100], string3[100];
     int on, minx, miny, minz, maxx, maxy, maxz;
     wchar_t error[1024];
     int retCode = INTERPRETER_FOUND_VALID_LINE;
@@ -7322,6 +7380,50 @@ JumpToSpawn:
             if (!openLogFile(is)) {
                 return INTERPRETER_FOUND_ERROR;
             }
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Set mouse order:");
+    if (strPtr != NULL) {
+        if (3 != sscanf_s(strPtr, "%s %s %s",
+            string1, (unsigned)_countof(string1),
+            string2, (unsigned)_countof(string2),
+            string3, (unsigned)_countof(string3)
+        ))
+        {
+            saveErrorMessage(is, L"could not find all left|middle|right values for Set mouse order command.\nFormat is 'Set mouse order: [left|middle|right] [left|middle|right] [left|middle|right]", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validMouse(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validMouse(is, string2)) return INTERPRETER_FOUND_ERROR;
+        if (!validMouse(is, string3)) return INTERPRETER_FOUND_ERROR;
+
+        int leftRemap = interpretMouse(string1);
+        int middleRemap = interpretMouse(string2);
+        int rightRemap = interpretMouse(string3);
+
+        // a simple loopless way to check that all the mouse buttons were remapped to something unique
+        int list[3] = {-1, -1, -1};
+        list[leftRemap] = list[middleRemap] = list[rightRemap] = 0;
+        if (list[0] + list[1] + list[2] < 0) {
+            saveErrorMessage(is, L"must use left, middle, and right once each for Set mouse order command.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            // remap!
+            gRemapMouse[leftRemap] = LEFT_MOUSE_BUTTON_INDEX;
+            gRemapMouse[middleRemap] = MIDDLE_MOUSE_BUTTON_INDEX;
+            gRemapMouse[rightRemap] = RIGHT_MOUSE_BUTTON_INDEX;
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Reset mouse");
+    if (strPtr != NULL) {
+        if (is.processData) {
+            gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] = LEFT_MOUSE_BUTTON_INDEX;
+            gRemapMouse[MIDDLE_MOUSE_BUTTON_INDEX] = MIDDLE_MOUSE_BUTTON_INDEX;
+            gRemapMouse[RIGHT_MOUSE_BUTTON_INDEX] = RIGHT_MOUSE_BUTTON_INDEX;
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -8094,6 +8196,32 @@ static bool interpretBoolean(char* string)
 {
     // YES, yes, TRUE, true, 1
     return ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1'));
+}
+
+static bool validMouse(ImportedSet& is, char* string)
+{
+    if (_stricmp(string,"left")==0 || _stricmp(string, "middle") == 0 || _stricmp(string, "right") == 0)
+    {
+        return true;
+    }
+    else {
+        saveErrorMessage(is, L"invalid mouse button value on line; must be one of 'left', 'middle', 'right'.");
+        return false;
+    }
+}
+
+static int interpretMouse(char* string)
+{
+    if (_stricmp(string, "left") == 0) {
+        return 0;
+    }
+    else if (_stricmp(string, "middle") == 0) {
+        return 1;
+    }
+    else if (_stricmp(string, "right") == 0) {
+        return 2;
+    }
+    return -1;
 }
 
 static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
