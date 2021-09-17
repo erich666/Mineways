@@ -4885,7 +4885,7 @@ static void initializePrintExportData(ExportFileData& printData)
     INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);
 
-    strcpy_s(printData.tileDirString, MAX_PATH, "");
+    strcpy_s(printData.tileDirString, MAX_PATH, "textures");
 
     printData.chkTextureRGB = 1;
     printData.chkTextureA = 0;
