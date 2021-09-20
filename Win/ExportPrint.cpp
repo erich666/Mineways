@@ -113,16 +113,15 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_CREATE_ZIP, epd.chkCreateZip[epd.fileType]);
         CheckDlgButton(hDlg, IDC_CREATE_FILES, epd.chkCreateModelFiles[epd.fileType]);
 
-        // disallow tile textures with 3D printing - 3D printing often needs composites, not floating cutouts, so tile textures won't work with it.
-
         if (epd.fileType == FILE_TYPE_USD) {
-            // only allow separate texture tiles
+            // only allow separate texture tiles or full textures - TODO could add others,
+            // just need to mess with textures then
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 0);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 0);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
-            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
-            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
-            if (epd.radioExportNoMaterials[epd.fileType] || epd.radioExportMtlColors[epd.fileType] || epd.radioExportSolidTexture[epd.fileType] || epd.radioExportFullTexture[epd.fileType]) {
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags & EXPT_3DPRINT)?0:1);
+            if (epd.radioExportNoMaterials[epd.fileType] || epd.radioExportMtlColors[epd.fileType] || epd.radioExportSolidTexture[epd.fileType]) {
                 epd.radioExportNoMaterials[epd.fileType] = epd.radioExportMtlColors[epd.fileType] = epd.radioExportSolidTexture[epd.fileType] = epd.radioExportFullTexture[epd.fileType] = 0;
                 epd.radioExportTileTextures[epd.fileType] = 1;
             }
@@ -133,7 +132,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
-            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
             if (epd.radioExportTileTextures[epd.fileType]) {
                 epd.radioExportTileTextures[epd.fileType] = 0;
                 epd.radioExportFullTexture[epd.fileType] = 1;
@@ -145,7 +144,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, (epd.fileType == FILE_TYPE_ASCII_STL) ? 0 : 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
-            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
             if (epd.radioExportSolidTexture[epd.fileType] || epd.radioExportFullTexture[epd.fileType] || epd.radioExportTileTextures[epd.fileType])
             {
                 epd.radioExportSolidTexture[epd.fileType] = epd.radioExportFullTexture[epd.fileType] = epd.radioExportTileTextures[epd.fileType] = 0;
@@ -156,10 +155,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, epd.radioExportMtlColors[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, epd.radioExportFullTexture[epd.fileType]);
-        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, epd.radioExportTileTextures[epd.fileType]);
+        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, epd.radioExportTileTextures[epd.fileType]);
         if (epd.radioExportTileTextures[epd.fileType] && (epd.flags & EXPT_3DPRINT)) {
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
-            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
+            CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
         }
         SetDlgItemTextA(hDlg, IDC_TILE_DIR, epd.tileDirString);
 
@@ -370,7 +369,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (epd.fileType == FILE_TYPE_USD) {
                 // don't allow anything but tile output
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, (epd.flags& EXPT_3DPRINT) ? 1 : 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags & EXPT_3DPRINT) ? 0 : 1);
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             }
             else {
@@ -387,7 +387,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (epd.fileType == FILE_TYPE_USD) {
                 // don't allow anything but tile output
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, (epd.flags & EXPT_3DPRINT) ? 1 : 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags & EXPT_3DPRINT) ? 0 : 1);
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             }
             else if (epd.fileType == FILE_TYPE_ASCII_STL) {
@@ -408,7 +409,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (epd.fileType == FILE_TYPE_USD) {
                 // don't allow anything but tile output
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, (epd.flags& EXPT_3DPRINT) ? 1 : 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags& EXPT_3DPRINT) ? 0 : 1);
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             }
             else if (epd.fileType == FILE_TYPE_ASCII_STL) {
@@ -431,16 +433,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_FULL_TEXTURES:
-            if (epd.fileType == FILE_TYPE_USD) {
-                // don't allow tile output
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 1);
-                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-            }
-            else if (epd.fileType == FILE_TYPE_ASCII_STL) {
+            if (epd.fileType == FILE_TYPE_ASCII_STL) {
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
-                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
             }
             else if (epd.fileType == FILE_TYPE_BINARY_MAGICS_STL || epd.fileType == FILE_TYPE_BINARY_VISCAM_STL) {
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 0);
@@ -449,37 +445,43 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else {
                 // set the combo box material to color (might already be that, which is fine)
+                // if this option is picked, assume colored output material
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
             }
             goto ChangeMaterial;
 
-        case IDC_RADIO_EXPORT_FULL_TILES:
-            if ((epd.flags & EXPT_3DPRINT) ||
-                epd.fileType == FILE_TYPE_ASCII_STL || epd.fileType == FILE_TYPE_BINARY_MAGICS_STL ||
-                epd.fileType == FILE_TYPE_BINARY_VISCAM_STL || epd.fileType == FILE_TYPE_VRML2) {
-                // don't allow tile output
-                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ || epd.fileType == FILE_TYPE_VRML2) {
+        case IDC_RADIO_EXPORT_SEPARATE_TILES:
+            if (epd.flags & EXPT_3DPRINT) {
+                // don't allow tile output for 3d printing except for USD
+                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ || 
+                    epd.fileType == FILE_TYPE_VRML2 || epd.fileType == FILE_TYPE_USD) {
+                    // single texture is only allowed type, since we can't use compositing with separate tiles
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 }
                 else if (epd.fileType == FILE_TYPE_ASCII_STL) {
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
                 }
-                else {
+                else if (epd.fileType == FILE_TYPE_BINARY_MAGICS_STL || epd.fileType == FILE_TYPE_BINARY_VISCAM_STL || epd.fileType == FILE_TYPE_USD) {
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 1);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 }
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TILES, 0);
-                SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+                // make sure compositing is on when selected
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_CHECKED);
+                //CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
             }
             else {
                 // render
                 // set the combo box material to color (might already be that, which is fine)
                 // not used in rendering, so nevermind: SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                //CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
             }
             goto ChangeMaterial;
 
@@ -559,13 +561,15 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_SHOW_PARTS, BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_SHOW_WELDS, BST_INDETERMINATE);
             }
-            // disallow biome color if not full texture
-            CheckDlgButton(hDlg, IDC_BIOME, IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES) ? epd.chkBiome : BST_INDETERMINATE);
+            // disallow biome color if not full texture or tile textures
+            CheckDlgButton(hDlg, IDC_BIOME, 
+                (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES) || IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES) )
+                ? epd.chkBiome : BST_INDETERMINATE);
         }
         break;
         case IDC_BIOME:
         {
-            UINT isInactive = !IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES);
+            UINT isInactive = !(IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES) || IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES));
             if (isInactive)
             {
                 CheckDlgButton(hDlg, IDC_BIOME, BST_INDETERMINATE);
@@ -1003,7 +1007,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             lepd.radioExportMtlColors[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY);
             lepd.radioExportSolidTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES);
             lepd.radioExportFullTexture[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES);
-            lepd.radioExportTileTextures[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_FULL_TILES);
+            lepd.radioExportTileTextures[lepd.fileType] = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES);
             GetDlgItemTextA(hDlg, IDC_TILE_DIR, lepd.tileDirString, MAX_PATH);
 
             lepd.chkTextureRGB = (IsDlgButtonChecked(hDlg, IDC_TEXTURE_RGB) == BST_CHECKED);
