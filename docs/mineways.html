@@ -2735,7 +2735,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
   <BR>
   <UL>
     <LI>Important bug fix: properly interpret flowing_water, flowing_lava, empty, and ominous_banner - not sure that last one is needed (<I>thanks to theOther_Kloud for reporting this problem</I>).
-	<LI>Added ability to remap the left, middle, and right mouse buttons' functionality: use "Set mouse order" using <a href="scripting.html">scripting</a>. The new remap_mouse_buttons.mwscript gives a fuller description.
+	<LI>Added ability to remap the left, middle, and right mouse buttons' functionality: use "Set mouse order" using <a href="scripting.html#soc">scripting</a>. The new remap_mouse_buttons.mwscript gives a fuller description.
 	<LI>New command: View->Information (shortcut key: i). Shows major version of the world and other bits of information. The major version is also now shown at the top in the title.
 	<LI>Make hotkeys work even if caps lock is on.
 	<LI>When exporting using the biome, show in the statistics popup which biome was chosen, and note the same at the top of the OBJ, VRML, or USD file.
@@ -2745,13 +2745,21 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 	<LI>Internal cleanups, handling empty chunks more carefully and cleanly.
 	<LI>Note in the Color Scheme editor that entries 396 and 400 are unused.
 	<LI>Fix documentation for 3D printing instructions about filling in doors and windows (<I>thanks to Cadage for asking about this feature</I>). Other minor documentation improvements.
-	<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
-	<LI>**Read 1.18 data
-	<LI>**Add the ability to remap mouse buttons for operations. See <a href="https://github.com/erich666/Mineways/issues/86">this issue</a>.
+	<LI>*Output lights FIRST for USDA.
+	<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes for material, and path for texture. Make sure to test PBR textures.
+	*Fix 3D print scale for USDA. 
+	<LI>*Read 1.18 data
+	<LI>* glass (and water?) does not use a custom Minecraft.mdl type of exporter - it should.
+	<LI>* Clean up project files to put things like builds and .obj files in consistent spots, and show the same VS 2019 logo for the .sln files, etc.
+	<LI>* Are subtypes on for materials for USDA? Probably should be, so that lit berries are lit, etc. Check candle appearance, too.
+	<LI>* Look into tiling bug with grass texture in Omniverse. (hmmm, what's this?)
+	<LI>* Try Sketchfab USD support. https://sketchfab.com/blogs/community/sketchfab-introduces-usd-upload-support/ - and contact them
+	<LI>*Update JG-RTX with more 1.17 content; check other packs for 1.17 content.
+	<LI>**Someday: Add a secret epsilon control for redstone wire and glow lichen for how far they're offset from the surface below.
+	<LI>**Make a fuller table of versions?
 	<LI>**Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 	<LI>**Heads?
 	<LI>**TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly, and done only once, which would speed up export itself (which does this bleeding every single export). Problem with doing this is backwards compatibility.
-	<LI>*Update JG-RTX with more 1.17 content; check other packs for 1.17 content.
   </UL>
 
 <LI><B>Version 9.00</B>, 7/3/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV900.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
