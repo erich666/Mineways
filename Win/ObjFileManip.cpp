@@ -24132,6 +24132,11 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
+    // create lighting - do before everything else, so that these are easier to find (no scrolling to the bottom)
+    if (retCode |= createLightingUSD(fullTexturePath)) {
+        goto Exit;
+    }
+
     // if we're instancing, we need to simply write out the instance locations and what blocks they refer to
     if (gModel.instancing) {
         // for output in file
@@ -24372,11 +24377,6 @@ static int writeUSD2Box(WorldGuide * pWorldGuide, IBox * worldBox, IBox * tighte
             goto Exit;
         }
     } // instancing endif
-
-    // create lighting
-    if (retCode |= createLightingUSD(fullTexturePath)) {
-        goto Exit;
-    }
 
     // close the Xform - maybe close the xform before outputting the two lights?
     strcpy_s(outputString, 256, "} # close Xform\n");
@@ -26879,71 +26879,71 @@ static int createLightingUSD(char *texturePath)
     char outputString[256];
     boolean nightLight = (gModel.options->worldType & LIGHTING) ? true : false;
 
-    strcpy_s(outputString, 256, nightLight ? "\ndef DistantLight \"Moon\" (\n" : "\ndef DistantLight \"Sun\" (\n");
+    strcpy_s(outputString, 256, nightLight ? "\n    def DistantLight \"Moon\" (\n" : "\n    def DistantLight \"Sun\" (\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    prepend apiSchemas = [\"ShapingAPI\"]\n");
+    strcpy_s(outputString, 256, "        prepend apiSchemas = [\"ShapingAPI\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    kind = \"model\"\n");
+    strcpy_s(outputString, 256, "        kind = \"model\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, ")\n");
+    strcpy_s(outputString, 256, "    )\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "{\n");
+    strcpy_s(outputString, 256, "    {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float angle = 1\n");
+    strcpy_s(outputString, 256, "        float angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, nightLight ? "    float intensity = 2\n" : "    float intensity = 30\n");
+    strcpy_s(outputString, 256, nightLight ? "        float intensity = 2\n" : "        float intensity = 30\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    strcpy_s(outputString, 256, "        float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:softness\n");
+    strcpy_s(outputString, 256, "        float shaping:cone:softness\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:focus\n");
+    strcpy_s(outputString, 256, "        float shaping:focus\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    color3f shaping:focusTint\n");
+    strcpy_s(outputString, 256, "        color3f shaping:focusTint\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
+    strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateZYX = (290, 345, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (290, 345, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "}\n");
+    strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    strcpy_s(outputString, 256, "\ndef DomeLight \"DomeLight\" (\n");
+    strcpy_s(outputString, 256, "    \n    def DomeLight \"DomeLight\" (\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    prepend apiSchemas = [\"ShapingAPI\"]\n");
+    strcpy_s(outputString, 256, "        prepend apiSchemas = [\"ShapingAPI\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, ")\n");
+    strcpy_s(outputString, 256, "    )\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "{\n");
+    strcpy_s(outputString, 256, "    {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // low for the nighttime sky, but making it higher makes the background surrounding map too bright. TODOUSD
-    strcpy_s(outputString, 256, nightLight ? "    float intensity = 2\n" : "    float intensity = 6\n");
+    strcpy_s(outputString, 256, nightLight ? "        float intensity = 2\n" : "        float intensity = 6\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    strcpy_s(outputString, 256, "        float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:softness\n");
+    strcpy_s(outputString, 256, "        float shaping:cone:softness\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:focus\n");
+    strcpy_s(outputString, 256, "        float shaping:focus\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    color3f shaping:focusTint\n");
+    strcpy_s(outputString, 256, "        color3f shaping:focusTint\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
+    strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, nightLight ? "    asset texture:file = @%s/_domelight_night.png@\n" : "    asset texture:file = @%s/_domelight.png@\n", texturePath);
+    sprintf_s(outputString, 256, nightLight ? "        asset texture:file = @%s/_domelight_night.png@\n" : "        asset texture:file = @%s/_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    token texture:format = \"latlong\"\n");
+    strcpy_s(outputString, 256, "        token texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateZYX = (270, 0, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (270, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "}\n\n");
+    strcpy_s(outputString, 256, "    }\n\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return MW_NO_ERROR;
