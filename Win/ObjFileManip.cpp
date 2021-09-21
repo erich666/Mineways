@@ -26390,13 +26390,14 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
             sprintf_s(outputString, 256, "            float inputs:opacity.connect = <%s/Looks/%s/diffuse_texture.outputs:a>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            // opacity threshold is not well-defined. Does the value mean "if exactly equal to val, it's transparent" or "if less than val, it's transparent"?
-            // In Omniverse, it's the former. In Houdini, the latter. So 0.0 gives a transparent pixel in Omniverse, 0.001 does in Houdini.
-            // But 0.001 makes things weirdly opaque in Omniverse, 0.0 opaque in Houdini (since the alphas cannot be below 0.0).
-            // Needed only if a texture has alphas. Not needed if there's no alpha, and inefficient to boot (anyhit shader invoked).
-            // Better would be to do the full alpha test, just to be sure.
+            // opacity threshold is tricky. Exactly 0.0 means "treat the alpha channel purely as transparent." If above 0.0, it means "anything with an alpha
+            // below this threshold value is fully transparent, otherwise it's fully visible" - a mask. You can't do both with the current spec (though
+            // you could probably make opacityThreshold a textures, too - who knows how that would work...).
+            // Here we set it to 0.02 to give a reasonable, "full", minimize dropouts alpha cutout for content in Omniverse for cutouts. If semitransparency
+            // is happening, we use 0.0 so that semi-transparent alpha is used. Doesn't seem to make a difference in Houdini, matters to Omniverse. Just,
+            // don't use 0.001 in Omniverse, as this causes it to get confused between this value and 0.0.
             if (isCutout || isSemitransparent) {
-                strcpy_s(outputString, 256, "            float inputs:opacityThreshold = 0.001\n");
+                sprintf_s(outputString, 256, "            float inputs:opacityThreshold = %f\n", isSemitransparent ? 0.0f : 0.02f );
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
 
