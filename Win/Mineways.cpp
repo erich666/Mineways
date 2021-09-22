@@ -4573,10 +4573,13 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 // if we are zipping tiles, it's a bit different
                 int trueCount = outputFileList.count;
                 bool useSubDir = false;
-                if (gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+                // there are subdirectories? This should be less hacky someday... TODO
+                if ((gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ||
+                    (gpEFD->fileType == FILE_TYPE_USD)) {
                     // are we using a subdirectory?
                     if (strlen(gOptions.pEFD->tileDirString) > 0) {
-                        trueCount = 2;	// OBJ and MTL
+                        // super hacky hard-wired: know by file type how many are in main directory
+                        trueCount = (gpEFD->fileType == FILE_TYPE_USD) ? 1 : 2;	// USD or OBJ and MTL
                         useSubDir = true;
                     }
                 }
@@ -4868,7 +4871,7 @@ static void initializePrintExportData(ExportFileData& printData)
     // turn stuff on
     printData.fileType = FILE_TYPE_VRML2;
 
-    INIT_ALL_FILE_TYPES(printData.chkCreateZip,            1, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkCreateZip,            1, 1, 0, 0, 0, 0, 1, 0);
     // I used to set the last value to 0, meaning only the zip would be created. The idea
     // was that the naive user would then only have the zip, and so couldn't screw up
     // when uploading the model file. But this setting is a pain if you want to preview

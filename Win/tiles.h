@@ -26,7 +26,7 @@
 
 // If this tile is not the final tile, identify it as being something that gets used to synthesize a new output tile.
 // That is, the tile, when output by Mineways, will have a different name with a _y.png suffix.
-#define SBIT_SYTHESIZED         0x400
+#define SBIT_SYNTHESIZED         0x400
 
 // If set, the incoming .png's black pixels should be treated as having an alpha of 0.
 // Normally Minecraft textures have alpha set properly, but this is a workaround for those that don't.
@@ -77,10 +77,10 @@ static struct {
     // creates on the fly internally.
     // TODO: someday, just read from the unzipped texture pack itself, using the proper paths.
 } gTilesTable[TOTAL_TILES] = {
-    {  0,  0,   2, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// tinted by grass color
+    {  0,  0,   2, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },	// tinted by grass color
     {  1,  0,   1, 0, L"stone", L"", SWATCH_REPEAT_ALL },
     {  2,  0,   3, 0, L"dirt", L"", SWATCH_REPEAT_ALL },
-    {  3,  0,   6, 0, L"grass_block_side", L"grass_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_SYTHESIZED },
+    {  3,  0,   6, 0, L"grass_block_side", L"grass_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_SYNTHESIZED },
     {  4,  0,   5, 0, L"oak_planks", L"planks_oak", SWATCH_REPEAT_ALL },
     {  5,  0,   6, 0, L"stone_slab_side", L"", SWATCH_REPEAT_ALL }, // no longer used in 1.16; we substitute 11,23
     {  6,  0,   6, 0, L"stone_slab_top", L"", SWATCH_REPEAT_ALL }, // no longer used in 1.16; we substitute 10,23
@@ -116,7 +116,7 @@ static struct {
     {  4,  2,  48, 0, L"mossy_cobblestone", L"cobblestone_mossy", SWATCH_REPEAT_ALL },
     {  5,  2,  49, 0, L"obsidian", L"", SWATCH_REPEAT_ALL },
     {  6,  2,   6, 0, L"grass_block_side_overlay", L"grass_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
-    {  7,  2,  31, 0, L"grass", L"tallgrass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  7,  2,  31, 0, L"grass", L"tallgrass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     {  8,  2,   6, 0, L"MWO_workspace1", L"", SWATCH_REPEAT_ALL },	// we use it for temporary work - output as white? top grayscale, but we don't use it, nor does Mojang - left as "it's stone"
     {  9,  2,   6, 0, L"MWO_double_chest_front_left", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // was beacon - taken by chest
     { 10,  2,   6, 0, L"MWO_double_chest_front_right", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
@@ -129,11 +129,11 @@ static struct {
     {  1,  3,  20, 0, L"glass", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  2,  3,  56, 0, L"diamond_ore", L"", SWATCH_REPEAT_ALL },
     {  3,  3,  73, 0, L"redstone_ore", L"", SWATCH_REPEAT_ALL },
-    {  4,  3,  18, 0, L"oak_leaves", L"leaves_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
+    {  4,  3,  18, 0, L"oak_leaves", L"leaves_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
     {  5,  3,   6, 0, L"coarse_dirt", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8 - replaced leaves_oak_opaque
     {  6,  3,  98, 0, L"stone_bricks", L"stonebrick", SWATCH_REPEAT_ALL },
     {  7,  3,  32, 0, L"dead_bush", L"deadbush", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8,  3,   6, 0, L"fern", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  8,  3,   6, 0, L"fern", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     {  9,  3,   6, 0, L"MWO_double_chest_back_left", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
     { 10,  3,   6, 0, L"MWO_double_chest_back_right", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
     { 11,  3,   6, 0, L"crafting_table_side", L"", SWATCH_REPEAT_ALL },
@@ -153,7 +153,7 @@ static struct {
     {  9,  4,  83, 0, L"sugar_cane", L"reeds", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 10,  4,   6, 0, L"jukebox_side", L"", SWATCH_REPEAT_ALL },	// was noteblock, which is now below
     { 11,  4,  84, 0, L"jukebox_top", L"juketop", SWATCH_REPEAT_ALL },  // alt is from LunaHD
-    { 12,  4, 111, 0, L"lily_pad", L"waterlily", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    { 12,  4, 111, 0, L"lily_pad", L"waterlily", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     { 13,  4,   6, 0, L"mycelium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 14,  4, 110, 0, L"mycelium_top", L"", SWATCH_REPEAT_ALL },
     { 15,  4,   6, 0, L"birch_sapling", L"sapling_birch", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -188,7 +188,7 @@ static struct {
     { 12,  6,  29, 0, L"piston_side", L"", SWATCH_REPEAT_ALL },
     { 13,  6,   6, 0, L"piston_bottom", L"", SWATCH_REPEAT_ALL },
     { 14,  6,   6, 0, L"piston_inner", L"", SWATCH_REPEAT_ALL },
-    { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     {  0,  7,   6, 0, L"rail_corner", L"rail_normal_turned", SWATCH_CLAMP_BOTTOM_AND_RIGHT | SBIT_DECAL },
     {  1,  7,   6, 0, L"black_wool", L"wool_colored_black", SWATCH_REPEAT_ALL },
     {  2,  7,   6, 0, L"gray_wool", L"wool_colored_gray", SWATCH_REPEAT_ALL },
@@ -204,12 +204,12 @@ static struct {
     { 12,  7,  92, 0, L"cake_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13,  7, 100, 0, L"red_mushroom_block", L"mushroom_block_skin_red", SWATCH_REPEAT_ALL },
     { 14,  7,  99, 0, L"brown_mushroom_block", L"mushroom_block_skin_brown", SWATCH_REPEAT_ALL },
-    { 15,  7,   6, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    { 15,  7,   6, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     {  0,  8,  66, 0, L"rail", L"rail_normal", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     {  1,  8, 217, 0, L"red_wool", L"wool_colored_red", SWATCH_REPEAT_ALL },
     {  2,  8,   6, 0, L"pink_wool", L"wool_colored_pink", SWATCH_REPEAT_ALL },
     {  3,  8,  93, 0, L"repeater", L"repeater_off", SWATCH_REPEAT_ALL },
-    {  4,  8,   6, 0, L"spruce_leaves", L"leaves_spruce", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
+    {  4,  8,   6, 0, L"spruce_leaves", L"leaves_spruce", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
     {  5,  8,   6, 0, L"red_sandstone_bottom", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     {  6,  8,  26, 0, L"MW_bed_feet_top", L"bed_feet_top", SWATCH_CLAMP_ALL },
     {  7,  8,   6, 0, L"MW_bed_head_top", L"bed_head_top", SWATCH_CLAMP_ALL },
@@ -220,7 +220,7 @@ static struct {
     { 12,  8,  25, 0, L"note_block", L"noteblock", SWATCH_REPEAT_ALL },
     { 13,  8,   6, 0, L"mushroom_stem", L"mushroom_block_skin_stem", SWATCH_REPEAT_ALL },
     { 14,  8,   6, 0, L"mushroom_block_inside", L"", SWATCH_REPEAT_ALL },
-    { 15,  8, 106, 0, L"vine", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// grayscale
+    { 15,  8, 106, 0, L"vine", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// grayscale
     {  0,  9,  22, 0, L"lapis_block", L"", SWATCH_REPEAT_ALL },
     {  1,  9,   6, 0, L"green_wool", L"wool_colored_green", SWATCH_REPEAT_ALL },
     {  2,  9,   6, 0, L"lime_wool", L"wool_colored_lime", SWATCH_REPEAT_ALL },
@@ -241,8 +241,8 @@ static struct {
     {  1, 10,   6, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,   6, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
     {  3, 10,   6, 0, L"powered_rail", L"rail_golden", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 10,  55, 0, L"redstone_dust_line0", L"redstone_dust_line", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// vertical (runs north-south), alt is smoolistic
-    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },	// "horizontal": appears vertically in the texture, but runs east-west
+    {  4, 10,  55, 0, L"redstone_dust_line0", L"redstone_dust_line", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },	// vertical (runs north-south), alt is smoolistic
+    {  5, 10,   6, 0, L"redstone_dust_line1", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },	// "horizontal": appears vertically in the texture, but runs east-west
     {  6, 10, 116, 0, L"enchanting_table_top", L"", SWATCH_REPEAT_ALL },
     {  7, 10, 122, 0, L"dragon_egg", L"", SWATCH_REPEAT_ALL },
     {  8, 10, 127, 0, L"cocoa_stage2", L"cocoa_stage_2", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -257,7 +257,7 @@ static struct {
     {  1, 11,   6, 0, L"blue_wool", L"wool_colored_blue", SWATCH_REPEAT_ALL },
     {  2, 11,   6, 0, L"light_blue_wool", L"wool_colored_light_blue", SWATCH_REPEAT_ALL },
     {  3, 11,  27, 0, L"powered_rail_on", L"rail_golden_powered", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 11,   6, 0, L"redstone_dust_dot", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  4, 11,   6, 0, L"redstone_dust_dot", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },
     {  5, 11,   6, 0, L"acacia_log", L"log_acacia", 0x0 },	// ADD-IN 1.7.2
     {  6, 11,   6, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11,   6, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
@@ -267,13 +267,13 @@ static struct {
     { 11, 11,   6, 0, L"birch_log_top", L"log_birch_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 12, 11,   6, 0, L"spruce_log_top", L"log_spruce_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 13, 11,   6, 0, L"jungle_log_top", L"log_jungle_top", SWATCH_REPEAT_ALL },	// ADD-IN
-    { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// ADD-IN
-    { 15, 11,   6, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },	// ADD-IN
+    { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
+    { 15, 11,   6, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
     {  0, 12,   6, 0, L"sandstone", L"sandstone_normal", SWATCH_REPEAT_ALL },
     {  1, 12,   6, 0, L"purple_wool", L"wool_colored_purple", SWATCH_REPEAT_ALL },
     {  2, 12,   6, 0, L"magenta_wool", L"wool_colored_magenta", SWATCH_REPEAT_ALL },
     {  3, 12,  28, 0, L"detector_rail", L"rail_detector", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  4, 12,   6, 0, L"jungle_leaves", L"leaves_jungle", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },
+    {  4, 12,   6, 0, L"jungle_leaves", L"leaves_jungle", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
     {  5, 12,   6, 0, L"chiseled_red_sandstone", L"red_sandstone_chiseled", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     {  6, 12, 134, 0, L"spruce_planks", L"planks_spruce", SWATCH_REPEAT_ALL },
     {  7, 12, 136, 0, L"jungle_planks", L"planks_jungle", SWATCH_REPEAT_ALL },
@@ -298,9 +298,9 @@ static struct {
     { 10, 13, 130, 0, L"MWO_ender_chest_top", L"ender_chest_top", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 13, 130, 0, L"MWO_ender_chest_side", L"ender_chest_side", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 13, 130, 0, L"MWO_ender_chest_front", L"ender_chest_front", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN
+    { 13, 13,   6, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN
     { 14, 13,   6, 0, L"red_sandstone", L"red_sandstone_normal", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    { 15, 13,   9, 0, L"water_still", L"water_still_grey", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },   // we really want to use the "water_still_grey", but at least this gives a warning
+    { 15, 13,   9, 0, L"water_still", L"water_still_grey", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },   // we really want to use the "water_still_grey", but at least this gives a warning
     {  0, 14, 112, 0, L"nether_bricks", L"nether_brick", SWATCH_REPEAT_ALL },
     {  1, 14,   6, 0, L"light_gray_wool", L"wool_colored_silver", SWATCH_REPEAT_ALL },
     {  2, 14,   6, 0, L"nether_wart_stage0", L"nether_wart_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -371,10 +371,10 @@ static struct {
     {  3, 18,   6, 0, L"sunflower_top", L"double_plant_sunflower_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 18,   6, 0, L"lilac_bottom", L"double_plant_syringa_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },	// lily
     {  5, 18,   6, 0, L"lilac_top", L"double_plant_syringa_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  6, 18,   6, 0, L"tall_grass_bottom", L"double_plant_grass_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYTHESIZED },
-    {  7, 18,   6, 0, L"tall_grass_top", L"double_plant_grass_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
-    {  8, 18,   6, 0, L"large_fern_bottom", L"double_plant_fern_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYTHESIZED },
-    {  9, 18,   6, 0, L"large_fern_top", L"double_plant_fern_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYTHESIZED },
+    {  6, 18,   6, 0, L"tall_grass_bottom", L"double_plant_grass_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  7, 18,   6, 0, L"tall_grass_top", L"double_plant_grass_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  8, 18,   6, 0, L"large_fern_bottom", L"double_plant_fern_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  9, 18,   6, 0, L"large_fern_top", L"double_plant_fern_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
     { 10, 18,   6, 0, L"rose_bush_bottom", L"double_plant_rose_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 11, 18,   6, 0, L"rose_bush_top", L"double_plant_rose_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 12, 18,   6, 0, L"peony_bottom", L"double_plant_paeonia_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },	// peony
@@ -390,9 +390,9 @@ static struct {
     {  6, 19,   6, 0, L"pink_tulip", L"flower_tulip_pink", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 19,   6, 0, L"oxeye_daisy", L"flower_oxeye_daisy", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 19,   6, 0, L"seagrass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// 1.13 - was flower_paeonia - no longer used TODO
-    {  9, 19,   6, 0, L"acacia_leaves", L"leaves_acacia", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN 1.7.2
+    {  9, 19,   6, 0, L"acacia_leaves", L"leaves_acacia", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN 1.7.2
     { 10, 19,   6, 0, L"cut_red_sandstone", L"red_sandstone_smooth", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    { 11, 19, 161, 0, L"dark_oak_leaves", L"leaves_big_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYTHESIZED },	// ADD-IN 1.7.2
+    { 11, 19, 161, 0, L"dark_oak_leaves", L"leaves_big_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN 1.7.2
     { 12, 19, 179, 0, L"red_sandstone_top", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     { 13, 19, 162, 0, L"acacia_log_top", L"log_acacia_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     { 14, 19,   6, 0, L"dark_oak_log", L"log_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
@@ -492,7 +492,7 @@ static struct {
     { 12, 25,   6, 0, L"structure_block_load", L"", SWATCH_REPEAT_ALL },
     { 13, 25,   6, 0, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
     { 14, 25, 166, 0, L"barrier", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
-    { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },    // 1.9 - water looks like this through glass.
+    { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },    // 1.9 - water looks like this through glass.
     {  0, 26, 213, 0, L"magma", L"", SWATCH_REPEAT_ALL },
     {  1, 26, 214, 0, L"nether_wart_block", L"", SWATCH_REPEAT_ALL },
     {  2, 26, 215, 0, L"red_nether_bricks", L"red_nether_brick", SWATCH_REPEAT_ALL },
@@ -501,7 +501,7 @@ static struct {
     {  5, 26,   6, 0, L"redstone_dust_overlay", L"", SWATCH_REPEAT_ALL | SBIT_ALPHA_OVERLAY },	// could use alternate name such as redstone_dust_cross_overlay if old texture pack, but Modern HD does weird stuff with it
     {  6, 26,   6, 0, L"MWO_redstone_dust_four_way", L"redstone_dust_cross", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved (alt: Smoolistic)
     {  7, 26,   6, 0, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  8, 26,   8, 0, L"water_flow", L"water_flow_grey", SWATCH_REPEAT_ALL | SBIT_SYTHESIZED },	// special: double-wide. TODO: some packs make "water_flow" a colored version, using "water_flow_grey" for the right one
+    {  8, 26,   8, 0, L"water_flow", L"water_flow_grey", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },	// special: double-wide. TODO: some packs make "water_flow" a colored version, using "water_flow_grey" for the right one
     {  9, 26,  10, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
     { 10, 26,   6, 0, L"MWO_redstone_dust_line0_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF: vertical and runs north-south
     { 11, 26,   6, 0, L"MWO_redstone_dust_line1_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF: "horizontal": appears vertically in the texture, but runs east-west
