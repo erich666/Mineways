@@ -783,7 +783,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 0: // normal
             break;
         case 1:	// flowering
-            return "Potted Flowering Azalea";
+            return "Flowering Azalea";
             break;
         }
         break;
@@ -1602,6 +1602,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Crimson Fungus";
         case 2:
             return "Warped Fungus";
+        case 3:
+            // azalea - needed for material output
+            return "Azalea";
+        case 4:
+            // flowering azalea
+            return "Flowering Azalea";
         }
         break;
 
@@ -2628,6 +2634,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 2:
             color = 0x777965;
             break;
+        // no color needed for azaleas
         }
         break;
 

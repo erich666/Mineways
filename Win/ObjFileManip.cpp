@@ -1212,6 +1212,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // if we have matrix transforms available, transfer the unit and model scale to that scale factor instead
     if (fileType == FILE_TYPE_USD) {
+        // This logic is more than a bit wedged when it comes to 3D printing. TODO
+        // There's a choice between visibility, usability (camera translation speed set too high), and giving the proper cost estimation.
+        // Right now, cost estimation is wrong.
         gXformScale = gModel.scale * gUnitsScale;
         gUnitsScale = 1.0f;
         gModel.scale = 1.0f;
