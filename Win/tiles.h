@@ -1043,7 +1043,8 @@ static const struct {
     { L"dark_oak_door_upper", L"dark_oak_door_top" },    // Absolution
     { L"dirt_podzol-side", L"podzol_side" },    // JG-RTX
     { L"dirt_podzol-top", L"podzol_top" },    // JG-RTX
-    { L"fletcher_table_side1", L"fletching_table_side" },    // Muddle
+    { L"fletcher_table_side1", L"fletching_table_front" },    // Muddle, JG-RTX
+    { L"fletcher_table_side2", L"fletching_table_side" },    // JG-RTX
     { L"fletcher_table_top", L"fletching_table_top" },    // Muddle
     //{ L"grass-side", L"grass_block_side" },    // JG-RTX
     //{ L"grass-top", L"grass_block_top" },    // JG-RTX

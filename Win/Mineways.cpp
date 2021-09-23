@@ -3463,17 +3463,18 @@ static int loadWorldList(HMENU menu)
                         continue;
                     }
 
-                    LOG_INFO(gExecutionLogfile, "        try to get file version ID\n");
-                    int versionID;
-                    errCode = GetFileVersionId(testAnvil, &versionID);
-                    if (errCode != 0) {
-                        // unreadable world, for some reason - couldn't read version and LevelName
-                        //flagUnreadableWorld(testAnvil, pConverted, errCode);
-                        //continue;
-                        // Note, some worlds do this, e.g., 1.7 and 1.8 worlds don't have a version.
-                        // So, set the versionID to 0 and move on.
-                        versionID = 0;
-                    }
+                    // Only needed for culling out files we cannot yet read, e.g., 1.18 at one point
+                    //LOG_INFO(gExecutionLogfile, "        try to get file version ID\n");
+                    //int versionID;
+                    //errCode = GetFileVersionId(testAnvil, &versionID);
+                    //if (errCode != 0) {
+                    //    // unreadable world, for some reason - couldn't read version and LevelName
+                    //    //flagUnreadableWorld(testAnvil, pConverted, errCode);
+                    //    //continue;
+                    //    // Note, some worlds do this, e.g., 1.7 and 1.8 worlds don't have a version.
+                    //    // So, set the versionID to 0 and move on.
+                    //    versionID = 0;
+                    //}
 
                     /* Only needed for debug. Trying to minimize these calls, see issue https://github.com/erich666/Mineways/issues/31
                     int versionId = 0;
@@ -3513,7 +3514,6 @@ static int loadWorldList(HMENU menu)
                     info.dwTypeData = worldIDString;
                     info.dwItemData = gNumWorlds;
                     // if version is pre-Anvil, show world but gray it out
-                    // TODOTODO: sorry, we don't read 1.18 files yet - the format has changed
                     if (version < 19133)
                     {
                         LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
