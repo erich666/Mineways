@@ -1789,8 +1789,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case ID_SELECT_ALL:
             if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
-                gTargetDepth = gMinHeight;
-                gCurDepth = gWorldGuide.sch.height - 1;
+                //gTargetDepth = gMinHeight;
+                //gCurDepth = gWorldGuide.sch.height - 1;
 
                 setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                 // update target depth
@@ -1801,8 +1801,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             else {
                 // select visible area, more or less
-                gTargetDepth = gMinHeight;
-                gCurDepth = gMaxHeight;
+                //gTargetDepth = gMinHeight;
+                //gCurDepth = gMaxHeight;
 
                 // get screen coordinates, roughly
                 {
@@ -3522,13 +3522,13 @@ static int loadWorldList(HMENU menu)
                         info.fMask |= MIIM_STATE;
                         info.fState = MFS_DISABLED;
                     }
-                    else if (DATA_VERSION_TO_RELEASE_NUMBER(versionID) >= 18)
-                    {
-                        LOG_INFO(gExecutionLogfile, "   file is 1.18 or newer - new format is not supported yet\n");
-                        // gray it out
-                        info.fMask |= MIIM_STATE;
-                        info.fState = MFS_DISABLED;
-                    }
+                    //else if (DATA_VERSION_TO_RELEASE_NUMBER(versionID) >= 18)
+                    //{
+                    //    LOG_INFO(gExecutionLogfile, "   file is 1.18 or newer - new format is not supported yet\n");
+                    //    // gray it out
+                    //    info.fMask |= MIIM_STATE;
+                    //    info.fState = MFS_DISABLED;
+                    //}
                     else
                     {
                         //info.fMask |= MIIM_STATE;

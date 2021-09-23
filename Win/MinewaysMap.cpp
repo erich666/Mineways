@@ -3033,7 +3033,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         // this is entirely bogus, as we really need the bottom half to get the right bits, but perhaps
         // some modded data uses the bottom three bits in this way...
         // This is just a safety net now - we actually shove the data value into the upper part of the plant nowadays, in extractChunk
-        dataVal = (voxel >= 256) ? block->data[voxel - 256] : block->data[voxel];
+        dataVal = block->data[voxel];
+        if (dataVal & 0x8) {
+            // looking at the top of the plant, so get the bottom of the plant, if available, to get the bits (pre-1.13)
+            if (voxel >= 256)
+                dataVal = block->data[voxel - 256];
+        }
         // masking just in case it's a top half (and probably bogus)
         switch (dataVal & 0x7)
         {
@@ -4037,8 +4042,8 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 
     // what height can we (must we, if we reduce the grid storage) start at?
     int clippedMaxHeight = maxHeight;
-    assert(block->maxFilledHeight > -1);
-    if (block->maxFilledHeight < clippedMaxHeight && block->maxFilledHeight > -1) {
+    assert(block->maxFilledHeight > EMPTY_MAX_HEIGHT);
+    if (block->maxFilledHeight < clippedMaxHeight && block->maxFilledHeight > EMPTY_MAX_HEIGHT) {
         clippedMaxHeight = block->maxFilledHeight;
     }
     // z increases south, decreases north
@@ -6590,7 +6595,7 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
 {
     int i;
     bool searchMaxHeight = true;
-    if (block->maxFilledSectionHeight <= -1) {
+    if (block->maxFilledSectionHeight <= EMPTY_MAX_HEIGHT) {
         // the maxFilledSectionHeight should have been set before calling this method!
         assert(0);
         block->maxFilledSectionHeight = block->maxHeight - 1;

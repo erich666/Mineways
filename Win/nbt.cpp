@@ -39,6 +39,9 @@ static int skipType(bfFile* pbf, int type);
 static int skipList(bfFile* pbf);
 static int skipCompound(bfFile* pbf);
 
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex);
+static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
+
 typedef struct BlockTranslator {
     int hashSum;
     unsigned char blockId;
@@ -1858,7 +1861,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //           biomes: NEW. Gives a palette of a number of biomes. If more than one, also has "data" of (for two entries) 32 bit integer. Not sure how that encodes... saw a negative number.
         //           block_states: usually 2 entries
         //             palette: number of folders of entries, like in 1.17, see above.
-        //             dataL this is the compressed block_states data.
+        //             data: this is the compressed block_states data.
         //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
 
         if (len == 256) {
@@ -2044,23 +2047,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // 1.13 and newer "flattened" format
             // read all the arrays in this section
             // walk through all elements of each Palette array element
-            int dataVal = 0;
-            // for doors
-            bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
-                conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up;
-            int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
-                delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-                thickness, vertical_direction, berries;
-            // to avoid Release build warning, but should always be set by code in practice
-            int typeIndex = 0;
-            half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
-                = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = up = false;
-            axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
-                delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-                thickness = vertical_direction = berries = 0;
 
             int bigbufflen = 0;
-            int entry_index = 0;
+            int entryIndex = 0;
             // could theoretically get higher...
             unsigned char paletteBlockEntry[MAX_PALETTE];
             unsigned char paletteDataEntry[MAX_PALETTE];
@@ -2096,1135 +2085,61 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 else if (strcmp(thisName, "BlockStates") == 0)
                 {
                     ret = 1;
-                    bigbufflen = readDword(pbf); //array length
-                    if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
-                        return -25;	// TODO make better unique return codes, with names
-                    // read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
-                    if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
-                        return -26;
+                    int dataret = readBlockData(pbf, bigbufflen, bigbuff);
+                    if (dataret != 0) {
+                        return dataret;
+                    }
                 }
                 else if (strcmp(thisName, "Palette") == 0)
                 {
                     ret = 1;
-
-                    {
-                        // get rid of "\n" after "Palette".
-                        unsigned char uctype = 0;
-                        if (bfread(pbf, &uctype, 1) < 0)
-                            return -27;
-                        if (uctype != 10)
-                            return -28;
+                    
+                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex);
+                    // did we hit an error?
+                    if (retVal != 0) {
+                        return retVal;
                     }
+                }
+                else if (strcmp(thisName, "block_states") == 0)
+                {
+                    // welcome to 1.18+ data
+                    ret = 1;
 
-                    // walk through entries' names and convert to their block ID
-                    int nentries = readDword(pbf);
-                    if (nentries <= 0)
-                        return -29;	// TODO someday need to clean up these error codes and treat them right
-                    if (nentries > MAX_PALETTE)
-                        return -30;
-
-                    char thisBlockName[MAX_NAME_LENGTH];
-
-                    // go through entries in Palette
-                    while (nentries--) {
-                        // clear, so that NO_PROP doesn't inherit from other blocks, etc.
-                        dataVal = 0;
-                        // avoid inheriting these properties, which are always folded in (false if not found in block, so does no harm)
-                        waterlogged = false;
-
-                        for (;;)
+                    int subret = 0;
+                    // folder of two things: palette and data
+                    for (;;)
+                    {
+                        subret = 0;
+                        type = 0;
+                        if (bfread(pbf, &type, 1) < 0)
+                            return -21;
+                        if (type == 0)
+                            break;
+                        len = readWord(pbf);
+                        if (bfread(pbf, thisName, len) < 0)
+                            return -22;
+                        thisName[len] = 0;
+                        if (strcmp(thisName, "palette") == 0)
                         {
-                            type = 0;
-                            if (bfread(pbf, &type, 1) < 0)
-                                return -31;
-                            // done walking through subarray?
-                            if (type == 0)
-                                break;
-                            len = readWord(pbf);
-                            if (bfread(pbf, thisBlockName, len) < 0)
-                                return -32;
-                            thisBlockName[len] = 0;
-
-                            if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
-
-                                len = readWord(pbf);
-                                if (len < MAX_NAME_LENGTH) {
-                                    if (bfread(pbf, thisBlockName, len) < 0)
-                                        return -33;
-                                }
-                                else {
-                                    return -34;
-                                }
-                                // have to add end of string
-                                thisBlockName[len] = 0x0;
-
-                                // incredibly stupid special case:
-                                // in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
-                                if ((mcVersion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0)) {
-                                    strcpy_s(thisBlockName, 100, "minecraft:smooth_stone_slab");
-                                }
-
-                                // code to look for a specific name when debugging
-                                //if ((mcVersion >= 13) && (strcmp("minecraft:frame", thisBlockName) == 0)) {
-                                //	type = type;
-                                //}
-
-                                // convert name to block value. +10 is to avoid (useless) "minecraft:" string.
-                                // could be dangerous if len < 10 for whatever reason.
-                                typeIndex = findIndexFromName(thisBlockName + 10);
-                                if (typeIndex > -1) {
-                                    paletteBlockEntry[entry_index] = BlockTranslations[typeIndex].blockId;
-                                    paletteDataEntry[entry_index] = BlockTranslations[typeIndex].dataVal;
-                                }
-                                else {
-                                    // unknown type
-                                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
-#ifdef _DEBUG
-                                    // Make it bedrock, so we see it's not translated
-                                    paletteBlockEntry[entry_index] = 7;
-                                    assert(0);
-#else
-                                    // For release, make it air, so it doesn't gunk up the export
-                                    paletteBlockEntry[entry_index] = 0;
-#endif
-                                    // data value always reset to 0
-                                    paletteDataEntry[entry_index] = 0;
-                                    returnCode |= NBT_WARNING_NAME_NOT_FOUND;
-                                }
+                            subret = 1;
+                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex);
+                            // did we hit an error?
+                            if (retVal != 0) {
+                                return retVal;
                             }
-                            else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
-                                do {
-                                    if (bfread(pbf, &type, 1) < 0)
-                                        return -35;
-                                    if (type)
-                                    {
-                                        // read token value
-                                        char token[100];
-                                        char value[100];
-                                        len = readWord(pbf);
-                                        if (bfread(pbf, token, len) < 0)
-                                            return -36;
-                                        token[len] = 0;
-                                        len = readWord(pbf);
-                                        if (bfread(pbf, value, len) < 0)
-                                            return -37;
-                                        value[len] = 0;
-
-                                        // TODO: I'm guessing that these zillion strcmps that follow are costing a lot of time.
-                                        // Nicer would be to be able to save the token/values away in an array, then get the
-                                        // name (which gets parsed after), then given the name just test the possible tokens needed.
-
-                                        // Very common, for grass blocks, so checked first
-                                        if (strcmp(token, "snowy") == 0) {
-                                            // blocks with the SNOWY_PROP property have only this flag, plus sub-type data values, so we can set it directly.
-                                            // This is why the SNOWY_PROP does not have to be defined
-                                            if (strcmp(value, "true") == 0) {
-                                                dataVal = SNOWY_BIT;
-                                            }
-                                        } // for grassy blocks, podzol, mycellium
-
-                                        // interpret token value
-                                        // wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP
-                                        else if (strcmp(token, "axis") == 0) {
-                                            if (strcmp(value, "y") == 0) {
-                                                axis = 0;
-                                            }
-                                            else if (strcmp(value, "x") == 0) {
-                                                axis = 4;
-                                            }
-                                            else if (strcmp(value, "z") == 0) {
-                                                axis = 8;
-                                            }
-                                        }
-                                        // FLUID_PROP
-                                        else if (strcmp(token, "level") == 0) {
-                                            dataVal = atoi(value);
-                                        }
-                                        // STANDING_SIGN_PROP
-                                        else if (strcmp(token, "rotation") == 0) {
-                                            dataVal = atoi(value);
-                                        }
-                                        // SAPLING_PROP
-                                        else if (strcmp(token, "stage") == 0) {
-                                            // 0 or 1, 1 is about to grow into a tree.
-                                            // mask out, since this is non-graphical
-#ifndef GRAPHICAL_ONLY
-                                            dataVal = 8 * atoi(value);
-#endif
-                                        }
-                                        // leaves LEAF_PROP
-                                        // there does not seem to be any "check decay" flag 
-                                        else if (strcmp(token, "persistent") == 0) {
-                                            // if true, will decay; if false, will be checked for decay (what?)
-                                            // https://minecraft.gamepedia.com/Leaves#Block_states
-                                            // Instead, I'm guessing persistent means "no decay"
-                                            // https://minecraft.gamepedia.com/Java_Edition_data_values#Leaves
-                                            // ignore, since it is has no graphical effect
-#ifndef GRAPHICAL_ONLY
-                                            dataVal = (strcmp(value, "true") == 0) ? 4 : 0;
-#endif
-                                        }
-                                        // SLAB_PROP
-                                        else if (strcmp(token, "type") == 0) {
-                                            // for mushroom blocks:
-                                            if (strcmp(value, "top") == 0) {
-                                                dataVal = 8;
-                                                doubleSlab = false;
-                                            }
-                                            else if (strcmp(value, "bottom") == 0) {
-                                                dataVal = 0;
-                                                doubleSlab = false;
-                                            }
-                                            else if (strcmp(value, "double") == 0) {
-                                                doubleSlab = true;
-                                            }
-                                            else if (strcmp(value, "sticky") == 0) {
-                                                sticky = 8;
-                                            }
-                                            else if (strcmp(value, "normal") == 0) {
-                                                sticky = false;
-                                            }
-                                            /* chest */
-                                            else if (strcmp(value, "single") == 0) {
-                                                single = 1;
-                                            }
-                                            else if (strcmp(value, "left") == 0) {
-                                                single = 3;	// this value is reversed from how I think of left and right
-                                            }
-                                            else if (strcmp(value, "right") == 0) {
-                                                single = 2;	// this value is reversed from how I think of left and right
-                                            }
-                                        }
-                                        // common property
-                                        else if (strcmp(token, "waterlogged") == 0) {
-                                            waterlogged = (strcmp(value, "true") == 0) ? true : false;
-                                        }
-                                        // SNOW_PROP
-                                        else if (strcmp(token, "layers") == 0) {
-                                            // 1-8, which turns into 0-7
-                                            dataVal = atoi(value) - 1;
-                                            // test and bound, just in case. Tate Hickman reported snow turning into stonecutters.
-                                            if (dataVal > 7 || dataVal < 0)
-                                                dataVal = 1;
-                                        }
-                                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored), cave vines plant (also ignored, but there)
-                                        else if (strcmp(token, "age") == 0) {
-                                            // AGE_PROP
-                                            // 0-3 or 0-7 or 0-25 (for cave vines plant)
-                                            dataVal |= atoi(value);
-                                            age = atoi(value);
-                                        }
-                                        // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
-                                        else if (strcmp(token, "shape") == 0) {
-                                            // stairs
-                                            if (strcmp(value, "straight") == 0) {
-                                                stairs = 0x0;
-                                            }
-                                            else if (strcmp(value, "inner_left") == 0) {
-                                                stairs = BIT_8 | BIT_32;
-                                            }
-                                            else if (strcmp(value, "inner_right") == 0) {
-                                                stairs = BIT_8;
-                                            }
-                                            else if (strcmp(value, "outer_left") == 0) {
-                                                stairs = BIT_16 | BIT_32;
-                                            }
-                                            else if (strcmp(value, "outer_right") == 0) {
-                                                stairs = BIT_16;
-                                            }
-                                            // rails
-                                            else if (strcmp(value, "north_south") == 0) {
-                                                rails = 0;
-                                            }
-                                            else if (strcmp(value, "east_west") == 0) {
-                                                rails = 1;
-                                            }
-                                            else if (strcmp(value, "ascending_east") == 0) {
-                                                rails = 2;
-                                            }
-                                            else if (strcmp(value, "ascending_west") == 0) {
-                                                rails = 3;
-                                            }
-                                            else if (strcmp(value, "ascending_north") == 0) {
-                                                rails = 4;
-                                            }
-                                            else if (strcmp(value, "ascending_south") == 0) {
-                                                rails = 5;
-                                            }
-                                            else if (strcmp(value, "south_east") == 0) {
-                                                rails = 6;
-                                            }
-                                            else if (strcmp(value, "south_west") == 0) {
-                                                rails = 7;
-                                            }
-                                            else if (strcmp(value, "north_west") == 0) {
-                                                rails = 8;
-                                            }
-                                            // really, it's the only thing left, so test is not needed.
-                                            //else if (strcmp(value, "north_east") == 0) {
-                                            else {
-                                                rails = 9;
-                                            }
-                                        }
-                                        // DOOR_PROP, STAIRS_PROP; for TORCH_PROP we set the data value directly
-                                        else if (strcmp(token, "facing") == 0) {
-                                            // door_facing starts at 1: south,west,north,east
-                                            // stairs_facing starts at 0: east,west,south,north - dataVal minus one
-                                            // dropper_facing starts at 0: down,up,north,south,west,east
-                                            // dataVal starts at 1: east,west,south,north
-                                            if (strcmp(value, "south") == 0) {
-                                                door_facing = 1;
-                                                //stairs_facing = 2;
-                                                //chest_facing = 3; - same as 5-stairs_facing
-                                                dropper_facing = 3;
-                                                dataVal = 3;
-                                            }
-                                            else if (strcmp(value, "west") == 0) {
-                                                door_facing = 2;
-                                                //stairs_facing = 1;
-                                                //chest_facing = 4;
-                                                dropper_facing = 4;
-                                                dataVal = 2;
-                                            }
-                                            else if (strcmp(value, "north") == 0) {
-                                                door_facing = 3;
-                                                //stairs_facing = 3;
-                                                //chest_facing = 2;
-                                                dropper_facing = 2;
-                                                dataVal = 4;
-                                            }
-                                            else if (strcmp(value, "east") == 0) {
-                                                door_facing = 0;
-                                                //stairs_facing = 0;
-                                                //chest_facing = 5;
-                                                dropper_facing = 5;
-                                                dataVal = 1;
-                                            }
-                                            // dispenser, dropper, amethyst buds
-                                            else if (strcmp(value, "up") == 0) {
-                                                door_facing = 0;
-                                                //chest_facing = 5;
-                                                dropper_facing = 1;
-                                                dataVal = 0;
-                                            }
-                                            else if (strcmp(value, "down") == 0) {
-                                                door_facing = 0;
-                                                //chest_facing = 5;
-                                                dropper_facing = 0;
-                                                dataVal = 1;
-                                            }
-                                        }
-                                        else if (strcmp(token, "half") == 0) {
-                                            // upper for sunflowers, top for stairs. Good job, guys.
-                                            half = ((strcmp(value, "upper") == 0) || strcmp(value, "top") == 0) ? true : false;
-                                            // do not set the data value, as the interpreters later on will interpret "half"
-                                        }
-                                        // DOOR_PROP only
-                                        else if (strcmp(token, "hinge") == 0) {
-                                            // NOTE: this is flipped from what the docs at https://minecraft.gamepedia.com/Java_Edition_data_values#Door
-                                            // say, they say left is 1, but this works properly. Mojang, I suspect, means the hinge on the inside of
-                                            // the door, vs. outside, or something.
-                                            hinge = (strcmp(value, "right") == 0) ? 1 : 0;
-                                        }
-                                        else if (strcmp(token, "open") == 0) {
-                                            open = (strcmp(value, "true") == 0) ? 4 : 0;
-                                        }
-                                        else if (strcmp(token, "in_wall") == 0) {
-                                            in_wall = (strcmp(value, "true") == 0);
-                                        }
-                                        // lever, grindstone
-                                        else if (strcmp(token, "face") == 0) {
-                                            if (strcmp(value, "floor") == 0) {
-                                                face = 0;
-                                            }
-                                            else if (strcmp(value, "wall") == 0) {
-                                                face = 1;
-                                            }
-                                            else // assumed ceiling
-                                                face = 2;
-                                        }
-                                        // also used by lever, powered rails
-                                        else if (strcmp(token, "powered") == 0) {
-                                            powered = (strcmp(value, "true") == 0);
-                                        }
-                                        // WIRE_PROP
-                                        else if (strcmp(token, "power") == 0) {
-                                            dataVal |= atoi(value);
-                                        }
-                                        // CANDLE_CAKE_PROP
-                                        else if (strcmp(token, "bites") == 0) {
-                                            bites = atoi(value);
-                                        }
-                                        // FARMLAND_PROP
-                                        else if (strcmp(token, "moisture") == 0) {
-                                            dataVal = atoi(value);
-                                        }
-                                        // PISTON_PROP and PISTON_HEAD_PROP
-                                        else if (strcmp(token, "extended") == 0) {
-                                            extended = (strcmp(value, "true") == 0);
-                                        }
-                                        // MUSHROOM_PROP and MUSHROOM_STEM_PROP
-                                        // also WIRE_PROP: none or side;
-                                        // we test for "side" for redstone dots vs. crosses
-                                        else if (strcmp(token, "north") == 0) {
-                                            north = (strcmp(value, "true") == 0);
-                                            // setting this bit means "make it a cross" - TODO, ran out of bits!
-                                            //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
-                                        }
-                                        else if (strcmp(token, "south") == 0) {
-                                            south = (strcmp(value, "true") == 0);
-                                        }
-                                        else if (strcmp(token, "east") == 0) {
-                                            east = (strcmp(value, "true") == 0);
-                                        }
-                                        else if (strcmp(token, "west") == 0) {
-                                            west = (strcmp(value, "true") == 0);
-                                        }
-                                        else if (strcmp(token, "up") == 0) {
-                                            up = (strcmp(value, "true") == 0);
-                                        }
-                                        else if (strcmp(token, "down") == 0) {
-                                            down = (strcmp(value, "true") == 0);
-                                        }
-                                        // redstone
-                                        else if (strcmp(token, "lit") == 0) {
-                                            lit = (strcmp(value, "true") == 0);
-                                        }
-                                        // bed
-                                        else if (strcmp(token, "occupied") == 0) {
-#ifndef GRAPHICAL_ONLY
-                                            occupied = (strcmp(value, "true") == 0) ? 4 : 0; // non-graphical
-#endif
-                                        }
-                                        else if (strcmp(token, "part") == 0) {
-                                            part = (strcmp(value, "head") == 0) ? 8 : 0;
-                                        }
-                                        // dropper/dispenser
-                                        else if (strcmp(token, "triggered") == 0) {
-                                            // ignore, non-graphical
-#ifndef GRAPHICAL_ONLY
-                                            triggered = (strcmp(value, "true") == 0);
-#endif
-                                        }
-                                        // END_PORTAL_PROP (really, the frame)
-                                        else if (strcmp(token, "eye") == 0) {
-                                            eye = (strcmp(value, "true") == 0) ? 4 : 0;
-                                        }
-                                        // DAYLIGHT_PROP
-                                        else if (strcmp(token, "inverted") == 0) {
-                                            inverted = (strcmp(value, "true") == 0);
-                                        }
-                                        // REPEATER_PROP
-                                        else if (strcmp(token, "delay") == 0) {
-                                            // 1-4
-                                            delay = atoi(value) - 1;
-                                        }
-                                        else if (strcmp(token, "locked") == 0) {
-                                            locked = (strcmp(value, "true") == 0);
-                                        }
-                                        // HOPPER_PROP
-                                        else if (strcmp(token, "enabled") == 0) {
-                                            enabled = (strcmp(value, "true") == 0);
-                                        }
-                                        // TRIPWIRE_PROP
-                                        else if (strcmp(token, "disarmed") == 0) {
-                                            attached = (strcmp(value, "true") == 0);
-                                        }
-                                        // TRIPWIRE_PROP and TRIPWIRE_HOOK_PROP
-                                        else if (strcmp(token, "attached") == 0) {
-                                            attached = (strcmp(value, "true") == 0);
-                                        }
-                                        // COMMAND_BLOCK_PROP
-                                        else if (strcmp(token, "conditional") == 0) {
-                                            conditional = (strcmp(value, "true") == 0);
-                                        }
-                                        // brewing stand - just happens, no prop
-                                        else if (strcmp(token, "has_bottle_0") == 0) {
-                                            dataVal |= (strcmp(value, "true") == 0) ? 1 : 0;
-                                        }
-                                        else if (strcmp(token, "has_bottle_1") == 0) {
-                                            dataVal |= (strcmp(value, "true") == 0) ? 2 : 0;
-                                        }
-                                        else if (strcmp(token, "has_bottle_2") == 0) {
-                                            dataVal |= (strcmp(value, "true") == 0) ? 4 : 0;
-                                        }
-                                        // STRUCTURE_PROP
-                                        else if (strcmp(token, "mode") == 0) {
-                                            // only matters for rails
-                                            if (strcmp(value, "data") == 0) {
-                                                dataVal = 1;
-                                            }
-                                            else if (strcmp(value, "save") == 0) {
-                                                dataVal = 2;
-                                            }
-                                            else if (strcmp(value, "load") == 0) {
-                                                dataVal = 3;
-                                            }
-                                            else if (strcmp(value, "corner") == 0) {
-                                                dataVal = 4;
-                                            }
-                                            // comparator
-                                            else if (strcmp(value, "subtract") == 0) {
-                                                mode = true;
-                                            }
-                                            else {
-                                                mode = false;
-                                            }
-                                        }
-                                        else if (strcmp(token, "pickles") == 0) {
-                                            dataVal = atoi(value) - 1;
-                                        }
-                                        else if (strcmp(token, "eggs") == 0) {
-                                            dataVal = atoi(value) - 1;
-                                        }
-                                        else if (strcmp(token, "hatch") == 0) {
-                                            hatch = atoi(value);
-                                        }
-                                        else if (strcmp(token, "leaves") == 0) {
-                                            // for LEAF_SIZE_PROP
-                                            // only for bamboo; age is 0 or 1, so we put this in bits 0x2 and 0x4
-                                            if (strcmp(value, "none") == 0) {
-                                                leaves = 0;
-                                            }
-                                            else if (strcmp(value, "small") == 0) {
-                                                leaves = 1;
-                                            }
-                                            else if (strcmp(value, "large") == 0) {
-                                                leaves = 2;
-                                            }
-                                        }
-                                        // for bell
-                                        else if (strcmp(token, "attachment") == 0) {
-                                            if (strcmp(value, "floor") == 0) {
-                                                attachment = 0;
-                                            }
-                                            else if (strcmp(value, "ceiling") == 0) {
-                                                attachment = 1;
-                                            }
-                                            else if (strcmp(value, "single_wall") == 0) {	// attached to just one wall
-                                                attachment = 2;
-                                            }
-                                            else if (strcmp(value, "double_wall") == 0) {	// attached to a pair of walls
-                                                attachment = 3;
-                                            }
-                                        }
-                                        else if (strcmp(token, "signal_fire") == 0) {
-                                            signal_fire = (strcmp(value, "true") == 0);
-                                        }
-                                        else if (strcmp(token, "has_book") == 0) {
-                                            has_book = (strcmp(value, "true") == 0);
-                                        }
-                                        // for lantern LANTERN_PROP
-                                        else if (strcmp(token, "hanging") == 0) {
-                                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
-                                        }
-                                        // for scaffolding
-                                        else if (strcmp(token, "bottom") == 0) {
-                                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
-                                        }
-                                        // for beehive and bee_nest
-                                        else if (strcmp(token, "honey_level") == 0) {
-                                            honey_level = atoi(value);
-                                        }
-                                        // for respawn anchor - directly add to data val
-                                        else if (strcmp(token, "charges") == 0) {
-                                            dataVal = atoi(value);
-                                        }
-                                        // for jigsaw
-                                        else if (strcmp(token, "orientation") == 0) {
-                                            if (strcmp(value, "south_up") == 0) {
-                                                dropper_facing = 3;
-                                            }
-                                            else if (strcmp(value, "west_up") == 0) {
-                                                dropper_facing = 2;
-                                            }
-                                            else if (strcmp(value, "north_up") == 0) {
-                                                dropper_facing = 4;
-                                            }
-                                            else if (strcmp(value, "east_up") == 0) {
-                                                dropper_facing = 5;
-                                            }
-                                            else if (strcmp(value, "up_east") == 0) {
-                                                dropper_facing = 1 | BIT_16 | BIT_8;
-                                            }
-                                            else if (strcmp(value, "up_north") == 0) {
-                                                dropper_facing = 1 | BIT_16;
-                                            }
-                                            else if (strcmp(value, "up_west") == 0) {
-                                                dropper_facing = 1;
-                                            }
-                                            else if (strcmp(value, "up_south") == 0) {
-                                                dropper_facing = 1 | BIT_8;
-                                            }
-                                            else if (strcmp(value, "down_east") == 0) {
-                                                dropper_facing = 0 | BIT_16 | BIT_8;
-                                            }
-                                            else if (strcmp(value, "down_north") == 0) {
-                                                dropper_facing = 0 | BIT_16;
-                                            }
-                                            else if (strcmp(value, "down_west") == 0) {
-                                                dropper_facing = 0;
-                                            }
-                                            else if (strcmp(value, "down_south") == 0) {
-                                                dropper_facing = 0 | BIT_8;
-                                            }
-                                            else {
-                                                // unknown state found
-                                                assert(0);
-                                            }
-                                        }
-                                        // CANDLE_PROP
-                                        else if (strcmp(token, "candles") == 0) {
-                                            // doesn't need a separate variable - "lit" will change the type
-                                            // 1-4 candles == 0-3 * 16 (i.e., 0x00, 0x10, 0x20, 0x30)
-                                            dataVal |= ((atoi(value)-1) << 4);
-                                        }
-                                        // for big dripleaf https://minecraft.fandom.com/wiki/Big_Dripleaf
-                                        else if (strcmp(token, "tilt") == 0) {
-                                            if (strcmp(value, "none") == 0) {
-                                                tilt = 0;
-                                            }
-                                            else if (strcmp(value, "unstable") == 0) {
-                                                // doesn't really do anything
-                                                tilt = 1;
-                                            }
-                                            else if (strcmp(value, "partial") == 0) {
-                                                tilt = 2;
-                                            }
-                                            else if (strcmp(value, "full") == 0) {
-                                                tilt = 3;
-                                            }
-                                            else {
-                                                // unknown state found
-                                                assert(0);
-                                            }
-                                        }
-                                        // for cave vines and cave vines plant (which also has "age") https://minecraft.fandom.com/wiki/Glow_Berries#ID
-                                        // BERRIES_PROP
-                                        else if (strcmp(token, "berries") == 0) {
-                                            // "age" is also folded into dataVal for cave_vines_plant, which is why we can't use the dataVal directly
-                                            berries = (strcmp(value, "true") == 0) ? 0x2 : 0;
-                                        }
-                                        // for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
-                                        else if (strcmp(token, "thickness") == 0) {
-                                            if (strcmp(value, "tip") == 0) {
-                                                thickness = 0;
-                                            }
-                                            else if (strcmp(value, "tip_merge") == 0) {
-                                                thickness = 1;
-                                            }
-                                            else if (strcmp(value, "frustum") == 0) {
-                                                thickness = 2;
-                                            }
-                                            else if (strcmp(value, "middle") == 0) {
-                                                thickness = 3;
-                                            }
-                                            else if (strcmp(value, "base") == 0) {
-                                                thickness = 4;
-                                            }
-                                            else {
-                                                // unknown state found
-                                                assert(0);
-                                            }
-                                        }
-                                        // also for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
-                                        else if (strcmp(token, "vertical_direction") == 0) {
-                                            vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
-                                        }
-                                        else if (strcmp(token, "sculk_sensor_phase") == 0) {
-                                            if (strcmp(value, "cooldown") == 0) {
-                                                //dataVal |= 0;
-                                            }
-                                            else if (strcmp(value, "active") == 0) {
-                                                dataVal |= BIT_16;
-                                            }
-                                            else if (strcmp(value, "inactive") == 0) {
-                                                // inactive and cooldown are basically the same
-                                                //dataVal |= 0;
-                                            }
-                                            else {
-                                                // unknown state found
-                                                assert(0);
-                                            }
-                                        }
-
-
-#ifdef _DEBUG
-                                        else {
-                                            // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-                                            if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
-                                            else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-                                            else if (strcmp(token, "note") == 0) {}
-                                            else if (strcmp(token, "instrument") == 0) {}
-                                            else if (strcmp(token, "drag") == 0) {}
-                                            else if (strcmp(token, "has_record") == 0) {}	// jukebox
-                                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
-                                            else {
-                                                // unknown property - look at token and value
-                                                assert(0);
-                                            }
-                                        }
-#endif
-                                    }
-                                } while (type);
-                            }
-                            else if (skipType(pbf, type) < 0)
-                                return -38;
                         }
-                        // done, so determine and fold in dataVal
-                        int tf = BlockTranslations[typeIndex].translateFlags;
-                        switch (tf) {
-                        default:
-                            // prop defined but not used in list below - just use NO_PROP if the prop does nothing
-                            assert(0);
+                        else if (strcmp(thisName, "data") == 0)
+                        {
+                            subret = 1;
 
-                        case NO_PROP:
-                            // these are also ones where nothing needs to be done. They could all be called NO_PROP,
-                            // but it's handy to know what blocks have what properties associated with them.
-                        case SNOWY_PROP:
-                        case SNOW_PROP:
-                        case AGE_PROP:
-                        case FLUID_PROP:
-                        case SAPLING_PROP:
-                        case LEAF_PROP:
-                        case FARMLAND_PROP:
-                        case STANDING_SIGN_PROP:
-                        case WT_PRESSURE_PROP:
-                        case PICKLE_PROP:
-                        case LANTERN_PROP:
-                        case WIRE_PROP:
-                        case STRUCTURE_PROP:
-                            break;
-
-                        case TRULY_NO_PROP:
-                            // well, it can have waterlogged, further down
-                            dataVal = 0x0;
-                            break;
-
-                        case SLAB_PROP:
-                            // everything is fine if double is false
-                            if (doubleSlab) {
-                                // turn single slabs into double slabs by using the type ID just before (it's traditional)
-                                paletteBlockEntry[entry_index]--;
+                            int dataret = readBlockData(pbf, bigbufflen, bigbuff);
+                            if (dataret != 0) {
+                                return dataret;
                             }
-                            break;
-                        case CANDLE_PROP:
-                            if (lit) {
-                                // turn candle type into lit candle, which is one above an unlit candle
-                                paletteBlockEntry[entry_index]++;
-                            }
-                            break;
-                        case AXIS_PROP:
-                            // will get OR'ed in with type of block later
-                            dataVal = axis;
-                            break;
-                        case NETHER_PORTAL_AXIS_PROP:
-                            // was 4 and 8, make it 1 and 2
-                            dataVal = axis >> 2;
-                            break;
-                        case CANDLE_CAKE_PROP:
-                            // 3 lowest bits is number of bites, which is 0-6. However, 7 bites means there's a regular (non-colored) candle.
-                            // 0x10 bit is whether the cake has a COLORED candle or not. If it does, then the four lowest bits are the color
-                            // 0x20 bit is whether the candle is lit or not, for all 17 candles.
-                            dataVal |= bites | (lit ? BIT_32 : 0x0);
-                            // Must reset "lit", as the basic "cake" object does not have this property, but the candle cakes do.
-                            // Similarly, "bites" must be reset, as candle cakes always have 0 bites and only care about "lit".
-                            lit = false;
-                            bites = 0;
-                            break;
-                        case TORCH_PROP:
-                            // if dataVal is not set, i.e. is 0, then set to 5
-                            if (dataVal == 0)
-                                dataVal = 5;
-                            // if this is a redstone torch, use the "lit" property to decide which block
-                            if (!lit && (paletteBlockEntry[entry_index] == 76)) {
-                                // turn it off
-                                paletteBlockEntry[entry_index] = 75;
-                            }
-                            break;
-                        case STAIRS_PROP:
-                            dataVal = (dataVal - 1) | (half ? 4 : 0) | stairs;
-                            break;
-                        case RAIL_PROP:
-                            dataVal = rails;
-                            if (!(paletteBlockEntry[entry_index] == 66)) {
-                                dataVal |= (powered ? 8 : 0);
-                            }
-                            break;
-                        case PRESSURE_PROP:
-                            dataVal = powered ? 1 : 0;
-                            break;
-                        case DOOR_PROP:
-                            // if upper door, use hinge and powered, else use facing and open
-                            if (half) {
-                                // upper
-                                dataVal = 8 | hinge | (powered ? 2 : 0);
-                            }
-                            else {
-                                // lower
-                                dataVal = open | door_facing;
-                            }
-                            break;
-                        case LEVER_PROP:
-                            // which way is face?
-                            if (face == 0) {
-                                // floor, can only be 5 or 6, test south or north;
-                                // but, may need to set dataVal properly.
-                                // We don't have the full flexibility of 1.13,
-                                // but rather use 1.12 rules here, that things go
-                                // south when off, north when on, in order to get
-                                // south and north orientations.
-                                switch ((dataVal - 1) + (powered ? 4 : 0)) {
-                                default:
-                                case 0: // east
-                                case 5: // west
-                                    dataVal = 6 | 8;
-                                    break;
-                                case 1: // west
-                                case 4: // east
-                                    dataVal = 6;
-                                    break;
-                                case 2: // south
-                                case 7: // north
-                                    dataVal = 5 | 8;
-                                    break;
-                                case 3: // north
-                                case 6: // south
-                                    dataVal = 5;
-                                    break;
-                                }
-                            }
-                            else if (face == 1) {
-                                // side
-                                // surprisingly simple, see switch code that follows.
-                                dataVal |= (powered ? 8 : 0);
-                                /*
-                                switch (stairs_facing) {
-                                default:
-                                case 0: // east
-                                dataVal |= 1;
-                                break;
-                                case 1: // west
-                                dataVal |= 2;
-                                break;
-                                case 2: // south
-                                dataVal |= 3;
-                                break;
-                                case 3: // north
-                                dataVal |= 4;
-                                break;
-                                }
-                                */
-                            }
-                            else {
-                                // ceiling, can only be 0 or 7
-                                switch ((dataVal - 1) + (powered ? 4 : 0)) {
-                                default:
-                                case 0: // east
-                                case 5: // west
-                                    dataVal = 0 | 8;
-                                    break;
-                                case 1: // west
-                                case 4: // east
-                                    dataVal = 0;
-                                    break;
-                                case 2: // south
-                                case 7: // north
-                                    dataVal = 7 | 8;
-                                    break;
-                                case 3: // north
-                                case 6: // south
-                                    dataVal = 7;
-                                    break;
-                                }
-                            }
-                            face = 0;
-                            break;
-                        case CHEST_PROP:
-                            dataVal = 6 - dataVal;
-                            // two upper bits 0x18 are 1 = single, 2 = left, 3 = right half; note if no bits found, then it's an old-style chest
-                            dataVal |= (single << 3);
-                            break;
-                        case FACING_PROP:
-                            dataVal = 6 - dataVal;
-                            break;
-                        case FURNACE_PROP:
-                            dataVal = 6 - dataVal;
-                            if (lit) {
-                                // light furnace: move type to be the "lit" version.
-                                paletteBlockEntry[entry_index] = 62;
-                            }
-                            break;
-                        case BUTTON_PROP:
-                            // dataVal is set fron "facing" already (1234), just need face & powered
-                            // check for top or bottom facing
-                            // if button is on top or bottom, "facing" affects angle, bit 16
-                            if (face == 0) {
-                                dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0);
-                            }
-                            else if (face == 2) {
-                                dataVal = 0 | ((dataVal <= 3) ? BIT_16 : 0x0);
-                            }
-                            //else if (face == 1) {
-                            // not needed, as dataVal should be set just right at this point for walls
-                            dataVal |= powered ? 0x8 : 0;
-                            face = 0;
-                            break;
-                        case TRAPDOOR_PROP:
-                            dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
-                            break;
-                        case TALL_FLOWER_PROP:
-                            // Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
-                            // Doesn't matter to Mineways per se, but if we export a schematic, we should make
-                            // this data the same as Minecraft's. TODO - need to test flowers more
-                            dataVal = half ? 0x8 : 0;
-                            break;
-                        case REDSTONE_ORE_PROP:
-                            if (lit) {
-                                // light redstone ore or redstone lamp
-                                paletteBlockEntry[entry_index]++;
-                            }
-                            break;
-                        case FENCE_GATE_PROP:
-                            // strange but true;
-                            dataVal = (open ? 0x4 : 0x0) | ((door_facing + 3) % 4) | (in_wall ? 0x20 : 0);
-                            break;
-                        case SWNE_FACING_PROP:
-                            // south/west/north/east == 0/1/2/3
-                            dataVal = (door_facing + 3) % 4;
-                            break;
-                        case BED_PROP:
-                            // south/west/north/east == 0/1/2/3
-                            // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
-                            dataVal = ((door_facing + 3) % 4) + part + occupied;
-                            break;
-                        case EXTENDED_FACING_PROP:
-                            // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
-                            // also WALL_SIGN_PROP, OBSERVER_PROP
-                            dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
-                            // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
-                            // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
-                            // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
-                            dropper_facing = 0;
-                            triggered = false; // non-graphical
-                            extended = false;
-                            sticky = 0x0;
-                            enabled = false;
-                            conditional = false;
-                            open = false;
-                            powered = false;
-                            break;
-                        case EXTENDED_SWNE_FACING_PROP:
-                            // properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
-                            // really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
-                            dataVal = door_facing | (face << 2) // grindstone
-                                | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
-                                | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
-                                | (lit ? 4 : 0)
-                                //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
-                                | (honey_level << 2); // bee_nest, beehive
-                            door_facing = face = 0;
-                            has_book = false;
-                            powered = false;
-                            attachment = 0;
-                            lit = false;
-                            signal_fire = false;
-                            honey_level = 0;
-                            break;
-                        case FENCE_AND_VINE_PROP:
-                            // Note that for vines, 0 means there's one "above" (really, underneath).
-                            // When there's one above, there (happily) cannot be east/west/n/s, so
-                            // no extra bit is needed or used internally.
-                            dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
-                            break;
-                        case COCOA_PROP:
-                            dataVal = ((door_facing + 3) % 4) + (age << 2);
-                            break;
-                        case LEAF_SIZE_PROP:
-                            dataVal = (leaves << 1) | age;
-                            break;
-                        case HIGH_FACING_PROP:
-                            dataVal = 0xf | (door_facing << 4);
-                        case QUARTZ_PILLAR_PROP:
-                            // for quartz pillar, change data val based on axis
-                            switch (axis) {
-                            default:
-                            case 0:
-                                paletteDataEntry[entry_index] = 2;
-                                break;
-                            case 4:
-                                paletteDataEntry[entry_index] = 3;
-                                break;
-                            case 8:
-                                paletteDataEntry[entry_index] = 4;
-                                break;
-                            }
-                            break;
-                        case REPEATER_PROP:
-                            // facing is 0x3
-                            // delay is 0xC
-                            // locked is 0x10
-                            dataVal = ((door_facing + 3) % 4) | (delay << 2) | (locked << 4);
-                            if (powered) {
-                                // use active form
-                                paletteBlockEntry[entry_index]++;
-                            }
-                            break;
-                        case COMPARATOR_PROP:
-                            dataVal = ((door_facing + 3) % 4) | (mode ? 4 : 0) | (powered ? 8 : 0);
-                            break;
-                        case MUSHROOM_STEM_PROP:
-                            dataVal = up ? 15 : 10;
-                            break;
-                        case MUSHROOM_PROP:
-                            // https://minecraft.gamepedia.com/Java_Edition_data_values#Brown_and_red_mushroom_blocks
-                            if (north) {
-                                // 1,2,3,14
-                                if (south) {
-                                    // 14 - all sides
-                                    dataVal = 14;
-                                }
-                                else if (west) {
-                                    // top, west, and north:
-                                    dataVal = 1;
-                                }
-                                else if (east) {
-                                    // top, north, and east:
-                                    dataVal = 3;
-                                }
-                                else
-                                    // top and north
-                                    dataVal = 2;
-                            }
-                            else {
-                                // 0,4,5,6,7,8,9 (stem is separate with 10 and 15, above)
-                                if (south) {
-                                    // 7,8,9
-                                    if (west) {
-                                        // top, south, west
-                                        dataVal = 7;
-                                    }
-                                    else if (east) {
-                                        // top, south, east
-                                        dataVal = 9;
-                                    }
-                                    else
-                                        // top, south
-                                        dataVal = 8;
-                                }
-                                else {
-                                    // 0,4,5,6
-                                    if (west) {
-                                        // top, west
-                                        dataVal = 4;
-                                    }
-                                    else if (east) {
-                                        // top, east
-                                        dataVal = 6;
-                                    }
-                                    else if (up) {
-                                        // top, only
-                                        dataVal = 5;
-                                    }
-                                    else
-                                        // nothing: pores on all sides
-                                        dataVal = 0;
-                                }
-                            }
-                            break;
-                        case ANVIL_PROP:
-                            dataVal = (door_facing + 3) % 4;
-                            break;
-                        case DAYLIGHT_PROP:
-                            // change to inverted form if inverted is set
-                            if (inverted) {
-                                paletteBlockEntry[entry_index] = 178;
-                            }
-                            break;
-                        case TRIPWIRE_PROP:
-                            dataVal = (powered ? 1 : 0) | (attached ? 4 : 0) | (disarmed ? 8 : 0);
-                            break;
-                        case TRIPWIRE_HOOK_PROP:
-                            dataVal = ((door_facing + 3) % 4) | (attached ? 4 : 0) | (powered ? 8 : 0);
-                            break;
-                        case END_PORTAL_PROP:
-                            dataVal = ((door_facing + 3) % 4) | (eye ? 4 : 0);
-                            break;
-
-                            // If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
-                            // 7 | 654 | 3210
-                            // bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
-                            // bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
-                            // bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
-
-                        case HEAD_PROP:
-                            // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
-                            dataVal |= 0x80;	// it's a rotation, so flag it as such
-                            break;
-                        case HEAD_WALL_PROP:
-                            // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
-                            switch (door_facing) { // starts at 1: south, west, north, east
-                            default:
-                            case 1: // south
-                                dataVal = 3;
-                                break;
-                            case 2: // west
-                                dataVal = 4;	// docs say 5, docs are wrong
-                                break;
-                            case 3: // north
-                                dataVal = 2;
-                                break;
-                            case 0: // east
-                                dataVal = 5;	// docs say 4, docs are wrong
-                                break;
-                            }
-                            break;
-                        case FAN_PROP:
-                            // low 3 bits are the subtype
-                            // fourth bit unused
-                            // 2 bits 56 facing for the fan: NESW
-                            // next bit waterlogged (done below)
-                            dataVal = ((door_facing + 3) % 4) << 4;
-                            break;
-                        case EGG_PROP:
-                            dataVal |= (hatch << 2);
-                            break;
-                            //case WIRE_PROP:
-                            //    dataVal |= redstone_side;
-                            //    break;
-                        case AMETHYST_PROP:
-                            dataVal = dropper_facing << 2;
-                            break;
-                        case DRIPSTONE_PROP:
-                            // up is vertical_direction, and if "down" the value is set to 0x08
-                            dataVal = thickness | vertical_direction;
-                            break;
-                        case BIG_DRIPLEAF_PROP:
-                            // bottommost bit is stem or not
-                            dataVal = (door_facing | (tilt << 2)) << 1;
-                            break;
-                        case SMALL_DRIPLEAF_PROP:
-                            // note that upper half is 0x0, lower is 0x1
-                            dataVal = (door_facing << 1) | ( half ? 0 : 1 );
-                            break;
-                        case BERRIES_PROP:
-                            dataVal = 0x0;
-                            // use lit/berries form if berries present
-                            if (berries) {
-                                paletteBlockEntry[entry_index]++;
-                            }
-                            break;
                         }
-                        // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
-                        //if (dataVal > 0x3F) {
-                        //	// here's where to put a break for DEBUG
-                        //	dataVal &= 0x3F;
-                        //}
-                        // always check for waterlogged
-                        dataVal |= (waterlogged ? WATERLOGGED_BIT : 0x0);
-
-                        paletteDataEntry[entry_index] |= dataVal;
-                        entry_index++;
+                        if (!subret)
+                            if (skipType(pbf, type) < 0)
+                                return -39;
                     }
                 }
                 if (!ret)
@@ -3232,7 +2147,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         return -39;
             }
             // Now that we have all the data, convert bigbuff layer into buff and data values
-            // DEBUG: set a condition of entry_index > 2 - shows just the chunk slices that are not just a single block type & air
+            // DEBUG: set a condition of entryIndex > 2 - shows just the chunk slices that are not just a single block type & air
             // BlockStates in Sections elements no longer contain values stretching over multiple 64 - bit fields.
             // If the number of bits per block is not power of two (i.e., single 64 - bit value can't fill whole number of blockstates) some bits will not be used.
             //		For example, if a single block state takes 5 bits, the highest 4 bits of every 64 - bit field will be unused.
@@ -3242,7 +2157,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             // 1234512345123451234512345123451234512345123451234512345123451234 | 512345 - at the 64 - bit mark the bits just continue
             // New format (which we call "uncompressed"):
             // 123451234512345123451234512345123451234512345123451234512345.... | 1234512345 - at the 60 - bit mark the 5 bits won't fit, so they start again.
-            if (bigbufflen > 0 && entry_index > 0) {
+            if (bigbufflen > 0 && entryIndex > 0) {
                 // future proof: don't store data if the memory doesn't exist
                 if (y < maxHeight16 && y >= minHeight16) {
                     // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
@@ -3253,7 +2168,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
                     unsigned char* bout = buff + 16 * 16 * 16 * (y - minHeight16);
                     unsigned char* dout = data + 16 * 16 * 16 * (y - minHeight16);
-                    sectionHeight = 16 * y + 15;
+                    sectionHeight = 16 * (y - minHeight16) + 15;
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
                         assert(maxHeight >= sectionHeight);
@@ -3305,12 +2220,12 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                         }
 
                         // sanity check
-                        if (bits >= entry_index) {
+                        if (bits >= entryIndex) {
                             // Should never reach here; means that a stored index value is greater than any value in the palette.
                             assert(0);
 #ifdef _DEBUG
-                            // maximum value is entry_index - 1; which is useful for debugging - see things go bad
-                            bits = entry_index - 1;
+                            // maximum value is entryIndex - 1; which is useful for debugging - see things go bad
+                            bits = entryIndex - 1;
 #else
                             bits = 0; // which is likely air
 #endif
@@ -3321,13 +2236,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                 }
                 else {
                     // should just be (probably) empty air, nothing here
-                    assert(entry_index <= 1);
+                    assert(entryIndex <= 1);
                     assert(0);
                 }
             }
         }
     }
-    if (mfsHeight < 0) {
+    if (mfsHeight <= EMPTY_MAX_HEIGHT) {
         // no real data found in the block - this can happen with modded worlds, etc.
         return 2;   // means it's empty
     }
@@ -3534,6 +2449,1162 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         }
     }
     return returnCode;
+}
+
+static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
+{
+    bigbufflen = readDword(pbf); //array length
+    if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
+        return -25;	// TODO make better unique return codes, with names
+    // read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
+    if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
+        return -26;
+
+    // all's well
+    return 0;
+}
+
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex)
+{
+    int dataVal, len;
+    unsigned char type;
+
+    {
+        // get rid of "\n" after "Palette".
+        unsigned char uctype = 0;
+        if (bfread(pbf, &uctype, 1) < 0)
+            return -27;
+        if (uctype != 10)
+            return -28;
+    }
+
+    // for doors
+    bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
+        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up;
+    int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
+        delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
+        thickness, vertical_direction, berries;
+    // to avoid Release build warning, but should always be set by code in practice
+    int typeIndex = 0;
+    half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
+        = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = up = false;
+    axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
+        delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
+        thickness = vertical_direction = berries = 0;
+
+    // walk through entries' names and convert to their block ID
+    int nentries = readDword(pbf);
+    if (nentries <= 0)
+        return -29;	// TODO someday need to clean up these error codes and treat them right
+    if (nentries > MAX_PALETTE)
+        return -30;
+
+    char thisBlockName[MAX_NAME_LENGTH];
+
+    // go through entries in Palette
+    while (nentries--) {
+        // clear, so that NO_PROP doesn't inherit from other blocks, etc.
+        dataVal = 0;
+        // avoid inheriting these properties, which are always folded in (false if not found in block, so does no harm)
+        waterlogged = false;
+
+        for (;;)
+        {
+            type = 0;
+            if (bfread(pbf, &type, 1) < 0)
+                return -31;
+            // done walking through subarray?
+            if (type == 0)
+                break;
+            len = readWord(pbf);
+            if (bfread(pbf, thisBlockName, len) < 0)
+                return -32;
+            thisBlockName[len] = 0;
+
+            if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
+
+                len = readWord(pbf);
+                if (len < MAX_NAME_LENGTH) {
+                    if (bfread(pbf, thisBlockName, len) < 0)
+                        return -33;
+                }
+                else {
+                    return -34;
+                }
+                // have to add end of string
+                thisBlockName[len] = 0x0;
+
+                // incredibly stupid special case:
+                // in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
+                if ((mcVersion == 13) && (strcmp("minecraft:stone_slab", thisBlockName) == 0)) {
+                    strcpy_s(thisBlockName, 100, "minecraft:smooth_stone_slab");
+                }
+
+                // code to look for a specific name when debugging
+                //if ((mcVersion >= 13) && (strcmp("minecraft:frame", thisBlockName) == 0)) {
+                //	type = type;
+                //}
+
+                // convert name to block value. +10 is to avoid (useless) "minecraft:" string.
+                // could be dangerous if len < 10 for whatever reason.
+                typeIndex = findIndexFromName(thisBlockName + 10);
+                if (typeIndex > -1) {
+                    paletteBlockEntry[entryIndex] = BlockTranslations[typeIndex].blockId;
+                    paletteDataEntry[entryIndex] = BlockTranslations[typeIndex].dataVal;
+                }
+                else {
+                    // unknown type
+                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
+#ifdef _DEBUG
+                                    // Make it bedrock, so we see it's not translated
+                    paletteBlockEntry[entryIndex] = 7;
+                    assert(0);
+#else
+                                    // For release, make it air, so it doesn't gunk up the export
+                    paletteBlockEntry[entryIndex] = 0;
+#endif
+                    // data value always reset to 0
+                    paletteDataEntry[entryIndex] = 0;
+                    returnCode |= NBT_WARNING_NAME_NOT_FOUND;
+                }
+            }
+            else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
+                do {
+                    if (bfread(pbf, &type, 1) < 0)
+                        return -35;
+                    if (type)
+                    {
+                        // read token value
+                        char token[100];
+                        char value[100];
+                        len = readWord(pbf);
+                        if (bfread(pbf, token, len) < 0)
+                            return -36;
+                        token[len] = 0;
+                        len = readWord(pbf);
+                        if (bfread(pbf, value, len) < 0)
+                            return -37;
+                        value[len] = 0;
+
+                        // TODO: I'm guessing that these zillion strcmps that follow are costing a lot of time.
+                        // Nicer would be to be able to save the token/values away in an array, then get the
+                        // name (which gets parsed after), then given the name just test the possible tokens needed.
+
+                        // Very common, for grass blocks, so checked first
+                        if (strcmp(token, "snowy") == 0) {
+                            // blocks with the SNOWY_PROP property have only this flag, plus sub-type data values, so we can set it directly.
+                            // This is why the SNOWY_PROP does not have to be defined
+                            if (strcmp(value, "true") == 0) {
+                                dataVal = SNOWY_BIT;
+                            }
+                        } // for grassy blocks, podzol, mycellium
+
+                        // interpret token value
+                        // wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP
+                        else if (strcmp(token, "axis") == 0) {
+                            if (strcmp(value, "y") == 0) {
+                                axis = 0;
+                            }
+                            else if (strcmp(value, "x") == 0) {
+                                axis = 4;
+                            }
+                            else if (strcmp(value, "z") == 0) {
+                                axis = 8;
+                            }
+                        }
+                        // FLUID_PROP
+                        else if (strcmp(token, "level") == 0) {
+                            dataVal = atoi(value);
+                        }
+                        // STANDING_SIGN_PROP
+                        else if (strcmp(token, "rotation") == 0) {
+                            dataVal = atoi(value);
+                        }
+                        // SAPLING_PROP
+                        else if (strcmp(token, "stage") == 0) {
+                            // 0 or 1, 1 is about to grow into a tree.
+                            // mask out, since this is non-graphical
+#ifndef GRAPHICAL_ONLY
+                            dataVal = 8 * atoi(value);
+#endif
+                        }
+                        // leaves LEAF_PROP
+                        // there does not seem to be any "check decay" flag 
+                        else if (strcmp(token, "persistent") == 0) {
+                            // if true, will decay; if false, will be checked for decay (what?)
+                            // https://minecraft.gamepedia.com/Leaves#Block_states
+                            // Instead, I'm guessing persistent means "no decay"
+                            // https://minecraft.gamepedia.com/Java_Edition_data_values#Leaves
+                            // ignore, since it is has no graphical effect
+#ifndef GRAPHICAL_ONLY
+                            dataVal = (strcmp(value, "true") == 0) ? 4 : 0;
+#endif
+                        }
+                        // SLAB_PROP
+                        else if (strcmp(token, "type") == 0) {
+                            // for mushroom blocks:
+                            if (strcmp(value, "top") == 0) {
+                                dataVal = 8;
+                                doubleSlab = false;
+                            }
+                            else if (strcmp(value, "bottom") == 0) {
+                                dataVal = 0;
+                                doubleSlab = false;
+                            }
+                            else if (strcmp(value, "double") == 0) {
+                                doubleSlab = true;
+                            }
+                            else if (strcmp(value, "sticky") == 0) {
+                                sticky = 8;
+                            }
+                            else if (strcmp(value, "normal") == 0) {
+                                sticky = false;
+                            }
+                            /* chest */
+                            else if (strcmp(value, "single") == 0) {
+                                single = 1;
+                            }
+                            else if (strcmp(value, "left") == 0) {
+                                single = 3;	// this value is reversed from how I think of left and right
+                            }
+                            else if (strcmp(value, "right") == 0) {
+                                single = 2;	// this value is reversed from how I think of left and right
+                            }
+                        }
+                        // common property
+                        else if (strcmp(token, "waterlogged") == 0) {
+                            waterlogged = (strcmp(value, "true") == 0) ? true : false;
+                        }
+                        // SNOW_PROP
+                        else if (strcmp(token, "layers") == 0) {
+                            // 1-8, which turns into 0-7
+                            dataVal = atoi(value) - 1;
+                            // test and bound, just in case. Tate Hickman reported snow turning into stonecutters.
+                            if (dataVal > 7 || dataVal < 0)
+                                dataVal = 1;
+                        }
+                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored), cave vines plant (also ignored, but there)
+                        else if (strcmp(token, "age") == 0) {
+                            // AGE_PROP
+                            // 0-3 or 0-7 or 0-25 (for cave vines plant)
+                            dataVal |= atoi(value);
+                            age = atoi(value);
+                        }
+                        // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
+                        else if (strcmp(token, "shape") == 0) {
+                            // stairs
+                            if (strcmp(value, "straight") == 0) {
+                                stairs = 0x0;
+                            }
+                            else if (strcmp(value, "inner_left") == 0) {
+                                stairs = BIT_8 | BIT_32;
+                            }
+                            else if (strcmp(value, "inner_right") == 0) {
+                                stairs = BIT_8;
+                            }
+                            else if (strcmp(value, "outer_left") == 0) {
+                                stairs = BIT_16 | BIT_32;
+                            }
+                            else if (strcmp(value, "outer_right") == 0) {
+                                stairs = BIT_16;
+                            }
+                            // rails
+                            else if (strcmp(value, "north_south") == 0) {
+                                rails = 0;
+                            }
+                            else if (strcmp(value, "east_west") == 0) {
+                                rails = 1;
+                            }
+                            else if (strcmp(value, "ascending_east") == 0) {
+                                rails = 2;
+                            }
+                            else if (strcmp(value, "ascending_west") == 0) {
+                                rails = 3;
+                            }
+                            else if (strcmp(value, "ascending_north") == 0) {
+                                rails = 4;
+                            }
+                            else if (strcmp(value, "ascending_south") == 0) {
+                                rails = 5;
+                            }
+                            else if (strcmp(value, "south_east") == 0) {
+                                rails = 6;
+                            }
+                            else if (strcmp(value, "south_west") == 0) {
+                                rails = 7;
+                            }
+                            else if (strcmp(value, "north_west") == 0) {
+                                rails = 8;
+                            }
+                            // really, it's the only thing left, so test is not needed.
+                            //else if (strcmp(value, "north_east") == 0) {
+                            else {
+                                rails = 9;
+                            }
+                        }
+                        // DOOR_PROP, STAIRS_PROP; for TORCH_PROP we set the data value directly
+                        else if (strcmp(token, "facing") == 0) {
+                            // door_facing starts at 1: south,west,north,east
+                            // stairs_facing starts at 0: east,west,south,north - dataVal minus one
+                            // dropper_facing starts at 0: down,up,north,south,west,east
+                            // dataVal starts at 1: east,west,south,north
+                            if (strcmp(value, "south") == 0) {
+                                door_facing = 1;
+                                //stairs_facing = 2;
+                                //chest_facing = 3; - same as 5-stairs_facing
+                                dropper_facing = 3;
+                                dataVal = 3;
+                            }
+                            else if (strcmp(value, "west") == 0) {
+                                door_facing = 2;
+                                //stairs_facing = 1;
+                                //chest_facing = 4;
+                                dropper_facing = 4;
+                                dataVal = 2;
+                            }
+                            else if (strcmp(value, "north") == 0) {
+                                door_facing = 3;
+                                //stairs_facing = 3;
+                                //chest_facing = 2;
+                                dropper_facing = 2;
+                                dataVal = 4;
+                            }
+                            else if (strcmp(value, "east") == 0) {
+                                door_facing = 0;
+                                //stairs_facing = 0;
+                                //chest_facing = 5;
+                                dropper_facing = 5;
+                                dataVal = 1;
+                            }
+                            // dispenser, dropper, amethyst buds
+                            else if (strcmp(value, "up") == 0) {
+                                door_facing = 0;
+                                //chest_facing = 5;
+                                dropper_facing = 1;
+                                dataVal = 0;
+                            }
+                            else if (strcmp(value, "down") == 0) {
+                                door_facing = 0;
+                                //chest_facing = 5;
+                                dropper_facing = 0;
+                                dataVal = 1;
+                            }
+                        }
+                        else if (strcmp(token, "half") == 0) {
+                            // upper for sunflowers, top for stairs. Good job, guys.
+                            half = ((strcmp(value, "upper") == 0) || strcmp(value, "top") == 0) ? true : false;
+                            // do not set the data value, as the interpreters later on will interpret "half"
+                        }
+                        // DOOR_PROP only
+                        else if (strcmp(token, "hinge") == 0) {
+                            // NOTE: this is flipped from what the docs at https://minecraft.gamepedia.com/Java_Edition_data_values#Door
+                            // say, they say left is 1, but this works properly. Mojang, I suspect, means the hinge on the inside of
+                            // the door, vs. outside, or something.
+                            hinge = (strcmp(value, "right") == 0) ? 1 : 0;
+                        }
+                        else if (strcmp(token, "open") == 0) {
+                            open = (strcmp(value, "true") == 0) ? 4 : 0;
+                        }
+                        else if (strcmp(token, "in_wall") == 0) {
+                            in_wall = (strcmp(value, "true") == 0);
+                        }
+                        // lever, grindstone
+                        else if (strcmp(token, "face") == 0) {
+                            if (strcmp(value, "floor") == 0) {
+                                face = 0;
+                            }
+                            else if (strcmp(value, "wall") == 0) {
+                                face = 1;
+                            }
+                            else // assumed ceiling
+                                face = 2;
+                        }
+                        // also used by lever, powered rails
+                        else if (strcmp(token, "powered") == 0) {
+                            powered = (strcmp(value, "true") == 0);
+                        }
+                        // WIRE_PROP
+                        else if (strcmp(token, "power") == 0) {
+                            dataVal |= atoi(value);
+                        }
+                        // CANDLE_CAKE_PROP
+                        else if (strcmp(token, "bites") == 0) {
+                            bites = atoi(value);
+                        }
+                        // FARMLAND_PROP
+                        else if (strcmp(token, "moisture") == 0) {
+                            dataVal = atoi(value);
+                        }
+                        // PISTON_PROP and PISTON_HEAD_PROP
+                        else if (strcmp(token, "extended") == 0) {
+                            extended = (strcmp(value, "true") == 0);
+                        }
+                        // MUSHROOM_PROP and MUSHROOM_STEM_PROP
+                        // also WIRE_PROP: none or side;
+                        // we test for "side" for redstone dots vs. crosses
+                        else if (strcmp(token, "north") == 0) {
+                            north = (strcmp(value, "true") == 0);
+                            // setting this bit means "make it a cross" - TODO, ran out of bits!
+                            //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
+                        }
+                        else if (strcmp(token, "south") == 0) {
+                            south = (strcmp(value, "true") == 0);
+                        }
+                        else if (strcmp(token, "east") == 0) {
+                            east = (strcmp(value, "true") == 0);
+                        }
+                        else if (strcmp(token, "west") == 0) {
+                            west = (strcmp(value, "true") == 0);
+                        }
+                        else if (strcmp(token, "up") == 0) {
+                            up = (strcmp(value, "true") == 0);
+                        }
+                        else if (strcmp(token, "down") == 0) {
+                            down = (strcmp(value, "true") == 0);
+                        }
+                        // redstone
+                        else if (strcmp(token, "lit") == 0) {
+                            lit = (strcmp(value, "true") == 0);
+                        }
+                        // bed
+                        else if (strcmp(token, "occupied") == 0) {
+#ifndef GRAPHICAL_ONLY
+                            occupied = (strcmp(value, "true") == 0) ? 4 : 0; // non-graphical
+#endif
+                        }
+                        else if (strcmp(token, "part") == 0) {
+                            part = (strcmp(value, "head") == 0) ? 8 : 0;
+                        }
+                        // dropper/dispenser
+                        else if (strcmp(token, "triggered") == 0) {
+                            // ignore, non-graphical
+#ifndef GRAPHICAL_ONLY
+                            triggered = (strcmp(value, "true") == 0);
+#endif
+                        }
+                        // END_PORTAL_PROP (really, the frame)
+                        else if (strcmp(token, "eye") == 0) {
+                            eye = (strcmp(value, "true") == 0) ? 4 : 0;
+                        }
+                        // DAYLIGHT_PROP
+                        else if (strcmp(token, "inverted") == 0) {
+                            inverted = (strcmp(value, "true") == 0);
+                        }
+                        // REPEATER_PROP
+                        else if (strcmp(token, "delay") == 0) {
+                            // 1-4
+                            delay = atoi(value) - 1;
+                        }
+                        else if (strcmp(token, "locked") == 0) {
+                            locked = (strcmp(value, "true") == 0);
+                        }
+                        // HOPPER_PROP
+                        else if (strcmp(token, "enabled") == 0) {
+                            enabled = (strcmp(value, "true") == 0);
+                        }
+                        // TRIPWIRE_PROP
+                        else if (strcmp(token, "disarmed") == 0) {
+                            attached = (strcmp(value, "true") == 0);
+                        }
+                        // TRIPWIRE_PROP and TRIPWIRE_HOOK_PROP
+                        else if (strcmp(token, "attached") == 0) {
+                            attached = (strcmp(value, "true") == 0);
+                        }
+                        // COMMAND_BLOCK_PROP
+                        else if (strcmp(token, "conditional") == 0) {
+                            conditional = (strcmp(value, "true") == 0);
+                        }
+                        // brewing stand - just happens, no prop
+                        else if (strcmp(token, "has_bottle_0") == 0) {
+                            dataVal |= (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
+                        else if (strcmp(token, "has_bottle_1") == 0) {
+                            dataVal |= (strcmp(value, "true") == 0) ? 2 : 0;
+                        }
+                        else if (strcmp(token, "has_bottle_2") == 0) {
+                            dataVal |= (strcmp(value, "true") == 0) ? 4 : 0;
+                        }
+                        // STRUCTURE_PROP
+                        else if (strcmp(token, "mode") == 0) {
+                            // only matters for rails
+                            if (strcmp(value, "data") == 0) {
+                                dataVal = 1;
+                            }
+                            else if (strcmp(value, "save") == 0) {
+                                dataVal = 2;
+                            }
+                            else if (strcmp(value, "load") == 0) {
+                                dataVal = 3;
+                            }
+                            else if (strcmp(value, "corner") == 0) {
+                                dataVal = 4;
+                            }
+                            // comparator
+                            else if (strcmp(value, "subtract") == 0) {
+                                mode = true;
+                            }
+                            else {
+                                mode = false;
+                            }
+                        }
+                        else if (strcmp(token, "pickles") == 0) {
+                            dataVal = atoi(value) - 1;
+                        }
+                        else if (strcmp(token, "eggs") == 0) {
+                            dataVal = atoi(value) - 1;
+                        }
+                        else if (strcmp(token, "hatch") == 0) {
+                            hatch = atoi(value);
+                        }
+                        else if (strcmp(token, "leaves") == 0) {
+                            // for LEAF_SIZE_PROP
+                            // only for bamboo; age is 0 or 1, so we put this in bits 0x2 and 0x4
+                            if (strcmp(value, "none") == 0) {
+                                leaves = 0;
+                            }
+                            else if (strcmp(value, "small") == 0) {
+                                leaves = 1;
+                            }
+                            else if (strcmp(value, "large") == 0) {
+                                leaves = 2;
+                            }
+                        }
+                        // for bell
+                        else if (strcmp(token, "attachment") == 0) {
+                            if (strcmp(value, "floor") == 0) {
+                                attachment = 0;
+                            }
+                            else if (strcmp(value, "ceiling") == 0) {
+                                attachment = 1;
+                            }
+                            else if (strcmp(value, "single_wall") == 0) {	// attached to just one wall
+                                attachment = 2;
+                            }
+                            else if (strcmp(value, "double_wall") == 0) {	// attached to a pair of walls
+                                attachment = 3;
+                            }
+                        }
+                        else if (strcmp(token, "signal_fire") == 0) {
+                            signal_fire = (strcmp(value, "true") == 0);
+                        }
+                        else if (strcmp(token, "has_book") == 0) {
+                            has_book = (strcmp(value, "true") == 0);
+                        }
+                        // for lantern LANTERN_PROP
+                        else if (strcmp(token, "hanging") == 0) {
+                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
+                        // for scaffolding
+                        else if (strcmp(token, "bottom") == 0) {
+                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
+                        // for beehive and bee_nest
+                        else if (strcmp(token, "honey_level") == 0) {
+                            honey_level = atoi(value);
+                        }
+                        // for respawn anchor - directly add to data val
+                        else if (strcmp(token, "charges") == 0) {
+                            dataVal = atoi(value);
+                        }
+                        // for jigsaw
+                        else if (strcmp(token, "orientation") == 0) {
+                            if (strcmp(value, "south_up") == 0) {
+                                dropper_facing = 3;
+                            }
+                            else if (strcmp(value, "west_up") == 0) {
+                                dropper_facing = 2;
+                            }
+                            else if (strcmp(value, "north_up") == 0) {
+                                dropper_facing = 4;
+                            }
+                            else if (strcmp(value, "east_up") == 0) {
+                                dropper_facing = 5;
+                            }
+                            else if (strcmp(value, "up_east") == 0) {
+                                dropper_facing = 1 | BIT_16 | BIT_8;
+                            }
+                            else if (strcmp(value, "up_north") == 0) {
+                                dropper_facing = 1 | BIT_16;
+                            }
+                            else if (strcmp(value, "up_west") == 0) {
+                                dropper_facing = 1;
+                            }
+                            else if (strcmp(value, "up_south") == 0) {
+                                dropper_facing = 1 | BIT_8;
+                            }
+                            else if (strcmp(value, "down_east") == 0) {
+                                dropper_facing = 0 | BIT_16 | BIT_8;
+                            }
+                            else if (strcmp(value, "down_north") == 0) {
+                                dropper_facing = 0 | BIT_16;
+                            }
+                            else if (strcmp(value, "down_west") == 0) {
+                                dropper_facing = 0;
+                            }
+                            else if (strcmp(value, "down_south") == 0) {
+                                dropper_facing = 0 | BIT_8;
+                            }
+                            else {
+                                // unknown state found
+                                assert(0);
+                            }
+                        }
+                        // CANDLE_PROP
+                        else if (strcmp(token, "candles") == 0) {
+                            // doesn't need a separate variable - "lit" will change the type
+                            // 1-4 candles == 0-3 * 16 (i.e., 0x00, 0x10, 0x20, 0x30)
+                            dataVal |= ((atoi(value) - 1) << 4);
+                        }
+                        // for big dripleaf https://minecraft.fandom.com/wiki/Big_Dripleaf
+                        else if (strcmp(token, "tilt") == 0) {
+                            if (strcmp(value, "none") == 0) {
+                                tilt = 0;
+                            }
+                            else if (strcmp(value, "unstable") == 0) {
+                                // doesn't really do anything
+                                tilt = 1;
+                            }
+                            else if (strcmp(value, "partial") == 0) {
+                                tilt = 2;
+                            }
+                            else if (strcmp(value, "full") == 0) {
+                                tilt = 3;
+                            }
+                            else {
+                                // unknown state found
+                                assert(0);
+                            }
+                        }
+                        // for cave vines and cave vines plant (which also has "age") https://minecraft.fandom.com/wiki/Glow_Berries#ID
+                        // BERRIES_PROP
+                        else if (strcmp(token, "berries") == 0) {
+                            // "age" is also folded into dataVal for cave_vines_plant, which is why we can't use the dataVal directly
+                            berries = (strcmp(value, "true") == 0) ? 0x2 : 0;
+                        }
+                        // for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
+                        else if (strcmp(token, "thickness") == 0) {
+                            if (strcmp(value, "tip") == 0) {
+                                thickness = 0;
+                            }
+                            else if (strcmp(value, "tip_merge") == 0) {
+                                thickness = 1;
+                            }
+                            else if (strcmp(value, "frustum") == 0) {
+                                thickness = 2;
+                            }
+                            else if (strcmp(value, "middle") == 0) {
+                                thickness = 3;
+                            }
+                            else if (strcmp(value, "base") == 0) {
+                                thickness = 4;
+                            }
+                            else {
+                                // unknown state found
+                                assert(0);
+                            }
+                        }
+                        // also for pointed dripstone https://minecraft.fandom.com/wiki/Pointed_Dripstone#ID
+                        else if (strcmp(token, "vertical_direction") == 0) {
+                            vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
+                        }
+                        else if (strcmp(token, "sculk_sensor_phase") == 0) {
+                            if (strcmp(value, "cooldown") == 0) {
+                                //dataVal |= 0;
+                            }
+                            else if (strcmp(value, "active") == 0) {
+                                dataVal |= BIT_16;
+                            }
+                            else if (strcmp(value, "inactive") == 0) {
+                                // inactive and cooldown are basically the same
+                                //dataVal |= 0;
+                            }
+                            else {
+                                // unknown state found
+                                assert(0);
+                            }
+                        }
+
+
+#ifdef _DEBUG
+                        else {
+                            // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
+                            if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
+                            else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
+                            else if (strcmp(token, "note") == 0) {}
+                            else if (strcmp(token, "instrument") == 0) {}
+                            else if (strcmp(token, "drag") == 0) {}
+                            else if (strcmp(token, "has_record") == 0) {}	// jukebox
+                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
+                            else {
+                                // unknown property - look at token and value
+                                assert(0);
+                            }
+                        }
+#endif
+                    }
+                } while (type);
+            }
+            else if (skipType(pbf, type) < 0)
+                return -38;
+        }
+        // done, so determine and fold in dataVal
+        int tf = BlockTranslations[typeIndex].translateFlags;
+        switch (tf) {
+        default:
+            // prop defined but not used in list below - just use NO_PROP if the prop does nothing
+            assert(0);
+
+        case NO_PROP:
+            // these are also ones where nothing needs to be done. They could all be called NO_PROP,
+            // but it's handy to know what blocks have what properties associated with them.
+        case SNOWY_PROP:
+        case SNOW_PROP:
+        case AGE_PROP:
+        case FLUID_PROP:
+        case SAPLING_PROP:
+        case LEAF_PROP:
+        case FARMLAND_PROP:
+        case STANDING_SIGN_PROP:
+        case WT_PRESSURE_PROP:
+        case PICKLE_PROP:
+        case LANTERN_PROP:
+        case WIRE_PROP:
+        case STRUCTURE_PROP:
+            break;
+
+        case TRULY_NO_PROP:
+            // well, it can have waterlogged, further down
+            dataVal = 0x0;
+            break;
+
+        case SLAB_PROP:
+            // everything is fine if double is false
+            if (doubleSlab) {
+                // turn single slabs into double slabs by using the type ID just before (it's traditional)
+                paletteBlockEntry[entryIndex]--;
+            }
+            break;
+        case CANDLE_PROP:
+            if (lit) {
+                // turn candle type into lit candle, which is one above an unlit candle
+                paletteBlockEntry[entryIndex]++;
+            }
+            break;
+        case AXIS_PROP:
+            // will get OR'ed in with type of block later
+            dataVal = axis;
+            break;
+        case NETHER_PORTAL_AXIS_PROP:
+            // was 4 and 8, make it 1 and 2
+            dataVal = axis >> 2;
+            break;
+        case CANDLE_CAKE_PROP:
+            // 3 lowest bits is number of bites, which is 0-6. However, 7 bites means there's a regular (non-colored) candle.
+            // 0x10 bit is whether the cake has a COLORED candle or not. If it does, then the four lowest bits are the color
+            // 0x20 bit is whether the candle is lit or not, for all 17 candles.
+            dataVal |= bites | (lit ? BIT_32 : 0x0);
+            // Must reset "lit", as the basic "cake" object does not have this property, but the candle cakes do.
+            // Similarly, "bites" must be reset, as candle cakes always have 0 bites and only care about "lit".
+            lit = false;
+            bites = 0;
+            break;
+        case TORCH_PROP:
+            // if dataVal is not set, i.e. is 0, then set to 5
+            if (dataVal == 0)
+                dataVal = 5;
+            // if this is a redstone torch, use the "lit" property to decide which block
+            if (!lit && (paletteBlockEntry[entryIndex] == 76)) {
+                // turn it off
+                paletteBlockEntry[entryIndex] = 75;
+            }
+            break;
+        case STAIRS_PROP:
+            dataVal = (dataVal - 1) | (half ? 4 : 0) | stairs;
+            break;
+        case RAIL_PROP:
+            dataVal = rails;
+            if (!(paletteBlockEntry[entryIndex] == 66)) {
+                dataVal |= (powered ? 8 : 0);
+            }
+            break;
+        case PRESSURE_PROP:
+            dataVal = powered ? 1 : 0;
+            break;
+        case DOOR_PROP:
+            // if upper door, use hinge and powered, else use facing and open
+            if (half) {
+                // upper
+                dataVal = 8 | hinge | (powered ? 2 : 0);
+            }
+            else {
+                // lower
+                dataVal = open | door_facing;
+            }
+            break;
+        case LEVER_PROP:
+            // which way is face?
+            if (face == 0) {
+                // floor, can only be 5 or 6, test south or north;
+                // but, may need to set dataVal properly.
+                // We don't have the full flexibility of 1.13,
+                // but rather use 1.12 rules here, that things go
+                // south when off, north when on, in order to get
+                // south and north orientations.
+                switch ((dataVal - 1) + (powered ? 4 : 0)) {
+                default:
+                case 0: // east
+                case 5: // west
+                    dataVal = 6 | 8;
+                    break;
+                case 1: // west
+                case 4: // east
+                    dataVal = 6;
+                    break;
+                case 2: // south
+                case 7: // north
+                    dataVal = 5 | 8;
+                    break;
+                case 3: // north
+                case 6: // south
+                    dataVal = 5;
+                    break;
+                }
+            }
+            else if (face == 1) {
+                // side
+                // surprisingly simple, see switch code that follows.
+                dataVal |= (powered ? 8 : 0);
+                /*
+                switch (stairs_facing) {
+                default:
+                case 0: // east
+                dataVal |= 1;
+                break;
+                case 1: // west
+                dataVal |= 2;
+                break;
+                case 2: // south
+                dataVal |= 3;
+                break;
+                case 3: // north
+                dataVal |= 4;
+                break;
+                }
+                */
+            }
+            else {
+                // ceiling, can only be 0 or 7
+                switch ((dataVal - 1) + (powered ? 4 : 0)) {
+                default:
+                case 0: // east
+                case 5: // west
+                    dataVal = 0 | 8;
+                    break;
+                case 1: // west
+                case 4: // east
+                    dataVal = 0;
+                    break;
+                case 2: // south
+                case 7: // north
+                    dataVal = 7 | 8;
+                    break;
+                case 3: // north
+                case 6: // south
+                    dataVal = 7;
+                    break;
+                }
+            }
+            face = 0;
+            break;
+        case CHEST_PROP:
+            dataVal = 6 - dataVal;
+            // two upper bits 0x18 are 1 = single, 2 = left, 3 = right half; note if no bits found, then it's an old-style chest
+            dataVal |= (single << 3);
+            break;
+        case FACING_PROP:
+            dataVal = 6 - dataVal;
+            break;
+        case FURNACE_PROP:
+            dataVal = 6 - dataVal;
+            if (lit) {
+                // light furnace: move type to be the "lit" version.
+                paletteBlockEntry[entryIndex] = 62;
+            }
+            break;
+        case BUTTON_PROP:
+            // dataVal is set fron "facing" already (1234), just need face & powered
+            // check for top or bottom facing
+            // if button is on top or bottom, "facing" affects angle, bit 16
+            if (face == 0) {
+                dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0);
+            }
+            else if (face == 2) {
+                dataVal = 0 | ((dataVal <= 3) ? BIT_16 : 0x0);
+            }
+            //else if (face == 1) {
+            // not needed, as dataVal should be set just right at this point for walls
+            dataVal |= powered ? 0x8 : 0;
+            face = 0;
+            break;
+        case TRAPDOOR_PROP:
+            dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
+            break;
+        case TALL_FLOWER_PROP:
+            // Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
+            // Doesn't matter to Mineways per se, but if we export a schematic, we should make
+            // this data the same as Minecraft's. TODO - need to test flowers more
+            dataVal = half ? 0x8 : 0;
+            break;
+        case REDSTONE_ORE_PROP:
+            if (lit) {
+                // light redstone ore or redstone lamp
+                paletteBlockEntry[entryIndex]++;
+            }
+            break;
+        case FENCE_GATE_PROP:
+            // strange but true;
+            dataVal = (open ? 0x4 : 0x0) | ((door_facing + 3) % 4) | (in_wall ? 0x20 : 0);
+            break;
+        case SWNE_FACING_PROP:
+            // south/west/north/east == 0/1/2/3
+            dataVal = (door_facing + 3) % 4;
+            break;
+        case BED_PROP:
+            // south/west/north/east == 0/1/2/3
+            // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
+            dataVal = ((door_facing + 3) % 4) + part + occupied;
+            break;
+        case EXTENDED_FACING_PROP:
+            // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
+            // also WALL_SIGN_PROP, OBSERVER_PROP
+            dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
+            // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
+            // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
+            // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
+            dropper_facing = 0;
+            triggered = false; // non-graphical
+            extended = false;
+            sticky = 0x0;
+            enabled = false;
+            conditional = false;
+            open = false;
+            powered = false;
+            break;
+        case EXTENDED_SWNE_FACING_PROP:
+            // properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+            // really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
+            dataVal = door_facing | (face << 2) // grindstone
+                | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
+                | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
+                | (lit ? 4 : 0)
+                //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
+                | (honey_level << 2); // bee_nest, beehive
+            door_facing = face = 0;
+            has_book = false;
+            powered = false;
+            attachment = 0;
+            lit = false;
+            signal_fire = false;
+            honey_level = 0;
+            break;
+        case FENCE_AND_VINE_PROP:
+            // Note that for vines, 0 means there's one "above" (really, underneath).
+            // When there's one above, there (happily) cannot be east/west/n/s, so
+            // no extra bit is needed or used internally.
+            dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
+            break;
+        case COCOA_PROP:
+            dataVal = ((door_facing + 3) % 4) + (age << 2);
+            break;
+        case LEAF_SIZE_PROP:
+            dataVal = (leaves << 1) | age;
+            break;
+        case HIGH_FACING_PROP:
+            dataVal = 0xf | (door_facing << 4);
+        case QUARTZ_PILLAR_PROP:
+            // for quartz pillar, change data val based on axis
+            switch (axis) {
+            default:
+            case 0:
+                paletteDataEntry[entryIndex] = 2;
+                break;
+            case 4:
+                paletteDataEntry[entryIndex] = 3;
+                break;
+            case 8:
+                paletteDataEntry[entryIndex] = 4;
+                break;
+            }
+            break;
+        case REPEATER_PROP:
+            // facing is 0x3
+            // delay is 0xC
+            // locked is 0x10
+            dataVal = ((door_facing + 3) % 4) | (delay << 2) | (locked << 4);
+            if (powered) {
+                // use active form
+                paletteBlockEntry[entryIndex]++;
+            }
+            break;
+        case COMPARATOR_PROP:
+            dataVal = ((door_facing + 3) % 4) | (mode ? 4 : 0) | (powered ? 8 : 0);
+            break;
+        case MUSHROOM_STEM_PROP:
+            dataVal = up ? 15 : 10;
+            break;
+        case MUSHROOM_PROP:
+            // https://minecraft.gamepedia.com/Java_Edition_data_values#Brown_and_red_mushroom_blocks
+            if (north) {
+                // 1,2,3,14
+                if (south) {
+                    // 14 - all sides
+                    dataVal = 14;
+                }
+                else if (west) {
+                    // top, west, and north:
+                    dataVal = 1;
+                }
+                else if (east) {
+                    // top, north, and east:
+                    dataVal = 3;
+                }
+                else
+                    // top and north
+                    dataVal = 2;
+            }
+            else {
+                // 0,4,5,6,7,8,9 (stem is separate with 10 and 15, above)
+                if (south) {
+                    // 7,8,9
+                    if (west) {
+                        // top, south, west
+                        dataVal = 7;
+                    }
+                    else if (east) {
+                        // top, south, east
+                        dataVal = 9;
+                    }
+                    else
+                        // top, south
+                        dataVal = 8;
+                }
+                else {
+                    // 0,4,5,6
+                    if (west) {
+                        // top, west
+                        dataVal = 4;
+                    }
+                    else if (east) {
+                        // top, east
+                        dataVal = 6;
+                    }
+                    else if (up) {
+                        // top, only
+                        dataVal = 5;
+                    }
+                    else
+                        // nothing: pores on all sides
+                        dataVal = 0;
+                }
+            }
+            break;
+        case ANVIL_PROP:
+            dataVal = (door_facing + 3) % 4;
+            break;
+        case DAYLIGHT_PROP:
+            // change to inverted form if inverted is set
+            if (inverted) {
+                paletteBlockEntry[entryIndex] = 178;
+            }
+            break;
+        case TRIPWIRE_PROP:
+            dataVal = (powered ? 1 : 0) | (attached ? 4 : 0) | (disarmed ? 8 : 0);
+            break;
+        case TRIPWIRE_HOOK_PROP:
+            dataVal = ((door_facing + 3) % 4) | (attached ? 4 : 0) | (powered ? 8 : 0);
+            break;
+        case END_PORTAL_PROP:
+            dataVal = ((door_facing + 3) % 4) | (eye ? 4 : 0);
+            break;
+
+            // If dataVal is 2-5, rotation is not used (head is on a wall) and high bit of head type is off, else it is put on.
+            // 7 | 654 | 3210
+            // bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
+            // bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
+            // bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+
+        case HEAD_PROP:
+            // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
+            dataVal |= 0x80;	// it's a rotation, so flag it as such
+            break;
+        case HEAD_WALL_PROP:
+            // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
+            switch (door_facing) { // starts at 1: south, west, north, east
+            default:
+            case 1: // south
+                dataVal = 3;
+                break;
+            case 2: // west
+                dataVal = 4;	// docs say 5, docs are wrong
+                break;
+            case 3: // north
+                dataVal = 2;
+                break;
+            case 0: // east
+                dataVal = 5;	// docs say 4, docs are wrong
+                break;
+            }
+            break;
+        case FAN_PROP:
+            // low 3 bits are the subtype
+            // fourth bit unused
+            // 2 bits 56 facing for the fan: NESW
+            // next bit waterlogged (done below)
+            dataVal = ((door_facing + 3) % 4) << 4;
+            break;
+        case EGG_PROP:
+            dataVal |= (hatch << 2);
+            break;
+            //case WIRE_PROP:
+            //    dataVal |= redstone_side;
+            //    break;
+        case AMETHYST_PROP:
+            dataVal = dropper_facing << 2;
+            break;
+        case DRIPSTONE_PROP:
+            // up is vertical_direction, and if "down" the value is set to 0x08
+            dataVal = thickness | vertical_direction;
+            break;
+        case BIG_DRIPLEAF_PROP:
+            // bottommost bit is stem or not
+            dataVal = (door_facing | (tilt << 2)) << 1;
+            break;
+        case SMALL_DRIPLEAF_PROP:
+            // note that upper half is 0x0, lower is 0x1
+            dataVal = (door_facing << 1) | (half ? 0 : 1);
+            break;
+        case BERRIES_PROP:
+            dataVal = 0x0;
+            // use lit/berries form if berries present
+            if (berries) {
+                paletteBlockEntry[entryIndex]++;
+            }
+            break;
+        }
+        // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
+        //if (dataVal > 0x3F) {
+        //	// here's where to put a break for DEBUG
+        //	dataVal &= 0x3F;
+        //}
+        // always check for waterlogged
+        dataVal |= (waterlogged ? WATERLOGGED_BIT : 0x0);
+
+        paletteDataEntry[entryIndex] |= dataVal;
+        entryIndex++;
+    }
+
+    // things are fine - continue
+    return 0;
 }
 
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)

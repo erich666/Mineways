@@ -37,12 +37,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define INITIAL_CACHE_SIZE 30000
 #endif
 
+// we track maximum height per chunk. Start at this value; if value found later, chunk is empty
+#define EMPTY_MAX_HEIGHT -1
+
 typedef struct WorldBlock {
     int maxHeight;      // 256 for worlds < 1.17, 384 for 1.17 and beyond
     // NOTE: maxFilled*Height values will always (once set) be lower than maxHeight, even if chunk is filled. These values are the maximum level of the grid with stuff in it,
     // e.g., if maxHeight is 384, maxFilledHeight is 383 for a filled chunk, as the levels are 0-383. This is important for reallocing and for testing ranges
-    int maxFilledSectionHeight;    // set to -1 if not yet determined. Gives the height for the first non-zero content found, by 16-height sections. The value could be lower, so use:
-    int maxFilledHeight;    // set to -1 if not yet determined. Gives the height for the first non-zero content found. Lowest value is 0 (not -96 i.e. -gMinHeight for 1.17)
+    int maxFilledSectionHeight;    // set to EMPTY_MAX_HEIGHT if not yet determined. Gives the height for the first non-zero content found, by 16-height sections. The value could be lower, so use:
+    int maxFilledHeight;    // set to EMPTY_MAX_HEIGHT if not yet determined. Gives the height for the first non-zero content found. Lowest value is 0 (not -96 i.e. -gMinHeight for 1.17)
     unsigned char *grid;  // blockid array [y+(z+x*16)*256] -> [16 * 16 * 384]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
