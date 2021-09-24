@@ -2738,8 +2738,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_AD_LEAVES:
         dataVal = block->data[voxel];
         if (dataVal & 0x2) {
-            // azalea
-            color = 0x677E30;
+            // azalea, flowering or not
+            color = (dataVal & 0x1) ? 0x6B7252 : 0x5D762C;
         }
         else {
             // if the default color is in use, use something more visible
@@ -3764,6 +3764,22 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 43: // Deepslate Diamond Ore
             color = 0x5B7876;
+            break;
+        }
+        break;
+
+    case BLOCK_AZALEA:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x1)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// flowering azalea
+            color = 0x757B54;
             break;
         }
         break;

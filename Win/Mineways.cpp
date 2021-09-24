@@ -1883,6 +1883,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wcscpy_s(path, MAX_PATH_AND_FILE, gWorldPathCurrent);
             ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            ofn.lpstrTitle = L"Open World level.dat or Schematic";
 
             if (GetOpenFileName(&ofn) == TRUE)
             {
@@ -1912,6 +1913,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wcscpy_s(path, MAX_PATH_AND_FILE, gSelectTerrainDir);
             ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            ofn.lpstrTitle = L"Open Terrain File";
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
@@ -1937,6 +1939,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
             ofn.lpstrInitialDir = path;
             ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+            ofn.lpstrTitle = L"Import Settings from model or script file";
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
@@ -1990,7 +1993,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.nMaxFileTitle = 0;
                 wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
                 ofn.lpstrInitialDir = path;
-                ofn.lpstrTitle = L"Save Model to Schematic File";
+                ofn.lpstrTitle = L"Export Schematic";
                 ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
                 saveOK = GetSaveFileName(&ofn);
@@ -2031,7 +2034,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.nMaxFileTitle = 0;
                 wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
                 ofn.lpstrInitialDir = path;
-                ofn.lpstrTitle = gPrintModel ? L"Save Model for 3D Printing" : L"Save Model for Rendering";
+                ofn.lpstrTitle = gPrintModel ? L"Export for 3D Printing" : L"Export for Rendering";
                 ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
                 saveOK = GetSaveFileName(&ofn);
@@ -3135,7 +3138,7 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionID = 2724;	// Change this to the current release number
+        gVersionID = 2730;	// Change this to the current release number https://minecraft.fandom.com/wiki/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;
@@ -3983,6 +3986,7 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
     ofn.nMaxFileTitle = 0;
     ofn.lpstrInitialDir = NULL;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    ofn.lpstrTitle = L"Publish to Sketchfab";
 
     // Write zip in temp directory
     LPTSTR tempdir = new TCHAR[MAX_PATH_AND_FILE];
