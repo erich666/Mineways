@@ -3949,8 +3949,19 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         }
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
+
+        if (block != NULL) {
+            Cache_Add(bx, bz, block);
+
+            //let's only update the progress bar if we're loading
+            if (callback)
+                callback(percent);
+        }
+
         if ((block == NULL) || (block->blockType == 2)) //blank tile
         {
+        DrawBlank:
+
             // highlighting off, or fully outside real area? Use blank tile.
             if (!gBoxHighlightUsed ||
                 (bx * 16 + 15 < gBoxMinX) || (bx * 16 > gBoxMaxX) ||
@@ -3992,13 +4003,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             }
             return gBlankTransitionTile;
         }
-
-        //let's only update the progress bar if we're loading
-        if (callback)
-            callback(percent);
-
-        Cache_Add(bx, bz, block);
+    } else if (block->blockType == 2) {
+        // should really call a "draw blank" subroutine, but here goes...
+        goto DrawBlank;
     }
+
 
     // At this point the block is loaded.
 

@@ -1946,6 +1946,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
     // Weird false positive ("empty is always true") here from cppcheck
     if (empty) {      // cppcheck-suppress 571
+        // we return here instead of earlier so that the block is initialized to be empty.
+        // In this way, if we set "give me more export memory" later, the data will get compressed properly, I hope...
         return 2;	// no warnings to OR in here - it's empty
     }
 

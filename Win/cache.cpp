@@ -176,13 +176,7 @@ void Cache_Empty()
             next = entry->next;
             // so hacky
             if (entry->data != NULL) {
-                if (entry->data->entities != NULL) {
-                    free(entry->data->entities);
-                    // shouldn't be needed, but for safety's sake
-                    entry->data->entities = NULL;
-                    entry->data->numEntities = 0;
-                }
-                free(entry->data);
+                block_force_free(entry->data);
                 entry->data = NULL;
             }
             free(entry);

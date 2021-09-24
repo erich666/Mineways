@@ -2424,10 +2424,11 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
+        if (block != NULL) {
+            Cache_Add(bx, bz, block);
+        }
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
-
-        Cache_Add(bx, bz, block);
     }
 
     // set version for later use by textures, etc.
@@ -2530,10 +2531,11 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
+        if (block != NULL) {
+            Cache_Add(bx, bz, block);
+        }
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return;
-
-        Cache_Add(bx, bz, block);
     }
 
     // loop through area of box that overlaps with this chunk
@@ -29634,10 +29636,11 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
+        if (block != NULL) {
+            Cache_Add(bx, bz, block);
+        }
         if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
             return minHeight + mapMinHeight;
-
-        Cache_Add(bx, bz, block);
     }
 
     // loop through area of box that overlaps with this chunk
