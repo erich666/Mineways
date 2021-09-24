@@ -6856,6 +6856,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             int billboardType = BB_FULL_CROSS;  // cppcheck-suppress 398
             // hmmm, I used to think all plants were not scaled down - they are.
             float scale = 0.75f;  // cppcheck-suppress 398
+            float yOffset = 0.0f;
             // rendering
             // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers
             switch (dataVal & 0xff)
@@ -7017,8 +7018,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
                 // trunk
                 firstFace = 0;
-                typeB = BLOCK_RED_MUSHROOM;
-                dataValB = 3 + (dataVal & 0x1);
+                // billboard type
+                typeB = BLOCK_AZALEA;
+                dataValB = dataVal & 0x1;
+                // eyeballing the vertical displacement
+                yOffset = 1.3f / 16.0f;
                 break;
             default:
                 // Debug world gives: assert(0); - a value here is "fine", and should be ignored
@@ -7037,7 +7041,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
                 // put bottom of billboard at Y==0
-                translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+                translateMtx(mtx, 0.0f, 0.5f + yOffset, 0.0f);
                 scaleMtx(mtx, scale, scale, scale);
                 // move to bottom of pot
                 translateMtx(mtx, 0.0f, -0.25f, 0.0f);
@@ -11635,7 +11639,7 @@ static int saveBoxFaceUVs(int type, int dataVal, int faceDirection, int markFirs
 // 3) for each face, set the loop, the vertex indices, the normal indices (really, just face direction), and the texture indices
 static int saveBillboardFaces(int boxIndex, int type, int billboardType)
 {
-    return saveBillboardFacesExtraData(boxIndex, type, billboardType, gBoxData[boxIndex].data, 1);
+    return saveBillboardFacesExtraData(boxIndex, type, billboardType, gBoxData[boxIndex].data, 1, false);
 }
 
 static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace, bool dontWobbleOverride /*= false*/)
@@ -11781,14 +11785,17 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // warped fungus
             swatchLoc = SWATCH_INDEX(4, 44);
             break;
-        case 3:
-            // azalea
-            swatchLoc = SWATCH_INDEX(14, 51);
-            break;
-        case 4:
-            // flowering azalea
-            swatchLoc = SWATCH_INDEX(15, 51);
-            break;
+        }
+        break;
+    case BLOCK_AZALEA:				// saveBillboardFacesExtraData
+        // tree trunk part
+        if (dontWobbleOverride) {
+            // special one in flower pot - just blast it in
+            swatchLoc = SWATCH_INDEX(14, 51) + (dataVal & 0x1);
+        }
+        else {
+            // normal
+            swatchLoc = SWATCH_INDEX(9, 51);
         }
         break;
     case BLOCK_TORCH:				// saveBillboardFacesExtraData
@@ -12220,11 +12227,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         if (dataVal & BIT_16) {
             swatchLoc = SWATCH_INDEX(12, 42);
         }
-        break;
-
-    case BLOCK_AZALEA:
-        // tree trunk part
-        swatchLoc += 4;
         break;
 
     default:
