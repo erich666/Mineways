@@ -87,6 +87,7 @@ void Change_Cache_Size(int size)
     gHashMaxEntries = size;
 }
 
+// "data" here is the WorldBlock
 void Cache_Add(int bx, int bz, void* data)
 {
     int hash;
@@ -195,11 +196,11 @@ void Cache_Empty()
 ** behavior pattern for Mineways when the cache is at max capacity
 ** is something like:
 **
-** newBlock = malloc(sizeof(Block));
-** cacheAdd(newBlock)
-**  free(oldBlock) // same size
+**   newBlock = malloc(sizeof(Block));
+**   cacheAdd(newBlock)
+**   free(oldBlock) // same size
 **
-** Repeatedly. Recycling the old block can prevent the need for
+** repeatedly. Recycling the old block can prevent the need for
 ** malloc and free.
 **/
 
