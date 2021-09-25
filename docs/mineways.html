@@ -2720,7 +2720,7 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
-<LI>Minecraft 1.17: Mineways version 9.00 or newer
+<LI>Minecraft 1.17: Mineways version 9.01 or newer
 <LI>Minecraft 1.16: Mineways version 8.08
 <LI>Minecraft 1.15: Mineways version 7.12
 <LI>Minecraft 1.14: Mineways version 7.07
@@ -2731,35 +2731,30 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
 
-<LI>Version 9.01, ?/?/2021 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 9.01, 9/24/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV901.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
     <LI>Important bug fix: properly interpret flowing_water, flowing_lava, empty, and ominous_banner - not sure that last one is needed (<I>thanks to theOther_Kloud for reporting this problem</I>).
+	<LI>Memory leak fixes: "empty" (no Sections) chunks were not cached, and clearing the cache during export did not properly free the new block structures.
+	<LI>Read 1.18 beta worlds, as the data format has changed.
 	<LI>Added ability to remap the left, middle, and right mouse buttons' functionality: use "Set mouse order" using <a href="scripting.html#soc">scripting</a>. The new remap_mouse_buttons.mwscript gives a fuller description.
 	<LI>New command: View->Information (shortcut key: i). Shows major version of the world and other bits of information. The major version is also now shown at the top in the title.
 	<LI>Make hotkeys work even if caps lock is on.
 	<LI>When exporting using the biome, show in the statistics popup which biome was chosen, and note the same at the top of the OBJ, VRML, or USD file.
 	<LI>Shrink grass by 15/16ths, and put it from 0.0 to 3.0 texels down (<I>thanks to Raihan for reporting this problem</I>).
 	<LI>Since glass now has a tinted type, when filling areas with glass for 3D print export, set the data value properly to 0 to avoid problems.
-	<LI>Gray out 1.18 beta worlds, as the format has changed and Mineways does not read it yet.
+	<LI>Improve USD opacityThreshold settings for cutouts, now that Houdini has fixed its renderer.
+	<LI>Output lights first for USD export. This makes them easier to find and modify.
+	<LI>Fix zip export for USD files, and allow single-texture 3D print output for 3D printed USD.
+	<LI>Fixed azaleas in pots to display properly and have the right material name.
+	<LI>Fix incorrect identification of double-height flowers when the top is cut off by the height slider.
+	<LI>Better labels for various file selection dialogs; tiny spacing cleanups on export dialog box.
 	<LI>Internal cleanups, handling empty chunks more carefully and cleanly.
+	<LI>Show different colors for azalea, flowering or not.
 	<LI>Note in the Color Scheme editor that entries 396 and 400 are unused.
+	<LI>Version 1.07 of ChannelMixer and 3.06 of TileMaker: Interpret fletcher_table_side1 as fletching_table_front, fletcher_table_side2 as fletching_table_side.
+	<LI>Texture packs updated to JG-RTX 0.19.1 and BD Craft 1.17. Sadly, Coterie and Doku look to be abandoned, with no 1.17 content, so may be dropped in the future.
 	<LI>Fix documentation for 3D printing instructions about filling in doors and windows (<I>thanks to Cadage for asking about this feature</I>). Other minor documentation improvements.
-	<LI>*Output lights FIRST for USDA.
-	<LI>*Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes for material, and path for texture. Make sure to test PBR textures.
-	*Fix 3D print scale for USDA. 
-	<LI>*Read 1.18 data
-	<LI>* glass (and water?) does not use a custom Minecraft.mdl type of exporter - it should.
-	<LI>* Clean up project files to put things like builds and .obj files in consistent spots, and show the same VS 2019 logo for the .sln files, etc.
-	<LI>* Are subtypes on for materials for USDA? Probably should be, so that lit berries are lit, etc. Check candle appearance, too.
-	<LI>* Look into tiling bug with grass texture in Omniverse. (hmmm, what's this?)
-	<LI>* Try Sketchfab USD support. https://sketchfab.com/blogs/community/sketchfab-introduces-usd-upload-support/ - and contact them
-	<LI>*Update JG-RTX with more 1.17 content; check other packs for 1.17 content.
-	<LI>**Someday: Add a secret epsilon control for redstone wire and glow lichen for how far they're offset from the surface below.
-	<LI>**Make a fuller table of versions?
-	<LI>**Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
-	<LI>**Heads?
-	<LI>**TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly, and done only once, which would speed up export itself (which does this bleeding every single export). Problem with doing this is backwards compatibility.
   </UL>
 
 <LI><B>Version 9.00</B>, 7/3/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV900.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3544,15 +3539,16 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
+<LI>There are "phantom" blocks with no sections. Handling the memory for these better would be to the good. A bit tricky, as we need to carefully think out how this affects caching and reuse of "freed" blocks.
 <LI>Individual block export does not currently work with separate textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
-<LI>Fix USDA export to a single texture, e.g., for 3D printing. Mostly looks like name fixes.
-<LI>Individual block export does not currently work with tiled textures for OBJs. It should; the logic's involved...
+<LI>USD: Glass (and water?) does not use a custom Minecraft.mdl type of exporter, which means edges of low-resolution textures are not sharp.
+<LI>Add a script-only epsilon control for redstone wire and glow lichen for how far they're offset from the surface below.
+<LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
+<LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
+<LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly, and done only once, which would speed up export itself (which does this bleeding every single export). Problem with doing this is backwards compatibility.
 <LI>Better USD instancing for water and lava, as right now a full block is what gets generated. Use "level" attribute?
 <LI>Perhaps update redstone in 1.13 a bit with directionality and on/off, getting rid of distance. Can't do the "go up the side of the block" property, though, that would be 4 more bits. See next item:
 <LI>Contemplate someday moving to a 16-bit data value instead of 8, and maybe a 16-bit type data value. If done, blocks could more precisely be generated (e.g., walls could work perfectly, redstone dots would work) and instancing for USD could be much better supported. Should be done in conjunction with a "max height" dynamic allocation of chunks, freeing up memory that currently is entirely air.
-<LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
-<LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
-<LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly.
 <LI>Multithreaded block loading, like Minutor does (or, well, did). This would make scrolling the map, making it huge, etc., much faster. Probably just a dream - hard work!
 <LI>For TileMaker, instead of a blocks directory, read the *.jar or an unzipped directory structure to get the blocks, chests, bed, end portal, barrier, and anything else directly from the structure. Allow reading in a series of .jars and overlaying (analyze each first to get the maximum resolution needed overall). Then get rid of TerrainBase.png.
 <LI>Consider reading in the chest, bed, and other elements (maybe shulker boxes - there are a lot of them, though) as separate textures in a separate zone (say, at the bottom) of the TerrainExt.png file, like in jmc2obj. Also allows direct export of these textures.
@@ -3592,7 +3588,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV900.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV901.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3643,7 +3639,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 9/15/2021</p>
+		<br id="lastUpdate">Last updated 9/24/2021</p>
 	</div>
 </div>
 

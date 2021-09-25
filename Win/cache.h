@@ -68,7 +68,7 @@ typedef struct WorldBlock {
     // when it was last rendered (for blocks on the
     // left edge of the map, this might be +1)
     unsigned short colormap; //color map when this was rendered
-    int blockType;		// 1 = normal, 2 = entirely empty
+    int blockType;		// 1 = normal, 2 = entirely empty; see nbt.h for the definitions
 } WorldBlock;
 
 void Change_Cache_Size(int size);

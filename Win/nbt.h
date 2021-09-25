@@ -68,6 +68,10 @@ enum { BF_BUFFER, BF_GZIP };
 #define AZALEA_FIELD            0xA0
 
 // TODO: also add error codes for true return errors, below, the -1, -2, etc.
+// Really these should be in cache.h, I guess, since blockType is defined there. Oh well.
+#define     NBT_VALID_BUT_EMPTY         0
+#define     NBT_VALID_BLOCK             1
+#define     NBT_NO_SECTIONS             2
 #define		NBT_WARNING_NAME_NOT_FOUND	0x4
 
 // wraps gzFile and memory buffers with a consistent interface

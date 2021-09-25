@@ -3958,7 +3958,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 callback(percent);
         }
 
-        if ((block == NULL) || (block->blockType == 2)) //blank tile
+        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile
         {
         DrawBlank:
 
@@ -6546,25 +6546,30 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight);
 
-            // values 1 and 2 are valid; 3's not used - higher bits are warnings
-            if (retCode >= 0) {
+            // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
+            if (retCode >= NBT_VALID_BUT_EMPTY) {
                 block->blockType = retCode & 0x3;
+
+                // TODO: it'd be nice to free up type 2 blocks almost all the way. 
+                if (retCode == NBT_NO_SECTIONS) {
+                //    ... someday free up memory? ...
+                }
+
+                // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
+                if ((retCode == NBT_VALID_BLOCK) && (block->numEntities > 0)) {
+                    // transfer the relevant part of the BlockEntity array to permanent block storage
+                    block->entities = (BlockEntity*)malloc(block->numEntities * sizeof(BlockEntity));
+
+                    if (block->entities)
+                        memcpy(block->entities, blockEntities, block->numEntities * sizeof(BlockEntity));
+                    else
+                        // couldn't alloc data
+                        return NULL;
+                }
             }
             else {
                 // negative means a serious read error, so store as-is
                 block->blockType = retCode;
-            }
-
-            // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
-            if ((retCode >= 0) && (block->numEntities > 0)) {
-                // transfer the relevant part of the BlockEntity array to permanent block storage
-                block->entities = (BlockEntity*)malloc(block->numEntities * sizeof(BlockEntity));
-
-                if (block->entities)
-                    memcpy(block->entities, blockEntities, block->numEntities * sizeof(BlockEntity));
-                else
-                    // couldn't alloc data
-                    return NULL;
             }
         }
         else {
@@ -6572,11 +6577,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             retCode = block->blockType = createBlockFromSchematic(pWorldGuide, cx, cz, block);
         }
 
-        // is block valid? and not empty?
-        if (retCode > 0) {
+        // is block valid? and not entirely empty, but at least allocated?
+        if (retCode > NBT_VALID_BUT_EMPTY) {
 
             // does block have anything in it other than air?
-            if (block->blockType == 1) {
+            if (block->blockType == NBT_VALID_BLOCK) {
                 int i;
                 // TODOTODO - or should we free the block?
                 determineMaxFilledHeight(block);
@@ -6601,6 +6606,8 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                     }
                 }
             }
+            // The block is returned, even if it's empty, NBT_NO_SECTIONS. Why? Because we need to read the block in order
+            // to know it has no sections. Best to read it once and cache it.
             return block;
         }
     }

@@ -1767,7 +1767,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 {
     int len, nsections;
     int biome_save;
-    int returnCode = 1;	// means "fine"
+    int returnCode = NBT_VALID_BLOCK;	// means "fine"
     int sectionHeight;
     //int found;
 
@@ -1948,7 +1948,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     if (empty) {      // cppcheck-suppress 571
         // we return here instead of earlier so that the block is initialized to be empty.
         // In this way, if we set "give me more export memory" later, the data will get compressed properly, I hope...
-        return 2;	// no warnings to OR in here - it's empty
+        return NBT_NO_SECTIONS;	// no warnings to OR in here - it's empty
     }
 
     nsections = readDword(pbf);
@@ -2246,7 +2246,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     }
     if (mfsHeight <= EMPTY_MAX_HEIGHT) {
         // no real data found in the block - this can happen with modded worlds, etc.
-        return 2;   // means it's empty
+        return NBT_NO_SECTIONS;   // means it's empty
     }
     if (!newFormat) {
         // 1.12 and earlier format - get TileEntities for data about heads, flower pots, standing banners
@@ -2259,7 +2259,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             if (bfread(pbf, &type, 1) < 0)
                 return -40;
             if (type != 10)
-                return returnCode;	// all done
+                return returnCode;	// all done, no tile entities found
 
             // tile entity (aka block entity) found, parse it - get number of sections that follow
             nsections = readDword(pbf);

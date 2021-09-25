@@ -2427,7 +2427,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
         if (block != NULL) {
             Cache_Add(bx, bz, block);
         }
-        if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
+        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return;
     }
 
@@ -2534,7 +2534,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
         if (block != NULL) {
             Cache_Add(bx, bz, block);
         }
-        if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
+        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return;
     }
 
@@ -29639,7 +29639,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
         if (block != NULL) {
             Cache_Add(bx, bz, block);
         }
-        if ((block == NULL) || (block->blockType == 2)) //blank tile, nothing to do
+        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return minHeight + mapMinHeight;
     }
 
