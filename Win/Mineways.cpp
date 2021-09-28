@@ -336,7 +336,7 @@ static struct {
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
 
-    {_T("Error: no solid blocks found; no file output. You likely need to set the Depth slider at the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
+    {_T("Error: no solid blocks found; no file output. If you see something on the map, you likely need to set the Depth slider at the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
     {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<8
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<9
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<10
