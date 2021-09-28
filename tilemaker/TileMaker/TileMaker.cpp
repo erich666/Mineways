@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.07"
+#define	VERSION_STRING	L"3.08"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -2204,14 +2204,15 @@ static int classifyImageBumpMap(progimage_info& tile)
 		}
 	}
 	// Done testing all pixels. Is there a winner?
-	if (couldBeNM) {
-		// can only be a normal map, so return
-		return TILE_IS_NORMAL_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
-	}
-	// at this point ignore the normal map flag; if it's all reds or all grays, it's a heightfield
+	// at this point, if it's all reds or all grays, it's a heightfield
 	if (couldBeRedHM || couldBeGrayHM) {
 		// can only be a heightmap, so return
 		return TILE_IS_HEIGHT_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
+	}
+	// else I guess it's a normal map, though that's a bit dicey... TODO
+	if (couldBeNM) {
+		// can only be a normal map, so return
+		return TILE_IS_NORMAL_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
 	}
 	// if none are valid, note this and return
 	return TILE_IS_NOT_BUMP_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
