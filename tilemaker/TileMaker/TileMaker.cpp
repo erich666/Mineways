@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.08"
+#define	VERSION_STRING	L"3.09"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -2142,11 +2142,12 @@ static int classifyImageBumpMap(progimage_info& tile)
 			}
 			else {
 				couldBeGrayHM = false;
+				// This next test is removed, as JG-RTX does have such extreme normals.
 				// if blue value is < 10, unlikely it be a normal map
-				if (src_data[2] < 10) {
-					couldBeNM = false;
-				}
-				// if it's colored, if the green and blue channels differ, it's not a red-only height map
+				//if (src_data[2] < 10) {
+				//	couldBeNM = false;
+				//}
+				// if it's colored, i.e., if the green and blue channels differ, it's not a red-only height map
 				if (src_data[1] != src_data[2]) {
 					couldBeRedHM = false;
 				}
@@ -2183,19 +2184,20 @@ static int classifyImageBumpMap(progimage_info& tile)
 			// can we call it quits? Do so if we have found differing values
 			if (differingValues) {
 				// values found to differ, so check if only one possibility is valid
-				if (!(couldBeRedHM || couldBeGrayHM) && couldBeNM) {
-					// can only be a normal map, so return
-					return TILE_IS_NORMAL_MAP | TILE_BUMP_REAL;
-				}
 				if ((couldBeRedHM || couldBeGrayHM) && !couldBeNM) {
 					// can only be a heightmap, so return
 					return TILE_IS_HEIGHT_MAP | TILE_BUMP_REAL;
 				}
-				// if none are valid, note this and return
-				if (!couldBeRedHM && !couldBeGrayHM && !couldBeNM) {
-					// can only be a heightmap, so return
-					return TILE_IS_NOT_BUMP_MAP | TILE_BUMP_REAL;
+				else if (!(couldBeRedHM || couldBeGrayHM)) {
+					// can only be a normal map (a possibly broken one, but still...), so return
+					return TILE_IS_NORMAL_MAP | TILE_BUMP_REAL;
 				}
+				// GIGO - currently not allowed
+				// if none are valid, note this and return
+				//if (!couldBeRedHM && !couldBeGrayHM && !couldBeNM) {
+				//	// can only be a heightmap, so return
+				//	return TILE_IS_NOT_BUMP_MAP | TILE_BUMP_REAL;
+				//}
 				// annoyingly, if a map is all the same color or all grayscale and we don't find a dark
 				// texel (so we know it's not a normal map), we have to run through it all.
 			}
@@ -2203,19 +2205,19 @@ static int classifyImageBumpMap(progimage_info& tile)
 			src_data += 3;
 		}
 	}
-	// Done testing all pixels. Is there a winner?
+	// Done testing all pixels, likely because values did not differ. Is there a winner?
 	// at this point, if it's all reds or all grays, it's a heightfield
 	if (couldBeRedHM || couldBeGrayHM) {
 		// can only be a heightmap, so return
 		return TILE_IS_HEIGHT_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
 	}
 	// else I guess it's a normal map, though that's a bit dicey... TODO
-	if (couldBeNM) {
-		// can only be a normal map, so return
-		return TILE_IS_NORMAL_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
-	}
+	// can only be a normal map, so return
+	return TILE_IS_NORMAL_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
+
+	// Don't use this option. GIGO
 	// if none are valid, note this and return
-	return TILE_IS_NOT_BUMP_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
+	//return TILE_IS_NOT_BUMP_MAP | (differingValues ? TILE_BUMP_REAL : 0x0);
 }
 
 int doesTileHaveCutouts(int index)
