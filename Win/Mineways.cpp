@@ -4575,30 +4575,24 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 HZIP hz = CreateZip(wcZip, 0, ZIP_FILENAME);
 
                 // if we are zipping tiles, it's a bit different
-                int trueCount = outputFileList.count;
-                bool useSubDir = false;
-                // there are subdirectories? This should be less hacky someday... TODO
-                if ((gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ||
-                    (gpEFD->fileType == FILE_TYPE_USD)) {
-                    // are we using a subdirectory?
-                    if (strlen(gOptions.pEFD->tileDirString) > 0) {
-                        // super hacky hard-wired: know by file type how many are in main directory
-                        trueCount = (gpEFD->fileType == FILE_TYPE_USD) ? 1 : 2;	// USD or OBJ and MTL
-                        useSubDir = true;
-                    }
-                }
                 int i;
-                for (i = 0; i < trueCount; i++)
-                {
-                    const wchar_t* nameOnly = removePath(outputFileList.name[i]);
 
-                    if (*updateProgress)
+                // disassemble the directory of the first file
+                wchar_t path[MAX_PATH_AND_FILE];
+                wchar_t filepathpiece[MAX_PATH_AND_FILE];
+                wchar_t* relativeFile;
+                // strips off file name - assumes first file is "real" and not in some subdirectory!
+                StripLastString(outputFileList.name[0], path, filepathpiece);
+                // strips off subdirectory name and puts in piece
+                for (i = 0; i < outputFileList.count; i++) {
+                    relativeFile = RemoveGivenPath(outputFileList.name[i], path);
+                    // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
+                    // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
+                    // TODO - really should just export tiles needed, but this functionality is a bit tricky.
+                    if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
                     {
-                        (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
-                    }
-
-                    if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
+                        MessageBox(NULL, _T("Warning: Not all files were saved to the ZIP file! Please report this problem to me at erich@acm.org."), _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                         break;
                     }
 
@@ -4607,40 +4601,29 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     {
                         DeleteFile(outputFileList.name[i]);
                     }
-                }
-                if (useSubDir && (outputFileList.count > trueCount)) {
-                    // disassemble the directory of the first tile
-                    wchar_t path[MAX_PATH_AND_FILE];
-                    wchar_t subdir[MAX_PATH_AND_FILE];
-                    wchar_t filepathpiece[MAX_PATH_AND_FILE];
-                    // strips off file name (puts in piece, but we ignore it)
-                    StripLastString(outputFileList.name[trueCount], path, filepathpiece);
-                    // strips off subdirectory name and puts in piece
-                    StripLastString(path, path, subdir);
-                    wcscat_s(subdir, MAX_PATH_AND_FILE, gPreferredSeparatorString);
-                    for (i = trueCount; i < outputFileList.count; i++) {
-                        wchar_t* relativeFile = RemoveGivenPath(outputFileList.name[i], path);
-                        // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
-                        // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
-                        // TODO - really should just export tiles needed, but this functionality is a bit tricky.
-                        if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
-                        {
-                            retCode |= MW_CANNOT_WRITE_TO_FILE;
-                            MessageBox(NULL, _T("Warning: Not all files were saved to the ZIP file! Please report this problem to me at erich@acm.org."), _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
-                            break;
-                        }
-
-                        // delete model files if not needed
-                        if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-                        {
-                            DeleteFile(outputFileList.name[i]);
-                        }
+                    if (*updateProgress)
+                    {
+                        (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
                     }
 
                     // was AddFolderContent(hz, path, piece );
                 }
 
                 CloseZip(hz);
+
+                // now delete subdirectories, if empty. Assumes subdirectories come after main directory files
+                wchar_t prevdelpath[MAX_PATH_AND_FILE];
+                prevdelpath[0] = (wchar_t)0;
+                for (i = outputFileList.count-1; i >= 0; i--) {
+                    relativeFile = RemoveGivenPath(outputFileList.name[i], path);
+                    wchar_t delpath[MAX_PATH_AND_FILE];
+                    StripLastString(relativeFile, delpath, filepathpiece);
+                    if (wcscmp(delpath, prevdelpath) != 0 && wcslen(delpath) > 0) {
+                        // we could be more clever here and try to remove the directory only if it
+                        RemoveDirectory(delpath);
+                        wcscpy_s(prevdelpath, MAX_PATH_AND_FILE, delpath);
+                    }
+                }
             }
         }
         if (*updateProgress)
