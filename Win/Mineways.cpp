@@ -4608,28 +4608,32 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         DeleteFile(outputFileList.name[i]);
                     }
                 }
-                if (useSubDir && (outputFileList.count >= 3)) {
+                if (useSubDir && (outputFileList.count > trueCount)) {
                     // disassemble the directory of the first tile
                     wchar_t path[MAX_PATH_AND_FILE];
                     wchar_t subdir[MAX_PATH_AND_FILE];
-                    wchar_t filepiece[MAX_PATH_AND_FILE];
-                    wchar_t relativeFile[MAX_PATH_AND_FILE];
+                    wchar_t filepathpiece[MAX_PATH_AND_FILE];
                     // strips off file name (puts in piece, but we ignore it)
-                    StripLastString(outputFileList.name[2], path, filepiece);
+                    StripLastString(outputFileList.name[trueCount], path, filepathpiece);
                     // strips off subdirectory name and puts in piece
                     StripLastString(path, path, subdir);
                     wcscat_s(subdir, MAX_PATH_AND_FILE, gPreferredSeparatorString);
-                    for (i = 2; i < outputFileList.count; i++) {
-                        wcscpy_s(relativeFile, MAX_PATH_AND_FILE, subdir);
-                        StripLastString(outputFileList.name[i], path, filepiece);
-                        wcscat_s(relativeFile, MAX_PATH_AND_FILE, filepiece);
+                    for (i = trueCount; i < outputFileList.count; i++) {
+                        wchar_t* relativeFile = RemoveGivenPath(outputFileList.name[i], path);
                         // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
                         // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
                         // TODO - really should just export tiles needed, but this functionality is a bit tricky.
                         if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
                         {
                             retCode |= MW_CANNOT_WRITE_TO_FILE;
+                            MessageBox(NULL, _T("Warning: Not all files were saved to the ZIP file! Please report this problem to me at erich@acm.org."), _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                             break;
+                        }
+
+                        // delete model files if not needed
+                        if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
+                        {
+                            DeleteFile(outputFileList.name[i]);
                         }
                     }
 

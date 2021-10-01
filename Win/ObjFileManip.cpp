@@ -1899,6 +1899,22 @@ void StripLastString(const wchar_t* src, wchar_t* path, wchar_t* piece)
     *endPathPtr = (wchar_t)0;
 }
 
+// Remove the given path, leaving the subpath and file name
+wchar_t* RemoveGivenPath(wchar_t* src, wchar_t* path)
+{
+    wchar_t* srcPtr = src;
+    wchar_t* pathPtr = path;
+
+    while (*srcPtr++ == *pathPtr++ && *pathPtr != NULL) 
+    {}
+
+    // srcPtr now points at rest of path - remove leading "//" if there.
+    if (*srcPtr == (wchar_t)'\\' || *srcPtr == (wchar_t)'/') {
+        srcPtr++;
+    }
+    return srcPtr;
+}
+
 static void convertWcharPathUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation)
 {
     char worldChar[MAX_PATH_AND_FILE];
