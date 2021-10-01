@@ -21293,7 +21293,6 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         }
         break;
     case BLOCK_AMETHYST_BUD:
-        emission = 5.0;
         if (splitByBlockType) {
             // bottom 2 bits is level
             emission = (float)(dataVal & 0x2) + 2.0f;
@@ -24309,7 +24308,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                 if (startInstance > progressTick) {
                     // there are unlikely to be *that* many groups, so just update on each found
                     UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)startInstance / (float)gModel.instanceLocCount));
-                    progressTick += progressIncrement;
+                    //progressTick += progressIncrement;
                 }
             
                 // analyze chunk for what instances it uses and re-index, yet one more level of indirection
@@ -24928,7 +24927,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "    string subTypeName = \"%s\"\n", subName);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "    int blockFlags = %d\n\n", gBlockDefinitions[type].flags);
+            sprintf_s(outputString, 256, "    int blockFlags = %d\n\n", (int)gBlockDefinitions[type].flags);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             /* old, non-sorted method, without metadata
             char blockName[MAX_PATH_AND_FILE];

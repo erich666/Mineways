@@ -1257,7 +1257,7 @@ Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (a
 <P>
 Here is how to import a model and set the textures for Cinema 4D. The steps are from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>. The instructions have been updated for Cinema 4D R18; older versions may need additional steps, as shown.
 <P>
-That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; Mineways uses just one texture, so the cleanup process is much faster.
+That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, another exporter. The main downside of jmc2obj is that you have to reattach every single texture it generates by hand; by default, Mineways uses just one texture, so the cleanup process is much faster.
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
@@ -1283,7 +1283,7 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 <b>Step 5:</b> Select all the materials in the material viewer, the row of spheres at the lower left. Do this by clicking one sphere and then hitting Control-A. All spheres should now be selected.
 </P>
 <P>
-<b>Step 6:</b> In the material options area, in the right lower window, select the "Basic" box in the upper left. In the "Basic Properties" below uncheck the Reflectance option and check the Alpha option. Billboards such as grass and flowers should now look better.
+<b>Step 6:</b> In the material options area, in the right lower window, select the "Basic" box in the upper left. In the "Basic Properties" below uncheck the Reflectance option and check the Alpha option. Billboards such as grass and flowers should now look better. If they don't, check their materials and make sure the texture file ending with "-RGBA.png" is assigned as their texture.
 </P>
 <P>
 <img src="images/c4d_basic.jpg" alt="Cinema 4D object basic material"></a>
@@ -2720,7 +2720,7 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
-<LI>Minecraft 1.17: Mineways version 9.01 or newer
+<LI>Minecraft 1.17: Mineways version 9.02 or newer
 <LI>Minecraft 1.16: Mineways version 8.08
 <LI>Minecraft 1.15: Mineways version 7.12
 <LI>Minecraft 1.14: Mineways version 7.07
@@ -2730,6 +2730,14 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+
+<LI>Version 9.02, 10/1/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV902.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+	<LI>Fixed dumb regression bug (as opposed to my usually highly intelligent bugs) turning glass and water opaque for USD export.
+	<LI>Updated TileMaker to properly identify grayscale heightmaps, version 3.09.
+	<LI>Updated JG-RTX terrain files with the very latest (they're constantly being updated).
+  </UL>
 
 <LI>Version 9.01, 9/24/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV901.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
@@ -3589,7 +3597,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV901.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV902.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3640,7 +3648,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 9/28/2021</p>
+		<br id="lastUpdate">Last updated 10/1/2021</p>
 	</div>
 </div>
 
