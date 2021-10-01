@@ -25331,7 +25331,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         // more for 3D printing than anything. This is all kind of half-baked, the paths are not quite right.
         bool isCutout = false;
         bool isSemitransparent = false;
-        float alpha = !singleTerrainFile && retrieveMtlAlpha(pFace->materialType);
+        float alpha = retrieveMtlAlpha(pFace->materialType);
         // TODO: could key off of the alpha of the tile, e.g.,
         // gTilesTable[swatchLoc].flags & TILE_USES_ALPHA - not sure there's any gain
         if (!gModel.print3D &&
