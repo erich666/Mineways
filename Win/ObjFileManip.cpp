@@ -620,6 +620,7 @@ static int checkFaceListSize();
 static int findGroups();
 static void addVolumeToGroup(int groupID, int minx, int miny, int minz, int maxx, int maxy, int maxz);
 static void propagateSeed(IPoint point, BoxGroup* groupInfo, IPoint** seedStack, int* seedSize, int* seedCount);
+static bool notAirEdge(IPoint pt);
 static int getNeighbor(int faceDirection, IPoint newPoint);
 static void getNeighborUnsafe(int faceDirection, IPoint newPoint);
 
@@ -13327,10 +13328,10 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
     // the ladder or whatever that closes the building off from the world but you do want the ladder
     // to stop propagation. Note that this means two air groups can be next to each other, i.e., neighbors,
     // so we need to check for this case elsewhere.
-    if ((gModel.options->exportFlags & EXPT_SEAL_ENTRANCES) && !pGroup->solid)
+    if ( (gModel.options->exportFlags & EXPT_SEAL_ENTRANCES) && !pGroup->solid)
     {
         boxIndex = BOX_INDEXV(point);
-        if (gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE)
+        if ((gBlockDefinitions[gBoxData[boxIndex].origType].flags & BLF_ENTRANCE) && notAirEdge(point))
             // In this way, you can use things like snow blocks set to display an alpha of 0 to seal off entrances,
             // and the hole will be visible at the end.  TODO: document - removed, too obscure!!!
             //if ( gBoxData[boxIndex].origType > BLOCK_AIR )
@@ -13351,9 +13352,21 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
         {
             newBoxIndex = BOX_INDEXV(newPt);
             // is neighbor not in a group, and the same sort of thing as our seed (solid or not)?
-            if ((gBoxData[newBoxIndex].group == NO_GROUP_SET) &&
-                // for 3D printing, only check fully-filled cells; for rendering, check if anything is in cell, so that minor stuff will "connect" areas and so is less likely to erase anything
-                (((gModel.print3D ? gBoxData[newBoxIndex].type : gBoxData[newBoxIndex].origType) > BLOCK_AIR) == pGroup->solid)) {
+            if (gBoxData[newBoxIndex].group == NO_GROUP_SET) {
+                if (gModel.print3D) {
+                    // For 3D printing, only check fully-filled cells (which is all that are left at this point).
+                    // Test: is this a solid block (survivded billboard export) and a solid group, or an air block and an air group?
+                    if ((gBoxData[newBoxIndex].type > BLOCK_AIR) != pGroup->solid) {
+                        continue;
+                    }
+                }
+                else {
+                    // For rendering:
+                    // Is this a non-air block of any type, including billboards, and is not an "air edge" block?
+                    if (((gBoxData[newBoxIndex].origType > BLOCK_AIR) && notAirEdge(newPt)) != pGroup->solid) {
+                        continue;
+                    }
+                }
 
                 // note the block is a part of this group now
                 gBoxData[newBoxIndex].group = pGroup->groupID;
@@ -13370,6 +13383,22 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
             }
         }
     }
+}
+
+// Return true if this cell is not on the outer "air" edge that surrounds the block of real stuff.
+// This is done for testing for floating - all outer cells should be treated as air, but for rendering we
+// need to look at the origType for if a cell is empty. That test is incomplete, however; the original type
+// could be something real, e.g., a billboard that got processed and output already. We need this additional
+// test.
+static bool notAirEdge(IPoint pt)
+{
+    if (pt[X] <= gAirBox.min[X]) return false;
+    if (pt[Y] <= gAirBox.min[Y]) return false;
+    if (pt[Z] <= gAirBox.min[Z]) return false;
+    if (pt[X] >= gAirBox.max[X]) return false;
+    if (pt[Y] >= gAirBox.max[Y]) return false;
+    if (pt[Z] >= gAirBox.max[Z]) return false;
+    return true;
 }
 
 // return 1 if there's a valid neighbor, which is put in newx, etc.

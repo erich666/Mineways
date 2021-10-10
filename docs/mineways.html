@@ -442,7 +442,7 @@ If you find you want your model data to be arranged a bit differently for your r
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
 <LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export. With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda".
 <LI>Material per family: on by default; blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
-<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. Each material is identified by its data value suffix, e.g., "Stone__5" is <a href="https://minecraft-ids.grahamedgecombe.com/">Andesite</a>. If the data value is 0, no suffix is added (so the material named "Stone" is plain old stone, data value 0). New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
+<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked, the individual types are used for grouping and materials. This option is off by default, because turning it on yields noticeably more materials, which can mean more editing for you. You can see the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
 <P>
 Confused yet? There are non-obvious interactions among the various settings. A table follows, describing the results when using this 2x3 set of blocks - two grass blocks, two stone, two diorite - as the exported volume. Recall that diorite is part of the stone family.
@@ -979,6 +979,8 @@ Rendering Tips
 <H4 id="blender">Blender</H4><p>
 <a href="https://www.blender.org"><img id="productLogo" src="images/blender_icon.jpg" alt="Blender icon"></a>
 <P>
+Don't like reading? <a href="https://www.youtube.com/watch?v=gHYTQBnKGjc">Watch this one-minute video</a>. <a href="#material_subtypes">"Split by block type"</a> at 0:44 isn't necessary, but can give you finer control over different block materials (see step 2 below).
+<P>
 Note: Blender 3.0 will have USD import, which should help make it easy to use physically-based materials (reflectance, non/metallic), normal maps, and other <a href="textures.html">more elaborate textures</a> found in some texture packs. If you're using this alpha software, give Mineways' USD export system a try with it and let me know how it goes (I haven't tried it yet).
 <P>
 To move your Minecraft world's data into Blender, the first two steps are the same for all versions of Blender, since they involve only Mineways:
@@ -986,10 +988,13 @@ To move your Minecraft world's data into Blender, the first two steps are the sa
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle).
 </P>
 <P>
-<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export separate textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective.
+<b>2) Choose "File | Export Model for Rendering"</b> and save the file as a Wavefront Object (.obj) to a folder of your choice. Let's call it myobject.obj or whatever you like. You could simply click "OK" in the dialog with the export settings. However, choosing the <a href="#fcst">"Export separate textures"</a> on the left can give better filtering results, especially for areas in the distance with large scenes, as mipmapping will be more effective. The main consequence of checking this box is that many more individual textures are generated. This is great if you want to swap in different textures, but does result in more files and directories to keep track of.
+<P>
+You may also want to check <a href="#material_subtypes">"Split by block type"</a> if you expect you'll want to modify the material of each block type individually, vs. changing say "all stone types" by modifying a single, shared material. 
 <P>
 If you are <a href="#individual">exporting individual blocks</a> for animation, make sure the "Material per family" box below this option is checked. You will also need to check the <a href="#make_groups_objects">"Make groups objects" option</a> further down for proper use in Blender.
-</P>
+<P>
+To start, I would avoid clicking any other options (despite what any YouTube videos might say) unless you know what you are doing.
 
 <p>
 At this point the paths diverge, depending on which version of Blender you have.
@@ -2720,7 +2725,7 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
-<LI>Minecraft 1.17: Mineways version 9.02 or newer
+<LI>Minecraft 1.17: Mineways version 9.03 or newer
 <LI>Minecraft 1.16: Mineways version 8.08
 <LI>Minecraft 1.15: Mineways version 7.12
 <LI>Minecraft 1.14: Mineways version 7.07
@@ -2730,6 +2735,14 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+
+<LI>Version 9.03, 10/10/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV903.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+	<LI>Fixed crash condition when "Delete floating objects" is checked for rendering export. Blocks along the "air block"
+	buffer around the edges of the volume were being misidentified as containing something. Fixed because <a href="https://youtu.be/PpuhWRfhH_E">this video</a> recommended checking "Delete floating objects."
+	<LI>Updated JG-RTX terrain files with the very latest (they're constantly being updated).
+  </UL>
 
 <LI>Version 9.02, 10/1/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV902.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
@@ -3598,7 +3611,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV902.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV903.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3649,7 +3662,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 10/1/2021</p>
+		<br id="lastUpdate">Last updated 10/10/2021</p>
 	</div>
 </div>
 
