@@ -490,7 +490,8 @@ int APIENTRY _tWinMain(
     wcscat_s(gExeDirectory, MAX_PATH_AND_FILE, L"\\..\\..\\TileMaker\\TileMaker");
 
 #endif
-    // old, doesn't work right: GetCurrentDirectory(MAX_PATH_AND_FILE, gCurrentDirectory);
+    // old, normally fine, but doesn't work right when Mineways is called from Omniverse: GetCurrentDirectory(MAX_PATH_AND_FILE, gExeDirectory);
+
     // which sort of separator? If "\" found, use that one, else "/" assumed.
     if (wcschr(gExeDirectory, (wchar_t)'\\') != NULL) {
         gPreferredSeparator = (wchar_t)'\\';
