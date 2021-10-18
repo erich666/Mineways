@@ -1396,6 +1396,8 @@ Houdini Apprentice can be <a href="https://www.sidefx.com/buy/#houdini0">downloa
 I made <a href="https://www.youtube.com/watch?v=w3qCPts_70I&t=67s">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. Summary: select Build -> Solaris, right-click in the lower right "/stage" dialog, type "file," and then click in the dialog to place this element. Above this dialog is now "Sublayer file1" - scroll down to find "Sublayer File" and in "File" give the USDA file you want to import. Once imported, scroll out with Alt and mouse-wheel down. Turn off the sun and dome light in the lower left dialog, "Scene Graph Tree." Add your own lights from the icons in the upper left of the app. Hold down "Alt" and use the mouse for camera moves. In the upper right of the viewport select the Karma renderer from "persp" to use the path tracer. 
 <P>
 One thing I did forget to mention in the video narration: at time 1:14, where I add a File node, what I did was right-click in that lower-right area and typed "file" to get that node, then clicked in the area to make the node appear.
+<P>
+Also, the original lights that are exported by Mineways to the USD file need to be turned off for the Houdini GL renderer, but the dome light is fine to turn back on for the Karma renderer, it looks better with it on.
 
 <HR>
 <H2 id="sketchfab">Publish to Sketchfab</H2>
