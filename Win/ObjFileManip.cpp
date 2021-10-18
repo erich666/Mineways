@@ -748,6 +748,7 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue);
 
 static int writeTileFromCategoryInput(wchar_t* filename, int index, int category);
 static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value);
+static int tileAlphaStatus(int swatchLoc);
 static void formCategoryFileName(char* catFile, int category, char* textureRGB);
 
 static int writeLines(HANDLE file, char** textLines, int lines);
@@ -1151,14 +1152,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gModel.swatchListSize = gModel.swatchesPerRow * gModel.swatchesPerRow;
 
         retCode |= createBaseMaterialTexture();
-
-        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
-        {
-            // all done with base input texture, free up its memory.
-            readpng_cleanup(1, gModel.pInputTerrainImage[CATEGORY_RGBA]);
-            delete gModel.pInputTerrainImage[CATEGORY_RGBA];
-            gModel.pInputTerrainImage[CATEGORY_RGBA] = NULL;
-        }
     }
 
     // were there errors?
@@ -22055,7 +22048,7 @@ static int writeOBJMtlFile()
     {
         // Write them out! We need three texture file names: -RGB, -RGBA, -Alpha.
         // The RGB/RGBA split is needed for fast previewers like G3D to gain additional speed
-        // The all-alpha image is needed for various renderers to properly read cutouts, since map_d is poorly defined
+        // The all-alpha image is needed for various renderers to properly read cutouts, since map_d is poorly defined.
         sprintf_s(textureRGB, MAX_PATH_AND_FILE, "%s%s.png", gOutputFileRootCleanChar, PNG_RGB_SUFFIXCHAR);
         sprintf_s(textureRGBA, MAX_PATH_AND_FILE, "%s%s.png", gOutputFileRootCleanChar, PNG_RGBA_SUFFIXCHAR);
         sprintf_s(textureAlpha, MAX_PATH_AND_FILE, "%s%s.png", gOutputFileRootCleanChar, PNG_ALPHA_SUFFIXCHAR);
@@ -22094,6 +22087,11 @@ static int writeOBJMtlFile()
                 MINECRAFT_SINGLE_MATERIAL,
                 gModel.usesRGB ? textureRGB : textureRGBA);
             WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
+
+            // With G3D, map_d for individual textures will reuse the RGBA image and G3D will misinterpret map_d
+            // as the red channel, I believe. So, we set map_d only when we have a separate pure-alpha texture.
+            // The alternative for individual texture output would be to export both an RGB texture and a separate
+            // A texture, which seems excessive.
 
             if (gModel.usesAlpha) {
                 sprintf_s(outputString, 2048,
@@ -22257,7 +22255,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         tfString[0] = '\0';
     }
 
-    // export map_d only if CUTOUTS.
+    // export map_d only if CUTOUTS. TODOTODOTODO - or transparent? Not sure... See Sketchfab email
     if (!gModel.print3D &&
         (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
         (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
@@ -22281,7 +22279,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             gModel.usesRGBA = 1;
             gModel.usesAlpha = 1;
             typeTextureFileName = textureRGBA;
-            sprintf_s(mapdString, 256, "%smap_d %s\n", (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
+            // Sketchfab (currently not supported as a "separate texture" option, but maybe someday) needs map_d
+            sprintf_s(mapdString, 256, "%smap_d %s\n", (!(gModel.options->exportFlags & EXPT_SKFB)) && (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
         }
     }
     else
@@ -24140,6 +24139,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, "/");
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, texturePath);
     }
+    // Omniverse likes a leading "./" now, for some reason - we don't bother adding this
 
     // if not instancing, need to point to the texture directory using the full path
     if (!gModel.instancing) {
@@ -25156,7 +25156,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (interpolation = \"vertex\")\n" : ", ");
+        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
@@ -25383,7 +25383,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             if (alpha < 1.0 && (gBlockDefinitions[pFace->materialType].flags & BLF_TRANSPARENT)) {
                 // currently just water, glass, and slime objects use the glass property
-                // TODOUSD - look at other blocks and decide
+                // TODOTODOTODO TODOUSD - look at other blocks and decide
                 switch (pFace->materialType) {
                 case BLOCK_WATER:
                 case BLOCK_STATIONARY_WATER:
@@ -25392,14 +25392,48 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 case BLOCK_STAINED_GLASS:
                 case BLOCK_STAINED_GLASS_PANE:
                 case BLOCK_SLIME:
-                    // just look like water - better to make opaque
-                    //case BLOCK_ICE:
-                    //case BLOCK_FROSTED_ICE:
-                    //case BLOCK_BLUE_ICE:
+                case BLOCK_NETHER_PORTAL:
+                case BLOCK_HONEY:
                     isSemitransparent = true;
-                    // glass does not have an emission component
-                    assert(!(gBlockDefinitions[pFace->materialType].flags & BLF_EMITTER));
                     break;
+
+                case BLOCK_ICE:
+                case BLOCK_FROSTED_ICE:
+                    // normally transparent, but should test if a special texture, in case it's in reality opaque.
+                    // Really, this code could be done for all the above, but it's pricey... TODO
+                    {
+                        int alphaStatus = tileAlphaStatus(swatchLoc);
+                        if (alphaStatus == 2) {
+                            isSemitransparent = true;
+                        } else if (alphaStatus == 1) {
+                            isCutout = true;
+                        }
+                    }
+                    break;
+
+                default:
+                    isCutout = true;
+                    break;
+                }
+            }
+            else if (gBlockDefinitions[pFace->materialType].flags & BLF_CUTOUTS) {
+                // glass blocks and glass panes are cutouts in Minecraft, but often not these when using a mod
+                switch (pFace->materialType) {
+                case BLOCK_GLASS:
+                case BLOCK_GLASS_PANE:
+                    // normally a cutout, but should test if a special texture, in case it's in reality semitransparent.
+                    // Might also simply be opaque! Really, this code could be done for all the above... TODO
+                    {
+                        int alphaStatus = tileAlphaStatus(swatchLoc);
+                        if (alphaStatus == 2) {
+                            isSemitransparent = true;
+                        }
+                        else if (alphaStatus == 1) {
+                            isCutout = true;
+                        }
+                    }
+                    break;
+
                 default:
                     isCutout = true;
                     break;
@@ -26465,39 +26499,48 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             strcpy_s(outputString, 256,  "            int inputs:useSpecularWorkflow = 0\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-            // - diffuse input
+            // - diffuse input - we output both, just in case the texture is missing or the interpret can't figure it out.
             sprintf_s(outputString, 256, "            color3f inputs:diffuseColor = (%g, %g, %g)\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "            color3f inputs:diffuseColor.connect = <%s/Looks/%s/diffuse_texture.outputs:rgb>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
             // - opacity input - this could be removed for textures without alphas, but for simplicity we always connect it
-            sprintf_s(outputString, 256, "            float inputs:opacity.connect = <%s/Looks/%s/diffuse_texture.outputs:a>\n", prefixPath, mtlName);
-            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             // opacity threshold is tricky. Exactly 0.0 means "treat the alpha channel purely as transparent." If above 0.0, it means "anything with an alpha
             // below this threshold value is fully transparent, otherwise it's fully visible" - a mask. You can't do both with the current spec (though
             // you could probably make opacityThreshold a textures, too - who knows how that would work...).
             // Here we set it to 0.02 to give a reasonable, "full", minimize dropouts alpha cutout for content in Omniverse for cutouts. If semitransparency
             // is happening, we use 0.0 so that semi-transparent alpha is used. Doesn't seem to make a difference in Houdini, matters to Omniverse. Just,
             // don't use 0.001 in Omniverse, as this causes it to get confused between this value and 0.0.
+            // 0.5 looks best, giving a nicer interpolation for the RTX Real-time renderer, for example, with smoother interpolation
             if (isCutout || isSemitransparent) {
-                sprintf_s(outputString, 256, "            float inputs:opacityThreshold = %f\n", isSemitransparent ? 0.0f : 0.02f );
+                sprintf_s(outputString, 256, "            float inputs:opacity.connect = <%s/Looks/%s/diffuse_texture.outputs:a>\n", prefixPath, mtlName);
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                sprintf_s(outputString, 256, "            float inputs:opacityThreshold = %f\n", isSemitransparent ? 0.0f : 0.5f );
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            }
+            else {
+                sprintf_s(outputString, 256, "            float inputs:opacity = 1\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
 
             // - roughness input
-            sprintf_s(outputString, 256, "            float inputs:roughness = %g\n", roughness);
-            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
                 sprintf_s(outputString, 256, "            float inputs:roughness.connect = <%s/Looks/%s/roughness_texture.outputs:r>\n", prefixPath, mtlName);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
+            else {
+                sprintf_s(outputString, 256, "            float inputs:roughness = %g\n", roughness);
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            }
 
             // - metallic input
-            sprintf_s(outputString, 256, "            float inputs:metallic = %g\n", metallic);
-            WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
                 sprintf_s(outputString, 256, "            float inputs:metallic.connect = <%s/Looks/%s/metallic_texture.outputs:r>\n", prefixPath, mtlName);
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+            }
+            else {
+                sprintf_s(outputString, 256, "            float inputs:metallic = %g\n", metallic);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
 
@@ -26701,8 +26744,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     sprintf_s(outputString, 256, "            token inputs:wrapT = \"%s\"\n", tRepeat ? "repeat" : "clamp");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    // do not use sRGB for the emitter color space - this generates an error in UsdView, which makes sense;
+                    // it's a one-channel emitter that should get multiplied by the albedo texture
+                    //strcpy_s(outputString, 256,  "            token inputs:sourceColorSpace = \"sRGB\"\n");
+                    //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     sprintf_s(outputString, 256, "            float2 inputs:st.connect = <%s/Looks/%s/uv_reader.outputs:result>\n", prefixPath, mtlName);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f);
@@ -26776,6 +26821,7 @@ static boolean tileIsAnEmitter(int type, int swatchLoc )
     return false;
 }
 
+// Look at the name of the material itself (NOT the texture name)
 static void setMetallicRoughnessByName(int type, float *metallic, float *roughness)
 {
     // check metals first
@@ -26785,67 +26831,78 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
     if (strstr(blockName, "iron") != NULL && strstr(blockName, " ore") == NULL) {
         // iron
         *metallic = 0.90f;   // rusty-ish?
-        *roughness = 0.15f;
+        *roughness = 0.50f;
     }
     else if (strstr(blockName, "gold") != NULL && strstr(blockName, " ore") == NULL) {
         // iron
         *metallic = 1.00f;
-        *roughness = 0.10f;
-    }
-    else if (strstr(blockName, "copper") != NULL && strstr(blockName, " ore") == NULL) {
-        // iron
-        *metallic = 1.00f;
-        *roughness = 0.10f;
+        *roughness = 0.20f;
     }
     // TODOTODO - really, amethyst block should get subdivided into a bunch of materials. Need to pass in dataVal
     else if (strstr(blockName, "lantern") != NULL && strstr(blockName, "jack") == NULL) {
         // lantern (not jack) - includes sea lantern, probably doesn't matter
         *metallic = 0.80f;
-        *roughness = 0.15f;
+        *roughness = 0.50f;
     }
     else if (strstr(blockName, "anvil") != NULL) {
         *metallic = 0.70f;
-        *roughness = 0.20f;
+        *roughness = 0.80f;
     }
     else if (strstr(blockName, "hopper") != NULL) {
         *metallic = 0.85f;
-        *roughness = 0.185f;
+        *roughness = 0.80f;
     }
     else if (strstr(blockName, "cauldron") != NULL) {
         *metallic = 0.40f;
-        *roughness = 0.25f;
+        *roughness = 0.80f;
     }
     // roughness only
     else if (strstr(blockName, "diamond") != NULL && strstr(blockName, " ore") == NULL) {
-        *roughness = 0.05f;
+        *roughness = 0.10f;
     }
     else if (strstr(blockName, "emerald") != NULL && strstr(blockName, " ore") == NULL) {
-        *roughness = 0.10f;
+        *roughness = 0.20f;
     }
     else if (strstr(blockName, "lapis") != NULL && strstr(blockName, " ore") == NULL) {
-        *roughness = 0.10f;
+        *roughness = 0.20f;
     }
-    else if (strstr(blockName, "ice") != NULL){
-        *roughness = 0.10f;
+    else if (strstr(blockName, "amethyst") != NULL) {
+        *roughness = 0.20f;
+    }
+    else if (strstr(blockName, "ice") != NULL) {
+        *roughness = 0.50f;
+    }
+    else if (strstr(blockName, "water") != NULL) {
+        *roughness = 0.15f;
+    }
+    else if (strstr(blockName, "glass") != NULL) {
+        *roughness = 0.05f;
     }
     else if (strstr(blockName, "honey") != NULL) {
-        *roughness = 0.40f;
+        *roughness = 0.60f;
     }
     else if (strstr(blockName, "polished") != NULL) {
         *roughness = 0.15f;
     }
+    else if (strstr(blockName, "smooth") != NULL) {
+        *roughness = 0.5f;
+    }
     else if (strstr(blockName, "purpur") != NULL) {
-        *roughness = 0.25f;
+        *roughness = 0.35f;
+    }
+    else if (strstr(blockName, "obsidian") != NULL) {
+        *roughness = 0.20f;
     }
     else if (strstr(blockName, "quartz") != NULL && strstr(blockName, " ore") == NULL) {
-        *roughness = 0.18f;
+        *roughness = 0.20f;
     }
     else if (strstr(blockName, "terracotta") != NULL) {
         if (strstr(blockName, "glazed") != NULL) {
             *roughness = 0.20f;
         }
         else {
-            *roughness = 0.40f;
+            // unglazed, like a flower pot
+            *roughness = 1.00f;
         }
     }
     else if (strstr(blockName, "block of redstone") != NULL) {
@@ -27526,7 +27583,7 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
         for (int row = 0; row < size; row++)
         {
             unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart + row * perRow]);
-            for (int col = 0; col < size* numChannels; col++)
+            for (int col = 0; col < size * numChannels; col++)
             {
                 if (*image_data++ != value) {
                     // found a pixel where a channel is not black
@@ -27536,6 +27593,40 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
         }
     }
     return true;
+}
+
+// 0 - no alphas at all; 1 - cutout; 2 - alphas that are neither 0 nor 1 detected, i.e., semitransparent
+// -1 - tile does not exist (why are you calling?)
+static int tileAlphaStatus(int swatchLoc)
+{
+    int numChannels = gCatChannels[CATEGORY_RGBA];
+    if (numChannels != 4) {
+        // no alpha found - why is this one tested?
+        assert(0);
+        return 0;
+    }
+    int perRow = gModel.pInputTerrainImage[CATEGORY_RGBA]->width * numChannels;
+    int tileStart = ((swatchLoc / 16) * perRow * gModel.tileSize) +
+        ((swatchLoc % 16) * gModel.tileSize * numChannels);
+    int retCode = 0;    // assume opaque
+    for (int row = 0; row < gModel.tileSize; row++)
+    {
+        // add 3 to get to alpha channel
+        unsigned char* image_data = &(gModel.pInputTerrainImage[CATEGORY_RGBA]->image_data[tileStart + row * perRow + 3]);
+        for (int col = 0; col < gModel.tileSize * numChannels; col++)
+        {
+            if (*image_data != 255) {
+                // it's either a cutout or an alpha (though someone might author these stupidly, putting alphas in
+                // areas that are unused...)
+                if (*image_data != 0) {
+                    return 2;
+                }
+                retCode = 1;
+            }
+            image_data += 4;
+        }
+    }
+    return retCode;
 }
 
 static void formCategoryFileName(char* catFile, int category, char* textureRGB)

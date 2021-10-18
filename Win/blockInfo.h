@@ -723,7 +723,8 @@ enum block_types {
     BLOCK_CARPET = 171,
     BLOCK_HARDENED_CLAY = 172,	// also called terracotta, but we keep the name here
     BLOCK_COAL_BLOCK = 173,
-    // 1.7.2
+    // 1.9
+    BLOCK_PACKED_ICE = 174,
     BLOCK_DOUBLE_FLOWER = 175,  // yes, it's out of order.
     //
     BLOCK_STANDING_BANNER = 176,

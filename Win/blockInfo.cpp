@@ -89,7 +89,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Leaves block color is from Plains biome color (default terrain in a flat world). Acacia Leaves should also be changed if this is changed.
     { /*  18 */ "Oak Leaves",					0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 3, 0x03, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART},	//12
     { /*  19 */ "Sponge",                 		0xD1D24E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 3, 0x01, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//13
-    { /*  20 */ "Glass",                  		0xc0f6fe, 0.500f, 0xff7711, 0xff7711, 0.12345f,   1, 3, 0x01, BLF_WHOLE | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR},	//14 - note that BLF_TRANSPARENT is not flagged, 0x00FF, Because glass is either fully on or off, not blended
+    { /*  20 */ "Glass",                  		0xc0f6fe, 0.500f, 0xff7711, 0xff7711, 0.12345f,   1, 3, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_FENCE_NEIGHBOR},	//14 - note that BLF_TRANSPARENT is not flagged, 0x00FF, Because glass is either fully on or off, not blended
     { /*  21 */ "Lapis Lazuli Ore",       		0x143880, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,10, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//15
     { /*  22 */ "Block of Lapis Lazuli",     	0x1b4ebb, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 9, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//16
     { /*  23 */ "Dispenser",              		0x6f6f6f, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE},	//17 14,2 front, 13,2 sides
