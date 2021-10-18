@@ -725,7 +725,7 @@ static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile, bool singleTerrainFile);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
-static void setMetallicRoughnessByName(int type, float* metallic, float* roughness);
+static void setMetallicRoughnessByName(char* mtlName, float* metallic, float* roughness);
 static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
 static int writeMDLforUSD(wchar_t* filePath);
@@ -22395,7 +22395,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     float roughness = 1.0f;
     float metallic = 0.0f;
     if (gModel.customMaterial) {
-        setMetallicRoughnessByName(type, &metallic, &roughness);
+        //setMetallicRoughnessByName(type, &metallic, &roughness);
+        setMetallicRoughnessByName(mtlName, &metallic, &roughness);
         specularHighlightPower = (1.0f - roughness) * 255.0f;
     }
 
@@ -25470,7 +25471,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
         float roughness = 1.0f;
         float metallic = 0.0f;
-        setMetallicRoughnessByName(pFace->materialType, &metallic, &roughness);
+        //setMetallicRoughnessByName(pFace->materialType, &metallic, &roughness);
+        setMetallicRoughnessByName(mtlName, &metallic, &roughness);
 
         sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26520,6 +26522,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
+                // Possible addition: could output this (and roughness and metalness) as numbers
+                // anyway, just in case the textures are not found. But, I'd rather the user
+                // knew that the textures were not found.
                 sprintf_s(outputString, 256, "            float inputs:opacity = 1\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
@@ -26822,18 +26827,19 @@ static boolean tileIsAnEmitter(int type, int swatchLoc )
 }
 
 // Look at the name of the material itself (NOT the texture name)
-static void setMetallicRoughnessByName(int type, float *metallic, float *roughness)
+static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *roughness)
 {
     // check metals first
     char blockName[100];
-    strcpy_s(blockName, 100, gBlockDefinitions[type].name);
-    _strlwr_s(blockName,100);
-    if (strstr(blockName, "iron") != NULL && strstr(blockName, " ore") == NULL) {
+    strcpy_s(blockName, 100, mtlName);
+    _strlwr_s(blockName, 100);
+    changeCharToUnderline( ' ', blockName);
+    if (strstr(blockName, "iron") != NULL && strstr(blockName, "_ore") == NULL) {
         // iron
         *metallic = 0.90f;   // rusty-ish?
         *roughness = 0.50f;
     }
-    else if (strstr(blockName, "gold") != NULL && strstr(blockName, " ore") == NULL) {
+    else if (strstr(blockName, "gold") != NULL && strstr(blockName, "_ore") == NULL) {
         // iron
         *metallic = 1.00f;
         *roughness = 0.20f;
@@ -26857,13 +26863,13 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
         *roughness = 0.80f;
     }
     // roughness only
-    else if (strstr(blockName, "diamond") != NULL && strstr(blockName, " ore") == NULL) {
+    else if (strstr(blockName, "diamond") != NULL && strstr(blockName, "_ore") == NULL) {
         *roughness = 0.10f;
     }
-    else if (strstr(blockName, "emerald") != NULL && strstr(blockName, " ore") == NULL) {
+    else if (strstr(blockName, "emerald") != NULL && strstr(blockName, "_ore") == NULL) {
         *roughness = 0.20f;
     }
-    else if (strstr(blockName, "lapis") != NULL && strstr(blockName, " ore") == NULL) {
+    else if (strstr(blockName, "lapis") != NULL && strstr(blockName, "_ore") == NULL) {
         *roughness = 0.20f;
     }
     else if (strstr(blockName, "amethyst") != NULL) {
@@ -26893,7 +26899,7 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
     else if (strstr(blockName, "obsidian") != NULL) {
         *roughness = 0.20f;
     }
-    else if (strstr(blockName, "quartz") != NULL && strstr(blockName, " ore") == NULL) {
+    else if (strstr(blockName, "quartz") != NULL && strstr(blockName, "_ore") == NULL) {
         *roughness = 0.20f;
     }
     else if (strstr(blockName, "terracotta") != NULL) {
@@ -26905,10 +26911,10 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
             *roughness = 1.00f;
         }
     }
-    else if (strstr(blockName, "block of redstone") != NULL) {
+    else if (strstr(blockName, "redstone") != NULL && strstr(blockName, "block") != NULL) {
         *roughness = 0.50f;
     }
-    else if (strstr(blockName, "lily pad") != NULL) {
+    else if (strstr(blockName, "lily_pad") != NULL) {
         *roughness = 0.20f;
     }
     else if (strstr(blockName, "clay") != NULL) {
@@ -26920,6 +26926,12 @@ static void setMetallicRoughnessByName(int type, float *metallic, float *roughne
     else if (strstr(blockName, "stripped") != NULL) {
         *roughness = 0.50f;
     }
+    else if (strstr(blockName, "copper") != NULL && strstr(blockName, "block") != NULL) {
+        *metallic = 0.90f;   // rusty-ish?
+        *roughness = 0.50f;
+    }
+    // note: copper is complicated enough (weathered, etc.) that we don't touch most.
+    // Block of Copper is about the only one I'll try.
 }
 
 static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts)

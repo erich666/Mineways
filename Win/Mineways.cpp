@@ -5019,7 +5019,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkSeparateTypes = 1;
     INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkMaterialPerFamily = 1;
-    viewData.chkSplitByBlockType = 0;
+    viewData.chkSplitByBlockType = 1;
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 1, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
