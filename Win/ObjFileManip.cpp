@@ -1079,7 +1079,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             if (gModel.pInputTerrainImage[catIndex]->height != gModel.pInputTerrainImage[CATEGORY_RGBA]->height ||
                 gModel.pInputTerrainImage[catIndex]->width != gModel.pInputTerrainImage[CATEGORY_RGBA]->width) {
                 // size does not match "master" RGBA texture size, so we won't use this one.
-                retCode |= MW_NOT_ENOUGH_ROWS;  // TODOTODO a different warning should be given here, "One (or more) of the material TerrainExt*.png textures does not match the color texture in its dimension, so was ignored. All TerrainExt textures in a set must have the same dimensions."
+                retCode |= MW_NOT_ENOUGH_ROWS;  // TODO a different warning could be given here, for this weird mismatch, "One (or more) of the material TerrainExt*.png textures does not match the color texture in its dimension, so was ignored. All TerrainExt textures in a set must have the same dimensions."
                 // and delete this one - no good, so don't use it
                 readpng_cleanup(1, gModel.pInputTerrainImage[catIndex]);
                 delete gModel.pInputTerrainImage[catIndex];
@@ -3958,7 +3958,6 @@ static int computeFlatFlags(int boxIndex)
         }
         break;
 
-        // TODOTODO might also be the code we want for vines, just above, for 1.13 on?
     case BLOCK_GLOW_LICHEN:
         // (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
         if (gBoxData[boxIndex].data & 0x01) {
@@ -12971,10 +12970,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X]--;
 
         gUsingTransform = 1;
-        // note that if culling is off, the front face is likely to hide the back.
+        // displace faces a bit so that they don't z-fight. To be honest, I don't know why G3D makes
+        // these two primitives double-sided - perhaps because they are cutouts? G3D normally makes
+        // blocks single sided. Anyway, there's z-fighting, which looks bad and is confusing.
         retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
             DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
-            FLIP_X_FACE_VERTICALLY, 0, 8, 8, 0, 16, 0, 16);
+            FLIP_X_FACE_VERTICALLY, 0, 7.95f, 8.05f, 0, 16, 0, 16);
         if (retCode > MW_BEGIN_ERRORS) return retCode;
 
         gUsingTransform = 0;
@@ -12982,9 +12983,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, 0.0f, -20.0f);
-        translateMtx(mtx, 1.8f / 16.0f, 0.0f, 0.2f / 16.0f);
+        translateMtx(mtx, 1.8f / 16.0f, 0.4f / 16.0f, 0.2f / 16.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
+        // A strange thing: only the bottom eight rows of the sunflower's top texture (not generated here, but further
+        // down as the FULL_CROSS) get used in the game.
+        // We use all 10 rows, as using less might confuse things for mods. But, it's a mismatch.
+        // And, sunflower stems do not extend into the ground, like grass does with yShift. So they will hover over hoe'd land.
     }
     else if (redstoneWireOnBottom) {
         switch (redstoneDirFlags)
@@ -22255,7 +22260,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         tfString[0] = '\0';
     }
 
-    // export map_d only if CUTOUTS. TODOTODOTODO - or transparent? Not sure... See Sketchfab email
+    // export map_d only if CUTOUTS.
     if (!gModel.print3D &&
         (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
         (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
@@ -24122,7 +24127,6 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     concatFileName3(fileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".usda");
 
     // get path to textures subdirectory specified by user
-    // TODOTODOUSD - I suspect absolute path name for texture directory will break this - TEST!
     char texturePath[MAX_PATH_AND_FILE];
     strcpy_s(texturePath, MAX_PATH_AND_FILE, gModel.options->pEFD->tileDirString);
     // get rid of backslashes for USD output into file
@@ -25384,7 +25388,6 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             if (alpha < 1.0 && (gBlockDefinitions[pFace->materialType].flags & BLF_TRANSPARENT)) {
                 // currently just water, glass, and slime objects use the glass property
-                // TODOTODOTODO TODOUSD - look at other blocks and decide
                 switch (pFace->materialType) {
                 case BLOCK_WATER:
                 case BLOCK_STATIONARY_WATER:
@@ -26844,23 +26847,22 @@ static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *ro
         *metallic = 1.00f;
         *roughness = 0.20f;
     }
-    // TODOTODO - really, amethyst block should get subdivided into a bunch of materials. Need to pass in dataVal
-    else if (strstr(blockName, "lantern") != NULL && strstr(blockName, "jack") == NULL) {
+     else if (strstr(blockName, "lantern") != NULL && strstr(blockName, "jack") == NULL) {
         // lantern (not jack) - includes sea lantern, probably doesn't matter
         *metallic = 0.80f;
-        *roughness = 0.50f;
+        *roughness = 0.30f;
     }
     else if (strstr(blockName, "anvil") != NULL) {
-        *metallic = 0.70f;
-        *roughness = 0.80f;
+        *metallic = 0.70f;   // rusty-ish?
+        *roughness = 0.50f;
     }
     else if (strstr(blockName, "hopper") != NULL) {
-        *metallic = 0.85f;
-        *roughness = 0.80f;
+        *metallic = 0.85f;   // rusty-ish?
+        *roughness = 0.40f;
     }
     else if (strstr(blockName, "cauldron") != NULL) {
-        *metallic = 0.40f;
-        *roughness = 0.80f;
+        *metallic = 0.70f;   // rusty-ish?
+        *roughness = 0.50f;
     }
     // roughness only
     else if (strstr(blockName, "diamond") != NULL && strstr(blockName, "_ore") == NULL) {

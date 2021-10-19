@@ -230,7 +230,7 @@ static int worldVersion = 0;
 // facing: down|up|north|south|west|east
 // extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
 // type: sticky|normal
-// short: true|false - TODOTODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this
+// short: true|false - TODOTODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this state, so leaving it alone
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|down|up: true|false
 #define FENCE_AND_VINE_PROP	 34
@@ -1843,7 +1843,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //           SkyLight: some other lighting data, which we ignore.
         //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
         // 
-        // How data is structured in 1.18+: TODOTODO
+        // How data is structured in 1.18+:
         // /region: a directory of "regular" world region files
         // r.0.0.mca: a typical region file of 32x32 chunks, each 16x16
         //   Chunk [0, 0]: chunks go up to [31,31]

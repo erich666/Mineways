@@ -1095,8 +1095,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             lepd.comboPhysicalMaterial[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_GETCURSEL, 0, 0);
             lepd.comboModelUnits[lepd.fileType] = (int)SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_GETCURSEL, 0, 0);
 
-            // check for non-file characters
-            char badchar[] = "<>|?*";
+            // check for non-file characters - cannot be a path, either
+            char badchar[] = "<>|?*:/\\";
             bool badcharFound = false;
             for (int i = 0; i < (int)strlen(badchar); i++) {
                 if (strchr(lepd.tileDirString, badchar[i]) != NULL) {
@@ -1105,7 +1105,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             if (badcharFound) {
                 MessageBox(NULL,
-                    _T("Illegal character <>|?* detected in output tile directory;\nYou need to fix this, then hit OK again."), _T("File name character error"), MB_OK | MB_ICONERROR);
+                    _T("Illegal character <>|?*:/\\ detected in output tile directory name; this name cannot be a path, but just a simple folder name.\nYou must fix this, then hit OK again."), _T("Folder name character error"), MB_OK | MB_ICONERROR);
                 return (INT_PTR)FALSE;
             }
 

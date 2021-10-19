@@ -6583,7 +6583,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // does block have anything in it other than air?
             if (block->blockType == NBT_VALID_BLOCK) {
                 int i;
-                // TODOTODO - or should we free the block?
+                // TODO someday: we could actually free the block, but the logic's a bit tricky. Leaving it be, since it works.
                 determineMaxFilledHeight(block);
 
                 // look for unknown blocks and recover

@@ -272,7 +272,7 @@ See the file "scripting/make_slice_maps.mwscript" for making a series of layers 
 <h3 id="g3d">Displaying with G3D</h3>
 Once you have a model for rendering, you might want to preview it before importing it to 3D modeler. If you are using Wavefront OBJ files (the default), I recommend the free G3D viewer (pro tip: hold the Alt key down and use WASD to move fast in G3D). This viewer now recognizes a special tag in the OBJ's material description that makes Mineways models display with the classic blocky Minecraft look. If you use VRML or STL files, <a href="http://meshlab.sourceforge.net/">MeshLab</a> is a fine free viewer for these other formats for 3D printing (however, it does not handle transparency and cutouts well, so is poor for viewing renderings).
 <P>
-<B><a href="https://erich.realtimerendering.com/minecraft/public/mineways//g3d.zip">Download this special version of G3D here</a>.</B> Unzip and run, then drop your .OBJ file on to the window to view it. Simpler yet, you can set up your Windows system to view .OBJ files with G3D when double-clicked. Just run register-G3D-viewer64-run-as-administrator.bat one time as administrator (see <a href="scripting.html#amfwm">these instructions</a> to learn how).
+<B><a href="https://erich.realtimerendering.com/minecraft/public/mineways/g3d.zip">Download this special version of G3D here</a>.</B> Unzip and run, then drop your .OBJ file on to the window to view it. Simpler yet, you can set up your Windows system to view .OBJ files with G3D when double-clicked. Just run register-G3D-viewer64-run-as-administrator.bat one time as administrator (see <a href="scripting.html#amfwm">these instructions</a> to learn how).
 <P>
 Camera controls: WASD for normal movement, ZC for up and down, QE for swivel. Hold down Shift to go more slowly, Alt to go fast. Escape to quit.
 <P>
@@ -2727,7 +2727,7 @@ You can also see release notes at <a href="https://github.com/erich666/Mineways/
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
-<LI>Minecraft 1.17: Mineways version 9.03 or newer
+<LI>Minecraft 1.17: Mineways version 9.04 or newer
 <LI>Minecraft 1.16: Mineways version 8.08
 <LI>Minecraft 1.15: Mineways version 7.12
 <LI>Minecraft 1.14: Mineways version 7.07
@@ -2742,10 +2742,12 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
   <BR>
   <UL>
 	<LI>OBJ: make "split by block type" the new default setting for OBJ export, to help improve assigned roughness (specular power) for all materials. Really, this option should probably go away at this point, as "block families" are not easily determined, since type numbers are no longer used.
+	<LI>Tiny adjustment to sunflower back and front, so these no longer z-fight.
 	<LI>OBJ and USD: fix and adjust the default roughness (and metalness, if used) for many materials to be more reasonable, basing off the created material name.
 	<LI>USD: do not set sRGB for the emitter color space for UsdPreviewSurface.
 	<LI>USD: a few materials were not properly marked as semitransparent. Ice and frosted ice, nether portal, and honey fixed.
 	<LI>Sketchfab and USD: Check if glass and a few other textures are cutouts or semitransparent when they're output, so that map_d can be set if needed for Sketchfab and the opacityThreshold can be set appropriately for USD. Since its status can be determined, glass is now a cutout by default (as it is in original Minecraft).
+	<LI>Do not allow the "separate textures" directory to be a path, only allow a simple folder name.
 	<LI>*Updated JG-RTX terrain files with the very latest (they're constantly being updated). Switched to tiling normals from MDL for water, for now.
   </UL>
 
@@ -3119,7 +3121,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>Version 7.05, 9/13/2019 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV705.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>The G3D viewer has been updated to properly handle tile texture output. This viewer works well with Mineways OBJ files and is highly recommended. <a href="https://erich.realtimerendering.com/minecraft/public/mineways//g3d.zip">Download this custom build here</a>.
+<LI>The G3D viewer has been updated to properly handle tile texture output. This viewer works well with Mineways OBJ files and is highly recommended. <a href="https://erich.realtimerendering.com/minecraft/public/mineways/g3d.zip">Download this custom build here</a>.
 <LI>Tilemaker is updated to version 2.10:
 <UL>
 <LI>Update the number of tiles that can be read considerably, since the number of input tiles can be higher than the number actually used. This avoids a crash condition for some resource packs.
@@ -3424,7 +3426,7 @@ See <a href="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac?annot
 <LI>Moved to Windows 10 redistributables. If you get an error about MSVCR120.DLL being missing, you'll need to install the Microsoft Visual C++ 2013 Redistributable Package for your system. Select vcredist_x64.exe for your 64-bit system, vcredist_x86.exe if your system is 32 bits. To find out if your computer is running a 32-bit or 64-bit version of Windows, follow <a href="http://www.computerhope.com/issues/ch001121.htm">the instructions here</a>, which come down to "hold down the Windows key and then click the Pause|Break key, then look for System type".
 <LI>Added <a href="scripting.html">scripting support</a>. This is a huge deal if you're a serious user.
 <LI>Added <a href="reference.html">quick reference page</a>.
-<LI>Added a separate <a href="https://erich.realtimerendering.com/minecraft/public/mineways//g3d.zip">G3D viewer download</a>, explained <a href="#g3d">here</a>, with special controls to maintain Minecraft's blocky look.
+<LI>Added a separate <a href="https://erich.realtimerendering.com/minecraft/public/mineways/g3d.zip">G3D viewer download</a>, explained <a href="#g3d">here</a>, with special controls to maintain Minecraft's blocky look.
 <LI>Added <a href="#obj_export_options">material per type or per block</a> as an option for individual block export.
 <LI>Fixed rendering output to be 1 meter per block. If you want it back the old way, change "Make each block" back to 100 mm from 1000. You can even use <a href="scripting.html">scripting at startup</a> to do this automatically.
 <LI>Changed torch shear to rotate the torch instead, to match torches in 1.8 and newer.
