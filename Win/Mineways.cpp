@@ -6279,23 +6279,24 @@ static int interpretImportLine(char* line, ImportedSet& is)
             "no", // "Export no materials",
             "solid", // "Export solid material colors only (no textures)",
             "richer", // "Export richer color textures",
+            "noise", // "Export noise textures with color",
             "full", // "Export full color texture patterns",
+            "images", // "Export all textures to three large images",
             "tiles", // "Export tiles for textures"
-            "separate" // "Export separate textures"
+            "separate", // "Export separate textures"
+            "individual" // "Export individual textures"
         };
-        for (i = 0; i < 6; i++)
+        // should really use a struct - corresponds to those above.
+        int outputTypeCorrespondence[] = { 0,1,2,2,3,3,4,4,4 };
+        int outputTypeEntries = 9;
+        for (i = 0; i < outputTypeEntries; i++)
         {
             if (_stricmp(outputTypeString[i], string1) == 0)
             {
                 break;
             }
         }
-        // "Export separate textures"?
-        if (i == 5) {
-            // "Export tiles for textures"
-            i = 4;
-        }
-        if (i >= 6) {
+        if (i >= outputTypeEntries) {
             saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }
@@ -6305,7 +6306,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
             is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 0;
             is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
             is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 0;
-            switch (i)
+            switch (outputTypeCorrespondence[i])
             {
             case 0:
                 is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 1;
@@ -6323,9 +6324,23 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
                 // and retrieve path
                 {
-                    strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
+                    strPtr = findLineDataNoCase(line, "File type: Export individual textures to directory ");
                     if (strPtr != NULL) {
                         strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                    }
+                    else {
+                        // old format
+                        strPtr = findLineDataNoCase(line, "File type: Export separate textures to directory ");
+                        if (strPtr != NULL) {
+                            strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                        }
+                        else {
+                            // old format
+                            strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
+                            if (strPtr != NULL) {
+                                strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                            }
+                        }
                     }
                 }
                 break;

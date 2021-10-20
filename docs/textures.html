@@ -167,7 +167,7 @@ In a perfect world, you would just point Mineways at a resource pack (also once 
 Alas, life is not perfect. One problem is that mod makers use non-standard names for block face tiles, sometimes even making spelling errors. Untangling exactly the intent of the thousands of resource packs out there is tough to automate, and difficult to understand where things are going wrong.
 
 <P>
-Instead, Mineways relies on a single, giant texture (the "terrain file") that contains all the block face textures ("tiles"). This single "terrain file" image has roots in the early design of Minecraft itself, which used to use the same exact single texture. Minecraft now uses a separate texture tile for each block face; Mineways has kept with the single, giant texture of doom for input, but can output separate textures by using the "Export tiles for textures" option.
+Instead, Mineways relies on a single, giant texture (the "terrain file") that contains all the block face textures ("tiles"). This single "terrain file" image has roots in the early design of Minecraft itself, which used to use the same exact single texture. Minecraft now uses a separate texture tile for each block face; Mineways has kept with the single, giant texture of doom for input, but can output separate textures by using the "Export individual textures" option.
 
 <P>
 This terrain file that Mineways reads has some advantages, such as being a single PNG image vs. a giant set of individual texture images. By looking at one image, and knowing where to look, you can see all the textures Mineways will use. (Where to look? <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L77">Here</a>. All the tiles are listed by their column and row positions, e.g., gravel is at column 3, row 1 of the terrain image, starting counting from the upper left as 0,0.)
@@ -506,7 +506,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 10/15/2021</p>	</div>
+		<br id="lastUpdate">Last updated 10/19/2021</p>	</div>
 </div>
 
 </body>

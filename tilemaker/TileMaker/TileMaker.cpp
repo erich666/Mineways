@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.09"
+#define	VERSION_STRING	L"3.10"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -374,6 +374,15 @@ int wmain(int argc, wchar_t* argv[])
 		if (rc != 0)
 		{
 			reportReadError(rc, terrainBase);
+			// simply can't find file?
+			if (rc == 78) {
+				wsprintf(gErrorString, L"    The file terrainBase.png must be present in your current directory (i.e., where you're running things from\n"
+				    "    which might not necessarily be where TileMaker.exe is), or you must specify its path and name by using the\n"
+					"    command line option '-i c:\\your_path\\terrainBase.png' (with 'your_path' being where it is located).\n"
+				);
+				wprintf(gErrorString);
+				printHelp();
+			}
 			return 1;
 		}
 		readpng_cleanup(0, &basicterrain);
@@ -1202,11 +1211,10 @@ int wmain(int argc, wchar_t* argv[])
 		gWarningCount++;
 	}
 
-	if (gErrorCount)
+	if (gErrorCount) {
 		wprintf(L"\nERROR SUMMARY:\n%s\n", gConcatErrorString);
-
-	if (gErrorCount)
 		wprintf(L"Error count: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
+	}
 
 	wprintf(L"TileMaker summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	if (filesFound > filesProcessed) {
@@ -1227,7 +1235,7 @@ void printHelp()
 	wprintf(L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
 	wprintf(L"  -t tileSize - force a given (power of 2) tile size for the resulting terrainExt.png\n    file, e.g. 32, 128. Useful for zooming or making a 'draft quality'\n    terrainExt.png. If not set, largest tile found is used.\n");
 	wprintf(L"  -h # - scale any normalmap heightfields by this value. Default is 0.5.\n");
-	wprintf(L"  -c chosenTile - for tiles with multiple versions in a vertical strip,\n     (e.g. water, lava, portal), choose which tile to use. 0 means topmost, 1 second from top, 2 etc.;\n    -1 bottommost, -2 next to bottom.\n");
+	wprintf(L"  -c chosenTile - for tiles with multiple versions in a vertical strip,\n     (e.g. water, lava, portal), choose which tile to use. 0 means topmost, 1 second\n     from top, 2 etc.; -1 bottommost, -2 next to bottom.\n");
 	wprintf(L"  -nb - no base; the base texture terrainBase.png is not read. This option is\n    good for seeing what images are in the blocks directory, as these are\n    what get put into terrainExt.png.\n");
 	wprintf(L"  -nt - no tile directory; don't read in any images in the 'blocks' directory,\n    just the base texture is read in.\n");
 	wprintf(L"  -r - replace (from the 'blocks' directories) only those tiles not in the base\n    texture. This is a way of extending a base texture to new versions of Mineways.\n");
@@ -1416,8 +1424,8 @@ static void reportReadError(int rc, const wchar_t* filename)
 
 	if (rc != 78 && rc != 79 && rc < 100) {
 		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
+		saveErrorForEnd();
 	}
-	saveErrorForEnd();
 }
 
 static void saveErrorForEnd()

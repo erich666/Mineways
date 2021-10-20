@@ -22280,12 +22280,16 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 #endif
         {
             // otherwise, always export both, if not exporting tiles, since we don't know what the modeler likes
-            // When exporting tiles, assume map_d is not needed, as map_Kd will have alphas if needed - spec is unclear here
+            // When exporting tiles (individual textures), assume map_d is not needed, as map_Kd will have alphas if needed.
+            // Note that for individual textures, G3D doesn't like map_d being set. It interprets the RGBA texture
+            // as that we want to use the red channel as the alpha! This is a bug in G3D. Things work for the "three large
+            // images" output mode for G3D because there's a separate alpha texture that gets set (and, really, map_d
+            // could be left out entirely - if missing, G3D simply uses the alpha in the color map_Kd channel).
+            // Sketchfab does depend on map_d being there, however, for some reason.
             gModel.usesRGBA = 1;
             gModel.usesAlpha = 1;
             typeTextureFileName = textureRGBA;
-            // Sketchfab (currently not supported as a "separate texture" option, but maybe someday) needs map_d
-            sprintf_s(mapdString, 256, "%smap_d %s\n", (!(gModel.options->exportFlags & EXPT_SKFB)) && (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
+            sprintf_s(mapdString, 256, "%smap_d %s\n", (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
         }
     }
     else
@@ -27716,9 +27720,9 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     char* outputTypeString[] = {
         "Export no materials",
         "Export solid material colors only (no textures)",
-        "Export richer color textures",
-        "Export full color texture patterns",
-        "Export separate textures"
+        "Export noise textures with color",
+        "Export all textures to three large images",
+        "Export individual textures"
     };
 
     float inCM = gModel.scale * METERS_TO_CM;
