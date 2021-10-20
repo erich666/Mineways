@@ -720,6 +720,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     }
 
     ShowWindow(hWnd, (windowStatus == 2) ? SW_SHOWMINIMIZED : nCmdShow);
+    DragAcceptFiles(hWnd, TRUE);
     UpdateWindow(hWnd);
 
     return TRUE;
@@ -1888,6 +1889,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             if (GetOpenFileName(&ofn) == TRUE)
             {
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 int retCode = loadWorldFromFilename(pathAndFile, hWnd);
                 // load worked?
                 if (retCode) {
@@ -1918,6 +1920,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 rationalizeFilePath(pathAndFile);
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
@@ -1944,6 +1947,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 rationalizeFilePath(pathAndFile);
                 wcscpy_s(gImportFile, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gImportFile, gImportPath, NULL);
@@ -2387,6 +2391,73 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         closeMineways();
         break;
+
+    case WM_DROPFILES:
+        {
+            //Get the dropped file name.
+            wchar_t fileName[MAX_PATH_AND_FILE];
+            DragQueryFileW((HDROP)wParam, 0, fileName, MAX_PATH_AND_FILE);
+            rationalizeFilePath(fileName);
+
+            // now test for file type and do the right thing
+            wchar_t lcFileName[MAX_PATH_AND_FILE];
+            wcscpy_s(lcFileName, MAX_PATH_AND_FILE, fileName);
+            _wcslwr_s(lcFileName, MAX_PATH_AND_FILE);
+            // find where suffix is
+            int slen = (int)wcslen(lcFileName);
+            wchar_t* spos = lcFileName + slen - 1; // last character in string
+            int scount = 0;
+
+            while (*spos != '.' && scount < slen)
+            {
+                // quit if we hit a directory - no suffix found, quietly exit
+                if (*spos == gPreferredSeparator) {
+                    goto ExitDropfiles;
+                }
+                spos--;
+                scount++;
+            }
+
+            // find a suffix?
+            if (scount < slen) {
+                // get back to suffix itself
+                spos++;
+                if (wcscmp(spos, L"obj") == 0 ||
+                    wcscmp(spos, L"usda") == 0 ||
+                    wcscmp(spos, L"wrl") == 0 ||
+                    wcscmp(spos, L"mwscript") == 0 ||
+                    wcscmp(spos, L"txt") == 0    // for STL export
+                    ) {
+                    // import file
+                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, fileName);
+                    splitToPathAndName(gImportFile, gImportPath, NULL);
+                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                }
+                else if (wcscmp(spos, L"dat") == 0) {
+                    // load world file
+                    int retCode = loadWorldFromFilename(fileName, hWnd);
+                    // load worked?
+                    if (retCode) {
+                        if (retCode == 2) {
+                            gotoSurface(hWnd, hwndSlider, hwndLabel);
+                        }
+                        setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                    }
+                }
+                // a *little* weak in testing, the directory could contain "terrainExt", but good enough. GIGO.
+                else if (wcscmp(spos, L"png") == 0 && wcsstr(fileName, L"terrainExt") != NULL) {
+                    // copy file name, since it definitely appears to exist.
+                    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, fileName);
+                    splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+                    wchar_t title[MAX_PATH_AND_FILE];
+                    formTitle(&gWorldGuide, title);
+                    SetWindowTextW(hWnd, title);
+                }
+            }
+        }
+        ExitDropfiles:
+        break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
