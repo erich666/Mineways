@@ -163,7 +163,7 @@ Opening Worlds and Schematics
 </H2>
 There are many ways to open a Minecraft world or schematic file in Mineways. If one doesn't work for you, try the next.
 <P>
-<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders. You can also load a world by dragging and dropping its level.dat file on to Mineways. If you want to specify a different directory for where your world saves are located, use the "-s" option on the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a> on startup; see the <a href="scripting.html#clo">command line options</a>.
+<b>File | Open World:</b> In the "File" menu header there is "Open World". Click (or hover) and move to the right to select your world. These are the worlds in your "%appdata%\.minecraft\saves" directory. The worlds are listed by their (not necessarily unique) given names on the left, their folder on the right, and arranged alphabetically by these folders. If you want to specify a different directory for where your world saves are located, use the "-s" option on the <a href="http://www.computerhope.com/issues/chusedos.htm">command line</a> on startup; see the <a href="scripting.html#clo">command line options</a>.
 <P>
 <a id="blocktestworld">
 If you want to export some particular block,</a> use File | Open and select the "[Block Test World]" - this is an internally-generated "world" of blocks, with each block type listed from west to east in block ID order (for 1.12 and earlier; for 1.13 on I've assigned values greater than 255 in a somewhat sensible fashion), and with variants shown from north to south by their <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>. To select a single block, find it, right-click it, then hit "[" to move the bottom level up by one, thus selecting only the block itself and not the surrounding grass.
@@ -174,7 +174,9 @@ Here's a view of a small portion of [Block Test World] exported to OBJ and rende
 <P>
 If you can't find your world in the list, you can select "Find your world..." at the bottom, which is the same as doing...
 <P>
-<b>File | Open...:</b> This option is for opening schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". A pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g., rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model. NOTE: the new schematic file format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> for 1.13 data is currently not supported in Mineways.
+<b>File | Open...:</b> This option is for opening schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". Worth saying again: you can also load a world by dragging and dropping its level.dat file on to Mineways. Another pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g., rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
+<P>
+NOTE: the new schematic file format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> for 1.13 data is currently not supported in Mineways. See <a href="https://github.com/erich666/Mineways/issues/40">this issue report</a> for more information; short version: save the schematic to a world using WorldEdit or similar, since Mineways can read worlds.
 <P>
 <b>File | <a id="importsettings">Import Settings:</a></b> If you've previously exported a model from your world or schematic, you can select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. Doing so will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen. Alternately, you can simply drag and drop one of these files on to Mineways to load it.
 <P>
@@ -1552,53 +1554,58 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 </p><ul>
 <li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can no longer quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in some ways.
 
-</li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
+</li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it for that. But, it does much more than that, including letting you add mobs, swap in custom 3D meshes for objects, change character skins, etc.
+
+</li><LI><a href="https://chunky.llbit.se/">Chunky</a> is an amazing self-contained path-traced renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
 </li><li>OptiFine, Sonic Ether's Unbelievable Shaders, and related resource packs are definitely worth checking out. <a href="#renderTips">Find information here</a>.
 
 </li><li><a href="https://www.mineimator.com/">Mine-imator</a> lets you directly import from Minecraft and animate. It's pretty impressive! However, it doesn't export to 3D model files, so I guess I need to keep working on Mineways.
 
+</li><li><a href="https://ephtracy.github.io/">MagicaVoxel</a> read Minecraft schematics and gives a nice rendering of them. It's best for large models, as it converts everything to colored blocks, no details. There is also <a href="https://github.com/Zarbuz/FileToVox">code to convert to its .vox format</a>.
+
+</li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are geometrically textured, so 3D print out with more than just simple flat surfaces.
+
+</li><li><a href="https://itunes.apple.com/us/app/voxel/id333186489?mt=8">Voxel</a> is an iPad app that lets you design in voxels and send your model directly to Sculpteo for printing.
+
+</li><li><a href="http://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
+
+</li><li><a href="http://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
+
+
+</UL>
+
+<h4>Older Stuff</h4>
+Mostly defunct, but FYI and because I like to keep track.
+
+<UL>
+</li><li>The <a href="https://minecraftanimation.fandom.com/wiki/Minecraft_Animation_Wiki:Home">Minecraft Animation Wiki</a> is mostly about animations made by others, but has a few pages of direct interest to creators, such as <a href="https://minecraftanimation.fandom.com/wiki/List_of_commonly_used_Minecraft_animation_programs_and_their_foremost_users">who uses what programs</a> for Minecraft animation.
+
 </li><li><a href="http://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home and school 3D printers for the most part, since the STL comes without any colors.
 
 <li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=238087985">SourceCraft</a> creates maps for <a href="https://en.wikipedia.org/wiki/Source_(game_engine)">Valve's Source engine</a>, for games such as Team Fortress 2 and Garry's Mod, via Minecraft.
 
-</li><li>The <a href="https://minecraftanimation.fandom.com/wiki/Minecraft_Animation_Wiki:Home">Minecraft Animation Wiki</a> is mostly about animations made by others, but has a few pages of direct interest to creators, such as <a href="https://minecraftanimation.fandom.com/wiki/List_of_commonly_used_Minecraft_animation_programs_and_their_foremost_users">who uses what programs</a> for Minecraft animation.
-
 </li><li><a href="https://github.com/webbukkit/dynmap/wiki/Exporting-World-Data-in-Wavefront-OBJ-Format">dynmap</a> has an option to export blocks, even custom blocks, to the OBJ format. I haven't tried it; let me know how you find it.
 
-</li><li><a href="http://blokify.com/">Blokify</a> is a free Minecraft-style modeler for the iPad. I found placing individual blocks a bit dicey, but that's because they've built in ways to fill in lines of blocks in a single go. You can email yourself the resulting STL file (though it didn't work for me). The blocks used are geometrically textured, so 3D print out with more than just simple flat surfaces.
-
-</li><li><a href="http://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. I don't know how it compares to jmc2obj. If you use Blender, give both a try.
+</li><li><a href="http://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. Defunct, no updates since 2015, but mentioned because I'm a completist.
 
 </li><li><a href="http://www.minecraftprint.com/">MINECRAFT.print()</a> - these guys were first to print Minecraft models, all glory to them! You run some python scripts from a command line to take a volume and turn it into an STL file. There's a hollowing function (their Companion Cube is not solid, thank heavens). Cody pointed out <a href="http://www.youtube.com/watch?v=Sku5jOTwCP8">this nice little color export</a> someone did using their scripts. All that said, the python script is years out of date and won't work on Minecraft version 1.2 on (Anvil format).
 
-</li><li><a href="https://software.ultimaker.com/">Cura</a>, the software for the Ultimaker 3D printer, has <a href="https://groups.google.com/forum/#!topic/ultimaker/6FdlKOoJap0">a Minecraft import option</a>, step-by-step instructions <a href="http://www.instructables.com/id/3D-Print-Minecraft/?ALLSTEPS">here</a>.
+</li><li><a href="https://software.ultimaker.com/">Cura</a>, the software for the Ultimaker 3D printer, has <a href="https://groups.google.com/forum/#!topic/ultimaker/6FdlKOoJap0">a Minecraft import option</a>, step-by-step instructions <a href="http://www.instructables.com/id/3D-Print-Minecraft/?ALLSTEPS">here</a>. Again, ancient, but I like to keep track.
 
 </li><li><a href="http://www.thingiverse.com/thing:9940">Minecraft structure planner</a> - written in Ruby, this is a basic exporter of STL files from schematics. It's the first program I know to export color models from Minecraft for 3D printing.
 
 </li><li><a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/2520465-world-downloader-mod-create-backups-of-your-builds">Minecraft world exporter</a> (<a href="http://www.minecraftforum.net/topic/1444862-132-world-downloader-mod/">old thread</a>) - Mineways works only with worlds you have locally on your computer. If you can't download the multiplayer world you're in, use this mod to suck in whatever chunks you see.
 
-</li><li><a href="https://ephtracy.github.io/">MagicaVoxel</a> read Minecraft schematics and gives a nice rendering of them. It's best for large models, as it converts everything to colored blocks, no details. There is also <a href="https://github.com/Zarbuz/FileToVox">code to convert to its .vox format</a>.
+</li><li><a href="https://eihort.en.softonic.com/">Eihort</a> was an easy-to-use standalone program that lets you see and explore much more of your world at once.
 
-</li><li>Give <a href="https://bitbucket.org/lloigor/eihort/downloads">Eihort</a> a look for older worlds, it's an easy-to-use standalone program that lets you see and explore much more of your world at once. <a href="http://ephtracy.github.io/index.html?page=mv_renderer">MagicaVoxel Viewer</a> reads in schematic files and does a nice job displaying the blocks (always as full blocks, though, no detail). Finally, <a href="http://www.minecraftforum.net/topic/63913-chunky-minecraft-mapping-and-rendering-tool/">Chunky</a> is an amazing self-contained path-traced renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
-
-
-
-</li><li><a href="http://www.figureprints.com/minecraft/Default.aspx">FigurePrints</a> - this commercial firm has a 3D application that lets you select and preview a chunk of your world all in one place, then order it directly. The user interface for selecting a chunk is a bit weak ("just type your coordinates in here"), but on the other hand what it does is simply grabs the area near where the player is located. Preview is in 3D, which is great, and performance is snappy. A cool thing is that it works in multiplayer, and you don't need access to the world files! Also, just select the texture pack you want, vs. having to use a terrainExt.png file. It also does half-blocks and stairs (but not fences). Downsides include not being able to control the export in various ways. There are also some <a href="http://www.flickr.com/photos/68387974@N02/sets/72157629830706260/">texturing errors</a>, perhaps fixed by now. But, this software can all but improve over time - if it gets people trying out 3D printing, great! <a href="http://www.wired.com/2012/11/3-d-printed-minecraft/">Photos and more here</a>.
-
-</li><li><a href="http://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="http://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>.
-
-</li><li><a href="http://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
-
-</li><li><a href="https://itunes.apple.com/us/app/voxel/id333186489?mt=8">Voxel</a> is an iPad app that lets you design in voxels and send your model directly to Sculpteo for printing.
-
-</li><li><a href="https://github.com/FalconNL/mc2obj/downloads">mc2obj</a> (documentation and source <a href="https://github.com/FalconNL/mc2obj">here</a>) - mentioned mostly for historical purposes, it has been superseded by jmc2obj. This utility pulls in the specified Minecraft world data and makes an OBJ file. It <a href="http://www.reddit.com/r/mcobj/comments/k4se7/alpha_testers_wanted_for_mc2obj_an_exporter_that/">includes true geometry</a> vs. Mineways' whole block orientation.
+</li><li><a href="https://github.com/FalconNL/mc2obj/downloads">mc2obj</a> (documentation and source <a href="https://github.com/FalconNL/mc2obj">here</a>) - mentioned mostly for historical purposes, it has been superseded by jmc2obj, mentioned earlier. This utility pulls in the specified Minecraft world data and makes an OBJ file. It <a href="http://www.reddit.com/r/mcobj/comments/k4se7/alpha_testers_wanted_for_mc2obj_an_exporter_that/">includes true geometry</a> vs. Mineways' whole block orientation.
 
 </li><li><a href="https://github.com/quag/mcobj/downloads">mcobj</a> - again mentioned for historical purposes, the first-known exporter. There is a <a href="http://www.reddit.com/r/Minecraft/comments/jdkag/how_to_import_your_minecraft_world_into_blender/">Blender tutorial</a> and a <a href="http://www.reddit.com/r/mcobj/">gallery of results</a>. It has command-line and <a href="http://code.google.com/p/mcobj-gui/">dialog</a> versions. <a href="https://github.com/quag/mcobj">Source available</a>. It didn't apply textures.
 
 </li><li><a href="http://www.thingiverse.com/search?q=minecraft&sa=Search">Thingiverse</a> - this site contains a bunch of Minecraft-related models if you are looking for things to print. I think <a href="https://www.thingiverse.com/thing:30820">this one</a> is brilliant.
 
-</li><li><a href="http://www.wired.com/2012/11/augmented-minecraft-reality/">Minecraft Reality</a> sadly doesn't seem to be around any longer, but the demos of Minecraft objects inserted into the real world are cool to look at. Wait for <a href="https://thenextweb.com/augmented-reality/2019/05/17/minecraft-earth-game-augmented-reality-app/">Minecraft Earth</a>, coming out a mere seven years after this article.
+</li><li><a href="http://www.wired.com/2012/11/augmented-minecraft-reality/">Minecraft Reality</a> sadly doesn't seem to be around any longer, but the demos of Minecraft objects inserted into the real world are cool to look at. It beat the (now-defunct) <a href="https://www.minecraft.net/en-us/article/minecraft-earth-coming-end">Minecraft Earth</a> to the punch by seven years.
 
 </li>
 </ul>
@@ -2739,7 +2746,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Version 9.04, */*/2021 - in beta
   <BR>
   <UL>
-	<LI>Power user feature: drag and drop a model file (*.OBJ, *.USDA, *.WRL, or for STL, the related *.TXT file) on to Mineways and you will go to the settings used for that model (similar to Import Settings). Same with *.MWSCRIPT <a href="scripting.html">scripting</a> files. Drop a terrainExt*.png and it will set this terrain file. Drop a .dat world file and it will open this world.
+	<LI>Power user feature: drag and drop a model file (*.OBJ, *.USDA, *.WRL, or for STL, the related *.TXT file) on to Mineways and you will go to the settings used for that model (similar to Import Settings). Same with *.MWSCRIPT <a href="scripting.html">scripting</a> files. Drop a terrainExt*.png and it will set this terrain file. Drop a .dat world file and it will open this world. Drop a .schematic file and it will open that model.
 	<LI>OBJ: make "split by block type" the new default setting for OBJ export, to help improve assigned roughness (specular power) for all materials. Really, this option should probably go away at this point, as "block families" are not easily determined, since type numbers are no longer used.
 	<LI>Tiny adjustment to sunflower back and front, so these no longer z-fight.
 	<LI>OBJ and USD: fix and adjust the default roughness (and metalness, if used) for many materials to be more reasonable, basing off the created material name.
@@ -2750,6 +2757,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 	<LI>Better error reporting for TileMaker (now version 3.10) when terrainBase.png is not in the current directory. (<I>Thanks to Common for reporting the weak error reporting.</I>)
 	<LI>Make copper ore and deepslate copper ore more noticeably different than stone and deepslate on the map. (<I>Thanks to <a href="https://www.reddit.com/r/mineways/comments/q7jsoq/copper_and_deepslate_copper_ores_have_no_color_to/">MadeInSteak</a> for the suggestion.</I>)
 	<LI>Rename "Export full color texture patterns" to "Export all textures to three images", to better describe it. Similarly, "Export separate textures" is now "Export individual textures", and "Export richer color textures" to "Export noise textures with color." Documentation, export code, and scripting updated.
+	<LI>Remove ancient BlenderScripts directory - use MCprep instead.
 	<LI>*Updated JG-RTX terrain files with the very latest (they're constantly being updated). Switched to tiling normals from MDL for water, for now.
   </UL>
 

@@ -2425,7 +2425,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (wcscmp(spos, L"obj") == 0 ||
                     wcscmp(spos, L"usda") == 0 ||
                     wcscmp(spos, L"wrl") == 0 ||
-                    wcscmp(spos, L"schematic") == 0 ||
                     wcscmp(spos, L"mwscript") == 0 ||
                     wcscmp(spos, L"txt") == 0    // for STL export
                     ) {
@@ -2434,8 +2433,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     splitToPathAndName(gImportFile, gImportPath, NULL);
                     runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
                 }
-                else if (wcscmp(spos, L"dat") == 0) {
-                    // load world file
+                else if (wcscmp(spos, L"dat") == 0 ||
+                    wcscmp(spos, L"schematic") == 0
+                    ) {
+                    // attempt to load world or schematic file
                     int retCode = loadWorldFromFilename(fileName, hWnd);
                     // load worked?
                     if (retCode) {
