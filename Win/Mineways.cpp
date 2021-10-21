@@ -2425,6 +2425,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (wcscmp(spos, L"obj") == 0 ||
                     wcscmp(spos, L"usda") == 0 ||
                     wcscmp(spos, L"wrl") == 0 ||
+                    wcscmp(spos, L"schematic") == 0 ||
                     wcscmp(spos, L"mwscript") == 0 ||
                     wcscmp(spos, L"txt") == 0    // for STL export
                     ) {
