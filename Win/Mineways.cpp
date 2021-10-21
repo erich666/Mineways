@@ -6354,7 +6354,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
             "richer", // "Export richer color textures",
             "noise", // "Export noise textures with color",
             "full", // "Export full color texture patterns",
-            "images", // "Export all textures to three large images",
+            "all", // "Export all textures to three large images",
             "tiles", // "Export tiles for textures"
             "separate", // "Export separate textures"
             "individual" // "Export individual textures"
