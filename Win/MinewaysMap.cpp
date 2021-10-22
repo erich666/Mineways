@@ -3657,11 +3657,13 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 4:	// Dripstone Block
             color = 0x886E5E;
             break;
-        case 5:	// Copper Ore
-            color = 0x817F7A;
+        case 5:	// Copper Ore - make it a bit more extreme
+            //color = 0x817F7A; - average
+            color = 0x936C45;
             break;
-        case 6:	// Deepslate Copper Ore
-            color = 0x65625D;
+        case 6:	// Deepslate Copper Ore - make it a bit more extreme
+            //color = 0x65625D; - average
+            color = 0x63421F;
             break;
         case 7:	// Block of Copper
         case 15: // Waxed Block of Copper
@@ -6583,7 +6585,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // does block have anything in it other than air?
             if (block->blockType == NBT_VALID_BLOCK) {
                 int i;
-                // TODOTODO - or should we free the block?
+                // TODO someday: we could actually free the block, but the logic's a bit tricky. Leaving it be, since it works.
                 determineMaxFilledHeight(block);
 
                 // look for unknown blocks and recover

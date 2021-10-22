@@ -347,7 +347,7 @@ static struct {
     {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<15
     {_T("Error: out of memory - terrainExt*.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<16
     {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<17
-    {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export full color separate tiles' option."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
+    {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export separate tiles' option. Do not use a path of any sort, just give a folder name."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
     {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
 
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
@@ -720,6 +720,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     }
 
     ShowWindow(hWnd, (windowStatus == 2) ? SW_SHOWMINIMIZED : nCmdShow);
+    DragAcceptFiles(hWnd, TRUE);
     UpdateWindow(hWnd);
 
     return TRUE;
@@ -1888,6 +1889,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             if (GetOpenFileName(&ofn) == TRUE)
             {
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 int retCode = loadWorldFromFilename(pathAndFile, hWnd);
                 // load worked?
                 if (retCode) {
@@ -1918,6 +1920,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 rationalizeFilePath(pathAndFile);
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
@@ -1944,6 +1947,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (GetOpenFileName(&ofn) == TRUE)
             {
                 // copy file name, since it definitely appears to exist.
+                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
                 rationalizeFilePath(pathAndFile);
                 wcscpy_s(gImportFile, MAX_PATH_AND_FILE, pathAndFile);
                 splitToPathAndName(gImportFile, gImportPath, NULL);
@@ -2387,6 +2391,75 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         closeMineways();
         break;
+
+    case WM_DROPFILES:
+        {
+            //Get the dropped file name.
+            wchar_t fileName[MAX_PATH_AND_FILE];
+            DragQueryFileW((HDROP)wParam, 0, fileName, MAX_PATH_AND_FILE);
+            rationalizeFilePath(fileName);
+
+            // now test for file type and do the right thing
+            wchar_t lcFileName[MAX_PATH_AND_FILE];
+            wcscpy_s(lcFileName, MAX_PATH_AND_FILE, fileName);
+            _wcslwr_s(lcFileName, MAX_PATH_AND_FILE);
+            // find where suffix is
+            int slen = (int)wcslen(lcFileName);
+            wchar_t* spos = lcFileName + slen - 1; // last character in string
+            int scount = 0;
+
+            while (*spos != '.' && scount < slen)
+            {
+                // quit if we hit a directory - no suffix found, quietly exit
+                if (*spos == gPreferredSeparator) {
+                    goto ExitDropfiles;
+                }
+                spos--;
+                scount++;
+            }
+
+            // find a suffix?
+            if (scount < slen) {
+                // get back to suffix itself
+                spos++;
+                if (wcscmp(spos, L"obj") == 0 ||
+                    wcscmp(spos, L"usda") == 0 ||
+                    wcscmp(spos, L"wrl") == 0 ||
+                    wcscmp(spos, L"mwscript") == 0 ||
+                    wcscmp(spos, L"txt") == 0    // for STL export
+                    ) {
+                    // import file
+                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, fileName);
+                    splitToPathAndName(gImportFile, gImportPath, NULL);
+                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                }
+                else if (wcscmp(spos, L"dat") == 0 ||
+                    wcscmp(spos, L"schematic") == 0
+                    ) {
+                    // attempt to load world or schematic file
+                    int retCode = loadWorldFromFilename(fileName, hWnd);
+                    // load worked?
+                    if (retCode) {
+                        if (retCode == 2) {
+                            gotoSurface(hWnd, hwndSlider, hwndLabel);
+                        }
+                        setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                    }
+                }
+                // a *little* weak in testing, the directory could contain "terrainExt", but good enough. GIGO.
+                else if (wcscmp(spos, L"png") == 0 && wcsstr(fileName, L"terrainExt") != NULL) {
+                    // copy file name, since it definitely appears to exist.
+                    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, fileName);
+                    splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+                    wchar_t title[MAX_PATH_AND_FILE];
+                    formTitle(&gWorldGuide, title);
+                    SetWindowTextW(hWnd, title);
+                }
+            }
+        }
+        ExitDropfiles:
+        break;
+
     default:
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
@@ -6279,23 +6352,24 @@ static int interpretImportLine(char* line, ImportedSet& is)
             "no", // "Export no materials",
             "solid", // "Export solid material colors only (no textures)",
             "richer", // "Export richer color textures",
+            "noise", // "Export noise textures with color",
             "full", // "Export full color texture patterns",
+            "all", // "Export all textures to three large images",
             "tiles", // "Export tiles for textures"
-            "separate" // "Export separate textures"
+            "separate", // "Export separate textures"
+            "individual" // "Export individual textures"
         };
-        for (i = 0; i < 6; i++)
+        // should really use a struct - corresponds to those above.
+        int outputTypeCorrespondence[] = { 0,1,2,2,3,3,4,4,4 };
+        int outputTypeEntries = 9;
+        for (i = 0; i < outputTypeEntries; i++)
         {
             if (_stricmp(outputTypeString[i], string1) == 0)
             {
                 break;
             }
         }
-        // "Export separate textures"?
-        if (i == 5) {
-            // "Export tiles for textures"
-            i = 4;
-        }
-        if (i >= 6) {
+        if (i >= outputTypeEntries) {
             saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }
@@ -6305,7 +6379,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
             is.pEFD->radioExportSolidTexture[is.pEFD->fileType] = 0;
             is.pEFD->radioExportFullTexture[is.pEFD->fileType] = 0;
             is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 0;
-            switch (i)
+            switch (outputTypeCorrespondence[i])
             {
             case 0:
                 is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 1;
@@ -6323,9 +6397,23 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
                 // and retrieve path
                 {
-                    strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
+                    strPtr = findLineDataNoCase(line, "File type: Export individual textures to directory ");
                     if (strPtr != NULL) {
                         strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                    }
+                    else {
+                        // old format
+                        strPtr = findLineDataNoCase(line, "File type: Export separate textures to directory ");
+                        if (strPtr != NULL) {
+                            strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                        }
+                        else {
+                            // old format
+                            strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
+                            if (strPtr != NULL) {
+                                strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
+                            }
+                        }
                     }
                 }
                 break;
