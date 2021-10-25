@@ -920,7 +920,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     else {
         gModel.singleSided = false;
         if (gModel.customMaterial) {
-            // custom material can used single sided for emitters
+            // custom material can use single sided for emitters
             gModel.emitterSingleSided = true;
         }
         else {
@@ -22098,9 +22098,10 @@ static int writeOBJMtlFile()
             // The alternative for individual texture output would be to export both an RGB texture and a separate
             // A texture, which seems excessive.
 
+            // Well, time to leave G3D behind (or fix it). Always export map_d
             if (gModel.usesAlpha) {
                 sprintf_s(outputString, 2048,
-                    "%smap_d %s\n", (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
+                    "map_d %s\n", textureAlpha);
                 WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
             }
         }
@@ -22279,17 +22280,11 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         else
 #endif
         {
-            // otherwise, always export both, if not exporting tiles, since we don't know what the modeler likes
-            // When exporting tiles (individual textures), assume map_d is not needed, as map_Kd will have alphas if needed.
-            // Note that for individual textures, G3D doesn't like map_d being set. It interprets the RGBA texture
-            // as that we want to use the red channel as the alpha! This is a bug in G3D. Things work for the "three large
-            // images" output mode for G3D because there's a separate alpha texture that gets set (and, really, map_d
-            // could be left out entirely - if missing, G3D simply uses the alpha in the color map_Kd channel).
-            // Sketchfab does depend on map_d being there, however, for some reason.
+            // otherwise, always export both, if not exporting tiles, since we don't know what the modeler likes.
             gModel.usesRGBA = 1;
             gModel.usesAlpha = 1;
             typeTextureFileName = textureRGBA;
-            sprintf_s(mapdString, 256, "%smap_d %s\n", (gModel.exportTiles || gModel.customMaterial) ? "#" : "", textureAlpha);
+            sprintf_s(mapdString, 256, "map_d %s\n", textureAlpha);
         }
     }
     else
