@@ -4953,7 +4953,7 @@ static void initializePrintExportData(ExportFileData& printData)
     INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);
 
-    strcpy_s(printData.tileDirString, MAX_PATH, "textures");
+    strcpy_s(printData.tileDirString, MAX_PATH, "tex");
 
     printData.chkTextureRGB = 1;
     printData.chkTextureA = 0;
@@ -5056,7 +5056,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
 
-    strcpy_s(viewData.tileDirString, MAX_PATH, "textures");
+    strcpy_s(viewData.tileDirString, MAX_PATH, "tex");
 
     viewData.chkTextureRGB = 1;
     viewData.chkTextureA = 1;
