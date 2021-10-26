@@ -4663,9 +4663,11 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     // reality: if you're zipping and using separate tiles, I'm not going to delete those tiles.
                     // I'm also going to zip the whole folder, vs. messing around trying to export just the tiles needed.
                     // TODO - really should just export tiles needed, but this functionality is a bit tricky.
-                    if (ZipAdd(hz, relativeFile, relativeFile, 0, ZIP_FILENAME) != ZR_OK)
+                    if (ZipAdd(hz, relativeFile, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK)
                     {
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
+                        DWORD errorCode = GetLastError();
+                        errorCode;
                         MessageBox(NULL, _T("Warning: Not all files were saved to the ZIP file! Please report this problem to me at erich@acm.org."), _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                         break;
                     }
