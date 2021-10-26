@@ -3482,10 +3482,10 @@ static int loadWorldList(HMENU menu)
         return 0;
     }
 
-    // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
-    int count = 0;
     // If path is empty, don't search, worlds are not to be loaded.
     if (wcslen(gWorldPathDefault) > 0) {
+        // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
+        int count = 0;
         do
         {
             // Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
@@ -3736,9 +3736,9 @@ static int loadTerrainList(HMENU menu)
 	FindClose(hFind);
 
     // did the search stop due to running out of room for terrain files?
-    char charMsgString[1024];
     if (gNumTerrainFiles >= MAX_TERRAIN_FILES)
     {
+        char charMsgString[1024];
         sprintf_s(charMsgString, 1024, "Warning: more that %d terrain files detected. Not all terrain files have been added to the list.\n", MAX_TERRAIN_FILES);
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: more that %d terrain files detected. Not all terrain files have been added to the list.", MAX_TERRAIN_FILES);
@@ -4667,8 +4667,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     {
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
                         DWORD errorCode = GetLastError();
-                        errorCode;
-                        MessageBox(NULL, _T("Warning: Not all files were saved to the ZIP file! Please report this problem to me at erich@acm.org."), _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
+                        // if we need to get really fancy, include code at https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-the-last-error-code
+                        wchar_t errbuf[1024];
+                        wsprintf(errbuf, L"Warning: Not all files were saved to the ZIP file! Error code: %d. Please report this problem to me at erich@acm.org.", (int)errorCode); \
+                        MessageBox(NULL, errbuf, _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                         break;
                     }
 
@@ -6363,7 +6365,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         };
         // should really use a struct - corresponds to those above.
         int outputTypeCorrespondence[] = { 0,1,2,2,3,3,4,4,4 };
-        int outputTypeEntries = 9;
+        int outputTypeEntries = sizeof(outputTypeCorrespondence) / sizeof(outputTypeCorrespondence[0]);
         for (i = 0; i < outputTypeEntries; i++)
         {
             if (_stricmp(outputTypeString[i], string1) == 0)

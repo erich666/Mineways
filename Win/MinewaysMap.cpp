@@ -4572,7 +4572,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-        break;
     case BLOCK_CAKE:
     case BLOCK_QUARTZ_BLOCK:
     case BLOCK_INFESTED_STONE:
@@ -5670,7 +5669,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CHORUS_PLANT:
         // this one is specialized: dataVal says where to put neighbors, NSEW
         addBlock = 1;
-        bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        //bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         //block->grid[bi] = (unsigned char)type;
         //block->data[bi] = (unsigned char)finalDataVal;
 

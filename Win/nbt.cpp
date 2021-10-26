@@ -2107,11 +2107,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     // welcome to 1.18+ data
                     ret = 1;
 
-                    int subret = 0;
                     // folder of two things: palette and data
                     for (;;)
                     {
-                        subret = 0;
+                        int subret = 0;
                         type = 0;
                         if (bfread(pbf, &type, 1) < 0)
                             return -21;
@@ -2489,7 +2488,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
-        = conditional = inverted = enabled = doubleSlab = mode = waterlogged = in_wall = signal_fire = has_book = up = false;
+        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = 0;
