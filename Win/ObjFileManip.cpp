@@ -12974,7 +12974,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // these two primitives double-sided - perhaps because they are cutouts? G3D normally makes
         // blocks single sided. Anyway, there's z-fighting, which looks bad and is confusing.
         retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
-            DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
+            // DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
+            DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, // always include back side, esp. now that it's separated from the front (avoiding z-fighting)
             FLIP_X_FACE_VERTICALLY, 0, 7.95f, 8.05f, 0, 16, 0, 16);
         if (retCode > MW_BEGIN_ERRORS) return retCode;
 
