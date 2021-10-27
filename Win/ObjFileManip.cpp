@@ -25123,6 +25123,15 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     sprintf_s(outputString, 256, "    def Mesh \"%s\"\n    {\n", mtlName);
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
+    // is mesh two-sided? If it's interior to an opaque, it doesn't have to be, which can be a bit faster to render.
+    // Only Sketchfab cares, AFAIK. TODO - should test material.
+    // Note that elsewhere we'll test "gModel.customMaterial && isCutout && emission > 0.0f" for one-sided emission
+    unsigned int mtlFlags = gBlockDefinitions[gModel.faceList[startingFace]->materialType].flags;
+    if (mtlFlags & (BLF_CUTOUTS | BLF_TRANSPARENT)) {
+        strcpy_s(outputString, 256, "        bool doubleSided = 1\n");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    }
+
     strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numFaces; i++) {

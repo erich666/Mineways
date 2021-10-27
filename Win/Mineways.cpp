@@ -3484,7 +3484,6 @@ static int loadWorldList(HMENU menu)
     }
 
     // If path is empty, don't search, worlds are not to be loaded.
-    bool tooManyWorlds = false;
     bool worldFound = true;
     if (wcslen(gWorldPathDefault) > 0) {
         // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
@@ -3627,18 +3626,13 @@ static int loadWorldList(HMENU menu)
                 LOG_INFO(gExecutionLogfile, outputString);
                 }
             }
-            worldFound = (FindNextFile(hFind, &ffd) != 0);
-            if (worldFound && (gNumWorlds >= MAX_WORLDS) ) {
-                // note the condition that we have successfully read in another world, but there's no room
-                tooManyWorlds = true;
-            }
-        } while (worldFound && (gNumWorlds < MAX_WORLDS));
+        } while (((worldFound = FindNextFile(hFind, &ffd)) != 0) && (gNumWorlds < MAX_WORLDS));
     }
     FindClose(hFind);
 
     // did the search stop due to running out of room for worlds?
     char charMsgString[1024];
-    if (tooManyWorlds)
+    if (worldFound)
     {
         sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
