@@ -1656,8 +1656,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             useCustomColor(wmId, hWnd);
         }
-
-        if (wmId > IDM_WORLD && wmId < IDM_WORLD + MAX_WORLDS - 1)
+        else if (wmId > IDM_WORLD && wmId < IDM_WORLD + MAX_WORLDS)
         {
             // Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
 
@@ -1701,45 +1700,46 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             formTitle(&gWorldGuide, title);
             SetWindowTextW(hWnd, title);
         }
+        else {
 
-        // switch on chosen menu item
-        switch (wmId)
-        {
-        case IDM_ABOUT:
-            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-            break;
-        case IDM_HELP_URL:
-            ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case ID_HELP_TROUBLESHOOTING:
-            ShellExecute(NULL, L"open", L"http://mineways.com/downloads.html#windowsPlatformHelp", NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case ID_HELP_DOCUMENTATION:
-            ShellExecute(NULL, L"open", L"http://mineways.com/mineways.html", NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case ID_HELP_REPORTABUG:
-            ShellExecute(NULL, L"open", L"http://mineways.com/contact.html", NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case ID_FILE_DOWNLOADTERRAINFILES:
-            ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
-            break;
-        case IDM_FOCUSVIEW:
-            setLocationData((int)gCurX, (int)gCurZ);
-            if (doLocation(hInst, hWnd))
+            // switch on chosen menu item
+            switch (wmId)
             {
-                // successful, so change location
-                int x, z;
-                getLocationData(x, z);
-                gCurX = (double)x;
-                gCurZ = (double)z;
-                REDRAW_ALL;
-            }
+            case IDM_ABOUT:
+                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+                break;
+            case IDM_HELP_URL:
+                ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
+                break;
+            case ID_HELP_TROUBLESHOOTING:
+                ShellExecute(NULL, L"open", L"http://mineways.com/downloads.html#windowsPlatformHelp", NULL, NULL, SW_SHOWNORMAL);
+                break;
+            case ID_HELP_DOCUMENTATION:
+                ShellExecute(NULL, L"open", L"http://mineways.com/mineways.html", NULL, NULL, SW_SHOWNORMAL);
+                break;
+            case ID_HELP_REPORTABUG:
+                ShellExecute(NULL, L"open", L"http://mineways.com/contact.html", NULL, NULL, SW_SHOWNORMAL);
+                break;
+            case ID_FILE_DOWNLOADTERRAINFILES:
+                ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
+                break;
+            case IDM_FOCUSVIEW:
+                setLocationData((int)gCurX, (int)gCurZ);
+                if (doLocation(hInst, hWnd))
+                {
+                    // successful, so change location
+                    int x, z;
+                    getLocationData(x, z);
+                    gCurX = (double)x;
+                    gCurZ = (double)z;
+                    REDRAW_ALL;
+                }
 
-            //DialogBox(hInst, MAKEINTRESOURCE(IDD_FOCUS_VIEW), hWnd, About);
-            break;
-        case IDM_VIEW_INFORMATION:
-            // show information about world:
-            // name, directory name, major & minor version, spawn loc, player loc
+                //DialogBox(hInst, MAKEINTRESOURCE(IDD_FOCUS_VIEW), hWnd, About);
+                break;
+            case IDM_VIEW_INFORMATION:
+                // show information about world:
+                // name, directory name, major & minor version, spawn loc, player loc
             {
                 TCHAR infoString[1024];
                 switch (gWorldGuide.type) {
@@ -1789,524 +1789,525 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 );
             }
             break;
-        case ID_SELECT_ALL:
-            if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
-                //gTargetDepth = gMinHeight;
-                //gCurDepth = gWorldGuide.sch.height - 1;
+            case ID_SELECT_ALL:
+                if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+                    //gTargetDepth = gMinHeight;
+                    //gCurDepth = gWorldGuide.sch.height - 1;
 
-                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                // update target depth
-                gHighlightOn = TRUE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1, gMinHeight, gMaxHeight);
-                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-                drawInvalidateUpdate(hWnd);
-            }
-            else {
-                // select visible area, more or less
-                //gTargetDepth = gMinHeight;
-                //gCurDepth = gMaxHeight;
-
-                // get screen coordinates, roughly
-                {
-                    // gCurX/gCurZ is the center, so find the corners from that
-                    minx = (int)(gCurX - (double)bitWidth / (2 * gCurScale));
-                    minz = (int)(gCurZ - (double)bitHeight / (2 * gCurScale));
-                    maxx = (int)(gCurX + (double)bitWidth / (2 * gCurScale));
-                    maxz = (int)(gCurZ + (double)bitHeight / (2 * gCurScale));
+                    setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+                    // update target depth
+                    gHighlightOn = TRUE;
+                    SetHighlightState(gHighlightOn, 0, 0, 0, gWorldGuide.sch.width - 1, gWorldGuide.sch.height - 1, gWorldGuide.sch.length - 1, gMinHeight, gMaxHeight);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+                    drawInvalidateUpdate(hWnd);
                 }
+                else {
+                    // select visible area, more or less
+                    //gTargetDepth = gMinHeight;
+                    //gCurDepth = gMaxHeight;
 
-                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
-                // update target depth
-                gHighlightOn = TRUE;
-                SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
-                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-                drawInvalidateUpdate(hWnd);
-            }
-            break;
-        case IDM_COLOR:
-        {
-            doColorSchemes(hInst, hWnd);
-            populateColorSchemes(GetMenu(hWnd));
-            // always go back to the standard color scheme after editing, as editing
-            // could have removed the custom scheme being modified.
-            wchar_t* schemeSelected = getSelectedColorScheme();
-            int item = findColorScheme(schemeSelected);
-            if (item > 0)
+                    // get screen coordinates, roughly
+                    {
+                        // gCurX/gCurZ is the center, so find the corners from that
+                        minx = (int)(gCurX - (double)bitWidth / (2 * gCurScale));
+                        minz = (int)(gCurZ - (double)bitHeight / (2 * gCurScale));
+                        maxx = (int)(gCurX + (double)bitWidth / (2 * gCurScale));
+                        maxz = (int)(gCurZ + (double)bitHeight / (2 * gCurScale));
+                    }
+
+                    setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
+                    // update target depth
+                    gHighlightOn = TRUE;
+                    SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+                    drawInvalidateUpdate(hWnd);
+                }
+                break;
+            case IDM_COLOR:
             {
-                // use item selected in color scheme's create/delete/edit dialog, if found
-                useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
-            }
-            else {
-                // nothing selected in color scheme edit system, so set previously-used scheme, if available
-                item = findColorScheme(gSchemeSelected);
+                doColorSchemes(hInst, hWnd);
+                populateColorSchemes(GetMenu(hWnd));
+                // always go back to the standard color scheme after editing, as editing
+                // could have removed the custom scheme being modified.
+                wchar_t* schemeSelected = getSelectedColorScheme();
+                int item = findColorScheme(schemeSelected);
                 if (item > 0)
                 {
-                    //
+                    // use item selected in color scheme's create/delete/edit dialog, if found
                     useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
                 }
-                else
-                {
-                    // no user-defined scheme found, must be Standard
-                    useCustomColor(IDM_CUSTOMCOLOR, hWnd);
-                }
-            }
-        }
-        break;
-        case IDM_CLOSE:
-#ifdef SKETCHFAB
-            deleteFile();
-#endif
-            DestroyWindow(hWnd);
-            break;
-        case IDM_TEST_WORLD:
-            gWorldGuide.world[0] = 0;
-            gSameWorld = FALSE;
-#ifdef SKETCHFAB
-            sprintf_s(gSkfbPData.skfbName, "TestWorld");
-#endif
-            gotoSurface(hWnd, hwndSlider, hwndLabel);
-            gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
-            loadWorld(hWnd);
-            setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
-            break;
-        case IDM_WORLD:
-        case IDM_OPEN:
-            ZeroMemory(&ofn, sizeof(ofn));
-            ofn.lStructSize = sizeof(ofn);
-            ofn.hwndOwner = hWnd;
-            ofn.lpstrFile = pathAndFile;
-            ofn.lpstrFile[0] = (wchar_t)0;
-            ofn.nMaxFile = sizeof(pathAndFile);
-            ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
-            //ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
-            ofn.nFilterIndex = gOpenFilterIndex;
-            ofn.lpstrFileTitle = NULL;
-            ofn.nMaxFileTitle = 0;
-            wcscpy_s(path, MAX_PATH_AND_FILE, gWorldPathCurrent);
-            ofn.lpstrInitialDir = path;
-            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-            ofn.lpstrTitle = L"Open World level.dat or Schematic";
-
-            if (GetOpenFileName(&ofn) == TRUE)
-            {
-                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
-                int retCode = loadWorldFromFilename(pathAndFile, hWnd);
-                // load worked?
-                if (retCode) {
-                    if (retCode == 2) {
-                        gotoSurface(hWnd, hwndSlider, hwndLabel);
+                else {
+                    // nothing selected in color scheme edit system, so set previously-used scheme, if available
+                    item = findColorScheme(gSchemeSelected);
+                    if (item > 0)
+                    {
+                        //
+                        useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
                     }
-                    setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                    else
+                    {
+                        // no user-defined scheme found, must be Standard
+                        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
+                    }
                 }
             }
-            gOpenFilterIndex = ofn.nFilterIndex;
             break;
-        case IDM_FILE_SELECTTERRAIN:
-            ZeroMemory(&ofn, sizeof(OPENFILENAME));
-            ofn.lStructSize = sizeof(OPENFILENAME);
-            ofn.hwndOwner = hWnd;
-            wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gSelectTerrainPathAndName);
-            ofn.lpstrFile = pathAndFile;
-            //path[0]=0;
-            ofn.nMaxFile = MAX_PATH_AND_FILE;
-            ofn.lpstrFilter = L"Terrain File (terrainExt*.png)\0*.png\0";
-            ofn.nFilterIndex = 1;
-            ofn.lpstrFileTitle = NULL;
-            ofn.nMaxFileTitle = 0;
-            wcscpy_s(path, MAX_PATH_AND_FILE, gSelectTerrainDir);
-            ofn.lpstrInitialDir = path;
-            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-            ofn.lpstrTitle = L"Open Terrain File";
-            if (GetOpenFileName(&ofn) == TRUE)
-            {
-                // copy file name, since it definitely appears to exist.
-                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
-                rationalizeFilePath(pathAndFile);
-                wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
-                splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
-                wchar_t title[MAX_PATH_AND_FILE];
-                formTitle(&gWorldGuide, title);
-                SetWindowTextW(hWnd, title);
-            }
-            break;
-        case ID_FILE_IMPORTSETTINGS:
-            ZeroMemory(&ofn, sizeof(OPENFILENAME));
-            ofn.lStructSize = sizeof(OPENFILENAME);
-            ofn.hwndOwner = hWnd;
-            wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gImportFile);
-            ofn.lpstrFile = pathAndFile;
-            ofn.nMaxFile = MAX_PATH_AND_FILE;
-            ofn.lpstrFilter = L"All files (*.obj;*.usda;*.txt;*.wrl;*.mwscript)\0*.obj;*.usda;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
-            ofn.nFilterIndex = gImportFilterIndex;
-            ofn.lpstrFileTitle = NULL;
-            ofn.nMaxFileTitle = 0;
-            wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-            ofn.lpstrInitialDir = path;
-            ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-            ofn.lpstrTitle = L"Import Settings from model or script file";
-            if (GetOpenFileName(&ofn) == TRUE)
-            {
-                // copy file name, since it definitely appears to exist.
-                // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
-                rationalizeFilePath(pathAndFile);
-                wcscpy_s(gImportFile, MAX_PATH_AND_FILE, pathAndFile);
-                splitToPathAndName(gImportFile, gImportPath, NULL);
-                runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
-            }
-            gImportFilterIndex = ofn.nFilterIndex;
-            break;
-        case IDM_FILE_PRINTOBJ:
-        case IDM_FILE_SAVEOBJ:
-        case IDM_FILE_SCHEMATIC:
-        case IDM_FILE_EXPORTMAP:
-            if (!gHighlightOn)
-            {
-                // we keep the export options ungrayed now so that they're selectable when the world is loaded
-                MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
-                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
+            case IDM_CLOSE:
+#ifdef SKETCHFAB
+                deleteFile();
+#endif
+                DestroyWindow(hWnd);
                 break;
-            }
-            switch (wmId)
-            {
-            case IDM_FILE_SAVEOBJ:
-                gPrintModel = RENDERING_EXPORT;
+            case IDM_TEST_WORLD:
+                gWorldGuide.world[0] = 0;
+                gSameWorld = FALSE;
+#ifdef SKETCHFAB
+                sprintf_s(gSkfbPData.skfbName, "TestWorld");
+#endif
+                gotoSurface(hWnd, hwndSlider, hwndLabel);
+                gWorldGuide.type = WORLD_TEST_BLOCK_TYPE;
+                loadWorld(hWnd);
+                setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
                 break;
-            case IDM_FILE_PRINTOBJ:
-                gPrintModel = PRINTING_EXPORT;
+            case IDM_WORLD:
+            case IDM_OPEN:
+                ZeroMemory(&ofn, sizeof(ofn));
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner = hWnd;
+                ofn.lpstrFile = pathAndFile;
+                ofn.lpstrFile[0] = (wchar_t)0;
+                ofn.nMaxFile = sizeof(pathAndFile);
+                ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
+                //ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
+                ofn.nFilterIndex = gOpenFilterIndex;
+                ofn.lpstrFileTitle = NULL;
+                ofn.nMaxFileTitle = 0;
+                wcscpy_s(path, MAX_PATH_AND_FILE, gWorldPathCurrent);
+                ofn.lpstrInitialDir = path;
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+                ofn.lpstrTitle = L"Open World level.dat or Schematic";
+
+                if (GetOpenFileName(&ofn) == TRUE)
+                {
+                    // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
+                    int retCode = loadWorldFromFilename(pathAndFile, hWnd);
+                    // load worked?
+                    if (retCode) {
+                        if (retCode == 2) {
+                            gotoSurface(hWnd, hwndSlider, hwndLabel);
+                        }
+                        setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                    }
+                }
+                gOpenFilterIndex = ofn.nFilterIndex;
                 break;
-            case IDM_FILE_SCHEMATIC:
-                gPrintModel = SCHEMATIC_EXPORT;
-                break;
-            case IDM_FILE_EXPORTMAP:
-                gPrintModel = MAP_EXPORT;
-                break;
-            default:
-                MY_ASSERT(gAlwaysFail);
-                gPrintModel = RENDERING_EXPORT;
-            }
-            if (gPrintModel == SCHEMATIC_EXPORT)
-            {
-                // schematic
+            case IDM_FILE_SELECTTERRAIN:
                 ZeroMemory(&ofn, sizeof(OPENFILENAME));
                 ofn.lStructSize = sizeof(OPENFILENAME);
                 ofn.hwndOwner = hWnd;
-                ofn.lpstrFile = gExportPath;
+                wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gSelectTerrainPathAndName);
+                ofn.lpstrFile = pathAndFile;
+                //path[0]=0;
                 ofn.nMaxFile = MAX_PATH_AND_FILE;
-                ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
+                ofn.lpstrFilter = L"Terrain File (terrainExt*.png)\0*.png\0";
                 ofn.nFilterIndex = 1;
                 ofn.lpstrFileTitle = NULL;
                 ofn.nMaxFileTitle = 0;
-                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                wcscpy_s(path, MAX_PATH_AND_FILE, gSelectTerrainDir);
                 ofn.lpstrInitialDir = path;
-                ofn.lpstrTitle = L"Export Schematic";
                 ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-                saveOK = GetSaveFileName(&ofn);
-
-                gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
-            }
-            else if (gPrintModel == MAP_EXPORT)
-            {
-                // export map
-                ZeroMemory(&ofn, sizeof(OPENFILENAME));
-                ofn.lStructSize = sizeof(OPENFILENAME);
-                ofn.hwndOwner = hWnd;
-                ofn.lpstrFile = gExportPath;
-                ofn.nMaxFile = MAX_PATH_AND_FILE;
-                ofn.lpstrFilter = L"Portable Network Graphics (*.png)\0*.png\0";
-                ofn.nFilterIndex = 0;
-                ofn.lpstrFileTitle = NULL;
-                ofn.nMaxFileTitle = 0;
-                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-                ofn.lpstrInitialDir = path;
-                ofn.lpstrTitle = L"Export Map";
-                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-                saveOK = GetSaveFileName(&ofn);
-            }
-            else
-            {
-                // print model or render model - quite similar
-                ZeroMemory(&ofn, sizeof(OPENFILENAME));
-                ofn.lStructSize = sizeof(OPENFILENAME);
-                ofn.hwndOwner = hWnd;
-                ofn.lpstrFile = gExportPath;
-                ofn.nMaxFile = MAX_PATH_AND_FILE;
-                ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
-                    L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
-                ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
-                ofn.lpstrFileTitle = NULL;
-                ofn.nMaxFileTitle = 0;
-                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
-                ofn.lpstrInitialDir = path;
-                ofn.lpstrTitle = gPrintModel ? L"Export for 3D Printing" : L"Export for Rendering";
-                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-                saveOK = GetSaveFileName(&ofn);
-                // save file type selected, no matter what (even on cancel); we
-                // always set it because even if someone cancels a save, he probably still
-                // wanted the file type chosen.
-                if (gPrintModel)
+                ofn.lpstrTitle = L"Open Terrain File";
+                if (GetOpenFileName(&ofn) == TRUE)
                 {
-                    gExportPrintData.fileType = ofn.nFilterIndex - 1;
+                    // copy file name, since it definitely appears to exist.
+                    // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
+                    rationalizeFilePath(pathAndFile);
+                    wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
+                    splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
+                    wchar_t title[MAX_PATH_AND_FILE];
+                    formTitle(&gWorldGuide, title);
+                    SetWindowTextW(hWnd, title);
+                }
+                break;
+            case ID_FILE_IMPORTSETTINGS:
+                ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                ofn.lStructSize = sizeof(OPENFILENAME);
+                ofn.hwndOwner = hWnd;
+                wcscpy_s(pathAndFile, MAX_PATH_AND_FILE, gImportFile);
+                ofn.lpstrFile = pathAndFile;
+                ofn.nMaxFile = MAX_PATH_AND_FILE;
+                ofn.lpstrFilter = L"All files (*.obj;*.usda;*.txt;*.wrl;*.mwscript)\0*.obj;*.usda;*.txt;*.wrl;*.mwscript\0Wavefront OBJ (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Summary STL text file (*.txt)\0*.txt\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0Mineways script file (*.mwscript)\0*.mwscript\0";
+                ofn.nFilterIndex = gImportFilterIndex;
+                ofn.lpstrFileTitle = NULL;
+                ofn.nMaxFileTitle = 0;
+                wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                ofn.lpstrInitialDir = path;
+                ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+                ofn.lpstrTitle = L"Import Settings from model or script file";
+                if (GetOpenFileName(&ofn) == TRUE)
+                {
+                    // copy file name, since it definitely appears to exist.
+                    // NOTE: if this code changes, also change that for WM_DROPFILES, which (lazily) is a copy of this code
+                    rationalizeFilePath(pathAndFile);
+                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, pathAndFile);
+                    splitToPathAndName(gImportFile, gImportPath, NULL);
+                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                }
+                gImportFilterIndex = ofn.nFilterIndex;
+                break;
+            case IDM_FILE_PRINTOBJ:
+            case IDM_FILE_SAVEOBJ:
+            case IDM_FILE_SCHEMATIC:
+            case IDM_FILE_EXPORTMAP:
+                if (!gHighlightOn)
+                {
+                    // we keep the export options ungrayed now so that they're selectable when the world is loaded
+                    MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                        _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    break;
+                }
+                switch (wmId)
+                {
+                case IDM_FILE_SAVEOBJ:
+                    gPrintModel = RENDERING_EXPORT;
+                    break;
+                case IDM_FILE_PRINTOBJ:
+                    gPrintModel = PRINTING_EXPORT;
+                    break;
+                case IDM_FILE_SCHEMATIC:
+                    gPrintModel = SCHEMATIC_EXPORT;
+                    break;
+                case IDM_FILE_EXPORTMAP:
+                    gPrintModel = MAP_EXPORT;
+                    break;
+                default:
+                    MY_ASSERT(gAlwaysFail);
+                    gPrintModel = RENDERING_EXPORT;
+                }
+                if (gPrintModel == SCHEMATIC_EXPORT)
+                {
+                    // schematic
+                    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                    ofn.lStructSize = sizeof(OPENFILENAME);
+                    ofn.hwndOwner = hWnd;
+                    ofn.lpstrFile = gExportPath;
+                    ofn.nMaxFile = MAX_PATH_AND_FILE;
+                    ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
+                    ofn.nFilterIndex = 1;
+                    ofn.lpstrFileTitle = NULL;
+                    ofn.nMaxFileTitle = 0;
+                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                    ofn.lpstrInitialDir = path;
+                    ofn.lpstrTitle = L"Export Schematic";
+                    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                    saveOK = GetSaveFileName(&ofn);
+
+                    gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+                }
+                else if (gPrintModel == MAP_EXPORT)
+                {
+                    // export map
+                    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                    ofn.lStructSize = sizeof(OPENFILENAME);
+                    ofn.hwndOwner = hWnd;
+                    ofn.lpstrFile = gExportPath;
+                    ofn.nMaxFile = MAX_PATH_AND_FILE;
+                    ofn.lpstrFilter = L"Portable Network Graphics (*.png)\0*.png\0";
+                    ofn.nFilterIndex = 0;
+                    ofn.lpstrFileTitle = NULL;
+                    ofn.nMaxFileTitle = 0;
+                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                    ofn.lpstrInitialDir = path;
+                    ofn.lpstrTitle = L"Export Map";
+                    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+                    saveOK = GetSaveFileName(&ofn);
                 }
                 else
                 {
-                    gExportViewData.fileType = ofn.nFilterIndex - 1;
-                }
-            }
-            if (saveOK)
-            {
-                // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
-                gExported = 0;
-                // TODO: this whole export file name and path stuff could use some work.
-                wcscpy_s(gImportPath, MAX_PATH_AND_FILE, gExportPath);
+                    // print model or render model - quite similar
+                    ZeroMemory(&ofn, sizeof(OPENFILENAME));
+                    ofn.lStructSize = sizeof(OPENFILENAME);
+                    ofn.hwndOwner = hWnd;
+                    ofn.lpstrFile = gExportPath;
+                    ofn.nMaxFile = MAX_PATH_AND_FILE;
+                    ofn.lpstrFilter = gPrintModel ? L"Sculpteo: Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0i.materialise: Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0Shapeways: VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0" :
+                        L"Wavefront OBJ, absolute (*.obj)\0*.obj\0Wavefront OBJ, relative (*.obj)\0*.obj\0Universal Scene Description (*.usda)\0*.usda\0Binary Materialise Magics STL stereolithography file (*.stl)\0*.stl\0Binary VisCAM STL stereolithography file (*.stl)\0*.stl\0ASCII text STL stereolithography file (*.stl)\0*.stl\0VRML 2.0 (VRML 97) file (*.wrl)\0*.wrl\0";
+                    ofn.nFilterIndex = (gPrintModel ? gExportPrintData.fileType + 1 : gExportViewData.fileType + 1);
+                    ofn.lpstrFileTitle = NULL;
+                    ofn.nMaxFileTitle = 0;
+                    wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
+                    ofn.lpstrInitialDir = path;
+                    ofn.lpstrTitle = gPrintModel ? L"Export for 3D Printing" : L"Export for Rendering";
+                    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-                // Yes, have the code drop through at this point, we're all set up to export, so it's like a "repeat"
-
-            case IDM_FILE_REPEATPREVIOUSEXPORT:
-                if (gPrintModel == MAP_EXPORT) {
-                    // export 2D map image
-                    GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
-                    gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gExportPath);
+                    saveOK = GetSaveFileName(&ofn);
+                    // save file type selected, no matter what (even on cancel); we
+                    // always set it because even if someone cancels a save, he probably still
+                    // wanted the file type chosen.
+                    if (gPrintModel)
+                    {
+                        gExportPrintData.fileType = ofn.nFilterIndex - 1;
+                    }
+                    else
+                    {
+                        gExportViewData.fileType = ofn.nFilterIndex - 1;
+                    }
                 }
-                else {
-                    gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
-                }
-                SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
-                enableBottomControl(1, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-                // put target depth to new depth set, if any
-                if (gTargetDepth != gpEFD->maxyVal)
+                if (saveOK)
                 {
-                    gTargetDepth = gpEFD->minyVal;
-                }
-                gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
-                    bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
-                updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
-                setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
-            }   // matches to "if ( saveOK )"
-            break;
+                    // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
+                    gExported = 0;
+                    // TODO: this whole export file name and path stuff could use some work.
+                    wcscpy_s(gImportPath, MAX_PATH_AND_FILE, gExportPath);
 
-        case IDM_PUBLISH_SKFB:
-#ifdef SKETCHFAB
-            if (!gHighlightOn)
-            {
-                // we keep the export options ungrayed now so that they're selectable when the world is loaded
-                MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
-                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    // Yes, have the code drop through at this point, we're all set up to export, so it's like a "repeat"
+
+                case IDM_FILE_REPEATPREVIOUSEXPORT:
+                    if (gPrintModel == MAP_EXPORT) {
+                        // export 2D map image
+                        GetHighlightState(&on, &gpEFD->minxVal, &gpEFD->minyVal, &gpEFD->minzVal, &gpEFD->maxxVal, &gpEFD->maxyVal, &gpEFD->maxzVal, gMinHeight);
+                        gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gExportPath);
+                    }
+                    else {
+                        gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+                    }
+                    SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight);
+                    enableBottomControl(1, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+                    // put target depth to new depth set, if any
+                    if (gTargetDepth != gpEFD->maxyVal)
+                    {
+                        gTargetDepth = gpEFD->minyVal;
+                    }
+                    gBlockLabel = IDBlock(LOWORD(gHoldlParam), HIWORD(gHoldlParam) - MAIN_WINDOW_TOP, gCurX, gCurZ,
+                        bitWidth, bitHeight, gMinHeight, gCurScale, &mx, &my, &mz, &type, &dataVal, &biome, gWorldGuide.type == WORLD_SCHEMATIC_TYPE);
+                    updateStatus(mx, mz, my, gBlockLabel, type, dataVal, biome, hwndStatus);
+                    setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+                    setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, true);
+                }   // matches to "if ( saveOK )"
                 break;
-            }
-            {
-                // Force it to be an rendering export: Relative obj
-                LPTSTR filepath = prepareSketchfabExportFile(hWnd);
-                publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
-            }
+
+            case IDM_PUBLISH_SKFB:
+#ifdef SKETCHFAB
+                if (!gHighlightOn)
+                {
+                    // we keep the export options ungrayed now so that they're selectable when the world is loaded
+                    MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                        _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    break;
+                }
+                {
+                    // Force it to be an rendering export: Relative obj
+                    LPTSTR filepath = prepareSketchfabExportFile(hWnd);
+                    publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
+                }
 #else
-            MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
-                _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
+                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
 
 #endif
-            break;
-        case IDM_JUMPSPAWN:
-            gCurX = gSpawnX;
-            gCurZ = gSpawnZ;
-            if (gOptions.worldType & HELL)
-            {
-                gCurX /= 8.0;
-                gCurZ /= 8.0;
-            }
-            REDRAW_ALL;
-            break;
-        case IDM_JUMPPLAYER:
-            gCurX = gPlayerX;
-            gCurZ = gPlayerZ;
-            if (gOptions.worldType & HELL)
-            {
-                gCurX /= 8.0;
-                gCurZ /= 8.0;
-            }
-            REDRAW_ALL;
-            break;
-        case IDM_VIEW_JUMPTOMODEL: // F4
-            if (!gHighlightOn)
-            {
-                // we keep the jump option ungrayed now so that it's selectable when the world is loaded
-                MessageBox(NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
-                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 break;
-            }
-            GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
-            if (on)
-            {
-                gCurX = (minx + maxx) / 2;
-                gCurZ = (minz + maxz) / 2;
+            case IDM_JUMPSPAWN:
+                gCurX = gSpawnX;
+                gCurZ = gSpawnZ;
                 if (gOptions.worldType & HELL)
                 {
                     gCurX /= 8.0;
                     gCurZ /= 8.0;
                 }
                 REDRAW_ALL;
-            }
-            break;
-        case IDM_SHOWALLOBJECTS:
-            // TODO: super-minor bug: if mouse does not move when you turn all objects on, the
-            // status bar will continue to list the object there before toggling, e.g. if a wall
-            // sign was shown and you toggle Show All Objects off, the wall sign status will still be there.
-            gOptions.worldType ^= SHOWALL;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & SHOWALL) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_VIEW_SHOWBIOMES:
-            // toggles bit from its previous state
-            gOptions.worldType ^= BIOMES;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & BIOMES) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_DEPTH:
-            gOptions.worldType ^= DEPTHSHADING;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & DEPTHSHADING) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_LIGHTING:
-            gOptions.worldType ^= LIGHTING;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & LIGHTING) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_CAVEMODE:
-            gOptions.worldType ^= CAVEMODE;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & CAVEMODE) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_OBSCURED:
-            gOptions.worldType ^= HIDEOBSCURED;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_TRANSPARENT_WATER:
-            gOptions.worldType ^= TRANSPARENT_WATER;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & TRANSPARENT_WATER) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_MAPGRID:
-            gOptions.worldType ^= MAP_GRID;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & MAP_GRID) ? MF_CHECKED : MF_UNCHECKED);
-            REDRAW_ALL;
-            break;
-        case IDM_RELOAD_WORLD:
-            // reload world, if loaded
-            if (gLoaded)
-            {
-                if (loadWorld(hWnd))
+                break;
+            case IDM_JUMPPLAYER:
+                gCurX = gPlayerX;
+                gCurZ = gPlayerZ;
+                if (gOptions.worldType & HELL)
                 {
-                    // world not loaded properly
-                    MessageBox(NULL, _T("Error: cannot reload world."),
-                        _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-
-                    return 0;
-                }
-                // TODO: reload world list, too, so that new worlds added since now appear.
-                // Ignore any errors (non-Anvil), since these were already reported.
-                // TODO: I couldn't figure out how to remove the existing world list,
-                // so this call just adds more and more copies of the original world list.
-                //loadWorldList(GetMenu(hWnd));
-                setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
-            }
-            else {
-                MessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
-            }
-            break;
-        case IDM_HELL:
-            if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                if (!(gOptions.worldType & HELL))
-                {
-                    CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
-                    gOptions.worldType |= HELL;
-                    CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
-                    gOptions.worldType &= ~ENDER;
-                    // change scale as needed
                     gCurX /= 8.0;
                     gCurZ /= 8.0;
-                    // it's useless to view Nether from MAP_MAX_HEIGHT
-                    if (gCurDepth == gMaxHeight)
-                    {
-                        gCurDepth = 126;
-                        setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                    }
-                    gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-                    gOptions.worldType |= HIDEOBSCURED;
-                    //gTargetDepth=0;
-                    // semi-useful, I'm not sure: zoom in when going to nether
-                    //gCurScale *= 8.0;
-                    //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
                 }
-                else
-                {
-                    // back to the overworld
-                    gotoSurface(hWnd, hwndSlider, hwndLabel);
-                }
-                CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-                CloseAll();
-                // clear selection when you switch from somewhere else to The Nether, or vice versa
-                gHighlightOn = FALSE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
-                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-
                 REDRAW_ALL;
-            }
-
-            break;
-        case IDM_END:
-            if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                if (!(gOptions.worldType & ENDER))
+                break;
+            case IDM_VIEW_JUMPTOMODEL: // F4
+                if (!gHighlightOn)
                 {
-                    // entering Ender, turn off hell if need be
-                    CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
-                    gOptions.worldType |= ENDER;
+                    // we keep the jump option ungrayed now so that it's selectable when the world is loaded
+                    MessageBox(NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
+                        _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    break;
+                }
+                GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+                if (on)
+                {
+                    gCurX = (minx + maxx) / 2;
+                    gCurZ = (minz + maxz) / 2;
                     if (gOptions.worldType & HELL)
                     {
-                        // get out of hell zoom
-                        gCurX *= 8.0;
-                        gCurZ *= 8.0;
-                        // and undo other hell stuff
-                        if (gCurDepth == 126)
+                        gCurX /= 8.0;
+                        gCurZ /= 8.0;
+                    }
+                    REDRAW_ALL;
+                }
+                break;
+            case IDM_SHOWALLOBJECTS:
+                // TODO: super-minor bug: if mouse does not move when you turn all objects on, the
+                // status bar will continue to list the object there before toggling, e.g. if a wall
+                // sign was shown and you toggle Show All Objects off, the wall sign status will still be there.
+                gOptions.worldType ^= SHOWALL;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & SHOWALL) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_VIEW_SHOWBIOMES:
+                // toggles bit from its previous state
+                gOptions.worldType ^= BIOMES;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & BIOMES) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_DEPTH:
+                gOptions.worldType ^= DEPTHSHADING;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & DEPTHSHADING) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_LIGHTING:
+                gOptions.worldType ^= LIGHTING;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & LIGHTING) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_CAVEMODE:
+                gOptions.worldType ^= CAVEMODE;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & CAVEMODE) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_OBSCURED:
+                gOptions.worldType ^= HIDEOBSCURED;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_TRANSPARENT_WATER:
+                gOptions.worldType ^= TRANSPARENT_WATER;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & TRANSPARENT_WATER) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_MAPGRID:
+                gOptions.worldType ^= MAP_GRID;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & MAP_GRID) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
+            case IDM_RELOAD_WORLD:
+                // reload world, if loaded
+                if (gLoaded)
+                {
+                    if (loadWorld(hWnd))
+                    {
+                        // world not loaded properly
+                        MessageBox(NULL, _T("Error: cannot reload world."),
+                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+
+                        return 0;
+                    }
+                    // TODO: reload world list, too, so that new worlds added since now appear.
+                    // Ignore any errors (non-Anvil), since these were already reported.
+                    // TODO: I couldn't figure out how to remove the existing world list,
+                    // so this call just adds more and more copies of the original world list.
+                    //loadWorldList(GetMenu(hWnd));
+                    setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                }
+                else {
+                    MessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                }
+                break;
+            case IDM_HELL:
+                if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+                    if (!(gOptions.worldType & HELL))
+                    {
+                        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
+                        gOptions.worldType |= HELL;
+                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
+                        gOptions.worldType &= ~ENDER;
+                        // change scale as needed
+                        gCurX /= 8.0;
+                        gCurZ /= 8.0;
+                        // it's useless to view Nether from MAP_MAX_HEIGHT
+                        if (gCurDepth == gMaxHeight)
                         {
-                            gCurDepth = gMaxHeight;
+                            gCurDepth = 126;
                             setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
                         }
-                        // turn off obscured, then restore overworld's obscured status
-                        gOptions.worldType &= ~HIDEOBSCURED;
-                        CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-                        gOptions.worldType |= gOverworldHideStatus;
-                        // uncheck hell menu item
-                        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
-                        gOptions.worldType &= ~HELL;
+                        gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
+                        gOptions.worldType |= HIDEOBSCURED;
+                        //gTargetDepth=0;
+                        // semi-useful, I'm not sure: zoom in when going to nether
+                        //gCurScale *= 8.0;
+                        //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
                     }
-                }
-                else
-                {
-                    // exiting Ender, go back to overworld
-                    gotoSurface(hWnd, hwndSlider, hwndLabel);
-                }
-                CloseAll();
-                // clear selection when you switch from somewhere else to The End, or vice versa
-                gHighlightOn = FALSE;
-                SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
-                enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+                    else
+                    {
+                        // back to the overworld
+                        gotoSurface(hWnd, hwndSlider, hwndLabel);
+                    }
+                    CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+                    CloseAll();
+                    // clear selection when you switch from somewhere else to The Nether, or vice versa
+                    gHighlightOn = FALSE;
+                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
 
-                REDRAW_ALL;
+                    REDRAW_ALL;
+                }
+
+                break;
+            case IDM_END:
+                if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
+                    if (!(gOptions.worldType & ENDER))
+                    {
+                        // entering Ender, turn off hell if need be
+                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
+                        gOptions.worldType |= ENDER;
+                        if (gOptions.worldType & HELL)
+                        {
+                            // get out of hell zoom
+                            gCurX *= 8.0;
+                            gCurZ *= 8.0;
+                            // and undo other hell stuff
+                            if (gCurDepth == 126)
+                            {
+                                gCurDepth = gMaxHeight;
+                                setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
+                            }
+                            // turn off obscured, then restore overworld's obscured status
+                            gOptions.worldType &= ~HIDEOBSCURED;
+                            CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
+                            gOptions.worldType |= gOverworldHideStatus;
+                            // uncheck hell menu item
+                            CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
+                            gOptions.worldType &= ~HELL;
+                        }
+                    }
+                    else
+                    {
+                        // exiting Ender, go back to overworld
+                        gotoSurface(hWnd, hwndSlider, hwndLabel);
+                    }
+                    CloseAll();
+                    // clear selection when you switch from somewhere else to The End, or vice versa
+                    gHighlightOn = FALSE;
+                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight);
+                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
+
+                    REDRAW_ALL;
+                }
+                break;
+            case IDM_HELP_GIVEMEMOREMEMORY:
+                // This option can help give you more memory during export.
+                // It clears and reloads the world during this process and reallocs chunks to be smaller, the freed memory can then be used for
+                // other export processing functions.
+                gOptions.moreExportMemory = !gOptions.moreExportMemory;
+                CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
+                MinimizeCacheBlocks(gOptions.moreExportMemory);
+                break;
+            default:
+                return DefWindowProc(hWnd, message, wParam, lParam);
             }
-            break;
-        case IDM_HELP_GIVEMEMOREMEMORY:
-            // This option can help give you more memory during export.
-            // It clears and reloads the world during this process and reallocs chunks to be smaller, the freed memory can then be used for
-            // other export processing functions.
-            gOptions.moreExportMemory = !gOptions.moreExportMemory;
-            CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
-            MinimizeCacheBlocks(gOptions.moreExportMemory);
-            break;
-        default:
-            return DefWindowProc(hWnd, message, wParam, lParam);
         }
         validateItems(GetMenu(hWnd));
         break;
@@ -3483,6 +3484,8 @@ static int loadWorldList(HMENU menu)
     }
 
     // If path is empty, don't search, worlds are not to be loaded.
+    bool tooManyWorlds = false;
+    bool worldFound = true;
     if (wcslen(gWorldPathDefault) > 0) {
         // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
         int count = 0;
@@ -3525,111 +3528,117 @@ static int loadWorldList(HMENU menu)
                         MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     }
 
-                    LOG_INFO(gExecutionLogfile, "        try to get file version\n");
-                    int errCode = GetFileVersion(testAnvil, &version, gFileOpened, MAX_PATH_AND_FILE);
-                    if (errCode != 0) {
-                        // unreadable world, for some reason - couldn't read version and LevelName
-                        flagUnreadableWorld(testAnvil, pConverted, errCode);
-                        continue;
-                    }
-                    LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
-                    errCode = GetLevelName(testAnvil, levelName, MAX_PATH_AND_FILE);
-                    if (errCode != 0) {
-                        // unreadable world, for some reason - couldn't read version and LevelName
-                        flagUnreadableWorld(testAnvil, pConverted, errCode);
-                        continue;
-                    }
+                LOG_INFO(gExecutionLogfile, "        try to get file version\n");
+                int errCode = GetFileVersion(testAnvil, &version, gFileOpened, MAX_PATH_AND_FILE);
+                if (errCode != 0) {
+                    // unreadable world, for some reason - couldn't read version and LevelName
+                    flagUnreadableWorld(testAnvil, pConverted, errCode);
+                    continue;
+                }
+                LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
+                errCode = GetLevelName(testAnvil, levelName, MAX_PATH_AND_FILE);
+                if (errCode != 0) {
+                    // unreadable world, for some reason - couldn't read version and LevelName
+                    flagUnreadableWorld(testAnvil, pConverted, errCode);
+                    continue;
+                }
 
-                    // Only needed for culling out files we cannot yet read, e.g., 1.18 at one point
-                    //LOG_INFO(gExecutionLogfile, "        try to get file version ID\n");
-                    //int versionID;
-                    //errCode = GetFileVersionId(testAnvil, &versionID);
-                    //if (errCode != 0) {
-                    //    // unreadable world, for some reason - couldn't read version and LevelName
-                    //    //flagUnreadableWorld(testAnvil, pConverted, errCode);
-                    //    //continue;
-                    //    // Note, some worlds do this, e.g., 1.7 and 1.8 worlds don't have a version.
-                    //    // So, set the versionID to 0 and move on.
-                    //    versionID = 0;
-                    //}
+                // Only needed for culling out files we cannot yet read, e.g., 1.18 at one point
+                //LOG_INFO(gExecutionLogfile, "        try to get file version ID\n");
+                //int versionID;
+                //errCode = GetFileVersionId(testAnvil, &versionID);
+                //if (errCode != 0) {
+                //    // unreadable world, for some reason - couldn't read version and LevelName
+                //    //flagUnreadableWorld(testAnvil, pConverted, errCode);
+                //    //continue;
+                //    // Note, some worlds do this, e.g., 1.7 and 1.8 worlds don't have a version.
+                //    // So, set the versionID to 0 and move on.
+                //    versionID = 0;
+                //}
 
-                    /* Only needed for debug. Trying to minimize these calls, see issue https://github.com/erich666/Mineways/issues/31
-                    int versionId = 0;
-                    char versionName[MAX_PATH_AND_FILE];
-                    versionName[0] = (char)0;
-                    LOG_INFO(gExecutionLogfile, "        try to get file version id\n");
-                    // This is a newer tag for 1.9 and on, older worlds do not have them
-                    if (GetFileVersionId(testAnvil, &versionId) != 0) {
-                        // older file type, does not have it.
-                        LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version id, which is fine\n");
-                    }
-                    LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
-                    if (GetFileVersionName(testAnvil, versionName, MAX_PATH_AND_FILE) != 0) {
-                        // older file type, does not have it.
-                        LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version name, which is fine\n");
-                    }
-                    */
+                /* Only needed for debug. Trying to minimize these calls, see issue https://github.com/erich666/Mineways/issues/31
+                int versionId = 0;
+                char versionName[MAX_PATH_AND_FILE];
+                versionName[0] = (char)0;
+                LOG_INFO(gExecutionLogfile, "        try to get file version id\n");
+                // This is a newer tag for 1.9 and on, older worlds do not have them
+                if (GetFileVersionId(testAnvil, &versionId) != 0) {
+                    // older file type, does not have it.
+                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version id, which is fine\n");
+                }
+                LOG_INFO(gExecutionLogfile, "        try to get file version name\n");
+                if (GetFileVersionName(testAnvil, versionName, MAX_PATH_AND_FILE) != 0) {
+                    // older file type, does not have it.
+                    LOG_INFO(gExecutionLogfile, "          pre-1.9 file type detected, so no version name, which is fine\n");
+                }
+                */
 
-                    sprintf_s(outputString, 1024, "      succeeded, which has folder level name %s\n", levelName);
-                    LOG_INFO(gExecutionLogfile, outputString);
+                sprintf_s(outputString, 1024, "      succeeded, which has folder level name %s\n", levelName);
+                LOG_INFO(gExecutionLogfile, outputString);
 
-                    if (gDebug)
-                    {
-                        // 0 version ID means earlier than 1.9
-                        swprintf_s(msgString, 1024, L"Succeeded with file %s, which has folder level name %S", testAnvil, levelName);
-                        MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
-                    }
+                if (gDebug)
+                {
+                    // 0 version ID means earlier than 1.9
+                    swprintf_s(msgString, 1024, L"Succeeded with file %s, which has folder level name %S", testAnvil, levelName);
+                    MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                }
 
-                    info.wID = IDM_WORLD + gNumWorlds;
+                info.wID = IDM_WORLD + gNumWorlds;
 
-                    // display the "given name" followed by / the world folder name; both can be useful
-                    TCHAR worldIDString[MAX_PATH_AND_FILE], wLevelName[MAX_PATH_AND_FILE];
-                    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, levelName, -1, wLevelName, MAX_PATH_AND_FILE);
-                    wsprintf(worldIDString, L"%s\t/ %s", wLevelName, ffd.cFileName);
+                // display the "given name" followed by / the world folder name; both can be useful
+                TCHAR worldIDString[MAX_PATH_AND_FILE], wLevelName[MAX_PATH_AND_FILE];
+                MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, levelName, -1, wLevelName, MAX_PATH_AND_FILE);
+                wsprintf(worldIDString, L"%s\t/ %s", wLevelName, ffd.cFileName);
 
-                    info.cch = (UINT)wcslen(worldIDString);
-                    info.dwTypeData = worldIDString;
-                    info.dwItemData = gNumWorlds;
-                    // if version is pre-Anvil, show world but gray it out
-                    if (version < 19133)
-                    {
-                        LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
-                        oldVersionDetected = 1;
-                        // gray it out
-                        info.fMask |= MIIM_STATE;
-                        info.fState = MFS_DISABLED;
-                    }
-                    //else if (DATA_VERSION_TO_RELEASE_NUMBER(versionID) >= 18)
-                    //{
-                    //    LOG_INFO(gExecutionLogfile, "   file is 1.18 or newer - new format is not supported yet\n");
-                    //    // gray it out
-                    //    info.fMask |= MIIM_STATE;
-                    //    info.fState = MFS_DISABLED;
-                    //}
-                    else
-                    {
-                        //info.fMask |= MIIM_STATE;
-                        info.fState = 0x0; // MFS_CHECKED;
-                    }
-                    InsertMenuItem(menu, IDM_TEST_WORLD, FALSE, &info);
-                    size_t strLen = wcslen(testAnvil) + 1;
-                    gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR) * strLen);
-                    wcscpy_s(gWorlds[gNumWorlds], strLen, testAnvil);
+                info.cch = (UINT)wcslen(worldIDString);
+                info.dwTypeData = worldIDString;
+                info.dwItemData = gNumWorlds;
+                // if version is pre-Anvil, show world but gray it out
+                if (version < 19133)
+                {
+                    LOG_INFO(gExecutionLogfile, "   file is pre-Anvil\n");
+                    oldVersionDetected = 1;
+                    // gray it out
+                    info.fMask |= MIIM_STATE;
+                    info.fState = MFS_DISABLED;
+                }
+                //else if (DATA_VERSION_TO_RELEASE_NUMBER(versionID) >= 18)
+                //{
+                //    LOG_INFO(gExecutionLogfile, "   file is 1.18 or newer - new format is not supported yet\n");
+                //    // gray it out
+                //    info.fMask |= MIIM_STATE;
+                //    info.fState = MFS_DISABLED;
+                //}
+                else
+                {
+                    //info.fMask |= MIIM_STATE;
+                    info.fState = 0x0; // MFS_CHECKED;
+                }
+                // insert world above IDM_TEST_WORLD in File -> Open World... menu
+                InsertMenuItem(menu, IDM_TEST_WORLD, FALSE, &info);
+                size_t strLen = wcslen(testAnvil) + 1;
+                gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR) * strLen);
+                wcscpy_s(gWorlds[gNumWorlds], strLen, testAnvil);
 
-                    // was: setWorldPath(worlds[numWorlds]);
-                    //PathAppend(worlds[numWorlds],ffd.cFileName);
-                    gNumWorlds++;
-                    sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
-                    LOG_INFO(gExecutionLogfile, outputString);
+                // was: setWorldPath(worlds[numWorlds]);
+                //PathAppend(worlds[numWorlds],ffd.cFileName);
+                gNumWorlds++;
+                sprintf_s(outputString, 1024, "    gNumWorlds is now %d\n", gNumWorlds);
+                LOG_INFO(gExecutionLogfile, outputString);
                 }
             }
-        } while ((FindNextFile(hFind, &ffd) != 0) && (gNumWorlds < MAX_WORLDS));
+            worldFound = (FindNextFile(hFind, &ffd) != 0);
+            if (worldFound && (gNumWorlds >= MAX_WORLDS) ) {
+                // note the condition that we have successfully read in another world, but there's no room
+                tooManyWorlds = true;
+            }
+        } while (worldFound && (gNumWorlds < MAX_WORLDS));
     }
     FindClose(hFind);
 
     // did the search stop due to running out of room for worlds?
     char charMsgString[1024];
-    if (gNumWorlds >= MAX_WORLDS)
+    if (tooManyWorlds)
     {
         sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
@@ -3637,7 +3646,7 @@ static int loadWorldList(HMENU menu)
         MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
         gNumWorlds = MAX_WORLDS - 1;
     }
-    else if (gNumWorlds == 1) {
+    else if (gNumWorlds <= 1) {
         sprintf_s(charMsgString, 1024, "Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
