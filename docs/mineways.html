@@ -1297,6 +1297,9 @@ One other thing you may wish to do is material cleanup. On the Sketchfab Materia
 <P>
 An irregularity: if you download your uploaded model from Sketchfab, it may not display correctly. The short version is that you probably have to comment out the "map_d" field in the .mtl file for the model. Some viewers incorrectly grab the red channel instead of the alpha channel from the four-channel map that Sketchfab uses for compactness.
 </P>
+<P>
+Physically based rendering support: Sketchfab does recognize addition material types, see <a href="https://help.sketchfab.com/hc/en-us/articles/202600873-Materials-and-Textures#textures-auto-pbr">their page</a> for details. Note that when you use individual textures and "custom material" for OBJ export, you get these extra files, if available (or derived, such as the emission textures). However, the naming doesn't quite match for normal and emission textures currently; it does match for specular ("_s") and metalness ("_m").
+<P>
 Here's an example of Sketchfab in action, a model I uploaded. Click on the window and you can interact with it. More models <a href="https://sketchfab.com/erich/folders/mineways">here</a> and <a href="https://sketchfab.com/tags/minecraft">here</a>.
 <P>
 <div>
@@ -3543,7 +3546,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 11/2/2021</p>
+		<br id="lastUpdate">Last updated 11/4/2021</p>
 	</div>
 </div>
 
