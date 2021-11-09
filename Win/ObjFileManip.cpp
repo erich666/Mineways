@@ -26767,11 +26767,13 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     sprintf_s(outputString, 256, "            float2 inputs:st.connect = <%s/Looks/%s/uv_reader.outputs:result>\n", prefixPath, mtlName);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    // It's a little strange to me, but Omniverse likes the emitter "color" multiplied by the intensity, instead of just the intensity.
-                    // I frankly don't understand - it seems to me that the intensity alone should multiply the (properly colored) emitter texture.
+                    // the emissive texture is a grayscale texture, so we (sadly) need to "add the color back in". This is a limitation of Minecraft's texture
+                    // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
+                    // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
                     float escale = 1000.0f * emission / 255.0f;
-                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r* escale, (float)g* escale, (float)b* escale);
-                    // not this: 
+                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r * escale, (float)g * escale, (float)b * escale);
+                    // not this:
+                    //float escale = 1000.0f * emission;
                     //sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            float3 outputs:rgb\n");
