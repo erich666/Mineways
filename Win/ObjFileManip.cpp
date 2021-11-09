@@ -26770,7 +26770,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // It's a little strange to me, but Omniverse likes the emitter "color" multiplied by the intensity, instead of just the intensity.
                     // I frankly don't understand - it seems to me that the intensity alone should multiply the (properly colored) emitter texture.
                     float escale = 1000.0f * emission / 255.0f;
-                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r * escale, (float)g * escale, (float)b * escale);
+                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r* escale, (float)g* escale, (float)b* escale);
+                    // not this: 
+                    //sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            float3 outputs:rgb\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
