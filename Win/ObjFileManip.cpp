@@ -27068,7 +27068,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (290, 345, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (240, 380, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
