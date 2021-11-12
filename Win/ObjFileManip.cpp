@@ -25498,7 +25498,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         }
         // we normally output MDL descriptions, etc. Allow turning this off, so that UsdPreview (only) materials are used.
         // TODO expose on user interface, ugh.
-        static bool outputMDL = true;
+        static bool outputMDL = false;
         if (outputMDL) {
             sprintf_s(outputString, 256, "        token outputs:mdl:displacement.connect = <%s/Looks/%s/Shader.outputs:out>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26770,7 +26770,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // the emissive texture is a grayscale texture, so we (sadly) need to "add the color back in". This is a limitation of Minecraft's texture
                     // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
                     // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
-                    float escale = 1000.0f * emission / 255.0f;
+                    static float debug_scale = 1000.0f;
+                    float escale = debug_scale * emission / 255.0f;
                     sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r * escale, (float)g * escale, (float)b * escale);
                     // not this:
                     //float escale = 1000.0f * emission;
@@ -27075,7 +27076,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (240, 380, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (240, 20, 0)\n");   // was 380 - that's silly
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
