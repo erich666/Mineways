@@ -187,7 +187,7 @@ Here's the quickstart/refresher for the two ways to make a terrainExt image file
 cd c:\temp\mineways\TileMaker
 TileMaker.exe -d your_block_directory -o terrainExtYours.png
 </PRE>
-Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program depends on terrainBase.png being in the same directory you are running from.
+Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program depends on terrainBase.png being in the same directory you are running from. To use TileMaker, you need to copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png. Alternately (and more simply), you can put "-i ..\terrainExt.png" on the command line.
 <P>
 If you would rather not have to hand-copy images, or are using physically-based textures (i.e., more than just colored textures), do the following process instead. Unzip your resource pack into a directory, e.g., <I>resource_pack_directory</I>, then:
 
@@ -257,7 +257,7 @@ cd c:\temp
 C:\Users\ehaines\Documents\_documents\GitHub\Mineways\ChannelMixer\x64\Release\ChannelMixer.exe -i "jg-rtx-0.7.0-alpha" -o "jg-rtx-channelmixer"
 </PRE>
 
-The first line takes you to the c:\temp directory. The second line is insanely long, I know. The first part you'll have to modify - you're pointing at wherever your copy of ChannelMixer.exe is located (which is wherever you unzipped Mineways, in the TileMaker directory). Much easier is to just copy everything in this directory - ChannelMixer.exe, TileMaker.exe, and terrainBase.png (which only TileMaker.exe needs) - to your c:\temp directory. After doing that, this second line then becomes just:
+The first line takes you to the c:\temp directory. The second line is insanely long, I know. The first part you'll have to modify - you're pointing at wherever your copy of ChannelMixer.exe is located (which is wherever you unzipped Mineways, in the TileMaker directory). Much easier is to just copy everything in this directory - ChannelMixer.exe, TileMaker.exe, and terrainBase.png (copy terrainExt.png from your Mineways parent directory and rename it) which only TileMaker.exe needs) - to your c:\temp directory. After doing that, this second line then becomes just:
 
 <PRE>
 cd c:\temp
@@ -476,7 +476,9 @@ on the command line.
 <LI><b>-i terrainBase.png</b> - (path and) image containing the base set of terrain blocks
     (includes special chest tiles). Default is 'terrainBase.png', with this file assumed to be
 	located in the current directory you are running TileMaker from, i.e., <I>your current directory
-	in your CMD window</I> (which is not necessarily where TileMaker.exe is located).
+	in your CMD window</I> (which is not necessarily where TileMaker.exe is located). You need to
+	copy the terrainExt.png from the directory above TileMaker's to this directory and rename it
+	terrainBase.png (or you could do "-i ..\terrainExt.png" on the command line).
 <LI><b>-d blocks</b> - directory of block textures to overlay on top of the base.
     Default directory is 'blocks'. Can be set multiple times to include
     multiple directories.
@@ -507,7 +509,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 10/22/2021</p>	</div>
+		<br id="lastUpdate">Last updated 11/12/2021</p>	</div>
 </div>
 
 </body>

@@ -16,10 +16,11 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.10"
+#define	VERSION_STRING	L"3.11"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
+#define BASE_INPUT_ALT_FILENAME			L"..\\terrainExt.png"
 #define TILE_PATH	L"blocks"
 #define OUTPUT_FILENAME L"terrainExt.png"
 
@@ -247,6 +248,8 @@ int wmain(int argc, wchar_t* argv[])
 	bool allChests = true;
 	bool anyChests = false;
 
+	bool terrainBaseSet = false;
+
 	initializeFileGrid(&gFG);
 	initializeChestGrid(&gCG);
 
@@ -262,10 +265,11 @@ int wmain(int argc, wchar_t* argv[])
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			wcscpy_s(terrainBase, MAX_PATH_AND_FILE, argv[argLoc]);
 			if (isImageFile(terrainBase) != PNG_EXTENSION_FOUND) {
-				wprintf(L"***** ERROR: '-i %s' is illegal. You must specify an output file name with '.png' at the end. Aborting.\n", terrainBase);
+				wprintf(L"***** ERROR: '-i %s' is illegal. You must specify an input terrainBase-type file with '.png' at the end. Aborting.\n", terrainBase);
 				// quit!
 				return 1;
 			}
+			terrainBaseSet = true;
 		}
 		// -z is supported for backwards compatibility, but -d should suffice now
 		else if (wcscmp(argv[argLoc], L"-d") == 0 || wcscmp(argv[argLoc], L"-z") == 0)
@@ -373,11 +377,25 @@ int wmain(int argc, wchar_t* argv[])
 		rc = readpng(&basicterrain, terrainBase, LCT_RGBA);
 		if (rc != 0)
 		{
+			if (!terrainBaseSet) {
+				// no terrainBase.png here, so look in directory just above for terrainExt.png
+				// try again
+				int new_rc = readpng(&basicterrain, BASE_INPUT_ALT_FILENAME, LCT_RGBA);
+				if (new_rc == 0)
+				{
+					// success, so move along
+					wprintf(L"NOTE: %s file was not found in the current directory, so the %s file has been used instead.\n", BASE_INPUT_FILENAME, BASE_INPUT_ALT_FILENAME);
+					// since we're successful in finding the alternate, note that this is the proper name used (useful for verbose, below, for example)
+					wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_ALT_FILENAME);
+					goto TerrainBaseSuccess;
+				}
+				// else fall through and report error
+			}
 			reportReadError(rc, terrainBase);
 			// simply can't find file?
 			if (rc == 78) {
 				wsprintf(gErrorString, L"    The file terrainBase.png must be present in your current directory (i.e., where you're running things from\n"
-				    "    which might not necessarily be where TileMaker.exe is), or you must specify its path and name by using the\n"
+					"    which might not necessarily be where TileMaker.exe is), or you must specify its path and name by using the\n"
 					"    command line option '-i c:\\your_path\\terrainBase.png' (with 'your_path' being where it is located).\n"
 				);
 				wprintf(gErrorString);
@@ -385,6 +403,7 @@ int wmain(int argc, wchar_t* argv[])
 			}
 			return 1;
 		}
+		TerrainBaseSuccess:
 		readpng_cleanup(0, &basicterrain);
 		if (verbose)
 			wprintf(L"The base terrain is '%s'\n", terrainBase);
