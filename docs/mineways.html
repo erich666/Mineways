@@ -74,7 +74,7 @@
 	<div id="content" class="clearfix">
 <h1>Mineways Main Documentation</h1>
 
-To get started, read this <a href="downloads.html#instructions">quick step by step</a> or watch <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a>. For problems, see the <a href="downloads.html#windows">Windows troubleshooting guide</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
+To get started, read this <a href="downloads.html#instructions">quick step by step</a> or watch <a href="https://www.youtube.com/watch?v=xmsnE85GNV8&feature=youtu.be&t=21">this video</a> (and watch <a href="https://youtu.be/wU5YGGGHAGA">this one</a> for some pro tips). For problems, see the <a href="downloads.html#windows">Windows troubleshooting guide</a>; <a href="contact.html">let me know</a> if you're still stuck. Check the <a href="reference.html">quick reference page</a> for a brief rundown of mouse and keyboard controls, menu and export options, and what the files included with Mineways each do. <a href="downloads.html#myway">Read this</a> for the process I go through when exporting for 3D printing.
 <P>
 Normally you can just hit "OK" on the export dialog and things will work fine. Read on if you want to understand how to make your models less expensive, use different texture packs, and otherwise tailor you want to see printed out. What follows is extensive documentation about each part of the export and print process. If you don't want to wade through it all, at least search this page for the phrase <b>"Key tip"</b>, as these bits are particularly useful.
 <P>
@@ -1076,7 +1076,7 @@ After choosing the file name, you are faced with many export options. Most are g
 As far as other export options go, I recommend not touching them. USDA export is a brand new feature, so support for individual block export and other modes is unlike to work, nay, likely to crash Mineways.
 <P>
 <P>
-I should note that Pixar USD files can be read in by other applications, for example the free <a href="#houdini">Houdini Apprentice</a>.
+I should note that Pixar USD files can be read in by other applications, for example the free <a href="#houdini">Houdini Apprentice</a> and <a href="mineways.html#c4d">Cinema 4D</a>.
 </P>
 <P>
 <b>Step 3:</b> Load the model into Omniverse Create. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
@@ -1141,7 +1141,7 @@ That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, an
 <b>Step 1:</b> In Mineways, select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
 <P>
-<b>Step 2:</b> Save as the file type 'OBJ'. Use Absolute OBJ, not Relative, as older versions of Cinema 4D do not read relative OBJs well.
+<b>Step 2:</b> Save as the file type 'OBJ'. Use Absolute OBJ, not Relative, as older versions of Cinema 4D do not read relative OBJs well. Alternately, Version R25 of C4D does a nice job of reading USD files, which means that you can use physically based rendering resource packs such as JG-RTX (that comes with Mineways) which add attributes such as normal maps, specular textures, and more.
 </P>
 <P>
 <b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter. You may also wish to use the <a href="#fcst">"Export individual textures"</a> option, as this allows mipmapping and similar filtering in Cinema 4D to work better. Also, for physically base rendering terrain sets such as JG-RTX (which comes with Mineways), individual texture export means you also get normals maps and other attributes automatically exported, which Cinema 4D can make use of (well, by default just the normal maps, but you can attach the others manually).
@@ -1159,7 +1159,7 @@ Here is what the defaults are, just in case:
 To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
 
 <P>
-<b>Step 5:</b> At this point you can render by clicking Ctrl-R. It won't be the most exciting render, as there are no lights. Try "Create -> Light -> Light" and move the light up a bit to illuminate your scene. Select the light and in the material editor in the lower right, select "Shadow" and then, a few lines down, change "Shadow" from "None" to "Raytraced (Hard)." Now Ctrl-R will give shadows to your scene.
+<b>Step 5:</b> At this point you can render by clicking Ctrl-R. It won't be the most exciting render, as there are no lights (if you used USD, the sun light will be too bright - turn its Intensity down from 3000% to 100%). Try "Create -> Light -> Light" and move the light up a bit to illuminate your scene. Select the light and in the material editor in the lower right, select "Shadow" and then, a few lines down, change "Shadow" from "None" to "Raytraced (Hard)." Now Ctrl-R will give shadows to your scene.
 <P>
 <b>Step 6:</b> Select all the materials in the material manager, the row of spheres at the lower left (or alongside the right edge of the viewport). Do this by clicking one sphere and then hitting Control-A. All spheres should now be selected. If the material manager is not visible, open it with Window -> Material Manager, or the shortcut Shift+F2.
 </P>
@@ -1178,13 +1178,11 @@ That's about it! I'll mention that you can also import Mineways' VRML files into
 <H4 id="houdini">Houdini</H4><p>
 <a href="https://www.sidefx.com/buy/#houdini0"><img id="productLogo" src="images/houdini_icon.jpg" alt="Houdini icon"></a>
 <P>
-Houdini Apprentice can be <a href="https://www.sidefx.com/buy/#houdini0">downloaded for free</a> for non-commercial use. Houdini Apprentice pays attention to the UsdPreview material Mineways produces. Their support for USDA continues to improve, so get the newest version when you can. One nice thing about Houdini is that it can read USDA files from Mineways, allowing more elaborate material descriptions, such as using normal maps.
+Houdini Apprentice can be <a href="https://www.sidefx.com/buy/#houdini0">downloaded for free</a> for non-commercial use. Houdini Apprentice pays attention to the UsdPreview material Mineways produces. Their support for USDA continues to improve, so get the newest version when you can. One nice thing about Houdini is that it can read USDA files from Mineways, allowing more elaborate material descriptions, such as using normal maps. Make sure to have the newest version (at least version 19), as their USD import has improved enormously recently.
 <P>
 I made <a href="https://www.youtube.com/watch?v=w3qCPts_70I&t=67s">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. Summary: select Build -> Solaris, right-click in the lower right "/stage" dialog, type "file," and then click in the dialog to place this element. Above this dialog is now "Sublayer file1" - scroll down to find "Sublayer File" and in "File" give the USDA file you want to import. Once imported, scroll out with Alt and mouse-wheel down. Turn off the sun and dome light in the lower left dialog, "Scene Graph Tree." Add your own lights from the icons in the upper left of the app. Hold down "Alt" and use the mouse for camera moves. In the upper right of the viewport select the Karma renderer from "persp" to use the path tracer. 
 <P>
 One thing I did forget to mention in the video narration: at time 1:14, where I add a File node, what I did was right-click in that lower-right area and typed "file" to get that node, then clicked in the area to make the node appear.
-<P>
-Also, the original lights that are exported by Mineways to the USD file need to be turned off for the Houdini GL renderer, but the dome light is fine to turn back on for the Karma renderer, it looks better with it on.
 
 <HR>
 <H4 id="3dsmax">3DS MAX</H4><p>
