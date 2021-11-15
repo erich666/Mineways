@@ -27076,11 +27076,11 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (240, 20, 0)\n");   // was 380 - that's silly
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZXY = (235, 325, 0)\n");  // x is altitude, y is azimuth, z does nothing
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -27110,11 +27110,11 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        token texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        float3 xformOp:rotateZYX = (270, 0, 0)\n");
+    strcpy_s(outputString, 256, "        float3 xformOp:rotateZXY = (270, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZYX\"]\n");
+    strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    }\n\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
