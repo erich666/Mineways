@@ -4108,6 +4108,7 @@ void freeOutputFileList(FileList& outputFileList)
     outputFileList.count = 0;
 }
 
+// return a failure code (simply "1" at this point, since it pops up its own error) on failure, else return 0 on success.
 static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected)
 {
     FileList outputFileList;
@@ -4166,8 +4167,18 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     // Set filepath to skfb data
     if (errCode < MW_BEGIN_ERRORS) {
-        char filepath[MAX_PATH_AND_FILE];
-        sprintf_s(filepath, "%ls", wcZip);
+        // Sketchfab currently uses only char paths, so we must convert.
+        // Make the char string twice as long as the wchar_t string should be sufficient?
+        char filepath[MAX_PATH_AND_FILE * 2];
+        size_t retSize;
+        wcstombs_s(&retSize, filepath, MAX_PATH_AND_FILE*2, wcZip, MAX_PATH_AND_FILE*2-1);
+        if (retSize == 0) {
+            // abort - conversion did not work
+            wchar_t errbuf[1024];
+            wsprintf(errbuf, L"ERROR: I am afraid you have a path name \"%s\" that cannot be converted to a multi-byte character path that Sketchfab can use. If you want to upload to Sketchfab, you will have to do it manually: Export for Rendering, check the \"Create a ZIP file\" box, and then upload the resulting zip file.", wcZip);
+            MessageBox(NULL, errbuf, _T("File Path Error"), MB_OK | MB_ICONERROR);
+            return 1;
+        }
         skfbPData->skfbFilePath = filepath;
     }
 
@@ -4232,8 +4243,16 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
         drawInvalidateUpdate(hWnd);
 
         if (skfbPData->skfbFilePath.empty()) {
-            processSketchfabExport(skfbPData, objFileName, terrainFileName, schemeSelected);
-            setPublishSkfbData(skfbPData);
+            if (processSketchfabExport(skfbPData, objFileName, terrainFileName, schemeSelected) == 0) {
+                // no error, do it.
+                setPublishSkfbData(skfbPData);
+            }
+            else {
+                // finish progress meter early
+                if (*updateProgress)
+                    (*updateProgress)(0.0f);
+                return retCode;
+            }
         }
 
         uploadToSketchfab(hInst, hWnd);
