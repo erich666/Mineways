@@ -4169,14 +4169,20 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     if (errCode < MW_BEGIN_ERRORS) {
         // Sketchfab currently uses only char paths, so we must convert.
         // Make the char string twice as long as the wchar_t string should be sufficient?
+        // see https://github.com/erich666/Mineways/issues/90
         char filepath[MAX_PATH_AND_FILE * 2];
         size_t retSize;
+        setlocale(LC_ALL, "");
         wcstombs_s(&retSize, filepath, MAX_PATH_AND_FILE*2, wcZip, MAX_PATH_AND_FILE*2-1);
+        setlocale(LC_ALL, "C");
         if (retSize == 0) {
             // abort - conversion did not work
             wchar_t errbuf[1024];
             wsprintf(errbuf, L"ERROR: I am afraid you have a path name \"%s\" that cannot be converted to a multi-byte character path that Sketchfab can use. If you want to upload to Sketchfab, you will have to do it manually: Export for Rendering, check the \"Create a ZIP file\" box, and then upload the resulting zip file.", wcZip);
             MessageBox(NULL, errbuf, _T("File Path Error"), MB_OK | MB_ICONERROR);
+
+            // clean up - sloppy code, I admit
+            freeOutputFileList(outputFileList);
             return 1;
         }
         skfbPData->skfbFilePath = filepath;
