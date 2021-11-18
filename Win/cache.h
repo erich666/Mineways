@@ -32,9 +32,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // For 64 bits we can increase the amount of map memory we can hold at one time considerably.
 #ifndef MINEWAYS_X64
+// 32 bits can run out of memory pretty quickly
 #define INITIAL_CACHE_SIZE 6000
 #else
-#define INITIAL_CACHE_SIZE 30000
+// this is the number of chunks visible on a 4K screen. If we allow zooming out more, every map pan will result in hitting cache.
+#define INITIAL_CACHE_SIZE 32400
 #endif
 
 // we track maximum height per chunk. Start at this value; if value found later, chunk is empty
