@@ -58,9 +58,10 @@ static bool gAlwaysFail = false;
 
 // zoomed all the way in. We could allow this to be larger...
 // It's useful to have it high for Nether <--> overworld switches
-#define MAXZOOM 40.0
+#define MAXZOOM 40.0f
 // zoomed all the way out
-#define MINZOOM 1.0
+#define MINZOOM 1.0f
+#define DEFAULTZOOM 1.0f
 
 // how far outside the rectangle we'll select the corners and edges of the selection rectangle
 #define SELECT_MARGIN 5
@@ -122,6 +123,7 @@ static int gVersionID = 0;								// Minecraft version 1.9 (finally) introduced 
 static int gMinecraftVersion = 0;
 static int gMaxHeight = INIT_MAP_MAX_HEIGHT;
 static int gMinHeight = 0;
+static float gMinZoom = MINZOOM;
 static BOOL gSameWorld = FALSE;
 static BOOL gHoldSameWorld = FALSE;
 static wchar_t gSelectTerrainPathAndName[MAX_PATH_AND_FILE];				//path and file name to selected terrainExt.png file, if any
@@ -133,7 +135,7 @@ static BOOL gLoaded = FALSE;								//world loaded?
 static double gCurX, gCurZ;								//current X and Z
 static int gLockMouseX = 0;                               // if true, don't allow this coordinate to change with mouse, 
 static int gLockMouseZ = 0;
-static double gCurScale = MINZOOM;					    //current scale
+static double gCurScale = DEFAULTZOOM;					    //current zoom scale
 static int gCurDepth = INIT_MAP_MAX_HEIGHT;					//current depth
 static int gStartHiX, gStartHiZ;						    //starting highlight X and Z
 
@@ -371,6 +373,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList, int argCount);
 static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd);
 static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, const LPWSTR* argList, int argCount);
+static int getZoomLevelFromCommandLine(float* minZoom, const LPWSTR* argList, int argCount);
 static int getTerrainFileFromCommandLine(wchar_t* TerrainFile, const LPWSTR* argList, int argCount);
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount);
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
@@ -801,16 +804,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         validateItems(GetMenu(hWnd));
 
+        // set zoom level, if changed on command line
+        float minZoom = 1.0f;
+        int val = getZoomLevelFromCommandLine(&minZoom, gArgList, gArgCount);
+        if (val > 0) {
+            // legal zoom level found on command line.
+            LOG_INFO(gExecutionLogfile, " getZoomLevelFromCommandLine successful\n");
+            assert(minZoom >= 0.0625f && minZoom <= MAXZOOM);
+            gMinZoom = minZoom;
+        }
+
         // set terrain file: -t terrainExt*.png
         wchar_t terrainFileName[MAX_PATH_AND_FILE];
-        int val = getTerrainFileFromCommandLine(terrainFileName, gArgList, gArgCount);
+        val = getTerrainFileFromCommandLine(terrainFileName, gArgList, gArgCount);
         if (val > 0) {
             // file found on command line.
             LOG_INFO(gExecutionLogfile, " getTerrainFileFromCommandLine successful\n");
             rationalizeFilePath(terrainFileName);
             // lame way to figure out if the path is relative - if no ":"
             wchar_t colon[] = L":";
-            if (wcschr(terrainFileName,colon[0])==NULL) {
+            if (wcschr(terrainFileName, colon[0]) == NULL) {
                 // relative path, so add absolute path to current directory to front.
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gExeDirectory);
                 wcscat_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, gPreferredSeparatorString);
@@ -1162,8 +1175,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 else {
                     // The usual case
                     // ratchet zoom up by 2x when zoom of 8 or higher is reached, so it zooms faster
-                    gCurScale += ((double)zDelta / WHEEL_DELTA) * (pow(gCurScale, 1.2) / gCurScale);
-                    gCurScale = clamp(gCurScale, MINZOOM, MAXZOOM);
+                    if (gCurScale == 1.0f) {
+                        // at 1.0, so can go up or down
+                        if (zDelta < 0.0f) {
+                            gCurScale *= 0.9f;
+                        }
+                        else {
+                            gCurScale += ((double)zDelta / WHEEL_DELTA) * (pow(gCurScale, 1.2) / gCurScale);
+                        }
+                    }
+                    else if (gCurScale < 1.0f) {
+                        if (zDelta < 0.0f) {
+                            gCurScale *= 0.8f;
+                        }
+                        else {
+                            gCurScale /= 0.8f;
+                        }
+                        // lock at max of 1.0f, so we don't slip by it, at least for one click
+                        gCurScale = clamp(gCurScale, gMinZoom, 1.0f);
+                    }
+                    else {
+                        gCurScale += ((double)zDelta / WHEEL_DELTA) * (pow(gCurScale, 1.2) / gCurScale);
+                        // stop at 1.0f so that we don't overzoom low, at least for one click
+                        gCurScale = clamp(gCurScale, 1.0f, MAXZOOM);
+                    }
+                    //char outstring[256];
+                    //sprintf_s(outstring, 256, "zDelta is %d, zoom is now %f\n", zDelta, gCurScale);
+                    //OutputDebugStringA(outstring);
+                    gCurScale = clamp(gCurScale, gMinZoom, MAXZOOM);
                     drawInvalidateUpdate(hWnd);
                 }
             }
@@ -1456,6 +1495,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case VK_SUBTRACT:
             case VK_OEM_MINUS:
                 gCurScale -= 0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
+                // we go down to original minzoom, as going to true minzoom could just be a crash.
                 if (gCurScale < MINZOOM)
                     gCurScale = MINZOOM;
                 changed = TRUE;
@@ -1555,6 +1595,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 changed = TRUE;
                 break;
             case VK_END:
+                // no, don't go to gMinZoom - it could kinda lock up the program
                 gCurScale = MINZOOM;
                 changed = TRUE;
                 break;
@@ -2238,7 +2279,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         //gTargetDepth=0;
                         // semi-useful, I'm not sure: zoom in when going to nether
                         //gCurScale *= 8.0;
-                        //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+                        //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
                     }
                     else
                     {
@@ -2377,12 +2418,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SendMessage(hwndStatus, SB_SETPARTS, 2, (LPARAM)parts);
         }
 
-        // On resize, figure out a better hash table size for cache, if needed.
-        if ((rect.bottom - rect.top) * (rect.right - rect.left) > 256 * gOptions.currentCacheSize)
         {
-            // make new cache twice the size of the screen's needs, should be enough I hope.
-            gOptions.currentCacheSize = 2 * (rect.bottom - rect.top) * (rect.right - rect.left) / 256;
-            ChangeCache(gOptions.currentCacheSize);
+            // On resize, figure out a better hash table size for cache, if needed.
+            // Take the pixels on the screen, compare to cache size * 16^2 (pixels per chunk) times two
+            // (as a guess for the number of chunks we might want total, e.g., 2x the screen size).
+            float zoomFactor = min(gMinZoom, 1.0f);
+            zoomFactor *= zoomFactor;
+            if ((rect.bottom - rect.top) * (rect.right - rect.left) > 256 * gOptions.currentCacheSize * zoomFactor)
+            {
+                // make new cache twice the size of the screen's needs, should be enough I hope.
+                gOptions.currentCacheSize = (int)((float)(2 * (rect.bottom - rect.top) * (rect.right - rect.left)) / 256.0f / zoomFactor);
+                ChangeCache(gOptions.currentCacheSize);
+            }
         }
         //InvalidateRect(hWnd,NULL,TRUE);
         //UpdateWindow(hWnd);
@@ -2615,7 +2662,7 @@ static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList
             retCode = 2;
         }
         else {
-            // skip whatever it is.
+            // skip whatever it is, including numerical fields, script file names, etc.
             argIndex++;
         }
     }
@@ -2734,6 +2781,37 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
     // we return 0 when we don't find a directory that was input on the command line
     return 0;
 }
+static int getZoomLevelFromCommandLine(float *minZoom, const LPWSTR* argList, int argCount)
+{
+    // parse to get -s dir
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        if (wcscmp(argList[argIndex], L"-zl") == 0) {
+            // found zoom level minimum
+            argIndex++;
+            if (argIndex < argCount) {
+                // convert next argument to an integer
+                float valzoom = (float)_wtof(argList[argIndex]);
+                argIndex++;
+                if (valzoom >= 0.0625f && valzoom <= 1.0f) {
+                    *minZoom = valzoom;
+                    return 1;
+                }
+            }
+            // if we got here, parsing didn't work
+            MessageBox(NULL, _T("Command line startup error. For \"-zl #\", minimum zoom level, the value # must be between 0.0625 and 1. Zoom level command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            return 0;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    // we return 0 when we don't find the right information on the command line
+    return 0;
+}
+
 static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* argList, int argCount)
 {
     // parse to get -s dir
@@ -2742,7 +2820,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
     {
         // look for if the startup directory is specified on the command line
         if (wcscmp(argList[argIndex], L"-t") == 0) {
-            // found window resize
+            // found terrain arg tag
             argIndex++;
             if (argIndex < argCount) {
                 wcscpy_s(terrainFile, MAX_PATH_AND_FILE, argList[argIndex]);
@@ -2807,6 +2885,11 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
         else if (wcscmp(argList[argIndex], L"-t") == 0) {
             // skip terrain file
             LOG_INFO(gExecutionLogfile, " skip terrain file\n");
+            argIndex += 2;
+        }
+        else if (wcscmp(argList[argIndex], L"-zl") == 0) {
+            // skip terrain file
+            LOG_INFO(gExecutionLogfile, " skip minimum zoom level\n");
             argIndex += 2;
         }
         else if (*argList[argIndex] == '-') {
@@ -2975,7 +3058,7 @@ static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 
         // semi-useful, I'm not sure: zoom out when going back
         //gCurScale /= 8.0;
-        //gCurScale = clamp(gCurScale,MINZOOM,MAXZOOM);
+        //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
     }
     // Ender is easy, just turn it off 
     gOptions.worldType &= ~ENDER;
@@ -3286,7 +3369,7 @@ static int loadWorld(HWND hWnd)
         gCurZ = gSpawnZ;
         gSameWorld = TRUE;   // so if we reload
         // zoom out when loading a new world, since location's reset.
-        gCurScale = MINZOOM;
+        gCurScale = DEFAULTZOOM;
 
         gCurDepth = gMaxHeight;
         // set lower level height to sea level, or to 0 if it's a schematic

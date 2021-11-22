@@ -35,8 +35,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // 32 bits can run out of memory pretty quickly
 #define INITIAL_CACHE_SIZE 6000
 #else
-// this is the number of chunks visible on a 4K screen. If we allow zooming out more, every map pan will result in hitting cache.
-#define INITIAL_CACHE_SIZE 32400
+// this is about the number of chunks visible on a 4K screen.
+#define INITIAL_CACHE_SIZE 30000
 #endif
 
 // we track maximum height per chunk. Start at this value; if value found later, chunk is empty

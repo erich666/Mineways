@@ -187,7 +187,7 @@ Here's the quickstart/refresher for the two ways to make a terrainExt image file
 cd c:\temp\mineways\TileMaker
 TileMaker.exe -d your_block_directory -o terrainExtYours.png
 </PRE>
-Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program depends on terrainBase.png being in the same directory you are running from. To use TileMaker, you need to copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png. Alternately (and more simply), you can put "-i ..\terrainExt.png" on the command line.
+Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program looks for terrainBase.png being in the same directory you are running from. You can copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png (terrainBase.png is not included in Mineways because terrainBase.png and terrainExt.png are the same file).
 <P>
 If you would rather not have to hand-copy images, or are using physically-based textures (i.e., more than just colored textures), do the following process instead. Unzip your resource pack into a directory, e.g., <I>resource_pack_directory</I>, then:
 
@@ -223,7 +223,7 @@ Put your terrainExt image file wherever mineways.exe is located and start Minewa
 Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
 
 <P>
-What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides, overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
+What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
 
 <P>
 Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.planetminecraft.com/texture-packs/">this</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this</a>, <a href="https://mcpedl.com/?s=PBR">this</a> (and also <a href="https://mcpedl.com/?s=RTX">this search</a> there), and <a href="https://resourcepack.net/">this</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
@@ -257,7 +257,7 @@ cd c:\temp
 C:\Users\ehaines\Documents\_documents\GitHub\Mineways\ChannelMixer\x64\Release\ChannelMixer.exe -i "jg-rtx-0.7.0-alpha" -o "jg-rtx-channelmixer"
 </PRE>
 
-The first line takes you to the c:\temp directory. The second line is insanely long, I know. The first part you'll have to modify - you're pointing at wherever your copy of ChannelMixer.exe is located (which is wherever you unzipped Mineways, in the TileMaker directory). Much easier is to just copy everything in this directory - ChannelMixer.exe, TileMaker.exe, and terrainBase.png (copy terrainExt.png from your Mineways parent directory and rename it) which only TileMaker.exe needs) - to your c:\temp directory. After doing that, this second line then becomes just:
+The first line takes you to the c:\temp directory. The second line is insanely long, I know. The first part you'll have to modify - you're pointing at wherever your copy of ChannelMixer.exe is located. Which is wherever you unzipped Mineways, in the TileMaker directory. Much easier is to just copy everything in that directory - ChannelMixer.exe, TileMaker.exe, and terrainBase.png (copy terrainExt.png from your Mineways parent directory and rename it) to your c:\temp directory. After doing that, this second line then becomes just:
 
 <PRE>
 cd c:\temp
@@ -476,9 +476,8 @@ on the command line.
 <LI><b>-i terrainBase.png</b> - (path and) image containing the base set of terrain blocks
     (includes special chest tiles). Default is 'terrainBase.png', with this file assumed to be
 	located in the current directory you are running TileMaker from, i.e., <I>your current directory
-	in your CMD window</I> (which is not necessarily where TileMaker.exe is located). You need to
-	copy the terrainExt.png from the directory above TileMaker's to this directory and rename it
-	terrainBase.png (or you could do "-i ..\terrainExt.png" on the command line).
+	in your CMD window</I> (which is not necessarily where TileMaker.exe is located). If no terrainBase.png
+	is found in your directory, TileMaker will automatically look in the directory above for terrainExt.png.
 <LI><b>-d blocks</b> - directory of block textures to overlay on top of the base.
     Default directory is 'blocks'. Can be set multiple times to include
     multiple directories.
@@ -509,7 +508,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 11/12/2021</p>	</div>
+		<br id="lastUpdate">Last updated 11/22/2021</p>	</div>
 </div>
 
 </body>

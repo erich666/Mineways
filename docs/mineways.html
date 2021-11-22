@@ -2592,11 +2592,13 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Version 9.06, */*/*
   <BR>
   <UL>
-	<LI>Fix Sketchfab upload to work when user names use wide characters; <a href="https://github.com/erich666/Mineways/issues/90">issue #90</a> <I>(thanks, Tarcadia!)</I>.
-	<LI>USDA: Scale the emissive texture up properly (by about 1000) for the UsdPreviewSurface representation. YMMV - emission from surfaces is not well-defined for UsdPreviewSurface.
+	<LI>Experimental feature: <a href="scripting.html#clo">zoom out further</a> (-zl # on command line). Setting this (even if you don't zoom out) will also have an effect on initial cache memory allocated for mapping. See <a href="scripting.html#clo">the description</a> - YMMV.
+	<LI>Fixed Sketchfab upload to work when user names use wide characters; <a href="https://github.com/erich666/Mineways/issues/90">issue #90</a> <I>(thanks, Tarcadia!)</I>.
+	<LI>*USDA: Scaled the emissive texture up properly (by about 1000) for the UsdPreviewSurface representation, and expose this in the export dialog. Emission from surfaces is not well-defined for UsdPreviewSurface, so you may need to fiddle with this scale factor depending on your application and needs.
+	<LI>*USDA: Added "Export MDL" checkbox, on by default. If you know you don't need MDL material descriptions, turn this off. [TODO: add this and the above to the docs, make a new USD area. Note light export and atmospheric export. Fiddle with atmospheric settings?]
 	<LI>USDA: Better default sun and dome light Euler angle ordering. X rotation is now altitude, Y is azimuth, Z does nothing.
-	<LI>TileMaker version 3.11: use ..\terrainExt.png if terrainBase.png is not found in directory.
-	<LI>*Update textures.html with new TileMaker behavior.
+	<LI>TileMaker version 3.11: uses ..\terrainExt.png if terrainBase.png is not found in current run directory.
+	<LI>*Updated JG-RTX.
   </UL>
 
 <LI>Version 9.05, 11/2/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV905.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
