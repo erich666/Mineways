@@ -496,8 +496,12 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
     *ox = (startxblock + x) * 16 + xoff;
     *oz = (startzblock + z) * 16 + zoff;
 
-    block = (WorldBlock*)Cache_Find(startxblock + x, startzblock + z);
+    void* data;
+    // note: found could be false, but we don't care - we assume everything visible is loaded
+    (WorldBlock*)Cache_Find(startxblock + x, startzblock + z, &data);
+    block = (WorldBlock*)data;
 
+    // this is assumed OK, that we don't need to actually go retrieve the block if empty, as it should be visible and loaded already
     if (block == NULL)
     {
         *oy = EMPTY_HEIGHT;
@@ -3935,9 +3939,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     viewFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER | BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN |   // what's visible
         (showAll ? (BLF_FLATTEN_SMALL | BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD) : 0x0);
 
-    block = (WorldBlock*)Cache_Find(bx, bz);
+    void* data;
+    bool found = (WorldBlock*)Cache_Find(bx, bz, &data);
+    block = (WorldBlock*)data;
 
-    if (block == NULL)
+    if (!found)
     {
         wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
@@ -3952,13 +3958,13 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
 
-        if (block != NULL) {
-            Cache_Add(bx, bz, block);
+        // always add the block, even if empty, so that we don't have to look it up as
+        // being empty in the future
+        Cache_Add(bx, bz, block);
 
-            //let's only update the progress bar if we're loading
-            if (callback)
-                callback(percent);
-        }
+        //let's only update the progress bar if we're loading
+        if (callback)
+            callback(percent);
 
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile
         {
@@ -4005,7 +4011,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             }
             return gBlankTransitionTile;
         }
-    } else if (block->blockType == 2) {
+    } else if (block == NULL || block->blockType == 2) {
         // should really call a "draw blank" subroutine, but here goes...
         goto DrawBlank;
     }
@@ -4020,8 +4026,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     // already rendered?
     if (block->rendery == maxHeight && block->renderopts == pOpts->worldType && block->colormap == gColormap)
     {
+        void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
-            && Cache_Find(bx, bz + block->rendermissing) != NULL) {
+            && Cache_Find(bx, bz + block->rendermissing, &dummy) != NULL) {
             ; // we can do a better render now that the missing block is loaded
         }
         else {
@@ -4050,8 +4057,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 
     bits = block->rendercache;
 
-    // find the block to the west, so we can use its heightmap for shading
-    prevblock = (WorldBlock*)Cache_Find(bx - 1, bz);
+    // find the block to the west, so we can use its heightmap for shading - it should be loaded.
+    // If not, whatever, it's offscreen, perhaps, so the shadow's not exactly correct on the left edge.
+    (WorldBlock*)Cache_Find(bx - 1, bz, &data);
+    prevblock = (WorldBlock*)data;
 
     if (prevblock == NULL)
         block->rendermissing = 1; //note no loaded block to west
@@ -6545,16 +6554,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // absolute insanely high maximum, just in case - 384 is fine here, just to be safe, since it's temporary storage
             BlockEntity blockEntities[16 * 16 * 384];
 
+            // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
+            // Return 
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {
                 block->blockType = retCode & 0x3;
-
-                // TODO: it'd be nice to free up type 2 blocks almost all the way. 
-                if (retCode == NBT_NO_SECTIONS) {
-                //    ... someday free up memory? ...
-                }
 
                 // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
                 if ((retCode == NBT_VALID_BLOCK) && (block->numEntities > 0)) {
@@ -6578,37 +6584,32 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             retCode = block->blockType = createBlockFromSchematic(pWorldGuide, cx, cz, block);
         }
 
-        // is block valid? and not entirely empty, but at least allocated?
-        if (retCode > NBT_VALID_BUT_EMPTY) {
+        // does block have anything in it other than air?
+        // Note that NBT_NO_SECTIONS blocks will not go in here and be freed at the end.
+        if (block->blockType == NBT_VALID_BLOCK) {
+            int i;
+            // TODO someday: we could actually free the block, but the logic's a bit tricky. Leaving it be, since it works.
+            determineMaxFilledHeight(block);
 
-            // does block have anything in it other than air?
-            if (block->blockType == NBT_VALID_BLOCK) {
-                int i;
-                // TODO someday: we could actually free the block, but the logic's a bit tricky. Leaving it be, since it works.
-                determineMaxFilledHeight(block);
-
-                // look for unknown blocks and recover
-                unsigned char* pBlockID = block->grid;
-                for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
+            // look for unknown blocks and recover
+            unsigned char* pBlockID = block->grid;
+            for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
+            {
+                assert((i >> 8) <= block->maxFilledHeight);
+                if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
                 {
-                    assert((i >> 8) <= block->maxFilledHeight);
-                    if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
-                    {
-                        // some new version of Minecraft, block ID is unrecognized;
-                        // turn this block into stone. dataVal will be ignored.
-                        // flag assert only once
-                        assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
-                        *pBlockID = BLOCK_UNKNOWN;
-                        // note that we always clean up bad blocks;
-                        // whether we flag that a bad block was found is optional.
-                        // This gets turned off once the user has been warned, once, that his map has some funky data.
-                        if (gPerformUnknownBlockCheck)
-                            gUnknownBlock = 1;
-                    }
+                    // some new version of Minecraft, block ID is unrecognized;
+                    // turn this block into stone. dataVal will be ignored.
+                    // flag assert only once
+                    assert((gUnknownBlock == 1) || (gPerformUnknownBlockCheck == 0));	// note the program needs fixing
+                    *pBlockID = BLOCK_UNKNOWN;
+                    // note that we always clean up bad blocks;
+                    // whether we flag that a bad block was found is optional.
+                    // This gets turned off once the user has been warned, once, that his map has some funky data.
+                    if (gPerformUnknownBlockCheck)
+                        gUnknownBlock = 1;
                 }
             }
-            // The block is returned, even if it's empty, NBT_NO_SECTIONS. Why? Because we need to read the block in order
-            // to know it has no sections. Best to read it once and cache it.
             return block;
         }
     }

@@ -36,7 +36,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define INITIAL_CACHE_SIZE 6000
 #else
 // this is about the number of chunks visible on a 4K screen.
-#define INITIAL_CACHE_SIZE 30000
+//#define INITIAL_CACHE_SIZE 30000
+#define INITIAL_CACHE_SIZE 6000
 #endif
 
 // we track maximum height per chunk. Start at this value; if value found later, chunk is empty
@@ -74,7 +75,7 @@ typedef struct WorldBlock {
 } WorldBlock;
 
 void Change_Cache_Size(int size);
-void* Cache_Find(int bx, int bz);
+bool Cache_Find(int bx, int bz, void** data);
 void Cache_Add(int bx, int bz, void* data);
 void Cache_Empty();
 void MinimizeCacheBlocks(bool min);

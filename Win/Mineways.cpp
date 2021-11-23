@@ -455,7 +455,7 @@ static bool interpretBoolean(char* string);
 static bool validMouse(ImportedSet& is, char* string);
 static int interpretMouse(char* string);
 
-static void formTitle(WorldGuide* pWorldGuide, wchar_t* title);
+void formTitle(WorldGuide* pWorldGuide, HWND hWnd);
 static void rationalizeFilePath(wchar_t* fileName);
 //static void checkUpdate( HINSTANCE hInstance );
 static bool splitToPathAndName(wchar_t* pathAndName, wchar_t* path, wchar_t* name);
@@ -833,9 +833,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
             }
             splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
-            wchar_t title[MAX_PATH_AND_FILE];
-            formTitle(&gWorldGuide, title);
-            SetWindowTextW(hWnd, title);
+            formTitle(&gWorldGuide, hWnd);
         }
 
 
@@ -1178,7 +1176,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gCurScale == 1.0f) {
                         // at 1.0, so can go up or down
                         if (zDelta < 0.0f) {
-                            gCurScale *= 0.9f;
+                            gCurScale -= 0.05f;
                         }
                         else {
                             gCurScale += ((double)zDelta / WHEEL_DELTA) * (pow(gCurScale, 1.2) / gCurScale);
@@ -1186,10 +1184,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                     else if (gCurScale < 1.0f) {
                         if (zDelta < 0.0f) {
-                            gCurScale *= 0.8f;
+                            gCurScale -= 0.05f;
                         }
                         else {
-                            gCurScale /= 0.8f;
+                            gCurScale += 0.05f;
                         }
                         // lock at max of 1.0f, so we don't slip by it, at least for one click
                         gCurScale = clamp(gCurScale, gMinZoom, 1.0f);
@@ -1203,6 +1201,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     //sprintf_s(outstring, 256, "zDelta is %d, zoom is now %f\n", zDelta, gCurScale);
                     //OutputDebugStringA(outstring);
                     gCurScale = clamp(gCurScale, gMinZoom, MAXZOOM);
+                    formTitle(&gWorldGuide, hWnd);
                     drawInvalidateUpdate(hWnd);
                 }
             }
@@ -1488,6 +1487,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 gCurScale += 0.5; // 0.25*pow(gCurScale,1.2)/gCurScale;
                 if (gCurScale > MAXZOOM)
                     gCurScale = MAXZOOM;
+                formTitle(&gWorldGuide, hWnd);
                 changed = TRUE;
                 break;
             case VK_NEXT:
@@ -1498,6 +1498,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // we go down to original minzoom, as going to true minzoom could just be a crash.
                 if (gCurScale < MINZOOM)
                     gCurScale = MINZOOM;
+                formTitle(&gWorldGuide, hWnd);
                 changed = TRUE;
                 break;
                 // increment target depth by one
@@ -1592,11 +1593,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 break;
             case VK_HOME:
                 gCurScale = MAXZOOM;
+                formTitle(&gWorldGuide, hWnd);
                 changed = TRUE;
                 break;
             case VK_END:
                 // no, don't go to gMinZoom - it could kinda lock up the program
                 gCurScale = MINZOOM;
+                formTitle(&gWorldGuide, hWnd);
                 changed = TRUE;
                 break;
             case VK_ESCAPE:
@@ -1737,9 +1740,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             rationalizeFilePath(terrainLoc);
             wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainLoc);
             splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
-            wchar_t title[MAX_PATH_AND_FILE];
-            formTitle(&gWorldGuide, title);
-            SetWindowTextW(hWnd, title);
+            formTitle(&gWorldGuide, hWnd);
         }
         else {
 
@@ -1965,9 +1966,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     rationalizeFilePath(pathAndFile);
                     wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, pathAndFile);
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
-                    wchar_t title[MAX_PATH_AND_FILE];
-                    formTitle(&gWorldGuide, title);
-                    SetWindowTextW(hWnd, title);
+                    formTitle(&gWorldGuide, hWnd);
                 }
                 break;
             case ID_FILE_IMPORTSETTINGS:
@@ -2280,6 +2279,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         // semi-useful, I'm not sure: zoom in when going to nether
                         //gCurScale *= 8.0;
                         //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
+                        //formTitle(&gWorldGuide, hWnd);
                     }
                     else
                     {
@@ -2420,14 +2420,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         {
             // On resize, figure out a better hash table size for cache, if needed.
-            // Take the pixels on the screen, compare to cache size * 16^2 (pixels per chunk) times two
+            // Take the pixels on the screen, compare to cache size * 16^2 (pixels per chunk) times 2.1
             // (as a guess for the number of chunks we might want total, e.g., 2x the screen size).
+            // I'd love to kick it to 4.0x the screen size, that's a bit nicer, but risks running out of memory.
             float zoomFactor = min(gMinZoom, 1.0f);
             zoomFactor *= zoomFactor;
-            if ((rect.bottom - rect.top) * (rect.right - rect.left) > 256 * gOptions.currentCacheSize * zoomFactor)
+            int sizeNeeded = (int)(2.1f * (float)((rect.bottom - rect.top) * (rect.right - rect.left)) / (256.0f * zoomFactor));
+            if (sizeNeeded > gOptions.currentCacheSize)
             {
-                // make new cache twice the size of the screen's needs, should be enough I hope.
-                gOptions.currentCacheSize = (int)((float)(2 * (rect.bottom - rect.top) * (rect.right - rect.left)) / 256.0f / zoomFactor);
+                // make new cache twice the size of the previous cache size, or the sizeNeeded above, whichever is larger
+                gOptions.currentCacheSize = (sizeNeeded > 2 * gOptions.currentCacheSize) ? sizeNeeded : 2 * gOptions.currentCacheSize;
                 ChangeCache(gOptions.currentCacheSize);
             }
         }
@@ -2499,9 +2501,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // copy file name, since it definitely appears to exist.
                     wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, fileName);
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
-                    wchar_t title[MAX_PATH_AND_FILE];
-                    formTitle(&gWorldGuide, title);
-                    SetWindowTextW(hWnd, title);
+                    formTitle(&gWorldGuide, hWnd);
                 }
             }
         }
@@ -3059,6 +3059,7 @@ static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
         // semi-useful, I'm not sure: zoom out when going back
         //gCurScale /= 8.0;
         //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
+        //formTitle(&gWorldGuide, hWnd);
     }
     // Ender is easy, just turn it off 
     gOptions.worldType &= ~ENDER;
@@ -3082,7 +3083,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     // TODO: sometimes the biome comes back as some crazy number - I suspect we're reading uninitialized memory, but it's hard to pin down.
     // Let's just guard against it by not allowing it at all
     if (biome >= 0 && biome < 256)
-        sprintf_s(sbufbiome, 100, " - %s biome", gBiomes[biome].name);
+        sprintf_s(sbufbiome, 100, "; %s biome", gBiomes[biome].name);
     else
         sbufbiome[0] = '\0';
 
@@ -3092,7 +3093,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     }
     else {
         // (((mx>>4) % 32) + 32) % 32) ensures the value is non-negative - there's probably a better way
-        sprintf_s(sbufmap, 100, " - r.%d.%d.mca, chunk [%d, %d]", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32 + 32) % 32));
+        sprintf_s(sbufmap, 100, "; r.%d.%d.mca, chunk [%d, %d] {%d, %d}", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32 + 32) % 32), mx>>4, mz>>4);
     }
 
 
@@ -3107,12 +3108,12 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d[%d,%d] %S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+            wsprintf(buf, L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
         else
             //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d; y=%d %S%S%S%S%S", mx, mz, my, 
+            wsprintf(buf, L"%d,%d,y=%d; %S%S%S%S%S", mx, mz, my, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
     }
@@ -3370,6 +3371,7 @@ static int loadWorld(HWND hWnd)
         gSameWorld = TRUE;   // so if we reload
         // zoom out when loading a new world, since location's reset.
         gCurScale = DEFAULTZOOM;
+        formTitle(&gWorldGuide, hWnd);
 
         gCurDepth = gMaxHeight;
         // set lower level height to sea level, or to 0 if it's a schematic
@@ -3383,8 +3385,7 @@ static int loadWorld(HWND hWnd)
         // because gSameWorld gets set to 1 by loadWorld()T
         if (!gHoldSameWorld)
         {
-            wchar_t title[MAX_PATH_AND_FILE];
-            formTitle(&gWorldGuide, title);
+            formTitle(&gWorldGuide, hWnd);
             char tmpString[1024];
             sprintf_s(tmpString, "%ws", stripWorldName(gWorldGuide.world));
 #ifdef SKETCHFAB
@@ -3392,7 +3393,6 @@ static int loadWorld(HWND hWnd)
             // just in case name was too long
             gSkfbPData.skfbName[48] = (char)0;
 #endif
-            SetWindowTextW(hWnd, title);
         }
     }
     // now done by setUIOnLoadWorld, which should always be called right after loadWorld
@@ -8422,8 +8422,10 @@ static int interpretMouse(char* string)
     return -1;
 }
 
-static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
+void formTitle(WorldGuide* pWorldGuide, HWND hWnd)
 {
+    wchar_t title[MAX_PATH_AND_FILE];
+
     wcscpy_s(title, MAX_PATH_AND_FILE - 1, L"Mineways: ");
 
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE)
@@ -8448,9 +8450,22 @@ static void formTitle(WorldGuide* pWorldGuide, wchar_t* title)
     if (_wcsicmp(terrainName, L"terrainExt.png") != 0)
     {
         // get terrain file name and append
-        wcscat_s(title, MAX_PATH_AND_FILE - 1, L" / ");
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, L"; ");
         wcscat_s(title, MAX_PATH_AND_FILE - 1, terrainName);
     }
+
+    // get zoom level, note if != 1
+    if (gCurScale != 1.0f) {
+        wchar_t zoomString[MAX_PATH_AND_FILE];
+        if ( gCurScale >= 2.0f )
+            swprintf_s(zoomString, MAX_PATH_AND_FILE, L"; Zoom %d", (int)(gCurScale+0.5f));
+        else
+            swprintf_s(zoomString, MAX_PATH_AND_FILE, L"; Zoom %0.3f", gCurScale);
+
+        wcscat_s(title, MAX_PATH_AND_FILE - 1, zoomString);
+    }
+
+    SetWindowTextW(hWnd, title);
 }
 
 // change any '/' to '\', or vice versa, as preferred
@@ -8651,7 +8666,6 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
 {
     FILE* fh;
     errno_t err;
-    wchar_t title[MAX_PATH_AND_FILE];
     wchar_t terrainFileName[MAX_PATH_AND_FILE], tempPath[MAX_PATH_AND_FILE], tempName[MAX_PATH_AND_FILE];
 
     size_t dummySize = 0;
@@ -8671,22 +8685,19 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
             else {
                 // something odd happened - filename is empty
                 swprintf_s(error, 1024, L"Terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
-                formTitle(&gWorldGuide, title);
-                SetWindowTextW(is.ws.hWnd, title);
+                formTitle(&gWorldGuide, is.ws.hWnd);
                 return false;
             }
             err = _wfopen_s(&fh, terrainFileName, L"rt");
             if (err != 0) {
                 // can't find it at all, so generate error.
                 swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
-                formTitle(&gWorldGuide, title);
-                SetWindowTextW(is.ws.hWnd, title);
+                formTitle(&gWorldGuide, is.ws.hWnd);
                 return false;
             }
             // success, copy file and path (directory is fine)
             wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
-            formTitle(&gWorldGuide, title);
-            SetWindowTextW(is.ws.hWnd, title);
+            formTitle(&gWorldGuide, is.ws.hWnd);
             fclose(fh);
         }
     }
@@ -8696,15 +8707,13 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
         if (err != 0) {
             // can't find it at all, so generate error.
             swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
-            formTitle(&gWorldGuide, title);
-            SetWindowTextW(is.ws.hWnd, title);
+            formTitle(&gWorldGuide, is.ws.hWnd);
             return false;
         }
         // success, copy file name&path, and directory
         wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainFileName);
         wcscpy_s(gSelectTerrainDir, MAX_PATH_AND_FILE, tempPath);
-        formTitle(&gWorldGuide, title);
-        SetWindowTextW(is.ws.hWnd, title);
+        formTitle(&gWorldGuide, is.ws.hWnd);
         fclose(fh);
     }
     return true;

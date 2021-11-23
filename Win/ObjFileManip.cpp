@@ -2417,9 +2417,11 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
     //unsigned char dataVal;
 
     WorldBlock* block;
-    block = (WorldBlock*)Cache_Find(bx, bz);
+    void* data;
+    bool found = (WorldBlock*)Cache_Find(bx, bz, &data);
+    block = (WorldBlock*)data;
 
-    if (block == NULL)
+    if (!found)
     {
         wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
@@ -2434,9 +2436,8 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
-        if (block != NULL) {
-            Cache_Add(bx, bz, block);
-        }
+        Cache_Add(bx, bz, block);
+
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return;
     }
@@ -2524,9 +2525,11 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
     //unsigned char dataVal;
 
     WorldBlock* block;
-    block = (WorldBlock*)Cache_Find(bx, bz);
+    void* data;
+    bool found = (WorldBlock*)Cache_Find(bx, bz, &data);
+    block = (WorldBlock*)data;
 
-    if (block == NULL)
+    if (!found)
     {
         wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
@@ -2541,9 +2544,8 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
-        if (block != NULL) {
-            Cache_Add(bx, bz, block);
-        }
+        Cache_Add(bx, bz, block);
+
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return;
     }
@@ -29785,9 +29787,11 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
     int chunkIndex;
 
     WorldBlock* block;
-    block = (WorldBlock*)Cache_Find(bx, bz);
+    void* data;
+    bool found = (WorldBlock*)Cache_Find(bx, bz, &data);
+    block = (WorldBlock*)data;
 
-    if (block == NULL)
+    if (!found)
     {
         wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
@@ -29802,9 +29806,8 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
-        if (block != NULL) {
-            Cache_Add(bx, bz, block);
-        }
+        Cache_Add(bx, bz, block);
+
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
             return minHeight + mapMinHeight;
     }
