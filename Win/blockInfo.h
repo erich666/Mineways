@@ -390,9 +390,9 @@ typedef struct ExportFileData
     UINT chkExportMDL;  // applies only to USD files
 
     char scaleLightsString[EP_FIELD_LENGTH];
-    int scaleLightsVal;
+    float scaleLightsVal;
     char scaleEmittersString[EP_FIELD_LENGTH];
-    int scaleEmittersVal;
+    float scaleEmittersVal;
 
     UINT flags;
 } ExportFileData;

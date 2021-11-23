@@ -5129,6 +5129,9 @@ static void initializePrintExportData(ExportFileData& printData)
     INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 1, 0, 0, 0, 0, 0);
     printData.chkExportMDL = 1;
 
+    printData.scaleLightsVal = 30.0f;
+    printData.scaleEmittersVal = 1000.0f;
+
     printData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
     INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 1, 0, 0, 0, 1, 0);
@@ -5218,6 +5221,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
     viewData.chkExportMDL = 1;
+    viewData.scaleLightsVal = 30.0f;
+    viewData.scaleEmittersVal = 1000.0f;
 
     viewData.floaterCountVal = 16;
     // mostly irrelevant for viewing, though centimeters can be useful
@@ -6685,6 +6690,42 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
+    strPtr = findLineDataNoCase(line, "Light scale:");
+    if (strPtr != NULL) {
+        float fLightScale;
+        if (1 != sscanf_s(strPtr, "%f", &fLightScale) )
+        {
+            saveErrorMessage(is, L"could not interpret value for Light scale command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (fLightScale < 0.0f) {
+            saveErrorMessage(is, L"Light scale value must be a non-negative number.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            is.pEFD->scaleLightsVal = fLightScale;
+        }
+
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Surface emit scale:");
+    if (strPtr != NULL) {
+        float fSurfaceEmitScale;
+        if (1 != sscanf_s(strPtr, "%f", &fSurfaceEmitScale))
+        {
+            saveErrorMessage(is, L"could not interpret value for Surface emit scale command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (fSurfaceEmitScale < 0.0f) {
+            saveErrorMessage(is, L"Surface emit scale value must be a non-negative number.", strPtr); return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            is.pEFD->scaleEmittersVal = fSurfaceEmitScale;
+        }
+
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
     strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
@@ -6805,10 +6846,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%f degrees", &floatVal))
         {
-            saveErrorMessage(is, L"could not interpret degrees value.", strPtr); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not interpret degrees value for Rotate model.", strPtr); return INTERPRETER_FOUND_ERROR;
         }
         if ((floatVal != 0.0f) && (floatVal != 90.0f) && (floatVal != 180.0f) && (floatVal != 270.0f)) {
-            saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"model scale value must be a positive number for Rotate model.", strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
         if (is.processData) {
@@ -6837,7 +6878,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         if (1 == sscanf_s(strPtr, "making each block %f mm high", &floatVal))
         {
             if (floatVal <= 0.0f) {
-                saveErrorMessage(is, L"model scale value must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                saveErrorMessage(is, L"model scale value must be a positive number for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
             }
             if (is.processData) {
                 is.pEFD->radioScaleByBlock = 1;
@@ -6856,7 +6897,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 if (floatVal <= 0.0f) {
-                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    saveErrorMessage(is, L"cost must be a positive number for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 strcat_s(string1, _countof(string1), " ");
                 strcat_s(string1, _countof(string1), string2);
@@ -6877,7 +6918,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 if (floatVal <= 0.0f) {
-                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    saveErrorMessage(is, L"cost must be a positive number for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 strcat_s(string1, _countof(string1), " ");
                 strcat_s(string1, _countof(string1), string2);
@@ -6896,7 +6937,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     saveErrorMessage(is, L"could not find proper material string for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 if (floatVal <= 0.0f) {
-                    saveErrorMessage(is, L"cost must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    saveErrorMessage(is, L"cost must be a positive number for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 if (is.processData) {
                     is.pEFD->radioScaleByCost = 1;
@@ -6909,7 +6950,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
             else if (1 == sscanf_s(strPtr, "fitting to a height of %f cm", &floatVal))
             {
                 if (floatVal <= 0.0f) {
-                    saveErrorMessage(is, L"height must be a positive number.", strPtr); return INTERPRETER_FOUND_ERROR;
+                    saveErrorMessage(is, L"height must be a positive number for Scale model command.", strPtr); return INTERPRETER_FOUND_ERROR;
                 }
                 if (is.processData) {
                     is.pEFD->radioScaleToHeight = 1;

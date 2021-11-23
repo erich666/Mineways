@@ -125,8 +125,13 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 epd.radioExportNoMaterials[epd.fileType] = epd.radioExportMtlColors[epd.fileType] = epd.radioExportSolidTexture[epd.fileType] = epd.radioExportFullTexture[epd.fileType] = 0;
                 epd.radioExportTileTextures[epd.fileType] = 1;
             }
+
+            sprintf_s(epd.scaleLightsString, EP_FIELD_LENGTH, "%g", epd.scaleLightsVal);
+            sprintf_s(epd.scaleEmittersString, EP_FIELD_LENGTH, "%g", epd.scaleEmittersVal);
+            SetDlgItemTextA(hDlg, IDC_SCALE_LIGHTS, epd.scaleLightsString);
+            SetDlgItemTextA(hDlg, IDC_SCALE_EMITTERS, epd.scaleEmittersString);
         }
-        if (epd.fileType == FILE_TYPE_VRML2) {
+        else if (epd.fileType == FILE_TYPE_VRML2) {
             // only allow mosaic textures at best
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 1);
@@ -138,7 +143,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 epd.radioExportFullTexture[epd.fileType] = 1;
             }
         }
-        if (IS_STL) {
+        else if (IS_STL) {
             // only allow colors, at most
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
             CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, (epd.fileType == FILE_TYPE_ASCII_STL) ? 0 : 1);
@@ -199,7 +204,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_INDETERMINATE);
             }
-
         }
 
         //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
@@ -958,6 +962,22 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
 
+        case IDC_SCALE_LIGHTS:
+            if (HIWORD(wParam) == EN_SETFOCUS)
+            {
+                focus = IDC_SCALE_LIGHTS;
+            }
+            //else if ((HIWORD(wParam) == EN_CHANGE) && (focus == IDC_SCALE_LIGHTS))
+            break;
+
+        case IDC_SCALE_EMITTERS:
+            if (HIWORD(wParam) == EN_SETFOCUS)
+            {
+                focus = IDC_SCALE_EMITTERS;
+            }
+            //else if ((HIWORD(wParam) == EN_CHANGE) && (focus == IDC_SCALE_EMITTERS))
+            break;
+
         case IDC_COST:
             // a bit sleazy: if we get focus, then get that the box is changing, change radio button to that choice.
             // There's probably a good way to do this, but I don't know it.
@@ -1054,6 +1074,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 if (epd.fileType == FILE_TYPE_USD) {
                     lepd.chkCustomMaterial[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
                     lepd.chkExportMDL = (IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_CHECKED);
+                    GetDlgItemTextA(hDlg, IDC_SCALE_LIGHTS, lepd.scaleLightsString, EP_FIELD_LENGTH);
+                    GetDlgItemTextA(hDlg, IDC_SCALE_EMITTERS, lepd.scaleEmittersString, EP_FIELD_LENGTH);
                 }
                 else
                     lepd.chkCustomMaterial[epd.fileType] = origEpd.chkCustomMaterial[epd.fileType];
@@ -1147,6 +1169,11 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             nc &= sscanf_s(lepd.floaterCountString, "%d", &lepd.floaterCountVal);
             nc &= sscanf_s(lepd.hollowThicknessString, "%g", &lepd.hollowThicknessVal[epd.fileType]);
 
+            if (lepd.fileType == FILE_TYPE_USD) {
+                nc &= sscanf_s(lepd.scaleLightsString, "%g", &lepd.scaleLightsVal);
+                nc &= sscanf_s(lepd.scaleEmittersString, "%g", &lepd.scaleEmittersVal);
+            }
+
             // this is a bit lazy checking all errors here, there's probably a better way
             // to test as we go, but this sort of thing should be rare
             if (nc == 0)
@@ -1167,6 +1194,19 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             {
                 MessageBox(NULL,
                     _T("Block size must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                return (INT_PTR)FALSE;
+            }
+
+            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleLightsVal <= 0.0f)
+            {
+                MessageBox(NULL,
+                    _T("Light scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                return (INT_PTR)FALSE;
+            }
+            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleEmittersVal <= 0.0f)
+            {
+                MessageBox(NULL,
+                    _T("Surface emit scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
                 return (INT_PTR)FALSE;
             }
 

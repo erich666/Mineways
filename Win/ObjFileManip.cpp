@@ -24208,8 +24208,11 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     }
 
     // create lighting - do before everything else, so that these are easier to find (no scrolling to the bottom)
-    if (retCode |= createLightingUSD(fullTexturePath)) {
-        goto Exit;
+    if (gModel.options->pEFD->scaleLightsVal > 0.0f) {
+        // scale value is set > 0, so output lights
+        if (retCode |= createLightingUSD(fullTexturePath)) {
+            goto Exit;
+        }
     }
 
     // if we're instancing, we need to simply write out the instance locations and what blocks they refer to
@@ -24656,17 +24659,17 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // godrays, if depth shading is on - TODOTODOUSD: too dark and gloomy, need to work on this one
+    // fog, if depth shading is on
     if (gModel.options->worldType & DEPTHSHADING) {
         strcpy_s(outputString, 256, "            float \"rtx:pathtracing:ptfog:asymmetry\" = -0.0828634\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "            float \"rtx:pathtracing:ptfog:density\" = 0.792952\n");
+        strcpy_s(outputString, 256, "            float \"rtx:pathtracing:ptfog:density\" = 0.52\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
-    // 0 means run forever - why not?
-    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 0\n");
+    // 0 means run forever - best to call it a day at some point, so it doesn't run forever
+    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 1000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // no longer used
     //strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
@@ -26104,7 +26107,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         strcpy_s(outputString, 256, "            )\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                        sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", 1000.0 * emission);
+                        sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission);
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         if (outputCustomData) {
                             strcpy_s(outputString, 256, "                customData = {\n");
@@ -26768,11 +26771,12 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     //WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     sprintf_s(outputString, 256, "            float2 inputs:st.connect = <%s/Looks/%s/uv_reader.outputs:result>\n", prefixPath, mtlName);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+
                     // the emissive texture is a grayscale texture, so we (sadly) need to "add the color back in". This is a limitation of Minecraft's texture
                     // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
                     // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
-                    static float debug_scale = 1000.0f;
-                    float escale = debug_scale * emission / 255.0f;
+                    // TODOTODOUSD - don't use rgb color and don't divide by 255 here - should just use emission value for all three, once emitter texture is fixed.
+                    float escale = gModel.options->pEFD->scaleEmittersVal * emission / 255.0f;
                     sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r * escale, (float)g * escale, (float)b * escale);
                     // not this:
                     //float escale = 1000.0f * emission;
@@ -27065,7 +27069,9 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, nightLight ? "        float intensity = 2\n" : "        float intensity = 30\n");
+
+    float lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * (nightLight ? 2.0 / 30.0 : 30.0 / 30.0));
+    sprintf_s(outputString, 256, "        float intensity =  %f\n", lightIntensity);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -27094,8 +27100,10 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // low for the nighttime sky, but making it higher makes the background surrounding map too bright. TODOUSD
-    strcpy_s(outputString, 256, nightLight ? "        float intensity = 2\n" : "        float intensity = 6\n");
+
+    // low for the nighttime sky, but making it higher makes the background surrounding map too bright.
+    lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * (nightLight ? 2.0 / 30.0 : 6.0 / 30.0));
+    sprintf_s(outputString, 256, "        float intensity =  %f\n", lightIntensity);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -28056,8 +28064,13 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     }
 
     if ((gModel.options->pEFD->fileType == FILE_TYPE_USD)) {
-
         sprintf_s(outputString, 256, "# Export MDL: %s\n", gModel.options->pEFD->chkExportMDL ? "YES" : "no");
+        WRITE_STAT;
+
+        sprintf_s(outputString, 256, "# Light scale: %f\n", gModel.options->pEFD->scaleLightsVal);
+        WRITE_STAT;
+
+        sprintf_s(outputString, 256, "# Surface emit scale: %f\n", gModel.options->pEFD->scaleEmittersVal);
         WRITE_STAT;
     }
 
@@ -29387,7 +29400,6 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
     // TODO OK, this is a kludge
     if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
         // For MWO_ chest tiles, we want these to not have alphas, to avoid transparency costs
-        // TODOUSD - may want to do this for torches and other stuff too, someday
         usesAlpha = false;
     }
     int scol = swatchLoc % swatchesPerRow;
