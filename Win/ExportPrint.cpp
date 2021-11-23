@@ -177,6 +177,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
+            CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_INDETERMINATE);
         }
         else
         {
@@ -189,10 +190,16 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
-            if (epd.fileType == FILE_TYPE_USD)
+            if (epd.fileType == FILE_TYPE_USD) {
                 CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
+                CheckDlgButton(hDlg, IDC_EXPORT_MDL, epd.chkExportMDL);
+            }
             else
+            {
                 CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_INDETERMINATE);
+            }
+
         }
 
         //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
@@ -767,6 +774,20 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
 
+        case IDC_EXPORT_MDL:
+            if (epd.fileType == FILE_TYPE_USD)
+            {
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_INDETERMINATE)
+                {
+                    CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_UNCHECKED);
+                }
+            }
+            else
+            {
+                CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_INDETERMINATE);
+            }
+            break;
+
         case IDC_MAKE_GROUPS_OBJECTS:
             if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
             {
@@ -1030,8 +1051,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
                 lepd.chkMaterialPerFamily = origEpd.chkMaterialPerFamily;
                 lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
-                if (epd.fileType == FILE_TYPE_USD)
+                if (epd.fileType == FILE_TYPE_USD) {
                     lepd.chkCustomMaterial[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
+                    lepd.chkExportMDL = (IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_CHECKED);
+                }
                 else
                     lepd.chkCustomMaterial[epd.fileType] = origEpd.chkCustomMaterial[epd.fileType];
             }

@@ -4649,6 +4649,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             // if G3D is chosen, we output the full material
             gOptions.exportFlags |= EXPT_OUTPUT_CUSTOM_MATERIAL;
         }
+        if (gpEFD->chkExportMDL)
+        {
+            gOptions.exportFlags |= EXPT_EXPORT_MDL;
+        }
     }
     // STL files never need grouping by material, and certainly don't export textures
     else if (gpEFD->fileType == FILE_TYPE_ASCII_STL)
@@ -5123,6 +5127,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkSplitByBlockType = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
     INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 1, 0, 0, 0, 0, 0);
+    printData.chkExportMDL = 1;
 
     printData.floaterCountVal = 16;
     INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
@@ -5212,6 +5217,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
     viewData.chkLeavesSolid = 0;
+    viewData.chkExportMDL = 1;
 
     viewData.floaterCountVal = 16;
     // mostly irrelevant for viewing, though centimeters can be useful
@@ -6663,6 +6669,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
         if (is.processData)
             is.pEFD->chkCustomMaterial[is.pEFD->fileType] = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Export MDL:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for Export MDL command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkExportMDL = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

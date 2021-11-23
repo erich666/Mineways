@@ -886,6 +886,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gModel.exportTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
     gModel.exportTiles = (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;
     gModel.customMaterial = (gModel.options->exportFlags & EXPT_OUTPUT_CUSTOM_MATERIAL) ? 1 : 0;
+    gModel.exportMDL = (gModel.options->exportFlags & EXPT_EXPORT_MDL) ? 1 : 0;
 
     gModel.print3D = (gModel.options->exportFlags & EXPT_3DPRINT) ? 1 : 0;
 
@@ -24468,7 +24469,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     }
 
     // create custom MDLs, if needed
-    if (gModel.customMaterial) {
+    if (gModel.exportMDL && gModel.customMaterial) {
         if (retCode |= writeMDLforUSD(gMaterialDirectoryPath)) {
             goto Exit;
         }
@@ -25499,9 +25500,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
         }
         // we normally output MDL descriptions, etc. Allow turning this off, so that UsdPreview (only) materials are used.
-        // TODO expose on user interface, ugh.
-        static bool outputMDL = true;
-        if (outputMDL) {
+        if (gModel.exportMDL) {
             sprintf_s(outputString, 256, "        token outputs:mdl:displacement.connect = <%s/Looks/%s/Shader.outputs:out>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "        token outputs:mdl:surface.connect = <%s/Looks/%s/Shader.outputs:out>\n", prefixPath, mtlName);
@@ -28050,9 +28049,15 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     }
 
     if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) ||
-        (gModel.options->pEFD->fileType == FILE_TYPE_USD) ) {
+        (gModel.options->pEFD->fileType == FILE_TYPE_USD)) {
 
         sprintf_s(outputString, 256, "# G3D full material: %s\n", gModel.options->pEFD->chkCustomMaterial[gModel.options->pEFD->fileType] ? "YES" : "no");
+        WRITE_STAT;
+    }
+
+    if ((gModel.options->pEFD->fileType == FILE_TYPE_USD)) {
+
+        sprintf_s(outputString, 256, "# Export MDL: %s\n", gModel.options->pEFD->chkExportMDL ? "YES" : "no");
         WRITE_STAT;
     }
 

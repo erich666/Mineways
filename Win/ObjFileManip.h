@@ -266,6 +266,7 @@ typedef struct Model {
     int exportTexture;
     int exportTiles;
     bool customMaterial;
+    bool exportMDL;
     bool singleSided;
     bool emitterSingleSided;
     int blockCount;

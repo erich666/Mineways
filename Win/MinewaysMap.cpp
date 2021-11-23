@@ -209,6 +209,10 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
 
     unsigned char* blockbits;
     int z, x, px, py;
+    // TODO: zooming out by setting -zl gives a jumpy center point. I can make this smoother by
+    // turning a bunch of the things below to doubles (other than startxblock and startzblock),
+    // but then the edges don't draw well, and zooming > 1 gives incorrect leftover lines from
+    // previous draws. A minor thing, but it'd be nice to do right at some point.
     int blockScale = (int)(16 * zoom);
 
     // number of blocks to fill the screen (plus 2 blocks for floating point inaccuracy)

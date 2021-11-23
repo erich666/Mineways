@@ -251,6 +251,9 @@ extern UnitType gUnitTypeTable[];
 // when exporting materials with OBJ, each group is also made into an object
 #define EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS		0x04000000
 
+// export MDL or not for USD (affects custom material display, too)
+#define EXPT_EXPORT_MDL                     0x08000000
+
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
 
@@ -384,6 +387,12 @@ typedef struct ExportFileData
     UINT chkMaterialPerFamily;	// "Material per family" of blocks
     UINT chkSplitByBlockType;	// "Split by block type"
     UINT chkCustomMaterial[FILE_TYPE_TOTAL];
+    UINT chkExportMDL;  // applies only to USD files
+
+    char scaleLightsString[EP_FIELD_LENGTH];
+    int scaleLightsVal;
+    char scaleEmittersString[EP_FIELD_LENGTH];
+    int scaleEmittersVal;
 
     UINT flags;
 } ExportFileData;
