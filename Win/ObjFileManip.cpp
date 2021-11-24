@@ -749,6 +749,7 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue);
 static int writeEmissiveScaledTile(wchar_t* filename, int index);
 static int writeTileFromCategoryInput(wchar_t* filename, int index, int category);
 static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value);
+static boolean isTileValueConstant(int category, int swatchLoc, unsigned char& value);
 static int tileAlphaStatus(int swatchLoc);
 static void formCategoryFileName(char* catFile, int category, char* textureRGB);
 
@@ -1666,6 +1667,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
 
                         // Check if there is a normal map etc. to output, copying directly from the input texture, and note that it's output.
                         for (int j = 1; j < gTotalInputTextures; j++) {
+                            // have a texture to output?
                             if (gModel.tileList[j][i]) {
                                 // special, stupid case: output roughness with _s for OBJ files, as specular is output
                                 int category = (isOBJ && j == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : j;
@@ -21637,7 +21639,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             // note in an array that this separate tile should be output as a material
-                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;
+                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
                         else {
@@ -21712,7 +21714,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             // note in an array that this separate tile should be output as a material
-                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;
+                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
                         }
                         else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
@@ -22336,7 +22338,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             // and who knows how those are handled in the normal map.
             //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
             if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
-                gModel.tileList[i][swatchLoc] = true;
+                gModel.tileList[i][swatchLoc] = true;  // means has a texture
                 for (int alt = 0; alt < 2; alt++) {
                     formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
                     // from http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr and
@@ -25476,19 +25478,6 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
         }
 
-        // check if there are normals and MER textures, as needed
-        if (gModel.exportTiles) {
-            for (int i = 1; i < gTotalInputTextures; i++) {
-                // if texture exists and swatch is not black, is needed, then use it and note it.
-                // In theory we could check just the first pixel for a normal map, but there might be cutouts,
-                // and who knows how those are handled in the normal map.
-                //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
-                if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, 0)) {
-                    gModel.tileList[i][swatchLoc] = true;
-                }
-            }
-        }
-
         // get map color, for things such as emission color
         unsigned int color = gBlockDefinitions[pFace->materialType].read_color;
         unsigned char r, g, b;
@@ -25500,6 +25489,44 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         float metallic = 0.0f;
         //setMetallicRoughnessByName(pFace->materialType, &metallic, &roughness);
         setMetallicRoughnessByName(mtlName, &metallic, &roughness);
+
+        // check if there are normals and MER textures for this particular tile, as needed
+        if (gModel.exportTiles) {
+            for (int i = 1; i < gTotalInputTextures; i++) {
+                // if texture exists and swatch is not black, is needed, then use it and note it.
+                // In theory we could check just the first pixel for a normal map, but there might be cutouts,
+                // and who knows how those are handled in the normal map.
+                //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
+                if (gModel.pInputTerrainImage[i]) {
+                    if (i == CATEGORY_METALLIC || i == CATEGORY_ROUGHNESS) {
+                        unsigned char value;
+                        if (!isTileValueConstant(i, swatchLoc, value)) {
+                            // not all the same value
+                            gModel.tileList[i][swatchLoc] = true;  // has a texture
+                        }
+                        else {
+                            // some constant value, use it
+                            if (i == CATEGORY_ROUGHNESS) {
+                                // all black we take as meaning the value is not set,
+                                // so leave roughness as 1.0
+                                if (value > 0) {
+                                    roughness = (float)value / 255.0f;
+                                }
+                            }
+                            else {
+                                metallic = (float)value / 255.0f;
+                            }
+                        }
+                    }
+                    else {
+                        if (!isTileValue(i, swatchLoc, true, 0)) {
+                            // not all black - has a texture
+                            gModel.tileList[i][swatchLoc] = true;  // has a texture
+                        }
+                    }
+                }
+            }
+        }
 
         sprintf_s(outputString, 256, "%s    def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26056,7 +26083,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         // we flag emitters that don't have an emissive so need to have a texture synthesized for them
                         if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
                             gModel.tileEmissionNeeded[swatchLoc] = true;
-                            gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+                            gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;  // means has a texture
                         }
 #endif
 
@@ -26757,7 +26784,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // we flag emitters that don't have an emissive so need to have a texture synthesized for them
                     if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
                         gModel.tileEmissionNeeded[swatchLoc] = true;
-                        gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+                        gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;  // means has a texture
                     }
 #endif
                     float max = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
@@ -27040,7 +27067,7 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
         assert(prevSwatchLoc < TOTAL_TILES);
         WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
         // note in an array that this separate tile should be output as a material
-        gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;
+        gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
         assert(gModel.mtlCount < NUM_SUBMATERIALS);
     }
     else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
@@ -27748,6 +27775,35 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
             {
                 if (*image_data++ != value) {
                     // found a pixel where a channel is not black
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+// all pixels match? This is not uncommon for roughness and metallic textures. No need to export such textures.
+// returns constant value (or first pixel value, if things differ)
+static boolean isTileValueConstant(int category, int swatchLoc, unsigned char &value)
+{
+    if (gModel.pInputTerrainImage[category] != NULL) {
+        // check tile to see if all its values equals its first value.
+        // This can go wrong with alpha cutouts, but that's OK.
+        assert(gCatChannels[category]==1);
+        int perRow = gModel.pInputTerrainImage[category]->width;
+        int tileStart = ((swatchLoc / 16) * perRow * gModel.tileSize) +
+            ((swatchLoc % 16) * gModel.tileSize);
+        // size of area to check in tile
+        int size = gModel.tileSize;
+        unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart]);
+        value = *image_data;
+        for (int row = 0; row < size; row++)
+        {
+            image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart + row * perRow]);
+            for (int col = 0; col < size; col++)
+            {
+                if (*image_data++ != value) {
                     return false;
                 }
             }
